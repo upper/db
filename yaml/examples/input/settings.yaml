@@ -1,0 +1,20 @@
+test_string: "Hello World!"
+test_int: 1234
+test_float: 1.2
+test_bool: true
+test_sequence: 
+  - Asia
+  - America
+  - Europe
+  - Africa
+  - Oceania
+test_map: {
+  element_1: 1,
+  element_2: 2,
+  element_3: {
+    test_string: "Hello World!",
+    test_float: 2.3,
+    test_sequence: [ "First", "Second", "Third" ]
+  }
+}
+Test_Caseless: "HaS CaSe"
