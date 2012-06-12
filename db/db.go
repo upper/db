@@ -23,17 +23,12 @@
 
 package db
 
-type Database interface {
-  Connect() error
-  Use() error
-  Collection()
-}
-
 type Where map[string] interface{}
 type And []interface{}
 type Or []interface{}
 type Sort map[string] interface{}
 type Modify map[string] interface{}
+type Multi bool
 
 type Limit uint
 type Offset uint
@@ -45,11 +40,25 @@ type Query interface {
 
 }
 
+type Database interface {
+  Connect() error
+  Use() error
+  Collection()
+  Drop() bool
+  Collections() []string
+}
+
 type Collection interface {
   Append(...interface{}) bool
-  Find(...interface{}) []interface{}
+
+  Find(...interface{}) interface{}
+  FindAll(...interface{}) []interface{}
+
   Update(...interface{}) bool
+  UpdateAll(...interface{}) bool
+
   Remove(...interface{}) bool
+  RemoveAll(...interface{}) bool
 }
 
 type DataSource struct {
@@ -59,3 +68,4 @@ type DataSource struct {
   User string
   Password string
 }
+

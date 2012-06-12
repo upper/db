@@ -26,6 +26,7 @@ package db
 import (
   . "github.com/xiam/gosexy"
   "strings"
+  "reflect"
   "launchpad.net/mgo"
 )
 
@@ -133,10 +134,49 @@ func (c *MongoDBCollection) CompileQuery(terms []interface{}) interface{} {
   return query
 }
 
+func (c *MongoDBCollection) RemoveAll(terms ...interface{}) bool {
+
+  terms = append(terms, Multi(true))
+
+  result := c.Invoke("Remove", terms)
+
+  return true
+}
+
 func (c *MongoDBCollection) Remove(terms ...interface{}) bool {
   
+  var multi interface{}
+
   query := c.CompileQuery(terms)
-  c.collection.RemoveAll(query)
+
+  itop := len(terms)
+
+  for i := 0; i < itop; i++ {
+    term := terms[i]
+
+    switch term.(type) {
+      case Multi: {
+        multi = term.(Multi)
+      }
+    }
+  }
+
+  if multi != nil {
+    c.collection.RemoveAll(query)
+  } else {
+    c.collection.Remove(query)
+  }
+
+  return true
+}
+
+func (c *MongoDBCollection) UpdateAll(terms ...interface{}) bool {
+
+  terms = append(terms, Multi(true))
+
+  result := c.Invoke("Update", terms)
+
+  // TODO: catch response.
 
   return true
 }
@@ -150,6 +190,8 @@ func (c *MongoDBCollection) Update(terms ...interface{}) bool {
   set     = nil
   upsert  = nil
   modify  = nil
+
+  // TODO: make use Multi
 
   query := c.CompileQuery(terms)
 
@@ -189,7 +231,58 @@ func (c *MongoDBCollection) Update(terms ...interface{}) bool {
   return false
 }
 
-func (c *MongoDBCollection) Find(terms ...interface{}) []interface{} {
+func (c *MongoDBCollection) Invoke(fn string, terms []interface{}) []reflect.Value {
+
+  self      := reflect.TypeOf(c)
+  method, _ := self.MethodByName(fn)
+
+  args := make([]reflect.Value, 1 + len(terms))
+
+  args[0] = reflect.ValueOf(c)
+
+  itop := len(terms)
+  for i := 0; i < itop; i++ {
+    args[i + 1] = reflect.ValueOf(terms[i])
+  }
+
+  exec := method.Func.Call(args)
+
+  return exec
+}
+
+func (c *MongoDBCollection) Find(terms ...interface{}) interface{} {
+
+  var result interface{}
+
+  typeOf := reflect.TypeOf(c)
+  method, _ := typeOf.MethodByName("FindAll")
+
+  args := make([]reflect.Value, 2 + len(terms))
+
+  // First argument is mandatory.
+  args[0] = reflect.ValueOf(c)
+
+  // Forced constraint.
+  args[1] = reflect.ValueOf(Limit(1))
+
+  itop := len(terms)
+  for i := 0; i < itop; i++ {
+    args[i+2] = reflect.ValueOf(terms[i])
+  }
+
+  exec := method.Func.Call(args)
+
+  results := exec[0].Interface().([] interface {})
+
+  if (len(results) > 0) {
+    // We expect only the first result.
+    result = results[0]
+  }
+
+  return result
+}
+
+func (c *MongoDBCollection) FindAll(terms ...interface{}) []interface{} {
 
   var result []interface {}
   var sort interface {}
@@ -234,7 +327,7 @@ func (c *MongoDBCollection) Find(terms ...interface{}) []interface{} {
   if sort != nil {
     p = p.Sort(sort)
   }
-  
+
   // Retrieving data
   p.All(&result)
 
@@ -267,4 +360,17 @@ func (m *MongoDB) Connect() error {
     m.Use(m.config.Database)
   }
   return err
+}
+
+func (m *MongoDB) Drop() bool {
+  err := m.database.DropDatabase()
+  if err == nil {
+    return false
+  }
+  return true
+}
+
+func (m *MongoDB) Collections() []string {
+  names, _ := m.database.CollectionNames()
+  return names
 }
