@@ -28,6 +28,7 @@ import (
   "strings"
   "reflect"
   "launchpad.net/mgo"
+  "launchpad.net/mgo/bson"
 )
 
 type MongoDB struct {
@@ -63,15 +64,35 @@ func (w Where) Marshal() map[string] interface{} {
   return conds
 }
 
-func (c *MongoDBCollection) Append(items ...interface {}) bool {
-  // TODO: use reflection
-  length := len(items)
-  for i := 0; i < length; i++ {
-    err := c.collection.Insert(items[i])
-    if err != nil {
-      panic(err)
-    }
+func (c *MongoDBCollection) Truncate() bool {
+  err := c.collection.DropCollection()
+
+  if err == nil {
+    return false
   }
+
+  return true
+}
+
+func (c *MongoDBCollection) Append(items ...interface {}) bool {
+
+  parent    := reflect.TypeOf(c.collection)
+  method, _ := parent.MethodByName("Insert")
+
+  args := make([]reflect.Value, 1 + len(items))
+  args[0] = reflect.ValueOf(c.collection)
+
+  itop := len(items)
+  for i := 0; i < itop; i++ {
+    args[i + 1] = reflect.ValueOf(items[i])
+  }
+
+  exec := method.Func.Call(args)
+
+  if exec[0].Interface() != nil {
+    return false
+  }
+
   return true
 }
 
@@ -140,7 +161,7 @@ func (c *MongoDBCollection) RemoveAll(terms ...interface{}) bool {
 
   result := c.Invoke("Remove", terms)
 
-  return true
+  return result[0].Bool()
 }
 
 func (c *MongoDBCollection) Remove(terms ...interface{}) bool {
@@ -176,9 +197,7 @@ func (c *MongoDBCollection) UpdateAll(terms ...interface{}) bool {
 
   result := c.Invoke("Update", terms)
 
-  // TODO: catch response.
-
-  return true
+  return result[0].Bool()
 }
 
 func (c *MongoDBCollection) Update(terms ...interface{}) bool {
@@ -186,10 +205,12 @@ func (c *MongoDBCollection) Update(terms ...interface{}) bool {
   var set     interface{}
   var upsert  interface{}
   var modify  interface{}
+  var multi   interface{}
 
   set     = nil
   upsert  = nil
   modify  = nil
+  multi   = nil
 
   // TODO: make use Multi
 
@@ -210,21 +231,41 @@ func (c *MongoDBCollection) Update(terms ...interface{}) bool {
       case Modify: {
         modify = term.(Modify)
       }
+      case Multi: {
+        multi = term.(Multi)
+      }
     }
   }
 
-  if set != nil {
-    c.collection.UpdateAll(query, Tuple { "$set": set })
-    return true
-  }
 
+  if multi != nil {
+
+    if set != nil {
+      c.collection.UpdateAll(query, Tuple { "$set": set })
+      return true
+    }
+
+    if modify != nil {
+      c.collection.UpdateAll(query, modify)
+      return true
+    }
+
+  } else {
+
+    if set != nil {
+      c.collection.Update(query, Tuple { "$set": set })
+      return true
+    }
+
+    if modify != nil {
+      c.collection.Update(query, modify)
+      return true
+    }
+
+  }
+  
   if upsert != nil {
     c.collection.Upsert(query, upsert)
-    return true
-  }
-
-  if modify != nil {
-    c.collection.UpdateAll(query, modify)
     return true
   }
 
@@ -250,40 +291,26 @@ func (c *MongoDBCollection) Invoke(fn string, terms []interface{}) []reflect.Val
   return exec
 }
 
-func (c *MongoDBCollection) Find(terms ...interface{}) interface{} {
+func (c *MongoDBCollection) Find(terms ...interface{}) Item {
+  
+  var item Item
 
-  var result interface{}
+  terms = append(terms, Limit(1))
 
-  typeOf := reflect.TypeOf(c)
-  method, _ := typeOf.MethodByName("FindAll")
+  result := c.Invoke("FindAll", terms)
 
-  args := make([]reflect.Value, 2 + len(terms))
-
-  // First argument is mandatory.
-  args[0] = reflect.ValueOf(c)
-
-  // Forced constraint.
-  args[1] = reflect.ValueOf(Limit(1))
-
-  itop := len(terms)
-  for i := 0; i < itop; i++ {
-    args[i+2] = reflect.ValueOf(terms[i])
+  if len(result) > 0 {
+    response := result[0].Interface().([]Item)
+    if len(response) > 0 {
+      item = response[0]
+    }
   }
 
-  exec := method.Func.Call(args)
-
-  results := exec[0].Interface().([] interface {})
-
-  if (len(results) > 0) {
-    // We expect only the first result.
-    result = results[0]
-  }
-
-  return result
+  return item
 }
 
-func (c *MongoDBCollection) FindAll(terms ...interface{}) []interface{} {
-
+func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
+  var items []Item
   var result []interface {}
   var sort interface {}
 
@@ -331,7 +358,18 @@ func (c *MongoDBCollection) FindAll(terms ...interface{}) []interface{} {
   // Retrieving data
   p.All(&result)
 
-  return result
+  itop = len(result)
+  items = make([]Item, itop)
+
+  for i := 0; i < itop; i++ {
+    item := Item{}
+    for key, val := range result[i].(bson.M) {
+      item[key] = val
+    }
+    items = append(items, item)
+  }
+
+  return items
 }
 
 func NewMongoDB(config *DataSource) *MongoDB {

@@ -1,9 +1,9 @@
 package db
 
 import (
-  . "github.com/xiam/gosexy"
-  "testing"
+  //. "github.com/xiam/gosexy"
   "fmt"
+  "testing"
 )
 
 func TestAll(t *testing.T) {
@@ -22,24 +22,17 @@ func TestAll(t *testing.T) {
   // Choose collection
   col := db.Collection("people")
 
+  all := col.FindAll()
+
+  for i := 0; i < len(all); i++ {
+    for key, val := range all[i] {
+      fmt.Printf("key(%v) = (%v)\n", key, val)
+    }
+  }
+
+  /*
   // Testing insert
   col.Append(Tuple { "Name": "Tucket11", "LastName": "Nancy" })
-  
-  /*
-  col.Find()
-  
-  col.Find(
-    Where { "Name": "Tucket" },
-  )
-  
-  col.Find(
-    Where { "Name": "Tucket" },
-    Where { "LastName $ne": "Barr" },
-    Limit (2),
-    Offset (5),
-    Sort { "Name": -1 },
-  )
-  */
   
   found := col.Find(
     Where { "Name": "Tucket3" },
@@ -48,9 +41,10 @@ func TestAll(t *testing.T) {
   fmt.Printf("Find: %v\n", found)
 
   col.Update(Where {"Name": "Tucket" }, Set { "FooSet": "Bar", "Name": "Tucket3" })
-  col.Update(Where {"Name": "Tucket5" }, Upsert { "Heh": "Bar" })
+  col.UpdateAll(Where {"Name": "Tucket5" }, Upsert { "Heh": "Bar" })
   col.Update(Where {"Name": "Tucket3" }, Modify { "$unset": "FooSet" })
 
   col.Remove(Where { "Name": "Tucket" })
   col.RemoveAll(Where { "Name": "Tucket" })
+  */
 }

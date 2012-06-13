@@ -36,8 +36,14 @@ type Offset uint
 type Set map[string] interface{}
 type Upsert map[string] interface{}
 
-type Query interface {
+type Item map[string] interface {}
 
+type DataSource struct {
+  Host string
+  Port int
+  Database string
+  User string
+  Password string
 }
 
 type Database interface {
@@ -48,24 +54,19 @@ type Database interface {
   Collections() []string
 }
 
+
 type Collection interface {
   Append(...interface{}) bool
 
-  Find(...interface{}) interface{}
-  FindAll(...interface{}) []interface{}
+  Find(...interface{}) Item
+  FindAll(...interface{}) []Item
 
   Update(...interface{}) bool
   UpdateAll(...interface{}) bool
 
   Remove(...interface{}) bool
   RemoveAll(...interface{}) bool
-}
 
-type DataSource struct {
-  Host string
-  Port int
-  Database string
-  User string
-  Password string
+  Truncate() bool
 }
 
