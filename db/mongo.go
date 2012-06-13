@@ -366,7 +366,7 @@ func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
     for key, val := range result[i].(bson.M) {
       item[key] = val
     }
-    items = append(items, item)
+    items[i] = item
   }
 
   return items
