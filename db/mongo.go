@@ -24,9 +24,10 @@
 package db
 
 import (
-  . "github.com/xiam/gosexy"
   "strings"
   "reflect"
+  "time"
+  "net/url"
   "launchpad.net/mgo"
   "launchpad.net/mgo/bson"
 )
@@ -241,7 +242,7 @@ func (c *MongoDBCollection) Update(terms ...interface{}) bool {
   if multi != nil {
 
     if set != nil {
-      c.collection.UpdateAll(query, Tuple { "$set": set })
+      c.collection.UpdateAll(query, Item { "$set": set })
       return true
     }
 
@@ -253,7 +254,7 @@ func (c *MongoDBCollection) Update(terms ...interface{}) bool {
   } else {
 
     if set != nil {
-      c.collection.Update(query, Tuple { "$set": set })
+      c.collection.Update(query, Item { "$set": set })
       return true
     }
 
@@ -291,8 +292,22 @@ func (c *MongoDBCollection) Invoke(fn string, terms []interface{}) []reflect.Val
   return exec
 }
 
-func (c *MongoDBCollection) Find(terms ...interface{}) Item {
+func (c *MongoDBCollection) Count(terms ...interface{}) int {
+  q := c.Invoke("BuildQuery", terms)
   
+  p := q[0].Interface().(*mgo.Query)
+
+  count, err := p.Count()
+
+  if err != nil {
+    panic(err)
+  }
+
+  return count
+}
+
+func (c *MongoDBCollection) Find(terms ...interface{}) Item {
+
   var item Item
 
   terms = append(terms, Limit(1))
@@ -309,9 +324,8 @@ func (c *MongoDBCollection) Find(terms ...interface{}) Item {
   return item
 }
 
-func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
-  var items []Item
-  var result []interface {}
+func (c *MongoDBCollection) BuildQuery(terms ...interface{}) *mgo.Query {
+
   var sort interface {}
 
   limit   := -1
@@ -339,26 +353,37 @@ func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
   }
 
   // Actually executing query, returning a pointer.
-  p := c.collection.Find(query)
+  q := c.collection.Find(query)
 
   // Applying limits and offsets.
   if offset > -1 {
-    p = p.Skip(offset)
+    q = q.Skip(offset)
   }
 
   if limit > -1 {
-    p = p.Limit(limit)
+    q = q.Limit(limit)
   }
 
   // Sorting result
   if sort != nil {
-    p = p.Sort(sort)
+    q = q.Sort(sort)
   }
 
+  return q
+}
+
+func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
+  var items []Item
+  var result []interface {}
+
   // Retrieving data
+  q := c.Invoke("BuildQuery", terms)
+
+  p := q[0].Interface().(*mgo.Query)
+
   p.All(&result)
 
-  itop = len(result)
+  itop := len(result)
   items = make([]Item, itop)
 
   for i := 0; i < itop; i++ {
@@ -393,10 +418,23 @@ func (m *MongoDB) Collection(name string) Collection {
 
 func (m *MongoDB) Connect() error {
   var err error
-  m.session, err = mgo.Dial(m.config.Host)
+  
+  connURL := &url.URL{ Scheme: "mongodb" }
+  
+  if m.config.Host != "" {
+    connURL.Host = m.config.Host
+  }
+  
+  if m.config.User != "" {
+    connURL.User = url.UserPassword(m.config.User, m.config.Password)
+  }
+
+  m.session, err = mgo.DialWithTimeout(connURL.String(), 5*time.Second)
+
   if m.config.Database != "" {
     m.Use(m.config.Database)
   }
+
   return err
 }
 

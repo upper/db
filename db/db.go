@@ -28,7 +28,12 @@ type And []interface{}
 type Or []interface{}
 type Sort map[string] interface{}
 type Modify map[string] interface{}
+
+type Relate map[string] interface{}
+type On []interface{}
+
 type Multi bool
+type CountFlag bool
 
 type Limit uint
 type Offset uint
@@ -57,6 +62,8 @@ type Database interface {
 
 type Collection interface {
   Append(...interface{}) bool
+
+  Count(...interface{}) int
 
   Find(...interface{}) Item
   FindAll(...interface{}) []Item
