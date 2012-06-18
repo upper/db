@@ -28,8 +28,10 @@ import (
   "reflect"
   "time"
   "net/url"
+  "regexp"
   "launchpad.net/mgo"
   "launchpad.net/mgo/bson"
+  . "github.com/xiam/gosexy"
 )
 
 type MongoDB struct {
@@ -375,6 +377,27 @@ func (c *MongoDBCollection) BuildQuery(terms ...interface{}) *mgo.Query {
 func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
   var items []Item
   var result []interface {}
+  
+  var relate interface {}
+  var relateAll interface {}
+
+  var itop int
+
+  // Analyzing
+  itop = len(terms)
+
+  for i := 0; i < itop; i++ {
+    term := terms[i]
+
+    switch term.(type) {
+      case Relate: {
+        relate = term.(Relate)
+      }
+      case RelateAll: {
+        relateAll = term.(RelateAll)
+      }
+    }
+  }
 
   // Retrieving data
   q := c.Invoke("BuildQuery", terms)
@@ -383,14 +406,107 @@ func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
 
   p.All(&result)
 
-  itop := len(result)
+  var relations []Tuple
+  
+  // This query is related to other collections.
+  if relate != nil {
+    for rname, rterms := range relate.(Relate) {
+      rcollection := c.parent.Collection(rname)
+
+      ttop := len(rterms)
+      for t := ttop - 1; t >= 0; t-- {
+        rterm := rterms[t]
+        switch rterm.(type) {
+          case Collection: {
+            rcollection = rterm.(Collection)
+          }
+        }
+      }
+
+      relations = append(relations, Tuple { "all": false, "name": rname, "collection": rcollection, "terms": rterms, })
+    }
+  }
+  
+  if relateAll != nil {
+    for rname, rterms := range relateAll.(RelateAll) {
+      rcollection := c.parent.Collection(rname)
+
+      ttop := len(rterms)
+      for t := ttop - 1; t >= 0; t-- {
+        rterm := rterms[t]
+        switch rterm.(type) {
+          case Collection: {
+            rcollection = rterm.(Collection)
+          }
+        }
+      }
+
+      relations = append(relations, Tuple { "all": true, "name": rname, "collection": rcollection, "terms": rterms, })
+    }
+  }
+
+  var term interface{}
+
+  jtop := len(relations)
+
+  itop = len(result)
   items = make([]Item, itop)
 
   for i := 0; i < itop; i++ {
+
     item := Item{}
+    
+    // Default values.
     for key, val := range result[i].(bson.M) {
       item[key] = val
     }
+
+    // Querying relations
+    for j := 0; j < jtop; j++ {
+
+      relation := relations[j]  
+      
+      terms := []interface{}{}
+
+      ktop := len(relation["terms"].(On))
+      
+      for k := 0; k < ktop; k++ {
+
+        //term = tcopy[k]
+        term = relation["terms"].(On)[k]
+
+        switch term.(type) {
+          // Just waiting for Where statements.
+          case Where: {
+            for wkey, wval := range term.(Where) {
+              //if reflect.TypeOf(wval).Kind() == reflect.String { // does not always work.
+              if reflect.TypeOf(wval).Name() == "string" {
+                // Matching dynamic values.
+                matched, _ := regexp.MatchString("\\{.+\\}", wval.(string))
+                if matched {
+                  // Replacing dynamic values.
+                  kname := strings.Trim(wval.(string), "{}")
+                  term = Where { wkey : item[kname] }
+                }
+              }
+            }
+          }
+        }
+        terms = append(terms, term)
+      }
+      
+      // Executing external query.
+      if relation["all"] == true {
+        value := relation["collection"].(*MongoDBCollection).Invoke("FindAll", terms)
+        item[relation["name"].(string)] = value[0].Interface().([]Item)
+      } else {
+        value := relation["collection"].(*MongoDBCollection).Invoke("Find", terms)
+        item[relation["name"].(string)] = value[0].Interface().(Item)
+      }
+
+    }
+
+    // Appending to results.
     items[i] = item
   }
 

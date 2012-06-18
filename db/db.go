@@ -29,8 +29,10 @@ type Or []interface{}
 type Sort map[string] interface{}
 type Modify map[string] interface{}
 
-type Relate map[string] interface{}
 type On []interface{}
+
+type Relate map[string] On
+type RelateAll map[string] On
 
 type Multi bool
 type CountFlag bool

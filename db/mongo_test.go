@@ -1,9 +1,9 @@
 package db
 
 import (
-  //. "github.com/xiam/gosexy"
   "fmt"
   "math/rand"
+  "github.com/kr/pretty"
   "testing"
 )
 
@@ -158,12 +158,12 @@ func TestPopulate(t *testing.T) {
 
   db.Use("test")
 
-  states := []string { "Alaska", "Alabama", "Cancún" }
+  places := []string { "Alaska", "Nebraska", "Alaska", "Acapulco", "Rome", "Singapore", "Alabama", "Cancún" }
 
-  for i = 0; i < len(states); i++ {
-    db.Collection("states").Append(Item {
+  for i = 0; i < len(places); i++ {
+    db.Collection("places").Append(Item {
       "code_id": i,
-      "name": states[i],
+      "name": places[i],
     })
   }
 
@@ -180,11 +180,22 @@ func TestPopulate(t *testing.T) {
       })
     }
 
-    // Belongs to one State.
+    // Lives in
     db.Collection("people").Update(
       Where { "_id": person["_id"] },
-      Set { "state_code_id": int( rand.Float32() * float32(len(states)) ) },
+      Set { "place_code_id": int( rand.Float32() * float32(len(places)) ) },
     )
+
+    // Has visited
+    for k := 0; k < 3; k++ {
+      place := db.Collection("places").Find(Where {
+        "code_id": int( rand.Float32() * float32(len(places)) ),
+      })
+      db.Collection("visits").Append(Item {
+        "place_id": place["_id"],
+        "person_id": person["_id"],
+      })
+    }
   }
 
 }
@@ -202,17 +213,31 @@ func TestRelation(t *testing.T) {
 
   col := db.Collection("people")
 
-  col.FindAll(
+  result := col.FindAll(
     Relate {
-      "state": On {
-        db.Collection("states"),
-        Where { "{this}.code_id": "{that}.state_code_id" },
+      "lives_in": On {
+        db.Collection("places"),
+        Where { "code_id": "{place_code_id}" },
       },
-      "children": On {
-        Where { "{this}.parent_id": "{that}._id" },
-        Limit(4),
+    },
+    RelateAll {
+      "has_children": On {
+        db.Collection("children"),
+        Where { "parent_id": "{_id}" },
+      },
+      "has_visited": On {
+        db.Collection("visits"),
+        Where { "person_id": "{_id}" },
+        Relate {
+          "place": On {
+            db.Collection("places"),
+            Where { "_id": "{place_id}" },
+          },
+        },
       },
     },
   )
+
+  fmt.Printf("%# v\n", pretty.Formatter(result))
 }
 
