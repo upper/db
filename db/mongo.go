@@ -34,22 +34,21 @@ import (
   . "github.com/xiam/gosexy"
 )
 
+// MongoDB session.
 type MongoDB struct {
   config  *DataSource
   session  *mgo.Session
   database *mgo.Database
 }
 
+// MongoDB collection.
 type MongoDBCollection struct {
   parent *MongoDB
   collection *mgo.Collection
 }
 
-type MongoDbQuery struct {
-
-}
-
-func (w Where) Marshal() map[string] interface{} {
+// Converts Where keytypes into something that mgo can understand.
+func (w Where) marshal() map[string] interface{} {
   conds := make(map[string] interface{})
 
   for key, val := range(w) {
@@ -67,6 +66,7 @@ func (w Where) Marshal() map[string] interface{} {
   return conds
 }
 
+// Deletes all rows in a collection. In MongoDB, deletes the whole collection.
 func (c *MongoDBCollection) Truncate() bool {
   err := c.collection.DropCollection()
 
@@ -77,6 +77,11 @@ func (c *MongoDBCollection) Truncate() bool {
   return true
 }
 
+// Inserts items into the collection. You can use one or many Item values as arguments.
+//
+// Example:
+//
+// collection.Append(Item { "name": "Peter" })
 func (c *MongoDBCollection) Append(items ...interface {}) bool {
 
   parent    := reflect.TypeOf(c.collection)
@@ -99,13 +104,14 @@ func (c *MongoDBCollection) Append(items ...interface {}) bool {
   return true
 }
 
-func (c *MongoDBCollection) CompileConditions(term interface{}) interface{} {
+// Compiles terms into conditions that mgo can understand. 
+func (c *MongoDBCollection) compileConditions(term interface{}) interface{} {
   switch term.(type) {
     case []interface{}: {
       values  := []interface{} {}
       itop    := len(term.([]interface{}))
       for i := 0; i < itop; i++ {
-        value := c.CompileConditions(term.([]interface{})[i])
+        value := c.compileConditions(term.([]interface{})[i])
         if value != nil {
           values = append(values, value)
         }
@@ -118,7 +124,7 @@ func (c *MongoDBCollection) CompileConditions(term interface{}) interface{} {
       values  := []interface{} {}
       itop    := len(term.(Or))
       for i := 0; i < itop; i++ {
-        values = append(values, c.CompileConditions(term.(Or)[i]))
+        values = append(values, c.compileConditions(term.(Or)[i]))
       }
       condition := map[string]interface{} { "$or": values }
       return condition
@@ -127,22 +133,23 @@ func (c *MongoDBCollection) CompileConditions(term interface{}) interface{} {
       values  := []interface{} {}
       itop    := len(term.(And))
       for i := 0; i < itop; i++ {
-        values = append(values, c.CompileConditions(term.(And)[i]))
+        values = append(values, c.compileConditions(term.(And)[i]))
       }
       condition := map[string]interface{} { "$and": values }
       return condition
     }
     case Where: {
-      return term.(Where).Marshal()
+      return term.(Where).marshal()
     }
   }
   return nil
 }
 
-func (c *MongoDBCollection) CompileQuery(terms []interface{}) interface{} {
+// Compiles terms into a query that mgo can understand.
+func (c *MongoDBCollection) compileQuery(terms []interface{}) interface{} {
   var query interface {}
 
-  compiled := c.CompileConditions(terms)
+  compiled := c.compileConditions(terms)
 
   if compiled != nil {
     conditions := compiled.([]interface{})
@@ -158,20 +165,29 @@ func (c *MongoDBCollection) CompileQuery(terms []interface{}) interface{} {
   return query
 }
 
+// Removes all the items that match the condition. See Remove().
 func (c *MongoDBCollection) RemoveAll(terms ...interface{}) bool {
 
-  terms = append(terms, Multi(true))
+  terms = append(terms, multiFlag(true))
 
-  result := c.Invoke("Remove", terms)
+  result := c.invoke("Remove", terms)
 
   return result[0].Bool()
 }
 
+// Removes the first item that matches the provided conditions.
+//
+// Example:
+//
+// collection.Remove(
+//   Where { "name": "Peter" },
+//   Where { "last_name": "Parker" },
+// )
 func (c *MongoDBCollection) Remove(terms ...interface{}) bool {
   
   var multi interface{}
 
-  query := c.CompileQuery(terms)
+  query := c.compileQuery(terms)
 
   itop := len(terms)
 
@@ -179,8 +195,8 @@ func (c *MongoDBCollection) Remove(terms ...interface{}) bool {
     term := terms[i]
 
     switch term.(type) {
-      case Multi: {
-        multi = term.(Multi)
+      case multiFlag: {
+        multi = term.(multiFlag)
       }
     }
   }
@@ -194,15 +210,38 @@ func (c *MongoDBCollection) Remove(terms ...interface{}) bool {
   return true
 }
 
+// Updates all the items that match the conditions. See Update().
 func (c *MongoDBCollection) UpdateAll(terms ...interface{}) bool {
 
-  terms = append(terms, Multi(true))
+  terms = append(terms, multiFlag(true))
 
-  result := c.Invoke("Update", terms)
+  result := c.invoke("Update", terms)
 
   return result[0].Bool()
 }
 
+// Updates a single document matching the provided conditions. You can specify the modification type by using Set, Modify or Upsert.
+// 
+// Example of assigning field values with Set:
+//
+// collection.Update(
+//   Where { "name": "José" },
+//   Set { "name": "Joseph"},
+// )
+// 
+// Example of custom modification with Modify:
+//
+// collection.Update(
+//   Where { "times <": "10" },
+//   Modify { "$inc": { "times": 1 } },
+// )
+//  
+// Example of inserting if none matches with Upsert:
+//
+// collection.Update(
+//   Where { "name": "Roberto" },
+//   Upsert { "name": "Robert"},
+// )
 func (c *MongoDBCollection) Update(terms ...interface{}) bool {
 
   var set     interface{}
@@ -215,9 +254,9 @@ func (c *MongoDBCollection) Update(terms ...interface{}) bool {
   modify  = nil
   multi   = nil
 
-  // TODO: make use Multi
+  // TODO: make use multiFlag
 
-  query := c.CompileQuery(terms)
+  query := c.compileQuery(terms)
 
   itop := len(terms)
 
@@ -234,8 +273,8 @@ func (c *MongoDBCollection) Update(terms ...interface{}) bool {
       case Modify: {
         modify = term.(Modify)
       }
-      case Multi: {
-        multi = term.(Multi)
+      case multiFlag: {
+        multi = term.(multiFlag)
       }
     }
   }
@@ -275,7 +314,8 @@ func (c *MongoDBCollection) Update(terms ...interface{}) bool {
   return false
 }
 
-func (c *MongoDBCollection) Invoke(fn string, terms []interface{}) []reflect.Value {
+// Calls a MongoDBCollection function by string.
+func (c *MongoDBCollection) invoke(fn string, terms []interface{}) []reflect.Value {
 
   self      := reflect.TypeOf(c)
   method, _ := self.MethodByName(fn)
@@ -294,8 +334,9 @@ func (c *MongoDBCollection) Invoke(fn string, terms []interface{}) []reflect.Val
   return exec
 }
 
+// Returns the number of total items matching the provided conditions.
 func (c *MongoDBCollection) Count(terms ...interface{}) int {
-  q := c.Invoke("BuildQuery", terms)
+  q := c.invoke("BuildQuery", terms)
   
   p := q[0].Interface().(*mgo.Query)
 
@@ -308,13 +349,27 @@ func (c *MongoDBCollection) Count(terms ...interface{}) int {
   return count
 }
 
+// Returns a document that matches all the provided conditions. Ordering of the terms doesn't matter but you must take in
+// account that conditions are generally evaluated from left to right (or from top to bottom).
+//
+// Example: 
+//
+// This is equivalent to WHERE name = "John" AND last_name = "Doe" AND (age = 15 OR age = 20)
+// collection.Find(
+//   Where { "name": "John" },
+//   Where { "last_name": "Doe" },
+//   Or {
+//     Where { "age": 15 },
+//     Where { "age": 20 },
+//   },
+// )
 func (c *MongoDBCollection) Find(terms ...interface{}) Item {
 
   var item Item
 
   terms = append(terms, Limit(1))
 
-  result := c.Invoke("FindAll", terms)
+  result := c.invoke("FindAll", terms)
 
   if len(result) > 0 {
     response := result[0].Interface().([]Item)
@@ -326,6 +381,9 @@ func (c *MongoDBCollection) Find(terms ...interface{}) Item {
   return item
 }
 
+// Returns a mgo.Query that matches the provided terms.
+//
+// This is actually a function that is only public because of the implementation of mongo.go but you should not use or rely on it.
 func (c *MongoDBCollection) BuildQuery(terms ...interface{}) *mgo.Query {
 
   var sort interface {}
@@ -335,7 +393,7 @@ func (c *MongoDBCollection) BuildQuery(terms ...interface{}) *mgo.Query {
   sort    = nil
   
   // Conditions
-  query := c.CompileQuery(terms)
+  query := c.compileQuery(terms)
 
   itop := len(terms)
   for i := 0; i < itop; i++ {
@@ -374,6 +432,17 @@ func (c *MongoDBCollection) BuildQuery(terms ...interface{}) *mgo.Query {
   return q
 }
 
+// Returns all the results that match the provided conditions. See Find().
+//
+// Be aware that there are some extra parameters that you can pass to FindAll() but not to Find(), like
+// Limit(n).
+// 
+// Example:
+// 
+// collection.Find(
+//   Where { "last_name": "Smith" },
+//   Limit(10),
+// )
 func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
   var items []Item
   var result []interface {}
@@ -400,7 +469,7 @@ func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
   }
 
   // Retrieving data
-  q := c.Invoke("BuildQuery", terms)
+  q := c.invoke("BuildQuery", terms)
 
   p := q[0].Interface().(*mgo.Query)
 
@@ -497,10 +566,10 @@ func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
       
       // Executing external query.
       if relation["all"] == true {
-        value := relation["collection"].(*MongoDBCollection).Invoke("FindAll", terms)
+        value := relation["collection"].(*MongoDBCollection).invoke("FindAll", terms)
         item[relation["name"].(string)] = value[0].Interface().([]Item)
       } else {
-        value := relation["collection"].(*MongoDBCollection).Invoke("Find", terms)
+        value := relation["collection"].(*MongoDBCollection).invoke("Find", terms)
         item[relation["name"].(string)] = value[0].Interface().(Item)
       }
 
@@ -513,18 +582,43 @@ func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
   return items
 }
 
+// Returns a new MongoDB object, this object can be then used to Connect() to the database and operate on Collections.
+// See db.DataSource{}.
+//
+// Example:
+//
+// source := NewMongoDB(&DataSource {
+//   Host: "localhost",
+//   Database: "test",
+//   User: "charly",
+//   Password: "sn00py"
+// })
+// 
+// err := source.Connect()
+//
+// if err != nil {
+//   panic(err)
+// }
+//
+// source.Use("test")
+//
+// people := db.Collection("people")
+//
+// result := people.Find(Where { "name": "José" })
 func NewMongoDB(config *DataSource) *MongoDB {
   m := &MongoDB{}
   m.config = config
   return m
 }
 
+// Switches the current session database to the provided name. See NewMongoDB().
 func (m *MongoDB) Use(database string) bool {
   m.config.Database = database
   m.database = m.session.DB(m.config.Database)
   return true
 }
 
+// Returns a Collection from the currently active database given the name. See NewMongoDB().
 func (m *MongoDB) Collection(name string) Collection {
   c := &MongoDBCollection{}
   c.parent = m
@@ -532,6 +626,7 @@ func (m *MongoDB) Collection(name string) Collection {
   return c
 }
 
+// Connects to the previously specified datasource. See NewMongoDB().
 func (m *MongoDB) Connect() error {
   var err error
   
@@ -554,6 +649,7 @@ func (m *MongoDB) Connect() error {
   return err
 }
 
+// Entirely drops the active database.
 func (m *MongoDB) Drop() bool {
   err := m.database.DropDatabase()
   if err == nil {
@@ -562,6 +658,7 @@ func (m *MongoDB) Drop() bool {
   return true
 }
 
+// Returns all the collection names on the active database.
 func (m *MongoDB) Collections() []string {
   names, _ := m.database.CollectionNames()
   return names
