@@ -605,17 +605,17 @@ func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
 // people := db.Collection("people")
 //
 // result := people.Find(Where { "name": "José" })
-func NewMongoDB(config *DataSource) *MongoDB {
+func NewMongoDB(config *DataSource) Database {
   m := &MongoDB{}
   m.config = config
   return m
 }
 
 // Switches the current session database to the provided name. See NewMongoDB().
-func (m *MongoDB) Use(database string) bool {
+func (m *MongoDB) Use(database string) error {
   m.config.Database = database
   m.database = m.session.DB(m.config.Database)
-  return true
+  return nil
 }
 
 // Returns a Collection from the currently active database given the name. See NewMongoDB().
@@ -650,12 +650,9 @@ func (m *MongoDB) Connect() error {
 }
 
 // Entirely drops the active database.
-func (m *MongoDB) Drop() bool {
+func (m *MongoDB) Drop() error {
   err := m.database.DropDatabase()
-  if err == nil {
-    return false
-  }
-  return true
+  return err
 }
 
 // Returns all the collection names on the active database.
