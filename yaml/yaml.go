@@ -24,187 +24,195 @@
 package yaml
 
 import (
-  "github.com/xiam/gosexy"
-  "launchpad.net/goyaml"
-  "os"
-  "strings"
+	"github.com/xiam/gosexy"
+	"launchpad.net/goyaml"
+	"os"
+	"strings"
 )
 
 type Storage struct {
-  storage *gosexy.Tuple
+	storage *gosexy.Tuple
 }
 
 func NewYAML() *Storage {
-  c := &Storage{ }
-  return c
+	c := &Storage{}
+	return c
 }
 
-func (c *Storage) Get(path string, def interface { }) interface { } {
-  var p gosexy.Tuple
+func (c *Storage) Get(path string, def interface{}) interface{} {
+	var p gosexy.Tuple
 
-  path = strings.ToLower(path)
+	path = strings.ToLower(path)
 
-  p = *c.storage
+	p = *c.storage
 
-  chunks := strings.Split(path, ".")
+	chunks := strings.Split(path, ".")
 
-  length := len(chunks)
+	length := len(chunks)
 
-  for i := 0; i < length; i++ {
-    
-    value, ok := p[chunks[i]]
+	for i := 0; i < length; i++ {
 
-    if i + 1 == length {
-      if ok {
-        return value
-      }
-    } else {
+		value, ok := p[chunks[i]]
 
-      if ok == true {
-        switch value.(type) {
-          case gosexy.Tuple: {
-            p = value.(gosexy.Tuple)
-          }
-          default: {
-            return def
-          }
-        }
-      } else {
-        return def
-      }
-    }
+		if i+1 == length {
+			if ok {
+				return value
+			}
+		} else {
 
-  }
+			if ok == true {
+				switch value.(type) {
+				case gosexy.Tuple:
+					{
+						p = value.(gosexy.Tuple)
+					}
+				default:
+					{
+						return def
+					}
+				}
+			} else {
+				return def
+			}
+		}
 
-  return def
+	}
+
+	return def
 }
 
-func (c *Storage) Set(path string, value interface { }) {
-  var p gosexy.Tuple
+func (c *Storage) Set(path string, value interface{}) {
+	var p gosexy.Tuple
 
-  path = strings.ToLower(path)
+	path = strings.ToLower(path)
 
-  p = *c.storage
+	p = *c.storage
 
-  chunks := strings.Split(path, ".")
+	chunks := strings.Split(path, ".")
 
-  length := len(chunks)
+	length := len(chunks)
 
-  for i := 0; i < length; i++ {
+	for i := 0; i < length; i++ {
 
-    current, ok := p[chunks[i]]
+		current, ok := p[chunks[i]]
 
-    if i + 1 == length {
-      delete(p, chunks[i])
-      p[chunks[i]] = value
-    } else {
-      // Searching.
-      if ok == true {
-        switch current.(type) {
-          case gosexy.Tuple: {
-            // Just skip.
-          }
-          default: {
-            delete(p, chunks[i])
-            p[chunks[i]] = gosexy.Tuple{}
-          }
-        }
-      } else {
-        p[chunks[i]] = gosexy.Tuple{}
-      }
+		if i+1 == length {
+			delete(p, chunks[i])
+			p[chunks[i]] = value
+		} else {
+			// Searching.
+			if ok == true {
+				switch current.(type) {
+				case gosexy.Tuple:
+					{
+						// Just skip.
+					}
+				default:
+					{
+						delete(p, chunks[i])
+						p[chunks[i]] = gosexy.Tuple{}
+					}
+				}
+			} else {
+				p[chunks[i]] = gosexy.Tuple{}
+			}
 
-      p = p[chunks[i]].(gosexy.Tuple)
-    }
-  }
+			p = p[chunks[i]].(gosexy.Tuple)
+		}
+	}
 
 }
 
-func (c *Storage) Map(data interface { }, parent *gosexy.Tuple) {
+func (c *Storage) Map(data interface{}, parent *gosexy.Tuple) {
 
-  var name string
+	var name string
 
-  for key, value := range data.(map[interface { }]interface{ }) {
-    name = strings.ToLower(key.(string))
+	for key, value := range data.(map[interface{}]interface{}) {
+		name = strings.ToLower(key.(string))
 
-    switch value.(type) {
-      case []interface {}: {
-        (*parent)[name] = value.([]interface {})
-      }
-      case string: {
-        (*parent)[name] = value.(string)
-      }
-      case int: {
-        (*parent)[name] = value.(int)
-      }
-      case bool: {
-        (*parent)[name] = value.(bool)
-      }
-      case float64: {
-        (*parent)[name] = value.(float64)
-      }
-      case interface {}: {
-        values := &gosexy.Tuple{ }
-        c.Map(value, values)
-        (*parent)[name] = *values
-      }
-    }
+		switch value.(type) {
+		case []interface{}:
+			{
+				(*parent)[name] = value.([]interface{})
+			}
+		case string:
+			{
+				(*parent)[name] = value.(string)
+			}
+		case int:
+			{
+				(*parent)[name] = value.(int)
+			}
+		case bool:
+			{
+				(*parent)[name] = value.(bool)
+			}
+		case float64:
+			{
+				(*parent)[name] = value.(float64)
+			}
+		case interface{}:
+			{
+				values := &gosexy.Tuple{}
+				c.Map(value, values)
+				(*parent)[name] = *values
+			}
+		}
 
-  }
+	}
 
 }
 
 func (c *Storage) Write(filename string) {
 
-  out, err := goyaml.Marshal(c.storage)
-  if err != nil {
-    panic(err)
-  }
+	out, err := goyaml.Marshal(c.storage)
+	if err != nil {
+		panic(err)
+	}
 
-  fp, err := os.Create(filename)
-  if err != nil {
-    panic(err)
-  }
-  defer fp.Close()
+	fp, err := os.Create(filename)
+	if err != nil {
+		panic(err)
+	}
+	defer fp.Close()
 
-  fp.Write(out)
+	fp.Write(out)
 }
 
 func (c *Storage) Read(filename string) {
-  var err error
-  var data interface { }
+	var err error
+	var data interface{}
 
-  fileinfo, err := os.Stat(filename)
+	fileinfo, err := os.Stat(filename)
 
-  if err != nil {
-    panic(err)
-  }
+	if err != nil {
+		panic(err)
+	}
 
-  filesize := fileinfo.Size()
+	filesize := fileinfo.Size()
 
-  fp, err := os.Open(filename)
+	fp, err := os.Open(filename)
 
-  if err != nil {
-    panic(err)
-  }
+	if err != nil {
+		panic(err)
+	}
 
-  defer fp.Close()
+	defer fp.Close()
 
-  buf := make([]byte, filesize)
-  fp.Read(buf)
+	buf := make([]byte, filesize)
+	fp.Read(buf)
 
-  err = goyaml.Unmarshal(buf, &data)
+	err = goyaml.Unmarshal(buf, &data)
 
-  if err == nil {
+	if err == nil {
 
-    c.storage = &gosexy.Tuple{ }
-    c.Map(data, c.storage)
+		c.storage = &gosexy.Tuple{}
+		c.Map(data, c.storage)
 
-  } else {
+	} else {
 
-    panic(err.Error())
+		panic(err.Error())
 
-  }
+	}
 
 }
-
-

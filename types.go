@@ -23,5 +23,5 @@
 
 package gosexy
 
-type Tuple map[string] interface { }
-type List []interface { }
+type Tuple map[string]interface{}
+type List []interface{}

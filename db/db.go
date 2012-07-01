@@ -32,7 +32,7 @@ package db
 // Where { "age $lt": 18 } // $lt is a MongoDB operator, if you're using MongoDB, means that you want the "age" field to be lower than 18.
 //
 // Where { "age >=": 18 } // >= is a SQL operator, if you're using SQL, means that you want the "age" field to be mayor or equal to 18.
-type Where map[string] interface{}
+type Where map[string]interface{}
 
 // Handles "And", "Or" and "Where" types in an expression.
 //
@@ -61,7 +61,7 @@ type Or []interface{}
 // Sort { "age": -1 } // If using MongoDB, means sort by age in descending order.
 //
 // Sort { "age": "ASC" } // If using SQL, means sort by age in ascending order.
-type Sort map[string] interface{}
+type Sort map[string]interface{}
 
 // Determines how the matched item or items are going to change in Update() and UpdateAll() expressions.
 //
@@ -72,7 +72,7 @@ type Sort map[string] interface{}
 //    "counter": 1
 //  }
 // }
-type Modify map[string] interface{}
+type Modify map[string]interface{}
 
 // Specifies relations with external collections, the specific relation with the parent expression can be determined with
 // the name of field on the external collection plus the name of the referred parent column between brackets, however this can be only
@@ -100,7 +100,7 @@ type On []interface{}
 //     Where { "id": "{parent_id}" },
 //   }
 // }
-type Relate map[string] On
+type Relate map[string]On
 
 // Specifies a one-to-many relation in Find() and FindAll() expressions. It consists of a name and an On keytype.
 //
@@ -116,7 +116,7 @@ type Relate map[string] On
 //     Where { "parent_id": "{_id}" },
 //   }
 // }
-type RelateAll map[string] On
+type RelateAll map[string]On
 
 // Limits the number of results a FindAll() expression returns.
 //
@@ -139,7 +139,7 @@ type Offset uint
 // Set {
 //   "name": "New Name"
 // }
-type Set map[string] interface{}
+type Set map[string]interface{}
 
 // Determines new values for the fields on the matched item or items in Update() and UpdateAll() expressions, if no item is found,
 // a new one will be created.
@@ -149,47 +149,47 @@ type Set map[string] interface{}
 // Upsert {
 //   "name": "New Name"
 // }
-type Upsert map[string] interface{}
+type Upsert map[string]interface{}
 
 // Rows from a result.
-type Item map[string] interface {}
+type Item map[string]interface{}
 
 // Connection and authentication data.
 type DataSource struct {
-  Host string
-  Port int
-  Database string
-  User string
-  Password string
+	Host     string
+	Port     int
+	Database string
+	User     string
+	Password string
 }
 
 // Database methods.
 type Database interface {
-  Connect() error
+	Connect() error
 
-  Collection(string) Collection
-  Collections() []string
+	Collection(string) Collection
+	Collections() []string
 
-  Use(string) error
-  Drop() error
+	Use(string) error
+	Drop() error
 }
 
 // Collection methods.
 type Collection interface {
-  Append(...interface{}) bool
+	Append(...interface{}) bool
 
-  Count(...interface{}) int
+	Count(...interface{}) int
 
-  Find(...interface{}) Item
-  FindAll(...interface{}) []Item
+	Find(...interface{}) Item
+	FindAll(...interface{}) []Item
 
-  Update(...interface{}) bool
-  UpdateAll(...interface{}) bool
+	Update(...interface{}) bool
+	UpdateAll(...interface{}) bool
 
-  Remove(...interface{}) bool
-  RemoveAll(...interface{}) bool
+	Remove(...interface{}) bool
+	RemoveAll(...interface{}) bool
 
-  Truncate() bool
+	Truncate() bool
 }
 
 // Specifies single or multiple requests in FindAll() expressions.
