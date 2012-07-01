@@ -124,7 +124,7 @@ func (t *MysqlTable) myFetchAll(rows sql.Rows) []Item {
 		ret := fn.Call(fargs)
 
 		if ret[0].IsNil() != true {
-			panic(ret[1].Elem().Interface().(error))
+			panic(ret[0].Elem().Interface().(error))
 		}
 
 		for _, name := range columns {
@@ -166,8 +166,10 @@ func (my *MysqlDB) myExec(method string, terms ...interface{}) sql.Rows {
 
 	q := myCompile(terms)
 
-	fmt.Printf("Q: %v\n", q.Query)
-	fmt.Printf("A: %v\n", q.Args)
+	/*
+		fmt.Printf("Q: %v\n", q.Query)
+		fmt.Printf("A: %v\n", q.Args)
+	*/
 
 	args := make([]reflect.Value, len(q.Args)+1)
 
@@ -202,20 +204,27 @@ func NewMysqlDB(config *DataSource) Database {
 func (my *MysqlDB) Connect() error {
 	var err error
 
+	if my.config.Host == "" {
+		my.config.Host = "127.0.0.1"
+	}
+
+	if my.config.Port == 0 {
+		my.config.Port = 3306
+	}
+
 	if my.config.Database == "" {
 		panic("Database name is required.")
 	}
 
-	my.session, err = sql.Open("mysql", fmt.Sprintf("%s:%s@/%s", my.config.User, my.config.Password, my.config.Database))
-	/*
-	  my.session, err = sql.Open("mysql", fmt.Sprintf("%s:%s@/", my.config.User, my.config.Password))
+	conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", my.config.User, my.config.Password, my.config.Host, my.config.Port, my.config.Database)
 
-	  if my.config.Database != "" {
-	    my.Use(my.config.Database)
-	  }
-	*/
+	my.session, err = sql.Open("mysql", conn)
 
-	return err
+	if err != nil {
+		return fmt.Errorf("Could not connect to %s", my.config.Host)
+	}
+
+	return nil
 }
 
 func (my *MysqlDB) Use(database string) error {

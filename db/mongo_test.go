@@ -7,62 +7,59 @@ import (
 	"testing"
 )
 
-/*
+const mgHost = "10.0.0.11"
+const mgDatabase = "gotest"
+
 func TestMgConnect(t *testing.T) {
 
-  db := NewMongoDB(&DataSource{ Host: "dns.fail", Database: "test" })
+	db := NewMongoDB(&DataSource{Host: "0.0.0.0"})
 
-  err := db.Connect()
+	err := db.Connect()
 
-  if err != nil {
-    t.Logf("Got %t, this was intended.", err)
-    return
-  }
+	if err != nil {
+		t.Logf("Got %t, this was intended.", err)
+		return
+	}
 
-  t.Error("Are you serious?")
+	t.Error("Are you serious?")
 }
 
 func TestMgAuthFail(t *testing.T) {
 
-  db := NewMongoDB(&DataSource{ Host: "localhost", Database: "test", User: "unknown", Password: "fail" })
+	db := NewMongoDB(&DataSource{Host: mgHost, Database: mgDatabase, User: "unknown", Password: "fail"})
 
-  err := db.Connect()
+	err := db.Connect()
 
-  if err != nil {
-    t.Logf("Got %t, this was intended.", err)
-    return
-  }
+	if err != nil {
+		t.Logf("Got %t, this was intended.", err)
+		return
+	}
 
-  t.Error("Are you serious?")
+	t.Error("Are you serious?")
 }
-*/
 
 func TestMgDrop(t *testing.T) {
 
-	db := NewMongoDB(&DataSource{Host: "localhost", Database: "test"})
+	db := NewMongoDB(&DataSource{Host: mgHost, Database: mgDatabase})
 
 	err := db.Connect()
 
 	if err != nil {
 		panic(err)
 	}
-
-	db.Use("test")
 
 	db.Drop()
 }
 
 func TestMgAppend(t *testing.T) {
 
-	db := NewMongoDB(&DataSource{Host: "localhost", Database: "test"})
+	db := NewMongoDB(&DataSource{Host: mgHost, Database: mgDatabase})
 
 	err := db.Connect()
 
 	if err != nil {
 		panic(err)
 	}
-
-	db.Use("test")
 
 	col := db.Collection("people")
 
@@ -80,15 +77,13 @@ func TestMgAppend(t *testing.T) {
 
 func TestMgFind(t *testing.T) {
 
-	db := NewMongoDB(&DataSource{Host: "localhost", Database: "test"})
+	db := NewMongoDB(&DataSource{Host: mgHost, Database: mgDatabase})
 
 	err := db.Connect()
 
 	if err != nil {
 		panic(err)
 	}
-
-	db.Use("test")
 
 	col := db.Collection("people")
 
@@ -101,15 +96,13 @@ func TestMgFind(t *testing.T) {
 }
 
 func TestMgDelete(t *testing.T) {
-	db := NewMongoDB(&DataSource{Host: "localhost", Database: "test"})
+	db := NewMongoDB(&DataSource{Host: mgHost, Database: mgDatabase})
 
 	err := db.Connect()
 
 	if err != nil {
 		panic(err)
 	}
-
-	db.Use("test")
 
 	col := db.Collection("people")
 
@@ -123,15 +116,13 @@ func TestMgDelete(t *testing.T) {
 }
 
 func TestMgUpdate(t *testing.T) {
-	db := NewMongoDB(&DataSource{Host: "localhost", Database: "test"})
+	db := NewMongoDB(&DataSource{Host: mgHost, Database: mgDatabase})
 
 	err := db.Connect()
 
 	if err != nil {
 		panic(err)
 	}
-
-	db.Use("test")
 
 	col := db.Collection("people")
 
@@ -147,15 +138,13 @@ func TestMgUpdate(t *testing.T) {
 func TestMgPopulate(t *testing.T) {
 	var i int
 
-	db := NewMongoDB(&DataSource{Host: "localhost", Database: "test"})
+	db := NewMongoDB(&DataSource{Host: mgHost, Database: mgDatabase})
 
 	err := db.Connect()
 
 	if err != nil {
 		panic(err)
 	}
-
-	db.Use("test")
 
 	places := []string{"Alaska", "Nebraska", "Alaska", "Acapulco", "Rome", "Singapore", "Alabama", "Cancún"}
 
@@ -200,15 +189,13 @@ func TestMgPopulate(t *testing.T) {
 }
 
 func TestMgRelation(t *testing.T) {
-	db := NewMongoDB(&DataSource{Host: "localhost", Database: "test"})
+	db := NewMongoDB(&DataSource{Host: mgHost, Database: mgDatabase})
 
 	err := db.Connect()
 
 	if err != nil {
 		panic(err)
 	}
-
-	db.Use("test")
 
 	col := db.Collection("people")
 

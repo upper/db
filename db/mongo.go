@@ -24,6 +24,7 @@
 package db
 
 import (
+	"fmt"
 	. "github.com/xiam/gosexy"
 	"launchpad.net/mgo"
 	"launchpad.net/mgo/bson"
@@ -437,7 +438,7 @@ func (c *MongoDBCollection) BuildQuery(terms ...interface{}) *mgo.Query {
 
 	// Sorting result
 	if sort != nil {
-		q = q.Sort(sort)
+		q = q.Sort(sort.(string))
 	}
 
 	return q
@@ -648,9 +649,15 @@ func (m *MongoDB) Connect() error {
 
 	connURL := &url.URL{Scheme: "mongodb"}
 
-	if m.config.Host != "" {
-		connURL.Host = m.config.Host
+	if m.config.Port == 0 {
+		m.config.Port = 27017
 	}
+
+	if m.config.Host == "" {
+		m.config.Host = "127.0.0.1"
+	}
+
+	connURL.Host = fmt.Sprintf("%s:%d", m.config.Host, m.config.Port)
 
 	if m.config.User != "" {
 		connURL.User = url.UserPassword(m.config.User, m.config.Password)
@@ -658,11 +665,15 @@ func (m *MongoDB) Connect() error {
 
 	m.session, err = mgo.DialWithTimeout(connURL.String(), 5*time.Second)
 
+	if err != nil {
+		return fmt.Errorf("Could not connect to %v.", m.config.Host)
+	}
+
 	if m.config.Database != "" {
 		m.Use(m.config.Database)
 	}
 
-	return err
+	return nil
 }
 
 // Entirely drops the active database.

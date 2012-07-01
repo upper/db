@@ -7,9 +7,14 @@ import (
 	"testing"
 )
 
+const myHost = "10.0.0.11"
+const myDatabase = "gotest"
+const myUser = "gouser"
+const myPassword = "gopass"
+
 func TestMyTruncate(t *testing.T) {
 
-	db := NewMysqlDB(&DataSource{Host: "localhost", Database: "gotest", User: "gotest", Password: "gopass"})
+	db := NewMysqlDB(&DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
 	err := db.Connect()
 
@@ -31,7 +36,7 @@ func TestMyTruncate(t *testing.T) {
 
 func TestMyAppend(t *testing.T) {
 
-	db := NewMysqlDB(&DataSource{Host: "localhost", Database: "gotest", User: "gotest", Password: "gopass"})
+	db := NewMysqlDB(&DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
 	err := db.Connect()
 
@@ -57,7 +62,7 @@ func TestMyAppend(t *testing.T) {
 
 func TestMyFind(t *testing.T) {
 
-	db := NewMysqlDB(&DataSource{Host: "localhost", Database: "gotest", User: "gotest", Password: "gopass"})
+	db := NewMysqlDB(&DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
 	err := db.Connect()
 
@@ -76,7 +81,7 @@ func TestMyFind(t *testing.T) {
 }
 
 func TestMyDelete(t *testing.T) {
-	db := NewMysqlDB(&DataSource{Host: "localhost", Database: "gotest", User: "gotest", Password: "gopass"})
+	db := NewMysqlDB(&DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
 	err := db.Connect()
 
@@ -96,7 +101,7 @@ func TestMyDelete(t *testing.T) {
 }
 
 func TestMyUpdate(t *testing.T) {
-	db := NewMysqlDB(&DataSource{Host: "localhost", Database: "gotest", User: "gotest", Password: "gopass"})
+	db := NewMysqlDB(&DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
 	err := db.Connect()
 
@@ -120,7 +125,7 @@ func TestMyUpdate(t *testing.T) {
 func TestMyPopulate(t *testing.T) {
 	var i int
 
-	db := NewMysqlDB(&DataSource{Host: "localhost", Database: "gotest", User: "gotest", Password: "gopass"})
+	db := NewMysqlDB(&DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
 	err := db.Connect()
 
@@ -175,7 +180,7 @@ func TestMyPopulate(t *testing.T) {
 }
 
 func TestMyRelation(t *testing.T) {
-	db := NewMysqlDB(&DataSource{Host: "localhost", Database: "gotest", User: "gotest", Password: "gopass"})
+	db := NewMysqlDB(&DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
 	err := db.Connect()
 
