@@ -48,10 +48,10 @@ type MongoDBCollection struct {
 }
 
 // Converts Where keytypes into something that mgo can understand.
-func (w Where) marshal() map[string] interface{} {
+func (c *MongoDBCollection) marshal(where Where) map[string] interface{} {
   conds := make(map[string] interface{})
 
-  for key, val := range(w) {
+  for key, val := range(where) {
     key     = strings.Trim(key, " ")
     chunks := strings.Split(key, " ")
 
@@ -104,7 +104,7 @@ func (c *MongoDBCollection) Append(items ...interface {}) bool {
   return true
 }
 
-// Compiles terms into conditions that mgo can understand. 
+// Compiles terms into conditions that mgo can understand.
 func (c *MongoDBCollection) compileConditions(term interface{}) interface{} {
   switch term.(type) {
     case []interface{}: {
@@ -139,7 +139,7 @@ func (c *MongoDBCollection) compileConditions(term interface{}) interface{} {
       return condition
     }
     case Where: {
-      return term.(Where).marshal()
+      return c.marshal(term.(Where))
     }
   }
   return nil
@@ -184,7 +184,7 @@ func (c *MongoDBCollection) RemoveAll(terms ...interface{}) bool {
 //   Where { "last_name": "Parker" },
 // )
 func (c *MongoDBCollection) Remove(terms ...interface{}) bool {
-  
+
   var multi interface{}
 
   query := c.compileQuery(terms)
@@ -221,21 +221,21 @@ func (c *MongoDBCollection) UpdateAll(terms ...interface{}) bool {
 }
 
 // Updates a single document matching the provided conditions. You can specify the modification type by using Set, Modify or Upsert.
-// 
+//
 // Example of assigning field values with Set:
 //
 // collection.Update(
 //   Where { "name": "José" },
 //   Set { "name": "Joseph"},
 // )
-// 
+//
 // Example of custom modification with Modify:
 //
 // collection.Update(
 //   Where { "times <": "10" },
 //   Modify { "$inc": { "times": 1 } },
 // )
-//  
+//
 // Example of inserting if none matches with Upsert:
 //
 // collection.Update(
@@ -305,7 +305,7 @@ func (c *MongoDBCollection) Update(terms ...interface{}) bool {
     }
 
   }
-  
+
   if upsert != nil {
     c.collection.Upsert(query, upsert)
     return true
@@ -337,7 +337,7 @@ func (c *MongoDBCollection) invoke(fn string, terms []interface{}) []reflect.Val
 // Returns the number of total items matching the provided conditions.
 func (c *MongoDBCollection) Count(terms ...interface{}) int {
   q := c.invoke("BuildQuery", terms)
-  
+
   p := q[0].Interface().(*mgo.Query)
 
   count, err := p.Count()
@@ -352,7 +352,7 @@ func (c *MongoDBCollection) Count(terms ...interface{}) int {
 // Returns a document that matches all the provided conditions. Ordering of the terms doesn't matter but you must take in
 // account that conditions are generally evaluated from left to right (or from top to bottom).
 //
-// Example: 
+// Example:
 //
 // This is equivalent to WHERE name = "John" AND last_name = "Doe" AND (age = 15 OR age = 20)
 // collection.Find(
@@ -391,7 +391,7 @@ func (c *MongoDBCollection) BuildQuery(terms ...interface{}) *mgo.Query {
   limit   := -1
   offset  := -1
   sort    = nil
-  
+
   // Conditions
   query := c.compileQuery(terms)
 
@@ -436,9 +436,9 @@ func (c *MongoDBCollection) BuildQuery(terms ...interface{}) *mgo.Query {
 //
 // Be aware that there are some extra parameters that you can pass to FindAll() but not to Find(), like
 // Limit(n).
-// 
+//
 // Example:
-// 
+//
 // collection.Find(
 //   Where { "last_name": "Smith" },
 //   Limit(10),
@@ -446,7 +446,7 @@ func (c *MongoDBCollection) BuildQuery(terms ...interface{}) *mgo.Query {
 func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
   var items []Item
   var result []interface {}
-  
+
   var relate interface {}
   var relateAll interface {}
 
@@ -476,7 +476,7 @@ func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
   p.All(&result)
 
   var relations []Tuple
-  
+
   // This query is related to other collections.
   if relate != nil {
     for rname, rterms := range relate.(Relate) {
@@ -495,7 +495,7 @@ func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
       relations = append(relations, Tuple { "all": false, "name": rname, "collection": rcollection, "terms": rterms, })
     }
   }
-  
+
   if relateAll != nil {
     for rname, rterms := range relateAll.(RelateAll) {
       rcollection := c.parent.Collection(rname)
@@ -524,7 +524,7 @@ func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
   for i := 0; i < itop; i++ {
 
     item := Item{}
-    
+
     // Default values.
     for key, val := range result[i].(bson.M) {
       item[key] = val
@@ -533,12 +533,12 @@ func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
     // Querying relations
     for j := 0; j < jtop; j++ {
 
-      relation := relations[j]  
-      
+      relation := relations[j]
+
       terms := []interface{}{}
 
       ktop := len(relation["terms"].(On))
-      
+
       for k := 0; k < ktop; k++ {
 
         //term = tcopy[k]
@@ -563,7 +563,7 @@ func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
         }
         terms = append(terms, term)
       }
-      
+
       // Executing external query.
       if relation["all"] == true {
         value := relation["collection"].(*MongoDBCollection).invoke("FindAll", terms)
@@ -593,7 +593,7 @@ func (c *MongoDBCollection) FindAll(terms ...interface{}) []Item {
 //   User: "charly",
 //   Password: "sn00py"
 // })
-// 
+//
 // err := source.Connect()
 //
 // if err != nil {
@@ -629,13 +629,13 @@ func (m *MongoDB) Collection(name string) Collection {
 // Connects to the previously specified datasource. See NewMongoDB().
 func (m *MongoDB) Connect() error {
   var err error
-  
+
   connURL := &url.URL{ Scheme: "mongodb" }
-  
+
   if m.config.Host != "" {
     connURL.Host = m.config.Host
   }
-  
+
   if m.config.User != "" {
     connURL.User = url.UserPassword(m.config.User, m.config.Password)
   }

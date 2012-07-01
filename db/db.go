@@ -83,15 +83,15 @@ type Modify map[string] interface{}
 // On {
 //   db.Collection("external"),
 //   Where { "external_key": "{parent_value}" }, // Relation exists where the "external_key" field is equal to the parent's "parent_value".
-// } 
+// }
 type On []interface{}
 
 // Specifies a one-to-one relation in Find() and FindAll() expressions. It consists of a name and an On keytype.
 //
-// You can use the same keytypes you would use in a normal Find() and FindAll() expressions besides a Collection, you can also use 
+// You can use the same keytypes you would use in a normal Find() and FindAll() expressions besides a Collection, you can also use
 // other nested Relate and RelateAll statements. If no Collection is given, the one with the relation name will be tried.
 //
-// Example: 
+// Example:
 //
 // Relate {
 //   "father": On {
@@ -104,10 +104,10 @@ type Relate map[string] On
 
 // Specifies a one-to-many relation in Find() and FindAll() expressions. It consists of a name and an On keytype.
 //
-// You can use the same keytypes you would use in a normal Find() and FindAll() expressions besides a Collection, you can also use 
+// You can use the same keytypes you would use in a normal Find() and FindAll() expressions besides a Collection, you can also use
 // other nested Relate and RelateAll statements. If no Collection is given, the one with the relation name will be tried.
 //
-// Example: 
+// Example:
 //
 // RelateAll {
 //   "children": On {
@@ -166,10 +166,12 @@ type DataSource struct {
 // Database methods.
 type Database interface {
   Connect() error
-  Use() error
-  Collection()
-  Drop() bool
+
+  Collection(string) Collection
   Collections() []string
+
+  Use(string) error
+  Drop() error
 }
 
 // Collection methods.
@@ -192,3 +194,6 @@ type Collection interface {
 
 // Specifies single or multiple requests in FindAll() expressions.
 type multiFlag bool
+
+// Specifies which fields to return in a query.
+type Fields []string

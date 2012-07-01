@@ -1,45 +1,15 @@
 package db
 
 import (
-  "fmt"
-  "math/rand"
-  "github.com/kr/pretty"
   "testing"
+  "github.com/kr/pretty"
+  "math/rand"
+  "fmt"
 )
 
-/*
-func TestMgConnect(t *testing.T) {
+func TestMyTruncate(t *testing.T) {
 
-  db := NewMongoDB(&DataSource{ Host: "dns.fail", Database: "test" })
-
-  err := db.Connect()
-
-  if err != nil {
-    t.Logf("Got %t, this was intended.", err)
-    return
-  }
-
-  t.Error("Are you serious?")
-}
-
-func TestMgAuthFail(t *testing.T) {
-
-  db := NewMongoDB(&DataSource{ Host: "localhost", Database: "test", User: "unknown", Password: "fail" })
-
-  err := db.Connect()
-
-  if err != nil {
-    t.Logf("Got %t, this was intended.", err)
-    return
-  }
-
-  t.Error("Are you serious?")
-}
-*/
-
-func TestMgDrop(t *testing.T) {
-
-  db := NewMongoDB(&DataSource{ Host: "localhost", Database: "test" })
+  db := NewMysqlDB(&DataSource{ Host: "localhost", Database: "gotest", User: "gotest", Password: "gopass" })
 
   err := db.Connect()
 
@@ -47,24 +17,32 @@ func TestMgDrop(t *testing.T) {
     panic(err)
   }
 
-  db.Use("test")
+  collections := db.Collections()
 
-  db.Drop()
+  for _, name := range collections {
+    col := db.Collection(name)
+    col.Truncate()
+    if col.Count() != 0 {
+      t.Errorf("Could not truncate '%s'.", name)
+    }
+  }
+
+
 }
 
-func TestMgAppend(t *testing.T) {
+func TestMyAppend(t *testing.T) {
 
-  db := NewMongoDB(&DataSource{ Host: "localhost", Database: "test" })
+  db := NewMysqlDB(&DataSource{ Host: "localhost", Database: "gotest", User: "gotest", Password: "gopass" })
 
   err := db.Connect()
 
   if err != nil {
     panic(err)
   }
-
-  db.Use("test")
 
   col := db.Collection("people")
+
+  col.Truncate()
 
   names := []string { "Juan", "José", "Pedro", "María", "Roberto", "Manuel", "Miguel" }
 
@@ -76,20 +54,17 @@ func TestMgAppend(t *testing.T) {
     t.Error("Could not append all items.")
   }
 
-
 }
 
-func TestMgFind(t *testing.T) {
+func TestMyFind(t *testing.T) {
 
-  db := NewMongoDB(&DataSource{ Host: "localhost", Database: "test" })
+  db := NewMysqlDB(&DataSource{ Host: "localhost", Database: "gotest", User: "gotest", Password: "gopass" })
 
   err := db.Connect()
 
   if err != nil {
     panic(err)
   }
-
-  db.Use("test")
 
   col := db.Collection("people")
 
@@ -101,16 +76,14 @@ func TestMgFind(t *testing.T) {
 
 }
 
-func TestMgDelete(t *testing.T) {
-  db := NewMongoDB(&DataSource{ Host: "localhost", Database: "test" })
+func TestMyDelete(t *testing.T) {
+  db := NewMysqlDB(&DataSource{ Host: "localhost", Database: "gotest", User: "gotest", Password: "gopass" })
 
   err := db.Connect()
 
   if err != nil {
     panic(err)
   }
-
-  db.Use("test")
 
   col := db.Collection("people")
 
@@ -123,8 +96,8 @@ func TestMgDelete(t *testing.T) {
   }
 }
 
-func TestMgUpdate(t *testing.T) {
-  db := NewMongoDB(&DataSource{ Host: "localhost", Database: "test" })
+func TestMyUpdate(t *testing.T) {
+  db := NewMysqlDB(&DataSource{ Host: "localhost", Database: "gotest", User: "gotest", Password: "gopass" })
 
   err := db.Connect()
 
@@ -145,10 +118,10 @@ func TestMgUpdate(t *testing.T) {
   }
 }
 
-func TestMgPopulate(t *testing.T) {
+func TestMyPopulate(t *testing.T) {
   var i int
 
-  db := NewMongoDB(&DataSource{ Host: "localhost", Database: "test" })
+  db := NewMysqlDB(&DataSource{ Host: "localhost", Database: "gotest", User: "gotest", Password: "gopass" })
 
   err := db.Connect()
 
@@ -167,7 +140,9 @@ func TestMgPopulate(t *testing.T) {
     })
   }
 
-  people := db.Collection("people").FindAll()
+  people := db.Collection("people").FindAll(
+    Fields { "id", "name" },
+  )
 
   for i = 0; i < len(people); i++ {
     person := people[i]
@@ -176,13 +151,13 @@ func TestMgPopulate(t *testing.T) {
     for j := 0; j < 5; j++ {
       db.Collection("children").Append(Item {
         "name": fmt.Sprintf("%s's child %d", person["name"], j + 1),
-        "parent_id": person["_id"],
+        "parent_id": person["id"],
       })
     }
 
     // Lives in
     db.Collection("people").Update(
-      Where { "_id": person["_id"] },
+      Where { "id": person["id"] },
       Set { "place_code_id": int( rand.Float32() * float32(len(places)) ) },
     )
 
@@ -192,24 +167,23 @@ func TestMgPopulate(t *testing.T) {
         "code_id": int( rand.Float32() * float32(len(places)) ),
       })
       db.Collection("visits").Append(Item {
-        "place_id": place["_id"],
-        "person_id": person["_id"],
+        "place_id": place["id"],
+        "person_id": person["id"],
       })
     }
   }
 
 }
 
-func TestMgRelation(t *testing.T) {
-  db := NewMongoDB(&DataSource{ Host: "localhost", Database: "test" })
+
+func TestMyRelation(t *testing.T) {
+  db := NewMysqlDB(&DataSource{ Host: "localhost", Database: "gotest", User: "gotest", Password: "gopass" })
 
   err := db.Connect()
 
   if err != nil {
     panic(err)
   }
-
-  db.Use("test")
 
   col := db.Collection("people")
 
@@ -223,15 +197,15 @@ func TestMgRelation(t *testing.T) {
     RelateAll {
       "has_children": On {
         db.Collection("children"),
-        Where { "parent_id": "{_id}" },
+        Where { "parent_id": "{id}" },
       },
       "has_visited": On {
         db.Collection("visits"),
-        Where { "person_id": "{_id}" },
+        Where { "person_id": "{id}" },
         Relate {
           "place": On {
             db.Collection("places"),
-            Where { "_id": "{place_id}" },
+            Where { "id": "{place_id}" },
           },
         },
       },
