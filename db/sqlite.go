@@ -24,28 +24,23 @@
 package db
 
 import (
-	_ "code.google.com/p/go-mysql-driver/mysql"
 	"database/sql"
 	"fmt"
 	. "github.com/xiam/gosexy"
+	_ "github.com/xiam/gosqlite3"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-/*
-type Values []string
-type Args []string
-*/
-
-type myQuery struct {
+type slQuery struct {
 	Query []string
 	Args  []string
 }
 
-func myCompile(terms []interface{}) *myQuery {
-	q := &myQuery{}
+func slCompile(terms []interface{}) *slQuery {
+	q := &slQuery{}
 
 	q.Query = []string{}
 
@@ -76,15 +71,15 @@ func myCompile(terms []interface{}) *myQuery {
 	return q
 }
 
-func myTable(name string) string {
+func slTable(name string) string {
 	return name
 }
 
-func myFields(names []string) string {
+func slFields(names []string) string {
 	return "(" + strings.Join(names, ", ") + ")"
 }
 
-func myValues(values []string) Values {
+func slValues(values []string) Values {
 	ret := make(Values, len(values))
 	for i, _ := range values {
 		ret[i] = values[i]
@@ -92,13 +87,13 @@ func myValues(values []string) Values {
 	return ret
 }
 
-type MysqlDB struct {
+type SqliteDB struct {
 	config      *DataSource
 	session     *sql.DB
 	collections map[string]Collection
 }
 
-func (t *MysqlTable) myFetchAll(rows sql.Rows) []Item {
+func (t *SqliteTable) slFetchAll(rows sql.Rows) []Item {
 
 	items := []Item{}
 
@@ -161,12 +156,14 @@ func (t *MysqlTable) myFetchAll(rows sql.Rows) []Item {
 	return items
 }
 
-func (my *MysqlDB) myExec(method string, terms ...interface{}) sql.Rows {
+func (sl *SqliteDB) slExec(method string, terms ...interface{}) sql.Rows {
 
-	sn := reflect.ValueOf(my.session)
+	var rows sql.Rows
+
+	sn := reflect.ValueOf(sl.session)
 	fn := sn.MethodByName(method)
 
-	q := myCompile(terms)
+	q := slCompile(terms)
 
 	/*
 		fmt.Printf("Q: %v\n", q.Query)
@@ -187,63 +184,66 @@ func (my *MysqlDB) myExec(method string, terms ...interface{}) sql.Rows {
 		panic(res[1].Elem().Interface().(error))
 	}
 
-	return res[0].Elem().Interface().(sql.Rows)
+	switch res[0].Elem().Interface().(type) {
+	case sql.Rows:
+		{
+			rows = res[0].Elem().Interface().(sql.Rows)
+		}
+	}
+
+	return rows
+
+	//return res[0].Elem().Interface().(sql.Rows)
+
 }
 
-type MysqlTable struct {
-	parent *MysqlDB
+type SqliteTable struct {
+	parent *SqliteDB
 	name   string
 	types  map[string]reflect.Kind
 }
 
-func NewMysqlDB(config *DataSource) Database {
-	m := &MysqlDB{}
+func NewSqliteDB(config *DataSource) Database {
+	m := &SqliteDB{}
 	m.config = config
 	m.collections = make(map[string]Collection)
 	return m
 }
 
-func (my *MysqlDB) Connect() error {
+func (sl *SqliteDB) Connect() error {
 	var err error
 
-	if my.config.Host == "" {
-		my.config.Host = "127.0.0.1"
-	}
-
-	if my.config.Port == 0 {
-		my.config.Port = 3306
-	}
-
-	if my.config.Database == "" {
+	if sl.config.Database == "" {
 		panic("Database name is required.")
 	}
 
-	conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", my.config.User, my.config.Password, my.config.Host, my.config.Port, my.config.Database)
+	conn := sl.config.Database
 
-	my.session, err = sql.Open("mysql", conn)
+	sl.session, err = sql.Open("sqlite3", conn)
 
 	if err != nil {
-		return fmt.Errorf("Could not connect to %s", my.config.Host)
+		return fmt.Errorf("Could not connect to %s", sl.config.Host)
 	}
 
 	return nil
 }
 
-func (my *MysqlDB) Use(database string) error {
-	my.config.Database = database
-	my.session.Query(fmt.Sprintf("USE %s", database))
+func (sl *SqliteDB) Use(database string) error {
+	sl.config.Database = database
+	sl.session.Query(fmt.Sprintf("USE %s", database))
 	return nil
 }
 
-func (my *MysqlDB) Drop() error {
-	my.session.Query(fmt.Sprintf("DROP DATABASE %s", my.config.Database))
+func (sl *SqliteDB) Drop() error {
+	sl.session.Query(fmt.Sprintf("DROP DATABASE %s", sl.config.Database))
 	return nil
 }
 
-func (my *MysqlDB) Collections() []string {
+func (sl *SqliteDB) Collections() []string {
 	var collections []string
 	var collection string
-	rows, _ := my.session.Query("SHOW TABLES")
+
+	rows, _ := sl.session.Query("SELECT tbl_name FROM sqlite_master WHERE type = ?", "table")
 
 	for rows.Next() {
 		rows.Scan(&collection)
@@ -253,7 +253,7 @@ func (my *MysqlDB) Collections() []string {
 	return collections
 }
 
-func (t *MysqlTable) invoke(fn string, terms []interface{}) []reflect.Value {
+func (t *SqliteTable) invoke(fn string, terms []interface{}) []reflect.Value {
 
 	self := reflect.ValueOf(t)
 	method := self.MethodByName(fn)
@@ -270,7 +270,7 @@ func (t *MysqlTable) invoke(fn string, terms []interface{}) []reflect.Value {
 	return exec
 }
 
-func (t *MysqlTable) compileSet(term Set) (string, Args) {
+func (t *SqliteTable) compileSet(term Set) (string, Args) {
 	sql := []string{}
 	args := Args{}
 
@@ -282,7 +282,7 @@ func (t *MysqlTable) compileSet(term Set) (string, Args) {
 	return strings.Join(sql, ", "), args
 }
 
-func (t *MysqlTable) compileConditions(term interface{}) (string, Args) {
+func (t *SqliteTable) compileConditions(term interface{}) (string, Args) {
 	sql := []string{}
 	args := Args{}
 
@@ -354,7 +354,7 @@ func (t *MysqlTable) compileConditions(term interface{}) (string, Args) {
 	return "", args
 }
 
-func (t *MysqlTable) marshal(where Where) (string, []string) {
+func (t *SqliteTable) marshal(where Where) (string, []string) {
 
 	for key, val := range where {
 		key = strings.Trim(key, " ")
@@ -373,17 +373,17 @@ func (t *MysqlTable) marshal(where Where) (string, []string) {
 	return "", []string{}
 }
 
-func (t *MysqlTable) Truncate() bool {
+func (t *SqliteTable) Truncate() bool {
 
-	t.parent.myExec(
-		"Query",
-		fmt.Sprintf("TRUNCATE TABLE %s", myTable(t.name)),
+	t.parent.slExec(
+		"Exec",
+		fmt.Sprintf("DELETE FROM %s", slTable(t.name)),
 	)
 
 	return false
 }
 
-func (t *MysqlTable) Remove(terms ...interface{}) bool {
+func (t *SqliteTable) Remove(terms ...interface{}) bool {
 	terms = append(terms, Limit(1))
 
 	result := t.invoke("RemoveAll", terms)
@@ -395,7 +395,7 @@ func (t *MysqlTable) Remove(terms ...interface{}) bool {
 	return false
 }
 
-func (t *MysqlTable) Update(terms ...interface{}) bool {
+func (t *SqliteTable) Update(terms ...interface{}) bool {
 	terms = append(terms, Limit(1))
 
 	result := t.invoke("UpdateAll", terms)
@@ -407,7 +407,7 @@ func (t *MysqlTable) Update(terms ...interface{}) bool {
 	return false
 }
 
-func (t *MysqlTable) RemoveAll(terms ...interface{}) bool {
+func (t *SqliteTable) RemoveAll(terms ...interface{}) bool {
 	limit := ""
 	offset := ""
 
@@ -430,9 +430,9 @@ func (t *MysqlTable) RemoveAll(terms ...interface{}) bool {
 		conditions = "1 = 1"
 	}
 
-	t.parent.myExec(
-		"Query",
-		fmt.Sprintf("DELETE FROM %s", myTable(t.name)),
+	t.parent.slExec(
+		"Exec",
+		fmt.Sprintf("DELETE FROM %s", slTable(t.name)),
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 		limit, offset,
 	)
@@ -440,7 +440,7 @@ func (t *MysqlTable) RemoveAll(terms ...interface{}) bool {
 	return true
 }
 
-func (t *MysqlTable) UpdateAll(terms ...interface{}) bool {
+func (t *SqliteTable) UpdateAll(terms ...interface{}) bool {
 	var fields string
 	var fargs Args
 
@@ -470,9 +470,9 @@ func (t *MysqlTable) UpdateAll(terms ...interface{}) bool {
 		conditions = "1 = 1"
 	}
 
-	t.parent.myExec(
-		"Query",
-		fmt.Sprintf("UPDATE %s SET %s", myTable(t.name), fields), fargs,
+	t.parent.slExec(
+		"Exec",
+		fmt.Sprintf("UPDATE %s SET %s", slTable(t.name), fields), fargs,
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 		limit, offset,
 	)
@@ -480,7 +480,7 @@ func (t *MysqlTable) UpdateAll(terms ...interface{}) bool {
 	return true
 }
 
-func (t *MysqlTable) FindAll(terms ...interface{}) []Item {
+func (t *SqliteTable) FindAll(terms ...interface{}) []Item {
 	var itop int
 
 	var relate interface{}
@@ -527,14 +527,14 @@ func (t *MysqlTable) FindAll(terms ...interface{}) []Item {
 		conditions = "1 = 1"
 	}
 
-	rows := t.parent.myExec(
+	rows := t.parent.slExec(
 		"Query",
-		fmt.Sprintf("SELECT %s FROM %s", fields, myTable(t.name)),
+		fmt.Sprintf("SELECT %s FROM %s", fields, slTable(t.name)),
 		fmt.Sprintf("WHERE %s", conditions), args,
 		limit, offset,
 	)
 
-	result := t.myFetchAll(rows)
+	result := t.slFetchAll(rows)
 
 	var relations []Tuple
 	var rcollection Collection
@@ -640,10 +640,10 @@ func (t *MysqlTable) FindAll(terms ...interface{}) []Item {
 
 			// Executing external query.
 			if relation["all"] == true {
-				value := relation["collection"].(*MysqlTable).invoke("FindAll", terms)
+				value := relation["collection"].(*SqliteTable).invoke("FindAll", terms)
 				item[relation["name"].(string)] = value[0].Interface().([]Item)
 			} else {
-				value := relation["collection"].(*MysqlTable).invoke("Find", terms)
+				value := relation["collection"].(*SqliteTable).invoke("Find", terms)
 				item[relation["name"].(string)] = value[0].Interface().(Item)
 			}
 
@@ -656,7 +656,7 @@ func (t *MysqlTable) FindAll(terms ...interface{}) []Item {
 	return items
 }
 
-func (t *MysqlTable) Count(terms ...interface{}) int {
+func (t *SqliteTable) Count(terms ...interface{}) int {
 
 	terms = append(terms, Fields{"COUNT(1) AS _total"})
 
@@ -673,7 +673,7 @@ func (t *MysqlTable) Count(terms ...interface{}) int {
 	return 0
 }
 
-func (t *MysqlTable) Find(terms ...interface{}) Item {
+func (t *SqliteTable) Find(terms ...interface{}) Item {
 
 	var item Item
 
@@ -691,7 +691,7 @@ func (t *MysqlTable) Find(terms ...interface{}) Item {
 	return item
 }
 
-func (t *MysqlTable) Append(items ...interface{}) bool {
+func (t *SqliteTable) Append(items ...interface{}) bool {
 
 	itop := len(items)
 
@@ -707,12 +707,13 @@ func (t *MysqlTable) Append(items ...interface{}) bool {
 			values = append(values, fmt.Sprintf("%v", value))
 		}
 
-		t.parent.myExec("Query",
+		t.parent.slExec(
+			"Exec",
 			"INSERT INTO",
-			myTable(t.name),
-			myFields(fields),
+			slTable(t.name),
+			slFields(fields),
 			"VALUES",
-			myValues(values),
+			slValues(values),
 		)
 
 	}
@@ -720,38 +721,41 @@ func (t *MysqlTable) Append(items ...interface{}) bool {
 	return true
 }
 
-func (my *MysqlDB) Collection(name string) Collection {
+func (sl *SqliteDB) Collection(name string) Collection {
 
-	if collection, ok := my.collections[name]; ok == true {
+	if collection, ok := sl.collections[name]; ok == true {
 		return collection
 	}
 
-	t := &MysqlTable{}
+	t := &SqliteTable{}
 
-	t.parent = my
+	t.parent = sl
 	t.name = name
 
 	// Fetching table datatypes and mapping to internal gotypes.
 
-	rows := t.parent.myExec(
-		"Query",
-		"SHOW COLUMNS FROM", t.name,
-	)
+	rows, err := t.parent.session.Query(fmt.Sprintf("PRAGMA TABLE_INFO('%s')", t.name))
 
-	columns := t.myFetchAll(rows)
+	if err != nil {
+		panic(err)
+	}
+
+	columns := t.slFetchAll(*rows)
 
 	pattern, _ := regexp.Compile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
 
 	t.types = make(map[string]reflect.Kind, len(columns))
 
 	for _, column := range columns {
-		cname := strings.ToLower(column["field"].(string))
+
+		cname := strings.ToLower(column["name"].(string))
 		ctype := strings.ToLower(column["type"].(string))
+
 		results := pattern.FindStringSubmatch(ctype)
 
 		// Default properties.
 		dextra := ""
-		dtype := "varchar"
+		dtype := "text"
 
 		dtype = results[1]
 
@@ -763,7 +767,7 @@ func (my *MysqlDB) Collection(name string) Collection {
 
 		// Guessing datatypes.
 		switch dtype {
-		case "tinyint", "smallint", "mediumint", "int", "bigint":
+		case "integer":
 			{
 				if dextra == "unsigned" {
 					vtype = reflect.Uint64
@@ -771,9 +775,13 @@ func (my *MysqlDB) Collection(name string) Collection {
 					vtype = reflect.Int64
 				}
 			}
-		case "decimal", "float", "double":
+		case "real", "numeric":
 			{
 				vtype = reflect.Float64
+			}
+		default:
+			{
+				vtype = reflect.String
 			}
 		}
 
@@ -784,7 +792,7 @@ func (my *MysqlDB) Collection(name string) Collection {
 		t.types[cname] = vtype
 	}
 
-	my.collections[name] = t
+	sl.collections[name] = t
 
 	return t
 }

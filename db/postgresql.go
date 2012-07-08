@@ -24,9 +24,9 @@
 package db
 
 import (
-	_ "code.google.com/p/go-mysql-driver/mysql"
 	"database/sql"
 	"fmt"
+	_ "github.com/xiam/gopostgresql"
 	. "github.com/xiam/gosexy"
 	"reflect"
 	"regexp"
@@ -34,18 +34,13 @@ import (
 	"strings"
 )
 
-/*
-type Values []string
-type Args []string
-*/
-
-type myQuery struct {
+type pgQuery struct {
 	Query []string
 	Args  []string
 }
 
-func myCompile(terms []interface{}) *myQuery {
-	q := &myQuery{}
+func pgCompile(terms []interface{}) *pgQuery {
+	q := &pgQuery{}
 
 	q.Query = []string{}
 
@@ -76,15 +71,15 @@ func myCompile(terms []interface{}) *myQuery {
 	return q
 }
 
-func myTable(name string) string {
+func pgTable(name string) string {
 	return name
 }
 
-func myFields(names []string) string {
+func pgFields(names []string) string {
 	return "(" + strings.Join(names, ", ") + ")"
 }
 
-func myValues(values []string) Values {
+func pgValues(values []string) Values {
 	ret := make(Values, len(values))
 	for i, _ := range values {
 		ret[i] = values[i]
@@ -92,13 +87,13 @@ func myValues(values []string) Values {
 	return ret
 }
 
-type MysqlDB struct {
+type PostgresqlDB struct {
 	config      *DataSource
 	session     *sql.DB
 	collections map[string]Collection
 }
 
-func (t *MysqlTable) myFetchAll(rows sql.Rows) []Item {
+func (t *PostgresqlTable) pgFetchAll(rows sql.Rows) []Item {
 
 	items := []Item{}
 
@@ -161,25 +156,26 @@ func (t *MysqlTable) myFetchAll(rows sql.Rows) []Item {
 	return items
 }
 
-func (my *MysqlDB) myExec(method string, terms ...interface{}) sql.Rows {
+func (pg *PostgresqlDB) pgExec(method string, terms ...interface{}) sql.Rows {
 
-	sn := reflect.ValueOf(my.session)
+	sn := reflect.ValueOf(pg.session)
 	fn := sn.MethodByName(method)
 
-	q := myCompile(terms)
+	q := pgCompile(terms)
 
-	/*
-		fmt.Printf("Q: %v\n", q.Query)
-		fmt.Printf("A: %v\n", q.Args)
-	*/
+	//fmt.Printf("Q: %v\n", q.Query)
+	//fmt.Printf("A: %v\n", q.Args)
+
+	qs := strings.Join(q.Query, " ")
 
 	args := make([]reflect.Value, len(q.Args)+1)
 
-	args[0] = reflect.ValueOf(strings.Join(q.Query, " "))
-
 	for i := 0; i < len(q.Args); i++ {
+		qs = strings.Replace(qs, "?", fmt.Sprintf("$%d", i+1), 1)
 		args[1+i] = reflect.ValueOf(q.Args[i])
 	}
+
+	args[0] = reflect.ValueOf(qs)
 
 	res := fn.Call(args)
 
@@ -190,60 +186,59 @@ func (my *MysqlDB) myExec(method string, terms ...interface{}) sql.Rows {
 	return res[0].Elem().Interface().(sql.Rows)
 }
 
-type MysqlTable struct {
-	parent *MysqlDB
+type PostgresqlTable struct {
+	parent *PostgresqlDB
 	name   string
 	types  map[string]reflect.Kind
 }
 
-func NewMysqlDB(config *DataSource) Database {
-	m := &MysqlDB{}
+func NewPostgresqlDB(config *DataSource) Database {
+	m := &PostgresqlDB{}
 	m.config = config
 	m.collections = make(map[string]Collection)
 	return m
 }
 
-func (my *MysqlDB) Connect() error {
+func (pg *PostgresqlDB) Connect() error {
 	var err error
 
-	if my.config.Host == "" {
-		my.config.Host = "127.0.0.1"
+	if pg.config.Host == "" {
+		pg.config.Host = "127.0.0.1"
 	}
 
-	if my.config.Port == 0 {
-		my.config.Port = 3306
+	if pg.config.Port == 0 {
+		pg.config.Port = 5432
 	}
 
-	if my.config.Database == "" {
+	if pg.config.Database == "" {
 		panic("Database name is required.")
 	}
 
-	conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", my.config.User, my.config.Password, my.config.Host, my.config.Port, my.config.Database)
+	conn := fmt.Sprintf("user=%s password=%s host=%s port=%d dbname=%s sslmode=disable", pg.config.User, pg.config.Password, pg.config.Host, pg.config.Port, pg.config.Database)
 
-	my.session, err = sql.Open("mysql", conn)
+	pg.session, err = sql.Open("postgres", conn)
 
 	if err != nil {
-		return fmt.Errorf("Could not connect to %s", my.config.Host)
+		return fmt.Errorf("Could not connect to %s", pg.config.Host)
 	}
 
 	return nil
 }
 
-func (my *MysqlDB) Use(database string) error {
-	my.config.Database = database
-	my.session.Query(fmt.Sprintf("USE %s", database))
+func (pg *PostgresqlDB) Use(database string) error {
+	pg.config.Database = database
+	return pg.Connect()
+}
+
+func (pg *PostgresqlDB) Drop() error {
+	pg.session.Query(fmt.Sprintf("DROP DATABASE %s", pg.config.Database))
 	return nil
 }
 
-func (my *MysqlDB) Drop() error {
-	my.session.Query(fmt.Sprintf("DROP DATABASE %s", my.config.Database))
-	return nil
-}
-
-func (my *MysqlDB) Collections() []string {
+func (pg *PostgresqlDB) Collections() []string {
 	var collections []string
 	var collection string
-	rows, _ := my.session.Query("SHOW TABLES")
+	rows, _ := pg.session.Query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
 
 	for rows.Next() {
 		rows.Scan(&collection)
@@ -253,7 +248,7 @@ func (my *MysqlDB) Collections() []string {
 	return collections
 }
 
-func (t *MysqlTable) invoke(fn string, terms []interface{}) []reflect.Value {
+func (t *PostgresqlTable) invoke(fn string, terms []interface{}) []reflect.Value {
 
 	self := reflect.ValueOf(t)
 	method := self.MethodByName(fn)
@@ -270,7 +265,7 @@ func (t *MysqlTable) invoke(fn string, terms []interface{}) []reflect.Value {
 	return exec
 }
 
-func (t *MysqlTable) compileSet(term Set) (string, Args) {
+func (t *PostgresqlTable) compileSet(term Set) (string, Args) {
 	sql := []string{}
 	args := Args{}
 
@@ -282,7 +277,7 @@ func (t *MysqlTable) compileSet(term Set) (string, Args) {
 	return strings.Join(sql, ", "), args
 }
 
-func (t *MysqlTable) compileConditions(term interface{}) (string, Args) {
+func (t *PostgresqlTable) compileConditions(term interface{}) (string, Args) {
 	sql := []string{}
 	args := Args{}
 
@@ -354,7 +349,7 @@ func (t *MysqlTable) compileConditions(term interface{}) (string, Args) {
 	return "", args
 }
 
-func (t *MysqlTable) marshal(where Where) (string, []string) {
+func (t *PostgresqlTable) marshal(where Where) (string, []string) {
 
 	for key, val := range where {
 		key = strings.Trim(key, " ")
@@ -373,18 +368,19 @@ func (t *MysqlTable) marshal(where Where) (string, []string) {
 	return "", []string{}
 }
 
-func (t *MysqlTable) Truncate() bool {
+func (t *PostgresqlTable) Truncate() bool {
 
-	t.parent.myExec(
+	t.parent.pgExec(
 		"Query",
-		fmt.Sprintf("TRUNCATE TABLE %s", myTable(t.name)),
+		fmt.Sprintf("TRUNCATE TABLE %s", pgTable(t.name)),
 	)
 
 	return false
 }
 
-func (t *MysqlTable) Remove(terms ...interface{}) bool {
-	terms = append(terms, Limit(1))
+func (t *PostgresqlTable) Remove(terms ...interface{}) bool {
+	// Does not support LIMIT
+	//terms = append(terms, Limit(1))
 
 	result := t.invoke("RemoveAll", terms)
 
@@ -395,8 +391,9 @@ func (t *MysqlTable) Remove(terms ...interface{}) bool {
 	return false
 }
 
-func (t *MysqlTable) Update(terms ...interface{}) bool {
-	terms = append(terms, Limit(1))
+func (t *PostgresqlTable) Update(terms ...interface{}) bool {
+	// Does not support LIMIT
+	// terms = append(terms, Limit(1))
 
 	result := t.invoke("UpdateAll", terms)
 
@@ -407,7 +404,7 @@ func (t *MysqlTable) Update(terms ...interface{}) bool {
 	return false
 }
 
-func (t *MysqlTable) RemoveAll(terms ...interface{}) bool {
+func (t *PostgresqlTable) RemoveAll(terms ...interface{}) bool {
 	limit := ""
 	offset := ""
 
@@ -430,9 +427,9 @@ func (t *MysqlTable) RemoveAll(terms ...interface{}) bool {
 		conditions = "1 = 1"
 	}
 
-	t.parent.myExec(
+	t.parent.pgExec(
 		"Query",
-		fmt.Sprintf("DELETE FROM %s", myTable(t.name)),
+		fmt.Sprintf("DELETE FROM %s", pgTable(t.name)),
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 		limit, offset,
 	)
@@ -440,7 +437,7 @@ func (t *MysqlTable) RemoveAll(terms ...interface{}) bool {
 	return true
 }
 
-func (t *MysqlTable) UpdateAll(terms ...interface{}) bool {
+func (t *PostgresqlTable) UpdateAll(terms ...interface{}) bool {
 	var fields string
 	var fargs Args
 
@@ -470,9 +467,9 @@ func (t *MysqlTable) UpdateAll(terms ...interface{}) bool {
 		conditions = "1 = 1"
 	}
 
-	t.parent.myExec(
+	t.parent.pgExec(
 		"Query",
-		fmt.Sprintf("UPDATE %s SET %s", myTable(t.name), fields), fargs,
+		fmt.Sprintf("UPDATE %s SET %s", pgTable(t.name), fields), fargs,
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 		limit, offset,
 	)
@@ -480,7 +477,7 @@ func (t *MysqlTable) UpdateAll(terms ...interface{}) bool {
 	return true
 }
 
-func (t *MysqlTable) FindAll(terms ...interface{}) []Item {
+func (t *PostgresqlTable) FindAll(terms ...interface{}) []Item {
 	var itop int
 
 	var relate interface{}
@@ -527,14 +524,14 @@ func (t *MysqlTable) FindAll(terms ...interface{}) []Item {
 		conditions = "1 = 1"
 	}
 
-	rows := t.parent.myExec(
+	rows := t.parent.pgExec(
 		"Query",
-		fmt.Sprintf("SELECT %s FROM %s", fields, myTable(t.name)),
+		fmt.Sprintf("SELECT %s FROM %s", fields, pgTable(t.name)),
 		fmt.Sprintf("WHERE %s", conditions), args,
 		limit, offset,
 	)
 
-	result := t.myFetchAll(rows)
+	result := t.pgFetchAll(rows)
 
 	var relations []Tuple
 	var rcollection Collection
@@ -640,10 +637,10 @@ func (t *MysqlTable) FindAll(terms ...interface{}) []Item {
 
 			// Executing external query.
 			if relation["all"] == true {
-				value := relation["collection"].(*MysqlTable).invoke("FindAll", terms)
+				value := relation["collection"].(*PostgresqlTable).invoke("FindAll", terms)
 				item[relation["name"].(string)] = value[0].Interface().([]Item)
 			} else {
-				value := relation["collection"].(*MysqlTable).invoke("Find", terms)
+				value := relation["collection"].(*PostgresqlTable).invoke("Find", terms)
 				item[relation["name"].(string)] = value[0].Interface().(Item)
 			}
 
@@ -656,7 +653,7 @@ func (t *MysqlTable) FindAll(terms ...interface{}) []Item {
 	return items
 }
 
-func (t *MysqlTable) Count(terms ...interface{}) int {
+func (t *PostgresqlTable) Count(terms ...interface{}) int {
 
 	terms = append(terms, Fields{"COUNT(1) AS _total"})
 
@@ -673,7 +670,7 @@ func (t *MysqlTable) Count(terms ...interface{}) int {
 	return 0
 }
 
-func (t *MysqlTable) Find(terms ...interface{}) Item {
+func (t *PostgresqlTable) Find(terms ...interface{}) Item {
 
 	var item Item
 
@@ -691,7 +688,7 @@ func (t *MysqlTable) Find(terms ...interface{}) Item {
 	return item
 }
 
-func (t *MysqlTable) Append(items ...interface{}) bool {
+func (t *PostgresqlTable) Append(items ...interface{}) bool {
 
 	itop := len(items)
 
@@ -707,12 +704,12 @@ func (t *MysqlTable) Append(items ...interface{}) bool {
 			values = append(values, fmt.Sprintf("%v", value))
 		}
 
-		t.parent.myExec("Query",
+		t.parent.pgExec("Query",
 			"INSERT INTO",
-			myTable(t.name),
-			myFields(fields),
+			pgTable(t.name),
+			pgFields(fields),
 			"VALUES",
-			myValues(values),
+			pgValues(values),
 		)
 
 	}
@@ -720,33 +717,34 @@ func (t *MysqlTable) Append(items ...interface{}) bool {
 	return true
 }
 
-func (my *MysqlDB) Collection(name string) Collection {
+func (pg *PostgresqlDB) Collection(name string) Collection {
 
-	if collection, ok := my.collections[name]; ok == true {
+	if collection, ok := pg.collections[name]; ok == true {
 		return collection
 	}
 
-	t := &MysqlTable{}
+	t := &PostgresqlTable{}
 
-	t.parent = my
+	t.parent = pg
 	t.name = name
 
 	// Fetching table datatypes and mapping to internal gotypes.
 
-	rows := t.parent.myExec(
+	rows := t.parent.pgExec(
 		"Query",
-		"SHOW COLUMNS FROM", t.name,
+		"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?", Args{t.name},
 	)
 
-	columns := t.myFetchAll(rows)
+	columns := t.pgFetchAll(rows)
 
 	pattern, _ := regexp.Compile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
 
 	t.types = make(map[string]reflect.Kind, len(columns))
 
 	for _, column := range columns {
-		cname := strings.ToLower(column["field"].(string))
-		ctype := strings.ToLower(column["type"].(string))
+		cname := strings.ToLower(column["column_name"].(string))
+		ctype := strings.ToLower(column["data_type"].(string))
+
 		results := pattern.FindStringSubmatch(ctype)
 
 		// Default properties.
@@ -763,7 +761,7 @@ func (my *MysqlDB) Collection(name string) Collection {
 
 		// Guessing datatypes.
 		switch dtype {
-		case "tinyint", "smallint", "mediumint", "int", "bigint":
+		case "smallint", "integer", "bigint", "serial", "bigserial":
 			{
 				if dextra == "unsigned" {
 					vtype = reflect.Uint64
@@ -771,20 +769,18 @@ func (my *MysqlDB) Collection(name string) Collection {
 					vtype = reflect.Int64
 				}
 			}
-		case "decimal", "float", "double":
+		case "real", "double":
 			{
 				vtype = reflect.Float64
 			}
 		}
 
-		/*
-		   fmt.Printf("Imported %v (from %v)\n", vtype, dtype)
-		*/
+		//fmt.Printf("Imported %v (from %v)\n", vtype, dtype)
 
 		t.types[cname] = vtype
 	}
 
-	my.collections[name] = t
+	pg.collections[name] = t
 
 	return t
 }

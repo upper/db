@@ -1,0 +1,7 @@
+PRAGMA foreign_keys=OFF;
+BEGIN TRANSACTION;
+CREATE TABLE children (id integer primary key, parent_id integer, name varchar(60));
+CREATE TABLE people(id integer primary key, place_code_id integer, name varchar(60));
+CREATE TABLE places (id integer primary key, code_id integer, name varchar(60));
+CREATE TABLE visits (id integer primary key, place_id integer, person_id integer);
+COMMIT;

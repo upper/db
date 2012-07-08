@@ -197,3 +197,6 @@ type multiFlag bool
 
 // Specifies which fields to return in a query.
 type Fields []string
+
+type Values []string
+type Args []string
