@@ -4,7 +4,7 @@ This package is a wrapper of [goyaml](http://launchpad.net/goyaml) that provides
 
 ## Installation
 
-	$ go get github.com/xiam/gosexy/yaml
+  $ go get github.com/xiam/gosexy/yaml
 
 ## Usage
 
@@ -24,4 +24,4 @@ You can read ``gosexy/yaml`` documentation from a terminal
 
 	$ go doc github.com/xiam/gosexy/yaml
 
-Or you can [browse it online](http://go.pkgdoc.org/github.com/xiam/gosexy/yaml).
+Or you can [browse it](http://go.pkgdoc.org/github.com/xiam/gosexy/yaml) online.

@@ -4,7 +4,7 @@ gosexy is a general purpose framework for Go that provides sugar methods, types 
 
 ## Installing gosexy
 
-Use the command line:
+Use the command line
 
   $ go get github.com/xiam/gosexy
 
