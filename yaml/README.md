@@ -24,4 +24,4 @@ You can read ``gosexy/yaml`` documentation from a terminal
 
 	$ go doc github.com/xiam/gosexy/yaml
 
-Or you can browse a [web version](http://go.pkgdoc.org/github.com/xiam/gosexy/yaml).
+Or you can [browse it online](http://go.pkgdoc.org/github.com/xiam/gosexy/yaml).
