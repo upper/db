@@ -20,8 +20,8 @@ This package is a wrapper of [goyaml](http://launchpad.net/goyaml) that provides
 
 ## Documentation
 
-  You can read ``gosexy/yaml`` documentation from a terminal:
+You can read ``gosexy/yaml`` documentation from a terminal
 
 	$ go doc github.com/xiam/gosexy/yaml
 
-  Or you can read it from [web](http://go.pkgdoc.org/github.com/xiam/gosexy/yaml).
+Or you can browse a [web version](http://go.pkgdoc.org/github.com/xiam/gosexy/yaml).
