@@ -3,13 +3,11 @@ package yaml
 import "testing"
 
 func TestRead(t *testing.T) {
-	settings := NewYAML()
-	settings.Read("examples/input/settings.yaml")
+	Open("examples/input/settings.yaml")
 }
 
 func TestGet(t *testing.T) {
-	settings := NewYAML()
-	settings.Read("examples/input/settings.yaml")
+	settings := Open("examples/input/settings.yaml")
 
 	test1 := "Hello World!"
 	val1 := settings.Get("test_string", nil).(string)
@@ -42,8 +40,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	settings := NewYAML()
-	settings.Read("examples/input/settings.yaml")
+	settings := Open("examples/input/settings.yaml")
 
 	settings.Set("test_map.element_3.test_bool", true)
 
@@ -57,10 +54,9 @@ func TestSet(t *testing.T) {
 }
 
 func TestWrite(t *testing.T) {
-	settings := NewYAML()
-	settings.Read("examples/input/settings.yaml")
+	settings := New()
+	defer settings.Write("examples/input/settings2.yaml")
 
 	settings.Set("test_map.element_3.test_bool", true)
 
-	settings.Write("examples/output/settings.yaml")
 }

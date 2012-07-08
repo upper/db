@@ -24,27 +24,44 @@
 package yaml
 
 import (
-	"github.com/xiam/gosexy"
+	"fmt"
+	. "github.com/xiam/gosexy"
 	"launchpad.net/goyaml"
 	"os"
 	"strings"
 )
 
-type Storage struct {
-	storage *gosexy.Tuple
+type Yaml struct {
+	file   string
+	values *Tuple
 }
 
-func NewYAML() *Storage {
-	c := &Storage{}
-	return c
+// Creates and returns a new YAML structure.
+func New() *Yaml {
+	yaml := &Yaml{}
+	yaml.values = &Tuple{}
+	return yaml
 }
 
-func (c *Storage) Get(path string, def interface{}) interface{} {
-	var p gosexy.Tuple
+// Creates and returns a YAML structure from a file.
+func Open(file string) *Yaml {
+	yaml := New()
+	yaml.file = file
+	yaml.Read(yaml.file)
+	return yaml
+}
+
+// Returns a YAML setting (or nil if the referred name does not exists). Read nested values by using a dot (.) between labels.
+//
+// Example:
+//
+//	yaml.Get("foo.bar")
+func (y *Yaml) Get(path string, def interface{}) interface{} {
+	var p Tuple
 
 	path = strings.ToLower(path)
 
-	p = *c.storage
+	p = *y.values
 
 	chunks := strings.Split(path, ".")
 
@@ -62,9 +79,9 @@ func (c *Storage) Get(path string, def interface{}) interface{} {
 
 			if ok == true {
 				switch value.(type) {
-				case gosexy.Tuple:
+				case Tuple:
 					{
-						p = value.(gosexy.Tuple)
+						p = value.(Tuple)
 					}
 				default:
 					{
@@ -81,12 +98,13 @@ func (c *Storage) Get(path string, def interface{}) interface{} {
 	return def
 }
 
-func (c *Storage) Set(path string, value interface{}) {
-	var p gosexy.Tuple
+// Sets a YAML setting, use dots (.) to nest values inside values.
+func (y *Yaml) Set(path string, value interface{}) {
+	var p Tuple
 
 	path = strings.ToLower(path)
 
-	p = *c.storage
+	p = *y.values
 
 	chunks := strings.Split(path, ".")
 
@@ -103,27 +121,27 @@ func (c *Storage) Set(path string, value interface{}) {
 			// Searching.
 			if ok == true {
 				switch current.(type) {
-				case gosexy.Tuple:
+				case Tuple:
 					{
 						// Just skip.
 					}
 				default:
 					{
 						delete(p, chunks[i])
-						p[chunks[i]] = gosexy.Tuple{}
+						p[chunks[i]] = Tuple{}
 					}
 				}
 			} else {
-				p[chunks[i]] = gosexy.Tuple{}
+				p[chunks[i]] = Tuple{}
 			}
 
-			p = p[chunks[i]].(gosexy.Tuple)
+			p = p[chunks[i]].(Tuple)
 		}
 	}
 
 }
 
-func (c *Storage) Map(data interface{}, parent *gosexy.Tuple) {
+func (y *Yaml) mapValues(data interface{}, parent *Tuple) {
 
 	var name string
 
@@ -153,8 +171,8 @@ func (c *Storage) Map(data interface{}, parent *gosexy.Tuple) {
 			}
 		case interface{}:
 			{
-				values := &gosexy.Tuple{}
-				c.Map(value, values)
+				values := &Tuple{}
+				y.mapValues(value, values)
 				(*parent)[name] = *values
 			}
 		}
@@ -163,9 +181,19 @@ func (c *Storage) Map(data interface{}, parent *gosexy.Tuple) {
 
 }
 
-func (c *Storage) Write(filename string) {
+// Saves changes made to the latest Open()'ed YAML file.
+func (y *Yaml) Save() {
+	if y.file != "" {
+		y.Write(y.file)
+	} else {
+		panic(fmt.Errorf("No file specified."))
+	}
+}
 
-	out, err := goyaml.Marshal(c.storage)
+// Writes the current YAML structure into an arbitrary file.
+func (y *Yaml) Write(filename string) {
+
+	out, err := goyaml.Marshal(y.values)
 	if err != nil {
 		panic(err)
 	}
@@ -179,7 +207,8 @@ func (c *Storage) Write(filename string) {
 	fp.Write(out)
 }
 
-func (c *Storage) Read(filename string) {
+// Reads a YAML file and stores it into the current YAML structure.
+func (y *Yaml) Read(filename string) {
 	var err error
 	var data interface{}
 
@@ -206,8 +235,7 @@ func (c *Storage) Read(filename string) {
 
 	if err == nil {
 
-		c.storage = &gosexy.Tuple{}
-		c.Map(data, c.storage)
+		y.mapValues(data, y.values)
 
 	} else {
 
