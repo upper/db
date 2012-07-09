@@ -67,7 +67,7 @@ func (c *MongoDataSourceCollection) marshal(where Where) map[string]interface{} 
 	return conds
 }
 
-// Deletes all rows in a collection. In MongoDataSource, deletes the whole collection.
+// Deletes the whole collection.
 func (c *MongoDataSourceCollection) Truncate() bool {
 	err := c.collection.DropCollection()
 

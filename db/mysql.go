@@ -245,7 +245,7 @@ func (my *MysqlDataSource) Use(database string) error {
 	return nil
 }
 
-// Drops the current active database.
+// Drops the currently active database.
 func (my *MysqlDataSource) Drop() error {
 	my.session.Query(fmt.Sprintf("DROP DATABASE %s", my.config.Database))
 	return nil
@@ -374,7 +374,7 @@ func (t *MysqlTable) compileConditions(term interface{}) (string, sqlArgs) {
 	return "", args
 }
 
-// Converts Where{} structures into SQL.
+// Converts Where{} structures into SQL before processing them in a query.
 func (t *MysqlTable) marshal(where Where) (string, []string) {
 
 	for key, val := range where {
@@ -666,7 +666,7 @@ func (t *MysqlTable) Find(terms ...interface{}) Item {
 	return item
 }
 
-// Inserts a row into the table.
+// Inserts rows into the currently active table.
 func (t *MysqlTable) Append(items ...interface{}) bool {
 
 	itop := len(items)
@@ -696,7 +696,7 @@ func (t *MysqlTable) Append(items ...interface{}) bool {
 	return true
 }
 
-// Returns a MySQL table object by name.
+// Returns a MySQL table structure by name.
 func (my *MysqlDataSource) Collection(name string) Collection {
 
 	if collection, ok := my.collections[name]; ok == true {

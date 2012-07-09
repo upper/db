@@ -87,6 +87,7 @@ func pgValues(values []string) sqlValues {
 	return ret
 }
 
+// Stores PostgreSQL session data.
 type PostgresqlDataSource struct {
 	config      DataSource
 	session     *sql.DB
@@ -186,12 +187,14 @@ func (pg *PostgresqlDataSource) pgExec(method string, terms ...interface{}) sql.
 	return res[0].Elem().Interface().(sql.Rows)
 }
 
+// Represents a PostgreSQL table.
 type PostgresqlTable struct {
 	parent *PostgresqlDataSource
 	name   string
 	types  map[string]reflect.Kind
 }
 
+// Configures and returns a PostgreSQL dabase session.
 func PostgresqlSession(config DataSource) Database {
 	m := &PostgresqlDataSource{}
 	m.config = config
@@ -199,7 +202,7 @@ func PostgresqlSession(config DataSource) Database {
 	return m
 }
 
-// Closes a previously opened MySQL database session.
+// Closes a previously opened PostgreSQL database session.
 func (pg *PostgresqlDataSource) Close() error {
 	if pg.session != nil {
 		return pg.session.Close()
@@ -207,6 +210,7 @@ func (pg *PostgresqlDataSource) Close() error {
 	return nil
 }
 
+// Tries to open a connection to the current PostgreSQL session.
 func (pg *PostgresqlDataSource) Open() error {
 	var err error
 
@@ -233,11 +237,13 @@ func (pg *PostgresqlDataSource) Open() error {
 	return nil
 }
 
+// Changes the active database.
 func (pg *PostgresqlDataSource) Use(database string) error {
 	pg.config.Database = database
 	return pg.Open()
 }
 
+// Deletes the currently active database.
 func (pg *PostgresqlDataSource) Drop() error {
 	pg.session.Query(fmt.Sprintf("DROP DATABASE %s", pg.config.Database))
 	return nil
@@ -248,6 +254,7 @@ func (pg *PostgresqlDataSource) Driver() interface{} {
 	return pg.session
 }
 
+// Returns the list of PostgreSQL tables in the current database.
 func (pg *PostgresqlDataSource) Collections() []string {
 	var collections []string
 	var collection string
@@ -381,6 +388,7 @@ func (t *PostgresqlTable) marshal(where Where) (string, []string) {
 	return "", []string{}
 }
 
+// Deletes all the rows in the table.
 func (t *PostgresqlTable) Truncate() bool {
 
 	t.parent.pgExec(
@@ -391,6 +399,7 @@ func (t *PostgresqlTable) Truncate() bool {
 	return false
 }
 
+// Deletes all the rows in the table that match certain conditions.
 func (t *PostgresqlTable) Remove(terms ...interface{}) bool {
 
 	conditions, cargs := t.compileConditions(terms)
@@ -408,6 +417,7 @@ func (t *PostgresqlTable) Remove(terms ...interface{}) bool {
 	return true
 }
 
+// Modifies all the rows in the table that match certain conditions.
 func (t *PostgresqlTable) Update(terms ...interface{}) bool {
 	var fields string
 	var fargs sqlArgs
@@ -436,6 +446,7 @@ func (t *PostgresqlTable) Update(terms ...interface{}) bool {
 	return true
 }
 
+// Returns all the rows in the table that match certain conditions.
 func (t *PostgresqlTable) FindAll(terms ...interface{}) []Item {
 	var itop int
 
@@ -612,6 +623,7 @@ func (t *PostgresqlTable) FindAll(terms ...interface{}) []Item {
 	return items
 }
 
+// Returns the number of rows in the current table that match certain conditions.
 func (t *PostgresqlTable) Count(terms ...interface{}) int {
 
 	terms = append(terms, Fields{"COUNT(1) AS _total"})
@@ -629,6 +641,7 @@ func (t *PostgresqlTable) Count(terms ...interface{}) int {
 	return 0
 }
 
+// Returns the first row in the table that matches certain conditions.
 func (t *PostgresqlTable) Find(terms ...interface{}) Item {
 
 	var item Item
@@ -647,6 +660,7 @@ func (t *PostgresqlTable) Find(terms ...interface{}) Item {
 	return item
 }
 
+// Inserts rows into the currently active table.
 func (t *PostgresqlTable) Append(items ...interface{}) bool {
 
 	itop := len(items)
@@ -676,6 +690,7 @@ func (t *PostgresqlTable) Append(items ...interface{}) bool {
 	return true
 }
 
+// Returns a MySQL table structure by name.
 func (pg *PostgresqlDataSource) Collection(name string) Collection {
 
 	if collection, ok := pg.collections[name]; ok == true {

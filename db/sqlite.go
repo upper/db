@@ -87,6 +87,7 @@ func slValues(values []string) sqlValues {
 	return ret
 }
 
+// Stores driver's session data.
 type SqliteDataSource struct {
 	config      DataSource
 	session     *sql.DB
@@ -197,12 +198,14 @@ func (sl *SqliteDataSource) slExec(method string, terms ...interface{}) sql.Rows
 
 }
 
+// Represents a SQLite table.
 type SqliteTable struct {
 	parent *SqliteDataSource
 	name   string
 	types  map[string]reflect.Kind
 }
 
+// Configures and returns a SQLite database session.
 func SqliteSession(config DataSource) Database {
 	m := &SqliteDataSource{}
 	m.config = config
@@ -215,6 +218,7 @@ func (sl *SqliteDataSource) Driver() interface{} {
 	return sl.session
 }
 
+// Tries to open a connection to the current SQLite session.
 func (sl *SqliteDataSource) Open() error {
 	var err error
 
@@ -233,6 +237,7 @@ func (sl *SqliteDataSource) Open() error {
 	return nil
 }
 
+// Closes a previously opened SQLite database session.
 func (sl *SqliteDataSource) Close() error {
 	if sl.session != nil {
 		return sl.session.Close()
@@ -240,17 +245,20 @@ func (sl *SqliteDataSource) Close() error {
 	return nil
 }
 
+// Changes the active database.
 func (sl *SqliteDataSource) Use(database string) error {
 	sl.config.Database = database
 	sl.session.Query(fmt.Sprintf("USE %s", database))
 	return nil
 }
 
+// Deletes the currently active database.
 func (sl *SqliteDataSource) Drop() error {
 	sl.session.Query(fmt.Sprintf("DROP DATABASE %s", sl.config.Database))
 	return nil
 }
 
+// Returns the list of SQLite tables in the current database.
 func (sl *SqliteDataSource) Collections() []string {
 	var collections []string
 	var collection string
@@ -385,6 +393,7 @@ func (t *SqliteTable) marshal(where Where) (string, []string) {
 	return "", []string{}
 }
 
+// Deletes all the rows in the table.
 func (t *SqliteTable) Truncate() bool {
 
 	t.parent.slExec(
@@ -394,6 +403,8 @@ func (t *SqliteTable) Truncate() bool {
 
 	return false
 }
+
+// Deletes all the rows in the table that match certain conditions.
 func (t *SqliteTable) Remove(terms ...interface{}) bool {
 
 	conditions, cargs := t.compileConditions(terms)
@@ -411,6 +422,7 @@ func (t *SqliteTable) Remove(terms ...interface{}) bool {
 	return true
 }
 
+// Modifies all the rows in the table that match certain conditions.
 func (t *SqliteTable) Update(terms ...interface{}) bool {
 	var fields string
 	var fargs sqlArgs
@@ -439,6 +451,7 @@ func (t *SqliteTable) Update(terms ...interface{}) bool {
 	return true
 }
 
+// Returns all the rows in the table that match certain conditions.
 func (t *SqliteTable) FindAll(terms ...interface{}) []Item {
 	var itop int
 
@@ -615,6 +628,7 @@ func (t *SqliteTable) FindAll(terms ...interface{}) []Item {
 	return items
 }
 
+// Returns the number of rows in the current table that match certain conditions.
 func (t *SqliteTable) Count(terms ...interface{}) int {
 
 	terms = append(terms, Fields{"COUNT(1) AS _total"})
@@ -632,6 +646,7 @@ func (t *SqliteTable) Count(terms ...interface{}) int {
 	return 0
 }
 
+// Returns the first row in the table that matches certain conditions.
 func (t *SqliteTable) Find(terms ...interface{}) Item {
 
 	var item Item
@@ -650,6 +665,7 @@ func (t *SqliteTable) Find(terms ...interface{}) Item {
 	return item
 }
 
+// Inserts rows into the currently active table.
 func (t *SqliteTable) Append(items ...interface{}) bool {
 
 	itop := len(items)
@@ -680,6 +696,7 @@ func (t *SqliteTable) Append(items ...interface{}) bool {
 	return true
 }
 
+// Returns a SQLite table structure by name.
 func (sl *SqliteDataSource) Collection(name string) Collection {
 
 	if collection, ok := sl.collections[name]; ok == true {
