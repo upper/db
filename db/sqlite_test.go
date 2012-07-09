@@ -11,9 +11,10 @@ const sqDatabase = "./dumps/gotest.sqlite3.db"
 
 func TestSqTruncate(t *testing.T) {
 
-	db := NewSqliteDB(&DataSource{Database: sqDatabase})
+	db := SqliteSession(DataSource{Database: sqDatabase})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -33,9 +34,10 @@ func TestSqTruncate(t *testing.T) {
 
 func TestSqAppend(t *testing.T) {
 
-	db := NewSqliteDB(&DataSource{Database: sqDatabase})
+	db := SqliteSession(DataSource{Database: sqDatabase})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -59,9 +61,10 @@ func TestSqAppend(t *testing.T) {
 
 func TestSqFind(t *testing.T) {
 
-	db := NewSqliteDB(&DataSource{Database: sqDatabase})
+	db := SqliteSession(DataSource{Database: sqDatabase})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -78,9 +81,10 @@ func TestSqFind(t *testing.T) {
 }
 
 func TestSqDelete(t *testing.T) {
-	db := NewSqliteDB(&DataSource{Database: sqDatabase})
+	db := SqliteSession(DataSource{Database: sqDatabase})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -88,8 +92,7 @@ func TestSqDelete(t *testing.T) {
 
 	col := db.Collection("people")
 
-	// Remove() may not always work http://www.sqlite.org/compile.html#enable_update_delete_limit
-	col.RemoveAll(Where{"name": "Juan"})
+	col.Remove(Where{"name": "Juan"})
 
 	result := col.Find(Where{"name": "Juan"})
 
@@ -99,9 +102,10 @@ func TestSqDelete(t *testing.T) {
 }
 
 func TestSqUpdate(t *testing.T) {
-	db := NewSqliteDB(&DataSource{Database: sqDatabase})
+	db := SqliteSession(DataSource{Database: sqDatabase})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -109,8 +113,7 @@ func TestSqUpdate(t *testing.T) {
 
 	col := db.Collection("people")
 
-	// Update() may not always work http://www.sqlite.org/compile.html#enable_update_delete_limit
-	col.UpdateAll(Where{"name": "José"}, Set{"name": "Joseph"})
+	col.Update(Where{"name": "José"}, Set{"name": "Joseph"})
 
 	result := col.Find(Where{"name": "Joseph"})
 
@@ -122,9 +125,10 @@ func TestSqUpdate(t *testing.T) {
 func TestSqPopulate(t *testing.T) {
 	var i int
 
-	db := NewSqliteDB(&DataSource{Database: sqDatabase})
+	db := SqliteSession(DataSource{Database: sqDatabase})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -157,7 +161,7 @@ func TestSqPopulate(t *testing.T) {
 		}
 
 		// Lives in
-		db.Collection("people").UpdateAll(
+		db.Collection("people").Update(
 			Where{"id": person["id"]},
 			Set{"place_code_id": int(rand.Float32() * float32(len(places)))},
 		)
@@ -177,9 +181,10 @@ func TestSqPopulate(t *testing.T) {
 }
 
 func TestSqRelation(t *testing.T) {
-	db := NewSqliteDB(&DataSource{Database: sqDatabase})
+	db := SqliteSession(DataSource{Database: sqDatabase})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)

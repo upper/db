@@ -1,6 +1,7 @@
 package db
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/kr/pretty"
 	"math/rand"
@@ -14,9 +15,10 @@ const myPassword = "gopass"
 
 func TestMyTruncate(t *testing.T) {
 
-	db := NewMysqlDB(&DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
+	db := MysqlSession(DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -36,9 +38,10 @@ func TestMyTruncate(t *testing.T) {
 
 func TestMyAppend(t *testing.T) {
 
-	db := NewMysqlDB(&DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
+	db := MysqlSession(DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -62,9 +65,10 @@ func TestMyAppend(t *testing.T) {
 
 func TestMyFind(t *testing.T) {
 
-	db := NewMysqlDB(&DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
+	db := MysqlSession(DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -81,9 +85,10 @@ func TestMyFind(t *testing.T) {
 }
 
 func TestMyDelete(t *testing.T) {
-	db := NewMysqlDB(&DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
+	db := MysqlSession(DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -101,9 +106,10 @@ func TestMyDelete(t *testing.T) {
 }
 
 func TestMyUpdate(t *testing.T) {
-	db := NewMysqlDB(&DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
+	db := MysqlSession(DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -125,9 +131,10 @@ func TestMyUpdate(t *testing.T) {
 func TestMyPopulate(t *testing.T) {
 	var i int
 
-	db := NewMysqlDB(&DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
+	db := MysqlSession(DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -180,9 +187,10 @@ func TestMyPopulate(t *testing.T) {
 }
 
 func TestMyRelation(t *testing.T) {
-	db := NewMysqlDB(&DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
+	db := MysqlSession(DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -216,4 +224,22 @@ func TestMyRelation(t *testing.T) {
 	)
 
 	fmt.Printf("%# v\n", pretty.Formatter(result))
+}
+
+func TestCustom(t *testing.T) {
+	db := MysqlSession(DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
+
+	err := db.Open()
+	defer db.Close()
+
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = db.Driver().(*sql.DB).Query("SELECT NOW()")
+
+	if err != nil {
+		panic(err)
+	}
+
 }

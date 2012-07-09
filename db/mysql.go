@@ -34,14 +34,9 @@ import (
 	"strings"
 )
 
-/*
-type Values []string
-type Args []string
-*/
-
 type myQuery struct {
-	Query []string
-	Args  []string
+	Query   []string
+	sqlArgs []string
 }
 
 func myCompile(terms []interface{}) *myQuery {
@@ -55,18 +50,18 @@ func myCompile(terms []interface{}) *myQuery {
 			{
 				q.Query = append(q.Query, term.(string))
 			}
-		case Args:
+		case sqlArgs:
 			{
-				for _, arg := range term.(Args) {
-					q.Args = append(q.Args, arg)
+				for _, arg := range term.(sqlArgs) {
+					q.sqlArgs = append(q.sqlArgs, arg)
 				}
 			}
-		case Values:
+		case sqlValues:
 			{
-				args := make([]string, len(term.(Values)))
-				for i, arg := range term.(Values) {
+				args := make([]string, len(term.(sqlValues)))
+				for i, arg := range term.(sqlValues) {
 					args[i] = "?"
-					q.Args = append(q.Args, arg)
+					q.sqlArgs = append(q.sqlArgs, arg)
 				}
 				q.Query = append(q.Query, "("+strings.Join(args, ", ")+")")
 			}
@@ -84,20 +79,22 @@ func myFields(names []string) string {
 	return "(" + strings.Join(names, ", ") + ")"
 }
 
-func myValues(values []string) Values {
-	ret := make(Values, len(values))
+func myValues(values []string) sqlValues {
+	ret := make(sqlValues, len(values))
 	for i, _ := range values {
 		ret[i] = values[i]
 	}
 	return ret
 }
 
-type MysqlDB struct {
-	config      *DataSource
+// Stores driver's session data.
+type MysqlDataSource struct {
 	session     *sql.DB
+	config      DataSource
 	collections map[string]Collection
 }
 
+// Returns all items from a query.
 func (t *MysqlTable) myFetchAll(rows sql.Rows) []Item {
 
 	items := []Item{}
@@ -161,7 +158,8 @@ func (t *MysqlTable) myFetchAll(rows sql.Rows) []Item {
 	return items
 }
 
-func (my *MysqlDB) myExec(method string, terms ...interface{}) sql.Rows {
+// Executes a database/sql method.
+func (my *MysqlDataSource) myExec(method string, terms ...interface{}) sql.Rows {
 
 	sn := reflect.ValueOf(my.session)
 	fn := sn.MethodByName(method)
@@ -170,15 +168,15 @@ func (my *MysqlDB) myExec(method string, terms ...interface{}) sql.Rows {
 
 	/*
 		fmt.Printf("Q: %v\n", q.Query)
-		fmt.Printf("A: %v\n", q.Args)
+		fmt.Printf("A: %v\n", q.sqlArgs)
 	*/
 
-	args := make([]reflect.Value, len(q.Args)+1)
+	args := make([]reflect.Value, len(q.sqlArgs)+1)
 
 	args[0] = reflect.ValueOf(strings.Join(q.Query, " "))
 
-	for i := 0; i < len(q.Args); i++ {
-		args[1+i] = reflect.ValueOf(q.Args[i])
+	for i := 0; i < len(q.sqlArgs); i++ {
+		args[1+i] = reflect.ValueOf(q.sqlArgs[i])
 	}
 
 	res := fn.Call(args)
@@ -190,20 +188,31 @@ func (my *MysqlDB) myExec(method string, terms ...interface{}) sql.Rows {
 	return res[0].Elem().Interface().(sql.Rows)
 }
 
+// Represents a MySQL table.
 type MysqlTable struct {
-	parent *MysqlDB
+	parent *MysqlDataSource
 	name   string
 	types  map[string]reflect.Kind
 }
 
-func NewMysqlDB(config *DataSource) Database {
-	m := &MysqlDB{}
-	m.config = config
-	m.collections = make(map[string]Collection)
-	return m
+// Configures and returns a MySQL database session.
+func MysqlSession(config DataSource) Database {
+	my := &MysqlDataSource{}
+	my.config = config
+	my.collections = make(map[string]Collection)
+	return my
 }
 
-func (my *MysqlDB) Connect() error {
+// Closes a previously opened MySQL database session.
+func (my *MysqlDataSource) Close() error {
+	if my.session != nil {
+		return my.session.Close()
+	}
+	return nil
+}
+
+// Tries to open a connection to the current MySQL session.
+func (my *MysqlDataSource) Open() error {
 	var err error
 
 	if my.config.Host == "" {
@@ -229,18 +238,26 @@ func (my *MysqlDB) Connect() error {
 	return nil
 }
 
-func (my *MysqlDB) Use(database string) error {
+// Changes the active database.
+func (my *MysqlDataSource) Use(database string) error {
 	my.config.Database = database
 	my.session.Query(fmt.Sprintf("USE %s", database))
 	return nil
 }
 
-func (my *MysqlDB) Drop() error {
+// Drops the current active database.
+func (my *MysqlDataSource) Drop() error {
 	my.session.Query(fmt.Sprintf("DROP DATABASE %s", my.config.Database))
 	return nil
 }
 
-func (my *MysqlDB) Collections() []string {
+// Returns a *sql.DB object that represents an internal session.
+func (my *MysqlDataSource) Driver() interface{} {
+	return my.session
+}
+
+// Returns the list of MySQL tables in the current database.
+func (my *MysqlDataSource) Collections() []string {
 	var collections []string
 	var collection string
 	rows, _ := my.session.Query("SHOW TABLES")
@@ -253,6 +270,7 @@ func (my *MysqlDB) Collections() []string {
 	return collections
 }
 
+// Calls an internal function.
 func (t *MysqlTable) invoke(fn string, terms []interface{}) []reflect.Value {
 
 	self := reflect.ValueOf(t)
@@ -270,9 +288,10 @@ func (t *MysqlTable) invoke(fn string, terms []interface{}) []reflect.Value {
 	return exec
 }
 
-func (t *MysqlTable) compileSet(term Set) (string, Args) {
+// A helper for preparing queries that use SET.
+func (t *MysqlTable) compileSet(term Set) (string, sqlArgs) {
 	sql := []string{}
-	args := Args{}
+	args := sqlArgs{}
 
 	for key, arg := range term {
 		sql = append(sql, fmt.Sprintf("%s = ?", key))
@@ -282,9 +301,10 @@ func (t *MysqlTable) compileSet(term Set) (string, Args) {
 	return strings.Join(sql, ", "), args
 }
 
-func (t *MysqlTable) compileConditions(term interface{}) (string, Args) {
+// A helper for preparing queries that have conditions.
+func (t *MysqlTable) compileConditions(term interface{}) (string, sqlArgs) {
 	sql := []string{}
-	args := Args{}
+	args := sqlArgs{}
 
 	switch term.(type) {
 	case []interface{}:
@@ -354,6 +374,7 @@ func (t *MysqlTable) compileConditions(term interface{}) (string, Args) {
 	return "", args
 }
 
+// Converts Where{} structures into SQL.
 func (t *MysqlTable) marshal(where Where) (string, []string) {
 
 	for key, val := range where {
@@ -373,6 +394,7 @@ func (t *MysqlTable) marshal(where Where) (string, []string) {
 	return "", []string{}
 }
 
+// Deletes all the rows in the table.
 func (t *MysqlTable) Truncate() bool {
 
 	t.parent.myExec(
@@ -383,48 +405,10 @@ func (t *MysqlTable) Truncate() bool {
 	return false
 }
 
+// Removes all the rows in the table that match certain conditions.
 func (t *MysqlTable) Remove(terms ...interface{}) bool {
-	terms = append(terms, Limit(1))
-
-	result := t.invoke("RemoveAll", terms)
-
-	if len(result) > 0 {
-		return result[0].Interface().(bool)
-	}
-
-	return false
-}
-
-func (t *MysqlTable) Update(terms ...interface{}) bool {
-	terms = append(terms, Limit(1))
-
-	result := t.invoke("UpdateAll", terms)
-
-	if len(result) > 0 {
-		return result[0].Interface().(bool)
-	}
-
-	return false
-}
-
-func (t *MysqlTable) RemoveAll(terms ...interface{}) bool {
-	limit := ""
-	offset := ""
 
 	conditions, cargs := t.compileConditions(terms)
-
-	for _, term := range terms {
-		switch term.(type) {
-		case Limit:
-			{
-				limit = fmt.Sprintf("LIMIT %v", term.(Limit))
-			}
-		case Offset:
-			{
-				offset = fmt.Sprintf("OFFSET %v", term.(Offset))
-			}
-		}
-	}
 
 	if conditions == "" {
 		conditions = "1 = 1"
@@ -434,18 +418,15 @@ func (t *MysqlTable) RemoveAll(terms ...interface{}) bool {
 		"Query",
 		fmt.Sprintf("DELETE FROM %s", myTable(t.name)),
 		fmt.Sprintf("WHERE %s", conditions), cargs,
-		limit, offset,
 	)
 
 	return true
 }
 
-func (t *MysqlTable) UpdateAll(terms ...interface{}) bool {
+// Modifies all the rows in the table that match certain conditions.
+func (t *MysqlTable) Update(terms ...interface{}) bool {
 	var fields string
-	var fargs Args
-
-	limit := ""
-	offset := ""
+	var fargs sqlArgs
 
 	conditions, cargs := t.compileConditions(terms)
 
@@ -454,14 +435,6 @@ func (t *MysqlTable) UpdateAll(terms ...interface{}) bool {
 		case Set:
 			{
 				fields, fargs = t.compileSet(term.(Set))
-			}
-		case Limit:
-			{
-				limit = fmt.Sprintf("LIMIT %v", term.(Limit))
-			}
-		case Offset:
-			{
-				offset = fmt.Sprintf("OFFSET %v", term.(Offset))
 			}
 		}
 	}
@@ -474,12 +447,12 @@ func (t *MysqlTable) UpdateAll(terms ...interface{}) bool {
 		"Query",
 		fmt.Sprintf("UPDATE %s SET %s", myTable(t.name), fields), fargs,
 		fmt.Sprintf("WHERE %s", conditions), cargs,
-		limit, offset,
 	)
 
 	return true
 }
 
+// Returns all the rows in the table that match certain conditions.
 func (t *MysqlTable) FindAll(terms ...interface{}) []Item {
 	var itop int
 
@@ -656,6 +629,7 @@ func (t *MysqlTable) FindAll(terms ...interface{}) []Item {
 	return items
 }
 
+// Returns the number of rows in the current table that match certain conditions.
 func (t *MysqlTable) Count(terms ...interface{}) int {
 
 	terms = append(terms, Fields{"COUNT(1) AS _total"})
@@ -673,6 +647,7 @@ func (t *MysqlTable) Count(terms ...interface{}) int {
 	return 0
 }
 
+// Returns the first row in the table that matches certain conditions.
 func (t *MysqlTable) Find(terms ...interface{}) Item {
 
 	var item Item
@@ -691,6 +666,7 @@ func (t *MysqlTable) Find(terms ...interface{}) Item {
 	return item
 }
 
+// Inserts a row into the table.
 func (t *MysqlTable) Append(items ...interface{}) bool {
 
 	itop := len(items)
@@ -720,7 +696,8 @@ func (t *MysqlTable) Append(items ...interface{}) bool {
 	return true
 }
 
-func (my *MysqlDB) Collection(name string) Collection {
+// Returns a MySQL table object by name.
+func (my *MysqlDataSource) Collection(name string) Collection {
 
 	if collection, ok := my.collections[name]; ok == true {
 		return collection

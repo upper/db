@@ -165,7 +165,10 @@ type DataSource struct {
 
 // Database methods.
 type Database interface {
-	Connect() error
+	Driver() interface{}
+
+	Open() error
+	Close() error
 
 	Collection(string) Collection
 	Collections() []string
@@ -184,19 +187,16 @@ type Collection interface {
 	FindAll(...interface{}) []Item
 
 	Update(...interface{}) bool
-	UpdateAll(...interface{}) bool
 
 	Remove(...interface{}) bool
-	RemoveAll(...interface{}) bool
 
 	Truncate() bool
 }
 
-// Specifies single or multiple requests in FindAll() expressions.
-type multiFlag bool
-
 // Specifies which fields to return in a query.
 type Fields []string
 
-type Values []string
-type Args []string
+// Specifies single or multiple requests in FindAll() expressions.
+type multiFlag bool
+type sqlValues []string
+type sqlArgs []string

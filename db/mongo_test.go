@@ -10,11 +10,12 @@ import (
 const mgHost = "10.0.0.11"
 const mgDatabase = "gotest"
 
-func TestMgConnect(t *testing.T) {
+func TestMgOpen(t *testing.T) {
 
-	db := NewMongoDB(&DataSource{Host: "0.0.0.0"})
+	db := MongoSession(DataSource{Host: "0.0.0.0"})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		t.Logf("Got %t, this was intended.", err)
@@ -26,9 +27,10 @@ func TestMgConnect(t *testing.T) {
 
 func TestMgAuthFail(t *testing.T) {
 
-	db := NewMongoDB(&DataSource{Host: mgHost, Database: mgDatabase, User: "unknown", Password: "fail"})
+	db := MongoSession(DataSource{Host: mgHost, Database: mgDatabase, User: "unknown", Password: "fail"})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		t.Logf("Got %t, this was intended.", err)
@@ -40,9 +42,10 @@ func TestMgAuthFail(t *testing.T) {
 
 func TestMgDrop(t *testing.T) {
 
-	db := NewMongoDB(&DataSource{Host: mgHost, Database: mgDatabase})
+	db := MongoSession(DataSource{Host: mgHost, Database: mgDatabase})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -53,9 +56,10 @@ func TestMgDrop(t *testing.T) {
 
 func TestMgAppend(t *testing.T) {
 
-	db := NewMongoDB(&DataSource{Host: mgHost, Database: mgDatabase})
+	db := MongoSession(DataSource{Host: mgHost, Database: mgDatabase})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -77,9 +81,10 @@ func TestMgAppend(t *testing.T) {
 
 func TestMgFind(t *testing.T) {
 
-	db := NewMongoDB(&DataSource{Host: mgHost, Database: mgDatabase})
+	db := MongoSession(DataSource{Host: mgHost, Database: mgDatabase})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -96,9 +101,10 @@ func TestMgFind(t *testing.T) {
 }
 
 func TestMgDelete(t *testing.T) {
-	db := NewMongoDB(&DataSource{Host: mgHost, Database: mgDatabase})
+	db := MongoSession(DataSource{Host: mgHost, Database: mgDatabase})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -116,9 +122,10 @@ func TestMgDelete(t *testing.T) {
 }
 
 func TestMgUpdate(t *testing.T) {
-	db := NewMongoDB(&DataSource{Host: mgHost, Database: mgDatabase})
+	db := MongoSession(DataSource{Host: mgHost, Database: mgDatabase})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -138,9 +145,10 @@ func TestMgUpdate(t *testing.T) {
 func TestMgPopulate(t *testing.T) {
 	var i int
 
-	db := NewMongoDB(&DataSource{Host: mgHost, Database: mgDatabase})
+	db := MongoSession(DataSource{Host: mgHost, Database: mgDatabase})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -189,9 +197,10 @@ func TestMgPopulate(t *testing.T) {
 }
 
 func TestMgRelation(t *testing.T) {
-	db := NewMongoDB(&DataSource{Host: mgHost, Database: mgDatabase})
+	db := MongoSession(DataSource{Host: mgHost, Database: mgDatabase})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)

@@ -14,9 +14,10 @@ const pgPassword = "gopass"
 
 func TestPgTruncate(t *testing.T) {
 
-	db := NewPostgresqlDB(&DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
+	db := PostgresqlSession(DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -36,9 +37,10 @@ func TestPgTruncate(t *testing.T) {
 
 func TestPgAppend(t *testing.T) {
 
-	db := NewPostgresqlDB(&DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
+	db := PostgresqlSession(DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -62,9 +64,10 @@ func TestPgAppend(t *testing.T) {
 
 func TestPgFind(t *testing.T) {
 
-	db := NewPostgresqlDB(&DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
+	db := PostgresqlSession(DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -81,9 +84,10 @@ func TestPgFind(t *testing.T) {
 }
 
 func TestPgDelete(t *testing.T) {
-	db := NewPostgresqlDB(&DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
+	db := PostgresqlSession(DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -91,7 +95,7 @@ func TestPgDelete(t *testing.T) {
 
 	col := db.Collection("people")
 
-	col.RemoveAll(Where{"name": "Juan"})
+	col.Remove(Where{"name": "Juan"})
 
 	result := col.Find(Where{"name": "Juan"})
 
@@ -101,9 +105,10 @@ func TestPgDelete(t *testing.T) {
 }
 
 func TestPgUpdate(t *testing.T) {
-	db := NewPostgresqlDB(&DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
+	db := PostgresqlSession(DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -125,9 +130,10 @@ func TestPgUpdate(t *testing.T) {
 func TestPgPopulate(t *testing.T) {
 	var i int
 
-	db := NewPostgresqlDB(&DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
+	db := PostgresqlSession(DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)
@@ -180,9 +186,10 @@ func TestPgPopulate(t *testing.T) {
 }
 
 func TestPgRelation(t *testing.T) {
-	db := NewPostgresqlDB(&DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
+	db := PostgresqlSession(DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
 
-	err := db.Connect()
+	err := db.Open()
+	defer db.Close()
 
 	if err != nil {
 		panic(err)

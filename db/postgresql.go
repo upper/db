@@ -35,8 +35,8 @@ import (
 )
 
 type pgQuery struct {
-	Query []string
-	Args  []string
+	Query   []string
+	sqlArgs []string
 }
 
 func pgCompile(terms []interface{}) *pgQuery {
@@ -50,18 +50,18 @@ func pgCompile(terms []interface{}) *pgQuery {
 			{
 				q.Query = append(q.Query, term.(string))
 			}
-		case Args:
+		case sqlArgs:
 			{
-				for _, arg := range term.(Args) {
-					q.Args = append(q.Args, arg)
+				for _, arg := range term.(sqlArgs) {
+					q.sqlArgs = append(q.sqlArgs, arg)
 				}
 			}
-		case Values:
+		case sqlValues:
 			{
-				args := make([]string, len(term.(Values)))
-				for i, arg := range term.(Values) {
+				args := make([]string, len(term.(sqlValues)))
+				for i, arg := range term.(sqlValues) {
 					args[i] = "?"
-					q.Args = append(q.Args, arg)
+					q.sqlArgs = append(q.sqlArgs, arg)
 				}
 				q.Query = append(q.Query, "("+strings.Join(args, ", ")+")")
 			}
@@ -79,16 +79,16 @@ func pgFields(names []string) string {
 	return "(" + strings.Join(names, ", ") + ")"
 }
 
-func pgValues(values []string) Values {
-	ret := make(Values, len(values))
+func pgValues(values []string) sqlValues {
+	ret := make(sqlValues, len(values))
 	for i, _ := range values {
 		ret[i] = values[i]
 	}
 	return ret
 }
 
-type PostgresqlDB struct {
-	config      *DataSource
+type PostgresqlDataSource struct {
+	config      DataSource
 	session     *sql.DB
 	collections map[string]Collection
 }
@@ -156,7 +156,7 @@ func (t *PostgresqlTable) pgFetchAll(rows sql.Rows) []Item {
 	return items
 }
 
-func (pg *PostgresqlDB) pgExec(method string, terms ...interface{}) sql.Rows {
+func (pg *PostgresqlDataSource) pgExec(method string, terms ...interface{}) sql.Rows {
 
 	sn := reflect.ValueOf(pg.session)
 	fn := sn.MethodByName(method)
@@ -164,15 +164,15 @@ func (pg *PostgresqlDB) pgExec(method string, terms ...interface{}) sql.Rows {
 	q := pgCompile(terms)
 
 	//fmt.Printf("Q: %v\n", q.Query)
-	//fmt.Printf("A: %v\n", q.Args)
+	//fmt.Printf("A: %v\n", q.sqlArgs)
 
 	qs := strings.Join(q.Query, " ")
 
-	args := make([]reflect.Value, len(q.Args)+1)
+	args := make([]reflect.Value, len(q.sqlArgs)+1)
 
-	for i := 0; i < len(q.Args); i++ {
+	for i := 0; i < len(q.sqlArgs); i++ {
 		qs = strings.Replace(qs, "?", fmt.Sprintf("$%d", i+1), 1)
-		args[1+i] = reflect.ValueOf(q.Args[i])
+		args[1+i] = reflect.ValueOf(q.sqlArgs[i])
 	}
 
 	args[0] = reflect.ValueOf(qs)
@@ -187,19 +187,27 @@ func (pg *PostgresqlDB) pgExec(method string, terms ...interface{}) sql.Rows {
 }
 
 type PostgresqlTable struct {
-	parent *PostgresqlDB
+	parent *PostgresqlDataSource
 	name   string
 	types  map[string]reflect.Kind
 }
 
-func NewPostgresqlDB(config *DataSource) Database {
-	m := &PostgresqlDB{}
+func PostgresqlSession(config DataSource) Database {
+	m := &PostgresqlDataSource{}
 	m.config = config
 	m.collections = make(map[string]Collection)
 	return m
 }
 
-func (pg *PostgresqlDB) Connect() error {
+// Closes a previously opened MySQL database session.
+func (pg *PostgresqlDataSource) Close() error {
+	if pg.session != nil {
+		return pg.session.Close()
+	}
+	return nil
+}
+
+func (pg *PostgresqlDataSource) Open() error {
 	var err error
 
 	if pg.config.Host == "" {
@@ -225,17 +233,22 @@ func (pg *PostgresqlDB) Connect() error {
 	return nil
 }
 
-func (pg *PostgresqlDB) Use(database string) error {
+func (pg *PostgresqlDataSource) Use(database string) error {
 	pg.config.Database = database
-	return pg.Connect()
+	return pg.Open()
 }
 
-func (pg *PostgresqlDB) Drop() error {
+func (pg *PostgresqlDataSource) Drop() error {
 	pg.session.Query(fmt.Sprintf("DROP DATABASE %s", pg.config.Database))
 	return nil
 }
 
-func (pg *PostgresqlDB) Collections() []string {
+// Returns a *sql.DB object that represents an internal session.
+func (pg *PostgresqlDataSource) Driver() interface{} {
+	return pg.session
+}
+
+func (pg *PostgresqlDataSource) Collections() []string {
 	var collections []string
 	var collection string
 	rows, _ := pg.session.Query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
@@ -265,9 +278,9 @@ func (t *PostgresqlTable) invoke(fn string, terms []interface{}) []reflect.Value
 	return exec
 }
 
-func (t *PostgresqlTable) compileSet(term Set) (string, Args) {
+func (t *PostgresqlTable) compileSet(term Set) (string, sqlArgs) {
 	sql := []string{}
-	args := Args{}
+	args := sqlArgs{}
 
 	for key, arg := range term {
 		sql = append(sql, fmt.Sprintf("%s = ?", key))
@@ -277,9 +290,9 @@ func (t *PostgresqlTable) compileSet(term Set) (string, Args) {
 	return strings.Join(sql, ", "), args
 }
 
-func (t *PostgresqlTable) compileConditions(term interface{}) (string, Args) {
+func (t *PostgresqlTable) compileConditions(term interface{}) (string, sqlArgs) {
 	sql := []string{}
-	args := Args{}
+	args := sqlArgs{}
 
 	switch term.(type) {
 	case []interface{}:
@@ -379,49 +392,8 @@ func (t *PostgresqlTable) Truncate() bool {
 }
 
 func (t *PostgresqlTable) Remove(terms ...interface{}) bool {
-	// Does not support LIMIT
-	//terms = append(terms, Limit(1))
-
-	result := t.invoke("RemoveAll", terms)
-
-	if len(result) > 0 {
-		return result[0].Interface().(bool)
-	}
-
-	return false
-}
-
-func (t *PostgresqlTable) Update(terms ...interface{}) bool {
-	// Does not support LIMIT
-	// terms = append(terms, Limit(1))
-
-	result := t.invoke("UpdateAll", terms)
-
-	if len(result) > 0 {
-		return result[0].Interface().(bool)
-	}
-
-	return false
-}
-
-func (t *PostgresqlTable) RemoveAll(terms ...interface{}) bool {
-	limit := ""
-	offset := ""
 
 	conditions, cargs := t.compileConditions(terms)
-
-	for _, term := range terms {
-		switch term.(type) {
-		case Limit:
-			{
-				limit = fmt.Sprintf("LIMIT %v", term.(Limit))
-			}
-		case Offset:
-			{
-				offset = fmt.Sprintf("OFFSET %v", term.(Offset))
-			}
-		}
-	}
 
 	if conditions == "" {
 		conditions = "1 = 1"
@@ -431,18 +403,14 @@ func (t *PostgresqlTable) RemoveAll(terms ...interface{}) bool {
 		"Query",
 		fmt.Sprintf("DELETE FROM %s", pgTable(t.name)),
 		fmt.Sprintf("WHERE %s", conditions), cargs,
-		limit, offset,
 	)
 
 	return true
 }
 
-func (t *PostgresqlTable) UpdateAll(terms ...interface{}) bool {
+func (t *PostgresqlTable) Update(terms ...interface{}) bool {
 	var fields string
-	var fargs Args
-
-	limit := ""
-	offset := ""
+	var fargs sqlArgs
 
 	conditions, cargs := t.compileConditions(terms)
 
@@ -451,14 +419,6 @@ func (t *PostgresqlTable) UpdateAll(terms ...interface{}) bool {
 		case Set:
 			{
 				fields, fargs = t.compileSet(term.(Set))
-			}
-		case Limit:
-			{
-				limit = fmt.Sprintf("LIMIT %v", term.(Limit))
-			}
-		case Offset:
-			{
-				offset = fmt.Sprintf("OFFSET %v", term.(Offset))
 			}
 		}
 	}
@@ -471,7 +431,6 @@ func (t *PostgresqlTable) UpdateAll(terms ...interface{}) bool {
 		"Query",
 		fmt.Sprintf("UPDATE %s SET %s", pgTable(t.name), fields), fargs,
 		fmt.Sprintf("WHERE %s", conditions), cargs,
-		limit, offset,
 	)
 
 	return true
@@ -717,7 +676,7 @@ func (t *PostgresqlTable) Append(items ...interface{}) bool {
 	return true
 }
 
-func (pg *PostgresqlDB) Collection(name string) Collection {
+func (pg *PostgresqlDataSource) Collection(name string) Collection {
 
 	if collection, ok := pg.collections[name]; ok == true {
 		return collection
@@ -732,7 +691,7 @@ func (pg *PostgresqlDB) Collection(name string) Collection {
 
 	rows := t.parent.pgExec(
 		"Query",
-		"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?", Args{t.name},
+		"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?", sqlArgs{t.name},
 	)
 
 	columns := t.pgFetchAll(rows)

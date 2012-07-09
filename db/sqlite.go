@@ -35,8 +35,8 @@ import (
 )
 
 type slQuery struct {
-	Query []string
-	Args  []string
+	Query   []string
+	sqlArgs []string
 }
 
 func slCompile(terms []interface{}) *slQuery {
@@ -50,18 +50,18 @@ func slCompile(terms []interface{}) *slQuery {
 			{
 				q.Query = append(q.Query, term.(string))
 			}
-		case Args:
+		case sqlArgs:
 			{
-				for _, arg := range term.(Args) {
-					q.Args = append(q.Args, arg)
+				for _, arg := range term.(sqlArgs) {
+					q.sqlArgs = append(q.sqlArgs, arg)
 				}
 			}
-		case Values:
+		case sqlValues:
 			{
-				args := make([]string, len(term.(Values)))
-				for i, arg := range term.(Values) {
+				args := make([]string, len(term.(sqlValues)))
+				for i, arg := range term.(sqlValues) {
 					args[i] = "?"
-					q.Args = append(q.Args, arg)
+					q.sqlArgs = append(q.sqlArgs, arg)
 				}
 				q.Query = append(q.Query, "("+strings.Join(args, ", ")+")")
 			}
@@ -79,16 +79,16 @@ func slFields(names []string) string {
 	return "(" + strings.Join(names, ", ") + ")"
 }
 
-func slValues(values []string) Values {
-	ret := make(Values, len(values))
+func slValues(values []string) sqlValues {
+	ret := make(sqlValues, len(values))
 	for i, _ := range values {
 		ret[i] = values[i]
 	}
 	return ret
 }
 
-type SqliteDB struct {
-	config      *DataSource
+type SqliteDataSource struct {
+	config      DataSource
 	session     *sql.DB
 	collections map[string]Collection
 }
@@ -156,7 +156,7 @@ func (t *SqliteTable) slFetchAll(rows sql.Rows) []Item {
 	return items
 }
 
-func (sl *SqliteDB) slExec(method string, terms ...interface{}) sql.Rows {
+func (sl *SqliteDataSource) slExec(method string, terms ...interface{}) sql.Rows {
 
 	var rows sql.Rows
 
@@ -167,15 +167,15 @@ func (sl *SqliteDB) slExec(method string, terms ...interface{}) sql.Rows {
 
 	/*
 		fmt.Printf("Q: %v\n", q.Query)
-		fmt.Printf("A: %v\n", q.Args)
+		fmt.Printf("A: %v\n", q.sqlArgs)
 	*/
 
-	args := make([]reflect.Value, len(q.Args)+1)
+	args := make([]reflect.Value, len(q.sqlArgs)+1)
 
 	args[0] = reflect.ValueOf(strings.Join(q.Query, " "))
 
-	for i := 0; i < len(q.Args); i++ {
-		args[1+i] = reflect.ValueOf(q.Args[i])
+	for i := 0; i < len(q.sqlArgs); i++ {
+		args[1+i] = reflect.ValueOf(q.sqlArgs[i])
 	}
 
 	res := fn.Call(args)
@@ -198,19 +198,24 @@ func (sl *SqliteDB) slExec(method string, terms ...interface{}) sql.Rows {
 }
 
 type SqliteTable struct {
-	parent *SqliteDB
+	parent *SqliteDataSource
 	name   string
 	types  map[string]reflect.Kind
 }
 
-func NewSqliteDB(config *DataSource) Database {
-	m := &SqliteDB{}
+func SqliteSession(config DataSource) Database {
+	m := &SqliteDataSource{}
 	m.config = config
 	m.collections = make(map[string]Collection)
 	return m
 }
 
-func (sl *SqliteDB) Connect() error {
+// Returns a *sql.DB object that represents an internal session.
+func (sl *SqliteDataSource) Driver() interface{} {
+	return sl.session
+}
+
+func (sl *SqliteDataSource) Open() error {
 	var err error
 
 	if sl.config.Database == "" {
@@ -228,18 +233,25 @@ func (sl *SqliteDB) Connect() error {
 	return nil
 }
 
-func (sl *SqliteDB) Use(database string) error {
+func (sl *SqliteDataSource) Close() error {
+	if sl.session != nil {
+		return sl.session.Close()
+	}
+	return nil
+}
+
+func (sl *SqliteDataSource) Use(database string) error {
 	sl.config.Database = database
 	sl.session.Query(fmt.Sprintf("USE %s", database))
 	return nil
 }
 
-func (sl *SqliteDB) Drop() error {
+func (sl *SqliteDataSource) Drop() error {
 	sl.session.Query(fmt.Sprintf("DROP DATABASE %s", sl.config.Database))
 	return nil
 }
 
-func (sl *SqliteDB) Collections() []string {
+func (sl *SqliteDataSource) Collections() []string {
 	var collections []string
 	var collection string
 
@@ -270,9 +282,9 @@ func (t *SqliteTable) invoke(fn string, terms []interface{}) []reflect.Value {
 	return exec
 }
 
-func (t *SqliteTable) compileSet(term Set) (string, Args) {
+func (t *SqliteTable) compileSet(term Set) (string, sqlArgs) {
 	sql := []string{}
-	args := Args{}
+	args := sqlArgs{}
 
 	for key, arg := range term {
 		sql = append(sql, fmt.Sprintf("%s = ?", key))
@@ -282,9 +294,9 @@ func (t *SqliteTable) compileSet(term Set) (string, Args) {
 	return strings.Join(sql, ", "), args
 }
 
-func (t *SqliteTable) compileConditions(term interface{}) (string, Args) {
+func (t *SqliteTable) compileConditions(term interface{}) (string, sqlArgs) {
 	sql := []string{}
-	args := Args{}
+	args := sqlArgs{}
 
 	switch term.(type) {
 	case []interface{}:
@@ -382,49 +394,9 @@ func (t *SqliteTable) Truncate() bool {
 
 	return false
 }
-
 func (t *SqliteTable) Remove(terms ...interface{}) bool {
-	terms = append(terms, Limit(1))
-
-	result := t.invoke("RemoveAll", terms)
-
-	if len(result) > 0 {
-		return result[0].Interface().(bool)
-	}
-
-	return false
-}
-
-func (t *SqliteTable) Update(terms ...interface{}) bool {
-	terms = append(terms, Limit(1))
-
-	result := t.invoke("UpdateAll", terms)
-
-	if len(result) > 0 {
-		return result[0].Interface().(bool)
-	}
-
-	return false
-}
-
-func (t *SqliteTable) RemoveAll(terms ...interface{}) bool {
-	limit := ""
-	offset := ""
 
 	conditions, cargs := t.compileConditions(terms)
-
-	for _, term := range terms {
-		switch term.(type) {
-		case Limit:
-			{
-				limit = fmt.Sprintf("LIMIT %v", term.(Limit))
-			}
-		case Offset:
-			{
-				offset = fmt.Sprintf("OFFSET %v", term.(Offset))
-			}
-		}
-	}
 
 	if conditions == "" {
 		conditions = "1 = 1"
@@ -434,18 +406,14 @@ func (t *SqliteTable) RemoveAll(terms ...interface{}) bool {
 		"Exec",
 		fmt.Sprintf("DELETE FROM %s", slTable(t.name)),
 		fmt.Sprintf("WHERE %s", conditions), cargs,
-		limit, offset,
 	)
 
 	return true
 }
 
-func (t *SqliteTable) UpdateAll(terms ...interface{}) bool {
+func (t *SqliteTable) Update(terms ...interface{}) bool {
 	var fields string
-	var fargs Args
-
-	limit := ""
-	offset := ""
+	var fargs sqlArgs
 
 	conditions, cargs := t.compileConditions(terms)
 
@@ -454,14 +422,6 @@ func (t *SqliteTable) UpdateAll(terms ...interface{}) bool {
 		case Set:
 			{
 				fields, fargs = t.compileSet(term.(Set))
-			}
-		case Limit:
-			{
-				limit = fmt.Sprintf("LIMIT %v", term.(Limit))
-			}
-		case Offset:
-			{
-				offset = fmt.Sprintf("OFFSET %v", term.(Offset))
 			}
 		}
 	}
@@ -474,7 +434,6 @@ func (t *SqliteTable) UpdateAll(terms ...interface{}) bool {
 		"Exec",
 		fmt.Sprintf("UPDATE %s SET %s", slTable(t.name), fields), fargs,
 		fmt.Sprintf("WHERE %s", conditions), cargs,
-		limit, offset,
 	)
 
 	return true
@@ -721,7 +680,7 @@ func (t *SqliteTable) Append(items ...interface{}) bool {
 	return true
 }
 
-func (sl *SqliteDB) Collection(name string) Collection {
+func (sl *SqliteDataSource) Collection(name string) Collection {
 
 	if collection, ok := sl.collections[name]; ok == true {
 		return collection
