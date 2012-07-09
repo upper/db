@@ -47,7 +47,7 @@ Use your recently configured ``db.Database`` to request the driver to actually c
     sess.Open()
 
     // Don't forget to close the connection when it's not required anymore.
-	  defer sess.Close()
+    defer sess.Close()
 
 ### Database methods.
 
@@ -122,17 +122,78 @@ When you request data from a Collection with ``Find()`` or ``FindAll()``, a spec
 
 #### db.Collection.Append(...interface{}) bool
 
+Appends one or more items to the collection.
+
+    collection.Append(Item { "name": "Peter" })
+
 #### db.Collection.Count(...interface{}) int
+
+Returns the number of total items matching the provided conditions.
+
+    total := collection.Count(Where { "name": "Peter" })
 
 #### db.Collection.Find(...interface{}) Item
 
+Return the first Item of the collection that matches all the provided conditions. Ordering of the conditions does not matter, but you must take in account that they are evaluated from left to right and from top to bottom.
+
+    // The following statement is equivalent to WHERE name = "John" AND last_name = "Doe" AND (age = 15 OR age = 20)
+    collection.Find(
+     Where { "name": "John" },
+     Where { "last_name": "Doe" },
+     Or {
+       Where { "age": 15 },
+       Where { "age": 20 },
+     },
+    )
+
 #### db.Collection.FindAll(...interface{}) []Item
+
+Returns all the Items ([]Item) of the collection that match all the provided conditions. See db.Collection.Find().
+
+Be aware that there are some extra parameters that you can pass to FindAll() but not to Find(), like db.Limit(n) or db.Offset(n).
+
+    // Just give me the the first 10 rows with last_name = "Smith"
+    collection.Find(
+      Where { "last_name": "Smith" },
+      Limit(10),
+    )
 
 #### db.Collection.Update(...interface{}) bool
 
+Updates all the items of the collection that match all the provided conditions. You can specify the modification type by using Set, Modify or Upsert. At the time of this writing Modify and Upsert are only available for MongoSession.
+
+    // Example of assigning field values with Set:
+    collection.Update(
+      Where { "name": "José" },
+      Set { "name": "Joseph"},
+    )
+
+    // Example of custom modification with Modify (for MongoSession):
+    collection.Update(
+      Where { "times <": "10" },
+      Modify { "$inc": { "times": 1 } },
+    )
+
+    // Example of inserting if none matches with Upsert (for MongoSession):
+    collection.Update(
+      Where { "name": "Roberto" },
+      Upsert { "name": "Robert"},
+    )
+
 #### db.Collection.Remove(...interface{}) bool
 
+Deletes all the items of the collection that match the provided conditions.
+
+    collection.Remove(
+      Where { "name": "Peter" },
+      Where { "last_name": "Parker" },
+    )
+
 #### db.Collection.Truncate() bool
+
+Deletes the whole collection.
+
+    collection.Truncate()
 
 ## Documentation
 

@@ -245,7 +245,7 @@ func (my *MysqlDataSource) Use(database string) error {
 	return nil
 }
 
-// Drops the currently active database.
+// Deletes the currently active database.
 func (my *MysqlDataSource) Drop() error {
 	my.session.Query(fmt.Sprintf("DROP DATABASE %s", my.config.Database))
 	return nil
@@ -405,7 +405,7 @@ func (t *MysqlTable) Truncate() bool {
 	return false
 }
 
-// Removes all the rows in the table that match certain conditions.
+// Deletes all the rows in the table that match certain conditions.
 func (t *MysqlTable) Remove(terms ...interface{}) bool {
 
 	conditions, cargs := t.compileConditions(terms)
