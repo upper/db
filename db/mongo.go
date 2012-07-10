@@ -26,8 +26,8 @@ package db
 import (
 	"fmt"
 	. "github.com/xiam/gosexy"
-	"launchpad.net/mgo"
-	"launchpad.net/mgo/bson"
+	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
 	"net/url"
 	"reflect"
 	"regexp"

@@ -152,6 +152,7 @@ Return the first Item of the collection that matches all the provided conditions
 
 You can use relations in your definition
 
+  // Relations example.
   collection.FindAll(
     // One-to-one relation with the table "places".
     Relate{
