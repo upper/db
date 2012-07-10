@@ -1,12 +1,34 @@
 # What is gosexy?
 
-gosexy is a general purpose framework for Go that provides sugar methods, types and abstractions.
+gosexy is a general purpose framework for Go that provides [sugar](http://en.wikipedia.org/wiki/Syntactic_sugar) methods, types and abstractions.
 
-## Installing gosexy
+## Getting sexy
 
-Before running this command, make sure you have the ``git``, ``hg`` (mercurial) and ``bzr`` (bazaar) source control systems installed on your system, those packages are available for many linux distros and also in [homebrew](http://mxcl.github.com/homebrew/) for OSX.
+### Before pulling the source
+
+Make sure you have the ``git``, ``hg`` (mercurial) and ``bzr`` (bazaar) source control systems installed on your system, those packages are available for many linux distros and also in [homebrew](http://mxcl.github.com/homebrew/) for OSX. You'll also require ``sqlite3`` and ``pkg-config``. All those packages are required for building some third party wrappers.
+
+Here's how you would install on OSX using brew
+
+    $ brew install git
+    $ brew install hg
+    $ brew install bzr
+    $ brew install sqlite3
+    $ brew install pkg-config
+
+Or, let's suppose you want to get them all in ArchLinux
+
+    # sudo pacman -S mercurial bzr sqlite3 git pkg-config
+
+### Using gosexy in your Go program
+
+First, get the source using go
 
     $ go get github.com/xiam/gosexy
+
+Then import ``gosexy`` into your actual source code
+
+    import . "github.com/xiam/gosexy"
 
 ## Sugar wrappers
 
@@ -15,6 +37,9 @@ Before running this command, make sure you have the ``git``, ``hg`` (mercurial) 
 
 ## Sugar types
 
-``Tuple`` is a shortcut for ``map[string]interface{}`` (generic dictionaries).
+* ``Tuple`` is a shortcut for ``map[string]interface{}`` (generic dictionaries).
+* ``List`` is a shortcut for ``[]interface{}`` (generic arrays).
 
-``List`` is a shortcut for ``[]interface{}`` (generic arrays).
+## License
+
+gosexy and friends are all released under the terms of the [MIT License](https://raw.github.com/xiam/gosexy/master/LICENSE).
