@@ -4,6 +4,8 @@ This package is a wrapper of [mgo](http://launchpad.net/mgo), [database/sql](htt
 
 ## Installation
 
+Please read docs on the [gosexy](https://github.com/xiam/gosexy) package before rushing to install ``gosexy/db``
+
     $ go get github.com/xiam/gosexy/db
 
 ## Available interfaces
@@ -19,15 +21,15 @@ For the sake of ease, it is recommended that you import ``github.com/xiam/gosexy
 
     import . "github.com/xiam/gosexy/db"
 
-Each database has its very specific way of doing the same task, the interface and methods are the same for any of them.
+All the examples in this page are shown without prefixes.
 
-Be aware that all the examples in this page are shown without prefixes.
+### Setting up a database source
 
-### Setting up a database
-
-The first step is to choose a driver and set up the connection, this is how it would be done using ``MysqlSession``
+The first step is to choose a driver and set up the connection using a ``DataSource``, this is how it would be done using ``MysqlSession``
 
     sess := MysqlSession(DataSource{Host: "localhost", Database: "test", User: "myuser", Password: "mypass"})
+
+Please note that each database has its very specific way of doing the same task, but the interface and methods of ``gosexy/db`` are the same for any of them.
 
 The ``DataSource`` is a generic structure than can store connection values in a consistent way.
 
@@ -44,7 +46,7 @@ You may use other drivers to setup a connection, available drivers are ``MysqlSe
 
 ### Connecting to the database
 
-Use your recently configured ``Database`` to request the driver to actually connect to the selected database.
+Use your recently configured ``Database`` to request the driver to actually connect to the selected database using ``Database.Open()``.
 
     // Setting up database.
     sess := MysqlSession(DataSource{Host: "localhost", Database: "test", User: "myuser", Password: "mypass"})
@@ -150,42 +152,41 @@ Return the first Item of the collection that matches all the provided conditions
      },
     )
 
-You can use relations in your definition
+You can also use relations in your definition
 
-  // Relations example.
-  collection.FindAll(
-    // One-to-one relation with the table "places".
-    Relate{
-      "lives_in": On{
-        session.Collection("places"),
-        // Relates rows of the table "places" where place.code_id = collection.place_code_id.
-        Where{"code_id": "{place_code_id}"},
+    collection.FindAll(
+      // One-to-one relation with the table "places".
+      Relate{
+        "lives_in": On{
+          session.Collection("places"),
+          // Relates rows of the table "places" where place.code_id = collection.place_code_id.
+          Where{"code_id": "{place_code_id}"},
+        },
       },
-    },
-    RelateAll{
-      // One-to-many relation with the table "children".
-      "has_children": On{
-        session.Collection("children"),
-        // Relates rows of the table "children" where children.parent_id = collection.id
-        Where{"parent_id": "{id}"},
-      },
-      // One-to-many relation with the table "visits".
-      "has_visited": On{
-        session.Collection("visits"),
-        // Relates rows of the table "visits" where visits.person_id = collection.id
-        Where{"person_id": "{id}"},
-        // A nested relation
-        Relate{
-          // Relates rows of the table "places" with the "visits" table.
-          "place": On{
-            session.Collection("places"),
-            // Where places.id = visits.place_id
-            Where{"id": "{place_id}"},
+      RelateAll{
+        // One-to-many relation with the table "children".
+        "has_children": On{
+          session.Collection("children"),
+          // Relates rows of the table "children" where children.parent_id = collection.id
+          Where{"parent_id": "{id}"},
+        },
+        // One-to-many relation with the table "visits".
+        "has_visited": On{
+          session.Collection("visits"),
+          // Relates rows of the table "visits" where visits.person_id = collection.id
+          Where{"person_id": "{id}"},
+          // A nested relation
+          Relate{
+            // Relates rows of the table "places" with the "visits" table.
+            "place": On{
+              session.Collection("places"),
+              // Where places.id = visits.place_id
+              Where{"id": "{place_id}"},
+            },
           },
         },
       },
-    },
-  )
+    )
 
 #### Collection.FindAll(...interface{}) []Item
 
