@@ -78,11 +78,7 @@ func (c *MongoDataSourceCollection) Truncate() bool {
 	return true
 }
 
-// Inserts items into the collection. You can use one or many Item values as arguments.
-//
-// Example:
-//
-// collection.Append(Item { "name": "Peter" })
+// Inserts items into the collection.
 func (c *MongoDataSourceCollection) Append(items ...interface{}) bool {
 
 	parent := reflect.TypeOf(c.collection)
@@ -170,14 +166,7 @@ func (c *MongoDataSourceCollection) compileQuery(terms []interface{}) interface{
 	return query
 }
 
-// Removes the first item that matches the provided conditions.
-//
-// Example:
-//
-// collection.Remove(
-//   Where { "name": "Peter" },
-//   Where { "last_name": "Parker" },
-// )
+// Removes all the items that match the provided conditions.
 func (c *MongoDataSourceCollection) Remove(terms ...interface{}) bool {
 
 	query := c.compileQuery(terms)
@@ -187,28 +176,7 @@ func (c *MongoDataSourceCollection) Remove(terms ...interface{}) bool {
 	return true
 }
 
-// Updates a single document matching the provided conditions. You can specify the modification type by using Set, Modify or Upsert.
-//
-// Example of assigning field values with Set:
-//
-// collection.Update(
-//   Where { "name": "José" },
-//   Set { "name": "Joseph"},
-// )
-//
-// Example of custom modification with Modify:
-//
-// collection.Update(
-//   Where { "times <": "10" },
-//   Modify { "$inc": { "times": 1 } },
-// )
-//
-// Example of inserting if none matches with Upsert:
-//
-// collection.Update(
-//   Where { "name": "Roberto" },
-//   Upsert { "name": "Robert"},
-// )
+// Updates all the items that match the provided conditions. You can specify the modification type by using Set, Modify or Upsert.
 func (c *MongoDataSourceCollection) Update(terms ...interface{}) bool {
 
 	var set interface{}
@@ -297,18 +265,6 @@ func (c *MongoDataSourceCollection) Count(terms ...interface{}) int {
 
 // Returns a document that matches all the provided conditions. Ordering of the terms doesn't matter but you must take in
 // account that conditions are generally evaluated from left to right (or from top to bottom).
-//
-// Example:
-//
-// This is equivalent to WHERE name = "John" AND last_name = "Doe" AND (age = 15 OR age = 20)
-// collection.Find(
-//   Where { "name": "John" },
-//   Where { "last_name": "Doe" },
-//   Or {
-//     Where { "age": 15 },
-//     Where { "age": 20 },
-//   },
-// )
 func (c *MongoDataSourceCollection) Find(terms ...interface{}) Item {
 
 	var item Item
@@ -328,8 +284,6 @@ func (c *MongoDataSourceCollection) Find(terms ...interface{}) Item {
 }
 
 // Returns a mgo.Query that matches the provided terms.
-//
-// This is actually a function that is only public because of the implementation of mongo.go but you should not use or rely on it.
 func (c *MongoDataSourceCollection) BuildQuery(terms ...interface{}) *mgo.Query {
 
 	var sort interface{}
@@ -382,16 +336,6 @@ func (c *MongoDataSourceCollection) BuildQuery(terms ...interface{}) *mgo.Query 
 }
 
 // Returns all the results that match the provided conditions. See Find().
-//
-// Be aware that there are some extra parameters that you can pass to FindAll() but not to Find(), like
-// Limit(n).
-//
-// Example:
-//
-// collection.Find(
-//   Where { "last_name": "Smith" },
-//   Limit(10),
-// )
 func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []Item {
 	var items []Item
 	var result []interface{}
@@ -536,29 +480,7 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []Item {
 	return items
 }
 
-// Returns a new MongoDataSource object, this object can be then used to Connect() to the database and operate on Collections.
-// See db.DataSource{}.
-//
-// Example:
-//
-// source := MongoSession(&DataSource {
-//   Host: "localhost",
-//   Database: "test",
-//   User: "charly",
-//   Password: "sn00py"
-// })
-//
-// err := source.Connect()
-//
-// if err != nil {
-//   panic(err)
-// }
-//
-// source.Use("test")
-//
-// people := db.Collection("people")
-//
-// result := people.Find(Where { "name": "José" })
+// Returns a new MongoDataSource object.
 func MongoSession(config DataSource) Database {
 	m := &MongoDataSource{}
 	m.config = config
@@ -631,7 +553,7 @@ func (m *MongoDataSource) Close() error {
 	return nil
 }
 
-// Returns all the collection names on the active database.
+// Returns all the collection names in the active database.
 func (m *MongoDataSource) Collections() []string {
 	names, _ := m.database.CollectionNames()
 	return names
