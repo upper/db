@@ -2,6 +2,8 @@
 
 This package is a wrapper of [mgo](http://launchpad.net/mgo), [database/sql](http://golang.org/pkg/database/sql) and some of its database drivers friends, the goal of this abstraction is to provide a common, simplified, consistent layer for working with different databases using Go.
 
+**IMPORTANT:** Recent changes have rendered this documentation inaccurate, please wait until I can review and update it.
+
 ## Installation
 
 Please read docs on the [gosexy](https://github.com/xiam/gosexy) package before rushing to install ``gosexy/db``

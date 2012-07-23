@@ -197,6 +197,6 @@ type Collection interface {
 type Fields []string
 
 // Specifies single or multiple requests in FindAll() expressions.
-type multiFlag bool
-type sqlValues []string
-type sqlArgs []string
+type MultiFlag bool
+type SqlValues []string
+type SqlArgs []string

@@ -21,11 +21,12 @@
   WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-package db
+package mongo
 
 import (
 	"fmt"
-	. "github.com/xiam/gosexy"
+	"github.com/xiam/gosexy"
+	"github.com/xiam/gosexy/db"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"net/url"
@@ -37,7 +38,7 @@ import (
 
 // MongoDataSource session.
 type MongoDataSource struct {
-	config   DataSource
+	config   db.DataSource
 	session  *mgo.Session
 	database *mgo.Database
 }
@@ -48,8 +49,8 @@ type MongoDataSourceCollection struct {
 	collection *mgo.Collection
 }
 
-// Converts Where keytypes into something that mgo can understand.
-func (c *MongoDataSourceCollection) marshal(where Where) map[string]interface{} {
+// Converts db.Where keytypes into something that mgo can understand.
+func (c *MongoDataSourceCollection) marshal(where db.Where) map[string]interface{} {
 	conds := make(map[string]interface{})
 
 	for key, val := range where {
@@ -118,29 +119,29 @@ func (c *MongoDataSourceCollection) compileConditions(term interface{}) interfac
 				return values
 			}
 		}
-	case Or:
+	case db.Or:
 		{
 			values := []interface{}{}
-			itop := len(term.(Or))
+			itop := len(term.(db.Or))
 			for i := 0; i < itop; i++ {
-				values = append(values, c.compileConditions(term.(Or)[i]))
+				values = append(values, c.compileConditions(term.(db.Or)[i]))
 			}
 			condition := map[string]interface{}{"$or": values}
 			return condition
 		}
-	case And:
+	case db.And:
 		{
 			values := []interface{}{}
-			itop := len(term.(And))
+			itop := len(term.(db.And))
 			for i := 0; i < itop; i++ {
-				values = append(values, c.compileConditions(term.(And)[i]))
+				values = append(values, c.compileConditions(term.(db.And)[i]))
 			}
 			condition := map[string]interface{}{"$and": values}
 			return condition
 		}
-	case Where:
+	case db.Where:
 		{
-			return c.marshal(term.(Where))
+			return c.marshal(term.(db.Where))
 		}
 	}
 	return nil
@@ -176,7 +177,7 @@ func (c *MongoDataSourceCollection) Remove(terms ...interface{}) bool {
 	return true
 }
 
-// Updates all the items that match the provided conditions. You can specify the modification type by using Set, Modify or Upsert.
+// Updates all the items that match the provided conditions. You can specify the modification type by using db.Set, db.Modify or db.Upsert.
 func (c *MongoDataSourceCollection) Update(terms ...interface{}) bool {
 
 	var set interface{}
@@ -195,23 +196,23 @@ func (c *MongoDataSourceCollection) Update(terms ...interface{}) bool {
 		term := terms[i]
 
 		switch term.(type) {
-		case Set:
+		case db.Set:
 			{
-				set = term.(Set)
+				set = term.(db.Set)
 			}
-		case Upsert:
+		case db.Upsert:
 			{
-				upsert = term.(Upsert)
+				upsert = term.(db.Upsert)
 			}
-		case Modify:
+		case db.Modify:
 			{
-				modify = term.(Modify)
+				modify = term.(db.Modify)
 			}
 		}
 	}
 
 	if set != nil {
-		c.collection.UpdateAll(query, Item{"$set": set})
+		c.collection.UpdateAll(query, db.Item{"$set": set})
 		return true
 	}
 
@@ -263,18 +264,18 @@ func (c *MongoDataSourceCollection) Count(terms ...interface{}) int {
 	return count
 }
 
-// Returns a document that matches all the provided conditions. Ordering of the terms doesn't matter but you must take in
+// Returns a document that matches all the provided conditions. db.Ordering of the terms doesn't matter but you must take in
 // account that conditions are generally evaluated from left to right (or from top to bottom).
-func (c *MongoDataSourceCollection) Find(terms ...interface{}) Item {
+func (c *MongoDataSourceCollection) Find(terms ...interface{}) db.Item {
 
-	var item Item
+	var item db.Item
 
-	terms = append(terms, Limit(1))
+	terms = append(terms, db.Limit(1))
 
 	result := c.invoke("FindAll", terms)
 
 	if len(result) > 0 {
-		response := result[0].Interface().([]Item)
+		response := result[0].Interface().([]db.Item)
 		if len(response) > 0 {
 			item = response[0]
 		}
@@ -300,17 +301,17 @@ func (c *MongoDataSourceCollection) BuildQuery(terms ...interface{}) *mgo.Query 
 		term := terms[i]
 
 		switch term.(type) {
-		case Limit:
+		case db.Limit:
 			{
-				limit = int(term.(Limit))
+				limit = int(term.(db.Limit))
 			}
-		case Offset:
+		case db.Offset:
 			{
-				offset = int(term.(Offset))
+				offset = int(term.(db.Offset))
 			}
-		case Sort:
+		case db.Sort:
 			{
-				sort = term.(Sort)
+				sort = term.(db.Sort)
 			}
 		}
 	}
@@ -336,8 +337,8 @@ func (c *MongoDataSourceCollection) BuildQuery(terms ...interface{}) *mgo.Query 
 }
 
 // Returns all the results that match the provided conditions. See Find().
-func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []Item {
-	var items []Item
+func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []db.Item {
+	var items []db.Item
 	var result []interface{}
 
 	var relate interface{}
@@ -352,13 +353,13 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []Item {
 		term := terms[i]
 
 		switch term.(type) {
-		case Relate:
+		case db.Relate:
 			{
-				relate = term.(Relate)
+				relate = term.(db.Relate)
 			}
-		case RelateAll:
+		case db.RelateAll:
 			{
-				relateAll = term.(RelateAll)
+				relateAll = term.(db.RelateAll)
 			}
 		}
 	}
@@ -370,44 +371,44 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []Item {
 
 	p.All(&result)
 
-	var relations []Tuple
+	var relations []gosexy.Tuple
 
 	// This query is related to other collections.
 	if relate != nil {
-		for rname, rterms := range relate.(Relate) {
+		for rname, rterms := range relate.(db.Relate) {
 			rcollection := c.parent.Collection(rname)
 
 			ttop := len(rterms)
 			for t := ttop - 1; t >= 0; t-- {
 				rterm := rterms[t]
 				switch rterm.(type) {
-				case Collection:
+				case db.Collection:
 					{
-						rcollection = rterm.(Collection)
+						rcollection = rterm.(db.Collection)
 					}
 				}
 			}
 
-			relations = append(relations, Tuple{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
+			relations = append(relations, gosexy.Tuple{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
 		}
 	}
 
 	if relateAll != nil {
-		for rname, rterms := range relateAll.(RelateAll) {
+		for rname, rterms := range relateAll.(db.RelateAll) {
 			rcollection := c.parent.Collection(rname)
 
 			ttop := len(rterms)
 			for t := ttop - 1; t >= 0; t-- {
 				rterm := rterms[t]
 				switch rterm.(type) {
-				case Collection:
+				case db.Collection:
 					{
-						rcollection = rterm.(Collection)
+						rcollection = rterm.(db.Collection)
 					}
 				}
 			}
 
-			relations = append(relations, Tuple{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
+			relations = append(relations, gosexy.Tuple{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
 		}
 	}
 
@@ -416,11 +417,11 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []Item {
 	jtop := len(relations)
 
 	itop = len(result)
-	items = make([]Item, itop)
+	items = make([]db.Item, itop)
 
 	for i := 0; i < itop; i++ {
 
-		item := Item{}
+		item := db.Item{}
 
 		// Default values.
 		for key, val := range result[i].(bson.M) {
@@ -434,18 +435,18 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []Item {
 
 			terms := []interface{}{}
 
-			ktop := len(relation["terms"].(On))
+			ktop := len(relation["terms"].(db.On))
 
 			for k := 0; k < ktop; k++ {
 
 				//term = tcopy[k]
-				term = relation["terms"].(On)[k]
+				term = relation["terms"].(db.On)[k]
 
 				switch term.(type) {
-				// Just waiting for Where statements.
-				case Where:
+				// Just waiting for db.Where statements.
+				case db.Where:
 					{
-						for wkey, wval := range term.(Where) {
+						for wkey, wval := range term.(db.Where) {
 							//if reflect.TypeOf(wval).Kind() == reflect.String { // does not always work.
 							if reflect.TypeOf(wval).Name() == "string" {
 								// Matching dynamic values.
@@ -453,7 +454,7 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []Item {
 								if matched {
 									// Replacing dynamic values.
 									kname := strings.Trim(wval.(string), "{}")
-									term = Where{wkey: item[kname]}
+									term = db.Where{wkey: item[kname]}
 								}
 							}
 						}
@@ -465,10 +466,10 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []Item {
 			// Executing external query.
 			if relation["all"] == true {
 				value := relation["collection"].(*MongoDataSourceCollection).invoke("FindAll", terms)
-				item[relation["name"].(string)] = value[0].Interface().([]Item)
+				item[relation["name"].(string)] = value[0].Interface().([]db.Item)
 			} else {
 				value := relation["collection"].(*MongoDataSourceCollection).invoke("Find", terms)
-				item[relation["name"].(string)] = value[0].Interface().(Item)
+				item[relation["name"].(string)] = value[0].Interface().(db.Item)
 			}
 
 		}
@@ -481,21 +482,21 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []Item {
 }
 
 // Returns a new MongoDataSource object.
-func MongoSession(config DataSource) Database {
+func Session(config db.DataSource) db.Database {
 	m := &MongoDataSource{}
 	m.config = config
 	return m
 }
 
-// Switches the current session database to the provided name. See MongoSession().
+// Switches the current session database to the provided name. See Session().
 func (m *MongoDataSource) Use(database string) error {
 	m.config.Database = database
 	m.database = m.session.DB(m.config.Database)
 	return nil
 }
 
-// Returns a Collection from the currently active database given the name. See MongoSession().
-func (m *MongoDataSource) Collection(name string) Collection {
+// Returns a Collection from the currently active database given the name. See Session().
+func (m *MongoDataSource) Collection(name string) db.Collection {
 	c := &MongoDataSourceCollection{}
 	c.parent = m
 	c.collection = m.database.C(name)
@@ -506,7 +507,7 @@ func (m *MongoDataSource) Driver() interface{} {
 	return m.session
 }
 
-// Connects to the previously specified datasource. See MongoSession().
+// Connects to the previously specified datasource. See Session().
 func (m *MongoDataSource) Open() error {
 	var err error
 

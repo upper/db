@@ -21,26 +21,27 @@
   WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-package db
+package mysql
 
 import (
+	_ "code.google.com/p/go-mysql-driver/mysql"
 	"database/sql"
 	"fmt"
-	_ "github.com/xiam/gopostgresql"
-	. "github.com/xiam/gosexy"
+	"github.com/xiam/gosexy"
+	"github.com/xiam/gosexy/db"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-type pgQuery struct {
+type myQuery struct {
 	Query   []string
-	sqlArgs []string
+	SqlArgs []string
 }
 
-func pgCompile(terms []interface{}) *pgQuery {
-	q := &pgQuery{}
+func myCompile(terms []interface{}) *myQuery {
+	q := &myQuery{}
 
 	q.Query = []string{}
 
@@ -50,18 +51,18 @@ func pgCompile(terms []interface{}) *pgQuery {
 			{
 				q.Query = append(q.Query, term.(string))
 			}
-		case sqlArgs:
+		case db.SqlArgs:
 			{
-				for _, arg := range term.(sqlArgs) {
-					q.sqlArgs = append(q.sqlArgs, arg)
+				for _, arg := range term.(db.SqlArgs) {
+					q.SqlArgs = append(q.SqlArgs, arg)
 				}
 			}
-		case sqlValues:
+		case db.SqlValues:
 			{
-				args := make([]string, len(term.(sqlValues)))
-				for i, arg := range term.(sqlValues) {
+				args := make([]string, len(term.(db.SqlValues)))
+				for i, arg := range term.(db.SqlValues) {
 					args[i] = "?"
-					q.sqlArgs = append(q.sqlArgs, arg)
+					q.SqlArgs = append(q.SqlArgs, arg)
 				}
 				q.Query = append(q.Query, "("+strings.Join(args, ", ")+")")
 			}
@@ -71,32 +72,33 @@ func pgCompile(terms []interface{}) *pgQuery {
 	return q
 }
 
-func pgTable(name string) string {
+func myTable(name string) string {
 	return name
 }
 
-func pgFields(names []string) string {
+func myFields(names []string) string {
 	return "(" + strings.Join(names, ", ") + ")"
 }
 
-func pgValues(values []string) sqlValues {
-	ret := make(sqlValues, len(values))
+func myValues(values []string) db.SqlValues {
+	ret := make(db.SqlValues, len(values))
 	for i, _ := range values {
 		ret[i] = values[i]
 	}
 	return ret
 }
 
-// Stores PostgreSQL session data.
-type PostgresqlDataSource struct {
-	config      DataSource
+// Stores driver's session data.
+type MysqlDataSource struct {
 	session     *sql.DB
-	collections map[string]Collection
+	config      db.DataSource
+	collections map[string]db.Collection
 }
 
-func (t *PostgresqlTable) pgFetchAll(rows sql.Rows) []Item {
+// Returns all items from a query.
+func (t *MysqlTable) myFetchAll(rows sql.Rows) []db.Item {
 
-	items := []Item{}
+	items := []db.Item{}
 
 	columns, _ := rows.Columns()
 
@@ -117,7 +119,7 @@ func (t *PostgresqlTable) pgFetchAll(rows sql.Rows) []Item {
 	fn := sn.MethodByName("Scan")
 
 	for rows.Next() {
-		item := Item{}
+		item := db.Item{}
 
 		ret := fn.Call(fargs)
 
@@ -157,26 +159,26 @@ func (t *PostgresqlTable) pgFetchAll(rows sql.Rows) []Item {
 	return items
 }
 
-func (pg *PostgresqlDataSource) pgExec(method string, terms ...interface{}) sql.Rows {
+// Executes a database/sql method.
+func (my *MysqlDataSource) myExec(method string, terms ...interface{}) sql.Rows {
 
-	sn := reflect.ValueOf(pg.session)
+	sn := reflect.ValueOf(my.session)
 	fn := sn.MethodByName(method)
 
-	q := pgCompile(terms)
+	q := myCompile(terms)
 
-	//fmt.Printf("Q: %v\n", q.Query)
-	//fmt.Printf("A: %v\n", q.sqlArgs)
+	/*
+		fmt.Printf("Q: %v\n", q.Query)
+		fmt.Printf("A: %v\n", q.SqlArgs)
+	*/
 
-	qs := strings.Join(q.Query, " ")
+	args := make([]reflect.Value, len(q.SqlArgs)+1)
 
-	args := make([]reflect.Value, len(q.sqlArgs)+1)
+	args[0] = reflect.ValueOf(strings.Join(q.Query, " "))
 
-	for i := 0; i < len(q.sqlArgs); i++ {
-		qs = strings.Replace(qs, "?", fmt.Sprintf("$%d", i+1), 1)
-		args[1+i] = reflect.ValueOf(q.sqlArgs[i])
+	for i := 0; i < len(q.SqlArgs); i++ {
+		args[1+i] = reflect.ValueOf(q.SqlArgs[i])
 	}
-
-	args[0] = reflect.ValueOf(qs)
 
 	res := fn.Call(args)
 
@@ -187,78 +189,79 @@ func (pg *PostgresqlDataSource) pgExec(method string, terms ...interface{}) sql.
 	return res[0].Elem().Interface().(sql.Rows)
 }
 
-// Represents a PostgreSQL table.
-type PostgresqlTable struct {
-	parent *PostgresqlDataSource
+// Represents a MySQL table.
+type MysqlTable struct {
+	parent *MysqlDataSource
 	name   string
 	types  map[string]reflect.Kind
 }
 
-// Configures and returns a PostgreSQL dabase session.
-func PostgresqlSession(config DataSource) Database {
-	m := &PostgresqlDataSource{}
-	m.config = config
-	m.collections = make(map[string]Collection)
-	return m
+// Configures and returns a MySQL database session.
+func Session(config db.DataSource) db.Database {
+	my := &MysqlDataSource{}
+	my.config = config
+	my.collections = make(map[string]db.Collection)
+	return my
 }
 
-// Closes a previously opened PostgreSQL database session.
-func (pg *PostgresqlDataSource) Close() error {
-	if pg.session != nil {
-		return pg.session.Close()
+// Closes a previously opened MySQL database session.
+func (my *MysqlDataSource) Close() error {
+	if my.session != nil {
+		return my.session.Close()
 	}
 	return nil
 }
 
-// Tries to open a connection to the current PostgreSQL session.
-func (pg *PostgresqlDataSource) Open() error {
+// Tries to open a connection to the current MySQL session.
+func (my *MysqlDataSource) Open() error {
 	var err error
 
-	if pg.config.Host == "" {
-		pg.config.Host = "127.0.0.1"
+	if my.config.Host == "" {
+		my.config.Host = "127.0.0.1"
 	}
 
-	if pg.config.Port == 0 {
-		pg.config.Port = 5432
+	if my.config.Port == 0 {
+		my.config.Port = 3306
 	}
 
-	if pg.config.Database == "" {
+	if my.config.Database == "" {
 		panic("Database name is required.")
 	}
 
-	conn := fmt.Sprintf("user=%s password=%s host=%s port=%d dbname=%s sslmode=disable", pg.config.User, pg.config.Password, pg.config.Host, pg.config.Port, pg.config.Database)
+	conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", my.config.User, my.config.Password, my.config.Host, my.config.Port, my.config.Database)
 
-	pg.session, err = sql.Open("postgres", conn)
+	my.session, err = sql.Open("mysql", conn)
 
 	if err != nil {
-		return fmt.Errorf("Could not connect to %s", pg.config.Host)
+		return fmt.Errorf("Could not connect to %s", my.config.Host)
 	}
 
 	return nil
 }
 
 // Changes the active database.
-func (pg *PostgresqlDataSource) Use(database string) error {
-	pg.config.Database = database
-	return pg.Open()
+func (my *MysqlDataSource) Use(database string) error {
+	my.config.Database = database
+	my.session.Query(fmt.Sprintf("USE %s", database))
+	return nil
 }
 
 // Deletes the currently active database.
-func (pg *PostgresqlDataSource) Drop() error {
-	pg.session.Query(fmt.Sprintf("DROP DATABASE %s", pg.config.Database))
+func (my *MysqlDataSource) Drop() error {
+	my.session.Query(fmt.Sprintf("DROP DATABASE %s", my.config.Database))
 	return nil
 }
 
 // Returns a *sql.DB object that represents an internal session.
-func (pg *PostgresqlDataSource) Driver() interface{} {
-	return pg.session
+func (my *MysqlDataSource) Driver() interface{} {
+	return my.session
 }
 
-// Returns the list of PostgreSQL tables in the current database.
-func (pg *PostgresqlDataSource) Collections() []string {
+// Returns the list of MySQL tables in the current database.
+func (my *MysqlDataSource) Collections() []string {
 	var collections []string
 	var collection string
-	rows, _ := pg.session.Query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+	rows, _ := my.session.Query("SHOW TABLES")
 
 	for rows.Next() {
 		rows.Scan(&collection)
@@ -268,7 +271,8 @@ func (pg *PostgresqlDataSource) Collections() []string {
 	return collections
 }
 
-func (t *PostgresqlTable) invoke(fn string, terms []interface{}) []reflect.Value {
+// Calls an internal function.
+func (t *MysqlTable) invoke(fn string, terms []interface{}) []reflect.Value {
 
 	self := reflect.ValueOf(t)
 	method := self.MethodByName(fn)
@@ -285,9 +289,10 @@ func (t *PostgresqlTable) invoke(fn string, terms []interface{}) []reflect.Value
 	return exec
 }
 
-func (t *PostgresqlTable) compileSet(term Set) (string, sqlArgs) {
+// A helper for preparing queries that use SET.
+func (t *MysqlTable) compileSet(term db.Set) (string, db.SqlArgs) {
 	sql := []string{}
-	args := sqlArgs{}
+	args := db.SqlArgs{}
 
 	for key, arg := range term {
 		sql = append(sql, fmt.Sprintf("%s = ?", key))
@@ -297,9 +302,10 @@ func (t *PostgresqlTable) compileSet(term Set) (string, sqlArgs) {
 	return strings.Join(sql, ", "), args
 }
 
-func (t *PostgresqlTable) compileConditions(term interface{}) (string, sqlArgs) {
+// A helper for preparing queries that have conditions.
+func (t *MysqlTable) compileConditions(term interface{}) (string, db.SqlArgs) {
 	sql := []string{}
-	args := sqlArgs{}
+	args := db.SqlArgs{}
 
 	switch term.(type) {
 	case []interface{}:
@@ -321,13 +327,13 @@ func (t *PostgresqlTable) compileConditions(term interface{}) (string, sqlArgs) 
 				return "(" + strings.Join(sql, " AND ") + ")", args
 			}
 		}
-	case Or:
+	case db.Or:
 		{
 
-			itop := len(term.(Or))
+			itop := len(term.(db.Or))
 
 			for i := 0; i < itop; i++ {
-				rsql, rargs := t.compileConditions(term.(Or)[i])
+				rsql, rargs := t.compileConditions(term.(db.Or)[i])
 				if rsql != "" {
 					sql = append(sql, rsql)
 					for j := 0; j < len(rargs); j++ {
@@ -340,13 +346,13 @@ func (t *PostgresqlTable) compileConditions(term interface{}) (string, sqlArgs) 
 				return "(" + strings.Join(sql, " OR ") + ")", args
 			}
 		}
-	case And:
+	case db.And:
 		{
 
-			itop := len(term.(Or))
+			itop := len(term.(db.Or))
 
 			for i := 0; i < itop; i++ {
-				rsql, rargs := t.compileConditions(term.(Or)[i])
+				rsql, rargs := t.compileConditions(term.(db.Or)[i])
 				if rsql != "" {
 					sql = append(sql, rsql)
 					for j := 0; j < len(rargs); j++ {
@@ -359,9 +365,9 @@ func (t *PostgresqlTable) compileConditions(term interface{}) (string, sqlArgs) 
 				return "(" + strings.Join(sql, " AND ") + ")", args
 			}
 		}
-	case Where:
+	case db.Where:
 		{
-			return t.marshal(term.(Where))
+			return t.marshal(term.(db.Where))
 
 		}
 	}
@@ -369,7 +375,8 @@ func (t *PostgresqlTable) compileConditions(term interface{}) (string, sqlArgs) 
 	return "", args
 }
 
-func (t *PostgresqlTable) marshal(where Where) (string, []string) {
+// Converts db.Where{} structures into SQL before processing them in a query.
+func (t *MysqlTable) marshal(where db.Where) (string, []string) {
 
 	for key, val := range where {
 		key = strings.Trim(key, " ")
@@ -389,18 +396,18 @@ func (t *PostgresqlTable) marshal(where Where) (string, []string) {
 }
 
 // Deletes all the rows in the table.
-func (t *PostgresqlTable) Truncate() bool {
+func (t *MysqlTable) Truncate() bool {
 
-	t.parent.pgExec(
+	t.parent.myExec(
 		"Query",
-		fmt.Sprintf("TRUNCATE TABLE %s", pgTable(t.name)),
+		fmt.Sprintf("TRUNCATE TABLE %s", myTable(t.name)),
 	)
 
 	return false
 }
 
 // Deletes all the rows in the table that match certain conditions.
-func (t *PostgresqlTable) Remove(terms ...interface{}) bool {
+func (t *MysqlTable) Remove(terms ...interface{}) bool {
 
 	conditions, cargs := t.compileConditions(terms)
 
@@ -408,9 +415,9 @@ func (t *PostgresqlTable) Remove(terms ...interface{}) bool {
 		conditions = "1 = 1"
 	}
 
-	t.parent.pgExec(
+	t.parent.myExec(
 		"Query",
-		fmt.Sprintf("DELETE FROM %s", pgTable(t.name)),
+		fmt.Sprintf("DELETE FROM %s", myTable(t.name)),
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
 
@@ -418,17 +425,17 @@ func (t *PostgresqlTable) Remove(terms ...interface{}) bool {
 }
 
 // Modifies all the rows in the table that match certain conditions.
-func (t *PostgresqlTable) Update(terms ...interface{}) bool {
+func (t *MysqlTable) Update(terms ...interface{}) bool {
 	var fields string
-	var fargs sqlArgs
+	var fargs db.SqlArgs
 
 	conditions, cargs := t.compileConditions(terms)
 
 	for _, term := range terms {
 		switch term.(type) {
-		case Set:
+		case db.Set:
 			{
-				fields, fargs = t.compileSet(term.(Set))
+				fields, fargs = t.compileSet(term.(db.Set))
 			}
 		}
 	}
@@ -437,9 +444,9 @@ func (t *PostgresqlTable) Update(terms ...interface{}) bool {
 		conditions = "1 = 1"
 	}
 
-	t.parent.pgExec(
+	t.parent.myExec(
 		"Query",
-		fmt.Sprintf("UPDATE %s SET %s", pgTable(t.name), fields), fargs,
+		fmt.Sprintf("UPDATE %s SET %s", myTable(t.name), fields), fargs,
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
 
@@ -447,7 +454,7 @@ func (t *PostgresqlTable) Update(terms ...interface{}) bool {
 }
 
 // Returns all the rows in the table that match certain conditions.
-func (t *PostgresqlTable) FindAll(terms ...interface{}) []Item {
+func (t *MysqlTable) FindAll(terms ...interface{}) []db.Item {
 	var itop int
 
 	var relate interface{}
@@ -465,25 +472,25 @@ func (t *PostgresqlTable) FindAll(terms ...interface{}) []Item {
 		term := terms[i]
 
 		switch term.(type) {
-		case Limit:
+		case db.Limit:
 			{
-				limit = fmt.Sprintf("LIMIT %v", term.(Limit))
+				limit = fmt.Sprintf("LIMIT %v", term.(db.Limit))
 			}
-		case Offset:
+		case db.Offset:
 			{
-				offset = fmt.Sprintf("OFFSET %v", term.(Offset))
+				offset = fmt.Sprintf("OFFSET %v", term.(db.Offset))
 			}
-		case Fields:
+		case db.Fields:
 			{
-				fields = strings.Join(term.(Fields), ", ")
+				fields = strings.Join(term.(db.Fields), ", ")
 			}
-		case Relate:
+		case db.Relate:
 			{
-				relate = term.(Relate)
+				relate = term.(db.Relate)
 			}
-		case RelateAll:
+		case db.RelateAll:
 			{
-				relateAll = term.(RelateAll)
+				relateAll = term.(db.RelateAll)
 			}
 		}
 	}
@@ -494,21 +501,21 @@ func (t *PostgresqlTable) FindAll(terms ...interface{}) []Item {
 		conditions = "1 = 1"
 	}
 
-	rows := t.parent.pgExec(
+	rows := t.parent.myExec(
 		"Query",
-		fmt.Sprintf("SELECT %s FROM %s", fields, pgTable(t.name)),
+		fmt.Sprintf("SELECT %s FROM %s", fields, myTable(t.name)),
 		fmt.Sprintf("WHERE %s", conditions), args,
 		limit, offset,
 	)
 
-	result := t.pgFetchAll(rows)
+	result := t.myFetchAll(rows)
 
-	var relations []Tuple
-	var rcollection Collection
+	var relations []gosexy.Tuple
+	var rcollection db.Collection
 
 	// This query is related to other collections.
 	if relate != nil {
-		for rname, rterms := range relate.(Relate) {
+		for rname, rterms := range relate.(db.Relate) {
 
 			rcollection = nil
 
@@ -516,9 +523,9 @@ func (t *PostgresqlTable) FindAll(terms ...interface{}) []Item {
 			for t := ttop - 1; t >= 0; t-- {
 				rterm := rterms[t]
 				switch rterm.(type) {
-				case Collection:
+				case db.Collection:
 					{
-						rcollection = rterm.(Collection)
+						rcollection = rterm.(db.Collection)
 					}
 				}
 			}
@@ -527,21 +534,21 @@ func (t *PostgresqlTable) FindAll(terms ...interface{}) []Item {
 				rcollection = t.parent.Collection(rname)
 			}
 
-			relations = append(relations, Tuple{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
+			relations = append(relations, gosexy.Tuple{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
 		}
 	}
 
 	if relateAll != nil {
-		for rname, rterms := range relateAll.(RelateAll) {
+		for rname, rterms := range relateAll.(db.RelateAll) {
 			rcollection = nil
 
 			ttop := len(rterms)
 			for t := ttop - 1; t >= 0; t-- {
 				rterm := rterms[t]
 				switch rterm.(type) {
-				case Collection:
+				case db.Collection:
 					{
-						rcollection = rterm.(Collection)
+						rcollection = rterm.(db.Collection)
 					}
 				}
 			}
@@ -550,7 +557,7 @@ func (t *PostgresqlTable) FindAll(terms ...interface{}) []Item {
 				rcollection = t.parent.Collection(rname)
 			}
 
-			relations = append(relations, Tuple{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
+			relations = append(relations, gosexy.Tuple{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
 		}
 	}
 
@@ -559,11 +566,11 @@ func (t *PostgresqlTable) FindAll(terms ...interface{}) []Item {
 	jtop := len(relations)
 
 	itop = len(result)
-	items := make([]Item, itop)
+	items := make([]db.Item, itop)
 
 	for i := 0; i < itop; i++ {
 
-		item := Item{}
+		item := db.Item{}
 
 		// Default values.
 		for key, val := range result[i] {
@@ -577,18 +584,18 @@ func (t *PostgresqlTable) FindAll(terms ...interface{}) []Item {
 
 			terms := []interface{}{}
 
-			ktop := len(relation["terms"].(On))
+			ktop := len(relation["terms"].(db.On))
 
 			for k := 0; k < ktop; k++ {
 
 				//term = tcopy[k]
-				term = relation["terms"].(On)[k]
+				term = relation["terms"].(db.On)[k]
 
 				switch term.(type) {
-				// Just waiting for Where statements.
-				case Where:
+				// Just waiting for db.Where statements.
+				case db.Where:
 					{
-						for wkey, wval := range term.(Where) {
+						for wkey, wval := range term.(db.Where) {
 							//if reflect.TypeOf(wval).Kind() == reflect.String { // does not always work.
 							if reflect.TypeOf(wval).Name() == "string" {
 								// Matching dynamic values.
@@ -596,7 +603,7 @@ func (t *PostgresqlTable) FindAll(terms ...interface{}) []Item {
 								if matched {
 									// Replacing dynamic values.
 									kname := strings.Trim(wval.(string), "{}")
-									term = Where{wkey: item[kname]}
+									term = db.Where{wkey: item[kname]}
 								}
 							}
 						}
@@ -607,11 +614,11 @@ func (t *PostgresqlTable) FindAll(terms ...interface{}) []Item {
 
 			// Executing external query.
 			if relation["all"] == true {
-				value := relation["collection"].(*PostgresqlTable).invoke("FindAll", terms)
-				item[relation["name"].(string)] = value[0].Interface().([]Item)
+				value := relation["collection"].(*MysqlTable).invoke("FindAll", terms)
+				item[relation["name"].(string)] = value[0].Interface().([]db.Item)
 			} else {
-				value := relation["collection"].(*PostgresqlTable).invoke("Find", terms)
-				item[relation["name"].(string)] = value[0].Interface().(Item)
+				value := relation["collection"].(*MysqlTable).invoke("Find", terms)
+				item[relation["name"].(string)] = value[0].Interface().(db.Item)
 			}
 
 		}
@@ -624,14 +631,14 @@ func (t *PostgresqlTable) FindAll(terms ...interface{}) []Item {
 }
 
 // Returns the number of rows in the current table that match certain conditions.
-func (t *PostgresqlTable) Count(terms ...interface{}) int {
+func (t *MysqlTable) Count(terms ...interface{}) int {
 
-	terms = append(terms, Fields{"COUNT(1) AS _total"})
+	terms = append(terms, db.Fields{"COUNT(1) AS _total"})
 
 	result := t.invoke("FindAll", terms)
 
 	if len(result) > 0 {
-		response := result[0].Interface().([]Item)
+		response := result[0].Interface().([]db.Item)
 		if len(response) > 0 {
 			val, _ := strconv.Atoi(response[0]["_total"].(string))
 			return val
@@ -642,16 +649,16 @@ func (t *PostgresqlTable) Count(terms ...interface{}) int {
 }
 
 // Returns the first row in the table that matches certain conditions.
-func (t *PostgresqlTable) Find(terms ...interface{}) Item {
+func (t *MysqlTable) Find(terms ...interface{}) db.Item {
 
-	var item Item
+	var item db.Item
 
-	terms = append(terms, Limit(1))
+	terms = append(terms, db.Limit(1))
 
 	result := t.invoke("FindAll", terms)
 
 	if len(result) > 0 {
-		response := result[0].Interface().([]Item)
+		response := result[0].Interface().([]db.Item)
 		if len(response) > 0 {
 			item = response[0]
 		}
@@ -661,7 +668,7 @@ func (t *PostgresqlTable) Find(terms ...interface{}) Item {
 }
 
 // Inserts rows into the currently active table.
-func (t *PostgresqlTable) Append(items ...interface{}) bool {
+func (t *MysqlTable) Append(items ...interface{}) bool {
 
 	itop := len(items)
 
@@ -672,17 +679,17 @@ func (t *PostgresqlTable) Append(items ...interface{}) bool {
 
 		item := items[i]
 
-		for field, value := range item.(Item) {
+		for field, value := range item.(db.Item) {
 			fields = append(fields, field)
 			values = append(values, fmt.Sprintf("%v", value))
 		}
 
-		t.parent.pgExec("Query",
+		t.parent.myExec("Query",
 			"INSERT INTO",
-			pgTable(t.name),
-			pgFields(fields),
+			myTable(t.name),
+			myFields(fields),
 			"VALUES",
-			pgValues(values),
+			myValues(values),
 		)
 
 	}
@@ -691,34 +698,33 @@ func (t *PostgresqlTable) Append(items ...interface{}) bool {
 }
 
 // Returns a MySQL table structure by name.
-func (pg *PostgresqlDataSource) Collection(name string) Collection {
+func (my *MysqlDataSource) Collection(name string) db.Collection {
 
-	if collection, ok := pg.collections[name]; ok == true {
+	if collection, ok := my.collections[name]; ok == true {
 		return collection
 	}
 
-	t := &PostgresqlTable{}
+	t := &MysqlTable{}
 
-	t.parent = pg
+	t.parent = my
 	t.name = name
 
 	// Fetching table datatypes and mapping to internal gotypes.
 
-	rows := t.parent.pgExec(
+	rows := t.parent.myExec(
 		"Query",
-		"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?", sqlArgs{t.name},
+		"SHOW COLUMNS FROM", t.name,
 	)
 
-	columns := t.pgFetchAll(rows)
+	columns := t.myFetchAll(rows)
 
 	pattern, _ := regexp.Compile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
 
 	t.types = make(map[string]reflect.Kind, len(columns))
 
 	for _, column := range columns {
-		cname := strings.ToLower(column["column_name"].(string))
-		ctype := strings.ToLower(column["data_type"].(string))
-
+		cname := strings.ToLower(column["field"].(string))
+		ctype := strings.ToLower(column["type"].(string))
 		results := pattern.FindStringSubmatch(ctype)
 
 		// Default properties.
@@ -735,7 +741,7 @@ func (pg *PostgresqlDataSource) Collection(name string) Collection {
 
 		// Guessing datatypes.
 		switch dtype {
-		case "smallint", "integer", "bigint", "serial", "bigserial":
+		case "tinyint", "smallint", "mediumint", "int", "bigint":
 			{
 				if dextra == "unsigned" {
 					vtype = reflect.Uint64
@@ -743,18 +749,20 @@ func (pg *PostgresqlDataSource) Collection(name string) Collection {
 					vtype = reflect.Int64
 				}
 			}
-		case "real", "double":
+		case "decimal", "float", "double":
 			{
 				vtype = reflect.Float64
 			}
 		}
 
-		//fmt.Printf("Imported %v (from %v)\n", vtype, dtype)
+		/*
+		   fmt.Printf("Imported %v (from %v)\n", vtype, dtype)
+		*/
 
 		t.types[cname] = vtype
 	}
 
-	pg.collections[name] = t
+	my.collections[name] = t
 
 	return t
 }
