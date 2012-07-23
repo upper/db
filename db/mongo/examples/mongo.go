@@ -23,21 +23,21 @@ func main() {
 		db.Relate{
 			"lives_in": db.On{
 				sess.Collection("places"),
-				db.Where{"code_id": "{place_code_id}"},
+				db.Cond{"code_id": "{place_code_id}"},
 			},
 		},
 		db.RelateAll{
 			"has_children": db.On{
 				sess.Collection("children"),
-				db.Where{"parent_id": "{_id}"},
+				db.Cond{"parent_id": "{_id}"},
 			},
 			"has_visited": db.On{
 				sess.Collection("visits"),
-				db.Where{"person_id": "{_id}"},
+				db.Cond{"person_id": "{_id}"},
 				db.Relate{
 					"place": db.On{
 						sess.Collection("places"),
-						db.Where{"_id": "{place_id}"},
+						db.Cond{"_id": "{place_id}"},
 					},
 				},
 			},

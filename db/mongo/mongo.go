@@ -49,8 +49,8 @@ type MongoDataSourceCollection struct {
 	collection *mgo.Collection
 }
 
-// Converts db.Where keytypes into something that mgo can understand.
-func (c *MongoDataSourceCollection) marshal(where db.Where) map[string]interface{} {
+// Converts db.Cond keytypes into something that mgo can understand.
+func (c *MongoDataSourceCollection) marshal(where db.Cond) map[string]interface{} {
 	conds := make(map[string]interface{})
 
 	for key, val := range where {
@@ -139,9 +139,9 @@ func (c *MongoDataSourceCollection) compileConditions(term interface{}) interfac
 			condition := map[string]interface{}{"$and": values}
 			return condition
 		}
-	case db.Where:
+	case db.Cond:
 		{
-			return c.marshal(term.(db.Where))
+			return c.marshal(term.(db.Cond))
 		}
 	}
 	return nil
@@ -443,10 +443,10 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []db.Item {
 				term = relation["terms"].(db.On)[k]
 
 				switch term.(type) {
-				// Just waiting for db.Where statements.
-				case db.Where:
+				// Just waiting for db.Cond statements.
+				case db.Cond:
 					{
-						for wkey, wval := range term.(db.Where) {
+						for wkey, wval := range term.(db.Cond) {
 							//if reflect.TypeOf(wval).Kind() == reflect.String { // does not always work.
 							if reflect.TypeOf(wval).Name() == "string" {
 								// Matching dynamic values.
@@ -454,7 +454,7 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []db.Item {
 								if matched {
 									// Replacing dynamic values.
 									kname := strings.Trim(wval.(string), "{}")
-									term = db.Where{wkey: item[kname]}
+									term = db.Cond{wkey: item[kname]}
 								}
 							}
 						}

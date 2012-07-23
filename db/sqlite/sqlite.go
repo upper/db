@@ -365,9 +365,9 @@ func (t *SqliteTable) compileConditions(term interface{}) (string, db.SqlArgs) {
 				return "(" + strings.Join(sql, " AND ") + ")", args
 			}
 		}
-	case db.Where:
+	case db.Cond:
 		{
-			return t.marshal(term.(db.Where))
+			return t.marshal(term.(db.Cond))
 
 		}
 	}
@@ -375,7 +375,7 @@ func (t *SqliteTable) compileConditions(term interface{}) (string, db.SqlArgs) {
 	return "", args
 }
 
-func (t *SqliteTable) marshal(where db.Where) (string, []string) {
+func (t *SqliteTable) marshal(where db.Cond) (string, []string) {
 
 	for key, val := range where {
 		key = strings.Trim(key, " ")
@@ -591,10 +591,10 @@ func (t *SqliteTable) FindAll(terms ...interface{}) []db.Item {
 				term = relation["terms"].(db.On)[k]
 
 				switch term.(type) {
-				// Just waiting for db.Where statements.
-				case db.Where:
+				// Just waiting for db.Cond statements.
+				case db.Cond:
 					{
-						for wkey, wval := range term.(db.Where) {
+						for wkey, wval := range term.(db.Cond) {
 							//if reflect.TypeOf(wval).Kind() == reflect.String { // does not always work.
 							if reflect.TypeOf(wval).Name() == "string" {
 								// Matching dynamic values.
@@ -602,7 +602,7 @@ func (t *SqliteTable) FindAll(terms ...interface{}) []db.Item {
 								if matched {
 									// Replacing dynamic values.
 									kname := strings.Trim(wval.(string), "{}")
-									term = db.Where{wkey: item[kname]}
+									term = db.Cond{wkey: item[kname]}
 								}
 							}
 						}

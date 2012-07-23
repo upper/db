@@ -76,7 +76,7 @@ func TestPgFind(t *testing.T) {
 
 	col := sess.Collection("people")
 
-	result := col.Find(db.Where{"name": "José"})
+	result := col.Find(db.Cond{"name": "José"})
 
 	if result["name"] != "José" {
 		t.Error("Could not find a recently appended item.")
@@ -96,9 +96,9 @@ func TestPgDelete(t *testing.T) {
 
 	col := sess.Collection("people")
 
-	col.Remove(db.Where{"name": "Juan"})
+	col.Remove(db.Cond{"name": "Juan"})
 
-	result := col.Find(db.Where{"name": "Juan"})
+	result := col.Find(db.Cond{"name": "Juan"})
 
 	if len(result) > 0 {
 		t.Error("Could not remove a recently appended item.")
@@ -119,9 +119,9 @@ func TestPgUpdate(t *testing.T) {
 
 	col := sess.Collection("people")
 
-	col.Update(db.Where{"name": "José"}, db.Set{"name": "Joseph"})
+	col.Update(db.Cond{"name": "José"}, db.Set{"name": "Joseph"})
 
-	result := col.Find(db.Where{"name": "Joseph"})
+	result := col.Find(db.Cond{"name": "Joseph"})
 
 	if len(result) == 0 {
 		t.Error("Could not update a recently appended item.")
@@ -168,13 +168,13 @@ func TestPgPopulate(t *testing.T) {
 
 		// Lives in
 		sess.Collection("people").Update(
-			db.Where{"id": person["id"]},
+			db.Cond{"id": person["id"]},
 			db.Set{"place_code_id": int(rand.Float32() * float32(len(places)))},
 		)
 
 		// Has visited
 		for k := 0; k < 3; k++ {
-			place := sess.Collection("places").Find(db.Where{
+			place := sess.Collection("places").Find(db.Cond{
 				"code_id": int(rand.Float32() * float32(len(places))),
 			})
 			sess.Collection("visits").Append(db.Item{
@@ -202,21 +202,21 @@ func TestPgRelation(t *testing.T) {
 		db.Relate{
 			"lives_in": db.On{
 				sess.Collection("places"),
-				db.Where{"code_id": "{place_code_id}"},
+				db.Cond{"code_id": "{place_code_id}"},
 			},
 		},
 		db.RelateAll{
 			"has_children": db.On{
 				sess.Collection("children"),
-				db.Where{"parent_id": "{id}"},
+				db.Cond{"parent_id": "{id}"},
 			},
 			"has_visited": db.On{
 				sess.Collection("visits"),
-				db.Where{"person_id": "{id}"},
+				db.Cond{"person_id": "{id}"},
 				db.Relate{
 					"place": db.On{
 						sess.Collection("places"),
-						db.Where{"id": "{place_id}"},
+						db.Cond{"id": "{place_id}"},
 					},
 				},
 			},

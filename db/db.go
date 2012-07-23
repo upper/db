@@ -27,30 +27,30 @@ package db
 //
 // Examples:
 //
-// Where { "age": 18 } // Means the condition is to have the "age" field equal to 18.
+// Cond { "age": 18 } // Means the condition is to have the "age" field equal to 18.
 //
-// Where { "age $lt": 18 } // $lt is a MongoDB operator, if you're using MongoDB, means that you want the "age" field to be lower than 18.
+// Cond { "age $lt": 18 } // $lt is a MongoDB operator, if you're using MongoDB, means that you want the "age" field to be lower than 18.
 //
-// Where { "age >=": 18 } // >= is a SQL operator, if you're using SQL, means that you want the "age" field to be mayor or equal to 18.
-type Where map[string]interface{}
+// Cond { "age >=": 18 } // >= is a SQL operator, if you're using SQL, means that you want the "age" field to be mayor or equal to 18.
+type Cond map[string]interface{}
 
-// Handles "And", "Or" and "Where" types in an expression.
+// Handles "And", "Or" and "Cond" types in an expression.
 //
 // Example:
 //
 // And (
-//   Where { "name": "Peter" },
-//   Where { "last_name": "Parker "},
+//   Cond { "name": "Peter" },
+//   Cond { "last_name": "Parker "},
 // )
 type And []interface{}
 
-// Handles "And", "Or" and "Where" types.
+// Handles "And", "Or" and "Cond" types.
 //
 // Example:
 //
 // Or (
-//   Where { "year": 2012 },
-//   Where { "year": 1987 },
+//   Cond { "year": 2012 },
+//   Cond { "year": 1987 },
 // )
 type Or []interface{}
 
@@ -76,13 +76,13 @@ type Modify map[string]interface{}
 
 // Specifies relations with external collections, the specific relation with the parent expression can be determined with
 // the name of field on the external collection plus the name of the referred parent column between brackets, however this can be only
-// used along with Where keytypes.
+// used along with Cond keytypes.
 //
 // Example:
 //
 // On {
 //   db.Collection("external"),
-//   Where { "external_key": "{parent_value}" }, // Relation exists where the "external_key" field is equal to the parent's "parent_value".
+//   Cond { "external_key": "{parent_value}" }, // Relation exists where the "external_key" field is equal to the parent's "parent_value".
 // }
 type On []interface{}
 
@@ -96,8 +96,8 @@ type On []interface{}
 // Relate {
 //   "father": On {
 //     db.Collection("people"),
-//     Where { "gender": "man" },
-//     Where { "id": "{parent_id}" },
+//     Cond { "gender": "man" },
+//     Cond { "id": "{parent_id}" },
 //   }
 // }
 type Relate map[string]On
@@ -112,8 +112,8 @@ type Relate map[string]On
 // RelateAll {
 //   "children": On {
 //     db.Collection("people"),
-//     Where { "age $lt": 12 },
-//     Where { "parent_id": "{_id}" },
+//     Cond { "age $lt": 12 },
+//     Cond { "parent_id": "{_id}" },
 //   }
 // }
 type RelateAll map[string]On
