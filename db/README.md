@@ -6,7 +6,7 @@ This package is a wrapper of many third party database drivers. The goal of this
 
 Use ``go get`` to download and install ``gosexy/db``.
 
-  $ go get github.com/xiam/gosexy/db
+    $ go get github.com/xiam/gosexy/db
 
 This package provides shared interfaces and datatypes only, in order to connect to an actual database a driver is required.
 
@@ -253,6 +253,5 @@ Or you can [browse it](http://go.pkgdoc.org/github.com/xiam/gosexy/db) online.
 
 ## Changelog
 
-2012/07/23 - Splitted databases wrapper into packages. Changed ``Cond`` to ``Cond``.
-
-2012/07/09 - First public beta with MySQL, MongoDB, PostgreSQL and SQLite3.
+  2012/07/23 - Splitted databases wrapper into packages. Changed ``Cond`` to ``Cond``.
+  2012/07/09 - First public beta with MySQL, MongoDB, PostgreSQL and SQLite3.
