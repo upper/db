@@ -1,6 +1,6 @@
 # gosexy/db/postgresql
 
-	This driver is a wrapper of [pq](https://github.com/bmizerany/pq). In order to work with ``gosexy/db`` the original driver had to be [forked](https://github.com/xiam/gopostgresql) as the changes made to it are incompatible with some of pq's own features.
+This driver is a wrapper of [pq](https://github.com/bmizerany/pq). In order to work with ``gosexy/db`` the original driver had to be [forked](https://github.com/xiam/gopostgresql) as the changes made to it are incompatible with some of pq's own features.
 
 ## Installation
 
@@ -13,7 +13,7 @@
 			"github.com/xiam/gosexy/db/postgresql"
 		)
 
-## Connecting to a database
+## Connecting to a PostgreSQL database
 
 		sess := postgresql.Session(db.DataSource{Host: "127.0.0.1"})
 

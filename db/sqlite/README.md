@@ -1,6 +1,6 @@
 # gosexy/db/sqlite
 
-	This driver is a wrapper of [sqlite3](https://github.com/mattn/go-sqlite3). In order to work with ``gosexy/db`` the original driver had to be [forked](https://github.com/xiam/gosqlite3) as the changes made to it are incompatible with some of sqlite3's own features.
+This driver is a wrapper of [sqlite3](https://github.com/mattn/go-sqlite3). In order to work with ``gosexy/db`` the original driver had to be [forked](https://github.com/xiam/gosqlite3) as the changes made to it are incompatible with some of sqlite3's own features.
 
 ## Requirements
 
@@ -32,9 +32,9 @@ And on Debian based distros
 			"github.com/xiam/gosexy/db/sqlite"
 		)
 
-## Connecting to a database
+## Connecting to a SQLite3 database
 
-		sess := sqlite.Session(db.DataSource{Host: "127.0.0.1"})
+		sess := sqlite.Session(db.DataSource{Database: "/path/to/sqlite3.db"})
 
 		err := sess.Open()
 		defer sess.Close()

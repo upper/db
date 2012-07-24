@@ -1,6 +1,6 @@
 # gosexy/db/mongo
 
-	This driver is a wrapper of [mgo](http://labix.org/mgo)
+This driver is a wrapper of [mgo](http://labix.org/mgo)
 
 ## Requirements
 
@@ -29,7 +29,7 @@ And on Debian based distros
 			"github.com/xiam/gosexy/db/mongo"
 		)
 
-## Connecting to a database
+## Connecting to a MongoDB database
 
 		sess := mongo.Session(db.DataSource{Host: "127.0.0.1"})
 

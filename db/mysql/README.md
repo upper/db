@@ -1,6 +1,6 @@
 # gosexy/db/mysql
 
-	This driver is a wrapper of [go-mysql-driver](http://code.google.com/p/go-mysql-driver/)
+This driver is a wrapper of [go-mysql-driver](http://code.google.com/p/go-mysql-driver/)
 
 ## Requirements
 
@@ -29,7 +29,7 @@ And on Debian based distros
 			"github.com/xiam/gosexy/db/mysql"
 		)
 
-## Connecting to a database
+## Connecting to a MySQL database
 
 		sess := mysql.Session(db.DataSource{Host: "127.0.0.1"})
 
