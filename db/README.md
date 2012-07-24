@@ -6,7 +6,7 @@ This package is a wrapper of many third party database drivers. The goal of this
 
 Use ``go get`` to download and install ``gosexy/db``.
 
-    $ go get github.com/xiam/gosexy/db
+  $ go get github.com/xiam/gosexy/db
 
 This package provides shared interfaces and datatypes only, in order to connect to an actual database a driver is required.
 
@@ -163,7 +163,7 @@ You can also use relations in your definition
       },
       db.RelateAll{
         // One-to-many relation with the table "children".
-        "has_children": On{
+        "has_children": db.On{
           session.Collection("children"),
           // Relates rows of the table "children" where children.parent_id = collection.id
           db.Cond{"parent_id": "{id}"},
