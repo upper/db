@@ -8,32 +8,32 @@ The [mercurial](http://mercurial.selenic.com/) version control system is require
 
 If you're using ``brew`` and OSX, you can install it like this
 
-		$ brew install hg
+    $ brew install hg
 
 On ArchLinux you could use
 
-		$ sudo pacman -S mercurial
+    $ sudo pacman -S mercurial
 
 And on Debian based distros
 
-		$ sudo aptitude install mercurial
+    $ sudo aptitude install mercurial
 
 ## Installation
 
-		$ go get github.com/xiam/gosexy/db/mysql
+    $ go get github.com/xiam/gosexy/db/mysql
 
 ## Usage
 
-		import (
-			"github.com/xiam/gosexy/db"
-			"github.com/xiam/gosexy/db/mysql"
-		)
+    import (
+      "github.com/xiam/gosexy/db"
+      "github.com/xiam/gosexy/db/mysql"
+    )
 
 ## Connecting to a MySQL database
 
-		sess := mysql.Session(db.DataSource{Host: "127.0.0.1"})
+    sess := mysql.Session(db.DataSource{Host: "127.0.0.1"})
 
-		err := sess.Open()
-		defer sess.Close()
+    err := sess.Open()
+    defer sess.Close()
 
 Read full documentation and examples on the [gosexy/db](/xiam/gosexy/tree/master/db) manual.

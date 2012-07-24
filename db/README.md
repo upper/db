@@ -128,13 +128,13 @@ When you request data from a Collection with ``db.Collection.Find()`` or ``db.Co
 
 Appends one or more items to the collection.
 
-    collection.Append(Item { "name": "Peter" })
+    collection.Append(db.Item { "name": "Peter" })
 
 #### db.Collection.Count(...interface{}) int
 
 Returns the number of total items matching the provided conditions.
 
-    total := collection.Count(Cond { "name": "Peter" })
+    total := collection.Count(db.Cond { "name": "Peter" })
 
 #### db.Collection.Find(...interface{}) db.Item
 

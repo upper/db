@@ -8,35 +8,35 @@ The sqlite3 driver uses cgo, and it requires ``pkg-config`` and the sqlite3 head
 
 If you're using ``brew`` and OSX, you can install them like this
 
-		$ brew install pkg-config
-		$ brew install sqlite3
+    $ brew install pkg-config
+    $ brew install sqlite3
 
 On ArchLinux you could use
 
-		$ sudo pacman -S pkg-config
-		$ sudo pacman -S sqlite3
+    $ sudo pacman -S pkg-config
+    $ sudo pacman -S sqlite3
 
 And on Debian based distros
 
-		$ sudo aptitude install pkg-config
-		$ sudo aptitude install libsqlite3-dev
+    $ sudo aptitude install pkg-config
+    $ sudo aptitude install libsqlite3-dev
 
 ## Installation
 
-		$ go get github.com/xiam/gosexy/db/sqlite
+    $ go get github.com/xiam/gosexy/db/sqlite
 
 ## Usage
 
-		import (
-			"github.com/xiam/gosexy/db"
-			"github.com/xiam/gosexy/db/sqlite"
-		)
+    import (
+      "github.com/xiam/gosexy/db"
+      "github.com/xiam/gosexy/db/sqlite"
+    )
 
 ## Connecting to a SQLite3 database
 
-		sess := sqlite.Session(db.DataSource{Database: "/path/to/sqlite3.db"})
+    sess := sqlite.Session(db.DataSource{Database: "/path/to/sqlite3.db"})
 
-		err := sess.Open()
-		defer sess.Close()
+    err := sess.Open()
+    defer sess.Close()
 
 Read full documentation and examples on the [gosexy/db](/xiam/gosexy/tree/master/db) manual.
