@@ -253,5 +253,5 @@ Or you can [browse it](http://go.pkgdoc.org/github.com/xiam/gosexy/db) online.
 
 ## Changelog
 
-  2012/07/23 - Splitted databases wrapper into packages. Changed ``Cond`` to ``Cond``.
-  2012/07/09 - First public beta with MySQL, MongoDB, PostgreSQL and SQLite3.
+    2012/07/23 - Splitted databases wrapper into packages. Changed ``Where`` to ``Cond``.
+    2012/07/09 - First public beta with MySQL, MongoDB, PostgreSQL and SQLite3.
