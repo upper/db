@@ -134,7 +134,7 @@ Appends one or more items to the collection.
 
 Returns the number of total items matching the provided conditions.
 
-    total := collection.Count(Where { "name": "Peter" })
+    total := collection.Count(Cond { "name": "Peter" })
 
 #### db.Collection.Find(...interface{}) db.Item
 
@@ -142,11 +142,11 @@ Return the first Item of the collection that matches all the provided conditions
 
     // The following statement is equivalent to WHERE name = "John" AND last_name = "Doe" AND (age = 15 OR age = 20)
     collection.Find(
-     db.Where { "name": "John" },
-     db.Where { "last_name": "Doe" },
+     db.Cond { "name": "John" },
+     db.Cond { "last_name": "Doe" },
      db.Or {
-       db.Where { "age": 15 },
-       db.Where { "age": 20 },
+       db.Cond { "age": 15 },
+       db.Cond { "age": 20 },
      },
     )
 
@@ -158,7 +158,7 @@ You can also use relations in your definition
         "lives_in": db.On{
           session.Collection("places"),
           // Relates rows of the table "places" where place.code_id = collection.place_code_id.
-          db.Where{"code_id": "{place_code_id}"},
+          db.Cond{"code_id": "{place_code_id}"},
         },
       },
       db.RelateAll{
@@ -166,20 +166,20 @@ You can also use relations in your definition
         "has_children": On{
           session.Collection("children"),
           // Relates rows of the table "children" where children.parent_id = collection.id
-          db.Where{"parent_id": "{id}"},
+          db.Cond{"parent_id": "{id}"},
         },
         // One-to-many relation with the table "visits".
         "has_visited": db.On{
           session.Collection("visits"),
           // Relates rows of the table "visits" where visits.person_id = collection.id
-          db.Where{"person_id": "{id}"},
+          db.Cond{"person_id": "{id}"},
           // A nested relation
           db.Relate{
             // Relates rows of the table "places" with the "visits" table.
             "place": db.On{
               session.Collection("places"),
-              // Where places.id = visits.place_id
-              db.Where{"id": "{place_id}"},
+              // Cond places.id = visits.place_id
+              db.Cond{"id": "{place_id}"},
             },
           },
         },
@@ -194,7 +194,7 @@ Be aware that there are some extra parameters that you can pass to ``db.Collecti
 
     // Just give me the the first 10 rows with last_name = "Smith"
     collection.Find(
-      db.Where { "last_name": "Smith" },
+      db.Cond { "last_name": "Smith" },
       db.Limit(10),
     )
 
@@ -204,19 +204,19 @@ Updates all the items of the collection that match all the provided conditions. 
 
     // Example of assigning field values with Set:
     collection.Update(
-      db.Where { "name": "José" },
+      db.Cond { "name": "José" },
       db.Set { "name": "Joseph"},
     )
 
     // Example of custom modification with db.Modify (for mongo.Session):
     collection.Update(
-      db.Where { "times <": "10" },
+      db.Cond { "times <": "10" },
       db.Modify { "$inc": { "times": 1 } },
     )
 
     // Example of inserting if none matches with db.Upsert (for mongo.Session):
     collection.Update(
-      db.Where { "name": "Roberto" },
+      db.Cond { "name": "Roberto" },
       db.Upsert { "name": "Robert"},
     )
 
@@ -225,8 +225,8 @@ Updates all the items of the collection that match all the provided conditions. 
 Deletes all the items of the collection that match the provided conditions.
 
     collection.Remove(
-      db.Where { "name": "Peter" },
-      db.Where { "last_name": "Parker" },
+      db.Cond { "name": "Peter" },
+      db.Cond { "last_name": "Parker" },
     )
 
 #### db.Collection.Truncate() bool
@@ -253,6 +253,6 @@ Or you can [browse it](http://go.pkgdoc.org/github.com/xiam/gosexy/db) online.
 
 ## Changelog
 
-2012/07/23 - Splitted databases wrapper into packages. Changed ``Where`` to ``Cond``.
+2012/07/23 - Splitted databases wrapper into packages. Changed ``Cond`` to ``Cond``.
 
 2012/07/09 - First public beta with MySQL, MongoDB, PostgreSQL and SQLite3.
