@@ -48,24 +48,18 @@ func myCompile(terms []interface{}) *myQuery {
 	for _, term := range terms {
 		switch term.(type) {
 		case string:
-			{
-				q.Query = append(q.Query, term.(string))
-			}
+			q.Query = append(q.Query, term.(string))
 		case db.SqlArgs:
-			{
-				for _, arg := range term.(db.SqlArgs) {
-					q.SqlArgs = append(q.SqlArgs, arg)
-				}
+			for _, arg := range term.(db.SqlArgs) {
+				q.SqlArgs = append(q.SqlArgs, arg)
 			}
 		case db.SqlValues:
-			{
-				args := make([]string, len(term.(db.SqlValues)))
-				for i, arg := range term.(db.SqlValues) {
-					args[i] = "?"
-					q.SqlArgs = append(q.SqlArgs, arg)
-				}
-				q.Query = append(q.Query, "("+strings.Join(args, ", ")+")")
+			args := make([]string, len(term.(db.SqlValues)))
+			for i, arg := range term.(db.SqlValues) {
+				args[i] = "?"
+				q.SqlArgs = append(q.SqlArgs, arg)
 			}
+			q.Query = append(q.Query, "("+strings.Join(args, ", ")+")")
 		}
 	}
 
@@ -132,24 +126,16 @@ func (t *MysqlTable) myFetchAll(rows sql.Rows) []db.Item {
 
 			switch t.types[name] {
 			case reflect.Uint64:
-				{
-					intval, _ := strconv.Atoi(strval)
-					item[name] = uint64(intval)
-				}
+				intval, _ := strconv.Atoi(strval)
+				item[name] = uint64(intval)
 			case reflect.Int64:
-				{
-					intval, _ := strconv.Atoi(strval)
-					item[name] = intval
-				}
+				intval, _ := strconv.Atoi(strval)
+				item[name] = intval
 			case reflect.Float64:
-				{
-					floatval, _ := strconv.ParseFloat(strval, 10)
-					item[name] = floatval
-				}
+				floatval, _ := strconv.ParseFloat(strval, 10)
+				item[name] = floatval
 			default:
-				{
-					item[name] = strval
-				}
+				item[name] = strval
 			}
 		}
 
@@ -309,67 +295,55 @@ func (t *MysqlTable) compileConditions(term interface{}) (string, db.SqlArgs) {
 
 	switch term.(type) {
 	case []interface{}:
-		{
+		itop := len(term.([]interface{}))
 
-			itop := len(term.([]interface{}))
-
-			for i := 0; i < itop; i++ {
-				rsql, rargs := t.compileConditions(term.([]interface{})[i])
-				if rsql != "" {
-					sql = append(sql, rsql)
-					for j := 0; j < len(rargs); j++ {
-						args = append(args, rargs[j])
-					}
+		for i := 0; i < itop; i++ {
+			rsql, rargs := t.compileConditions(term.([]interface{})[i])
+			if rsql != "" {
+				sql = append(sql, rsql)
+				for j := 0; j < len(rargs); j++ {
+					args = append(args, rargs[j])
 				}
 			}
+		}
 
-			if len(sql) > 0 {
-				return "(" + strings.Join(sql, " AND ") + ")", args
-			}
+		if len(sql) > 0 {
+			return "(" + strings.Join(sql, " AND ") + ")", args
 		}
 	case db.Or:
-		{
+		itop := len(term.(db.Or))
 
-			itop := len(term.(db.Or))
-
-			for i := 0; i < itop; i++ {
-				rsql, rargs := t.compileConditions(term.(db.Or)[i])
-				if rsql != "" {
-					sql = append(sql, rsql)
-					for j := 0; j < len(rargs); j++ {
-						args = append(args, rargs[j])
-					}
+		for i := 0; i < itop; i++ {
+			rsql, rargs := t.compileConditions(term.(db.Or)[i])
+			if rsql != "" {
+				sql = append(sql, rsql)
+				for j := 0; j < len(rargs); j++ {
+					args = append(args, rargs[j])
 				}
 			}
+		}
 
-			if len(sql) > 0 {
-				return "(" + strings.Join(sql, " OR ") + ")", args
-			}
+		if len(sql) > 0 {
+			return "(" + strings.Join(sql, " OR ") + ")", args
 		}
 	case db.And:
-		{
+		itop := len(term.(db.Or))
 
-			itop := len(term.(db.Or))
-
-			for i := 0; i < itop; i++ {
-				rsql, rargs := t.compileConditions(term.(db.Or)[i])
-				if rsql != "" {
-					sql = append(sql, rsql)
-					for j := 0; j < len(rargs); j++ {
-						args = append(args, rargs[j])
-					}
+		for i := 0; i < itop; i++ {
+			rsql, rargs := t.compileConditions(term.(db.Or)[i])
+			if rsql != "" {
+				sql = append(sql, rsql)
+				for j := 0; j < len(rargs); j++ {
+					args = append(args, rargs[j])
 				}
 			}
+		}
 
-			if len(sql) > 0 {
-				return "(" + strings.Join(sql, " AND ") + ")", args
-			}
+		if len(sql) > 0 {
+			return "(" + strings.Join(sql, " AND ") + ")", args
 		}
 	case db.Cond:
-		{
-			return t.marshal(term.(db.Cond))
-
-		}
+		return t.marshal(term.(db.Cond))
 	}
 
 	return "", args
@@ -473,25 +447,15 @@ func (t *MysqlTable) FindAll(terms ...interface{}) []db.Item {
 
 		switch term.(type) {
 		case db.Limit:
-			{
-				limit = fmt.Sprintf("LIMIT %v", term.(db.Limit))
-			}
+			limit = fmt.Sprintf("LIMIT %v", term.(db.Limit))
 		case db.Offset:
-			{
-				offset = fmt.Sprintf("OFFSET %v", term.(db.Offset))
-			}
+			offset = fmt.Sprintf("OFFSET %v", term.(db.Offset))
 		case db.Fields:
-			{
-				fields = strings.Join(term.(db.Fields), ", ")
-			}
+			fields = strings.Join(term.(db.Fields), ", ")
 		case db.Relate:
-			{
-				relate = term.(db.Relate)
-			}
+			relate = term.(db.Relate)
 		case db.RelateAll:
-			{
-				relateAll = term.(db.RelateAll)
-			}
+			relateAll = term.(db.RelateAll)
 		}
 	}
 
@@ -742,17 +706,14 @@ func (my *MysqlDataSource) Collection(name string) db.Collection {
 		// Guessing datatypes.
 		switch dtype {
 		case "tinyint", "smallint", "mediumint", "int", "bigint":
-			{
-				if dextra == "unsigned" {
-					vtype = reflect.Uint64
-				} else {
-					vtype = reflect.Int64
-				}
+			if dextra == "unsigned" {
+				vtype = reflect.Uint64
+			} else {
+				vtype = reflect.Int64
 			}
 		case "decimal", "float", "double":
-			{
-				vtype = reflect.Float64
-			}
+			vtype = reflect.Float64
+
 		}
 
 		/*

@@ -106,43 +106,35 @@ func (c *MongoDataSourceCollection) Append(items ...interface{}) bool {
 func (c *MongoDataSourceCollection) compileConditions(term interface{}) interface{} {
 	switch term.(type) {
 	case []interface{}:
-		{
-			values := []interface{}{}
-			itop := len(term.([]interface{}))
-			for i := 0; i < itop; i++ {
-				value := c.compileConditions(term.([]interface{})[i])
-				if value != nil {
-					values = append(values, value)
-				}
+		values := []interface{}{}
+		itop := len(term.([]interface{}))
+		for i := 0; i < itop; i++ {
+			value := c.compileConditions(term.([]interface{})[i])
+			if value != nil {
+				values = append(values, value)
 			}
-			if len(values) > 0 {
-				return values
-			}
+		}
+		if len(values) > 0 {
+			return values
 		}
 	case db.Or:
-		{
-			values := []interface{}{}
-			itop := len(term.(db.Or))
-			for i := 0; i < itop; i++ {
-				values = append(values, c.compileConditions(term.(db.Or)[i]))
-			}
-			condition := map[string]interface{}{"$or": values}
-			return condition
+		values := []interface{}{}
+		itop := len(term.(db.Or))
+		for i := 0; i < itop; i++ {
+			values = append(values, c.compileConditions(term.(db.Or)[i]))
 		}
+		condition := map[string]interface{}{"$or": values}
+		return condition
 	case db.And:
-		{
-			values := []interface{}{}
-			itop := len(term.(db.And))
-			for i := 0; i < itop; i++ {
-				values = append(values, c.compileConditions(term.(db.And)[i]))
-			}
-			condition := map[string]interface{}{"$and": values}
-			return condition
+		values := []interface{}{}
+		itop := len(term.(db.And))
+		for i := 0; i < itop; i++ {
+			values = append(values, c.compileConditions(term.(db.And)[i]))
 		}
+		condition := map[string]interface{}{"$and": values}
+		return condition
 	case db.Cond:
-		{
-			return c.marshal(term.(db.Cond))
-		}
+		return c.marshal(term.(db.Cond))
 	}
 	return nil
 }
@@ -197,17 +189,11 @@ func (c *MongoDataSourceCollection) Update(terms ...interface{}) bool {
 
 		switch term.(type) {
 		case db.Set:
-			{
-				set = term.(db.Set)
-			}
+			set = term.(db.Set)
 		case db.Upsert:
-			{
-				upsert = term.(db.Upsert)
-			}
+			upsert = term.(db.Upsert)
 		case db.Modify:
-			{
-				modify = term.(db.Modify)
-			}
+			modify = term.(db.Modify)
 		}
 	}
 
@@ -302,17 +288,11 @@ func (c *MongoDataSourceCollection) BuildQuery(terms ...interface{}) *mgo.Query 
 
 		switch term.(type) {
 		case db.Limit:
-			{
-				limit = int(term.(db.Limit))
-			}
+			limit = int(term.(db.Limit))
 		case db.Offset:
-			{
-				offset = int(term.(db.Offset))
-			}
+			offset = int(term.(db.Offset))
 		case db.Sort:
-			{
-				sort = term.(db.Sort)
-			}
+			sort = term.(db.Sort)
 		}
 	}
 
@@ -354,13 +334,9 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []db.Item {
 
 		switch term.(type) {
 		case db.Relate:
-			{
-				relate = term.(db.Relate)
-			}
+			relate = term.(db.Relate)
 		case db.RelateAll:
-			{
-				relateAll = term.(db.RelateAll)
-			}
+			relateAll = term.(db.RelateAll)
 		}
 	}
 
@@ -383,9 +359,7 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []db.Item {
 				rterm := rterms[t]
 				switch rterm.(type) {
 				case db.Collection:
-					{
-						rcollection = rterm.(db.Collection)
-					}
+					rcollection = rterm.(db.Collection)
 				}
 			}
 
@@ -402,9 +376,7 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []db.Item {
 				rterm := rterms[t]
 				switch rterm.(type) {
 				case db.Collection:
-					{
-						rcollection = rterm.(db.Collection)
-					}
+					rcollection = rterm.(db.Collection)
 				}
 			}
 
@@ -445,17 +417,15 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []db.Item {
 				switch term.(type) {
 				// Just waiting for db.Cond statements.
 				case db.Cond:
-					{
-						for wkey, wval := range term.(db.Cond) {
-							//if reflect.TypeOf(wval).Kind() == reflect.String { // does not always work.
-							if reflect.TypeOf(wval).Name() == "string" {
-								// Matching dynamic values.
-								matched, _ := regexp.MatchString("\\{.+\\}", wval.(string))
-								if matched {
-									// Replacing dynamic values.
-									kname := strings.Trim(wval.(string), "{}")
-									term = db.Cond{wkey: item[kname]}
-								}
+					for wkey, wval := range term.(db.Cond) {
+						//if reflect.TypeOf(wval).Kind() == reflect.String { // does not always work.
+						if reflect.TypeOf(wval).Name() == "string" {
+							// Matching dynamic values.
+							matched, _ := regexp.MatchString("\\{.+\\}", wval.(string))
+							if matched {
+								// Replacing dynamic values.
+								kname := strings.Trim(wval.(string), "{}")
+								term = db.Cond{wkey: item[kname]}
 							}
 						}
 					}
