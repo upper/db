@@ -2,6 +2,22 @@
 
 	This driver is a wrapper of [mgo](http://labix.org/mgo)
 
+## Requirements
+
+The [bazaar](http://bazaar.canonical.com/en/) version control system is required by ``mgo``.
+
+If you're using ``brew`` and OSX, you can install it like this
+
+		$ brew install bzr
+
+On ArchLinux you could use
+
+		$ sudo pacman -S bzr
+
+And on Debian based distros
+
+		$ sudo aptitude install bzr
+
 ## Installation
 
 		$ go get github.com/xiam/gosexy/db/mongo

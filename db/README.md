@@ -1,6 +1,6 @@
 # gosexy/db
 
-This package is a wrapper of many third party database drivers. The goal of this abstraction is to provide a common, simplified, consistent later for working with different databases without the need of SQL statements.
+This package is a wrapper of many third party database drivers. The goal of this abstraction is to provide a common, simplified, consistent layer for working with different databases without the need of SQL statements.
 
 ## Installation
 
@@ -254,4 +254,5 @@ Or you can [browse it](http://go.pkgdoc.org/github.com/xiam/gosexy/db) online.
 ## Changelog
 
 2012/07/23 - Splitted databases wrapper into packages. Changed ``Where`` to ``Cond``.
+
 2012/07/09 - First public beta with MySQL, MongoDB, PostgreSQL and SQLite3.
