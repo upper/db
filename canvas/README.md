@@ -69,13 +69,13 @@ After installing, you can use `go get -u github.com/xiam/gosexy/canvas` to keep 
       if opened {
 
         // Photo auto orientation based on EXIF tags.
-        canvas.AutoOrientate()
+        cv.AutoOrientate()
 
         // Creating a squared thumbnail
-        canvas.Thumbnail(100, 100)
+        cv.Thumbnail(100, 100)
 
         // Saving the thumbnail to disk.
-        canvas.Write("examples/output/example-thumbnail.png")
+        cv.Write("examples/output/example-thumbnail.png")
 
       }
     }
