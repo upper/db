@@ -12,22 +12,7 @@ The ImageMagick's header files are required. If you're using ``brew`` the instal
 
 ### Debian
 
-Debian has an old version of MagickWand, in order to install gocanvas we need to install the old version and then upgrade it.
-
-Getting the old version of MagickWand along all its dependencies.
-
-    $ sudo aptitude install libmagickwand-dev
-
-Installing a newer version of ImageMagick over the old files.
-
-    $ sudo su
-    # cd /usr/local/src
-    # wget http://www.imagemagick.org/download/ImageMagick.tar.gz
-    # tar xvzf ImageMagick.tar.gz
-    # cd ImageMagick-6.x.y
-    # ./configure --prefix=/usr
-    # make
-    # make install
+Debian has an old version of MagickWand (6.6.0), this binding was built against 6.7.x. Please check out the [squeeze branch](https://github.com/xiam/gosexy/tree/squeeze/canvas) to get a version that works on Debian Squeeze.
 
 ### Arch Linux
 
