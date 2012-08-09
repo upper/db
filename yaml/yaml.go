@@ -51,12 +51,37 @@ func Open(file string) *Yaml {
 	return yaml
 }
 
-// Returns a YAML setting (or nil if the referred name does not exists). Read nested values by using a dot (.) between labels.
+// Returns the string value of the YAML path or an empty string, if the path cannot be found.
+func (y *Yaml) GetString(path string) string {
+	return y.Get(path, "").(string)
+}
+
+// Returns the integer value of the YAML path or 0, if the path cannot be found.
+func (y *Yaml) GetInt(path string) int {
+	return y.Get(path, 0).(int)
+}
+
+// Returns the float value of the YAML path or 0.0, if the path cannot be found.
+func (y *Yaml) GetFloat(path string) float64 {
+	return y.Get(path, 0).(float64)
+}
+
+// Returns the boolean value of the YAML path or false, if the path cannot be found.
+func (y *Yaml) GetBool(path string) bool {
+	return y.Get(path, false).(bool)
+}
+
+// Returns the sequenced value of the YAML path or an empty sequence, if the path cannot be found.
+func (y *Yaml) GetSequence(path string) []interface{} {
+	return y.Get(path, nil).([]interface{})
+}
+
+// Returns a YAML setting (or defaultValue if the referred name does not exists). Read nested values by using a dot (.) between labels.
 //
 // Example:
 //
-//	yaml.Get("foo.bar")
-func (y *Yaml) Get(path string, def interface{}) interface{} {
+//	yaml.Get("foo.bar", "default")
+func (y *Yaml) Get(path string, defaultValue interface{}) interface{} {
 	var p Tuple
 
 	path = strings.ToLower(path)
@@ -85,17 +110,17 @@ func (y *Yaml) Get(path string, def interface{}) interface{} {
 					}
 				default:
 					{
-						return def
+						return defaultValue
 					}
 				}
 			} else {
-				return def
+				return defaultValue
 			}
 		}
 
 	}
 
-	return def
+	return defaultValue
 }
 
 // Sets a YAML setting, use dots (.) to nest values inside values.

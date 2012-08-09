@@ -37,6 +37,34 @@ func TestGet(t *testing.T) {
 		t.Errorf("Got %t expecting %t.", val4, test4)
 	}
 
+	test5 := "Hello World!"
+	val5 := settings.GetString("test_string")
+
+	if test5 != val5 {
+		t.Errorf("Got %t expecting %t.", test5, val5)
+	}
+
+	test6 := 1234
+	val6 := settings.GetInt("test_int")
+
+	if test6 != val6 {
+		t.Errorf("Got %t expecting %t.", test6, val6)
+	}
+
+	test7 := 1.2
+	val7 := settings.GetFloat("test_float")
+
+	if test7 != val7 {
+		t.Errorf("Got %t expecting %t.", test7, val7)
+	}
+
+	test8 := true
+	val8 := settings.GetBool("test_bool")
+
+	if test8 != val8 {
+		t.Errorf("Got %t expecting %t.", test8, val8)
+	}
+
 }
 
 func TestSet(t *testing.T) {
