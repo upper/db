@@ -24,7 +24,7 @@ func TestGet(t *testing.T) {
 	}
 
 	test3 := "Third"
-	val3 := settings.Get("test_map.element_3.test_sequence", nil).([]interface{})
+	val3 := settings.Get("test_map/element_3/test_sequence", nil).([]interface{})
 
 	if val3[2] != test3 {
 		t.Errorf("Got %t expecting %t.", val3[2], test3)
@@ -70,10 +70,10 @@ func TestGet(t *testing.T) {
 func TestSet(t *testing.T) {
 	settings := Open("examples/input/settings.yaml")
 
-	settings.Set("test_map.element_3.test_bool", true)
+	settings.Set("test_map/element_3/test_bool", true)
 
 	test1 := true
-	val1 := settings.Get("test_map.element_3.test_bool", nil).(bool)
+	val1 := settings.Get("test_map/element_3/test_bool", nil).(bool)
 
 	if val1 != test1 {
 		t.Errorf("Got %t expecting %t.", val1, test1)
@@ -85,6 +85,6 @@ func TestWrite(t *testing.T) {
 	settings := New()
 	defer settings.Write("examples/input/settings2.yaml")
 
-	settings.Set("test_map.element_3.test_bool", true)
+	settings.Set("test_map/element_3/test_bool", true)
 
 }

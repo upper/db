@@ -31,6 +31,8 @@ import (
 	"strings"
 )
 
+const SEPARATOR = "/"
+
 type Yaml struct {
 	file   string
 	values *Tuple
@@ -88,7 +90,7 @@ func (y *Yaml) Get(path string, defaultValue interface{}) interface{} {
 
 	p = *y.values
 
-	chunks := strings.Split(path, ".")
+	chunks := strings.Split(path, SEPARATOR)
 
 	length := len(chunks)
 
@@ -123,7 +125,7 @@ func (y *Yaml) Get(path string, defaultValue interface{}) interface{} {
 	return defaultValue
 }
 
-// Sets a YAML setting, use dots (.) to nest values inside values.
+// Sets a YAML setting, use diagonals (/) to nest values inside values.
 func (y *Yaml) Set(path string, value interface{}) {
 	var p Tuple
 
@@ -131,7 +133,7 @@ func (y *Yaml) Set(path string, value interface{}) {
 
 	p = *y.values
 
-	chunks := strings.Split(path, ".")
+	chunks := strings.Split(path, SEPARATOR)
 
 	length := len(chunks)
 
