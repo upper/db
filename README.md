@@ -13,12 +13,12 @@ Use ``go get`` to download and install ``gosexy/db``.
 
 This package provides shared interfaces and datatypes only, in order to connect to an actual database a wrapper is required.
 
-## Available drivers
+## Available wrappers
 
-* [mongo](/gosexy/db/tree/master/mongo)
-* [mysql](/gosexy/db/tree/master/mysql)
-* [postgresql](/gosexy/db/tree/master/postgresql)
-* [sqlite](/gosexy/db/tree/master/sqlite)
+* [mongo](http://gosexy.org/db/wrappers/mongo)
+* [mysql](http://gosexy.org/db/wrappers/mysql)
+* [postgresql](http://gosexy.org/db/wrappers/postgresql)
+* [sqlite](http://gosexy.org/db/wrappers/sqlite)
 
 ## Connecting to a database
 
@@ -32,7 +32,7 @@ Once you've installed a driver, you need to import it into your Go code:
 
 ### Setting up a database source
 
-We are going to use the [mysql](/gosexy/db/tree/master/mysql) driver in our examples. If you want to use another driver
+We are going to use the [mysql](http://gosexy.org/db/wrappers/mysql) driver in our examples. If you want to use another driver
 (such as ``mongo``) just replace ``mysql`` with the name of your driver and everything should work the same.
 
     sess := mysql.Session(db.DataSource{Host: "localhost", Database: "test", User: "myuser", Password: "mypass"})
