@@ -23,13 +23,13 @@ And on Debian based distros
 
 ## Installation
 
-    $ go get github.com/xiam/gosexy/db/sqlite
+    $ go get github.com/gosexy/db/sqlite
 
 ## Usage
 
     import (
-      "github.com/xiam/gosexy/db"
-      "github.com/xiam/gosexy/db/sqlite"
+      "github.com/gosexy/db"
+      "github.com/gosexy/db/sqlite"
     )
 
 ## Connecting to a SQLite3 database

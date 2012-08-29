@@ -26,9 +26,9 @@ package postgresql
 import (
 	"database/sql"
 	"fmt"
+	"github.com/gosexy/db"
+	"github.com/gosexy/sugar"
 	_ "github.com/xiam/gopostgresql"
-	"github.com/xiam/gosexy"
-	"github.com/xiam/gosexy/db"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -466,7 +466,7 @@ func (t *PostgresqlTable) FindAll(terms ...interface{}) []db.Item {
 
 	result := t.pgFetchAll(rows)
 
-	var relations []gosexy.Tuple
+	var relations []sugar.Tuple
 	var rcollection db.Collection
 
 	// This query is related to other collections.
@@ -488,7 +488,7 @@ func (t *PostgresqlTable) FindAll(terms ...interface{}) []db.Item {
 				rcollection = t.parent.Collection(rname)
 			}
 
-			relations = append(relations, gosexy.Tuple{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
+			relations = append(relations, sugar.Tuple{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
 		}
 	}
 
@@ -509,7 +509,7 @@ func (t *PostgresqlTable) FindAll(terms ...interface{}) []db.Item {
 				rcollection = t.parent.Collection(rname)
 			}
 
-			relations = append(relations, gosexy.Tuple{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
+			relations = append(relations, sugar.Tuple{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
 		}
 	}
 

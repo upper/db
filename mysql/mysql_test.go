@@ -1,21 +1,22 @@
-package postgresql
+package mysql
 
 import (
+	"database/sql"
 	"fmt"
+	"github.com/gosexy/db"
 	"github.com/kr/pretty"
-	"github.com/xiam/gosexy/db"
 	"math/rand"
 	"testing"
 )
 
-const pgHost = "10.0.0.11"
-const pgDatabase = "gotest"
-const pgUser = "gouser"
-const pgPassword = "gopass"
+const myHost = "10.0.0.11"
+const myDatabase = "gotest"
+const myUser = "gouser"
+const myPassword = "gopass"
 
-func TestPgTruncate(t *testing.T) {
+func TestMyTruncate(t *testing.T) {
 
-	sess := Session(db.DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
+	sess := Session(db.DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
 	err := sess.Open()
 	defer sess.Close()
@@ -36,9 +37,9 @@ func TestPgTruncate(t *testing.T) {
 
 }
 
-func TestPgAppend(t *testing.T) {
+func TestMyAppend(t *testing.T) {
 
-	sess := Session(db.DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
+	sess := Session(db.DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
 	err := sess.Open()
 	defer sess.Close()
@@ -63,9 +64,9 @@ func TestPgAppend(t *testing.T) {
 
 }
 
-func TestPgFind(t *testing.T) {
+func TestMyFind(t *testing.T) {
 
-	sess := Session(db.DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
+	sess := Session(db.DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
 	err := sess.Open()
 	defer sess.Close()
@@ -84,8 +85,8 @@ func TestPgFind(t *testing.T) {
 
 }
 
-func TestPgDelete(t *testing.T) {
-	sess := Session(db.DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
+func TestMyDelete(t *testing.T) {
+	sess := Session(db.DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
 	err := sess.Open()
 	defer sess.Close()
@@ -105,8 +106,8 @@ func TestPgDelete(t *testing.T) {
 	}
 }
 
-func TestPgUpdate(t *testing.T) {
-	sess := Session(db.DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
+func TestMyUpdate(t *testing.T) {
+	sess := Session(db.DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
 	err := sess.Open()
 	defer sess.Close()
@@ -115,7 +116,7 @@ func TestPgUpdate(t *testing.T) {
 		panic(err)
 	}
 
-	sess.Use("gotest")
+	sess.Use("test")
 
 	col := sess.Collection("people")
 
@@ -128,10 +129,10 @@ func TestPgUpdate(t *testing.T) {
 	}
 }
 
-func TestPgPopulate(t *testing.T) {
+func TestMyPopulate(t *testing.T) {
 	var i int
 
-	sess := Session(db.DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
+	sess := Session(db.DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
 	err := sess.Open()
 	defer sess.Close()
@@ -140,7 +141,7 @@ func TestPgPopulate(t *testing.T) {
 		panic(err)
 	}
 
-	sess.Use("gotest")
+	sess.Use("test")
 
 	places := []string{"Alaska", "Nebraska", "Alaska", "Acapulco", "Rome", "Singapore", "Alabama", "Cancún"}
 
@@ -186,8 +187,8 @@ func TestPgPopulate(t *testing.T) {
 
 }
 
-func TestPgRelation(t *testing.T) {
-	sess := Session(db.DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
+func TestMyRelation(t *testing.T) {
+	sess := Session(db.DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
 
 	err := sess.Open()
 	defer sess.Close()
@@ -224,4 +225,22 @@ func TestPgRelation(t *testing.T) {
 	)
 
 	fmt.Printf("%# v\n", pretty.Formatter(result))
+}
+
+func TestCustom(t *testing.T) {
+	sess := Session(db.DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
+
+	err := sess.Open()
+	defer sess.Close()
+
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = sess.Driver().(*sql.DB).Query("SELECT NOW()")
+
+	if err != nil {
+		panic(err)
+	}
+
 }

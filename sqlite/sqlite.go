@@ -26,8 +26,8 @@ package sqlite
 import (
 	"database/sql"
 	"fmt"
-	"github.com/xiam/gosexy"
-	"github.com/xiam/gosexy/db"
+	"github.com/gosexy/db"
+	"github.com/gosexy/sugar"
 	_ "github.com/xiam/gosqlite3"
 	"reflect"
 	"regexp"
@@ -468,7 +468,7 @@ func (t *SqliteTable) FindAll(terms ...interface{}) []db.Item {
 
 	result := t.slFetchAll(rows)
 
-	var relations []gosexy.Tuple
+	var relations []sugar.Tuple
 	var rcollection db.Collection
 
 	// This query is related to other collections.
@@ -490,7 +490,7 @@ func (t *SqliteTable) FindAll(terms ...interface{}) []db.Item {
 				rcollection = t.parent.Collection(rname)
 			}
 
-			relations = append(relations, gosexy.Tuple{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
+			relations = append(relations, sugar.Tuple{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
 		}
 	}
 
@@ -511,7 +511,7 @@ func (t *SqliteTable) FindAll(terms ...interface{}) []db.Item {
 				rcollection = t.parent.Collection(rname)
 			}
 
-			relations = append(relations, gosexy.Tuple{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
+			relations = append(relations, sugar.Tuple{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
 		}
 	}
 

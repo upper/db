@@ -20,13 +20,13 @@ And on Debian based distros
 
 ## Installation
 
-    $ go get github.com/xiam/gosexy/db/mongo
+    $ go get github.com/gosexy/db/mongo
 
 ## Usage
 
     import (
-      "github.com/xiam/gosexy/db"
-      "github.com/xiam/gosexy/db/mongo"
+      "github.com/gosexy/db"
+      "github.com/gosexy/db/mongo"
     )
 
 ## Connecting to a MongoDB database

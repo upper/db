@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/gosexy/db"
+	"github.com/gosexy/db/mongo"
 	"github.com/kr/pretty"
-	"github.com/xiam/gosexy/db"
-	"github.com/xiam/gosexy/db/mongo"
 )
 
 func main() {

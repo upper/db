@@ -4,13 +4,13 @@ This driver is a wrapper of [pq](https://github.com/bmizerany/pq). In order to w
 
 ## Installation
 
-    $ go get github.com/xiam/gosexy/db/postgresql
+    $ go get github.com/gosexy/db/postgresql
 
 ## Usage
 
     import (
-      "github.com/xiam/gosexy/db"
-      "github.com/xiam/gosexy/db/postgresql"
+      "github.com/gosexy/db"
+      "github.com/gosexy/db/postgresql"
     )
 
 ## Connecting to a PostgreSQL database

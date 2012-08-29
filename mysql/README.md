@@ -20,13 +20,13 @@ And on Debian based distros
 
 ## Installation
 
-    $ go get github.com/xiam/gosexy/db/mysql
+    $ go get github.com/gosexy/db/mysql
 
 ## Usage
 
     import (
-      "github.com/xiam/gosexy/db"
-      "github.com/xiam/gosexy/db/mysql"
+      "github.com/gosexy/db"
+      "github.com/gosexy/db/mysql"
     )
 
 ## Connecting to a MySQL database

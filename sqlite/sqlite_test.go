@@ -2,8 +2,8 @@ package sqlite
 
 import (
 	"fmt"
+	"github.com/gosexy/db"
 	"github.com/kr/pretty"
-	"github.com/xiam/gosexy/db"
 	"math/rand"
 	"testing"
 )

@@ -25,8 +25,8 @@ package mongo
 
 import (
 	"fmt"
-	"github.com/xiam/gosexy"
-	"github.com/xiam/gosexy/db"
+	"github.com/gosexy/db"
+	"github.com/gosexy/sugar"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"net/url"
@@ -347,7 +347,7 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []db.Item {
 
 	p.All(&result)
 
-	var relations []gosexy.Tuple
+	var relations []sugar.Tuple
 
 	// This query is related to other collections.
 	if relate != nil {
@@ -363,7 +363,7 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []db.Item {
 				}
 			}
 
-			relations = append(relations, gosexy.Tuple{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
+			relations = append(relations, sugar.Tuple{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
 		}
 	}
 
@@ -380,7 +380,7 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []db.Item {
 				}
 			}
 
-			relations = append(relations, gosexy.Tuple{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
+			relations = append(relations, sugar.Tuple{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
 		}
 	}
 
