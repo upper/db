@@ -63,7 +63,7 @@ Use your recently configured ``db.Database`` to request the driver to actually c
 
 ## Documentation
 
-Please read the [online reference](http://gosexy.org/db) on ``gosexy/db``.
+To know how to query the database you've just connected, please read the [online reference](http://gosexy.org/db).
 
 You can also read ``gosexy/db`` documentation from a terminal
 
@@ -74,8 +74,8 @@ You can also read ``gosexy/db`` documentation from a terminal
 This is an evolving project, so there is a lot of work to do:
 
 * Add db.Upsert and db.Modify for SQL databases.
-* Add Go time datatype.
-* Improve datatype guessing.
+* Add Go ``pkg/time`` datatype for database dates.
+* Improve database -> Go type guessing.
 * Improve error handling.
 * Add CouchDB support.
 
