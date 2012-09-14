@@ -29,6 +29,7 @@ import (
 	"github.com/gosexy/sugar"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
+	"log"
 	"net/url"
 	"reflect"
 	"regexp"
@@ -60,7 +61,15 @@ func (c *MongoDataSourceCollection) marshal(where db.Cond) map[string]interface{
 		if len(chunks) >= 2 {
 			conds[chunks[0]] = map[string]interface{}{chunks[1]: val}
 		} else {
-			conds[key] = val
+			conds[key] = toInternal(val)
+			/*
+				switch val.(type) {
+				case db.Id:
+					conds[key] = bson.ObjectIdHex(string(val.(db.Id)))
+				default:
+					conds[key] = val
+				}
+			*/
 		}
 
 	}
@@ -69,18 +78,18 @@ func (c *MongoDataSourceCollection) marshal(where db.Cond) map[string]interface{
 }
 
 // Deletes the whole collection.
-func (c *MongoDataSourceCollection) Truncate() bool {
+func (c *MongoDataSourceCollection) Truncate() error {
 	err := c.collection.DropCollection()
 
-	if err == nil {
-		return false
+	if err != nil {
+		return err
 	}
 
-	return true
+	return nil
 }
 
 // Inserts items into the collection.
-func (c *MongoDataSourceCollection) Append(items ...interface{}) bool {
+func (c *MongoDataSourceCollection) Append(items ...interface{}) error {
 
 	parent := reflect.TypeOf(c.collection)
 	method, _ := parent.MethodByName("Insert")
@@ -89,17 +98,18 @@ func (c *MongoDataSourceCollection) Append(items ...interface{}) bool {
 	args[0] = reflect.ValueOf(c.collection)
 
 	itop := len(items)
+
 	for i := 0; i < itop; i++ {
-		args[i+1] = reflect.ValueOf(items[i])
+		args[i+1] = reflect.ValueOf(toInternal(items[i]))
 	}
 
 	exec := method.Func.Call(args)
 
 	if exec[0].Interface() != nil {
-		return false
+		return exec[0].Interface().(error)
 	}
 
-	return true
+	return nil
 }
 
 // Compiles terms into conditions that mgo can understand.
@@ -160,17 +170,17 @@ func (c *MongoDataSourceCollection) compileQuery(terms []interface{}) interface{
 }
 
 // Removes all the items that match the provided conditions.
-func (c *MongoDataSourceCollection) Remove(terms ...interface{}) bool {
+func (c *MongoDataSourceCollection) Remove(terms ...interface{}) error {
 
 	query := c.compileQuery(terms)
 
-	c.collection.RemoveAll(query)
+	_, err := c.collection.RemoveAll(query)
 
-	return true
+	return err
 }
 
 // Updates all the items that match the provided conditions. You can specify the modification type by using db.Set, db.Modify or db.Upsert.
-func (c *MongoDataSourceCollection) Update(terms ...interface{}) bool {
+func (c *MongoDataSourceCollection) Update(terms ...interface{}) error {
 
 	var set interface{}
 	var upsert interface{}
@@ -197,22 +207,24 @@ func (c *MongoDataSourceCollection) Update(terms ...interface{}) bool {
 		}
 	}
 
+	var err error
+
 	if set != nil {
-		c.collection.UpdateAll(query, db.Item{"$set": set})
-		return true
+		_, err = c.collection.UpdateAll(query, db.Item{"$set": set})
+		return err
 	}
 
 	if modify != nil {
-		c.collection.UpdateAll(query, modify)
-		return true
+		_, err = c.collection.UpdateAll(query, modify)
+		return err
 	}
 
 	if upsert != nil {
-		c.collection.Upsert(query, upsert)
-		return true
+		_, err = c.collection.Upsert(query, upsert)
+		return err
 	}
 
-	return false
+	return nil
 }
 
 // Calls a MongoDataSourceCollection function by string.
@@ -235,19 +247,19 @@ func (c *MongoDataSourceCollection) invoke(fn string, terms []interface{}) []ref
 	return exec
 }
 
+func (c *MongoDataSourceCollection) Error(err error) {
+	log.Printf("%s: %s\n", c.collection.FullName, err)
+}
+
 // Returns the number of total items matching the provided conditions.
-func (c *MongoDataSourceCollection) Count(terms ...interface{}) int {
+func (c *MongoDataSourceCollection) Count(terms ...interface{}) (int, error) {
 	q := c.invoke("BuildQuery", terms)
 
 	p := q[0].Interface().(*mgo.Query)
 
 	count, err := p.Count()
 
-	if err != nil {
-		panic(err)
-	}
-
-	return count
+	return count, err
 }
 
 // Returns a document that matches all the provided conditions. db.Ordering of the terms doesn't matter but you must take in
@@ -314,6 +326,37 @@ func (c *MongoDataSourceCollection) BuildQuery(terms ...interface{}) *mgo.Query 
 	}
 
 	return q
+}
+
+func toInternal(val interface{}) interface{} {
+
+	switch val.(type) {
+	case db.Id:
+		return bson.ObjectIdHex(string(val.(db.Id)))
+	case db.Item:
+		for k, _ := range val.(db.Item) {
+			val.(db.Item)[k] = toInternal(val.(db.Item)[k])
+		}
+	}
+
+	return val
+}
+
+func toNative(val interface{}) interface{} {
+
+	switch val.(type) {
+	case bson.M:
+		v2 := map[string]interface{}{}
+		for k, v := range val.(bson.M) {
+			v2[k] = toNative(v)
+		}
+		return v2
+	case bson.ObjectId:
+		return db.Id(val.(bson.ObjectId).Hex())
+	}
+
+	return val
+
 }
 
 // Returns all the results that match the provided conditions. See Find().
@@ -397,7 +440,7 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []db.Item {
 
 		// Default values.
 		for key, val := range result[i].(bson.M) {
-			item[key] = val
+			item[key] = toNative(val)
 		}
 
 		// Querying relations

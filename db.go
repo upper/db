@@ -23,6 +23,14 @@
 
 package db
 
+import (
+	"fmt"
+	"github.com/gosexy/sugar"
+	"strconv"
+	"strings"
+	"time"
+)
+
 // Handles conditions and operators in an expression.
 //
 // Examples:
@@ -154,6 +162,8 @@ type Upsert map[string]interface{}
 // Rows from a result.
 type Item map[string]interface{}
 
+type Id string
+
 // Connection and authentication data.
 type DataSource struct {
 	Host     string
@@ -179,18 +189,18 @@ type Database interface {
 
 // Collection methods.
 type Collection interface {
-	Append(...interface{}) bool
+	Append(...interface{}) error
 
-	Count(...interface{}) int
+	Count(...interface{}) (int, error)
 
 	Find(...interface{}) Item
 	FindAll(...interface{}) []Item
 
-	Update(...interface{}) bool
+	Update(...interface{}) error
 
-	Remove(...interface{}) bool
+	Remove(...interface{}) error
 
-	Truncate() bool
+	Truncate() error
 }
 
 // Specifies which fields to return in a query.
@@ -200,3 +210,70 @@ type Fields []string
 type MultiFlag bool
 type SqlValues []string
 type SqlArgs []string
+
+func (item Item) GetString(name string) string {
+	return fmt.Sprintf("%v", item[name])
+}
+
+func (item Item) GetDate(name string) time.Time {
+	date := time.Date(0, time.January, 0, 0, 0, 0, 0, time.UTC)
+	switch item[name].(type) {
+	case time.Time:
+		date = item[name].(time.Time)
+	}
+	return date
+}
+
+func (item Item) GetTuple(name string) sugar.Tuple {
+	tuple := sugar.Tuple{}
+
+	switch item[name].(type) {
+	case map[string]interface{}:
+		for k, _ := range item[name].(map[string]interface{}) {
+			tuple[k] = item[name].(map[string]interface{})[k]
+		}
+	case sugar.Tuple:
+		tuple = item[name].(sugar.Tuple)
+	}
+
+	return tuple
+}
+
+func (item Item) GetList(name string) sugar.List {
+	list := sugar.List{}
+
+	switch item[name].(type) {
+	case []interface{}:
+		list = make(sugar.List, len(item[name].([]interface{})))
+
+		for k, _ := range item[name].([]interface{}) {
+			list[k] = item[name].([]interface{})[k]
+		}
+	}
+
+	return list
+}
+
+func (item Item) GetInt(name string) int64 {
+	i, _ := strconv.ParseInt(fmt.Sprintf("%v", item[name]), 10, 64)
+	return i
+}
+
+func (item Item) GetFloat(name string) float64 {
+	f, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[name]), 64)
+	return f
+}
+
+func (item Item) GetBool(name string) bool {
+
+	if item[name] == nil {
+		return false
+	} else {
+		b := strings.ToLower(fmt.Sprintf("%v", item[name]))
+		if b == "" || b == "0" || b == "false" {
+			return false
+		}
+	}
+
+	return true
+}
