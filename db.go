@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"github.com/gosexy/sugar"
 	"strconv"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -217,11 +218,45 @@ func (item Item) GetString(name string) string {
 
 func (item Item) GetDate(name string) time.Time {
 	date := time.Date(0, time.January, 0, 0, 0, 0, 0, time.UTC)
+
 	switch item[name].(type) {
 	case time.Time:
 		date = item[name].(time.Time)
+	case string:
+		var matched bool
+		value := item[name].(string)
+
+		matched, _ = regexp.MatchString(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$`, value)
+
+		if matched {
+			date, _ = time.Parse("2006-01-02 15:04:05", value)
+		}
 	}
 	return date
+}
+
+func (item Item) GetDuration(name string) time.Duration {
+	duration, _ := time.ParseDuration("0h0m0s")
+
+	switch item[name].(type) {
+		case time.Duration:
+			duration = item[name].(time.Duration)
+		case string:
+			var matched bool
+			var re *regexp.Regexp
+			value := item[name].(string)
+
+			matched, _ = regexp.MatchString(`^\d{2}:\d{2}:\d{2}$`, value)
+
+			if matched {
+				re, _ = regexp.Compile(`^(\d{2}):(\d{2}):(\d{2})$`)
+				all := re.FindAllStringSubmatch(value, -1)
+
+				formatted := fmt.Sprintf("%sh%sm%ss", all[0][1], all[0][2], all[0][3])
+				duration, _ = time.ParseDuration(formatted)
+			}
+	}
+	return duration
 }
 
 func (item Item) GetTuple(name string) sugar.Tuple {
@@ -277,3 +312,36 @@ func (item Item) GetBool(name string) bool {
 
 	return true
 }
+
+/*
+func toInternal(val interface{}) interface{} {
+
+	switch val.(type) {
+	case db.Id:
+		return bson.ObjectIdHex(string(val.(db.Id)))
+	case db.Item:
+		for k, _ := range val.(db.Item) {
+			val.(db.Item)[k] = toInternal(val.(db.Item)[k])
+		}
+	}
+
+	return val
+}
+
+func toNative(val interface{}) interface{} {
+
+	switch val.(type) {
+	case bson.M:
+		v2 := map[string]interface{}{}
+		for k, v := range val.(bson.M) {
+			v2[k] = toNative(v)
+		}
+		return v2
+	case bson.ObjectId:
+		return db.Id(val.(bson.ObjectId).Hex())
+	}
+
+	return val
+
+}
+*/

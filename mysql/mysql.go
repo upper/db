@@ -25,6 +25,7 @@ package mysql
 
 import (
 	_ "code.google.com/p/go-mysql-driver/mysql"
+	//_ "github.com/ziutek/mymysql/godrv"
 	"database/sql"
 	"fmt"
 	"github.com/gosexy/db"
@@ -33,7 +34,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
+
+const dateFormat = "2006-01-02 15:04:05.000000000"
+const timeFormat = "%d:%02d:%02d.%09d"
 
 type myQuery struct {
 	Query   []string
@@ -145,8 +150,38 @@ func (t *MysqlTable) myFetchAll(rows sql.Rows) []db.Item {
 	return items
 }
 
+func toInternal(val interface{}) string {
+
+	switch val.(type) {
+	case []byte:
+		return fmt.Sprintf("%s", string(val.([]byte)))
+	case time.Time:
+		return val.(time.Time).Format(dateFormat)
+	case time.Duration:
+		t := val.(time.Duration)
+		return fmt.Sprintf(timeFormat, int(t.Hours()), int(t.Minutes())%60, int(t.Seconds())%60, int(t.Nanoseconds())%1e9)
+	case bool:
+		if val.(bool) == true {
+			return "1"
+		} else {
+			return "0"
+		}
+	}
+
+	return fmt.Sprintf("%v", val)
+}
+
+func toNative(val interface{}) interface{} {
+
+	switch val.(type) {
+	}
+
+	return val
+
+}
+
 // Executes a database/sql method.
-func (my *MysqlDataSource) myExec(method string, terms ...interface{}) sql.Rows {
+func (my *MysqlDataSource) myExec(method string, terms ...interface{}) (sql.Rows, error) {
 
 	sn := reflect.ValueOf(my.session)
 	fn := sn.MethodByName(method)
@@ -169,10 +204,10 @@ func (my *MysqlDataSource) myExec(method string, terms ...interface{}) sql.Rows 
 	res := fn.Call(args)
 
 	if res[1].IsNil() == false {
-		panic(res[1].Elem().Interface().(error))
+		return sql.Rows{}, res[1].Elem().Interface().(error)
 	}
 
-	return res[0].Elem().Interface().(sql.Rows)
+	return res[0].Elem().Interface().(sql.Rows), nil
 }
 
 // Represents a MySQL table.
@@ -215,17 +250,18 @@ func (my *MysqlDataSource) Open() error {
 	}
 
 	conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", my.config.User, my.config.Password, my.config.Host, my.config.Port, my.config.Database)
+	//conn := fmt.Sprintf("tcp:%s*%s/%s/%s", my.config.Host, my.config.Database, my.config.User, my.config.Password)
 
 	my.session, err = sql.Open("mysql", conn)
 
 	if err != nil {
-		return fmt.Errorf("Could not connect to %s", my.config.Host)
+		return err
 	}
 
 	return nil
 }
 
-// Changes the active database.
+// Changes the active database
 func (my *MysqlDataSource) Use(database string) error {
 	my.config.Database = database
 	my.session.Query(fmt.Sprintf("USE %s", database))
@@ -247,11 +283,14 @@ func (my *MysqlDataSource) Driver() interface{} {
 func (my *MysqlDataSource) Collections() []string {
 	var collections []string
 	var collection string
-	rows, _ := my.session.Query("SHOW TABLES")
 
-	for rows.Next() {
-		rows.Scan(&collection)
-		collections = append(collections, collection)
+	rows, err := my.session.Query("SHOW TABLES")
+
+	if err == nil {
+		for rows.Next() {
+			rows.Scan(&collection)
+			collections = append(collections, collection)
+		}
 	}
 
 	return collections
@@ -370,18 +409,18 @@ func (t *MysqlTable) marshal(where db.Cond) (string, []string) {
 }
 
 // Deletes all the rows in the table.
-func (t *MysqlTable) Truncate() bool {
+func (t *MysqlTable) Truncate() error {
 
-	t.parent.myExec(
+	_, err := t.parent.myExec(
 		"Query",
 		fmt.Sprintf("TRUNCATE TABLE %s", myTable(t.name)),
 	)
 
-	return false
+	return err
 }
 
 // Deletes all the rows in the table that match certain conditions.
-func (t *MysqlTable) Remove(terms ...interface{}) bool {
+func (t *MysqlTable) Remove(terms ...interface{}) error {
 
 	conditions, cargs := t.compileConditions(terms)
 
@@ -389,17 +428,17 @@ func (t *MysqlTable) Remove(terms ...interface{}) bool {
 		conditions = "1 = 1"
 	}
 
-	t.parent.myExec(
+	_, err := t.parent.myExec(
 		"Query",
 		fmt.Sprintf("DELETE FROM %s", myTable(t.name)),
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
 
-	return true
+	return err
 }
 
 // Modifies all the rows in the table that match certain conditions.
-func (t *MysqlTable) Update(terms ...interface{}) bool {
+func (t *MysqlTable) Update(terms ...interface{}) error {
 	var fields string
 	var fargs db.SqlArgs
 
@@ -418,13 +457,13 @@ func (t *MysqlTable) Update(terms ...interface{}) bool {
 		conditions = "1 = 1"
 	}
 
-	t.parent.myExec(
+	_, err := t.parent.myExec(
 		"Query",
 		fmt.Sprintf("UPDATE %s SET %s", myTable(t.name), fields), fargs,
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
 
-	return true
+	return err
 }
 
 // Returns all the rows in the table that match certain conditions.
@@ -465,7 +504,7 @@ func (t *MysqlTable) FindAll(terms ...interface{}) []db.Item {
 		conditions = "1 = 1"
 	}
 
-	rows := t.parent.myExec(
+	rows, _ := t.parent.myExec(
 		"Query",
 		fmt.Sprintf("SELECT %s FROM %s", fields, myTable(t.name)),
 		fmt.Sprintf("WHERE %s", conditions), args,
@@ -595,7 +634,7 @@ func (t *MysqlTable) FindAll(terms ...interface{}) []db.Item {
 }
 
 // Returns the number of rows in the current table that match certain conditions.
-func (t *MysqlTable) Count(terms ...interface{}) int {
+func (t *MysqlTable) Count(terms ...interface{}) (int, error) {
 
 	terms = append(terms, db.Fields{"COUNT(1) AS _total"})
 
@@ -605,11 +644,11 @@ func (t *MysqlTable) Count(terms ...interface{}) int {
 		response := result[0].Interface().([]db.Item)
 		if len(response) > 0 {
 			val, _ := strconv.Atoi(response[0]["_total"].(string))
-			return val
+			return val, nil
 		}
 	}
 
-	return 0
+	return 0, nil
 }
 
 // Returns the first row in the table that matches certain conditions.
@@ -632,7 +671,7 @@ func (t *MysqlTable) Find(terms ...interface{}) db.Item {
 }
 
 // Inserts rows into the currently active table.
-func (t *MysqlTable) Append(items ...interface{}) bool {
+func (t *MysqlTable) Append(items ...interface{}) error {
 
 	itop := len(items)
 
@@ -645,10 +684,11 @@ func (t *MysqlTable) Append(items ...interface{}) bool {
 
 		for field, value := range item.(db.Item) {
 			fields = append(fields, field)
-			values = append(values, fmt.Sprintf("%v", value))
+			//values = append(values, fmt.Sprintf("%v", value))
+			values = append(values, toInternal(value))
 		}
 
-		t.parent.myExec("Query",
+		_, err := t.parent.myExec("Query",
 			"INSERT INTO",
 			myTable(t.name),
 			myFields(fields),
@@ -656,9 +696,10 @@ func (t *MysqlTable) Append(items ...interface{}) bool {
 			myValues(values),
 		)
 
+		return err
 	}
 
-	return true
+	return nil
 }
 
 // Returns a MySQL table structure by name.
@@ -675,7 +716,7 @@ func (my *MysqlDataSource) Collection(name string) db.Collection {
 
 	// Fetching table datatypes and mapping to internal gotypes.
 
-	rows := t.parent.myExec(
+	rows, _ := t.parent.myExec(
 		"Query",
 		"SHOW COLUMNS FROM", t.name,
 	)
