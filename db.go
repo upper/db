@@ -26,8 +26,8 @@ package db
 import (
 	"fmt"
 	"github.com/gosexy/sugar"
-	"strconv"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -239,22 +239,22 @@ func (item Item) GetDuration(name string) time.Duration {
 	duration, _ := time.ParseDuration("0h0m0s")
 
 	switch item[name].(type) {
-		case time.Duration:
-			duration = item[name].(time.Duration)
-		case string:
-			var matched bool
-			var re *regexp.Regexp
-			value := item[name].(string)
+	case time.Duration:
+		duration = item[name].(time.Duration)
+	case string:
+		var matched bool
+		var re *regexp.Regexp
+		value := item[name].(string)
 
-			matched, _ = regexp.MatchString(`^\d{2}:\d{2}:\d{2}$`, value)
+		matched, _ = regexp.MatchString(`^\d{2}:\d{2}:\d{2}$`, value)
 
-			if matched {
-				re, _ = regexp.Compile(`^(\d{2}):(\d{2}):(\d{2})$`)
-				all := re.FindAllStringSubmatch(value, -1)
+		if matched {
+			re, _ = regexp.Compile(`^(\d{2}):(\d{2}):(\d{2})$`)
+			all := re.FindAllStringSubmatch(value, -1)
 
-				formatted := fmt.Sprintf("%sh%sm%ss", all[0][1], all[0][2], all[0][3])
-				duration, _ = time.ParseDuration(formatted)
-			}
+			formatted := fmt.Sprintf("%sh%sm%ss", all[0][1], all[0][2], all[0][3])
+			duration, _ = time.ParseDuration(formatted)
+		}
 	}
 	return duration
 }
