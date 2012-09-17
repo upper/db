@@ -31,9 +31,13 @@ import (
 	_ "github.com/xiam/gosqlite3"
 	"reflect"
 	"regexp"
+	"time"
 	"strconv"
 	"strings"
 )
+
+const dateFormat = "2006-01-02 15:04:05"
+const timeFormat = "%d:%02d:%02d"
 
 type slQuery struct {
 	Query   []string
@@ -144,7 +148,7 @@ func (t *SqliteTable) slFetchAll(rows sql.Rows) []db.Item {
 	return items
 }
 
-func (sl *SqliteDataSource) slExec(method string, terms ...interface{}) sql.Rows {
+func (sl *SqliteDataSource) slExec(method string, terms ...interface{}) (sql.Rows, error) {
 
 	var rows sql.Rows
 
@@ -169,7 +173,7 @@ func (sl *SqliteDataSource) slExec(method string, terms ...interface{}) sql.Rows
 	res := fn.Call(args)
 
 	if res[1].IsNil() == false {
-		panic(res[1].Elem().Interface().(error))
+		return rows, res[1].Elem().Interface().(error)
 	}
 
 	switch res[0].Elem().Interface().(type) {
@@ -177,10 +181,7 @@ func (sl *SqliteDataSource) slExec(method string, terms ...interface{}) sql.Rows
 		rows = res[0].Elem().Interface().(sql.Rows)
 	}
 
-	return rows
-
-	//return res[0].Elem().Interface().(sql.Rows)
-
+	return rows, nil
 }
 
 // Represents a SQLite table.
@@ -366,18 +367,18 @@ func (t *SqliteTable) marshal(where db.Cond) (string, []string) {
 }
 
 // Deletes all the rows in the table.
-func (t *SqliteTable) Truncate() bool {
+func (t *SqliteTable) Truncate() error {
 
-	t.parent.slExec(
+	_, err := t.parent.slExec(
 		"Exec",
 		fmt.Sprintf("DELETE FROM %s", slTable(t.name)),
 	)
 
-	return false
+	return err
 }
 
 // Deletes all the rows in the table that match certain conditions.
-func (t *SqliteTable) Remove(terms ...interface{}) bool {
+func (t *SqliteTable) Remove(terms ...interface{}) error {
 
 	conditions, cargs := t.compileConditions(terms)
 
@@ -385,17 +386,17 @@ func (t *SqliteTable) Remove(terms ...interface{}) bool {
 		conditions = "1 = 1"
 	}
 
-	t.parent.slExec(
+	_, err := t.parent.slExec(
 		"Exec",
 		fmt.Sprintf("DELETE FROM %s", slTable(t.name)),
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
 
-	return true
+	return err
 }
 
 // Modifies all the rows in the table that match certain conditions.
-func (t *SqliteTable) Update(terms ...interface{}) bool {
+func (t *SqliteTable) Update(terms ...interface{}) error {
 	var fields string
 	var fargs db.SqlArgs
 
@@ -412,13 +413,13 @@ func (t *SqliteTable) Update(terms ...interface{}) bool {
 		conditions = "1 = 1"
 	}
 
-	t.parent.slExec(
+	_, err := t.parent.slExec(
 		"Exec",
 		fmt.Sprintf("UPDATE %s SET %s", slTable(t.name), fields), fargs,
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
 
-	return true
+	return err
 }
 
 // Returns all the rows in the table that match certain conditions.
@@ -459,7 +460,7 @@ func (t *SqliteTable) FindAll(terms ...interface{}) []db.Item {
 		conditions = "1 = 1"
 	}
 
-	rows := t.parent.slExec(
+	rows, _ := t.parent.slExec(
 		"Query",
 		fmt.Sprintf("SELECT %s FROM %s", fields, slTable(t.name)),
 		fmt.Sprintf("WHERE %s", conditions), args,
@@ -583,7 +584,7 @@ func (t *SqliteTable) FindAll(terms ...interface{}) []db.Item {
 }
 
 // Returns the number of rows in the current table that match certain conditions.
-func (t *SqliteTable) Count(terms ...interface{}) int {
+func (t *SqliteTable) Count(terms ...interface{}) (int, error) {
 
 	terms = append(terms, db.Fields{"COUNT(1) AS _total"})
 
@@ -593,11 +594,11 @@ func (t *SqliteTable) Count(terms ...interface{}) int {
 		response := result[0].Interface().([]db.Item)
 		if len(response) > 0 {
 			val, _ := strconv.Atoi(response[0]["_total"].(string))
-			return val
+			return val, nil
 		}
 	}
 
-	return 0
+	return 0, nil
 }
 
 // Returns the first row in the table that matches certain conditions.
@@ -619,8 +620,39 @@ func (t *SqliteTable) Find(terms ...interface{}) db.Item {
 	return item
 }
 
+func toInternal(val interface{}) string {
+
+	switch val.(type) {
+	case []byte:
+		return fmt.Sprintf("%s", string(val.([]byte)))
+	case time.Time:
+		return val.(time.Time).Format(dateFormat)
+	case time.Duration:
+		t := val.(time.Duration)
+		//return fmt.Sprintf(timeFormat, int(t.Hours()), int(t.Minutes())%60, int(t.Seconds())%60, int(t.Nanoseconds())%1e9)
+		return fmt.Sprintf(timeFormat, int(t.Hours()), int(t.Minutes())%60, int(t.Seconds())%60)
+	case bool:
+		if val.(bool) == true {
+			return "1"
+		} else {
+			return "0"
+		}
+	}
+
+	return fmt.Sprintf("%v", val)
+}
+
+func toNative(val interface{}) interface{} {
+
+	switch val.(type) {
+	}
+
+	return val
+
+}
+
 // Inserts rows into the currently active table.
-func (t *SqliteTable) Append(items ...interface{}) bool {
+func (t *SqliteTable) Append(items ...interface{}) error {
 
 	itop := len(items)
 
@@ -633,10 +665,10 @@ func (t *SqliteTable) Append(items ...interface{}) bool {
 
 		for field, value := range item.(db.Item) {
 			fields = append(fields, field)
-			values = append(values, fmt.Sprintf("%v", value))
+			values = append(values, toInternal(value))
 		}
 
-		t.parent.slExec(
+		_, err := t.parent.slExec(
 			"Exec",
 			"INSERT INTO",
 			slTable(t.name),
@@ -645,9 +677,13 @@ func (t *SqliteTable) Append(items ...interface{}) bool {
 			slValues(values),
 		)
 
+		if err != nil {
+			return err
+		}
+
 	}
 
-	return true
+	return nil
 }
 
 // Returns a SQLite table structure by name.

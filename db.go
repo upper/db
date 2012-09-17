@@ -303,7 +303,10 @@ func (item Item) GetBool(name string) bool {
 
 	if item[name] == nil {
 		return false
-	} else {
+	}
+
+	switch item[name].(type) {
+	default:
 		b := strings.ToLower(fmt.Sprintf("%v", item[name]))
 		if b == "" || b == "0" || b == "false" {
 			return false

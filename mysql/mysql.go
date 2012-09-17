@@ -159,7 +159,7 @@ func toInternal(val interface{}) string {
 		return val.(time.Time).Format(dateFormat)
 	case time.Duration:
 		t := val.(time.Duration)
-		return fmt.Sprintf(timeFormat, int(t.Hours()), int(t.Minutes())%60, int(t.Seconds())%60, int(t.Nanoseconds())%1e9)
+		return fmt.Sprintf(timeFormat, int(t.Hours()), int(t.Minutes())%60, int(t.Seconds())%60)
 	case bool:
 		if val.(bool) == true {
 			return "1"
