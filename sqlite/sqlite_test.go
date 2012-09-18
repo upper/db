@@ -3,8 +3,8 @@ package sqlite
 import (
 	"fmt"
 	"github.com/gosexy/db"
-	"github.com/kr/pretty"
 	"github.com/gosexy/sugar"
+	"github.com/kr/pretty"
 	"math/rand"
 	"testing"
 	"time"
@@ -53,7 +53,6 @@ func getTestData() db.Item {
 
 	return data
 }
-
 
 func TestSqTruncate(t *testing.T) {
 

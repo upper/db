@@ -33,7 +33,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
+
+const dateFormat = "2006-01-02 15:04:05"
+const timeFormat = "%d:%02d:%02d"
 
 type pgQuery struct {
 	Query   []string
@@ -144,15 +148,17 @@ func (t *PostgresqlTable) pgFetchAll(rows sql.Rows) []db.Item {
 	return items
 }
 
-func (pg *PostgresqlDataSource) pgExec(method string, terms ...interface{}) sql.Rows {
+func (pg *PostgresqlDataSource) pgExec(method string, terms ...interface{}) (sql.Rows, error) {
 
 	sn := reflect.ValueOf(pg.session)
 	fn := sn.MethodByName(method)
 
 	q := pgCompile(terms)
 
-	//fmt.Printf("Q: %v\n", q.Query)
-	//fmt.Printf("A: %v\n", q.SqlArgs)
+	/*
+		fmt.Printf("Q: %v\n", q.Query)
+		fmt.Printf("A: %v\n", q.SqlArgs)
+	*/
 
 	qs := strings.Join(q.Query, " ")
 
@@ -168,10 +174,15 @@ func (pg *PostgresqlDataSource) pgExec(method string, terms ...interface{}) sql.
 	res := fn.Call(args)
 
 	if res[1].IsNil() == false {
-		panic(res[1].Elem().Interface().(error))
+		return sql.Rows{}, res[1].Elem().Interface().(error)
 	}
 
-	return res[0].Elem().Interface().(sql.Rows)
+	switch res[0].Elem().Interface().(type) {
+	case sql.Rows:
+		return res[0].Elem().Interface().(sql.Rows), nil
+	}
+
+	return sql.Rows{}, nil
 }
 
 // Represents a PostgreSQL table.
@@ -245,11 +256,16 @@ func (pg *PostgresqlDataSource) Driver() interface{} {
 func (pg *PostgresqlDataSource) Collections() []string {
 	var collections []string
 	var collection string
-	rows, _ := pg.session.Query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
 
-	for rows.Next() {
-		rows.Scan(&collection)
-		collections = append(collections, collection)
+	rows, err := pg.session.Query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+
+	if err == nil {
+		for rows.Next() {
+			rows.Scan(&collection)
+			collections = append(collections, collection)
+		}
+	} else {
+		panic(err)
 	}
 
 	return collections
@@ -364,18 +380,18 @@ func (t *PostgresqlTable) marshal(where db.Cond) (string, []string) {
 }
 
 // Deletes all the rows in the table.
-func (t *PostgresqlTable) Truncate() bool {
+func (t *PostgresqlTable) Truncate() error {
 
-	t.parent.pgExec(
-		"Query",
+	_, err := t.parent.pgExec(
+		"Exec",
 		fmt.Sprintf("TRUNCATE TABLE %s", pgTable(t.name)),
 	)
 
-	return false
+	return err
 }
 
 // Deletes all the rows in the table that match certain conditions.
-func (t *PostgresqlTable) Remove(terms ...interface{}) bool {
+func (t *PostgresqlTable) Remove(terms ...interface{}) error {
 
 	conditions, cargs := t.compileConditions(terms)
 
@@ -383,17 +399,17 @@ func (t *PostgresqlTable) Remove(terms ...interface{}) bool {
 		conditions = "1 = 1"
 	}
 
-	t.parent.pgExec(
-		"Query",
+	_, err := t.parent.pgExec(
+		"Exec",
 		fmt.Sprintf("DELETE FROM %s", pgTable(t.name)),
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
 
-	return true
+	return err
 }
 
 // Modifies all the rows in the table that match certain conditions.
-func (t *PostgresqlTable) Update(terms ...interface{}) bool {
+func (t *PostgresqlTable) Update(terms ...interface{}) error {
 	var fields string
 	var fargs db.SqlArgs
 
@@ -410,13 +426,13 @@ func (t *PostgresqlTable) Update(terms ...interface{}) bool {
 		conditions = "1 = 1"
 	}
 
-	t.parent.pgExec(
-		"Query",
+	_, err := t.parent.pgExec(
+		"Exec",
 		fmt.Sprintf("UPDATE %s SET %s", pgTable(t.name), fields), fargs,
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
 
-	return true
+	return err
 }
 
 // Returns all the rows in the table that match certain conditions.
@@ -457,12 +473,16 @@ func (t *PostgresqlTable) FindAll(terms ...interface{}) []db.Item {
 		conditions = "1 = 1"
 	}
 
-	rows := t.parent.pgExec(
+	rows, err := t.parent.pgExec(
 		"Query",
 		fmt.Sprintf("SELECT %s FROM %s", fields, pgTable(t.name)),
 		fmt.Sprintf("WHERE %s", conditions), args,
 		limit, offset,
 	)
+
+	if err != nil {
+		panic(err)
+	}
 
 	result := t.pgFetchAll(rows)
 
@@ -581,7 +601,7 @@ func (t *PostgresqlTable) FindAll(terms ...interface{}) []db.Item {
 }
 
 // Returns the number of rows in the current table that match certain conditions.
-func (t *PostgresqlTable) Count(terms ...interface{}) int {
+func (t *PostgresqlTable) Count(terms ...interface{}) (int, error) {
 
 	terms = append(terms, db.Fields{"COUNT(1) AS _total"})
 
@@ -591,11 +611,11 @@ func (t *PostgresqlTable) Count(terms ...interface{}) int {
 		response := result[0].Interface().([]db.Item)
 		if len(response) > 0 {
 			val, _ := strconv.Atoi(response[0]["_total"].(string))
-			return val
+			return val, nil
 		}
 	}
 
-	return 0
+	return 0, nil
 }
 
 // Returns the first row in the table that matches certain conditions.
@@ -617,8 +637,29 @@ func (t *PostgresqlTable) Find(terms ...interface{}) db.Item {
 	return item
 }
 
+func toInternal(val interface{}) string {
+
+	switch val.(type) {
+	case []byte:
+		return fmt.Sprintf("%s", string(val.([]byte)))
+	case time.Time:
+		return val.(time.Time).Format(dateFormat)
+	case time.Duration:
+		t := val.(time.Duration)
+		return fmt.Sprintf(timeFormat, int(t.Hours()), int(t.Minutes())%60, int(t.Seconds())%60)
+	case bool:
+		if val.(bool) == true {
+			return "1"
+		} else {
+			return "0"
+		}
+	}
+
+	return fmt.Sprintf("%v", val)
+}
+
 // Inserts rows into the currently active table.
-func (t *PostgresqlTable) Append(items ...interface{}) bool {
+func (t *PostgresqlTable) Append(items ...interface{}) error {
 
 	itop := len(items)
 
@@ -631,10 +672,11 @@ func (t *PostgresqlTable) Append(items ...interface{}) bool {
 
 		for field, value := range item.(db.Item) {
 			fields = append(fields, field)
-			values = append(values, fmt.Sprintf("%v", value))
+			values = append(values, toInternal(value))
 		}
 
-		t.parent.pgExec("Query",
+		_, err := t.parent.pgExec(
+			"Exec",
 			"INSERT INTO",
 			pgTable(t.name),
 			pgFields(fields),
@@ -642,9 +684,10 @@ func (t *PostgresqlTable) Append(items ...interface{}) bool {
 			pgValues(values),
 		)
 
+		return err
 	}
 
-	return true
+	return nil
 }
 
 // Returns a MySQL table structure by name.
@@ -661,53 +704,58 @@ func (pg *PostgresqlDataSource) Collection(name string) db.Collection {
 
 	// Fetching table datatypes and mapping to internal gotypes.
 
-	rows := t.parent.pgExec(
+	rows, err := t.parent.pgExec(
 		"Query",
 		"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?", db.SqlArgs{t.name},
 	)
 
-	columns := t.pgFetchAll(rows)
+	if err == nil {
 
-	pattern, _ := regexp.Compile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
+		columns := t.pgFetchAll(rows)
 
-	t.types = make(map[string]reflect.Kind, len(columns))
+		pattern, _ := regexp.Compile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
 
-	for _, column := range columns {
-		cname := strings.ToLower(column["column_name"].(string))
-		ctype := strings.ToLower(column["data_type"].(string))
+		t.types = make(map[string]reflect.Kind, len(columns))
 
-		results := pattern.FindStringSubmatch(ctype)
+		for _, column := range columns {
+			cname := strings.ToLower(column["column_name"].(string))
+			ctype := strings.ToLower(column["data_type"].(string))
 
-		// Default properties.
-		dextra := ""
-		dtype := "varchar"
+			results := pattern.FindStringSubmatch(ctype)
 
-		dtype = results[1]
+			// Default properties.
+			dextra := ""
+			dtype := "varchar"
 
-		if len(results) > 3 {
-			dextra = results[3]
-		}
+			dtype = results[1]
 
-		vtype := reflect.String
-
-		// Guessing datatypes.
-		switch dtype {
-		case "smallint", "integer", "bigint", "serial", "bigserial":
-			if dextra == "unsigned" {
-				vtype = reflect.Uint64
-			} else {
-				vtype = reflect.Int64
+			if len(results) > 3 {
+				dextra = results[3]
 			}
-		case "real", "double":
-			vtype = reflect.Float64
+
+			vtype := reflect.String
+
+			// Guessing datatypes.
+			switch dtype {
+			case "smallint", "integer", "bigint", "serial", "bigserial":
+				if dextra == "unsigned" {
+					vtype = reflect.Uint64
+				} else {
+					vtype = reflect.Int64
+				}
+			case "real", "double":
+				vtype = reflect.Float64
+			}
+
+			//fmt.Printf("Imported %v (from %v)\n", vtype, dtype)
+
+			t.types[cname] = vtype
 		}
 
-		//fmt.Printf("Imported %v (from %v)\n", vtype, dtype)
-
-		t.types[cname] = vtype
+		pg.collections[name] = t
+	} else {
+		panic(err)
 	}
-
-	pg.collections[name] = t
 
 	return t
 }
