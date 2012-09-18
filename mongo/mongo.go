@@ -37,20 +37,20 @@ import (
 	"time"
 )
 
-// MongoDataSource session.
+// Session
 type MongoDataSource struct {
 	config   db.DataSource
 	session  *mgo.Session
 	database *mgo.Database
 }
 
-// MongoDataSource collection.
+// Collection
 type MongoDataSourceCollection struct {
 	parent     *MongoDataSource
 	collection *mgo.Collection
 }
 
-// Converts db.Cond keytypes into something that mgo can understand.
+// Transforms conditions into something *mgo.Session can understand.
 func (c *MongoDataSourceCollection) marshal(where db.Cond) map[string]interface{} {
 	conds := make(map[string]interface{})
 
@@ -62,14 +62,6 @@ func (c *MongoDataSourceCollection) marshal(where db.Cond) map[string]interface{
 			conds[chunks[0]] = map[string]interface{}{chunks[1]: val}
 		} else {
 			conds[key] = toInternal(val)
-			/*
-				switch val.(type) {
-				case db.Id:
-					conds[key] = bson.ObjectIdHex(string(val.(db.Id)))
-				default:
-					conds[key] = val
-				}
-			*/
 		}
 
 	}
@@ -77,7 +69,7 @@ func (c *MongoDataSourceCollection) marshal(where db.Cond) map[string]interface{
 	return conds
 }
 
-// Deletes the whole collection.
+// Deletes the collection (there is no truncate).
 func (c *MongoDataSourceCollection) Truncate() error {
 	err := c.collection.DropCollection()
 
@@ -88,7 +80,7 @@ func (c *MongoDataSourceCollection) Truncate() error {
 	return nil
 }
 
-// Inserts items into the collection.
+// Appends an item to the collection.
 func (c *MongoDataSourceCollection) Append(items ...interface{}) error {
 
 	parent := reflect.TypeOf(c.collection)
@@ -112,7 +104,7 @@ func (c *MongoDataSourceCollection) Append(items ...interface{}) error {
 	return nil
 }
 
-// Compiles terms into conditions that mgo can understand.
+// Compiles terms into something *mgo.Session can understand.
 func (c *MongoDataSourceCollection) compileConditions(term interface{}) interface{} {
 	switch term.(type) {
 	case []interface{}:
@@ -149,7 +141,7 @@ func (c *MongoDataSourceCollection) compileConditions(term interface{}) interfac
 	return nil
 }
 
-// Compiles terms into a query that mgo can understand.
+// Compiles terms into something that *mgo.Session can understand.
 func (c *MongoDataSourceCollection) compileQuery(terms []interface{}) interface{} {
 	var query interface{}
 
@@ -169,7 +161,7 @@ func (c *MongoDataSourceCollection) compileQuery(terms []interface{}) interface{
 	return query
 }
 
-// Removes all the items that match the provided conditions.
+// Removes all the items that match the given conditions.
 func (c *MongoDataSourceCollection) Remove(terms ...interface{}) error {
 
 	query := c.compileQuery(terms)
@@ -179,7 +171,7 @@ func (c *MongoDataSourceCollection) Remove(terms ...interface{}) error {
 	return err
 }
 
-// Updates all the items that match the provided conditions. You can specify the modification type by using db.Set, db.Modify or db.Upsert.
+// Updates all the items that match the given conditions.
 func (c *MongoDataSourceCollection) Update(terms ...interface{}) error {
 
 	var set interface{}
@@ -227,7 +219,7 @@ func (c *MongoDataSourceCollection) Update(terms ...interface{}) error {
 	return nil
 }
 
-// Calls a MongoDataSourceCollection function by string.
+// Calls a MongoDataSourceCollection function by name.
 func (c *MongoDataSourceCollection) invoke(fn string, terms []interface{}) []reflect.Value {
 
 	self := reflect.TypeOf(c)
@@ -247,11 +239,7 @@ func (c *MongoDataSourceCollection) invoke(fn string, terms []interface{}) []ref
 	return exec
 }
 
-func (c *MongoDataSourceCollection) Error(err error) {
-	log.Printf("%s: %s\n", c.collection.FullName, err)
-}
-
-// Returns the number of total items matching the provided conditions.
+// Returns the number of items that match the given conditions.
 func (c *MongoDataSourceCollection) Count(terms ...interface{}) (int, error) {
 	q := c.invoke("BuildQuery", terms)
 
@@ -262,8 +250,7 @@ func (c *MongoDataSourceCollection) Count(terms ...interface{}) (int, error) {
 	return count, err
 }
 
-// Returns a document that matches all the provided conditions. db.Ordering of the terms doesn't matter but you must take in
-// account that conditions are generally evaluated from left to right (or from top to bottom).
+// Returns a db.Item that matches the given conditions.
 func (c *MongoDataSourceCollection) Find(terms ...interface{}) db.Item {
 
 	var item db.Item
@@ -282,7 +269,7 @@ func (c *MongoDataSourceCollection) Find(terms ...interface{}) db.Item {
 	return item
 }
 
-// Returns a mgo.Query that matches the provided terms.
+// Returns a mgo.Query based on the given terms.
 func (c *MongoDataSourceCollection) BuildQuery(terms ...interface{}) *mgo.Query {
 
 	var sort interface{}
@@ -328,6 +315,7 @@ func (c *MongoDataSourceCollection) BuildQuery(terms ...interface{}) *mgo.Query 
 	return q
 }
 
+// Transforms data from db.Item format into mgo format.
 func toInternal(val interface{}) interface{} {
 
 	switch val.(type) {
@@ -342,6 +330,7 @@ func toInternal(val interface{}) interface{} {
 	return val
 }
 
+// Transforms data from mgo format into db.Item format.
 func toNative(val interface{}) interface{} {
 
 	switch val.(type) {
@@ -359,7 +348,7 @@ func toNative(val interface{}) interface{} {
 
 }
 
-// Returns all the results that match the provided conditions. See Find().
+// Returns all the items that match the given conditions. See Find().
 func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []db.Item {
 	var items []db.Item
 	var result []interface{}
@@ -494,21 +483,21 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []db.Item {
 	return items
 }
 
-// Returns a new MongoDataSource object.
+// Returns an empty data source.
 func Session(config db.DataSource) db.Database {
 	m := &MongoDataSource{}
 	m.config = config
 	return m
 }
 
-// Switches the current session database to the provided name. See Session().
+// Sets the active database.
 func (m *MongoDataSource) Use(database string) error {
 	m.config.Database = database
 	m.database = m.session.DB(m.config.Database)
 	return nil
 }
 
-// Returns a Collection from the currently active database given the name. See Session().
+// Returns a collection from the current database.
 func (m *MongoDataSource) Collection(name string) db.Collection {
 	c := &MongoDataSourceCollection{}
 	c.parent = m
@@ -516,11 +505,12 @@ func (m *MongoDataSource) Collection(name string) db.Collection {
 	return c
 }
 
+// Returns the underlying driver (*mgo.Session).
 func (m *MongoDataSource) Driver() interface{} {
 	return m.session
 }
 
-// Connects to the previously specified datasource. See Session().
+// Opens a connection to the data source. See Session().
 func (m *MongoDataSource) Open() error {
 	var err error
 
@@ -553,13 +543,13 @@ func (m *MongoDataSource) Open() error {
 	return nil
 }
 
-// Entirely drops the active database.
+// Drops the active database.
 func (m *MongoDataSource) Drop() error {
 	err := m.database.DropDatabase()
 	return err
 }
 
-// Entirely drops the active database.
+// Closes the connection to the database.
 func (m *MongoDataSource) Close() error {
 	if m.session != nil {
 		m.session.Close()
@@ -567,7 +557,7 @@ func (m *MongoDataSource) Close() error {
 	return nil
 }
 
-// Returns all the collection names in the active database.
+// Returns all the collection names on the current database.
 func (m *MongoDataSource) Collections() []string {
 	names, _ := m.database.CollectionNames()
 	return names
