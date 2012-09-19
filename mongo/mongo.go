@@ -29,7 +29,6 @@ import (
 	"github.com/gosexy/sugar"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
-	"log"
 	"net/url"
 	"reflect"
 	"regexp"
