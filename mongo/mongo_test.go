@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const mgHost = "mongodbhost"
+const mgHost = "debian"
 const mgDatabase = "gotest"
 
 func getTestData() db.Item {

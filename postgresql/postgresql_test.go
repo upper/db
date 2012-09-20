@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const pgHost = "192.168.1.110"
+const pgHost = "debian"
 const pgDatabase = "gotest"
 const pgUser = "gouser"
 const pgPassword = "gopass"

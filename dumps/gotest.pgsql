@@ -50,6 +50,58 @@ ALTER SEQUENCE children_id_seq OWNED BY children.id;
 
 
 --
+-- Name: data_types; Type: TABLE; Schema: public; Owner: gouser; Tablespace: 
+--
+
+CREATE TABLE data_types (
+    id integer NOT NULL,
+    _uint integer,
+    _uint8 integer,
+    _uint16 integer,
+    _uint32 integer,
+    _uint64 integer,
+    _int integer,
+    _int8 integer,
+    _int16 integer,
+    _int32 integer,
+    _int64 integer,
+    _float32 numeric(10,6),
+    _float64 numeric(10,6),
+    _byte bit(1),
+    _rune bit(1),
+    _bool boolean,
+    _string text,
+    _date timestamp without time zone,
+    _bytea character varying,
+    _time time without time zone,
+    _uintptr integer
+);
+
+
+ALTER TABLE public.data_types OWNER TO gouser;
+
+--
+-- Name: data_types_id_seq; Type: SEQUENCE; Schema: public; Owner: gouser
+--
+
+CREATE SEQUENCE data_types_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.data_types_id_seq OWNER TO gouser;
+
+--
+-- Name: data_types_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: gouser
+--
+
+ALTER SEQUENCE data_types_id_seq OWNED BY data_types.id;
+
+
+--
 -- Name: people; Type: TABLE; Schema: public; Owner: gouser; Tablespace: 
 --
 
@@ -162,6 +214,13 @@ ALTER TABLE ONLY children ALTER COLUMN id SET DEFAULT nextval('children_id_seq':
 -- Name: id; Type: DEFAULT; Schema: public; Owner: gouser
 --
 
+ALTER TABLE ONLY data_types ALTER COLUMN id SET DEFAULT nextval('data_types_id_seq'::regclass);
+
+
+--
+-- Name: id; Type: DEFAULT; Schema: public; Owner: gouser
+--
+
 ALTER TABLE ONLY people ALTER COLUMN id SET DEFAULT nextval('people_id_seq'::regclass);
 
 
@@ -185,6 +244,14 @@ ALTER TABLE ONLY visits ALTER COLUMN id SET DEFAULT nextval('visits_id_seq'::reg
 
 ALTER TABLE ONLY children
     ADD CONSTRAINT children_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: data_types_pkey; Type: CONSTRAINT; Schema: public; Owner: gouser; Tablespace: 
+--
+
+ALTER TABLE ONLY data_types
+    ADD CONSTRAINT data_types_pkey PRIMARY KEY (id);
 
 
 --

@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const myHost = "127.0.0.1"
+const myHost = "debian"
 const myDatabase = "gotest"
 const myUser = "gouser"
 const myPassword = "gopass"
