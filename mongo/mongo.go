@@ -98,9 +98,13 @@ func (c *MongoDataSourceCollection) Append(items ...interface{}) ([]db.Id, error
 		id := db.Id(bson.NewObjectId().Hex())
 
 		switch items[i].(type) {
-		case map[string] interface{}:
+		case map[string]interface{}:
 			if items[i].(map[string]interface{})["_id"] == nil {
 				items[i].(map[string]interface{})["_id"] = id
+			}
+		case db.Item:
+			if items[i].(db.Item)["_id"] == nil {
+				items[i].(db.Item)["_id"] = id
 			}
 		}
 
