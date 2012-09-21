@@ -207,7 +207,12 @@ func (my *MysqlDataSource) myExec(method string, terms ...interface{}) (sql.Rows
 		return sql.Rows{}, res[1].Elem().Interface().(error)
 	}
 
-	return res[0].Elem().Interface().(sql.Rows), nil
+	switch res[0].Elem().Interface().(type) {
+	case sql.Rows:
+		return res[0].Elem().Interface().(sql.Rows), nil
+	}
+
+	return sql.Rows{}, nil
 }
 
 // Represents a MySQL table.
@@ -412,7 +417,7 @@ func (t *MysqlTable) marshal(where db.Cond) (string, []string) {
 func (t *MysqlTable) Truncate() error {
 
 	_, err := t.parent.myExec(
-		"Query",
+		"Exec",
 		fmt.Sprintf("TRUNCATE TABLE %s", myTable(t.name)),
 	)
 
@@ -429,7 +434,7 @@ func (t *MysqlTable) Remove(terms ...interface{}) error {
 	}
 
 	_, err := t.parent.myExec(
-		"Query",
+		"Exec",
 		fmt.Sprintf("DELETE FROM %s", myTable(t.name)),
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
@@ -458,7 +463,7 @@ func (t *MysqlTable) Update(terms ...interface{}) error {
 	}
 
 	_, err := t.parent.myExec(
-		"Query",
+		"Exec",
 		fmt.Sprintf("UPDATE %s SET %s", myTable(t.name), fields), fargs,
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
@@ -673,6 +678,8 @@ func (t *MysqlTable) Find(terms ...interface{}) db.Item {
 // Inserts rows into the currently active table.
 func (t *MysqlTable) Append(items ...interface{}) ([]db.Id, error) {
 
+	ids := []db.Id{}
+
 	itop := len(items)
 
 	for i := 0; i < itop; i++ {
@@ -687,7 +694,8 @@ func (t *MysqlTable) Append(items ...interface{}) ([]db.Id, error) {
 			values = append(values, toInternal(value))
 		}
 
-		_, err := t.parent.myExec("Query",
+		_, err := t.parent.myExec(
+			"Exec",
 			"INSERT INTO",
 			myTable(t.name),
 			myFields(fields),
@@ -695,10 +703,26 @@ func (t *MysqlTable) Append(items ...interface{}) ([]db.Id, error) {
 			myValues(values),
 		)
 
-		return err
+		res, _ := t.parent.myExec(
+			"Query",
+			"SELECT LAST_INSERT_ID()",
+		)
+
+		var lastId string
+
+		res.Next()
+
+		res.Scan(&lastId)
+
+		ids = append(ids, db.Id(lastId))
+
+		if err != nil {
+			return ids, err
+		}
+
 	}
 
-	return nil
+	return ids, nil
 }
 
 // Returns a MySQL table structure by name.
