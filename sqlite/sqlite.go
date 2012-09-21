@@ -652,7 +652,9 @@ func toNative(val interface{}) interface{} {
 }
 
 // Inserts rows into the currently active table.
-func (t *SqliteTable) Append(items ...interface{}) error {
+func (t *SqliteTable) Append(items ...interface{}) ([]db.Id, error) {
+
+	ids := []db.Id{}
 
 	itop := len(items)
 
@@ -677,13 +679,26 @@ func (t *SqliteTable) Append(items ...interface{}) error {
 			slValues(values),
 		)
 
+		res, _ := t.parent.slExec(
+			"Query",
+			"SELECT LAST_INSERT_ROWID()",
+		)
+
+		var lastId string
+
+		res.Next()
+
+		res.Scan(&lastId)
+
+		ids = append(ids, db.Id(lastId))
+
 		if err != nil {
-			return err
+			return ids, err
 		}
 
 	}
 
-	return nil
+	return ids, nil
 }
 
 // Returns a SQLite table structure by name.

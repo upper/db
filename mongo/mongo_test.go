@@ -328,13 +328,11 @@ func TestDataTypes(t *testing.T) {
 
 	delete(item, "_id")
 
-	ids, err := col.Append(item)
+	_, err = col.Append(item)
 
 	if err != nil {
 		t.Errorf("Could not append second element.")
 	}
-
-	fmt.Printf("%v\n", ids)
 
 	// Testing rows
 
