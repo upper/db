@@ -659,7 +659,9 @@ func toInternal(val interface{}) string {
 }
 
 // Inserts rows into the currently active table.
-func (t *PostgresqlTable) Append(items ...interface{}) error {
+func (t *PostgresqlTable) Append(items ...interface{}) ([]db.Id, error) {
+
+	ids := []db.Id{}
 
 	itop := len(items)
 
@@ -684,10 +686,26 @@ func (t *PostgresqlTable) Append(items ...interface{}) error {
 			pgValues(values),
 		)
 
-		return err
+		res, _ := t.parent.pgExec(
+			"Query",
+			fmt.Sprintf("SELECT CURRVAL(pg_get_serial_sequence('%s','id'))", t.name),
+		)
+
+		var lastId string
+
+		res.Next()
+
+		res.Scan(&lastId)
+
+		ids = append(ids, db.Id(lastId))
+
+		if err != nil {
+			return ids, err
+		}
+
 	}
 
-	return nil
+	return ids, nil
 }
 
 // Returns a MySQL table structure by name.
