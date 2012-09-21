@@ -310,7 +310,7 @@ func TestDataTypes(t *testing.T) {
 
 	data := getTestData()
 
-	err = col.Append(data)
+	_, err = col.Append(data)
 
 	if err != nil {
 		t.Errorf("Could not append test data.")
@@ -320,7 +320,7 @@ func TestDataTypes(t *testing.T) {
 
 	item := col.Find()
 
-	err = col.Append(item)
+	_, err = col.Append(item)
 
 	if err == nil {
 		t.Errorf("Expecting duplicated-key error.")
@@ -328,11 +328,13 @@ func TestDataTypes(t *testing.T) {
 
 	delete(item, "_id")
 
-	err = col.Append(item)
+	ids, err := col.Append(item)
 
 	if err != nil {
 		t.Errorf("Could not append second element.")
 	}
+
+	fmt.Printf("%v\n", ids)
 
 	// Testing rows
 

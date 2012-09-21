@@ -671,7 +671,7 @@ func (t *MysqlTable) Find(terms ...interface{}) db.Item {
 }
 
 // Inserts rows into the currently active table.
-func (t *MysqlTable) Append(items ...interface{}) error {
+func (t *MysqlTable) Append(items ...interface{}) ([]db.Id, error) {
 
 	itop := len(items)
 
@@ -684,7 +684,6 @@ func (t *MysqlTable) Append(items ...interface{}) error {
 
 		for field, value := range item.(db.Item) {
 			fields = append(fields, field)
-			//values = append(values, fmt.Sprintf("%v", value))
 			values = append(values, toInternal(value))
 		}
 

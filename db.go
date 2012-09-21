@@ -190,7 +190,7 @@ type Database interface {
 
 // Collection methods.
 type Collection interface {
-	Append(...interface{}) error
+	Append(...interface{}) ([]Id, error)
 
 	Count(...interface{}) (int, error)
 

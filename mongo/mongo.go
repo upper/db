@@ -80,7 +80,11 @@ func (c *MongoDataSourceCollection) Truncate() error {
 }
 
 // Appends an item to the collection.
-func (c *MongoDataSourceCollection) Append(items ...interface{}) error {
+func (c *MongoDataSourceCollection) Append(items ...interface{}) ([]db.Id, error) {
+
+	var err error
+
+	ids := []db.Id{}
 
 	parent := reflect.TypeOf(c.collection)
 	method, _ := parent.MethodByName("Insert")
@@ -91,16 +95,26 @@ func (c *MongoDataSourceCollection) Append(items ...interface{}) error {
 	itop := len(items)
 
 	for i := 0; i < itop; i++ {
+		id := db.Id(bson.NewObjectId().Hex())
+
+		switch items[i].(type) {
+		case map[string] interface{}:
+			if items[i].(map[string]interface{})["_id"] == nil {
+				items[i].(map[string]interface{})["_id"] = id
+			}
+		}
+
 		args[i+1] = reflect.ValueOf(toInternal(items[i]))
+		ids = append(ids, id)
 	}
 
 	exec := method.Func.Call(args)
 
 	if exec[0].Interface() != nil {
-		return exec[0].Interface().(error)
+		err = exec[0].Interface().(error)
 	}
 
-	return nil
+	return ids, err
 }
 
 // Compiles terms into something *mgo.Session can understand.
