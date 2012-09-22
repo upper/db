@@ -28,38 +28,47 @@ You may want to read a more descriptive reference on [how to connect](http://gos
 
 Once you've installed a driver, you need to import it into your Go code:
 
-    import "github.com/gosexy/db/mysql"
+```go
+import "github.com/gosexy/db/mysql"
+```
+
 
 ### Setting up a database source
 
 We are going to use the [mysql](http://gosexy.org/db/wrappers/mysql) driver in our examples. If you want to use another driver
 (such as ``mongo``) just replace ``mysql`` with the name of your driver and everything should work the same.
 
-    sess := mysql.Session(db.DataSource{Host: "localhost", Database: "test", User: "myuser", Password: "mypass"})
+```go
+sess := mysql.Session(db.DataSource{Host: "localhost", Database: "test", User: "myuser", Password: "mypass"})
+```
 
 The ``db.DataSource`` is a generic structure than can store connection values for any database in a consistent way.
 
-    // Connection and authentication data.
-    type DataSource struct {
-      Host     string
-      Port     int
-      Database string
-      User     string
-      Password string
-    }
+```go
+// Connection and authentication data.
+type DataSource struct {
+  Host     string
+  Port     int
+  Database string
+  User     string
+  Password string
+}
+```
 
 ### Connecting to a database
 
 Use your recently configured ``db.Database`` to request the driver to actually connect to the selected database using ``db.Database.Open()``.
 
-    // Setting up database.
-    sess := mysql.Session(db.DataSource{Host: "localhost", Database: "test", User: "myuser", Password: "mypass"})
-    err := sess.Open()
+```go
+// Setting up database.
+sess := mysql.Session(db.DataSource{Host: "localhost", Database: "test", User: "myuser", Password: "mypass"})
+err := sess.Open()
 
-    // Don't forget to close the connection when it's not required anymore.
-    if err == nil {
-      defer sess.Close()
-    }
+// Don't forget to close the connection when it's not required anymore.
+if err == nil {
+  defer sess.Close()
+}
+```
 
 ## Documentation
 
