@@ -71,16 +71,14 @@ You can also read ``gosexy/db`` documentation from a terminal
 
 ## Things to do
 
-This is an evolving project, so there is a lot of work to do:
+This is an evolving project, there are still some things to do:
 
 * Add db.Upsert and db.Modify for SQL databases.
-* Add Go ``pkg/time`` datatype for database dates.
-* Improve database -> Go type guessing.
-* Improve error handling.
 * Add CouchDB support.
 
 ## Changelog
 
+    2012/09/21 - Changing some methods parameters and return values, improving error handling and testing many data types.
     2012/08/29 - Created the main site docs and moved the repo to "http://github.com/gosexy".
     2012/07/23 - Splitted database wrappers into packages. Changed ``db.Where`` to ``db.Cond``.
     2012/07/09 - First public beta with MySQL, MongoDB, PostgreSQL and SQLite3.

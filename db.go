@@ -212,10 +212,12 @@ type MultiFlag bool
 type SqlValues []string
 type SqlArgs []string
 
+// Returns the item value as a string.
 func (item Item) GetString(name string) string {
 	return fmt.Sprintf("%v", item[name])
 }
 
+// Returns the item value as a Go date.
 func (item Item) GetDate(name string) time.Time {
 	date := time.Date(0, time.January, 0, 0, 0, 0, 0, time.UTC)
 
@@ -235,6 +237,7 @@ func (item Item) GetDate(name string) time.Time {
 	return date
 }
 
+// Returns the item value as a Go duration.
 func (item Item) GetDuration(name string) time.Duration {
 	duration, _ := time.ParseDuration("0h0m0s")
 
@@ -259,6 +262,7 @@ func (item Item) GetDuration(name string) time.Duration {
 	return duration
 }
 
+// Returns the item value as a Tuple.
 func (item Item) GetTuple(name string) sugar.Tuple {
 	tuple := sugar.Tuple{}
 
@@ -274,6 +278,7 @@ func (item Item) GetTuple(name string) sugar.Tuple {
 	return tuple
 }
 
+// Returns the item value as an array.
 func (item Item) GetList(name string) sugar.List {
 	list := sugar.List{}
 
@@ -289,16 +294,19 @@ func (item Item) GetList(name string) sugar.List {
 	return list
 }
 
+// Returns the item value as an integer.
 func (item Item) GetInt(name string) int64 {
 	i, _ := strconv.ParseInt(fmt.Sprintf("%v", item[name]), 10, 64)
 	return i
 }
 
+// Returns the item value as a floating point number.
 func (item Item) GetFloat(name string) float64 {
 	f, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[name]), 64)
 	return f
 }
 
+// Returns the item value as a boolean.
 func (item Item) GetBool(name string) bool {
 
 	if item[name] == nil {
@@ -315,36 +323,3 @@ func (item Item) GetBool(name string) bool {
 
 	return true
 }
-
-/*
-func toInternal(val interface{}) interface{} {
-
-	switch val.(type) {
-	case db.Id:
-		return bson.ObjectIdHex(string(val.(db.Id)))
-	case db.Item:
-		for k, _ := range val.(db.Item) {
-			val.(db.Item)[k] = toInternal(val.(db.Item)[k])
-		}
-	}
-
-	return val
-}
-
-func toNative(val interface{}) interface{} {
-
-	switch val.(type) {
-	case bson.M:
-		v2 := map[string]interface{}{}
-		for k, v := range val.(bson.M) {
-			v2[k] = toNative(v)
-		}
-		return v2
-	case bson.ObjectId:
-		return db.Id(val.(bson.ObjectId).Hex())
-	}
-
-	return val
-
-}
-*/
