@@ -289,10 +289,16 @@ func TestDataTypes(t *testing.T) {
 
 	data := getTestData()
 
-	_, err = col.Append(data)
+	ids, err := col.Append(data)
 
 	if err != nil {
-		panic(err)
+		t.Errorf("Could not append test data.")
+	}
+
+	found, _ := col.Count(db.Cond{"id": db.Id(ids[0])})
+
+	if found == 0 {
+		t.Errorf("Cannot find recently inserted item (by ID).")
 	}
 
 	// Getting and reinserting.
