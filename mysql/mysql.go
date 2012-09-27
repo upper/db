@@ -395,22 +395,25 @@ func (t *MysqlTable) compileConditions(term interface{}) (string, db.SqlArgs) {
 
 // Converts db.Cond{} structures into SQL before processing them in a query.
 func (t *MysqlTable) marshal(where db.Cond) (string, []string) {
+	var placeholder string
+
+	placeholders := []string{}
+	args := []string{}
 
 	for key, val := range where {
-		key = strings.Trim(key, " ")
-		chunks := strings.Split(key, " ")
-
-		strval := fmt.Sprintf("%v", val)
+		chunks := strings.Split(strings.Trim(key, " "), " ")
 
 		if len(chunks) >= 2 {
-			return fmt.Sprintf("%s %s ?", chunks[0], chunks[1]), []string{strval}
+			placeholder = fmt.Sprintf("%s %s ?", chunks[0], chunks[1])
 		} else {
-			return fmt.Sprintf("%s = ?", chunks[0]), []string{strval}
+			placeholder = fmt.Sprintf("%s = ?", chunks[0])
 		}
 
+		placeholders = append(placeholders, placeholder)
+		args = append(args, fmt.Sprintf("%v", val))
 	}
 
-	return "", []string{}
+	return strings.Join(placeholders, " AND "), args
 }
 
 // Deletes all the rows in the table.
