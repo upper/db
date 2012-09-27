@@ -39,7 +39,14 @@ We are going to use the [mysql](http://gosexy.org/db/wrappers/mysql) driver in o
 (such as ``mongo``) just replace ``mysql`` with the name of your driver and everything should work the same.
 
 ```go
-sess := mysql.Session(db.DataSource{Host: "localhost", Database: "test", User: "myuser", Password: "mypass"})
+sess := mysql.Session(
+  db.DataSource{
+    Host: "localhost",
+    Database: "test",
+    User: "myuser",
+    Password: "mypass",
+  },
+)
 ```
 
 The ``db.DataSource`` is a generic structure than can store connection values for any database in a consistent way.
@@ -61,7 +68,15 @@ Use your recently configured ``db.Database`` to request the driver to actually c
 
 ```go
 // Setting up database.
-sess := mysql.Session(db.DataSource{Host: "localhost", Database: "test", User: "myuser", Password: "mypass"})
+sess := mysql.Session(
+  db.DataSource{
+    Host: "localhost",
+    Database: "test",
+    User: "myuser",
+    Password: "mypass",
+  },
+)
+
 err := sess.Open()
 
 // Don't forget to close the connection when it's not required anymore.
