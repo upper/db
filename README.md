@@ -41,9 +41,9 @@ We are going to use the [mysql](http://gosexy.org/db/wrappers/mysql) driver in o
 ```go
 sess := mysql.Session(
   db.DataSource{
-    Host: "localhost",
+    Host:     "localhost",
     Database: "test",
-    User: "myuser",
+    User:     "myuser",
     Password: "mypass",
   },
 )
@@ -70,9 +70,9 @@ Use your recently configured ``db.Database`` to request the driver to actually c
 // Setting up database.
 sess := mysql.Session(
   db.DataSource{
-    Host: "localhost",
+    Host:     "localhost",
     Database: "test",
-    User: "myuser",
+    User:     "myuser",
     Password: "mypass",
   },
 )
