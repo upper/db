@@ -742,10 +742,13 @@ func (my *MysqlDataSource) Collection(name string) db.Collection {
 
 	// Fetching table datatypes and mapping to internal gotypes.
 
-	rows, _ := t.parent.myExec(
+	rows, err := t.parent.myExec(
 		"Query",
 		"SHOW COLUMNS FROM", t.name,
 	)
+	if err != nil {
+		panic(err)
+	}
 
 	columns := t.myFetchAll(rows)
 
