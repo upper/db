@@ -58,7 +58,7 @@ func (c *MongoDataSourceCollection) marshal(where db.Cond) map[string]interface{
 		chunks := strings.Split(key, " ")
 
 		if len(chunks) >= 2 {
-			conds[chunks[0]] = map[string]interface{}{chunks[1]: val}
+			conds[chunks[0]] = map[string]interface{}{chunks[1]: toInternal(val)}
 		} else {
 			conds[key] = toInternal(val)
 		}
