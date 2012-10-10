@@ -362,21 +362,25 @@ func (t *PostgresqlTable) compileConditions(term interface{}) (string, db.SqlArg
 
 func (t *PostgresqlTable) marshal(where db.Cond) (string, []string) {
 
-	for key, val := range where {
-		key = strings.Trim(key, " ")
-		chunks := strings.Split(key, " ")
+	var placeholder string
 
-		strval := fmt.Sprintf("%v", val)
+	placeholders := []string{}
+	args := []string{}
+
+	for key, val := range where {
+		chunks := strings.Split(strings.Trim(key, " "), " ")
 
 		if len(chunks) >= 2 {
-			return fmt.Sprintf("%s %s ?", chunks[0], chunks[1]), []string{strval}
+			placeholder = fmt.Sprintf("%s %s ?", chunks[0], chunks[1])
 		} else {
-			return fmt.Sprintf("%s = ?", chunks[0]), []string{strval}
+			placeholder = fmt.Sprintf("%s = ?", chunks[0])
 		}
 
+		placeholders = append(placeholders, placeholder)
+		args = append(args, fmt.Sprintf("%v", val))
 	}
 
-	return "", []string{}
+	return strings.Join(placeholders, " AND "), args
 }
 
 // Deletes all the rows in the table.
