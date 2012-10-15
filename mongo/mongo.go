@@ -36,6 +36,10 @@ import (
 	"time"
 )
 
+func init() {
+	db.Register("mongo", &MongoDataSource{})
+}
+
 // Session
 type MongoDataSource struct {
 	config   db.DataSource
@@ -504,6 +508,11 @@ func Session(config db.DataSource) db.Database {
 	m := &MongoDataSource{}
 	m.config = config
 	return m
+}
+
+func (m *MongoDataSource) Setup(config db.DataSource) error {
+	m.config = config
+	return m.Open()
 }
 
 // Sets the active database.

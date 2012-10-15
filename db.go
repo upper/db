@@ -186,6 +186,8 @@ type Database interface {
 
 	Use(string) error
 	Drop() error
+
+	Setup(DataSource) error
 }
 
 // Collection methods.
@@ -322,4 +324,24 @@ func (item Item) GetBool(name string) bool {
 	}
 
 	return true
+}
+
+var wrappers = make(map[string]Database)
+
+func Register(name string, driver Database) {
+	if name == "" {
+		panic("db: Wrapper name cannot be nil.")
+	}
+	if _, ok := wrappers[name]; ok != false {
+		panic("db: Wrapper was already registered.")
+	}
+	wrappers[name] = driver
+}
+
+func Open(name string, settings DataSource) Database {
+	if _, ok := wrappers[name]; ok == false {
+		panic(fmt.Sprintf("db: Unknown wrapper: %s.", name))
+	}
+	wrappers[name].Setup(settings)
+	return wrappers[name]
 }
