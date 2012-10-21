@@ -15,9 +15,6 @@ const pgDatabase = "gotest"
 const pgUser = "gouser"
 const pgPassword = "gopass"
 
-func TestEnableDebug(t *testing.T) {
-	Debug = true
-}
 
 func getTestData() db.Item {
 
@@ -59,6 +56,10 @@ func getTestData() db.Item {
 	}
 
 	return data
+}
+
+func TestEnableDebug(t *testing.T) {
+	Debug = true
 }
 
 func TestPgTruncate(t *testing.T) {

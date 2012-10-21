@@ -58,6 +58,10 @@ func getTestData() db.Item {
 	return data
 }
 
+func TestEnableDebug(t *testing.T) {
+	Debug = true
+}
+
 func TestMyTruncate(t *testing.T) {
 
 	sess := Session(db.DataSource{Host: myHost, Database: myDatabase, User: myUser, Password: myPassword})
@@ -203,6 +207,7 @@ func TestMyPopulate(t *testing.T) {
 
 	people := sess.Collection("people").FindAll(
 		db.Fields{"id", "name"},
+		db.Sort{"name": "ASC", "id": -1},
 	)
 
 	for i = 0; i < len(people); i++ {
