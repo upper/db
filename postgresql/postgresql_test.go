@@ -15,6 +15,10 @@ const pgDatabase = "gotest"
 const pgUser = "gouser"
 const pgPassword = "gopass"
 
+func TestEnableDebug(t *testing.T) {
+	Debug = true
+}
+
 func getTestData() db.Item {
 
 	_time, _ := time.ParseDuration("17h20m")
@@ -200,6 +204,7 @@ func TestPgPopulate(t *testing.T) {
 
 	people := sess.Collection("people").FindAll(
 		db.Fields{"id", "name"},
+		db.Sort{"name": "ASC", "id": -1},
 	)
 
 	for i = 0; i < len(people); i++ {
