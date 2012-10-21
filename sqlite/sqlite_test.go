@@ -54,6 +54,10 @@ func getTestData() db.Item {
 	return data
 }
 
+func TestEnableDebug(t *testing.T) {
+	Debug = true
+}
+
 func TestSqTruncate(t *testing.T) {
 
 	sess := SqliteSession(db.DataSource{Database: sqDatabase})
@@ -195,6 +199,7 @@ func TestSqPopulate(t *testing.T) {
 
 	people := sess.Collection("people").FindAll(
 		db.Fields{"id", "name"},
+		db.Sort{"name": "ASC", "id": -1},
 	)
 
 	for i = 0; i < len(people); i++ {

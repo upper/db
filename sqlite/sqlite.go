@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"github.com/gosexy/db"
 	"github.com/gosexy/sugar"
+	"github.com/gosexy/to"
 	_ "github.com/xiam/gosqlite3"
 	"reflect"
 	"regexp"
@@ -35,6 +36,8 @@ import (
 	"strings"
 	"time"
 )
+
+var Debug = false
 
 const dateFormat = "2006-01-02 15:04:05"
 const timeFormat = "%d:%02d:%02d"
@@ -157,10 +160,10 @@ func (sl *SqliteDataSource) slExec(method string, terms ...interface{}) (sql.Row
 
 	q := slCompile(terms)
 
-	/*
+	if Debug == true {
 		fmt.Printf("Q: %v\n", q.Query)
 		fmt.Printf("A: %v\n", q.SqlArgs)
-	*/
+	}
 
 	args := make([]reflect.Value, len(q.SqlArgs)+1)
 
@@ -433,6 +436,7 @@ func (t *SqliteTable) FindAll(terms ...interface{}) []db.Item {
 	conditions := ""
 	limit := ""
 	offset := ""
+	sort := ""
 
 	// Analyzing
 	itop = len(terms)
@@ -443,6 +447,19 @@ func (t *SqliteTable) FindAll(terms ...interface{}) []db.Item {
 		switch term.(type) {
 		case db.Limit:
 			limit = fmt.Sprintf("LIMIT %v", term.(db.Limit))
+		case db.Sort:
+			sortBy := []string{}
+			for k, v := range term.(db.Sort) {
+				v = strings.ToUpper(to.String(v))
+				if v == "-1" {
+					v = "DESC"
+				}
+				if v == "1" {
+					v = "ASC"
+				}
+				sortBy = append(sortBy, fmt.Sprintf("%s %s", k, v))
+			}
+			sort = fmt.Sprintf("ORDER BY %s", strings.Join(sortBy, ", "))
 		case db.Offset:
 			offset = fmt.Sprintf("OFFSET %v", term.(db.Offset))
 		case db.Fields:
@@ -464,7 +481,7 @@ func (t *SqliteTable) FindAll(terms ...interface{}) []db.Item {
 		"Query",
 		fmt.Sprintf("SELECT %s FROM %s", fields, slTable(t.name)),
 		fmt.Sprintf("WHERE %s", conditions), args,
-		limit, offset,
+		sort, limit, offset,
 	)
 
 	result := t.slFetchAll(rows)
