@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"github.com/gosexy/db"
 	"github.com/gosexy/sugar"
+	"github.com/gosexy/to"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"net/url"
@@ -325,7 +326,16 @@ func (c *MongoDataSourceCollection) BuildQuery(terms ...interface{}) *mgo.Query 
 
 	// Sorting result
 	if sort != nil {
-		q = q.Sort(sort.(string))
+		for key, val := range sort.(db.Sort) {
+			sval := to.String(val)
+			if sval == "-1" || sval == "DESC" {
+				q = q.Sort("-" + key)
+			} else if sval == "1" || sval == "ASC" {
+				q = q.Sort(key)
+			} else {
+				panic(fmt.Sprintf(`Unknown sort value "%s".`, sval))
+			}
+		}
 	}
 
 	return q

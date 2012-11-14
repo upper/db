@@ -221,7 +221,10 @@ func TestMgPopulate(t *testing.T) {
 		})
 	}
 
-	people := sess.Collection("people").FindAll()
+	people := sess.Collection("people").FindAll(
+		db.Fields{"id", "name"},
+		db.Sort{"name": "ASC", "id": -1},
+	)
 
 	for i = 0; i < len(people); i++ {
 		person := people[i]
