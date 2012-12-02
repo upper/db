@@ -43,6 +43,10 @@ var Debug = false
 const dateFormat = "2006-01-02 15:04:05.000000000"
 const timeFormat = "%d:%02d:%02d.%09d"
 
+func init() {
+	db.Register("mysql", &MysqlDataSource{})
+}
+
 type myQuery struct {
 	Query   []string
 	SqlArgs []string
@@ -95,6 +99,10 @@ type MysqlDataSource struct {
 	session     *sql.DB
 	config      db.DataSource
 	collections map[string]db.Collection
+}
+
+func (my *MysqlDataSource) Name() string {
+	return my.config.Database
 }
 
 // Returns all items from a query.
@@ -239,6 +247,13 @@ func (my *MysqlDataSource) Close() error {
 		return my.session.Close()
 	}
 	return nil
+}
+
+// Opens a connection.
+func (self *MysqlDataSource) Setup(config db.DataSource) error {
+	self.config = config
+	self.collections = make(map[string]db.Collection)
+	return self.Open()
 }
 
 // Tries to open a connection to the current MySQL session.
@@ -559,7 +574,7 @@ func (t *MysqlTable) FindAll(terms ...interface{}) []db.Item {
 			}
 
 			if rcollection == nil {
-				rcollection = t.parent.Collection(rname)
+				rcollection = t.parent.ExistentCollection(rname)
 			}
 
 			relations = append(relations, sugar.Tuple{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
@@ -582,7 +597,7 @@ func (t *MysqlTable) FindAll(terms ...interface{}) []db.Item {
 			}
 
 			if rcollection == nil {
-				rcollection = t.parent.Collection(rname)
+				rcollection = t.parent.ExistentCollection(rname)
 			}
 
 			relations = append(relations, sugar.Tuple{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
@@ -676,6 +691,27 @@ func (t *MysqlTable) Count(terms ...interface{}) (int, error) {
 	return 0, nil
 }
 
+func (t *MysqlTable) Exists() bool {
+	result, err := t.parent.myExec(
+		"Query",
+		fmt.Sprintf(`
+				SELECT table_name
+					FROM information_schema.tables
+				WHERE table_schema = '%s' AND table_name = '%s'
+			`,
+			t.parent.Name(),
+			t.Name(),
+		),
+	)
+	if err != nil {
+		panic(err.Error())
+	}
+	if result.Next() == true {
+		return true
+	}
+	return false
+}
+
 // Returns the first row in the table that matches certain conditions.
 func (t *MysqlTable) Find(terms ...interface{}) db.Item {
 
@@ -745,11 +781,24 @@ func (t *MysqlTable) Append(items ...interface{}) ([]db.Id, error) {
 	return ids, nil
 }
 
-// Returns a MySQL table structure by name.
-func (my *MysqlDataSource) Collection(name string) db.Collection {
+func (t *MysqlTable) Name() string {
+	return t.name
+}
 
-	if collection, ok := my.collections[name]; ok == true {
-		return collection
+func (my *MysqlDataSource) ExistentCollection(name string) db.Collection {
+	col, err := my.Collection(name)
+	if err != nil {
+		panic(err.Error())
+	}
+	return col
+}
+
+// Returns a MySQL table structure by name.
+func (my *MysqlDataSource) Collection(name string) (db.Collection, error) {
+	var rerr error
+
+	if col, ok := my.collections[name]; ok == true {
+		return col, nil
 	}
 
 	t := &MysqlTable{}
@@ -757,60 +806,67 @@ func (my *MysqlDataSource) Collection(name string) db.Collection {
 	t.parent = my
 	t.name = name
 
-	// Fetching table datatypes and mapping to internal gotypes.
+	// Table exists?
+	if t.Exists() == false {
+		rerr = fmt.Errorf("Table %s does not exists.", name)
+	}
 
+	// Fetching table datatypes and mapping to internal gotypes.
 	rows, err := t.parent.myExec(
 		"Query",
 		"SHOW COLUMNS FROM", t.name,
 	)
-	if err != nil {
-		panic(err)
-	}
 
-	columns := t.myFetchAll(rows)
+	if err == nil {
 
-	pattern, _ := regexp.Compile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
+		columns := t.myFetchAll(rows)
 
-	t.types = make(map[string]reflect.Kind, len(columns))
+		pattern, _ := regexp.Compile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
 
-	for _, column := range columns {
-		cname := strings.ToLower(column["field"].(string))
-		ctype := strings.ToLower(column["type"].(string))
-		results := pattern.FindStringSubmatch(ctype)
+		t.types = make(map[string]reflect.Kind, len(columns))
 
-		// Default properties.
-		dextra := ""
-		dtype := "varchar"
+		for _, column := range columns {
+			cname := strings.ToLower(column["field"].(string))
+			ctype := strings.ToLower(column["type"].(string))
+			results := pattern.FindStringSubmatch(ctype)
 
-		dtype = results[1]
+			// Default properties.
+			dextra := ""
+			dtype := "varchar"
 
-		if len(results) > 3 {
-			dextra = results[3]
-		}
+			dtype = results[1]
 
-		vtype := reflect.String
-
-		// Guessing datatypes.
-		switch dtype {
-		case "tinyint", "smallint", "mediumint", "int", "bigint":
-			if dextra == "unsigned" {
-				vtype = reflect.Uint64
-			} else {
-				vtype = reflect.Int64
+			if len(results) > 3 {
+				dextra = results[3]
 			}
-		case "decimal", "float", "double":
-			vtype = reflect.Float64
 
+			vtype := reflect.String
+
+			// Guessing datatypes.
+			switch dtype {
+			case "tinyint", "smallint", "mediumint", "int", "bigint":
+				if dextra == "unsigned" {
+					vtype = reflect.Uint64
+				} else {
+					vtype = reflect.Int64
+				}
+			case "decimal", "float", "double":
+				vtype = reflect.Float64
+			}
+
+			/*
+			 fmt.Printf("Imported %v (from %v)\n", vtype, dtype)
+			*/
+
+			t.types[cname] = vtype
 		}
-
-		/*
-		   fmt.Printf("Imported %v (from %v)\n", vtype, dtype)
-		*/
-
-		t.types[cname] = vtype
+	} else {
+		rerr = err
 	}
 
-	my.collections[name] = t
+	if rerr == nil {
+		my.collections[name] = t
+	}
 
-	return t
+	return t, rerr
 }
