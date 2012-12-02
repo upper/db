@@ -189,6 +189,8 @@ type Database interface {
 	Drop() error
 
 	Setup(DataSource) error
+
+	Name() string
 }
 
 // Collection methods.
@@ -206,6 +208,8 @@ type Collection interface {
 	Remove(...interface{}) error
 
 	Truncate() error
+
+	Name() string
 }
 
 // Specifies which fields to return in a query.

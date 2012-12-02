@@ -29,7 +29,8 @@ import (
 	"github.com/gosexy/db"
 	"github.com/gosexy/sugar"
 	"github.com/gosexy/to"
-	_ "github.com/xiam/gosqlite3"
+	//_ "github.com/xiam/gosqlite3"
+	_ "bitbucket.org/minux/go.sqlite3"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -41,6 +42,10 @@ var Debug = false
 
 const dateFormat = "2006-01-02 15:04:05"
 const timeFormat = "%d:%02d:%02d"
+
+func init() {
+	db.Register("sqlite", &SqliteDataSource{})
+}
 
 type slQuery struct {
 	Query   []string
@@ -93,7 +98,16 @@ func slValues(values []string) db.SqlValues {
 type SqliteDataSource struct {
 	config      db.DataSource
 	session     *sql.DB
+	name        string
 	collections map[string]db.Collection
+}
+
+func (self *SqliteDataSource) Name() string {
+	return self.config.Database
+}
+
+func (self *SqliteTable) Name() string {
+	return self.name
 }
 
 func (t *SqliteTable) slFetchAll(rows sql.Rows) []db.Item {
@@ -195,6 +209,13 @@ type SqliteTable struct {
 }
 
 // Configures and returns a SQLite database session.
+func (m *SqliteDataSource) Setup(config db.DataSource) error {
+	m.config = config
+	m.collections = make(map[string]db.Collection)
+	return m.Open()
+}
+
+// Deprecated: Configures and returns a SQLite database session.
 func SqliteSession(config db.DataSource) db.Database {
 	m := &SqliteDataSource{}
 	m.config = config
@@ -228,6 +249,7 @@ func (sl *SqliteDataSource) Open() error {
 
 // Closes a previously opened SQLite database session.
 func (sl *SqliteDataSource) Close() error {
+	fmt.Printf("close: %v\n", sl.session)
 	if sl.session != nil {
 		return sl.session.Close()
 	}
@@ -374,8 +396,10 @@ func (t *SqliteTable) Truncate() error {
 
 	_, err := t.parent.slExec(
 		"Exec",
-		fmt.Sprintf("DELETE FROM %s", slTable(t.name)),
+		fmt.Sprintf("DELETE FROM %s", t.Name()),
 	)
+
+	fmt.Printf("E: %v\n", err)
 
 	return err
 }
@@ -505,7 +529,7 @@ func (t *SqliteTable) FindAll(terms ...interface{}) []db.Item {
 			}
 
 			if rcollection == nil {
-				rcollection = t.parent.Collection(rname)
+				rcollection = t.parent.ExistentCollection(rname)
 			}
 
 			relations = append(relations, sugar.Tuple{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
@@ -526,7 +550,7 @@ func (t *SqliteTable) FindAll(terms ...interface{}) []db.Item {
 			}
 
 			if rcollection == nil {
-				rcollection = t.parent.Collection(rname)
+				rcollection = t.parent.ExistentCollection(rname)
 			}
 
 			relations = append(relations, sugar.Tuple{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
@@ -718,11 +742,40 @@ func (t *SqliteTable) Append(items ...interface{}) ([]db.Id, error) {
 	return ids, nil
 }
 
+// Returns true if the collection exists.
+func (self *SqliteTable) Exists() bool {
+	result, err := self.parent.slExec(
+		"Query",
+		fmt.Sprintf(`
+			SELECT name
+				FROM sqlite_master
+				WHERE type = 'table' AND name = '%s'
+			`,
+			self.Name(),
+		),
+	)
+	if err != nil {
+		panic(err.Error())
+	}
+	if result.Next() == true {
+		return true
+	}
+	return false
+}
+
+func (self *SqliteDataSource) ExistentCollection(name string) db.Collection {
+	col, err := self.Collection(name)
+	if err != nil {
+		panic(err)
+	}
+	return col
+}
+
 // Returns a SQLite table structure by name.
-func (sl *SqliteDataSource) Collection(name string) db.Collection {
+func (sl *SqliteDataSource) Collection(name string) (db.Collection, error) {
 
 	if collection, ok := sl.collections[name]; ok == true {
-		return collection
+		return collection, nil
 	}
 
 	t := &SqliteTable{}
@@ -730,12 +783,17 @@ func (sl *SqliteDataSource) Collection(name string) db.Collection {
 	t.parent = sl
 	t.name = name
 
+	// Table exists?
+	if t.Exists() == false {
+		return t, fmt.Errorf("Table %s does not exists.", name)
+	}
+
 	// Fetching table datatypes and mapping to internal gotypes.
 
 	rows, err := t.parent.session.Query(fmt.Sprintf("PRAGMA TABLE_INFO('%s')", t.name))
 
 	if err != nil {
-		panic(err)
+		return t, err
 	}
 
 	columns := t.slFetchAll(*rows)
@@ -786,5 +844,5 @@ func (sl *SqliteDataSource) Collection(name string) db.Collection {
 
 	sl.collections[name] = t
 
-	return t
+	return t, nil
 }
