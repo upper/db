@@ -103,6 +103,69 @@ for _, item := range items {
 The same example goes for other drivers with few modifications, just change the driver name to
 `mysql`, `postgresql` or `sqlite`.
 
+### Full example
+
+```go
+# _examples/mongo.go
+package main
+
+import (
+	"fmt"
+	"github.com/gosexy/db"
+	_ "github.com/gosexy/db/mongo"
+	"github.com/gosexy/sugar"
+)
+
+const host = "debian"
+const dbname = "dev"
+
+func main() {
+
+	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer sess.Close()
+
+	sess.Drop()
+
+	animals, _ := sess.Collection("animals")
+
+	animals.Append(db.Item{
+		"animal": "Bird",
+		"young":  "Chick",
+		"female": "Hen",
+		"male":   "Cock",
+		"group":  "flock",
+	})
+
+	animals.Append(db.Item{
+		"animal": "Bovidae",
+		"young":  "Calf",
+		"female": "Cow",
+		"male":   "Bull",
+		"group":  "Herd",
+	})
+
+	animals.Append(db.Item{
+		"animal": "Canidae",
+		"young":  sugar.List{"Puppy", "Pup"},
+		"female": "Bitch",
+		"male":   "Dog",
+		"group":  "Pack",
+	})
+
+	items := animals.FindAll()
+
+	for _, item := range items {
+		fmt.Printf("animal: %s, young: %s\n", item["animal"], item["young"])
+	}
+
+}
+```
+
 ## Documentation
 
 To know how to query the database you've just connected, please read the [online reference](http://gosexy.org/db).
