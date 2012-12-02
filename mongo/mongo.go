@@ -43,6 +43,7 @@ func init() {
 
 // Session
 type MongoDataSource struct {
+	name string
 	config   db.DataSource
 	session  *mgo.Session
 	database *mgo.Database
@@ -50,8 +51,17 @@ type MongoDataSource struct {
 
 // Collection
 type MongoDataSourceCollection struct {
+	name string
 	parent     *MongoDataSource
 	collection *mgo.Collection
+}
+
+func (self *MongoDataSource) Name() string {
+	return self.name
+}
+
+func (self *MongoDataSourceCollection) Name() string {
+	return self.name
 }
 
 // Transforms conditions into something *mgo.Session can understand.
@@ -81,6 +91,15 @@ func (c *MongoDataSourceCollection) Truncate() error {
 	}
 
 	return nil
+}
+
+func (c *MongoDataSourceCollection) Exists() bool {
+	query := c.parent.database.C("system.namespaces").Find(db.Item{"name": fmt.Sprintf("%s.%s", c.parent.Name(), c.Name())})
+	count, _ := query.Count()
+	if count > 0 {
+		return true
+	}
+	return false
 }
 
 // Appends an item to the collection.
@@ -532,10 +551,15 @@ func (m *MongoDataSource) Use(database string) error {
 	return nil
 }
 
+func (m *MongoDataSource) Exists() bool {
+	return true
+}
+
 // Returns a collection from the current database.
 func (m *MongoDataSource) Collection(name string) db.Collection {
 	c := &MongoDataSourceCollection{}
 	c.parent = m
+	c.name = name
 	c.collection = m.database.C(name)
 	return c
 }
@@ -571,6 +595,8 @@ func (m *MongoDataSource) Open() error {
 		return fmt.Errorf("Could not connect to %v.", m.config.Host)
 	}
 
+	m.name = m.config.Database
+
 	if m.config.Database != "" {
 		m.Use(m.config.Database)
 	}
@@ -592,7 +618,7 @@ func (m *MongoDataSource) Close() error {
 	return nil
 }
 
-// Returns all the collection names on the current database.
+// Returns names for all collection on current database.
 func (m *MongoDataSource) Collections() []string {
 	names, _ := m.database.CollectionNames()
 	return names

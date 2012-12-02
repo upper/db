@@ -10,10 +10,11 @@ import (
 	"time"
 )
 
-const mgHost = "debian"
-const mgDatabase = "gotest"
+const host = "debian"
+const dbname = "gotest"
 
-func getTestData() db.Item {
+func testItem() db.Item {
+
 	data := db.Item{
 		"_uint":    uint(1),
 		"_uintptr": uintptr(1),
@@ -50,67 +51,73 @@ func getTestData() db.Item {
 	return data
 }
 
-func TestMgOpen(t *testing.T) {
+func TestOpen(t *testing.T) {
 
-	sess := Session(db.DataSource{Host: "1.1.1.1"})
-
-	err := sess.Open()
-	defer sess.Close()
+	sess, err := db.Open("mongo", db.DataSource{Host: "1.1.1.1"})
 
 	if err != nil {
 		t.Logf("Got %t, this was intended.", err)
 		return
 	}
 
-	t.Error("Are you serious?")
+	sess.Close()
+
+	t.Errorf("Reached.")
 }
 
-func TestMgAuthFail(t *testing.T) {
+func TestAuthFail(t *testing.T) {
 
-	sess := Session(db.DataSource{Host: mgHost, Database: mgDatabase, User: "unknown", Password: "fail"})
-
-	err := sess.Open()
-	defer sess.Close()
+	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname, User: "unknown", Password: "fail"})
 
 	if err != nil {
 		t.Logf("Got %t, this was intended.", err)
 		return
 	}
 
-	t.Error("Are you serious?")
+	sess.Close()
+
+	t.Errorf("Reached.")
 }
 
-func TestMgDrop(t *testing.T) {
+func TestDrop(t *testing.T) {
 
-	sess := Session(db.DataSource{Host: mgHost, Database: mgDatabase})
-
-	err := sess.Open()
-	defer sess.Close()
+	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
 
 	if err != nil {
-		panic(err)
+		t.Errorf(err.Error())
+		return
 	}
+
+	defer sess.Close()
 
 	sess.Drop()
 }
 
-func TestMgAppend(t *testing.T) {
+func TestAppend(t *testing.T) {
 
-	sess := Session(db.DataSource{Host: mgHost, Database: mgDatabase})
-
-	err := sess.Open()
-	defer sess.Close()
+	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
 
 	if err != nil {
-		panic(err)
+		t.Errorf(err.Error())
+		return
 	}
 
+	defer sess.Close()
+
 	col := sess.Collection("people")
+
+	if col.Exists() == true {
+		t.Errorf("Collection should not exists, yet.")
+	}
 
 	names := []string{"Juan", "José", "Pedro", "María", "Roberto", "Manuel", "Miguel"}
 
 	for i := 0; i < len(names); i++ {
 		col.Append(db.Item{"name": names[i]})
+	}
+
+	if col.Exists() == false {
+		t.Errorf("Collection should not exists.")
 	}
 
 	count, err := col.Count()
@@ -125,16 +132,16 @@ func TestMgAppend(t *testing.T) {
 
 }
 
-func TestMgFind(t *testing.T) {
+func TestFind(t *testing.T) {
 
-	sess := Session(db.DataSource{Host: mgHost, Database: mgDatabase})
-
-	err := sess.Open()
-	defer sess.Close()
+	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
 
 	if err != nil {
-		panic(err)
+		t.Errorf(err.Error())
+		return
 	}
+
+	defer sess.Close()
 
 	col := sess.Collection("people")
 
@@ -146,17 +153,16 @@ func TestMgFind(t *testing.T) {
 
 }
 
-func TestMgDelete(t *testing.T) {
-	var err error
+func TestDelete(t *testing.T) {
 
-	sess := Session(db.DataSource{Host: mgHost, Database: mgDatabase})
-
-	err = sess.Open()
-	defer sess.Close()
+	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
 
 	if err != nil {
-		panic(err)
+		t.Errorf(err.Error())
+		return
 	}
+
+	defer sess.Close()
 
 	col := sess.Collection("people")
 
@@ -173,17 +179,15 @@ func TestMgDelete(t *testing.T) {
 	}
 }
 
-func TestMgUpdate(t *testing.T) {
-	var err error
-
-	sess := Session(db.DataSource{Host: mgHost, Database: mgDatabase})
-
-	err = sess.Open()
-	defer sess.Close()
+func TestUpdate(t *testing.T) {
+	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
 
 	if err != nil {
-		panic(err)
+		t.Errorf(err.Error())
+		return
 	}
+
+	defer sess.Close()
 
 	col := sess.Collection("people")
 
@@ -200,17 +204,17 @@ func TestMgUpdate(t *testing.T) {
 	}
 }
 
-func TestMgPopulate(t *testing.T) {
+func TestPopulate(t *testing.T) {
 	var i int
 
-	sess := Session(db.DataSource{Host: mgHost, Database: mgDatabase})
-
-	err := sess.Open()
-	defer sess.Close()
+	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
 
 	if err != nil {
-		panic(err)
+		t.Errorf(err.Error())
+		return
 	}
+
+	defer sess.Close()
 
 	places := []string{"Alaska", "Nebraska", "Alaska", "Acapulco", "Rome", "Singapore", "Alabama", "Cancún"}
 
@@ -257,15 +261,15 @@ func TestMgPopulate(t *testing.T) {
 
 }
 
-func TestMgRelation(t *testing.T) {
-	sess := Session(db.DataSource{Host: mgHost, Database: mgDatabase})
-
-	err := sess.Open()
-	defer sess.Close()
+func TestRelation(t *testing.T) {
+	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
 
 	if err != nil {
-		panic(err)
+		t.Errorf(err.Error())
+		return
 	}
+
+	defer sess.Close()
 
 	col := sess.Collection("people")
 
@@ -299,19 +303,20 @@ func TestMgRelation(t *testing.T) {
 
 func TestDataTypes(t *testing.T) {
 
-	sess := Session(db.DataSource{Host: mgHost, Database: mgDatabase})
+	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
 
-	err := sess.Open()
-
-	if err == nil {
-		defer sess.Close()
+	if err != nil {
+		t.Errorf(err.Error())
+		return
 	}
+
+	defer sess.Close()
 
 	col := sess.Collection("data_types")
 
 	col.Truncate()
 
-	data := getTestData()
+	data := testItem()
 
 	ids, err := col.Append(data)
 

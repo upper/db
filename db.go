@@ -200,6 +200,7 @@ type Collection interface {
 	FindAll(...interface{}) []Item
 
 	Update(...interface{}) error
+	Exists() bool
 
 	Remove(...interface{}) error
 
@@ -328,6 +329,9 @@ func (item Item) GetBool(name string) bool {
 
 var wrappers = make(map[string]Database)
 
+/*
+	Registers a driver with a name.
+*/
 func Register(name string, driver Database) {
 	if name == "" {
 		panic("db: Wrapper name cannot be nil.")
@@ -338,10 +342,16 @@ func Register(name string, driver Database) {
 	wrappers[name] = driver
 }
 
-func Open(name string, settings DataSource) Database {
+/*
+	Opens a session with the specified driver.
+*/
+func Open(name string, settings DataSource) (Database, error) {
 	if _, ok := wrappers[name]; ok == false {
 		panic(fmt.Sprintf("db: Unknown wrapper: %s.", name))
 	}
-	wrappers[name].Setup(settings)
-	return wrappers[name]
+	err := wrappers[name].Setup(settings)
+	if err != nil {
+		return nil, err
+	}
+	return wrappers[name], nil
 }
