@@ -54,7 +54,7 @@ func testItem() db.Item {
 }
 
 func TestEnableDebug(t *testing.T) {
-	// Debug = true
+	Debug = true
 }
 
 func TestTruncate(t *testing.T) {
@@ -96,7 +96,7 @@ func TestAppend(t *testing.T) {
 
 	if err == nil {
 		t.Errorf("Collection should not exists.")
-		return
+		//return
 	}
 
 	people := sess.ExistentCollection("people")
@@ -167,8 +167,6 @@ func TestUpdate(t *testing.T) {
 
 	defer sess.Close()
 
-	sess.Use("test")
-
 	people, _ := sess.Collection("people")
 
 	people.Update(db.Cond{"name": "José"}, db.Set{"name": "Joseph"})
@@ -216,13 +214,13 @@ func TestPopulate(t *testing.T) {
 		for j := 0; j < 5; j++ {
 			children.Append(db.Item{
 				"name":      fmt.Sprintf("%s's child %d", person["name"], j+1),
-				"parent_id": person["_id"],
+				"parent_id": person["id"],
 			})
 		}
 
 		// Lives in
 		people.Update(
-			db.Cond{"_id": person["_id"]},
+			db.Cond{"id": person["id"]},
 			db.Set{"place_code_id": int(rand.Float32() * float32(len(results)))},
 		)
 
@@ -232,8 +230,8 @@ func TestPopulate(t *testing.T) {
 				"code_id": int(rand.Float32() * float32(len(results))),
 			})
 			visits.Append(db.Item{
-				"place_id":  place["_id"],
-				"person_id": person["_id"],
+				"place_id":  place["id"],
+				"person_id": person["id"],
 			})
 		}
 	}

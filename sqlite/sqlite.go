@@ -209,10 +209,10 @@ type SqliteTable struct {
 }
 
 // Configures and returns a SQLite database session.
-func (m *SqliteDataSource) Setup(config db.DataSource) error {
-	m.config = config
-	m.collections = make(map[string]db.Collection)
-	return m.Open()
+func (self *SqliteDataSource) Setup(config db.DataSource) error {
+	self.config = config
+	self.collections = make(map[string]db.Collection)
+	return self.Open()
 }
 
 // Deprecated: Configures and returns a SQLite database session.
@@ -236,9 +236,7 @@ func (sl *SqliteDataSource) Open() error {
 		panic("Database name is required.")
 	}
 
-	conn := sl.config.Database
-
-	sl.session, err = sql.Open("sqlite3", conn)
+	sl.session, err = sql.Open("sqlite3", sl.config.Database)
 
 	if err != nil {
 		return fmt.Errorf("Could not connect to %s", sl.config.Host)
@@ -249,7 +247,6 @@ func (sl *SqliteDataSource) Open() error {
 
 // Closes a previously opened SQLite database session.
 func (sl *SqliteDataSource) Close() error {
-	fmt.Printf("close: %v\n", sl.session)
 	if sl.session != nil {
 		return sl.session.Close()
 	}
@@ -758,6 +755,7 @@ func (self *SqliteTable) Exists() bool {
 		panic(err.Error())
 	}
 	if result.Next() == true {
+		result.Close()
 		return true
 	}
 	return false

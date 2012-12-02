@@ -482,6 +482,7 @@ func (self *Table) Exists() bool {
 		panic(err.Error())
 	}
 	if result.Next() == true {
+		result.Close()
 		return true
 	}
 	return false
