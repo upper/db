@@ -7,19 +7,22 @@ import (
 	"github.com/gosexy/sugar"
 )
 
+const host = "debian"
+const dbname = "dev"
+
 func main() {
 
-	sess := db.Open("mongo", db.DataSource{Host: "127.0.0.1", Database: "gosexy-dev"})
+	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
 
-	if sess == nil {
-		panic("Could not open connection to MongoDB.")
+	if err != nil {
+		panic(err)
 	}
 
 	defer sess.Close()
 
 	sess.Drop()
 
-	animals := sess.Collection("animals")
+	animals, _ := sess.Collection("animals")
 
 	animals.Append(db.Item{
 		"animal": "Bird",
