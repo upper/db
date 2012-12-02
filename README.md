@@ -169,9 +169,9 @@ func main() {
 
 ## Documentation
 
-To know how to query the database you've just connected, please read the [online reference](http://gosexy.org/db).
+There is an [online reference](http://gosexy.org/db).
 
-You can also read ``gosexy/db`` documentation from a terminal
+You can also read `gosexy/db` documentation from a terminal.
 
 ```sh
 # Reading gosexy/db docs.
