@@ -43,7 +43,7 @@ func init() {
 
 // Session
 type MongoDataSource struct {
-	name string
+	name     string
 	config   db.DataSource
 	session  *mgo.Session
 	database *mgo.Database
@@ -51,7 +51,7 @@ type MongoDataSource struct {
 
 // Collection
 type MongoDataSourceCollection struct {
-	name string
+	name       string
 	parent     *MongoDataSource
 	collection *mgo.Collection
 }
@@ -433,7 +433,7 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []db.Item {
 	// This query is related to other collections.
 	if relate != nil {
 		for rname, rterms := range relate.(db.Relate) {
-			rcollection := c.parent.Collection(rname)
+			rcollection, _ := c.parent.Collection(rname)
 
 			ttop := len(rterms)
 			for t := ttop - 1; t >= 0; t-- {
@@ -450,7 +450,7 @@ func (c *MongoDataSourceCollection) FindAll(terms ...interface{}) []db.Item {
 
 	if relateAll != nil {
 		for rname, rterms := range relateAll.(db.RelateAll) {
-			rcollection := c.parent.Collection(rname)
+			rcollection, _ := c.parent.Collection(rname)
 
 			ttop := len(rterms)
 			for t := ttop - 1; t >= 0; t-- {
@@ -556,12 +556,28 @@ func (m *MongoDataSource) Exists() bool {
 }
 
 // Returns a collection from the current database.
-func (m *MongoDataSource) Collection(name string) db.Collection {
+func (m *MongoDataSource) Collection(name string) (db.Collection, error) {
+	var err error
+
 	c := &MongoDataSourceCollection{}
 	c.parent = m
 	c.name = name
 	c.collection = m.database.C(name)
-	return c
+
+	if c.Exists() == false {
+		err = fmt.Errorf("Collection %s does not exists.", name)
+	}
+
+	return c, err
+}
+
+// Returns a collection from the current database.
+func (self *MongoDataSource) ExistentCollection(name string) db.Collection {
+	col, err := self.Collection(name)
+	if err != nil {
+		panic(err.Error())
+	}
+	return col
 }
 
 // Returns the underlying driver (*mgo.Session).

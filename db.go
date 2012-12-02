@@ -181,7 +181,8 @@ type Database interface {
 	Open() error
 	Close() error
 
-	Collection(string) Collection
+	Collection(string) (Collection, error)
+	ExistentCollection(string) Collection
 	Collections() []string
 
 	Use(string) error
