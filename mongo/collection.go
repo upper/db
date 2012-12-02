@@ -55,7 +55,20 @@ func marshal(where db.Cond) map[string]interface{} {
 		chunks := strings.Split(strings.Trim(key, " "), " ")
 
 		if len(chunks) >= 2 {
-			conds[chunks[0]] = map[string]interface{}{chunks[1]: toInternal(val)}
+			op := ""
+			switch chunks[1] {
+			case ">":
+				op = "$gt"
+			case "<":
+				op = "$gt"
+			case "<=":
+				op = "$lte"
+			case ">=":
+				op = "$gte"
+			default:
+				op = chunks[1]
+			}
+			conds[chunks[0]] = map[string]interface{}{op: toInternal(val)}
 		} else {
 			conds[key] = toInternal(val)
 		}
