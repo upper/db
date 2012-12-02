@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const dbpath = "./dumps/gotest.sqlite3.db"
+const dbpath = "./_dumps/gotest.sqlite3.db"
 
 func testItem() db.Item {
 
