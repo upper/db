@@ -3,6 +3,13 @@
 This package is a wrapper of many third party database drivers. The goal of this abstraction is to provide a common,
 simplified and consistent layer for working with different databases without the need of SQL statements.
 
+## Available wrappers
+
+* [mongo](http://gosexy.org/db/wrappers/mongo)
+* [mysql](http://gosexy.org/db/wrappers/mysql)
+* [postgresql](http://gosexy.org/db/wrappers/postgresql)
+* [sqlite](http://gosexy.org/db/wrappers/sqlite)
+
 ## Installation
 
 Use `go get` to download and install `gosexy/db`.
@@ -15,13 +22,6 @@ $ go get github.com/gosexy/db
 The `gosexy/db` package provides shared interfaces and datatypes only, in order to connect to an actual database
 a wrapper is required.
 
-## Available wrappers
-
-* [mongo](http://gosexy.org/db/wrappers/mongo)
-* [mysql](http://gosexy.org/db/wrappers/mysql)
-* [postgresql](http://gosexy.org/db/wrappers/postgresql)
-* [sqlite](http://gosexy.org/db/wrappers/sqlite)
-
 ## Usage example
 
 Let's suppose we want to use the `mongo` driver for [MongoDB][1].
@@ -31,10 +31,10 @@ Let's suppose we want to use the `mongo` driver for [MongoDB][1].
 $ go get github.com/gosexy/db/mongo
 ```
 
-Now that the driver is installed, import it into your project.
+Once the driver is installed, import it into your project.
 
-```
-# Importing driver and abstraction layer
+```go
+// Importing driver and abstraction layer
 import (
   "github.com/gosexy/db"
   /* Import the driver to the blank namespace */
@@ -42,7 +42,7 @@ import (
 )
 ```
 
-Prepare your connection data.
+Set up a variable to hold your database connection credentials.
 
 ```go
 settings := db.DataSource{
@@ -53,10 +53,10 @@ settings := db.DataSource{
 }
 ```
 
-Then use `db.Open` to connect to the database.
+Then use `db.Open` to connect to the database you've just set up.
 
 ```go
-# Connect using the mongo driver.
+// Connect using the mongo driver.
 sess, err := db.Open("mongo", settings)
 if err != nil {
   panic(err)
@@ -64,7 +64,7 @@ if err != nil {
 defer sess.Close()
 ```
 
-Now go and query stuff.
+Now you can query the database.
 
 ```go
 animals, _ := sess.Collection("animals")
@@ -101,12 +101,13 @@ for _, item := range items {
 ```
 
 The same example goes for other drivers with few modifications, just change the driver name to
-`mysql`, `postgresql` or `sqlite`.
+`mysql`, `postgresql` or `sqlite`. Please consider that SQL databases do not accept datatypes like
+`sugar.List{}` and that they expect an existing table.
 
 ### Full example
 
 ```go
-# _examples/mongo.go
+// _examples/mongo.go
 package main
 
 import (
@@ -173,8 +174,12 @@ To know how to query the database you've just connected, please read the [online
 You can also read ``gosexy/db`` documentation from a terminal
 
 ```sh
+# Reading gosexy/db docs.
+$ go doc github.com/gosexy/db
+# Reading driver docs.
 $ go doc github.com/gosexy/db
 ```
+
 
 ## Things to do
 
