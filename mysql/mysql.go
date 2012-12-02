@@ -29,11 +29,8 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/gosexy/db"
-	"github.com/gosexy/sugar"
-	"github.com/gosexy/to"
 	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -44,16 +41,30 @@ const dateFormat = "2006-01-02 15:04:05.000000000"
 const timeFormat = "%d:%02d:%02d.%09d"
 
 func init() {
-	db.Register("mysql", &MysqlDataSource{})
+	db.Register("mysql", &Source{})
 }
 
-type myQuery struct {
+// MySQl datasource.
+type Source struct {
+	session     *sql.DB
+	config      db.DataSource
+	collections map[string]db.Collection
+}
+
+// Mysql table/collection.
+type Table struct {
+	parent *Source
+	name   string
+	types  map[string]reflect.Kind
+}
+
+type sqlQuery struct {
 	Query   []string
 	SqlArgs []string
 }
 
-func myCompile(terms []interface{}) *myQuery {
-	q := &myQuery{}
+func sqlCompile(terms []interface{}) *sqlQuery {
+	q := &sqlQuery{}
 
 	q.Query = []string{}
 
@@ -78,15 +89,15 @@ func myCompile(terms []interface{}) *myQuery {
 	return q
 }
 
-func myTable(name string) string {
+func sqlTable(name string) string {
 	return name
 }
 
-func myFields(names []string) string {
+func sqlFields(names []string) string {
 	return "(" + strings.Join(names, ", ") + ")"
 }
 
-func myValues(values []string) db.SqlValues {
+func sqlValues(values []string) db.SqlValues {
 	ret := make(db.SqlValues, len(values))
 	for i, _ := range values {
 		ret[i] = values[i]
@@ -94,71 +105,9 @@ func myValues(values []string) db.SqlValues {
 	return ret
 }
 
-// Stores driver's session data.
-type MysqlDataSource struct {
-	session     *sql.DB
-	config      db.DataSource
-	collections map[string]db.Collection
-}
-
-func (my *MysqlDataSource) Name() string {
-	return my.config.Database
-}
-
-// Returns all items from a query.
-func (t *MysqlTable) myFetchAll(rows sql.Rows) []db.Item {
-
-	items := []db.Item{}
-
-	columns, _ := rows.Columns()
-
-	for i, _ := range columns {
-		columns[i] = strings.ToLower(columns[i])
-	}
-
-	res := map[string]*sql.RawBytes{}
-
-	fargs := []reflect.Value{}
-
-	for _, name := range columns {
-		res[name] = &sql.RawBytes{}
-		fargs = append(fargs, reflect.ValueOf(res[name]))
-	}
-
-	sn := reflect.ValueOf(&rows)
-	fn := sn.MethodByName("Scan")
-
-	for rows.Next() {
-		item := db.Item{}
-
-		ret := fn.Call(fargs)
-
-		if ret[0].IsNil() != true {
-			panic(ret[0].Elem().Interface().(error))
-		}
-
-		for _, name := range columns {
-			strval := fmt.Sprintf("%s", *res[name])
-
-			switch t.types[name] {
-			case reflect.Uint64:
-				intval, _ := strconv.Atoi(strval)
-				item[name] = uint64(intval)
-			case reflect.Int64:
-				intval, _ := strconv.Atoi(strval)
-				item[name] = intval
-			case reflect.Float64:
-				floatval, _ := strconv.ParseFloat(strval, 10)
-				item[name] = floatval
-			default:
-				item[name] = strval
-			}
-		}
-
-		items = append(items, item)
-	}
-
-	return items
+// Returns database name.
+func (self *Source) Name() string {
+	return self.config.Database
 }
 
 func toInternal(val interface{}) string {
@@ -192,12 +141,12 @@ func toNative(val interface{}) interface{} {
 }
 
 // Executes a database/sql method.
-func (my *MysqlDataSource) myExec(method string, terms ...interface{}) (sql.Rows, error) {
+func (self *Source) myExec(method string, terms ...interface{}) (sql.Rows, error) {
 
-	sn := reflect.ValueOf(my.session)
+	sn := reflect.ValueOf(self.session)
 	fn := sn.MethodByName(method)
 
-	q := myCompile(terms)
+	q := sqlCompile(terms)
 
 	if Debug == true {
 		fmt.Printf("Q: %v\n", q.Query)
@@ -226,56 +175,49 @@ func (my *MysqlDataSource) myExec(method string, terms ...interface{}) (sql.Rows
 	return sql.Rows{}, nil
 }
 
-// Represents a MySQL table.
-type MysqlTable struct {
-	parent *MysqlDataSource
-	name   string
-	types  map[string]reflect.Kind
-}
-
-// Configures and returns a MySQL database session.
+// Configures and returns a database session.
 func Session(config db.DataSource) db.Database {
-	my := &MysqlDataSource{}
-	my.config = config
-	my.collections = make(map[string]db.Collection)
-	return my
+	self := &Source{}
+	self.config = config
+	self.collections = make(map[string]db.Collection)
+	return self
 }
 
-// Closes a previously opened MySQL database session.
-func (my *MysqlDataSource) Close() error {
-	if my.session != nil {
-		return my.session.Close()
+// Closes a previously opened database session.
+func (self *Source) Close() error {
+	if self.session != nil {
+		return self.session.Close()
 	}
 	return nil
 }
 
-// Opens a connection.
-func (self *MysqlDataSource) Setup(config db.DataSource) error {
+// Configures a datasource and tries to open a connection.
+func (self *Source) Setup(config db.DataSource) error {
 	self.config = config
 	self.collections = make(map[string]db.Collection)
 	return self.Open()
 }
 
-// Tries to open a connection to the current MySQL session.
-func (my *MysqlDataSource) Open() error {
+// Tries to open a connection to the current datasource.
+func (self *Source) Open() error {
 	var err error
 
-	if my.config.Host == "" {
-		my.config.Host = "127.0.0.1"
+	if self.config.Host == "" {
+		self.config.Host = "127.0.0.1"
 	}
 
-	if my.config.Port == 0 {
-		my.config.Port = 3306
+	if self.config.Port == 0 {
+		self.config.Port = 3306
 	}
 
-	if my.config.Database == "" {
+	if self.config.Database == "" {
 		panic("Database name is required.")
 	}
 
-	conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", my.config.User, my.config.Password, my.config.Host, my.config.Port, my.config.Database)
-	//conn := fmt.Sprintf("tcp:%s*%s/%s/%s", my.config.Host, my.config.Database, my.config.User, my.config.Password)
+	conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", self.config.User, self.config.Password, self.config.Host, self.config.Port, self.config.Database)
+	//conn := fmt.Sprintf("tcp:%s*%s/%s/%s", self.config.Host, self.config.Database, self.config.User, self.config.Password)
 
-	my.session, err = sql.Open("mysql", conn)
+	self.session, err = sql.Open("mysql", conn)
 
 	if err != nil {
 		return err
@@ -285,29 +227,29 @@ func (my *MysqlDataSource) Open() error {
 }
 
 // Changes the active database
-func (my *MysqlDataSource) Use(database string) error {
-	my.config.Database = database
-	my.session.Query(fmt.Sprintf("USE %s", database))
+func (self *Source) Use(database string) error {
+	self.config.Database = database
+	self.session.Query(fmt.Sprintf("USE %s", database))
 	return nil
 }
 
 // Deletes the currently active database.
-func (my *MysqlDataSource) Drop() error {
-	my.session.Query(fmt.Sprintf("DROP DATABASE %s", my.config.Database))
+func (self *Source) Drop() error {
+	self.session.Query(fmt.Sprintf("DROP DATABASE %s", self.config.Database))
 	return nil
 }
 
-// Returns a *sql.DB object that represents an internal session.
-func (my *MysqlDataSource) Driver() interface{} {
-	return my.session
+// Returns the *sql.DB underlying driver.
+func (self *Source) Driver() interface{} {
+	return self.session
 }
 
-// Returns the list of MySQL tables in the current database.
-func (my *MysqlDataSource) Collections() []string {
+// Returns the names of all the collection on the current database.
+func (self *Source) Collections() []string {
 	var collections []string
 	var collection string
 
-	rows, err := my.session.Query("SHOW TABLES")
+	rows, err := self.session.Query("SHOW TABLES")
 
 	if err == nil {
 		for rows.Next() {
@@ -319,554 +261,83 @@ func (my *MysqlDataSource) Collections() []string {
 	return collections
 }
 
-// Calls an internal function.
-func (t *MysqlTable) invoke(fn string, terms []interface{}) []reflect.Value {
-
-	self := reflect.ValueOf(t)
-	method := self.MethodByName(fn)
-
-	args := make([]reflect.Value, len(terms))
-
-	itop := len(terms)
-	for i := 0; i < itop; i++ {
-		args[i] = reflect.ValueOf(terms[i])
-	}
-
-	exec := method.Call(args)
-
-	return exec
-}
-
-// A helper for preparing queries that use SET.
-func (t *MysqlTable) compileSet(term db.Set) (string, db.SqlArgs) {
-	sql := []string{}
-	args := db.SqlArgs{}
-
-	for key, arg := range term {
-		sql = append(sql, fmt.Sprintf("%s = ?", key))
-		args = append(args, fmt.Sprintf("%v", arg))
-	}
-
-	return strings.Join(sql, ", "), args
-}
-
-// A helper for preparing queries that have conditions.
-func (t *MysqlTable) compileConditions(term interface{}) (string, db.SqlArgs) {
-	sql := []string{}
-	args := db.SqlArgs{}
-
-	switch term.(type) {
-	case []interface{}:
-		itop := len(term.([]interface{}))
-
-		for i := 0; i < itop; i++ {
-			rsql, rargs := t.compileConditions(term.([]interface{})[i])
-			if rsql != "" {
-				sql = append(sql, rsql)
-				for j := 0; j < len(rargs); j++ {
-					args = append(args, rargs[j])
-				}
-			}
-		}
-
-		if len(sql) > 0 {
-			return "(" + strings.Join(sql, " AND ") + ")", args
-		}
-	case db.Or:
-		itop := len(term.(db.Or))
-
-		for i := 0; i < itop; i++ {
-			rsql, rargs := t.compileConditions(term.(db.Or)[i])
-			if rsql != "" {
-				sql = append(sql, rsql)
-				for j := 0; j < len(rargs); j++ {
-					args = append(args, rargs[j])
-				}
-			}
-		}
-
-		if len(sql) > 0 {
-			return "(" + strings.Join(sql, " OR ") + ")", args
-		}
-	case db.And:
-		itop := len(term.(db.Or))
-
-		for i := 0; i < itop; i++ {
-			rsql, rargs := t.compileConditions(term.(db.Or)[i])
-			if rsql != "" {
-				sql = append(sql, rsql)
-				for j := 0; j < len(rargs); j++ {
-					args = append(args, rargs[j])
-				}
-			}
-		}
-
-		if len(sql) > 0 {
-			return "(" + strings.Join(sql, " AND ") + ")", args
-		}
-	case db.Cond:
-		return t.marshal(term.(db.Cond))
-	}
-
-	return "", args
-}
-
-// Converts db.Cond{} structures into SQL before processing them in a query.
-func (t *MysqlTable) marshal(where db.Cond) (string, []string) {
-	var placeholder string
-
-	placeholders := []string{}
-	args := []string{}
-
-	for key, val := range where {
-		chunks := strings.Split(strings.Trim(key, " "), " ")
-
-		if len(chunks) >= 2 {
-			placeholder = fmt.Sprintf("%s %s ?", chunks[0], chunks[1])
-		} else {
-			placeholder = fmt.Sprintf("%s = ?", chunks[0])
-		}
-
-		placeholders = append(placeholders, placeholder)
-		args = append(args, fmt.Sprintf("%v", val))
-	}
-
-	return strings.Join(placeholders, " AND "), args
-}
-
-// Deletes all the rows in the table.
-func (t *MysqlTable) Truncate() error {
-
-	_, err := t.parent.myExec(
-		"Exec",
-		fmt.Sprintf("TRUNCATE TABLE %s", myTable(t.name)),
-	)
-
-	return err
-}
-
-// Deletes all the rows in the table that match certain conditions.
-func (t *MysqlTable) Remove(terms ...interface{}) error {
-
-	conditions, cargs := t.compileConditions(terms)
-
-	if conditions == "" {
-		conditions = "1 = 1"
-	}
-
-	_, err := t.parent.myExec(
-		"Exec",
-		fmt.Sprintf("DELETE FROM %s", myTable(t.name)),
-		fmt.Sprintf("WHERE %s", conditions), cargs,
-	)
-
-	return err
-}
-
-// Modifies all the rows in the table that match certain conditions.
-func (t *MysqlTable) Update(terms ...interface{}) error {
-	var fields string
-	var fargs db.SqlArgs
-
-	conditions, cargs := t.compileConditions(terms)
-
-	for _, term := range terms {
-		switch term.(type) {
-		case db.Set:
-			{
-				fields, fargs = t.compileSet(term.(db.Set))
-			}
-		}
-	}
-
-	if conditions == "" {
-		conditions = "1 = 1"
-	}
-
-	_, err := t.parent.myExec(
-		"Exec",
-		fmt.Sprintf("UPDATE %s SET %s", myTable(t.name), fields), fargs,
-		fmt.Sprintf("WHERE %s", conditions), cargs,
-	)
-
-	return err
-}
-
-// Returns all the rows in the table that match certain conditions.
-func (t *MysqlTable) FindAll(terms ...interface{}) []db.Item {
-	var itop int
-
-	var relate interface{}
-	var relateAll interface{}
-
-	fields := "*"
-	conditions := ""
-	limit := ""
-	offset := ""
-	sort := ""
-
-	// Analyzing
-	itop = len(terms)
-
-	for i := 0; i < itop; i++ {
-		term := terms[i]
-
-		switch term.(type) {
-		case db.Limit:
-			limit = fmt.Sprintf("LIMIT %v", term.(db.Limit))
-		case db.Sort:
-			sortBy := []string{}
-			for k, v := range term.(db.Sort) {
-				v = strings.ToUpper(to.String(v))
-				if v == "-1" {
-					v = "DESC"
-				}
-				if v == "1" {
-					v = "ASC"
-				}
-				sortBy = append(sortBy, fmt.Sprintf("%s %s", k, v))
-			}
-			sort = fmt.Sprintf("ORDER BY %s", strings.Join(sortBy, ", "))
-		case db.Offset:
-			offset = fmt.Sprintf("OFFSET %v", term.(db.Offset))
-		case db.Fields:
-			fields = strings.Join(term.(db.Fields), ", ")
-		case db.Relate:
-			relate = term.(db.Relate)
-		case db.RelateAll:
-			relateAll = term.(db.RelateAll)
-		}
-	}
-
-	conditions, args := t.compileConditions(terms)
-
-	if conditions == "" {
-		conditions = "1 = 1"
-	}
-
-	rows, _ := t.parent.myExec(
-		"Query",
-		fmt.Sprintf("SELECT %s FROM %s", fields, myTable(t.name)),
-		fmt.Sprintf("WHERE %s", conditions), args,
-		sort, limit, offset,
-	)
-
-	result := t.myFetchAll(rows)
-
-	var relations []sugar.Tuple
-	var rcollection db.Collection
-
-	// This query is related to other collections.
-	if relate != nil {
-		for rname, rterms := range relate.(db.Relate) {
-
-			rcollection = nil
-
-			ttop := len(rterms)
-			for t := ttop - 1; t >= 0; t-- {
-				rterm := rterms[t]
-				switch rterm.(type) {
-				case db.Collection:
-					{
-						rcollection = rterm.(db.Collection)
-					}
-				}
-			}
-
-			if rcollection == nil {
-				rcollection = t.parent.ExistentCollection(rname)
-			}
-
-			relations = append(relations, sugar.Tuple{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
-		}
-	}
-
-	if relateAll != nil {
-		for rname, rterms := range relateAll.(db.RelateAll) {
-			rcollection = nil
-
-			ttop := len(rterms)
-			for t := ttop - 1; t >= 0; t-- {
-				rterm := rterms[t]
-				switch rterm.(type) {
-				case db.Collection:
-					{
-						rcollection = rterm.(db.Collection)
-					}
-				}
-			}
-
-			if rcollection == nil {
-				rcollection = t.parent.ExistentCollection(rname)
-			}
-
-			relations = append(relations, sugar.Tuple{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
-		}
-	}
-
-	var term interface{}
-
-	jtop := len(relations)
-
-	itop = len(result)
-	items := make([]db.Item, itop)
-
-	for i := 0; i < itop; i++ {
-
-		item := db.Item{}
-
-		// Default values.
-		for key, val := range result[i] {
-			item[key] = val
-		}
-
-		// Querying relations
-		for j := 0; j < jtop; j++ {
-
-			relation := relations[j]
-
-			terms := []interface{}{}
-
-			ktop := len(relation["terms"].(db.On))
-
-			for k := 0; k < ktop; k++ {
-
-				//term = tcopy[k]
-				term = relation["terms"].(db.On)[k]
-
-				switch term.(type) {
-				// Just waiting for db.Cond statements.
-				case db.Cond:
-					{
-						for wkey, wval := range term.(db.Cond) {
-							//if reflect.TypeOf(wval).Kind() == reflect.String { // does not always work.
-							if reflect.TypeOf(wval).Name() == "string" {
-								// Matching dynamic values.
-								matched, _ := regexp.MatchString("\\{.+\\}", wval.(string))
-								if matched {
-									// Replacing dynamic values.
-									kname := strings.Trim(wval.(string), "{}")
-									term = db.Cond{wkey: item[kname]}
-								}
-							}
-						}
-					}
-				}
-				terms = append(terms, term)
-			}
-
-			// Executing external query.
-			if relation["all"] == true {
-				value := relation["collection"].(*MysqlTable).invoke("FindAll", terms)
-				item[relation["name"].(string)] = value[0].Interface().([]db.Item)
-			} else {
-				value := relation["collection"].(*MysqlTable).invoke("Find", terms)
-				item[relation["name"].(string)] = value[0].Interface().(db.Item)
-			}
-
-		}
-
-		// Appending to results.
-		items[i] = item
-	}
-
-	return items
-}
-
-// Returns the number of rows in the current table that match certain conditions.
-func (t *MysqlTable) Count(terms ...interface{}) (int, error) {
-
-	terms = append(terms, db.Fields{"COUNT(1) AS _total"})
-
-	result := t.invoke("FindAll", terms)
-
-	if len(result) > 0 {
-		response := result[0].Interface().([]db.Item)
-		if len(response) > 0 {
-			val, _ := strconv.Atoi(response[0]["_total"].(string))
-			return val, nil
-		}
-	}
-
-	return 0, nil
-}
-
-func (t *MysqlTable) Exists() bool {
-	result, err := t.parent.myExec(
-		"Query",
-		fmt.Sprintf(`
-				SELECT table_name
-					FROM information_schema.tables
-				WHERE table_schema = '%s' AND table_name = '%s'
-			`,
-			t.parent.Name(),
-			t.Name(),
-		),
-	)
-	if err != nil {
-		panic(err.Error())
-	}
-	if result.Next() == true {
-		return true
-	}
-	return false
-}
-
-// Returns the first row in the table that matches certain conditions.
-func (t *MysqlTable) Find(terms ...interface{}) db.Item {
-
-	var item db.Item
-
-	terms = append(terms, db.Limit(1))
-
-	result := t.invoke("FindAll", terms)
-
-	if len(result) > 0 {
-		response := result[0].Interface().([]db.Item)
-		if len(response) > 0 {
-			item = response[0]
-		}
-	}
-
-	return item
-}
-
-// Inserts rows into the currently active table.
-func (t *MysqlTable) Append(items ...interface{}) ([]db.Id, error) {
-
-	ids := []db.Id{}
-
-	itop := len(items)
-
-	for i := 0; i < itop; i++ {
-
-		values := []string{}
-		fields := []string{}
-
-		item := items[i]
-
-		for field, value := range item.(db.Item) {
-			fields = append(fields, field)
-			values = append(values, toInternal(value))
-		}
-
-		_, err := t.parent.myExec(
-			"Exec",
-			"INSERT INTO",
-			myTable(t.name),
-			myFields(fields),
-			"VALUES",
-			myValues(values),
-		)
-
-		res, _ := t.parent.myExec(
-			"Query",
-			"SELECT LAST_INSERT_ID()",
-		)
-
-		var lastId string
-
-		res.Next()
-
-		res.Scan(&lastId)
-
-		ids = append(ids, db.Id(lastId))
-
-		if err != nil {
-			return ids, err
-		}
-
-	}
-
-	return ids, nil
-}
-
-func (t *MysqlTable) Name() string {
-	return t.name
-}
-
-func (my *MysqlDataSource) ExistentCollection(name string) db.Collection {
-	col, err := my.Collection(name)
+// Returns a collection. Panics if the collection does not exists.
+func (self *Source) ExistentCollection(name string) db.Collection {
+	col, err := self.Collection(name)
 	if err != nil {
 		panic(err.Error())
 	}
 	return col
 }
 
-// Returns a MySQL table structure by name.
-func (my *MysqlDataSource) Collection(name string) (db.Collection, error) {
-	var rerr error
+// Returns a collection by name.
+func (self *Source) Collection(name string) (db.Collection, error) {
 
-	if col, ok := my.collections[name]; ok == true {
+	if col, ok := self.collections[name]; ok == true {
 		return col, nil
 	}
 
-	t := &MysqlTable{}
+	table := &Table{}
 
-	t.parent = my
-	t.name = name
+	table.parent = self
+	table.name = name
 
 	// Table exists?
-	if t.Exists() == false {
-		rerr = fmt.Errorf("Table %s does not exists.", name)
+	if table.Exists() == false {
+		return table, fmt.Errorf("Table %s does not exists.", name)
 	}
 
 	// Fetching table datatypes and mapping to internal gotypes.
-	rows, err := t.parent.myExec(
+	rows, err := table.parent.myExec(
 		"Query",
-		"SHOW COLUMNS FROM", t.name,
+		"SHOW COLUMNS FROM", table.Name(),
 	)
 
-	if err == nil {
+	if err != nil {
+		return table, err
+	}
 
-		columns := t.myFetchAll(rows)
+	columns := table.myFetchAll(rows)
 
-		pattern, _ := regexp.Compile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
+	pattern, _ := regexp.Compile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
 
-		t.types = make(map[string]reflect.Kind, len(columns))
+	table.types = make(map[string]reflect.Kind, len(columns))
 
-		for _, column := range columns {
-			cname := strings.ToLower(column["field"].(string))
-			ctype := strings.ToLower(column["type"].(string))
-			results := pattern.FindStringSubmatch(ctype)
+	for _, column := range columns {
+		cname := strings.ToLower(column["field"].(string))
+		ctype := strings.ToLower(column["type"].(string))
+		results := pattern.FindStringSubmatch(ctype)
 
-			// Default properties.
-			dextra := ""
-			dtype := "varchar"
+		// Default properties.
+		dextra := ""
+		dtype := "varchar"
 
-			dtype = results[1]
+		dtype = results[1]
 
-			if len(results) > 3 {
-				dextra = results[3]
-			}
-
-			vtype := reflect.String
-
-			// Guessing datatypes.
-			switch dtype {
-			case "tinyint", "smallint", "mediumint", "int", "bigint":
-				if dextra == "unsigned" {
-					vtype = reflect.Uint64
-				} else {
-					vtype = reflect.Int64
-				}
-			case "decimal", "float", "double":
-				vtype = reflect.Float64
-			}
-
-			/*
-			 fmt.Printf("Imported %v (from %v)\n", vtype, dtype)
-			*/
-
-			t.types[cname] = vtype
+		if len(results) > 3 {
+			dextra = results[3]
 		}
-	} else {
-		rerr = err
+
+		vtype := reflect.String
+
+		// Guessing datatypes.
+		switch dtype {
+		case "tinyint", "smallint", "mediumint", "int", "bigint":
+			if dextra == "unsigned" {
+				vtype = reflect.Uint64
+			} else {
+				vtype = reflect.Int64
+			}
+		case "decimal", "float", "double":
+			vtype = reflect.Float64
+		}
+
+		/*
+		 fmt.Printf("Imported %v (from %v)\n", vtype, dtype)
+		*/
+
+		table.types[cname] = vtype
 	}
 
-	if rerr == nil {
-		my.collections[name] = t
-	}
-
-	return t, rerr
+	return table, nil
 }
