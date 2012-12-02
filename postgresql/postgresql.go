@@ -37,6 +37,10 @@ import (
 	"time"
 )
 
+func init() {
+	db.Register("postgresql", &PostgresqlDataSource{})
+}
+
 var Debug = false
 
 const dateFormat = "2006-01-02 15:04:05"
@@ -94,6 +98,37 @@ type PostgresqlDataSource struct {
 	config      db.DataSource
 	session     *sql.DB
 	collections map[string]db.Collection
+}
+
+func (self *PostgresqlDataSource) Name() string {
+	return self.config.Database
+}
+
+func (self *PostgresqlTable) Name() string {
+	return self.name
+}
+
+// Returns true if the collection exists.
+func (self *PostgresqlTable) Exists() bool {
+	result, err := self.parent.pgExec(
+		"Query",
+		fmt.Sprintf(`
+				SELECT table_name
+					FROM information_schema.tables
+				WHERE table_catalog = '%s' AND table_name = '%s'
+			`,
+			self.parent.Name(),
+			self.Name(),
+		),
+	)
+	if err != nil {
+		panic(err.Error())
+	}
+	if result.Next() == true {
+		result.Close()
+		return true
+	}
+	return false
 }
 
 func (t *PostgresqlTable) pgFetchAll(rows sql.Rows) []db.Item {
@@ -209,6 +244,13 @@ func (pg *PostgresqlDataSource) Close() error {
 		return pg.session.Close()
 	}
 	return nil
+}
+
+// Configures a datasource and tries to open a connection.
+func (self *PostgresqlDataSource) Setup(config db.DataSource) error {
+	self.config = config
+	self.collections = make(map[string]db.Collection)
+	return self.Open()
 }
 
 // Tries to open a connection to the current PostgreSQL session.
@@ -526,7 +568,7 @@ func (t *PostgresqlTable) FindAll(terms ...interface{}) []db.Item {
 			}
 
 			if rcollection == nil {
-				rcollection = t.parent.Collection(rname)
+				rcollection = t.parent.ExistentCollection(rname)
 			}
 
 			relations = append(relations, sugar.Tuple{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
@@ -547,7 +589,7 @@ func (t *PostgresqlTable) FindAll(terms ...interface{}) []db.Item {
 			}
 
 			if rcollection == nil {
-				rcollection = t.parent.Collection(rname)
+				rcollection = t.parent.ExistentCollection(rname)
 			}
 
 			relations = append(relations, sugar.Tuple{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
@@ -729,17 +771,31 @@ func (t *PostgresqlTable) Append(items ...interface{}) ([]db.Id, error) {
 	return ids, nil
 }
 
-// Returns a MySQL table structure by name.
-func (pg *PostgresqlDataSource) Collection(name string) db.Collection {
+// Returns a collection. Panics if the collection does not exists.
+func (self *PostgresqlDataSource) ExistentCollection(name string) db.Collection {
+	col, err := self.Collection(name)
+	if err != nil {
+		panic(err.Error())
+	}
+	return col
+}
+
+// Returns a collection by name.
+func (pg *PostgresqlDataSource) Collection(name string) (db.Collection, error) {
 
 	if collection, ok := pg.collections[name]; ok == true {
-		return collection
+		return collection, nil
 	}
 
 	t := &PostgresqlTable{}
 
 	t.parent = pg
 	t.name = name
+
+	// Table exists?
+	if t.Exists() == false {
+		return t, fmt.Errorf("Table %s does not exists.", name)
+	}
 
 	// Fetching table datatypes and mapping to internal gotypes.
 
@@ -748,53 +804,52 @@ func (pg *PostgresqlDataSource) Collection(name string) db.Collection {
 		"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?", db.SqlArgs{t.name},
 	)
 
-	if err == nil {
-
-		columns := t.pgFetchAll(rows)
-
-		pattern, _ := regexp.Compile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
-
-		t.types = make(map[string]reflect.Kind, len(columns))
-
-		for _, column := range columns {
-			cname := strings.ToLower(column["column_name"].(string))
-			ctype := strings.ToLower(column["data_type"].(string))
-
-			results := pattern.FindStringSubmatch(ctype)
-
-			// Default properties.
-			dextra := ""
-			dtype := "varchar"
-
-			dtype = results[1]
-
-			if len(results) > 3 {
-				dextra = results[3]
-			}
-
-			vtype := reflect.String
-
-			// Guessing datatypes.
-			switch dtype {
-			case "smallint", "integer", "bigint", "serial", "bigserial":
-				if dextra == "unsigned" {
-					vtype = reflect.Uint64
-				} else {
-					vtype = reflect.Int64
-				}
-			case "real", "double":
-				vtype = reflect.Float64
-			}
-
-			//fmt.Printf("Imported %v (from %v)\n", vtype, dtype)
-
-			t.types[cname] = vtype
-		}
-
-		pg.collections[name] = t
-	} else {
-		panic(err)
+	if err != nil {
+		return t, err
 	}
 
-	return t
+	columns := t.pgFetchAll(rows)
+
+	pattern, _ := regexp.Compile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
+
+	t.types = make(map[string]reflect.Kind, len(columns))
+
+	for _, column := range columns {
+		cname := strings.ToLower(column["column_name"].(string))
+		ctype := strings.ToLower(column["data_type"].(string))
+
+		results := pattern.FindStringSubmatch(ctype)
+
+		// Default properties.
+		dextra := ""
+		dtype := "varchar"
+
+		dtype = results[1]
+
+		if len(results) > 3 {
+			dextra = results[3]
+		}
+
+		vtype := reflect.String
+
+		// Guessing datatypes.
+		switch dtype {
+		case "smallint", "integer", "bigint", "serial", "bigserial":
+			if dextra == "unsigned" {
+				vtype = reflect.Uint64
+			} else {
+				vtype = reflect.Int64
+			}
+		case "real", "double":
+			vtype = reflect.Float64
+		}
+
+		//fmt.Printf("Imported %v (from %v)\n", vtype, dtype)
+
+		t.types[cname] = vtype
+	}
+
+	pg.collections[name] = t
+
+	return t, nil
 }

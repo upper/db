@@ -1,22 +1,21 @@
 package postgresql
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/gosexy/db"
-	"github.com/gosexy/sugar"
 	"github.com/kr/pretty"
 	"math/rand"
 	"testing"
 	"time"
 )
 
-const pgHost = "debian"
-const pgDatabase = "gotest"
-const pgUser = "gouser"
-const pgPassword = "gopass"
+const host = "debian"
+const dbname = "gotest"
+const username = "gouser"
+const password = "gopass"
 
-
-func getTestData() db.Item {
+func testItem() db.Item {
 
 	_time, _ := time.ParseDuration("17h20m")
 
@@ -62,23 +61,24 @@ func TestEnableDebug(t *testing.T) {
 	Debug = true
 }
 
-func TestPgTruncate(t *testing.T) {
+func TestTruncate(t *testing.T) {
 
-	sess := Session(db.DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
-
-	err := sess.Open()
-	defer sess.Close()
+	sess, err := db.Open("postgresql", db.DataSource{Host: host, Database: dbname, User: username, Password: password})
 
 	if err != nil {
 		panic(err)
 	}
 
+	defer sess.Close()
+
 	collections := sess.Collections()
 
 	for _, name := range collections {
-		col := sess.Collection(name)
+		col := sess.ExistentCollection(name)
 		col.Truncate()
+
 		total, _ := col.Count()
+
 		if total != 0 {
 			t.Errorf("Could not truncate '%s'.", name)
 		}
@@ -86,28 +86,34 @@ func TestPgTruncate(t *testing.T) {
 
 }
 
-func TestPgAppend(t *testing.T) {
+func TestAppend(t *testing.T) {
 
-	sess := Session(db.DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
-
-	err := sess.Open()
-	defer sess.Close()
+	sess, err := db.Open("postgresql", db.DataSource{Host: host, Database: dbname, User: username, Password: password})
 
 	if err != nil {
 		panic(err)
 	}
 
-	col := sess.Collection("people")
+	defer sess.Close()
 
-	col.Truncate()
+	_, err = sess.Collection("doesnotexists")
+
+	if err == nil {
+		t.Errorf("Collection should not exists.")
+		return
+	}
+
+	people := sess.ExistentCollection("people")
+
+	people.Truncate()
 
 	names := []string{"Juan", "José", "Pedro", "María", "Roberto", "Manuel", "Miguel"}
 
 	for i := 0; i < len(names); i++ {
-		col.Append(db.Item{"name": names[i]})
+		people.Append(db.Item{"name": names[i]})
 	}
 
-	total, _ := col.Count()
+	total, _ := people.Count()
 
 	if total != len(names) {
 		t.Error("Could not append all items.")
@@ -115,20 +121,19 @@ func TestPgAppend(t *testing.T) {
 
 }
 
-func TestPgFind(t *testing.T) {
+func TestFind(t *testing.T) {
 
-	sess := Session(db.DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
-
-	err := sess.Open()
-	defer sess.Close()
+	sess, err := db.Open("postgresql", db.DataSource{Host: host, Database: dbname, User: username, Password: password})
 
 	if err != nil {
 		panic(err)
 	}
 
-	col := sess.Collection("people")
+	defer sess.Close()
 
-	result := col.Find(db.Cond{"name": "José"})
+	people, _ := sess.Collection("people")
+
+	result := people.Find(db.Cond{"name": "José"})
 
 	if result["name"] != "José" {
 		t.Error("Could not find a recently appended item.")
@@ -136,101 +141,98 @@ func TestPgFind(t *testing.T) {
 
 }
 
-func TestPgDelete(t *testing.T) {
-	sess := Session(db.DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
-
-	err := sess.Open()
-	defer sess.Close()
+func TestDelete(t *testing.T) {
+	sess, err := db.Open("postgresql", db.DataSource{Host: host, Database: dbname, User: username, Password: password})
 
 	if err != nil {
 		panic(err)
 	}
 
-	col := sess.Collection("people")
+	defer sess.Close()
 
-	col.Remove(db.Cond{"name": "Juan"})
+	people, _ := sess.Collection("people")
 
-	result := col.Find(db.Cond{"name": "Juan"})
+	people.Remove(db.Cond{"name": "Juan"})
+
+	result := people.Find(db.Cond{"name": "Juan"})
 
 	if len(result) > 0 {
 		t.Error("Could not remove a recently appended item.")
 	}
 }
 
-func TestPgUpdate(t *testing.T) {
-	sess := Session(db.DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
-
-	err := sess.Open()
-	defer sess.Close()
+func TestUpdate(t *testing.T) {
+	sess, err := db.Open("postgresql", db.DataSource{Host: host, Database: dbname, User: username, Password: password})
 
 	if err != nil {
 		panic(err)
 	}
 
-	sess.Use("gotest")
+	defer sess.Close()
 
-	col := sess.Collection("people")
+	people, _ := sess.Collection("people")
 
-	col.Update(db.Cond{"name": "José"}, db.Set{"name": "Joseph"})
+	people.Update(db.Cond{"name": "José"}, db.Set{"name": "Joseph"})
 
-	result := col.Find(db.Cond{"name": "Joseph"})
+	result := people.Find(db.Cond{"name": "Joseph"})
 
 	if len(result) == 0 {
 		t.Error("Could not update a recently appended item.")
 	}
 }
 
-func TestPgPopulate(t *testing.T) {
-	var i int
+func TestPopulate(t *testing.T) {
 
-	sess := Session(db.DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
-
-	err := sess.Open()
-	defer sess.Close()
+	sess, err := db.Open("postgresql", db.DataSource{Host: host, Database: dbname, User: username, Password: password})
 
 	if err != nil {
 		panic(err)
 	}
 
-	sess.Use("gotest")
+	defer sess.Close()
 
-	places := []string{"Alaska", "Nebraska", "Alaska", "Acapulco", "Rome", "Singapore", "Alabama", "Cancún"}
+	people, _ := sess.Collection("people")
+	places, _ := sess.Collection("places")
+	children, _ := sess.Collection("children")
+	visits, _ := sess.Collection("visits")
 
-	for i = 0; i < len(places); i++ {
-		sess.Collection("places").Append(db.Item{
+	values := []string{"Alaska", "Nebraska", "Alaska", "Acapulco", "Rome", "Singapore", "Alabama", "Cancún"}
+
+	for i, value := range values {
+		places.Append(db.Item{
 			"code_id": i,
-			"name":    places[i],
+			"name":    value,
 		})
 	}
 
-	people := sess.Collection("people").FindAll(
+	results := people.FindAll(
 		db.Fields{"id", "name"},
 		db.Sort{"name": "ASC", "id": -1},
 	)
 
-	for i = 0; i < len(people); i++ {
-		person := people[i]
+	for _, person := range results {
 
 		// Has 5 children.
+
 		for j := 0; j < 5; j++ {
-			sess.Collection("children").Append(db.Item{
+			children.Append(db.Item{
 				"name":      fmt.Sprintf("%s's child %d", person["name"], j+1),
 				"parent_id": person["id"],
 			})
 		}
 
 		// Lives in
-		sess.Collection("people").Update(
+		people.Update(
 			db.Cond{"id": person["id"]},
-			db.Set{"place_code_id": int(rand.Float32() * float32(len(places)))},
+			db.Set{"place_code_id": int(rand.Float32() * float32(len(results)))},
 		)
 
 		// Has visited
 		for k := 0; k < 3; k++ {
-			place := sess.Collection("places").Find(db.Cond{
-				"code_id": int(rand.Float32() * float32(len(places))),
+			place := places.Find(db.Cond{
+				"code_id": int(rand.Float32() * float32(len(results))),
 			})
-			sess.Collection("visits").Append(db.Item{
+			visits.Append(db.Item{
 				"place_id":  place["id"],
 				"person_id": person["id"],
 			})
@@ -239,36 +241,35 @@ func TestPgPopulate(t *testing.T) {
 
 }
 
-func TestPgRelation(t *testing.T) {
-	sess := Session(db.DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
-
-	err := sess.Open()
-	defer sess.Close()
+func TestRelation(t *testing.T) {
+	sess, err := db.Open("postgresql", db.DataSource{Host: host, Database: dbname, User: username, Password: password})
 
 	if err != nil {
 		panic(err)
 	}
 
-	col := sess.Collection("people")
+	defer sess.Close()
 
-	result := col.FindAll(
+	people, _ := sess.Collection("people")
+
+	results := people.FindAll(
 		db.Relate{
 			"lives_in": db.On{
-				sess.Collection("places"),
+				sess.ExistentCollection("places"),
 				db.Cond{"code_id": "{place_code_id}"},
 			},
 		},
 		db.RelateAll{
 			"has_children": db.On{
-				sess.Collection("children"),
+				sess.ExistentCollection("children"),
 				db.Cond{"parent_id": "{id}"},
 			},
 			"has_visited": db.On{
-				sess.Collection("visits"),
+				sess.ExistentCollection("visits"),
 				db.Cond{"person_id": "{id}"},
 				db.Relate{
 					"place": db.On{
-						sess.Collection("places"),
+						sess.ExistentCollection("places"),
 						db.Cond{"id": "{place_id}"},
 					},
 				},
@@ -276,41 +277,60 @@ func TestPgRelation(t *testing.T) {
 		},
 	)
 
-	fmt.Printf("%# v\n", pretty.Formatter(result))
+	fmt.Printf("%# v\n", pretty.Formatter(results))
+}
+
+func TestCustom(t *testing.T) {
+	sess, err := db.Open("postgresql", db.DataSource{Host: host, Database: dbname, User: username, Password: password})
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer sess.Close()
+
+	_, err = sess.Driver().(*sql.DB).Query("SELECT NOW()")
+
+	if err != nil {
+		panic(err)
+	}
+
 }
 
 func TestDataTypes(t *testing.T) {
 
-	sess := Session(db.DataSource{Host: pgHost, Database: pgDatabase, User: pgUser, Password: pgPassword})
+	sess, err := db.Open("postgresql", db.DataSource{Host: host, Database: dbname, User: username, Password: password})
 
-	err := sess.Open()
-
-	if err == nil {
-		defer sess.Close()
+	if err != nil {
+		t.Errorf(err.Error())
+		return
 	}
 
-	col := sess.Collection("data_types")
+	defer sess.Close()
 
-	col.Truncate()
+	dataTypes, _ := sess.Collection("data_types")
 
-	data := getTestData()
+	dataTypes.Truncate()
 
-	ids, err := col.Append(data)
+	testData := testItem()
+
+	ids, err := dataTypes.Append(testData)
 
 	if err != nil {
 		t.Errorf("Could not append test data.")
 	}
 
-	found, _ := col.Count(db.Cond{"id": db.Id(ids[0])})
+	found, _ := dataTypes.Count(db.Cond{"id": db.Id(ids[0])})
 
 	if found == 0 {
 		t.Errorf("Cannot find recently inserted item (by ID).")
 	}
 
 	// Getting and reinserting.
-	item := col.Find()
 
-	_, err = col.Append(item)
+	item := dataTypes.Find()
+
+	_, err = dataTypes.Append(item)
 
 	if err == nil {
 		t.Errorf("Expecting duplicated-key error.")
@@ -318,18 +338,17 @@ func TestDataTypes(t *testing.T) {
 
 	delete(item, "id")
 
-	_, err = col.Append(item)
+	_, err = dataTypes.Append(item)
 
 	if err != nil {
 		t.Errorf("Could not append second element.")
 	}
 
 	// Testing rows
-	items := col.FindAll()
 
-	for i := 0; i < len(items); i++ {
+	results := dataTypes.FindAll()
 
-		item := items[i]
+	for _, item := range results {
 
 		for key, _ := range item {
 
@@ -342,7 +361,7 @@ func TestDataTypes(t *testing.T) {
 				"_int16",
 				"_int32",
 				"_int64":
-				if item.GetInt(key) != int64(data["_int"].(int)) {
+				if item.GetInt(key) != int64(testData["_int"].(int)) {
 					t.Errorf("Wrong datatype %v.", key)
 				}
 
@@ -356,50 +375,46 @@ func TestDataTypes(t *testing.T) {
 				"_uint64",
 				"_byte",
 				"_rune":
-				if item.GetInt(key) != int64(data["_uint"].(uint)) {
+				if item.GetInt(key) != int64(testData["_uint"].(uint)) {
 					t.Errorf("Wrong datatype %v.", key)
 				}
 
 			// Floating point.
 			case "_float32":
 			case "_float64":
-				if item.GetFloat(key) != data["_float64"].(float64) {
+				if item.GetFloat(key) != testData["_float64"].(float64) {
 					t.Errorf("Wrong datatype %v.", key)
 				}
 
 			// Boolean
 			case "_bool":
-				if item.GetBool(key) != data["_bool"].(bool) {
+				if item.GetBool(key) != testData["_bool"].(bool) {
 					t.Errorf("Wrong datatype %v.", key)
 				}
 
 			// String
 			case "_string":
-				if item.GetString(key) != data["_string"].(string) {
+				if item.GetString(key) != testData["_string"].(string) {
 					t.Errorf("Wrong datatype %v.", key)
 				}
 
-			// Map
-			case "_map":
-				if item.GetTuple(key)["a"] != data["_map"].(sugar.Tuple)["a"] {
-					t.Errorf("Wrong datatype %v.", key)
-				}
+			/*
+				// Map
+				case "_map":
+					if item.GetTuple(key)["a"] != testData["_map"].(sugar.Tuple)["a"] {
+						t.Errorf("Wrong datatype %v.", key)
+					}
 
-			// Array
-			case "_list":
-				if item.GetList(key)[0] != data["_list"].(sugar.List)[0] {
-					t.Errorf("Wrong datatype %v.", key)
-				}
-
-			// Time
-			case "_time":
-				if item.GetDuration(key).String() != data["_time"].(time.Duration).String() {
-					t.Errorf("Wrong datatype %v.", key)
-				}
+				// Array
+				case "_list":
+					if item.GetList(key)[0] != testData["_list"].(sugar.List)[0] {
+						t.Errorf("Wrong datatype %v.", key)
+					}
+			*/
 
 			// Date
 			case "_date":
-				if item.GetDate(key).Equal(data["_date"].(time.Time)) == false {
+				if item.GetDate(key).Equal(testData["_date"].(time.Time)) == false {
 					t.Errorf("Wrong datatype %v.", key)
 				}
 			}
