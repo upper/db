@@ -26,8 +26,8 @@ package mongo
 import (
 	"fmt"
 	"github.com/gosexy/db"
-	"github.com/gosexy/sugar"
 	"github.com/gosexy/to"
+	"github.com/gosexy/sugar"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"net/url"
