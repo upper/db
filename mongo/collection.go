@@ -366,11 +366,25 @@ func (self *SourceCollection) BuildQuery(terms ...interface{}) *mgo.Query {
 func toInternal(val interface{}) interface{} {
 
 	switch val.(type) {
+	case []db.Id:
+		ids := make([]bson.ObjectId, len(val.([]db.Id)))
+		for i, _ := range val.([]db.Id) {
+			ids[i] = bson.ObjectIdHex(string(val.([]db.Id)[i]))
+		}
+		return ids
 	case db.Id:
 		return bson.ObjectIdHex(string(val.(db.Id)))
 	case db.Item:
 		for k, _ := range val.(db.Item) {
 			val.(db.Item)[k] = toInternal(val.(db.Item)[k])
+		}
+	case db.Cond:
+		for k, _ := range val.(db.Cond) {
+			val.(db.Cond)[k] = toInternal(val.(db.Cond)[k])
+		}
+	case map[string]interface{}:
+		for k, _ := range val.(map[string]interface{}) {
+			val.(map[string]interface{})[k] = toInternal(val.(map[string]interface{})[k])
 		}
 	}
 
