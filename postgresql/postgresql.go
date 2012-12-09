@@ -75,7 +75,10 @@ func sqlCompile(terms []interface{}) *sqlQuery {
 }
 
 func sqlFields(names []string) string {
-	return "(" + strings.Join(names, ", ") + ")"
+	for i, _ := range names {
+		names[i] = strings.Replace(names[i], `"`, `\"`, -1)
+	}
+	return `("` + strings.Join(names, `", "`) + `")`
 }
 
 func sqlValues(values []string) db.SqlValues {

@@ -94,6 +94,9 @@ func sqlTable(name string) string {
 }
 
 func sqlFields(names []string) string {
+	for i, _ := range names {
+		names[i] = strings.Replace(names[i], "`", "``", -1)
+	}
 	return "(`" + strings.Join(names, "`, `") + "`)"
 }
 
