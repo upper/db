@@ -7,12 +7,14 @@ import (
 	"github.com/gosexy/sugar"
 )
 
-const host = "debian"
-const dbname = "dev"
+var settings = db.DataSource{
+	Host:     "debian",
+	Database: "dev",
+}
 
 func main() {
 
-	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
+	sess, err := db.Open("mongo", settings)
 
 	if err != nil {
 		panic(err)
@@ -20,9 +22,9 @@ func main() {
 
 	defer sess.Close()
 
-	sess.Drop()
-
 	animals, _ := sess.Collection("animals")
+
+	animals.Truncate()
 
 	animals.Append(db.Item{
 		"animal": "Bird",

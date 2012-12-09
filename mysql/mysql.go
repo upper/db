@@ -94,7 +94,7 @@ func sqlTable(name string) string {
 }
 
 func sqlFields(names []string) string {
-	return "(" + strings.Join(names, ", ") + ")"
+	return "(`" + strings.Join(names, "`, `") + "`)"
 }
 
 func sqlValues(values []string) db.SqlValues {
