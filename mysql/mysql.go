@@ -232,7 +232,7 @@ func (self *Source) Open() error {
 // Changes the active database
 func (self *Source) Use(database string) error {
 	self.config.Database = database
-	self.session.Query(fmt.Sprintf("USE %s", database))
+	self.session.Exec(fmt.Sprintf("USE %s", database))
 	return nil
 }
 
