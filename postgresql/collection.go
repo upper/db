@@ -358,7 +358,7 @@ func (t *Table) FindAll(terms ...interface{}) []db.Item {
 
 	result := t.sqlFetchAll(rows)
 
-	var relations []sugar.Tuple
+	var relations []sugar.Map
 	var rcollection db.Collection
 
 	// This query is related to other collections.
@@ -380,7 +380,7 @@ func (t *Table) FindAll(terms ...interface{}) []db.Item {
 				rcollection = t.parent.ExistentCollection(rname)
 			}
 
-			relations = append(relations, sugar.Tuple{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
+			relations = append(relations, sugar.Map{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
 		}
 	}
 
@@ -401,7 +401,7 @@ func (t *Table) FindAll(terms ...interface{}) []db.Item {
 				rcollection = t.parent.ExistentCollection(rname)
 			}
 
-			relations = append(relations, sugar.Tuple{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
+			relations = append(relations, sugar.Map{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
 		}
 	}
 

@@ -43,7 +43,7 @@ func testItem() db.Item {
 		"_string": string("abc"),
 
 		"_list": sugar.List{1, 2, 3},
-		"_map":  sugar.Tuple{"a": 1, "b": 2, "c": 3},
+		"_map":  sugar.Map{"a": 1, "b": 2, "c": 3},
 
 		"_date": time.Date(2012, 7, 28, 0, 0, 0, 0, time.UTC),
 	}
@@ -413,7 +413,7 @@ func TestDataTypes(t *testing.T) {
 
 			// Map
 			case "_map":
-				if item.GetTuple(key)["a"] != testData["_map"].(sugar.Tuple)["a"] {
+				if item.GetMap(key)["a"] != testData["_map"].(sugar.Map)["a"] {
 					t.Errorf("Wrong datatype %v.", key)
 				}
 

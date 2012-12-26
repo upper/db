@@ -440,7 +440,7 @@ func (self *SourceCollection) FindAll(terms ...interface{}) []db.Item {
 
 	p.All(&result)
 
-	var relations []sugar.Tuple
+	var relations []sugar.Map
 
 	// This query is related to other collections.
 	if relate != nil {
@@ -456,7 +456,7 @@ func (self *SourceCollection) FindAll(terms ...interface{}) []db.Item {
 				}
 			}
 
-			relations = append(relations, sugar.Tuple{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
+			relations = append(relations, sugar.Map{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
 		}
 	}
 
@@ -473,7 +473,7 @@ func (self *SourceCollection) FindAll(terms ...interface{}) []db.Item {
 				}
 			}
 
-			relations = append(relations, sugar.Tuple{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
+			relations = append(relations, sugar.Map{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
 		}
 	}
 

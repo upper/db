@@ -82,20 +82,20 @@ func (item Item) GetDuration(name string) time.Duration {
 	return duration
 }
 
-// Returns the item value as a Tuple.
-func (item Item) GetTuple(name string) sugar.Tuple {
-	tuple := sugar.Tuple{}
+// Returns the item value as a Map.
+func (item Item) GetMap(name string) sugar.Map {
+	dict := sugar.Map{}
 
 	switch item[name].(type) {
 	case map[string]interface{}:
 		for k, _ := range item[name].(map[string]interface{}) {
-			tuple[k] = item[name].(map[string]interface{})[k]
+			dict[k] = item[name].(map[string]interface{})[k]
 		}
-	case sugar.Tuple:
-		tuple = item[name].(sugar.Tuple)
+	case sugar.Map:
+		dict = item[name].(sugar.Map)
 	}
 
-	return tuple
+	return dict
 }
 
 // Returns the item value as an array.
