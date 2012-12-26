@@ -60,7 +60,8 @@ func (self *Table) Exists() bool {
 		),
 	)
 	if err != nil {
-		panic(err.Error())
+		//panic(err.Error())
+		return false
 	}
 	if result.Next() == true {
 		result.Close()
