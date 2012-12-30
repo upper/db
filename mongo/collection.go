@@ -189,9 +189,7 @@ func (self *SourceCollection) compileQuery(terms []interface{}) interface{} {
 		if len(conditions) == 1 {
 			query = conditions[0]
 		} else {
-			query = conditions
-			// trying to workaround https://jira.mongodb.org/browse/SERVER-4572
-			// map[string]interface{}{"$and": conditions}
+			query = map[string]interface{}{"$and": conditions}
 		}
 	} else {
 		query = map[string]interface{}{}
