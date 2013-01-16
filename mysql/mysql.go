@@ -24,7 +24,8 @@
 package mysql
 
 import (
-	_ "code.google.com/p/go-mysql-driver/mysql"
+	//_ "code.google.com/p/go-mysql-driver/mysql"
+	_ "github.com/Go-SQL-Driver/MySQL"
 	//_ "github.com/ziutek/mymysql/godrv"
 	"database/sql"
 	"fmt"
