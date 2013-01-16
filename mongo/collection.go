@@ -189,7 +189,18 @@ func (self *SourceCollection) compileQuery(terms []interface{}) interface{} {
 		if len(conditions) == 1 {
 			query = conditions[0]
 		} else {
-			query = map[string]interface{}{"$and": conditions}
+			// this should be correct.
+			// query = map[string]interface{}{"$and": conditions}
+
+			// trying to workaround https://jira.mongodb.org/browse/SERVER-4572
+			mapped := map[string]interface{}{}
+			for _, v := range conditions {
+				for kk, _ := range v.(map[string]interface{}) {
+					mapped[kk] = v.(map[string]interface{})[kk]
+				}
+			}
+
+			query = mapped
 		}
 	} else {
 		query = map[string]interface{}{}
@@ -334,6 +345,7 @@ func (self *SourceCollection) BuildQuery(terms ...interface{}) *mgo.Query {
 	}
 
 	// Actually executing query, returning a pointer.
+	// fmt.Printf("actual: %v\n", query)
 	q := self.collection.Find(query)
 
 	// Applying limits and offsets.
