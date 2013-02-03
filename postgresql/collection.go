@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012 José Carlos Nieto, http://xiam.menteslibres.org/
+  Copyright (c) 2012-2013 José Carlos Nieto, http://xiam.menteslibres.org/
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the
@@ -70,7 +70,8 @@ func (self *Table) Exists() bool {
 	return false
 }
 
-func (t *Table) sqlFetchAll(rows sql.Rows) []db.Item {
+// Returns all items from a query.
+func (self *Table) sqlFetchAll(rows sql.Rows) []db.Item {
 
 	items := []db.Item{}
 
@@ -80,42 +81,46 @@ func (t *Table) sqlFetchAll(rows sql.Rows) []db.Item {
 		columns[i] = strings.ToLower(columns[i])
 	}
 
-	res := map[string]*sql.RawBytes{}
+	expecting := len(columns)
 
-	fargs := []reflect.Value{}
+	values := make([]*sql.RawBytes, expecting)
+	scanArgs := make([]interface{}, expecting)
 
-	for _, name := range columns {
-		res[name] = &sql.RawBytes{}
-		fargs = append(fargs, reflect.ValueOf(res[name]))
+	for i := range columns {
+		scanArgs[i] = &values[i]
 	}
-
-	sn := reflect.ValueOf(&rows)
-	fn := sn.MethodByName("Scan")
 
 	for rows.Next() {
 		item := db.Item{}
 
-		ret := fn.Call(fargs)
+		err := rows.Scan(scanArgs...)
 
-		if ret[0].IsNil() != true {
-			panic(ret[0].Elem().Interface().(error))
+		if err != nil {
+			panic(err)
 		}
 
-		for _, name := range columns {
-			strval := fmt.Sprintf("%s", *res[name])
+		// Pending cleaner reflection magic.
+		for i, value := range values {
+			column := columns[i]
 
-			switch t.types[name] {
-			case reflect.Uint64:
-				intval, _ := strconv.Atoi(strval)
-				item[name] = uint64(intval)
-			case reflect.Int64:
-				intval, _ := strconv.Atoi(strval)
-				item[name] = intval
-			case reflect.Float64:
-				floatval, _ := strconv.ParseFloat(strval, 10)
-				item[name] = floatval
-			default:
-				item[name] = strval
+			if value == nil {
+				item[column] = nil
+			} else {
+				strval := fmt.Sprintf("%s", *value)
+
+				switch self.types[column] {
+				case reflect.Uint64:
+					intval, _ := strconv.Atoi(strval)
+					item[column] = uint64(intval)
+				case reflect.Int64:
+					intval, _ := strconv.Atoi(strval)
+					item[column] = intval
+				case reflect.Float64:
+					floatval, _ := strconv.ParseFloat(strval, 10)
+					item[column] = floatval
+				default:
+					item[column] = strval
+				}
 			}
 		}
 

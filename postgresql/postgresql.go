@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"github.com/gosexy/db"
 	_ "github.com/xiam/gopostgresql"
+	//_ "github.com/bmizerany/pq"
 	"reflect"
 	"regexp"
 	"strings"
