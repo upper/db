@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012 José Carlos Nieto, http://xiam.menteslibres.org/
+  Copyright (c) 2012-2013 José Carlos Nieto, http://xiam.menteslibres.org/
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the
@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"github.com/gosexy/db"
 	_ "github.com/xiam/gosqlite3"
+	//_ "github.com/mattn/go-sqlite3"
 	//_ "bitbucket.org/minux/go.sqlite3"
 	"reflect"
 	"regexp"
