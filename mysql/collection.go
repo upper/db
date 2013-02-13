@@ -94,6 +94,8 @@ func (self *Table) myFetchAll(rows sql.Rows) []db.Item {
 		items = append(items, item)
 	}
 
+	rows.Close()
+
 	return items
 }
 
@@ -550,6 +552,8 @@ func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 		res.Next()
 
 		res.Scan(&lastId)
+
+		res.Close()
 
 		ids = append(ids, db.Id(lastId))
 
