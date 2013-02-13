@@ -94,8 +94,6 @@ func (self *Table) myFetchAll(rows sql.Rows) []db.Item {
 		items = append(items, item)
 	}
 
-	rows.Close()
-
 	return items
 }
 
@@ -533,7 +531,7 @@ func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 			values = append(values, toInternal(value))
 		}
 
-		_, err := self.parent.myExec(
+		res, err := self.parent.myExec(
 			"Exec",
 			"INSERT INTO",
 			self.Name(),
@@ -542,20 +540,8 @@ func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 			sqlValues(values),
 		)
 
-		res, _ := self.parent.myExec(
-			"Query",
-			"SELECT LAST_INSERT_ID()",
-		)
-
-		var lastId string
-
-		res.Next()
-
-		res.Scan(&lastId)
-
-		res.Close()
-
-		ids = append(ids, db.Id(lastId))
+		lastId, err := res.LastInsertId()
+		ids = append(ids, to.String(lastId))
 
 		if err != nil {
 			return ids, err
