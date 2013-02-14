@@ -48,8 +48,7 @@ func (self *Table) Name() string {
 
 // Returns true if the collection exists.
 func (self *Table) Exists() bool {
-	result, err := self.parent.sqlExec(
-		"Query",
+	result, err := self.parent.doQuery(
 		fmt.Sprintf(`
 				SELECT table_name
 					FROM information_schema.tables
@@ -71,7 +70,7 @@ func (self *Table) Exists() bool {
 }
 
 // Returns all items from a query.
-func (self *Table) sqlFetchAll(rows sql.Rows) []db.Item {
+func (self *Table) sqlFetchAll(rows *sql.Rows) []db.Item {
 
 	items := []db.Item{}
 
@@ -245,9 +244,8 @@ func (t *Table) marshal(where db.Cond) (string, []string) {
 // Deletes all the rows in the table.
 func (t *Table) Truncate() error {
 
-	_, err := t.parent.sqlExec(
-		"Exec",
-		fmt.Sprintf("TRUNCATE TABLE %s", t.Name()),
+	_, err := t.parent.doExec(
+		fmt.Sprintf(`TRUNCATE TABLE "%s"`, t.Name()),
 	)
 
 	return err
@@ -262,8 +260,7 @@ func (t *Table) Remove(terms ...interface{}) error {
 		conditions = "1 = 1"
 	}
 
-	_, err := t.parent.sqlExec(
-		"Exec",
+	_, err := t.parent.doExec(
 		fmt.Sprintf("DELETE FROM %s", t.Name()),
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
@@ -289,8 +286,7 @@ func (t *Table) Update(terms ...interface{}) error {
 		conditions = "1 = 1"
 	}
 
-	_, err := t.parent.sqlExec(
-		"Exec",
+	_, err := t.parent.doExec(
 		fmt.Sprintf("UPDATE %s SET %s", t.Name(), fields), fargs,
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
@@ -350,8 +346,7 @@ func (t *Table) FindAll(terms ...interface{}) []db.Item {
 		conditions = "1 = 1"
 	}
 
-	rows, err := t.parent.sqlExec(
-		"Query",
+	rows, err := t.parent.doQuery(
 		fmt.Sprintf("SELECT %s FROM %s", fields, t.Name()),
 		fmt.Sprintf("WHERE %s", conditions), args,
 		sort, limit, offset,
@@ -533,32 +528,31 @@ func (t *Table) Append(items ...interface{}) ([]db.Id, error) {
 			values = append(values, toInternal(value))
 		}
 
-		_, err := t.parent.sqlExec(
-			"Exec",
+		// https://github.com/bmizerany/pq/issues/24
+		row, err := t.parent.doQueryRow(
 			"INSERT INTO",
 			t.Name(),
 			sqlFields(fields),
 			"VALUES",
 			sqlValues(values),
+			"RETURNING id",
 		)
 
-		res, _ := t.parent.sqlExec(
-			"Query",
-			fmt.Sprintf("SELECT CURRVAL(pg_get_serial_sequence('%s','id'))", t.name),
-		)
-
-		var lastId string
-
-		res.Next()
-
-		res.Scan(&lastId)
-
-		ids = append(ids, db.Id(lastId))
-
+		// Error ocurred, stop appending.
 		if err != nil {
 			return ids, err
 		}
 
+		var id int
+		err = row.Scan(&id)
+
+		// Error ocurred, stop appending.
+		if err != nil {
+			return ids, err
+		}
+
+		// Last inserted ID could be zero too.
+		ids = append(ids, db.Id(to.String(id)))
 	}
 
 	return ids, nil

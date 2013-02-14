@@ -46,7 +46,7 @@ const timeFormat = "%d:%02d:%02d"
 
 type sqlQuery struct {
 	Query   []string
-	SqlArgs []string
+	SqlArgs []interface{}
 }
 
 func sqlCompile(terms []interface{}) *sqlQuery {
@@ -101,41 +101,70 @@ func (self *Source) Name() string {
 	return self.config.Database
 }
 
-func (pg *Source) sqlExec(method string, terms ...interface{}) (sql.Rows, error) {
-
-	sn := reflect.ValueOf(pg.session)
-	fn := sn.MethodByName(method)
-
-	q := sqlCompile(terms)
-
-	if Debug {
-		fmt.Printf("Q: %v\n", q.Query)
-		fmt.Printf("A: %v\n", q.SqlArgs)
+// Wraps sql.DB.QueryRow
+func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
+	if self.session == nil {
+		return nil, fmt.Errorf("You're currently not connected.")
 	}
 
-	qs := strings.Join(q.Query, " ")
+	chunks := sqlCompile(terms)
 
-	args := make([]reflect.Value, len(q.SqlArgs)+1)
+	query := strings.Join(chunks.Query, " ")
 
-	for i := 0; i < len(q.SqlArgs); i++ {
-		qs = strings.Replace(qs, "?", fmt.Sprintf("$%d", i+1), 1)
-		args[1+i] = reflect.ValueOf(q.SqlArgs[i])
+	for i := 0; i < len(chunks.SqlArgs); i++ {
+		query = strings.Replace(query, "?", fmt.Sprintf("$%d", i+1), 1)
 	}
 
-	args[0] = reflect.ValueOf(qs)
-
-	res := fn.Call(args)
-
-	if res[1].IsNil() == false {
-		return sql.Rows{}, res[1].Elem().Interface().(error)
+	if Debug == true {
+		fmt.Printf("Q: %s\n", query)
+		fmt.Printf("A: %v\n", chunks.SqlArgs)
 	}
 
-	switch res[0].Elem().Interface().(type) {
-	case sql.Rows:
-		return res[0].Elem().Interface().(sql.Rows), nil
+	return self.session.QueryRow(query, chunks.SqlArgs...), nil
+}
+
+// Wraps sql.DB.Query
+func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
+	if self.session == nil {
+		return nil, fmt.Errorf("You're currently not connected.")
 	}
 
-	return sql.Rows{}, nil
+	chunks := sqlCompile(terms)
+
+	query := strings.Join(chunks.Query, " ")
+
+	for i := 0; i < len(chunks.SqlArgs); i++ {
+		query = strings.Replace(query, "?", fmt.Sprintf("$%d", i+1), 1)
+	}
+
+	if Debug == true {
+		fmt.Printf("Q: %s\n", query)
+		fmt.Printf("A: %v\n", chunks.SqlArgs)
+	}
+
+	return self.session.Query(query, chunks.SqlArgs...)
+}
+
+// Wraps sql.DB.Exec
+func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
+	if self.session == nil {
+		return nil, fmt.Errorf("You're currently not connected.")
+	}
+
+	chunks := sqlCompile(terms)
+
+	query := strings.Join(chunks.Query, " ")
+
+	for i := 0; i < len(chunks.SqlArgs); i++ {
+		query = strings.Replace(query, "?", fmt.Sprintf("$%d", i+1), 1)
+	}
+
+	if Debug == true {
+		fmt.Printf("Q: %s\n", query)
+		fmt.Printf("A: %v\n", chunks.SqlArgs)
+	}
+
+	return self.session.Exec(query, chunks.SqlArgs...)
 }
 
 // Configures and returns a PostgreSQL dabase session.
@@ -147,9 +176,9 @@ func Session(config db.DataSource) db.Database {
 }
 
 // Closes a previously opened PostgreSQL database session.
-func (pg *Source) Close() error {
-	if pg.session != nil {
-		return pg.session.Close()
+func (self *Source) Close() error {
+	if self.session != nil {
+		return self.session.Close()
 	}
 	return nil
 }
@@ -162,55 +191,55 @@ func (self *Source) Setup(config db.DataSource) error {
 }
 
 // Tries to open a connection to the current PostgreSQL session.
-func (pg *Source) Open() error {
+func (self *Source) Open() error {
 	var err error
 
-	if pg.config.Host == "" {
-		pg.config.Host = "127.0.0.1"
+	if self.config.Host == "" {
+		self.config.Host = "127.0.0.1"
 	}
 
-	if pg.config.Port == 0 {
-		pg.config.Port = 5432
+	if self.config.Port == 0 {
+		self.config.Port = 5432
 	}
 
-	if pg.config.Database == "" {
-		panic("Database name is required.")
+	if self.config.Database == "" {
+		return fmt.Errorf("Database name is required.")
 	}
 
-	conn := fmt.Sprintf("user=%s password=%s host=%s port=%d dbname=%s sslmode=disable", pg.config.User, pg.config.Password, pg.config.Host, pg.config.Port, pg.config.Database)
+	conn := fmt.Sprintf("user=%s password=%s host=%s port=%d dbname=%s sslmode=disable", self.config.User, self.config.Password, self.config.Host, self.config.Port, self.config.Database)
 
-	pg.session, err = sql.Open("postgres", conn)
+	self.session, err = sql.Open("postgres", conn)
 
 	if err != nil {
-		return fmt.Errorf("Could not connect to %s", pg.config.Host)
+		return fmt.Errorf("Could not connect to %s: %s", self.config.Host, err.Error())
 	}
 
 	return nil
 }
 
 // Changes the active database.
-func (pg *Source) Use(database string) error {
-	pg.config.Database = database
-	return pg.Open()
+func (self *Source) Use(database string) error {
+	self.config.Database = database
+	return self.Open()
 }
 
 // Deletes the currently active database.
-func (pg *Source) Drop() error {
-	pg.session.Query(fmt.Sprintf("DROP DATABASE %s", pg.config.Database))
+func (self *Source) Drop() error {
+	self.session.Query(fmt.Sprintf("DROP DATABASE %s", self.config.Database))
 	return nil
 }
 
 // Returns a *sql.DB object that represents an internal session.
-func (pg *Source) Driver() interface{} {
-	return pg.session
+func (self *Source) Driver() interface{} {
+	return self.session
 }
 
 // Returns the list of PostgreSQL tables in the current database.
-func (pg *Source) Collections() []string {
+func (self *Source) Collections() []string {
 	var collections []string
 	var collection string
 
-	rows, err := pg.session.Query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+	rows, err := self.session.Query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
 
 	if err == nil {
 		for rows.Next() {
@@ -255,15 +284,15 @@ func (self *Source) ExistentCollection(name string) db.Collection {
 }
 
 // Returns a collection by name.
-func (pg *Source) Collection(name string) (db.Collection, error) {
+func (self *Source) Collection(name string) (db.Collection, error) {
 
-	if collection, ok := pg.collections[name]; ok == true {
+	if collection, ok := self.collections[name]; ok == true {
 		return collection, nil
 	}
 
 	t := &Table{}
 
-	t.parent = pg
+	t.parent = self
 	t.name = name
 
 	// Table exists?
@@ -273,9 +302,9 @@ func (pg *Source) Collection(name string) (db.Collection, error) {
 
 	// Fetching table datatypes and mapping to internal gotypes.
 
-	rows, err := t.parent.sqlExec(
-		"Query",
-		"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?", db.SqlArgs{t.name},
+	rows, err := t.parent.doQuery(
+		"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?",
+		db.SqlArgs{t.name},
 	)
 
 	if err != nil {
@@ -323,7 +352,7 @@ func (pg *Source) Collection(name string) (db.Collection, error) {
 		t.types[cname] = vtype
 	}
 
-	pg.collections[name] = t
+	self.collections[name] = t
 
 	return t, nil
 }

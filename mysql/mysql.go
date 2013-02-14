@@ -293,7 +293,8 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 
 	// Fetching table datatypes and mapping to internal gotypes.
 	rows, err := table.parent.doQuery(
-		"SHOW COLUMNS FROM", table.Name(),
+		"SHOW COLUMNS FROM",
+		table.Name(),
 	)
 
 	if err != nil {

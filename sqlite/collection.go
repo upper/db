@@ -529,7 +529,7 @@ func (t *Table) Append(items ...interface{}) ([]db.Id, error) {
 			sqlValues(values),
 		)
 
-		// Error ocurred, stopping adding.
+		// Error ocurred, stop appending.
 		if err != nil {
 			return ids, err
 		}
