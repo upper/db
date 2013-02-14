@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012 José Carlos Nieto, http://xiam.menteslibres.org/
+  Copyright (c) 2012-2013 José Carlos Nieto, http://xiam.menteslibres.org/
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the
@@ -48,8 +48,7 @@ func (self *Table) Name() string {
 
 // Returns true if the collection exists.
 func (self *Table) Exists() bool {
-	result, err := self.parent.sqlExec(
-		"Query",
+	result, err := self.parent.doQuery(
 		fmt.Sprintf(`
 				SELECT table_name
 					FROM information_schema.tables
@@ -70,7 +69,8 @@ func (self *Table) Exists() bool {
 	return false
 }
 
-func (t *Table) sqlFetchAll(rows sql.Rows) []db.Item {
+// Returns all items from a query.
+func (self *Table) sqlFetchAll(rows *sql.Rows) []db.Item {
 
 	items := []db.Item{}
 
@@ -80,42 +80,46 @@ func (t *Table) sqlFetchAll(rows sql.Rows) []db.Item {
 		columns[i] = strings.ToLower(columns[i])
 	}
 
-	res := map[string]*sql.RawBytes{}
+	expecting := len(columns)
 
-	fargs := []reflect.Value{}
+	values := make([]*sql.RawBytes, expecting)
+	scanArgs := make([]interface{}, expecting)
 
-	for _, name := range columns {
-		res[name] = &sql.RawBytes{}
-		fargs = append(fargs, reflect.ValueOf(res[name]))
+	for i := range columns {
+		scanArgs[i] = &values[i]
 	}
-
-	sn := reflect.ValueOf(&rows)
-	fn := sn.MethodByName("Scan")
 
 	for rows.Next() {
 		item := db.Item{}
 
-		ret := fn.Call(fargs)
+		err := rows.Scan(scanArgs...)
 
-		if ret[0].IsNil() != true {
-			panic(ret[0].Elem().Interface().(error))
+		if err != nil {
+			panic(err)
 		}
 
-		for _, name := range columns {
-			strval := fmt.Sprintf("%s", *res[name])
+		// Pending cleaner reflection magic.
+		for i, value := range values {
+			column := columns[i]
 
-			switch t.types[name] {
-			case reflect.Uint64:
-				intval, _ := strconv.Atoi(strval)
-				item[name] = uint64(intval)
-			case reflect.Int64:
-				intval, _ := strconv.Atoi(strval)
-				item[name] = intval
-			case reflect.Float64:
-				floatval, _ := strconv.ParseFloat(strval, 10)
-				item[name] = floatval
-			default:
-				item[name] = strval
+			if value == nil {
+				item[column] = nil
+			} else {
+				strval := fmt.Sprintf("%s", *value)
+
+				switch self.types[column] {
+				case reflect.Uint64:
+					intval, _ := strconv.Atoi(strval)
+					item[column] = uint64(intval)
+				case reflect.Int64:
+					intval, _ := strconv.Atoi(strval)
+					item[column] = intval
+				case reflect.Float64:
+					floatval, _ := strconv.ParseFloat(strval, 10)
+					item[column] = floatval
+				default:
+					item[column] = strval
+				}
 			}
 		}
 
@@ -240,9 +244,8 @@ func (t *Table) marshal(where db.Cond) (string, []string) {
 // Deletes all the rows in the table.
 func (t *Table) Truncate() error {
 
-	_, err := t.parent.sqlExec(
-		"Exec",
-		fmt.Sprintf("TRUNCATE TABLE %s", t.Name()),
+	_, err := t.parent.doExec(
+		fmt.Sprintf(`TRUNCATE TABLE "%s"`, t.Name()),
 	)
 
 	return err
@@ -257,8 +260,7 @@ func (t *Table) Remove(terms ...interface{}) error {
 		conditions = "1 = 1"
 	}
 
-	_, err := t.parent.sqlExec(
-		"Exec",
+	_, err := t.parent.doExec(
 		fmt.Sprintf("DELETE FROM %s", t.Name()),
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
@@ -284,8 +286,7 @@ func (t *Table) Update(terms ...interface{}) error {
 		conditions = "1 = 1"
 	}
 
-	_, err := t.parent.sqlExec(
-		"Exec",
+	_, err := t.parent.doExec(
 		fmt.Sprintf("UPDATE %s SET %s", t.Name(), fields), fargs,
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
@@ -345,8 +346,7 @@ func (t *Table) FindAll(terms ...interface{}) []db.Item {
 		conditions = "1 = 1"
 	}
 
-	rows, err := t.parent.sqlExec(
-		"Query",
+	rows, err := t.parent.doQuery(
 		fmt.Sprintf("SELECT %s FROM %s", fields, t.Name()),
 		fmt.Sprintf("WHERE %s", conditions), args,
 		sort, limit, offset,
@@ -528,32 +528,31 @@ func (t *Table) Append(items ...interface{}) ([]db.Id, error) {
 			values = append(values, toInternal(value))
 		}
 
-		_, err := t.parent.sqlExec(
-			"Exec",
+		// https://github.com/bmizerany/pq/issues/24
+		row, err := t.parent.doQueryRow(
 			"INSERT INTO",
 			t.Name(),
 			sqlFields(fields),
 			"VALUES",
 			sqlValues(values),
+			"RETURNING id",
 		)
 
-		res, _ := t.parent.sqlExec(
-			"Query",
-			fmt.Sprintf("SELECT CURRVAL(pg_get_serial_sequence('%s','id'))", t.name),
-		)
-
-		var lastId string
-
-		res.Next()
-
-		res.Scan(&lastId)
-
-		ids = append(ids, db.Id(lastId))
-
+		// Error ocurred, stop appending.
 		if err != nil {
 			return ids, err
 		}
 
+		var id int
+		err = row.Scan(&id)
+
+		// Error ocurred, stop appending.
+		if err != nil {
+			return ids, err
+		}
+
+		// Last inserted ID could be zero too.
+		ids = append(ids, db.Id(to.String(id)))
 	}
 
 	return ids, nil

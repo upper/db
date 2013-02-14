@@ -57,6 +57,15 @@ func TestEnableDebug(t *testing.T) {
 	Debug = true
 }
 
+func TestOpenFailed(t *testing.T) {
+	_, err := db.Open("sqlite", db.DataSource{})
+
+	if err == nil {
+		t.Errorf("An error was expected.")
+	}
+
+}
+
 func TestTruncate(t *testing.T) {
 
 	sess, err := db.Open("sqlite", db.DataSource{Database: dbpath})

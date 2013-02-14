@@ -29,7 +29,6 @@ import (
 	"github.com/gosexy/db"
 	"github.com/gosexy/sugar"
 	"github.com/gosexy/to"
-	//_ "github.com/xiam/gosqlite3"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -41,7 +40,8 @@ func (self *Table) Name() string {
 	return self.name
 }
 
-func (t *Table) slFetchAll(rows sql.Rows) []db.Item {
+// Returns all items from a query.
+func (self *Table) sqlFetchAll(rows *sql.Rows) []db.Item {
 
 	items := []db.Item{}
 
@@ -51,42 +51,46 @@ func (t *Table) slFetchAll(rows sql.Rows) []db.Item {
 		columns[i] = strings.ToLower(columns[i])
 	}
 
-	res := map[string]*sql.RawBytes{}
+	expecting := len(columns)
 
-	fargs := []reflect.Value{}
+	values := make([]*sql.RawBytes, expecting)
+	scanArgs := make([]interface{}, expecting)
 
-	for _, name := range columns {
-		res[name] = &sql.RawBytes{}
-		fargs = append(fargs, reflect.ValueOf(res[name]))
+	for i := range columns {
+		scanArgs[i] = &values[i]
 	}
-
-	sn := reflect.ValueOf(&rows)
-	fn := sn.MethodByName("Scan")
 
 	for rows.Next() {
 		item := db.Item{}
 
-		ret := fn.Call(fargs)
+		err := rows.Scan(scanArgs...)
 
-		if ret[0].IsNil() != true {
-			panic(ret[0].Elem().Interface().(error))
+		if err != nil {
+			panic(err)
 		}
 
-		for _, name := range columns {
-			strval := fmt.Sprintf("%s", *res[name])
+		// Pending cleaner reflection magic.
+		for i, value := range values {
+			column := columns[i]
 
-			switch t.types[name] {
-			case reflect.Uint64:
-				intval, _ := strconv.Atoi(strval)
-				item[name] = uint64(intval)
-			case reflect.Int64:
-				intval, _ := strconv.Atoi(strval)
-				item[name] = intval
-			case reflect.Float64:
-				floatval, _ := strconv.ParseFloat(strval, 10)
-				item[name] = floatval
-			default:
-				item[name] = strval
+			if value == nil {
+				item[column] = nil
+			} else {
+				strval := fmt.Sprintf("%s", *value)
+
+				switch self.types[column] {
+				case reflect.Uint64:
+					intval, _ := strconv.Atoi(strval)
+					item[column] = uint64(intval)
+				case reflect.Int64:
+					intval, _ := strconv.Atoi(strval)
+					item[column] = intval
+				case reflect.Float64:
+					floatval, _ := strconv.ParseFloat(strval, 10)
+					item[column] = floatval
+				default:
+					item[column] = strval
+				}
 			}
 		}
 
@@ -206,8 +210,7 @@ func (t *Table) marshal(where db.Cond) (string, []string) {
 // Deletes all the rows in the table.
 func (t *Table) Truncate() error {
 
-	_, err := t.parent.sqlExec(
-		"Exec",
+	_, err := t.parent.doExec(
 		fmt.Sprintf("DELETE FROM %s", t.Name()),
 	)
 
@@ -223,8 +226,7 @@ func (t *Table) Remove(terms ...interface{}) error {
 		conditions = "1 = 1"
 	}
 
-	_, err := t.parent.sqlExec(
-		"Exec",
+	_, err := t.parent.doExec(
 		fmt.Sprintf("DELETE FROM %s", t.Name()),
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
@@ -250,8 +252,7 @@ func (t *Table) Update(terms ...interface{}) error {
 		conditions = "1 = 1"
 	}
 
-	_, err := t.parent.sqlExec(
-		"Exec",
+	_, err := t.parent.doExec(
 		fmt.Sprintf("UPDATE %s SET %s", t.Name(), fields), fargs,
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
@@ -311,14 +312,13 @@ func (t *Table) FindAll(terms ...interface{}) []db.Item {
 		conditions = "1 = 1"
 	}
 
-	rows, _ := t.parent.sqlExec(
-		"Query",
+	rows, _ := t.parent.doQuery(
 		fmt.Sprintf("SELECT %s FROM %s", fields, t.Name()),
 		fmt.Sprintf("WHERE %s", conditions), args,
 		sort, limit, offset,
 	)
 
-	result := t.slFetchAll(rows)
+	result := t.sqlFetchAll(rows)
 
 	var relations []sugar.Map
 	var rcollection db.Collection
@@ -521,8 +521,7 @@ func (t *Table) Append(items ...interface{}) ([]db.Id, error) {
 			values = append(values, toInternal(value))
 		}
 
-		_, err := t.parent.sqlExec(
-			"Exec",
+		res, err := t.parent.doExec(
 			"INSERT INTO",
 			t.Name(),
 			sqlFields(fields),
@@ -530,22 +529,14 @@ func (t *Table) Append(items ...interface{}) ([]db.Id, error) {
 			sqlValues(values),
 		)
 
-		res, _ := t.parent.sqlExec(
-			"Query",
-			"SELECT LAST_INSERT_ROWID()",
-		)
-
-		var lastId string
-
-		res.Next()
-
-		res.Scan(&lastId)
-
-		ids = append(ids, db.Id(lastId))
-
+		// Error ocurred, stop appending.
 		if err != nil {
 			return ids, err
 		}
+
+		// Last inserted ID could be zero too.
+		lastId, _ := res.LastInsertId()
+		ids = append(ids, db.Id(to.String(lastId)))
 
 	}
 
@@ -554,8 +545,7 @@ func (t *Table) Append(items ...interface{}) ([]db.Id, error) {
 
 // Returns true if the collection exists.
 func (self *Table) Exists() bool {
-	result, err := self.parent.sqlExec(
-		"Query",
+	result, err := self.parent.doQuery(
 		fmt.Sprintf(`
 			SELECT name
 				FROM sqlite_master
@@ -565,7 +555,6 @@ func (self *Table) Exists() bool {
 		),
 	)
 	if err != nil {
-		//panic(err.Error())
 		return false
 	}
 	if result.Next() == true {

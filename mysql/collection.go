@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012 José Carlos Nieto, http://xiam.menteslibres.org/
+  Copyright (c) 2012-2013 José Carlos Nieto, http://xiam.menteslibres.org/
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the
@@ -24,7 +24,6 @@
 package mysql
 
 import (
-	//_ "code.google.com/p/go-mysql-driver/mysql"
 	_ "github.com/Go-SQL-Driver/MySQL"
 	//_ "github.com/ziutek/mymysql/godrv"
 	"database/sql"
@@ -39,7 +38,7 @@ import (
 )
 
 // Returns all items from a query.
-func (self *Table) myFetchAll(rows sql.Rows) []db.Item {
+func (self *Table) sqlFetchAll(rows *sql.Rows) []db.Item {
 
 	items := []db.Item{}
 
@@ -49,42 +48,46 @@ func (self *Table) myFetchAll(rows sql.Rows) []db.Item {
 		columns[i] = strings.ToLower(columns[i])
 	}
 
-	res := map[string]*sql.RawBytes{}
+	expecting := len(columns)
 
-	fargs := []reflect.Value{}
+	values := make([]*sql.RawBytes, expecting)
+	scanArgs := make([]interface{}, expecting)
 
-	for _, name := range columns {
-		res[name] = &sql.RawBytes{}
-		fargs = append(fargs, reflect.ValueOf(res[name]))
+	for i := range columns {
+		scanArgs[i] = &values[i]
 	}
-
-	sn := reflect.ValueOf(&rows)
-	fn := sn.MethodByName("Scan")
 
 	for rows.Next() {
 		item := db.Item{}
 
-		ret := fn.Call(fargs)
+		err := rows.Scan(scanArgs...)
 
-		if ret[0].IsNil() != true {
-			panic(ret[0].Elem().Interface().(error))
+		if err != nil {
+			panic(err)
 		}
 
-		for _, name := range columns {
-			strval := fmt.Sprintf("%s", *res[name])
+		// Pending cleaner reflection magic.
+		for i, value := range values {
+			column := columns[i]
 
-			switch self.types[name] {
-			case reflect.Uint64:
-				intval, _ := strconv.Atoi(strval)
-				item[name] = uint64(intval)
-			case reflect.Int64:
-				intval, _ := strconv.Atoi(strval)
-				item[name] = intval
-			case reflect.Float64:
-				floatval, _ := strconv.ParseFloat(strval, 10)
-				item[name] = floatval
-			default:
-				item[name] = strval
+			if value == nil {
+				item[column] = nil
+			} else {
+				strval := fmt.Sprintf("%s", *value)
+
+				switch self.types[column] {
+				case reflect.Uint64:
+					intval, _ := strconv.Atoi(strval)
+					item[column] = uint64(intval)
+				case reflect.Int64:
+					intval, _ := strconv.Atoi(strval)
+					item[column] = intval
+				case reflect.Float64:
+					floatval, _ := strconv.ParseFloat(strval, 10)
+					item[column] = floatval
+				default:
+					item[column] = strval
+				}
 			}
 		}
 
@@ -212,8 +215,7 @@ func marshal(where db.Cond) (string, []string) {
 // Deletes all the rows in the collection.
 func (self *Table) Truncate() error {
 
-	_, err := self.parent.myExec(
-		"Exec",
+	_, err := self.parent.doExec(
 		fmt.Sprintf("TRUNCATE TABLE `%s`", self.Name()),
 	)
 
@@ -229,8 +231,7 @@ func (self *Table) Remove(terms ...interface{}) error {
 		conditions = "1 = 1"
 	}
 
-	_, err := self.parent.myExec(
-		"Exec",
+	_, err := self.parent.doExec(
 		fmt.Sprintf("DELETE FROM `%s`", self.Name()),
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
@@ -258,8 +259,7 @@ func (self *Table) Update(terms ...interface{}) error {
 		conditions = "1 = 1"
 	}
 
-	_, err := self.parent.myExec(
-		"Exec",
+	_, err := self.parent.doExec(
 		fmt.Sprintf("UPDATE `%s` SET %s", self.Name(), fields), fargs,
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
@@ -319,14 +319,13 @@ func (self *Table) FindAll(terms ...interface{}) []db.Item {
 		conditions = "1 = 1"
 	}
 
-	rows, _ := self.parent.myExec(
-		"Query",
+	rows, _ := self.parent.doQuery(
 		fmt.Sprintf("SELECT %s FROM `%s`", fields, self.Name()),
 		fmt.Sprintf("WHERE %s", conditions), args,
 		sort, limit, offset,
 	)
 
-	result := self.myFetchAll(rows)
+	result := self.sqlFetchAll(rows)
 
 	var relations []sugar.Map
 	var rcollection db.Collection
@@ -468,8 +467,7 @@ func (self *Table) Count(terms ...interface{}) (int, error) {
 
 // Returns true if the collection exists.
 func (self *Table) Exists() bool {
-	result, err := self.parent.myExec(
-		"Query",
+	result, err := self.parent.doQuery(
 		fmt.Sprintf(`
 				SELECT table_name
 					FROM information_schema.tables
@@ -480,7 +478,6 @@ func (self *Table) Exists() bool {
 		),
 	)
 	if err != nil {
-		//panic(err.Error())
 		return false
 	}
 	if result.Next() == true {
@@ -528,8 +525,7 @@ func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 			values = append(values, toInternal(value))
 		}
 
-		_, err := self.parent.myExec(
-			"Exec",
+		res, err := self.parent.doExec(
 			"INSERT INTO",
 			self.Name(),
 			sqlFields(fields),
@@ -537,23 +533,14 @@ func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 			sqlValues(values),
 		)
 
-		res, _ := self.parent.myExec(
-			"Query",
-			"SELECT LAST_INSERT_ID()",
-		)
-
-		var lastId string
-
-		res.Next()
-
-		res.Scan(&lastId)
-
-		ids = append(ids, db.Id(lastId))
-
+		// Error ocurred, stop appending.
 		if err != nil {
 			return ids, err
 		}
 
+		// Last inserted ID could be zero too.
+		lastId, _ := res.LastInsertId()
+		ids = append(ids, db.Id(to.String(lastId)))
 	}
 
 	return ids, nil
