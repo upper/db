@@ -38,7 +38,7 @@ import (
 )
 
 // Returns all items from a query.
-func (self *Table) myFetchAll(rows sql.Rows) []db.Item {
+func (self *Table) sqlFetchAll(rows *sql.Rows) []db.Item {
 
 	items := []db.Item{}
 
@@ -215,8 +215,7 @@ func marshal(where db.Cond) (string, []string) {
 // Deletes all the rows in the collection.
 func (self *Table) Truncate() error {
 
-	_, err := self.parent.myExec(
-		"Exec",
+	_, err := self.parent.doExec(
 		fmt.Sprintf("TRUNCATE TABLE `%s`", self.Name()),
 	)
 
@@ -232,8 +231,7 @@ func (self *Table) Remove(terms ...interface{}) error {
 		conditions = "1 = 1"
 	}
 
-	_, err := self.parent.myExec(
-		"Exec",
+	_, err := self.parent.doExec(
 		fmt.Sprintf("DELETE FROM `%s`", self.Name()),
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
@@ -261,8 +259,7 @@ func (self *Table) Update(terms ...interface{}) error {
 		conditions = "1 = 1"
 	}
 
-	_, err := self.parent.myExec(
-		"Exec",
+	_, err := self.parent.doExec(
 		fmt.Sprintf("UPDATE `%s` SET %s", self.Name(), fields), fargs,
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
@@ -322,14 +319,13 @@ func (self *Table) FindAll(terms ...interface{}) []db.Item {
 		conditions = "1 = 1"
 	}
 
-	rows, _ := self.parent.myExec(
-		"Query",
+	rows, _ := self.parent.doQuery(
 		fmt.Sprintf("SELECT %s FROM `%s`", fields, self.Name()),
 		fmt.Sprintf("WHERE %s", conditions), args,
 		sort, limit, offset,
 	)
 
-	result := self.myFetchAll(rows)
+	result := self.sqlFetchAll(rows)
 
 	var relations []sugar.Map
 	var rcollection db.Collection
@@ -471,8 +467,7 @@ func (self *Table) Count(terms ...interface{}) (int, error) {
 
 // Returns true if the collection exists.
 func (self *Table) Exists() bool {
-	result, err := self.parent.myExec(
-		"Query",
+	result, err := self.parent.doQuery(
 		fmt.Sprintf(`
 				SELECT table_name
 					FROM information_schema.tables
@@ -483,7 +478,6 @@ func (self *Table) Exists() bool {
 		),
 	)
 	if err != nil {
-		//panic(err.Error())
 		return false
 	}
 	if result.Next() == true {
@@ -531,8 +525,7 @@ func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 			values = append(values, toInternal(value))
 		}
 
-		res, err := self.parent.myExec(
-			"Exec",
+		res, err := self.parent.doExec(
 			"INSERT INTO",
 			self.Name(),
 			sqlFields(fields),
@@ -547,7 +540,7 @@ func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 
 		// Last inserted ID could be zero too.
 		lastId, _ := res.LastInsertId()
-		ids = append(ids, to.String(lastId))
+		ids = append(ids, db.Id(to.String(lastId)))
 	}
 
 	return ids, nil

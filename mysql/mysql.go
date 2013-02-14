@@ -60,7 +60,7 @@ type Table struct {
 
 type sqlQuery struct {
 	Query   []string
-	SqlArgs []string
+	SqlArgs []interface{}
 }
 
 func sqlCompile(terms []interface{}) *sqlQuery {
@@ -122,7 +122,7 @@ func toInternal(val interface{}) string {
 		return val.(time.Time).Format(dateFormat)
 	case time.Duration:
 		t := val.(time.Duration)
-		return fmt.Sprintf(timeFormat, int(t.Hours()), int(t.Minutes())%60, int(t.Seconds())%60)
+		return fmt.Sprintf(timeFormat, int(t.Hours()), int(t.Minutes())%60, int(t.Seconds())%60, t.Nanoseconds())
 	case bool:
 		if val.(bool) == true {
 			return "1"
@@ -143,39 +143,40 @@ func toNative(val interface{}) interface{} {
 
 }
 
-// Executes a database/sql method.
-func (self *Source) myExec(method string, terms ...interface{}) (sql.Rows, error) {
+// Wraps sql.DB.Query
+func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
+	if self.session == nil {
+		return nil, fmt.Errorf("You're currently not connected.")
+	}
 
-	sn := reflect.ValueOf(self.session)
-	fn := sn.MethodByName(method)
+	chunks := sqlCompile(terms)
 
-	q := sqlCompile(terms)
+	query := strings.Join(chunks.Query, " ")
 
 	if Debug == true {
-		fmt.Printf("Q: %v\n", q.Query)
-		fmt.Printf("A: %v\n", q.SqlArgs)
+		fmt.Printf("Q: %s\n", query)
+		fmt.Printf("A: %v\n", chunks.SqlArgs)
 	}
 
-	args := make([]reflect.Value, len(q.SqlArgs)+1)
+	return self.session.Query(query, chunks.SqlArgs...)
+}
 
-	args[0] = reflect.ValueOf(strings.Join(q.Query, " "))
-
-	for i := 0; i < len(q.SqlArgs); i++ {
-		args[1+i] = reflect.ValueOf(q.SqlArgs[i])
+// Wraps sql.DB.Exec
+func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
+	if self.session == nil {
+		return nil, fmt.Errorf("You're currently not connected.")
 	}
 
-	res := fn.Call(args)
+	chunks := sqlCompile(terms)
 
-	if res[1].IsNil() == false {
-		return sql.Rows{}, res[1].Elem().Interface().(error)
+	query := strings.Join(chunks.Query, " ")
+
+	if Debug == true {
+		fmt.Printf("Q: %s\n", query)
+		fmt.Printf("A: %v\n", chunks.SqlArgs)
 	}
 
-	switch res[0].Elem().Interface().(type) {
-	case sql.Rows:
-		return res[0].Elem().Interface().(sql.Rows), nil
-	}
-
-	return sql.Rows{}, nil
+	return self.session.Exec(query, chunks.SqlArgs...)
 }
 
 // Configures and returns a database session.
@@ -214,7 +215,7 @@ func (self *Source) Open() error {
 	}
 
 	if self.config.Database == "" {
-		panic("Database name is required.")
+		return fmt.Errorf("Database name is required.")
 	}
 
 	conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", self.config.User, self.config.Password, self.config.Host, self.config.Port, self.config.Database)
@@ -232,14 +233,14 @@ func (self *Source) Open() error {
 // Changes the active database
 func (self *Source) Use(database string) error {
 	self.config.Database = database
-	self.session.Exec(fmt.Sprintf("USE %s", database))
-	return nil
+	_, err := self.session.Exec(fmt.Sprintf("USE %s", database))
+	return err
 }
 
 // Deletes the currently active database.
 func (self *Source) Drop() error {
-	self.session.Query(fmt.Sprintf("DROP DATABASE %s", self.config.Database))
-	return nil
+	_, err := self.session.Exec(fmt.Sprintf("DROP DATABASE %s", self.config.Database))
+	return err
 }
 
 // Returns the *sql.DB underlying driver.
@@ -291,8 +292,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 	}
 
 	// Fetching table datatypes and mapping to internal gotypes.
-	rows, err := table.parent.myExec(
-		"Query",
+	rows, err := table.parent.doQuery(
 		"SHOW COLUMNS FROM", table.Name(),
 	)
 
@@ -300,7 +300,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 		return table, err
 	}
 
-	columns := table.myFetchAll(rows)
+	columns := table.sqlFetchAll(rows)
 
 	pattern, _ := regexp.Compile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
 

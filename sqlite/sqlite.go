@@ -102,6 +102,7 @@ func (self *Source) Name() string {
 	return self.config.Database
 }
 
+// Wraps sql.DB.Query
 func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
 	if self.session == nil {
 		return nil, fmt.Errorf("You're currently not connected.")
@@ -119,6 +120,7 @@ func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
 	return self.session.Query(query, chunks.SqlArgs...)
 }
 
+// Wraps sql.DB.Exec
 func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
 	if self.session == nil {
 		return nil, fmt.Errorf("You're currently not connected.")
@@ -191,14 +193,14 @@ func (self *Source) Close() error {
 // Changes the active database.
 func (self *Source) Use(database string) error {
 	self.config.Database = database
-	self.session.Query(fmt.Sprintf("USE %s", database))
-	return nil
+	_, err := self.session.Exec(fmt.Sprintf("USE %s", database))
+	return err
 }
 
 // Deletes the currently active database.
 func (self *Source) Drop() error {
-	self.session.Query(fmt.Sprintf("DROP DATABASE %s", self.config.Database))
-	return nil
+	_, err := self.session.Exec(fmt.Sprintf("DROP DATABASE %s", self.config.Database))
+	return err
 }
 
 // Returns the list of SQLite tables in the current database.
