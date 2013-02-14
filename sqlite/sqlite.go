@@ -46,7 +46,7 @@ func init() {
 
 type sqlQuery struct {
 	Query   []string
-	SqlArgs []string
+	SqlArgs []interface{}
 }
 
 func sqlCompile(terms []interface{}) *sqlQuery {
@@ -102,40 +102,38 @@ func (self *Source) Name() string {
 	return self.config.Database
 }
 
-func (sl *Source) sqlExec(method string, terms ...interface{}) (sql.Rows, error) {
+func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
+	if self.session == nil {
+		return nil, fmt.Errorf("You're currently not connected.")
+	}
 
-	var rows sql.Rows
+	chunks := sqlCompile(terms)
 
-	sn := reflect.ValueOf(sl.session)
-	fn := sn.MethodByName(method)
-
-	q := sqlCompile(terms)
+	query := strings.Join(chunks.Query, " ")
 
 	if Debug == true {
-		fmt.Printf("Q: %v\n", q.Query)
-		fmt.Printf("A: %v\n", q.SqlArgs)
+		fmt.Printf("Q: %s\n", query)
+		fmt.Printf("A: %v\n", chunks.SqlArgs)
 	}
 
-	args := make([]reflect.Value, len(q.SqlArgs)+1)
+	return self.session.Query(query, chunks.SqlArgs...)
+}
 
-	args[0] = reflect.ValueOf(strings.Join(q.Query, " "))
-
-	for i := 0; i < len(q.SqlArgs); i++ {
-		args[1+i] = reflect.ValueOf(q.SqlArgs[i])
+func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
+	if self.session == nil {
+		return nil, fmt.Errorf("You're currently not connected.")
 	}
 
-	res := fn.Call(args)
+	chunks := sqlCompile(terms)
 
-	if res[1].IsNil() == false {
-		return rows, res[1].Elem().Interface().(error)
+	query := strings.Join(chunks.Query, " ")
+
+	if Debug == true {
+		fmt.Printf("Q: %s\n", query)
+		fmt.Printf("A: %v\n", chunks.SqlArgs)
 	}
 
-	switch res[0].Elem().Interface().(type) {
-	case sql.Rows:
-		rows = res[0].Elem().Interface().(sql.Rows)
-	}
-
-	return rows, nil
+	return self.session.Exec(query, chunks.SqlArgs...)
 }
 
 // Represents a SQLite table.
@@ -161,54 +159,54 @@ func SqliteSession(config db.DataSource) db.Database {
 }
 
 // Returns a *sql.DB object that represents an internal session.
-func (sl *Source) Driver() interface{} {
-	return sl.session
+func (self *Source) Driver() interface{} {
+	return self.session
 }
 
-// Tries to open a connection to the current SQLite session.
-func (sl *Source) Open() error {
+// Tries to open a database file.
+func (self *Source) Open() error {
 	var err error
 
-	if sl.config.Database == "" {
-		panic("Database name is required.")
+	if self.config.Database == "" {
+		return fmt.Errorf("Missing database path.")
 	}
 
-	sl.session, err = sql.Open("sqlite3", sl.config.Database)
+	self.session, err = sql.Open("sqlite3", self.config.Database)
 
 	if err != nil {
-		return fmt.Errorf("Could not connect to %s", sl.config.Host)
+		return fmt.Errorf("Could not open %s: %s", self.config.Database, err.Error())
 	}
 
 	return nil
 }
 
 // Closes a previously opened SQLite database session.
-func (sl *Source) Close() error {
-	if sl.session != nil {
-		return sl.session.Close()
+func (self *Source) Close() error {
+	if self.session != nil {
+		return self.session.Close()
 	}
 	return nil
 }
 
 // Changes the active database.
-func (sl *Source) Use(database string) error {
-	sl.config.Database = database
-	sl.session.Query(fmt.Sprintf("USE %s", database))
+func (self *Source) Use(database string) error {
+	self.config.Database = database
+	self.session.Query(fmt.Sprintf("USE %s", database))
 	return nil
 }
 
 // Deletes the currently active database.
-func (sl *Source) Drop() error {
-	sl.session.Query(fmt.Sprintf("DROP DATABASE %s", sl.config.Database))
+func (self *Source) Drop() error {
+	self.session.Query(fmt.Sprintf("DROP DATABASE %s", self.config.Database))
 	return nil
 }
 
 // Returns the list of SQLite tables in the current database.
-func (sl *Source) Collections() []string {
+func (self *Source) Collections() []string {
 	var collections []string
 	var collection string
 
-	rows, _ := sl.session.Query("SELECT tbl_name FROM sqlite_master WHERE type = ?", "table")
+	rows, _ := self.session.Query("SELECT tbl_name FROM sqlite_master WHERE type = ?", "table")
 
 	for rows.Next() {
 		rows.Scan(&collection)
@@ -227,15 +225,15 @@ func (self *Source) ExistentCollection(name string) db.Collection {
 }
 
 // Returns a SQLite table structure by name.
-func (sl *Source) Collection(name string) (db.Collection, error) {
+func (self *Source) Collection(name string) (db.Collection, error) {
 
-	if collection, ok := sl.collections[name]; ok == true {
+	if collection, ok := self.collections[name]; ok == true {
 		return collection, nil
 	}
 
 	t := &Table{}
 
-	t.parent = sl
+	t.parent = self
 	t.name = name
 
 	// Table exists?
@@ -251,7 +249,7 @@ func (sl *Source) Collection(name string) (db.Collection, error) {
 		return t, err
 	}
 
-	columns := t.slFetchAll(*rows)
+	columns := t.sqlFetchAll(rows)
 
 	pattern, _ := regexp.Compile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
 
@@ -297,7 +295,7 @@ func (sl *Source) Collection(name string) (db.Collection, error) {
 		t.types[cname] = vtype
 	}
 
-	sl.collections[name] = t
+	self.collections[name] = t
 
 	return t, nil
 }

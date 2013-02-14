@@ -540,13 +540,14 @@ func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 			sqlValues(values),
 		)
 
-		lastId, err := res.LastInsertId()
-		ids = append(ids, to.String(lastId))
-
+		// Error ocurred, stopping adding.
 		if err != nil {
 			return ids, err
 		}
 
+		// Last inserted ID could be zero too.
+		lastId, _ := res.LastInsertId()
+		ids = append(ids, to.String(lastId))
 	}
 
 	return ids, nil
