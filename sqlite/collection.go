@@ -286,11 +286,16 @@ func (t *Table) FindAll(terms ...interface{}) []db.Item {
 		conditions = "1 = 1"
 	}
 
-	rows, _ := t.parent.doQuery(
+	rows, err := t.parent.doQuery(
 		fmt.Sprintf("SELECT %s FROM %s", fields, t.Name()),
 		fmt.Sprintf("WHERE %s", conditions), args,
 		sort, limit, offset,
 	)
+
+	// Will remove panic in a future version.
+	if err != nil {
+		panic(err)
+	}
 
 	result := t.FetchAll(rows)
 
