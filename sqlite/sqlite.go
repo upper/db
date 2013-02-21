@@ -28,8 +28,6 @@ import (
 	"fmt"
 	"github.com/gosexy/db"
 	_ "github.com/xiam/gosqlite3"
-	//_ "github.com/mattn/go-sqlite3"
-	//_ "bitbucket.org/minux/go.sqlite3"
 	"reflect"
 	"regexp"
 	"strings"
@@ -37,8 +35,10 @@ import (
 
 var Debug = false
 
-const dateFormat = "2006-01-02 15:04:05"
-const timeFormat = "%d:%02d:%02d"
+const DateFormat = "2006-01-02 15:04:05"
+const TimeFormat = "%d:%02d:%02d.%09d"
+
+var columnPattern = regexp.MustCompile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
 
 func init() {
 	db.Register("sqlite", &Source{})
@@ -100,6 +100,23 @@ type Source struct {
 
 func (self *Source) Name() string {
 	return self.config.Database
+}
+
+func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
+	if self.session == nil {
+		return nil, fmt.Errorf("You're currently not connected.")
+	}
+
+	chunks := sqlCompile(terms)
+
+	query := strings.Join(chunks.Query, " ")
+
+	if Debug == true {
+		fmt.Printf("Q: %s\n", query)
+		fmt.Printf("A: %v\n", chunks.SqlArgs)
+	}
+
+	return self.session.QueryRow(query, chunks.SqlArgs...), nil
 }
 
 // Wraps sql.DB.Query
@@ -251,9 +268,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 		return t, err
 	}
 
-	columns := t.sqlFetchAll(rows)
-
-	pattern, _ := regexp.Compile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
+	columns := t.FetchAll(rows)
 
 	t.types = make(map[string]reflect.Kind, len(columns))
 
@@ -262,7 +277,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 		cname := strings.ToLower(column["name"].(string))
 		ctype := strings.ToLower(column["type"].(string))
 
-		results := pattern.FindStringSubmatch(ctype)
+		results := columnPattern.FindStringSubmatch(string(ctype))
 
 		// Default properties.
 		dextra := ""
@@ -289,10 +304,6 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 		default:
 			vtype = reflect.String
 		}
-
-		/*
-		   fmt.Printf("Imported %v (from %v)\n", vtype, dtype)
-		*/
 
 		t.types[cname] = vtype
 	}

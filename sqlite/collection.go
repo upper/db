@@ -29,7 +29,6 @@ import (
 	"github.com/gosexy/db"
 	"github.com/gosexy/sugar"
 	"github.com/gosexy/to"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -41,7 +40,7 @@ func (self *Table) Name() string {
 }
 
 // Returns all items from a query.
-func (self *Table) sqlFetchAll(rows *sql.Rows) []db.Item {
+func (self *Table) FetchAll(rows *sql.Rows) []db.Item {
 
 	items := []db.Item{}
 
@@ -69,28 +68,20 @@ func (self *Table) sqlFetchAll(rows *sql.Rows) []db.Item {
 			panic(err)
 		}
 
-		// Pending cleaner reflection magic.
 		for i, value := range values {
 			column := columns[i]
 
 			if value == nil {
 				item[column] = nil
 			} else {
-				strval := fmt.Sprintf("%s", *value)
+				v := string(*value)
 
-				switch self.types[column] {
-				case reflect.Uint64:
-					intval, _ := strconv.Atoi(strval)
-					item[column] = uint64(intval)
-				case reflect.Int64:
-					intval, _ := strconv.Atoi(strval)
-					item[column] = intval
-				case reflect.Float64:
-					floatval, _ := strconv.ParseFloat(strval, 10)
-					item[column] = floatval
-				default:
-					item[column] = strval
+				item[column], err = to.Convert(v, self.types[column])
+
+				if err != nil {
+					item[column] = v
 				}
+
 			}
 		}
 
@@ -100,30 +91,13 @@ func (self *Table) sqlFetchAll(rows *sql.Rows) []db.Item {
 	return items
 }
 
-func (t *Table) invoke(fn string, terms []interface{}) []reflect.Value {
-
-	self := reflect.ValueOf(t)
-	method := self.MethodByName(fn)
-
-	args := make([]reflect.Value, len(terms))
-
-	itop := len(terms)
-	for i := 0; i < itop; i++ {
-		args[i] = reflect.ValueOf(terms[i])
-	}
-
-	exec := method.Call(args)
-
-	return exec
-}
-
 func (t *Table) compileSet(term db.Set) (string, db.SqlArgs) {
 	sql := []string{}
 	args := db.SqlArgs{}
 
 	for key, arg := range term {
 		sql = append(sql, fmt.Sprintf("%s = ?", key))
-		args = append(args, fmt.Sprintf("%v", arg))
+		args = append(args, to.String(arg))
 	}
 
 	return strings.Join(sql, ", "), args
@@ -194,7 +168,7 @@ func (t *Table) marshal(where db.Cond) (string, []string) {
 		key = strings.Trim(key, " ")
 		chunks := strings.Split(key, " ")
 
-		strval := fmt.Sprintf("%v", val)
+		strval := to.String(val)
 
 		if len(chunks) >= 2 {
 			return fmt.Sprintf("%s %s ?", chunks[0], chunks[1]), []string{strval}
@@ -318,7 +292,7 @@ func (t *Table) FindAll(terms ...interface{}) []db.Item {
 		sort, limit, offset,
 	)
 
-	result := t.sqlFetchAll(rows)
+	result := t.FetchAll(rows)
 
 	var relations []sugar.Map
 	var rcollection db.Collection
@@ -394,18 +368,17 @@ func (t *Table) FindAll(terms ...interface{}) []db.Item {
 
 			for k := 0; k < ktop; k++ {
 
-				//term = tcopy[k]
 				term = relation["terms"].(db.On)[k]
 
 				switch term.(type) {
 				// Just waiting for db.Cond statements.
 				case db.Cond:
 					for wkey, wval := range term.(db.Cond) {
-						//if reflect.TypeOf(wval).Kind() == reflect.String { // does not always work.
-						if reflect.TypeOf(wval).Name() == "string" {
+						switch wval.(type) {
+						case string:
 							// Matching dynamic values.
 							matched, _ := regexp.MatchString("\\{.+\\}", wval.(string))
-							if matched {
+							if matched == true {
 								// Replacing dynamic values.
 								kname := strings.Trim(wval.(string), "{}")
 								term = db.Cond{wkey: item[kname]}
@@ -418,11 +391,11 @@ func (t *Table) FindAll(terms ...interface{}) []db.Item {
 
 			// Executing external query.
 			if relation["all"] == true {
-				value := relation["collection"].(*Table).invoke("FindAll", terms)
-				item[relation["name"].(string)] = value[0].Interface().([]db.Item)
+				value := relation["collection"].(*Table).FindAll(terms...)
+				item[relation["name"].(string)] = value
 			} else {
-				value := relation["collection"].(*Table).invoke("Find", terms)
-				item[relation["name"].(string)] = value[0].Interface().(db.Item)
+				value := relation["collection"].(*Table).Find(terms...)
+				item[relation["name"].(string)] = value
 			}
 
 		}
@@ -439,14 +412,11 @@ func (t *Table) Count(terms ...interface{}) (int, error) {
 
 	terms = append(terms, db.Fields{"COUNT(1) AS _total"})
 
-	result := t.invoke("FindAll", terms)
+	result := t.FindAll(terms...)
 
 	if len(result) > 0 {
-		response := result[0].Interface().([]db.Item)
-		if len(response) > 0 {
-			val, _ := strconv.Atoi(response[0]["_total"].(string))
-			return val, nil
-		}
+		val, _ := strconv.Atoi(result[0]["_total"].(string))
+		return val, nil
 	}
 
 	return 0, nil
@@ -459,13 +429,10 @@ func (t *Table) Find(terms ...interface{}) db.Item {
 
 	terms = append(terms, db.Limit(1))
 
-	result := t.invoke("FindAll", terms)
+	result := t.FindAll(terms...)
 
 	if len(result) > 0 {
-		response := result[0].Interface().([]db.Item)
-		if len(response) > 0 {
-			item = response[0]
-		}
+		item = result[0]
 	}
 
 	return item
@@ -477,11 +444,10 @@ func toInternal(val interface{}) string {
 	case []byte:
 		return fmt.Sprintf("%s", string(val.([]byte)))
 	case time.Time:
-		return val.(time.Time).Format(dateFormat)
+		return val.(time.Time).Format(DateFormat)
 	case time.Duration:
 		t := val.(time.Duration)
-		//return fmt.Sprintf(timeFormat, int(t.Hours()), int(t.Minutes())%60, int(t.Seconds())%60, int(t.Nanoseconds())%1e9)
-		return fmt.Sprintf(timeFormat, int(t.Hours()), int(t.Minutes())%60, int(t.Seconds())%60)
+		return fmt.Sprintf(TimeFormat, int(t.Hours()), int(t.Minutes())%60, int(t.Seconds())%60, uint64(t.Nanoseconds())%1e9)
 	case bool:
 		if val.(bool) == true {
 			return "1"
@@ -490,12 +456,13 @@ func toInternal(val interface{}) string {
 		}
 	}
 
-	return fmt.Sprintf("%v", val)
+	return to.String(val)
 }
 
 func toNative(val interface{}) interface{} {
 
 	switch val.(type) {
+	// Nuff said
 	}
 
 	return val
