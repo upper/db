@@ -39,21 +39,16 @@ func (item Item) GetString(name string) string {
 
 // Returns the item value as a Go date.
 func (item Item) GetDate(name string) time.Time {
-	date := time.Date(0, time.January, 0, 0, 0, 0, 0, time.UTC)
+	var date time.Time
 
 	switch item[name].(type) {
 	case time.Time:
 		date = item[name].(time.Time)
 	case string:
-		var matched bool
 		value := item[name].(string)
-
-		matched, _ = regexp.MatchString(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$`, value)
-
-		if matched {
-			date, _ = time.Parse("2006-01-02 15:04:05", value)
-		}
+		date, _ = time.Parse("2006-01-02 15:04:05", value)
 	}
+
 	return date
 }
 

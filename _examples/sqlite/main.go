@@ -3,7 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/gosexy/db"
-	_ "github.com/gosexy/db/sqlite"
+	"github.com/gosexy/db/sqlite"
+	"time"
 )
 
 var settings = db.DataSource{
@@ -11,6 +12,8 @@ var settings = db.DataSource{
 }
 
 func main() {
+
+	sqlite.DateFormat = "2006-01-02"
 
 	sess, err := db.Open("sqlite", settings)
 
@@ -58,6 +61,25 @@ func main() {
 
 	for _, item := range items {
 		fmt.Printf("animal: %s, young: %s\n", item["animal"], item["young"])
+	}
+
+	birthdays, err := sess.Collection("birthdays")
+
+	if err != nil {
+		fmt.Println("Please create the `birthdays` table and make sure the `animals.db` sqlite3 database exists.")
+		return
+	}
+
+	birthdays.Append(db.Item{
+		"name": "Joseph",
+		"born": time.Date(1987, time.July, 28, 0, 0, 0, 0, time.UTC),
+		"age":  26,
+	})
+
+	items = birthdays.FindAll()
+
+	for _, item := range items {
+		fmt.Printf("name: %s, born: %s, age: %d\n", item["name"], item["born"], item["age"])
 	}
 
 }

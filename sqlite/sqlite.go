@@ -35,8 +35,8 @@ import (
 
 var Debug = false
 
-const DateFormat = "2006-01-02 15:04:05"
-const TimeFormat = "%d:%02d:%02d.%09d"
+var DateFormat = "2006-01-02 15:04:05"
+var TimeFormat = "%d:%02d:%02d.%09d"
 
 var columnPattern = regexp.MustCompile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
 
