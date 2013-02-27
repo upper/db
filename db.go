@@ -126,6 +126,13 @@ type Relate map[string]On
 // }
 type RelateAll map[string]On
 
+type Relation struct {
+	All        bool
+	Name       string
+	Collection Collection
+	On         On
+}
+
 // Limits the number of results a FindAll() expression returns.
 //
 // Example:
