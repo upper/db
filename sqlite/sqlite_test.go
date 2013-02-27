@@ -43,9 +43,6 @@ func testItem() db.Item {
 		"_string": string("abc"),
 		"_bytea":  []byte{'a', 'b', 'c'},
 
-		//"_list": sugar.List{1, 2, 3},
-		//"_map":  sugar.Map{"a": 1, "b": 2, "c": 3},
-
 		"_date": time.Date(2012, 7, 28, 1, 2, 3, 0, time.UTC),
 		"_time": _time,
 	}
@@ -386,20 +383,6 @@ func TestDataTypes(t *testing.T) {
 				if item.GetString(key) != testData["_string"].(string) {
 					t.Errorf("Wrong datatype %v.", key)
 				}
-
-			/*
-				// Map
-				case "_map":
-					if item.GetMap(key)["a"] != testData["_map"].(sugar.Map)["a"] {
-						t.Errorf("Wrong datatype %v.", key)
-					}
-
-				// Array
-				case "_list":
-					if item.GetList(key)[0] != testData["_list"].(sugar.List)[0] {
-						t.Errorf("Wrong datatype %v.", key)
-					}
-			*/
 
 			// Date
 			case "_date":

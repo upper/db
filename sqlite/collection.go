@@ -25,26 +25,38 @@ package sqlite
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/gosexy/db"
-	"github.com/gosexy/sugar"
 	"github.com/gosexy/to"
+	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
 
+// Returns the name of the table.
 func (self *Table) Name() string {
 	return self.name
 }
 
 // Returns all items from a query.
-func (self *Table) FetchAll(rows *sql.Rows) []db.Item {
+func (self *Table) FetchAll(dst interface{}, rows *sql.Rows) error {
 
-	items := []db.Item{}
+	dstv := reflect.ValueOf(dst)
 
-	columns, _ := rows.Columns()
+	if dstv.Kind() != reflect.Ptr || dstv.Elem().Kind() != reflect.Slice || dstv.IsNil() {
+		return errors.New("FetchAll expects a pointer to slice.")
+	}
+
+	slicev := dstv.Elem()
+	itemt := slicev.Type().Elem()
+
+	columns, err := rows.Columns()
+
+	if err != nil {
+		return err
+	}
 
 	for i, _ := range columns {
 		columns[i] = strings.ToLower(columns[i])
@@ -60,109 +72,101 @@ func (self *Table) FetchAll(rows *sql.Rows) []db.Item {
 	}
 
 	for rows.Next() {
-		item := db.Item{}
+
+		item := reflect.MakeMap(itemt)
 
 		err := rows.Scan(scanArgs...)
 
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		for i, value := range values {
-			column := columns[i]
-
-			if value == nil {
-				item[column] = nil
-			} else {
-				v := string(*value)
-
-				item[column], err = to.Convert(v, self.types[column])
-
-				if err != nil {
-					item[column] = v
+			if value != nil {
+				column := columns[i]
+				var cv reflect.Value
+				if _, ok := self.types[column]; ok == true {
+					v, _ := to.Convert(string(*value), self.types[column])
+					cv = reflect.ValueOf(v)
+				} else {
+					v, _ := to.Convert(string(*value), reflect.String)
+					cv = reflect.ValueOf(v)
 				}
-
+				item.SetMapIndex(reflect.ValueOf(column), cv)
 			}
 		}
 
-		items = append(items, item)
+		slicev = reflect.Append(dstv.Elem(), item)
 	}
 
-	return items
+	dstv.Elem().Set(slicev)
+
+	return nil
 }
 
-func (t *Table) compileSet(term db.Set) (string, db.SqlArgs) {
-	sql := []string{}
-	args := db.SqlArgs{}
+// Transforms db.Set into arguments for sql.Exec/sql.Query.
+func (self *Table) compileSet(term db.Set) (string, db.SqlArgs) {
+	sql := make([]string, len(term))
+	args := make(db.SqlArgs, len(term))
 
+	i := 0
 	for key, arg := range term {
-		sql = append(sql, fmt.Sprintf("%s = ?", key))
-		args = append(args, to.String(arg))
+		sql[i] = fmt.Sprintf("%s = ?", key)
+		args[i] = to.String(arg)
+		i++
 	}
 
 	return strings.Join(sql, ", "), args
 }
 
-func (t *Table) compileConditions(term interface{}) (string, db.SqlArgs) {
+// Transforms conditions into arguments for sql.Exec/sql.Query
+func (self *Table) compileConditions(term interface{}) (string, db.SqlArgs) {
 	sql := []string{}
 	args := db.SqlArgs{}
 
-	switch term.(type) {
+	switch t := term.(type) {
 	case []interface{}:
-		itop := len(term.([]interface{}))
-
-		for i := 0; i < itop; i++ {
-			rsql, rargs := t.compileConditions(term.([]interface{})[i])
+		for i := range t {
+			rsql, rargs := self.compileConditions(t[i])
 			if rsql != "" {
 				sql = append(sql, rsql)
-				for j := 0; j < len(rargs); j++ {
-					args = append(args, rargs[j])
-				}
+				args = append(args, rargs...)
 			}
 		}
 		if len(sql) > 0 {
 			return "(" + strings.Join(sql, " AND ") + ")", args
 		}
 	case db.Or:
-		itop := len(term.(db.Or))
-
-		for i := 0; i < itop; i++ {
-			rsql, rargs := t.compileConditions(term.(db.Or)[i])
+		for i := range t {
+			rsql, rargs := self.compileConditions(t[i])
 			if rsql != "" {
 				sql = append(sql, rsql)
-				for j := 0; j < len(rargs); j++ {
-					args = append(args, rargs[j])
-				}
+				args = append(args, rargs...)
 			}
 		}
-
 		if len(sql) > 0 {
 			return "(" + strings.Join(sql, " OR ") + ")", args
 		}
 	case db.And:
-		itop := len(term.(db.Or))
-
-		for i := 0; i < itop; i++ {
-			rsql, rargs := t.compileConditions(term.(db.Or)[i])
+		for i := range t {
+			rsql, rargs := self.compileConditions(t[i])
 			if rsql != "" {
 				sql = append(sql, rsql)
-				for j := 0; j < len(rargs); j++ {
-					args = append(args, rargs[j])
-				}
+				args = append(args, rargs...)
 			}
 		}
-
 		if len(sql) > 0 {
 			return "(" + strings.Join(sql, " AND ") + ")", args
 		}
 	case db.Cond:
-		return t.marshal(term.(db.Cond))
+		return self.compileStatement(t)
 	}
 
 	return "", args
 }
 
-func (t *Table) marshal(where db.Cond) (string, []string) {
+// Transforms db.Cond into SQL conditions for sql.Exec/sql.Query
+func (self *Table) compileStatement(where db.Cond) (string, []string) {
 
 	for key, val := range where {
 		key = strings.Trim(key, " ")
@@ -182,61 +186,62 @@ func (t *Table) marshal(where db.Cond) (string, []string) {
 }
 
 // Deletes all the rows in the table.
-func (t *Table) Truncate() error {
+func (self *Table) Truncate() error {
 
-	_, err := t.parent.doExec(
-		fmt.Sprintf("DELETE FROM %s", t.Name()),
+	_, err := self.parent.doExec(
+		fmt.Sprintf("DELETE FROM %s", self.Name()),
 	)
 
 	return err
 }
 
 // Deletes all the rows in the table that match certain conditions.
-func (t *Table) Remove(terms ...interface{}) error {
+func (self *Table) Remove(terms ...interface{}) error {
 
-	conditions, cargs := t.compileConditions(terms)
+	conds, args := self.compileConditions(terms)
 
-	if conditions == "" {
-		conditions = "1 = 1"
+	if conds == "" {
+		conds = "1 = 1"
 	}
 
-	_, err := t.parent.doExec(
-		fmt.Sprintf("DELETE FROM %s", t.Name()),
-		fmt.Sprintf("WHERE %s", conditions), cargs,
+	_, err := self.parent.doExec(
+		fmt.Sprintf("DELETE FROM %s", self.Name()),
+		fmt.Sprintf("WHERE %s", conds), args,
 	)
 
 	return err
 }
 
 // Modifies all the rows in the table that match certain conditions.
-func (t *Table) Update(terms ...interface{}) error {
+func (self *Table) Update(terms ...interface{}) error {
 	var fields string
 	var fargs db.SqlArgs
 
-	conditions, cargs := t.compileConditions(terms)
+	conds, args := self.compileConditions(terms)
 
 	for _, term := range terms {
-		switch term.(type) {
+		switch t := term.(type) {
 		case db.Set:
-			fields, fargs = t.compileSet(term.(db.Set))
+			fields, fargs = self.compileSet(t)
 		}
 	}
 
-	if conditions == "" {
-		conditions = "1 = 1"
+	if conds == "" {
+		conds = "1 = 1"
 	}
 
-	_, err := t.parent.doExec(
-		fmt.Sprintf("UPDATE %s SET %s", t.Name(), fields), fargs,
-		fmt.Sprintf("WHERE %s", conditions), cargs,
+	_, err := self.parent.doExec(
+		fmt.Sprintf("UPDATE %s SET %s", self.Name(), fields), fargs,
+		fmt.Sprintf("WHERE %s", conds), args,
 	)
 
 	return err
 }
 
 // Returns all the rows in the table that match certain conditions.
-func (t *Table) FindAll(terms ...interface{}) []db.Item {
-	var itop int
+func (self *Table) FindAll(terms ...interface{}) []db.Item {
+
+	var err error
 
 	var relate interface{}
 	var relateAll interface{}
@@ -246,147 +251,141 @@ func (t *Table) FindAll(terms ...interface{}) []db.Item {
 	limit := ""
 	offset := ""
 	sort := ""
+	sortBy := []string{}
 
 	// Analyzing
-	itop = len(terms)
+	for _, term := range terms {
 
-	for i := 0; i < itop; i++ {
-		term := terms[i]
-
-		switch term.(type) {
+		switch v := term.(type) {
 		case db.Limit:
-			limit = fmt.Sprintf("LIMIT %v", term.(db.Limit))
+			limit = fmt.Sprintf("LIMIT %d", v)
 		case db.Sort:
-			sortBy := []string{}
-			for k, v := range term.(db.Sort) {
-				v = strings.ToUpper(to.String(v))
-				if v == "-1" {
-					v = "DESC"
+			for sk, sv := range v {
+				sv = strings.ToUpper(to.String(sv))
+				if sv == "-1" {
+					sv = "DESC"
 				}
-				if v == "1" {
-					v = "ASC"
+				if sv == "1" {
+					sv = "ASC"
 				}
-				sortBy = append(sortBy, fmt.Sprintf("%s %s", k, v))
+				sortBy = append(sortBy, fmt.Sprintf("%s %s", sk, sv))
 			}
-			sort = fmt.Sprintf("ORDER BY %s", strings.Join(sortBy, ", "))
 		case db.Offset:
-			offset = fmt.Sprintf("OFFSET %v", term.(db.Offset))
+			offset = fmt.Sprintf("OFFSET %d", v)
 		case db.Fields:
-			fields = strings.Join(term.(db.Fields), ", ")
+			fields = strings.Join(v, ", ")
 		case db.Relate:
-			relate = term.(db.Relate)
+			relate = v
 		case db.RelateAll:
-			relateAll = term.(db.RelateAll)
+			relateAll = v
 		}
 	}
 
-	conditions, args := t.compileConditions(terms)
+	if len(sortBy) > 0 {
+		sort = fmt.Sprintf("ORDER BY %s", strings.Join(sortBy, ", "))
+	}
+
+	conditions, args := self.compileConditions(terms)
 
 	if conditions == "" {
 		conditions = "1 = 1"
 	}
 
-	rows, err := t.parent.doQuery(
-		fmt.Sprintf("SELECT %s FROM %s", fields, t.Name()),
+	rows, err := self.parent.doQuery(
+		fmt.Sprintf("SELECT %s FROM %s", fields, self.Name()),
 		fmt.Sprintf("WHERE %s", conditions), args,
 		sort, limit, offset,
 	)
 
-	// Will remove panic in a future version.
+	// Will remove panics in a future version.
 	if err != nil {
 		panic(err)
 	}
 
-	result := t.FetchAll(rows)
+	result := []map[string]interface{}{}
+	err = self.FetchAll(&result, rows)
 
-	var relations []sugar.Map
-	var rcollection db.Collection
+	// Will remove panics in a future version.
+	if err != nil {
+		panic(err)
+	}
+
+	var col db.Collection
+	var relations []db.Relation
 
 	// This query is related to other collections.
 	if relate != nil {
-		for rname, rterms := range relate.(db.Relate) {
 
-			rcollection = nil
+		i := 0
 
-			ttop := len(rterms)
-			for t := ttop - 1; t >= 0; t-- {
-				rterm := rterms[t]
-				switch rterm.(type) {
+		for name, terms := range relate.(db.Relate) {
+
+			col = nil
+
+			for _, term := range terms {
+				switch t := term.(type) {
 				case db.Collection:
-					rcollection = rterm.(db.Collection)
+					col = t
 				}
 			}
 
-			if rcollection == nil {
-				rcollection = t.parent.ExistentCollection(rname)
+			if col == nil {
+				col = self.parent.ExistentCollection(name)
 			}
 
-			relations = append(relations, sugar.Map{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
+			relations = append(relations, db.Relation{All: false, Name: name, Collection: col, On: terms})
+
+			i++
 		}
 	}
 
 	if relateAll != nil {
-		for rname, rterms := range relateAll.(db.RelateAll) {
-			rcollection = nil
 
-			ttop := len(rterms)
-			for t := ttop - 1; t >= 0; t-- {
-				rterm := rterms[t]
-				switch rterm.(type) {
+		i := 0
+
+		for name, terms := range relateAll.(db.RelateAll) {
+
+			col = nil
+
+			for _, term := range terms {
+				switch t := term.(type) {
 				case db.Collection:
-					rcollection = rterm.(db.Collection)
+					col = t
 				}
 			}
 
-			if rcollection == nil {
-				rcollection = t.parent.ExistentCollection(rname)
+			if col == nil {
+				col = self.parent.ExistentCollection(name)
 			}
 
-			relations = append(relations, sugar.Map{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
+			relations = append(relations, db.Relation{All: true, Name: name, Collection: col, On: terms})
+
+			i++
 		}
 	}
 
-	var term interface{}
+	items := make([]db.Item, len(result))
 
-	jtop := len(relations)
-
-	itop = len(result)
-	items := make([]db.Item, itop)
-
-	for i := 0; i < itop; i++ {
-
-		item := db.Item{}
-
-		// Default values.
-		for key, val := range result[i] {
-			item[key] = val
-		}
+	for i, item := range result {
 
 		// Querying relations
-		for j := 0; j < jtop; j++ {
-
-			relation := relations[j]
+		for _, relation := range relations {
 
 			terms := []interface{}{}
 
-			ktop := len(relation["terms"].(db.On))
-
-			for k := 0; k < ktop; k++ {
-
-				term = relation["terms"].(db.On)[k]
-
+			for _, term := range relation.On {
 				switch term.(type) {
 				// Just waiting for db.Cond statements.
 				case db.Cond:
-					for wkey, wval := range term.(db.Cond) {
-						switch wval.(type) {
+					for k, v := range term.(db.Cond) {
+						switch s := v.(type) {
 						case string:
 							// Matching dynamic values.
-							matched, _ := regexp.MatchString("\\{.+\\}", wval.(string))
+							matched, _ := regexp.MatchString("\\{.+\\}", s)
 							if matched == true {
 								// Replacing dynamic values.
-								kname := strings.Trim(wval.(string), "{}")
-								term = db.Cond{wkey: item[kname]}
+								ik := strings.Trim(s, "{}")
+								term = db.Cond{k: item[ik]}
 							}
 						}
 					}
@@ -395,12 +394,10 @@ func (t *Table) FindAll(terms ...interface{}) []db.Item {
 			}
 
 			// Executing external query.
-			if relation["all"] == true {
-				value := relation["collection"].(*Table).FindAll(terms...)
-				item[relation["name"].(string)] = value
+			if relation.All == true {
+				item[relation.Name] = relation.Collection.FindAll(terms...)
 			} else {
-				value := relation["collection"].(*Table).Find(terms...)
-				item[relation["name"].(string)] = value
+				item[relation.Name] = relation.Collection.Find(terms...)
 			}
 
 		}
@@ -413,48 +410,44 @@ func (t *Table) FindAll(terms ...interface{}) []db.Item {
 }
 
 // Returns the number of rows in the current table that match certain conditions.
-func (t *Table) Count(terms ...interface{}) (int, error) {
+func (self *Table) Count(terms ...interface{}) (int, error) {
 
 	terms = append(terms, db.Fields{"COUNT(1) AS _total"})
 
-	result := t.FindAll(terms...)
+	result := self.FindAll(terms...)
 
 	if len(result) > 0 {
-		val, _ := strconv.Atoi(result[0]["_total"].(string))
-		return val, nil
+		return to.Int(result[0]["_total"]), nil
 	}
 
 	return 0, nil
 }
 
 // Returns the first row in the table that matches certain conditions.
-func (t *Table) Find(terms ...interface{}) db.Item {
-
-	var item db.Item
+func (self *Table) Find(terms ...interface{}) db.Item {
 
 	terms = append(terms, db.Limit(1))
 
-	result := t.FindAll(terms...)
+	result := self.FindAll(terms...)
 
 	if len(result) > 0 {
-		item = result[0]
+		return result[0]
 	}
 
-	return item
+	return nil
 }
 
 func toInternal(val interface{}) string {
 
-	switch val.(type) {
+	switch t := val.(type) {
 	case []byte:
-		return fmt.Sprintf("%s", string(val.([]byte)))
+		return string(t)
 	case time.Time:
-		return val.(time.Time).Format(DateFormat)
+		return t.Format(DateFormat)
 	case time.Duration:
-		t := val.(time.Duration)
 		return fmt.Sprintf(TimeFormat, int(t.Hours()), int(t.Minutes())%60, int(t.Seconds())%60, uint64(t.Nanoseconds())%1e9)
 	case bool:
-		if val.(bool) == true {
+		if t == true {
 			return "1"
 		} else {
 			return "0"
@@ -465,37 +458,27 @@ func toInternal(val interface{}) string {
 }
 
 func toNative(val interface{}) interface{} {
-
-	switch val.(type) {
-	// Nuff said
-	}
-
 	return val
-
 }
 
 // Inserts rows into the currently active table.
-func (t *Table) Append(items ...interface{}) ([]db.Id, error) {
+func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 
 	ids := []db.Id{}
 
-	itop := len(items)
-
-	for i := 0; i < itop; i++ {
+	for _, item := range items {
 
 		values := []string{}
 		fields := []string{}
-
-		item := items[i]
 
 		for field, value := range item.(db.Item) {
 			fields = append(fields, field)
 			values = append(values, toInternal(value))
 		}
 
-		res, err := t.parent.doExec(
+		res, err := self.parent.doExec(
 			"INSERT INTO",
-			t.Name(),
+			self.Name(),
 			sqlFields(fields),
 			"VALUES",
 			sqlValues(values),
@@ -509,7 +492,6 @@ func (t *Table) Append(items ...interface{}) ([]db.Id, error) {
 		// Last inserted ID could be zero too.
 		lastId, _ := res.LastInsertId()
 		ids = append(ids, db.Id(to.String(lastId)))
-
 	}
 
 	return ids, nil

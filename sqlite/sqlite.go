@@ -55,16 +55,16 @@ func sqlCompile(terms []interface{}) *sqlQuery {
 	q.Query = []string{}
 
 	for _, term := range terms {
-		switch term.(type) {
+		switch t := term.(type) {
 		case string:
-			q.Query = append(q.Query, term.(string))
+			q.Query = append(q.Query, t)
 		case db.SqlArgs:
-			for _, arg := range term.(db.SqlArgs) {
+			for _, arg := range t {
 				q.SqlArgs = append(q.SqlArgs, arg)
 			}
 		case db.SqlValues:
-			args := make([]string, len(term.(db.SqlValues)))
-			for i, arg := range term.(db.SqlValues) {
+			args := make([]string, len(t))
+			for i, arg := range t {
 				args[i] = "?"
 				q.SqlArgs = append(q.SqlArgs, arg)
 			}
@@ -98,6 +98,7 @@ type Source struct {
 	collections map[string]db.Collection
 }
 
+// Returns database name.
 func (self *Source) Name() string {
 	return self.config.Database
 }
@@ -250,27 +251,32 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 		return collection, nil
 	}
 
-	t := &Table{}
+	table := &Table{}
 
-	t.parent = self
-	t.name = name
+	table.parent = self
+	table.name = name
 
 	// Table exists?
-	if t.Exists() == false {
-		return t, fmt.Errorf("Table %s does not exists.", name)
+	if table.Exists() == false {
+		return table, fmt.Errorf("Table %s does not exists.", name)
 	}
 
 	// Fetching table datatypes and mapping to internal gotypes.
 
-	rows, err := t.parent.session.Query(fmt.Sprintf("PRAGMA TABLE_INFO('%s')", t.name))
+	rows, err := table.parent.session.Query(fmt.Sprintf("PRAGMA TABLE_INFO('%s')", table.name))
 
 	if err != nil {
-		return t, err
+		return table, err
 	}
 
-	columns := t.FetchAll(rows)
+	columns := []map[string]interface{}{}
+	err = table.FetchAll(&columns, rows)
 
-	t.types = make(map[string]reflect.Kind, len(columns))
+	if err != nil {
+		return nil, err
+	}
+
+	table.types = make(map[string]reflect.Kind, len(columns))
 
 	for _, column := range columns {
 
@@ -305,10 +311,10 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 			vtype = reflect.String
 		}
 
-		t.types[cname] = vtype
+		table.types[cname] = vtype
 	}
 
-	self.collections[name] = t
+	self.collections[name] = table
 
-	return t, nil
+	return table, nil
 }
