@@ -35,22 +35,242 @@ import (
 	"time"
 )
 
+func compareColumnToField(s, c string) bool {
+	return strings.ToLower(s) == strings.ToLower(c)
+}
+
 // Returns the name of the table.
 func (self *Table) Name() string {
 	return self.name
 }
 
-// Returns all items from a query.
-func (self *Table) FetchAll(dst interface{}, rows *sql.Rows) error {
+func (self *Table) Fetch(dst interface{}, terms ...interface{}) error {
+
+	/*
+		At this moment it is not possible to create a slice of a given element
+		type: https://code.google.com/p/go/issues/detail?id=2339
+
+		When it gets available this function should change, it must rely on
+		FetchAll() the same way Find() relies on FindAll().
+	*/
+
+	found := self.Find(terms...)
+
+	dstv := reflect.ValueOf(dst)
+
+	if dstv.Kind() != reflect.Ptr || dstv.IsNil() {
+		return errors.New("Fetch() expects a pointer.")
+	}
+
+	itemv := dstv.Elem().Type()
+
+	switch itemv.Kind() {
+	case reflect.Struct:
+		for column, _ := range found {
+			f := func(s string) bool {
+				return compareColumnToField(s, column)
+			}
+			v := dstv.Elem().FieldByNameFunc(f)
+			if v.IsValid() {
+				v.Set(reflect.ValueOf(found[column]))
+			}
+		}
+	case reflect.Map:
+		dstv.Elem().Set(reflect.ValueOf(found))
+	default:
+		return nil
+	}
+
+	return nil
+}
+
+func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
+
+	var err error
+
+	var relate interface{}
+	var relateAll interface{}
+
+	fields := "*"
+	conditions := ""
+	limit := ""
+	offset := ""
+	sort := ""
+	sortBy := []string{}
+
+	// Analyzing
+	for _, term := range terms {
+
+		switch v := term.(type) {
+		case db.Limit:
+			limit = fmt.Sprintf("LIMIT %d", v)
+		case db.Sort:
+			for sk, sv := range v {
+				sv = strings.ToUpper(to.String(sv))
+				if sv == "-1" {
+					sv = "DESC"
+				}
+				if sv == "1" {
+					sv = "ASC"
+				}
+				sortBy = append(sortBy, fmt.Sprintf("%s %s", sk, sv))
+			}
+		case db.Offset:
+			offset = fmt.Sprintf("OFFSET %d", v)
+		case db.Fields:
+			fields = strings.Join(v, ", ")
+		case db.Relate:
+			relate = v
+		case db.RelateAll:
+			relateAll = v
+		}
+	}
+
+	if len(sortBy) > 0 {
+		sort = fmt.Sprintf("ORDER BY %s", strings.Join(sortBy, ", "))
+	}
+
+	conditions, args := self.compileConditions(terms)
+
+	if conditions == "" {
+		conditions = "1 = 1"
+	}
+
+	var col db.Collection
+	var relations []db.Relation
+
+	// This query is related to other collections.
+	if relate != nil {
+
+		i := 0
+
+		for name, terms := range relate.(db.Relate) {
+
+			col = nil
+
+			for _, term := range terms {
+				switch t := term.(type) {
+				case db.Collection:
+					col = t
+				}
+			}
+
+			if col == nil {
+				col = self.parent.ExistentCollection(name)
+			}
+
+			relations = append(relations, db.Relation{All: false, Name: name, Collection: col, On: terms})
+
+			i++
+		}
+	}
+
+	if relateAll != nil {
+
+		i := 0
+
+		for name, terms := range relateAll.(db.RelateAll) {
+
+			col = nil
+
+			for _, term := range terms {
+				switch t := term.(type) {
+				case db.Collection:
+					col = t
+				}
+			}
+
+			if col == nil {
+				col = self.parent.ExistentCollection(name)
+			}
+
+			relations = append(relations, db.Relation{All: true, Name: name, Collection: col, On: terms})
+
+			i++
+		}
+	}
+
+	rows, err := self.parent.doQuery(
+		fmt.Sprintf("SELECT %s FROM %s", fields, self.Name()),
+		fmt.Sprintf("WHERE %s", conditions), args,
+		sort, limit, offset,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	err = self.fetchRows(dst, rows)
+
+	if err != nil {
+		return err
+	}
 
 	dstv := reflect.ValueOf(dst)
 
 	if dstv.Kind() != reflect.Ptr || dstv.Elem().Kind() != reflect.Slice || dstv.IsNil() {
-		return errors.New("FetchAll expects a pointer to slice.")
+		return errors.New("fetchRows expects a pointer to slice.")
 	}
 
-	slicev := dstv.Elem()
-	itemt := slicev.Type().Elem()
+	itemv := dstv.Elem().Type()
+
+	switch itemv.Elem().Kind() {
+	case reflect.Struct:
+		fmt.Printf("got sutrct\n")
+	case reflect.Map:
+		// Iterate over all results.
+		for i := 0; i < dstv.Elem().Len(); i++ {
+
+			item := dstv.Elem().Index(i)
+
+			for _, relation := range relations {
+
+				terms := []interface{}{}
+
+				for _, term := range relation.On {
+					switch term.(type) {
+					// Just waiting for db.Cond statements.
+					case db.Cond:
+						for k, v := range term.(db.Cond) {
+							switch s := v.(type) {
+							case string:
+								// Matching dynamic values.
+								matched, _ := regexp.MatchString("\\{.+\\}", s)
+								if matched == true {
+									// Replacing dynamic values.
+									ik := strings.Trim(s, "{}")
+									term = db.Cond{k: item.MapIndex(reflect.ValueOf(ik)).Interface()}
+								}
+							}
+						}
+					}
+					terms = append(terms, term)
+				}
+
+				keyv := reflect.ValueOf(relation.Name)
+
+				// Executing external query.
+				if relation.All == true {
+					item.SetMapIndex(keyv, reflect.ValueOf(relation.Collection.FindAll(terms...)))
+				} else {
+					item.SetMapIndex(keyv, reflect.ValueOf(relation.Collection.Find(terms...)))
+				}
+			}
+
+		}
+	}
+
+	return nil
+}
+
+// Returns all items from a query.
+func (self *Table) fetchRows(dst interface{}, rows *sql.Rows) error {
+
+	dstv := reflect.ValueOf(dst)
+
+	if dstv.Kind() != reflect.Ptr || dstv.Elem().Kind() != reflect.Slice || dstv.IsNil() {
+		return errors.New("fetchRows expects a pointer to slice.")
+	}
 
 	columns, err := rows.Columns()
 
@@ -64,16 +284,26 @@ func (self *Table) FetchAll(dst interface{}, rows *sql.Rows) error {
 
 	expecting := len(columns)
 
-	values := make([]*sql.RawBytes, expecting)
-	scanArgs := make([]interface{}, expecting)
-
-	for i := range columns {
-		scanArgs[i] = &values[i]
-	}
+	slicev := dstv.Elem()
+	itemt := slicev.Type().Elem()
 
 	for rows.Next() {
 
-		item := reflect.MakeMap(itemt)
+		values := make([]*sql.RawBytes, expecting)
+		scanArgs := make([]interface{}, expecting)
+
+		for i := range columns {
+			scanArgs[i] = &values[i]
+		}
+
+		var item reflect.Value
+
+		switch itemt.Kind() {
+		case reflect.Map:
+			item = reflect.MakeMap(itemt)
+		case reflect.Struct:
+			item = reflect.New(itemt)
+		}
 
 		err := rows.Scan(scanArgs...)
 
@@ -92,11 +322,34 @@ func (self *Table) FetchAll(dst interface{}, rows *sql.Rows) error {
 					v, _ := to.Convert(string(*value), reflect.String)
 					cv = reflect.ValueOf(v)
 				}
-				item.SetMapIndex(reflect.ValueOf(column), cv)
+				switch itemt.Kind() {
+				case reflect.Map:
+					if cv.Type() != itemt {
+						if item.Type().Elem().Kind() != reflect.Interface {
+							c, _ := to.Convert(string(*value), item.Type().Elem().Kind())
+							cv = reflect.ValueOf(c)
+						}
+					}
+					item.SetMapIndex(reflect.ValueOf(column), cv)
+				case reflect.Struct:
+					f := func(s string) bool {
+						return strings.ToLower(s) == column
+					}
+					v := item.Elem().FieldByNameFunc(f)
+					if v.IsValid() {
+						if cv.Type() != itemt {
+							if v.Type().Kind() != reflect.Interface {
+								c, _ := to.Convert(string(*value), v.Type().Kind())
+								cv = reflect.ValueOf(c)
+							}
+						}
+						v.Set(cv)
+					}
+				}
 			}
 		}
 
-		slicev = reflect.Append(dstv.Elem(), item)
+		slicev = reflect.Append(slicev, reflect.Indirect(item))
 	}
 
 	dstv.Elem().Set(slicev)
@@ -238,8 +491,18 @@ func (self *Table) Update(terms ...interface{}) error {
 	return err
 }
 
-// Returns all the rows in the table that match certain conditions.
 func (self *Table) FindAll(terms ...interface{}) []db.Item {
+	results := []db.Item{}
+	err := self.FetchAll(&results, terms...)
+	if err != nil {
+		panic(err)
+	}
+	return results
+}
+
+/*
+// Returns all the rows in the table that match certain conditions.
+func (self *Table) FindAll2(terms ...interface{}) []db.Item {
 
 	var err error
 
@@ -303,7 +566,7 @@ func (self *Table) FindAll(terms ...interface{}) []db.Item {
 	}
 
 	result := []map[string]interface{}{}
-	err = self.FetchAll(&result, rows)
+	err = self.fetchRows(&result, rows)
 
 	// Will remove panics in a future version.
 	if err != nil {
@@ -408,6 +671,7 @@ func (self *Table) FindAll(terms ...interface{}) []db.Item {
 
 	return items
 }
+*/
 
 // Returns the number of rows in the current table that match certain conditions.
 func (self *Table) Count(terms ...interface{}) (int, error) {
@@ -464,16 +728,37 @@ func toNative(val interface{}) interface{} {
 // Inserts rows into the currently active table.
 func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 
-	ids := []db.Id{}
+	ids := make([]db.Id, len(items))
 
-	for _, item := range items {
+	for i, item := range items {
 
-		values := []string{}
-		fields := []string{}
+		var values []string
+		var fields []string
 
-		for field, value := range item.(db.Item) {
-			fields = append(fields, field)
-			values = append(values, toInternal(value))
+		itemv := reflect.ValueOf(item)
+		itemt := itemv.Type()
+
+		switch itemt.Kind() {
+		case reflect.Struct:
+			nfields := itemv.NumField()
+			values = make([]string, nfields)
+			fields = make([]string, nfields)
+			for i := 0; i < nfields; i++ {
+				fields[i] = itemt.Field(i).Name
+				values[i] = toInternal(itemv.Field(i).Interface())
+			}
+		case reflect.Map:
+			nfields := itemv.Len()
+			values = make([]string, nfields)
+			fields = make([]string, nfields)
+			mkeys := itemv.MapKeys()
+			for i, keyv := range mkeys {
+				valv := itemv.MapIndex(keyv)
+				fields[i] = to.String(keyv.Interface())
+				values[i] = toInternal(valv.Interface())
+			}
+		default:
+			return ids, fmt.Errorf("Append() accepts Struct or Map only, %v received.", itemt.Kind())
 		}
 
 		res, err := self.parent.doExec(
@@ -490,8 +775,8 @@ func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 		}
 
 		// Last inserted ID could be zero too.
-		lastId, _ := res.LastInsertId()
-		ids = append(ids, db.Id(to.String(lastId)))
+		id, _ := res.LastInsertId()
+		ids[i] = db.Id(to.String(id))
 	}
 
 	return ids, nil

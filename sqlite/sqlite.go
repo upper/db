@@ -270,7 +270,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 	}
 
 	columns := []map[string]interface{}{}
-	err = table.FetchAll(&columns, rows)
+	err = table.fetchRows(&columns, rows)
 
 	if err != nil {
 		return nil, err

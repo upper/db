@@ -33,9 +33,6 @@ func testItem() db.Item {
 		"_float32": float32(1.0),
 		"_float64": float64(1.0),
 
-		//"_complex64": complex64(1),
-		//"_complex128": complex128(1),
-
 		"_byte": byte(1),
 		"_rune": rune(1),
 
@@ -58,7 +55,7 @@ func TestOpenFailed(t *testing.T) {
 	_, err := db.Open("sqlite", db.DataSource{})
 
 	if err == nil {
-		t.Errorf("An error was expected.")
+		t.Fatalf("An error was expected.")
 	}
 
 }
@@ -68,7 +65,7 @@ func TestTruncate(t *testing.T) {
 	sess, err := db.Open("sqlite", db.DataSource{Database: dbpath})
 
 	if err != nil {
-		panic(err)
+		t.Fatalf(err.Error())
 	}
 
 	defer sess.Close()
@@ -82,7 +79,7 @@ func TestTruncate(t *testing.T) {
 		total, _ := col.Count()
 
 		if total != 0 {
-			t.Errorf("Could not truncate %s.", name)
+			t.Fatalf("Could not truncate table %s.", name)
 		}
 	}
 
@@ -101,34 +98,77 @@ func TestAppend(t *testing.T) {
 	_, err = sess.Collection("doesnotexists")
 
 	if err == nil {
-		t.Errorf("Collection should not exists.")
-		//return
+		t.Fatalf("Collection should not exists.")
 	}
 
 	people := sess.ExistentCollection("people")
 
+	// To be inserted
+	names := []string{"Juan", "José", "Pedro", "María", "Roberto", "Manuel", "Miguel"}
+	var total int
+
+	// Append db.Item
 	people.Truncate()
 
-	names := []string{"Juan", "José", "Pedro", "María", "Roberto", "Manuel", "Miguel"}
-
-	for i := 0; i < len(names); i++ {
-		people.Append(db.Item{"name": names[i]})
+	for _, name := range names {
+		people.Append(db.Item{"name": name})
 	}
 
-	total, _ := people.Count()
+	total, _ = people.Count()
 
 	if total != len(names) {
-		t.Error("Could not append all items.")
+		t.Fatalf("Could not append all items.")
+	}
+
+	// Append map[string]string
+	people.Truncate()
+
+	for _, name := range names {
+		people.Append(map[string]string{"name": name})
+	}
+
+	total, _ = people.Count()
+
+	if total != len(names) {
+		t.Fatalf("Could not append all items.")
+	}
+
+	// Append map[string]interface{}
+	people.Truncate()
+
+	for _, name := range names {
+		people.Append(map[string]interface{}{"name": name})
+	}
+
+	total, _ = people.Count()
+
+	if total != len(names) {
+		t.Fatalf("Could not append all items.")
+	}
+
+	// Append struct
+	people.Truncate()
+
+	for _, name := range names {
+		people.Append(struct{ Name string }{name})
+	}
+
+	total, _ = people.Count()
+
+	if total != len(names) {
+		t.Fatalf("Could not append all items.")
 	}
 
 }
 
 func TestFind(t *testing.T) {
 
+	var err error
+
 	sess, err := db.Open("sqlite", db.DataSource{Database: dbpath})
 
 	if err != nil {
-		panic(err)
+		t.Fatalf(err.Error())
 	}
 
 	defer sess.Close()
@@ -138,7 +178,66 @@ func TestFind(t *testing.T) {
 	result := people.Find(db.Cond{"name": "José"})
 
 	if result["name"] != "José" {
-		t.Error("Could not find a recently appended item.")
+		t.Fatalf("Could not find a recently appended item.")
+	}
+
+	dst := []map[string]string{}
+
+	err = people.FetchAll(&dst, db.Cond{"name": "José"})
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if len(dst) != 1 {
+		t.Fatalf("Could not find a recently appended item.")
+	}
+
+	if dst[0]["name"] != "José" {
+		t.Fatalf("Could not find a recently appended item.")
+	}
+
+	// Struct and FetchAll()
+	dst2 := []struct{ Name string }{}
+
+	err = people.FetchAll(&dst2, db.Cond{"name": "José"})
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if len(dst2) != 1 {
+		t.Fatalf("Could not find a recently appended item.")
+	}
+
+	if dst2[0].Name != "José" {
+		t.Fatalf("Could not find a recently appended item.")
+	}
+
+	// Map and Fetch()
+	dst3 := map[string]interface{}{}
+
+	err = people.Fetch(&dst3, db.Cond{"name": "José"})
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if dst3["name"] != "José" {
+		t.Fatalf("Could not find a recently appended item.")
+	}
+
+	// Struct and Fetch()
+	dst4 := struct{ Name string }{}
+
+	err = people.Fetch(&dst4, db.Cond{"name": "José"})
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if dst4.Name != "José" {
+		t.Fatalf("Could not find a recently appended item.")
 	}
 
 }
@@ -159,7 +258,7 @@ func TestDelete(t *testing.T) {
 	result := people.Find(db.Cond{"name": "Juan"})
 
 	if len(result) > 0 {
-		t.Error("Could not remove a recently appended item.")
+		t.Fatalf("Could not remove a recently appended item.")
 	}
 
 }
@@ -180,7 +279,7 @@ func TestUpdate(t *testing.T) {
 	result := people.Find(db.Cond{"name": "Joseph"})
 
 	if len(result) == 0 {
-		t.Error("Could not update a recently appended item.")
+		t.Fatalf("Could not update a recently appended item.")
 	}
 }
 
@@ -288,7 +387,7 @@ func TestDataTypes(t *testing.T) {
 	sess, err := db.Open("sqlite", db.DataSource{Database: dbpath})
 
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Fatalf(err.Error())
 		return
 	}
 
@@ -303,13 +402,13 @@ func TestDataTypes(t *testing.T) {
 	ids, err := dataTypes.Append(testData)
 
 	if err != nil {
-		t.Errorf("Could not append test data: %s.", err.Error())
+		t.Fatalf("Could not append test data: %s.", err.Error())
 	}
 
 	found, _ := dataTypes.Count(db.Cond{"id": db.Id(ids[0])})
 
 	if found == 0 {
-		t.Errorf("Cannot find recently inserted item (by ID).")
+		t.Fatalf("Cannot find recently inserted item (by ID).")
 	}
 
 	// Getting and reinserting.
@@ -319,7 +418,7 @@ func TestDataTypes(t *testing.T) {
 	_, err = dataTypes.Append(item)
 
 	if err == nil {
-		t.Errorf("Expecting duplicated-key error.")
+		t.Fatalf("Expecting duplicated-key error.")
 	}
 
 	delete(item, "id")
@@ -327,7 +426,7 @@ func TestDataTypes(t *testing.T) {
 	_, err = dataTypes.Append(item)
 
 	if err != nil {
-		t.Errorf("Could not append second element: %s.", err.Error())
+		t.Fatalf("Could not append second element: %s.", err.Error())
 	}
 
 	// Testing rows
@@ -348,7 +447,7 @@ func TestDataTypes(t *testing.T) {
 				"_int32",
 				"_int64":
 				if item.GetInt(key) != int64(testData["_int"].(int)) {
-					t.Errorf("Wrong datatype %v.", key)
+					t.Fatalf("Wrong datatype %v.", key)
 				}
 
 			// Unsigned integers.
@@ -362,32 +461,32 @@ func TestDataTypes(t *testing.T) {
 				"_byte",
 				"_rune":
 				if item.GetInt(key) != int64(testData["_uint"].(uint)) {
-					t.Errorf("Wrong datatype %v.", key)
+					t.Fatalf("Wrong datatype %v.", key)
 				}
 
 			// Floating point.
 			case "_float32":
 			case "_float64":
 				if item.GetFloat(key) != testData["_float64"].(float64) {
-					t.Errorf("Wrong datatype %v.", key)
+					t.Fatalf("Wrong datatype %v.", key)
 				}
 
 			// Boolean
 			case "_bool":
 				if item.GetBool(key) != testData["_bool"].(bool) {
-					t.Errorf("Wrong datatype %v.", key)
+					t.Fatalf("Wrong datatype %v.", key)
 				}
 
 			// String
 			case "_string":
 				if item.GetString(key) != testData["_string"].(string) {
-					t.Errorf("Wrong datatype %v.", key)
+					t.Fatalf("Wrong datatype %v.", key)
 				}
 
 			// Date
 			case "_date":
 				if item.GetDate(key).Equal(testData["_date"].(time.Time)) == false {
-					t.Errorf("Wrong datatype %v.", key)
+					t.Fatalf("Wrong datatype %v.", key)
 				}
 			}
 		}
