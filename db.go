@@ -208,6 +208,9 @@ type Collection interface {
 	Find(...interface{}) Item
 	FindAll(...interface{}) []Item
 
+	FetchAll(interface{}, ...interface{}) error
+	Fetch(interface{}, ...interface{}) error
+
 	Update(...interface{}) error
 	Exists() bool
 
