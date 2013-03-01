@@ -382,6 +382,69 @@ func TestRelation(t *testing.T) {
 	fmt.Printf("%# v\n", pretty.Formatter(results))
 }
 
+func TestRelationStruct(t *testing.T) {
+	var err error
+
+	sess, err := db.Open("sqlite", db.DataSource{Database: dbpath})
+
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	defer sess.Close()
+
+	people := sess.ExistentCollection("people")
+
+	results := []struct {
+		Id          int
+		Name        string
+		PlaceCodeId int
+		LivesIn     struct {
+			Name string
+		}
+		HasChildren []struct {
+			Name string
+		}
+		HasVisited []struct {
+			PlaceId int
+			Place   struct {
+				Name string
+			}
+		}
+	}{}
+
+	err = people.FetchAll(&results,
+		db.Relate{
+			"LivesIn": db.On{
+				sess.ExistentCollection("places"),
+				db.Cond{"code_id": "{PlaceCodeId}"},
+			},
+		},
+		db.RelateAll{
+			"HasChildren": db.On{
+				sess.ExistentCollection("children"),
+				db.Cond{"parent_id": "{Id}"},
+			},
+			"HasVisited": db.On{
+				sess.ExistentCollection("visits"),
+				db.Cond{"person_id": "{Id}"},
+				db.Relate{
+					"Place": db.On{
+						sess.ExistentCollection("places"),
+						db.Cond{"id": "{PlaceId}"},
+					},
+				},
+			},
+		},
+	)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	fmt.Printf("STRUCT %# v\n", pretty.Formatter(results))
+}
+
 func TestDataTypes(t *testing.T) {
 
 	sess, err := db.Open("sqlite", db.DataSource{Database: dbpath})

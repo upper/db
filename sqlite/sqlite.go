@@ -25,6 +25,7 @@ package sqlite
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/gosexy/db"
 	_ "github.com/xiam/gosqlite3"
@@ -35,10 +36,13 @@ import (
 
 var Debug = false
 
+// Format for saving dates.
 var DateFormat = "2006-01-02 15:04:05"
+
+// Format for saving times.
 var TimeFormat = "%d:%02d:%02d.%09d"
 
-var columnPattern = regexp.MustCompile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
+var columnPattern = regexp.MustCompile(`^([a-zA-Z]+)\(?([0-9,]+)?\)?\s?([a-zA-Z]*)?`)
 
 func init() {
 	db.Register("sqlite", &Source{})
@@ -90,7 +94,9 @@ func sqlValues(values []string) db.SqlValues {
 	return ret
 }
 
-// Stores driver's session data.
+/*
+	Driver's session data.
+*/
 type Source struct {
 	config      db.DataSource
 	session     *sql.DB
@@ -98,14 +104,16 @@ type Source struct {
 	collections map[string]db.Collection
 }
 
-// Returns database name.
+/*
+	Returns the name of the database.
+*/
 func (self *Source) Name() string {
 	return self.config.Database
 }
 
 func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
 	if self.session == nil {
-		return nil, fmt.Errorf("You're currently not connected.")
+		return nil, errors.New("You're currently not connected.")
 	}
 
 	chunks := sqlCompile(terms)
@@ -120,7 +128,9 @@ func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
 	return self.session.QueryRow(query, chunks.SqlArgs...), nil
 }
 
-// Wraps sql.DB.Query
+/*
+	Wraps sql.DB.Query
+*/
 func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
 	if self.session == nil {
 		return nil, fmt.Errorf("You're currently not connected.")
@@ -138,7 +148,9 @@ func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
 	return self.session.Query(query, chunks.SqlArgs...)
 }
 
-// Wraps sql.DB.Exec
+/*
+	Wraps sql.DB.Exec
+*/
 func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
 	if self.session == nil {
 		return nil, fmt.Errorf("You're currently not connected.")
@@ -156,34 +168,46 @@ func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
 	return self.session.Exec(query, chunks.SqlArgs...)
 }
 
-// Represents a SQLite table.
+/*
+	Represents a SQLite table.
+*/
 type Table struct {
 	parent *Source
 	name   string
 	types  map[string]reflect.Kind
 }
 
-// Configures and returns a SQLite database session.
+/*
+	Configures and returns a SQLite database session.
+*/
 func (self *Source) Setup(config db.DataSource) error {
 	self.config = config
 	self.collections = make(map[string]db.Collection)
 	return self.Open()
 }
 
-// Deprecated: Configures and returns a SQLite database session.
+/*
+	Deprecated: Configures and returns a SQLite database session.
+*/
+/*
 func SqliteSession(config db.DataSource) db.Database {
 	m := &Source{}
 	m.config = config
 	m.collections = make(map[string]db.Collection)
 	return m
 }
+*/
 
-// Returns a *sql.DB object that represents an internal session.
+/*
+	Returns a *sql.DB object that represents an internal session.
+*/
 func (self *Source) Driver() interface{} {
 	return self.session
 }
 
-// Tries to open a database file.
+/*
+	Tries to open a database file.
+*/
 func (self *Source) Open() error {
 	var err error
 
@@ -200,7 +224,9 @@ func (self *Source) Open() error {
 	return nil
 }
 
-// Closes a previously opened SQLite database session.
+/*
+	Closes a SQLite database session.
+*/
 func (self *Source) Close() error {
 	if self.session != nil {
 		return self.session.Close()
@@ -208,20 +234,26 @@ func (self *Source) Close() error {
 	return nil
 }
 
-// Changes the active database.
+/*
+	Changes the active database.
+*/
 func (self *Source) Use(database string) error {
 	self.config.Database = database
 	_, err := self.session.Exec(fmt.Sprintf("USE %s", database))
 	return err
 }
 
-// Deletes the currently active database.
+/*
+	Drops the currently active database.
+*/
 func (self *Source) Drop() error {
 	_, err := self.session.Exec(fmt.Sprintf("DROP DATABASE %s", self.config.Database))
 	return err
 }
 
-// Returns the list of SQLite tables in the current database.
+/*
+	Returns a list of all tables in the current database.
+*/
 func (self *Source) Collections() []string {
 	var collections []string
 	var collection string
@@ -236,6 +268,9 @@ func (self *Source) Collections() []string {
 	return collections
 }
 
+/*
+	Returns a collection that must exists or panics.
+*/
 func (self *Source) ExistentCollection(name string) db.Collection {
 	col, err := self.Collection(name)
 	if err != nil {
@@ -244,7 +279,9 @@ func (self *Source) ExistentCollection(name string) db.Collection {
 	return col
 }
 
-// Returns a SQLite table structure by name.
+/*
+	Returns a SQLite table structure by name.
+*/
 func (self *Source) Collection(name string) (db.Collection, error) {
 
 	if collection, ok := self.collections[name]; ok == true {
@@ -262,14 +299,18 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 	}
 
 	// Fetching table datatypes and mapping to internal gotypes.
-
 	rows, err := table.parent.session.Query(fmt.Sprintf("PRAGMA TABLE_INFO('%s')", table.name))
 
 	if err != nil {
 		return table, err
 	}
 
-	columns := []map[string]interface{}{}
+	// Change to struct
+	columns := []struct {
+		Name string
+		Type string
+	}{}
+
 	err = table.fetchRows(&columns, rows)
 
 	if err != nil {
@@ -280,10 +321,10 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 
 	for _, column := range columns {
 
-		cname := strings.ToLower(column["name"].(string))
-		ctype := strings.ToLower(column["type"].(string))
+		column.Name = strings.ToLower(column.Name)
+		column.Type = strings.ToLower(column.Type)
 
-		results := columnPattern.FindStringSubmatch(string(ctype))
+		results := columnPattern.FindStringSubmatch(column.Type)
 
 		// Default properties.
 		dextra := ""
@@ -295,23 +336,23 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 			dextra = results[3]
 		}
 
-		vtype := reflect.String
+		ctype := reflect.String
 
 		// Guessing datatypes.
 		switch dtype {
 		case "integer":
 			if dextra == "unsigned" {
-				vtype = reflect.Uint64
+				ctype = reflect.Uint64
 			} else {
-				vtype = reflect.Int64
+				ctype = reflect.Int64
 			}
 		case "real", "numeric":
-			vtype = reflect.Float64
+			ctype = reflect.Float64
 		default:
-			vtype = reflect.String
+			ctype = reflect.String
 		}
 
-		table.types[cname] = vtype
+		table.types[column.Name] = ctype
 	}
 
 	self.collections[name] = table

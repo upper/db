@@ -35,15 +35,29 @@ import (
 	"time"
 )
 
+var extRelationPattern = regexp.MustCompile(`\{(.+)\}`)
+var columnComparePattern = regexp.MustCompile(`[^a-zA-Z0-9]`)
+
+/*
+	Returns true if a table column looks like a struct field.
+*/
 func compareColumnToField(s, c string) bool {
+	s = columnComparePattern.ReplaceAllString(s, "")
+	c = columnComparePattern.ReplaceAllString(c, "")
 	return strings.ToLower(s) == strings.ToLower(c)
 }
 
-// Returns the name of the table.
+/*
+	Returns the table name as a string.
+*/
 func (self *Table) Name() string {
 	return self.name
 }
 
+/*
+	Fetches a result delimited by terms into a pointer to map or struct given by
+	dst.
+*/
 func (self *Table) Fetch(dst interface{}, terms ...interface{}) error {
 
 	/*
@@ -59,7 +73,7 @@ func (self *Table) Fetch(dst interface{}, terms ...interface{}) error {
 	dstv := reflect.ValueOf(dst)
 
 	if dstv.Kind() != reflect.Ptr || dstv.IsNil() {
-		return errors.New("Fetch() expects a pointer.")
+		return fmt.Errorf("Fetch() expects a pointer.")
 	}
 
 	itemv := dstv.Elem().Type()
@@ -78,192 +92,230 @@ func (self *Table) Fetch(dst interface{}, terms ...interface{}) error {
 	case reflect.Map:
 		dstv.Elem().Set(reflect.ValueOf(found))
 	default:
-		return nil
+		return fmt.Errorf("Expecting a pointer to map or struct, got %s.", itemv.Kind())
 	}
 
 	return nil
 }
 
+/*
+	Fetches results delimited by terms into an slice of maps or structs given by
+	the pointer dst.
+*/
 func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 
 	var err error
 
-	var relate interface{}
-	var relateAll interface{}
+	var dstv reflect.Value
+	var itemv reflect.Value
+	var itemk reflect.Kind
 
-	fields := "*"
-	conditions := ""
-	limit := ""
-	offset := ""
-	sort := ""
-	sortBy := []string{}
+	queryChunks := struct {
+		Fields     []string
+		Limit      string
+		Offset     string
+		Sort       string
+		Relate     db.Relate
+		RelateAll  db.RelateAll
+		Relations  []db.Relation
+		Conditions string
+		Arguments  db.SqlArgs
+	}{}
 
-	// Analyzing
+	queryChunks.Relate = make(db.Relate)
+	queryChunks.RelateAll = make(db.RelateAll)
+
+	// Checking input
+	dstv = reflect.ValueOf(dst)
+
+	if dstv.Kind() != reflect.Ptr || dstv.IsNil() || dstv.Elem().Kind() != reflect.Slice {
+		return errors.New("FetchAll() expects a pointer to slice.")
+	}
+
+	itemv = dstv.Elem()
+	itemk = itemv.Type().Elem().Kind()
+
+	if itemk != reflect.Struct && itemk != reflect.Map {
+		return errors.New("FetchAll() expects a pointer to slice of maps or structs.")
+	}
+
+	// Analyzing given terms.
 	for _, term := range terms {
 
 		switch v := term.(type) {
 		case db.Limit:
-			limit = fmt.Sprintf("LIMIT %d", v)
+			if queryChunks.Limit == "" {
+				queryChunks.Limit = fmt.Sprintf("LIMIT %d", v)
+			} else {
+				return errors.New("A query can accept only one db.Limit() parameter.")
+			}
 		case db.Sort:
-			for sk, sv := range v {
-				sv = strings.ToUpper(to.String(sv))
-				if sv == "-1" {
-					sv = "DESC"
+			if queryChunks.Sort == "" {
+				sortChunks := make([]string, len(v))
+				i := 0
+				for column, sort := range v {
+					sort = strings.ToUpper(to.String(sort))
+					if sort == "-1" {
+						sort = "DESC"
+					}
+					if sort == "1" {
+						sort = "ASC"
+					}
+					sortChunks[i] = fmt.Sprintf("%s %s", column, sort)
+					i++
 				}
-				if sv == "1" {
-					sv = "ASC"
-				}
-				sortBy = append(sortBy, fmt.Sprintf("%s %s", sk, sv))
+				queryChunks.Sort = fmt.Sprintf("ORDER BY %s", strings.Join(sortChunks, ", "))
+			} else {
+				return errors.New("A query can accept only one db.Sort{} parameter.")
 			}
 		case db.Offset:
-			offset = fmt.Sprintf("OFFSET %d", v)
+			if queryChunks.Offset == "" {
+				queryChunks.Offset = fmt.Sprintf("OFFSET %d", v)
+			} else {
+				return errors.New("A query can accept only one db.Offset() parameter.")
+			}
 		case db.Fields:
-			fields = strings.Join(v, ", ")
+			queryChunks.Fields = append(queryChunks.Fields, v...)
 		case db.Relate:
-			relate = v
+			for name, terms := range v {
+				queryChunks.Relations = append(queryChunks.Relations, db.Relation{All: false, Name: name, Collection: nil, On: terms})
+			}
 		case db.RelateAll:
-			relateAll = v
+			for name, terms := range v {
+				queryChunks.Relations = append(queryChunks.Relations, db.Relation{All: true, Name: name, Collection: nil, On: terms})
+			}
 		}
 	}
 
-	if len(sortBy) > 0 {
-		sort = fmt.Sprintf("ORDER BY %s", strings.Join(sortBy, ", "))
+	// No specific fields given.
+	if len(queryChunks.Fields) == 0 {
+		queryChunks.Fields = []string{"*"}
 	}
 
-	conditions, args := self.compileConditions(terms)
+	// Compiling conditions
+	queryChunks.Conditions, queryChunks.Arguments = self.compileConditions(terms)
 
-	if conditions == "" {
-		conditions = "1 = 1"
+	if queryChunks.Conditions == "" {
+		queryChunks.Conditions = "1 = 1"
 	}
 
-	var col db.Collection
-	var relations []db.Relation
-
-	// This query is related to other collections.
-	if relate != nil {
-
-		i := 0
-
-		for name, terms := range relate.(db.Relate) {
-
-			col = nil
-
-			for _, term := range terms {
-				switch t := term.(type) {
-				case db.Collection:
-					col = t
-				}
-			}
-
-			if col == nil {
-				col = self.parent.ExistentCollection(name)
-			}
-
-			relations = append(relations, db.Relation{All: false, Name: name, Collection: col, On: terms})
-
-			i++
-		}
-	}
-
-	if relateAll != nil {
-
-		i := 0
-
-		for name, terms := range relateAll.(db.RelateAll) {
-
-			col = nil
-
-			for _, term := range terms {
-				switch t := term.(type) {
-				case db.Collection:
-					col = t
-				}
-			}
-
-			if col == nil {
-				col = self.parent.ExistentCollection(name)
-			}
-
-			relations = append(relations, db.Relation{All: true, Name: name, Collection: col, On: terms})
-
-			i++
-		}
-	}
-
+	// Actually executing query.
 	rows, err := self.parent.doQuery(
-		fmt.Sprintf("SELECT %s FROM %s", fields, self.Name()),
-		fmt.Sprintf("WHERE %s", conditions), args,
-		sort, limit, offset,
+		// Mandatory
+		fmt.Sprintf("SELECT %s FROM %s", strings.Join(queryChunks.Fields, ", "), self.Name()),
+		fmt.Sprintf("WHERE %s", queryChunks.Conditions), queryChunks.Arguments,
+		// Optional
+		queryChunks.Sort, queryChunks.Limit, queryChunks.Offset,
 	)
 
 	if err != nil {
 		return err
 	}
 
+	// Fetching rows.
 	err = self.fetchRows(dst, rows)
 
 	if err != nil {
 		return err
 	}
 
-	dstv := reflect.ValueOf(dst)
+	if len(queryChunks.Relations) > 0 {
 
-	if dstv.Kind() != reflect.Ptr || dstv.Elem().Kind() != reflect.Slice || dstv.IsNil() {
-		return errors.New("fetchRows expects a pointer to slice.")
-	}
-
-	itemv := dstv.Elem().Type()
-
-	switch itemv.Elem().Kind() {
-	case reflect.Struct:
-		fmt.Printf("got sutrct\n")
-	case reflect.Map:
-		// Iterate over all results.
+		// Iterate over results.
 		for i := 0; i < dstv.Elem().Len(); i++ {
 
-			item := dstv.Elem().Index(i)
+			item := itemv.Index(i)
 
-			for _, relation := range relations {
+			for _, relation := range queryChunks.Relations {
 
-				terms := []interface{}{}
+				terms := make([]interface{}, len(relation.On))
 
-				for _, term := range relation.On {
-					switch term.(type) {
+				for j, term := range relation.On {
+					switch t := term.(type) {
 					// Just waiting for db.Cond statements.
 					case db.Cond:
-						for k, v := range term.(db.Cond) {
+						for k, v := range t {
 							switch s := v.(type) {
 							case string:
-								// Matching dynamic values.
-								matched, _ := regexp.MatchString("\\{.+\\}", s)
-								if matched == true {
-									// Replacing dynamic values.
-									ik := strings.Trim(s, "{}")
-									term = db.Cond{k: item.MapIndex(reflect.ValueOf(ik)).Interface()}
+								matches := extRelationPattern.FindStringSubmatch(s)
+								if len(matches) > 1 {
+									extkey := matches[1]
+									var val reflect.Value
+									switch itemk {
+									case reflect.Struct:
+										f := func(s string) bool {
+											return compareColumnToField(s, extkey)
+										}
+										val = item.FieldByNameFunc(f)
+										fmt.Printf("fielv :%v, name: %v\n", val, extkey)
+										fmt.Printf("curr: %v\n", item.Interface())
+									case reflect.Map:
+										val = item.MapIndex(reflect.ValueOf(extkey))
+									}
+									if val.IsValid() {
+										term = db.Cond{k: val.Interface()}
+									}
 								}
 							}
 						}
+					case db.Collection:
+						relation.Collection = t
 					}
-					terms = append(terms, term)
+					terms[j] = term
+				}
+
+				if relation.Collection == nil {
+					relation.Collection, err = self.parent.Collection(relation.Name)
+					if err != nil {
+						return fmt.Errorf("Could not relate to collection %s: %s", relation.Name, err.Error())
+					}
 				}
 
 				keyv := reflect.ValueOf(relation.Name)
 
-				// Executing external query.
-				if relation.All == true {
-					item.SetMapIndex(keyv, reflect.ValueOf(relation.Collection.FindAll(terms...)))
-				} else {
-					item.SetMapIndex(keyv, reflect.ValueOf(relation.Collection.Find(terms...)))
-				}
-			}
+				switch itemk {
+				case reflect.Struct:
+					f := func(s string) bool {
+						return compareColumnToField(s, relation.Name)
+					}
 
+					val := item.FieldByNameFunc(f)
+
+					if val.IsValid() {
+						p := reflect.New(val.Type())
+						q := p.Interface()
+						if relation.All == true {
+							fmt.Printf("all\n")
+							//err = relation.Collection.FetchAll(&p, terms...)
+							//val.Set(reflect.ValueOf(relation.Collection.FindAll(terms...)))
+							err = relation.Collection.FetchAll(q, terms...)
+						} else {
+							err = relation.Collection.Fetch(q, terms...)
+						}
+						if err != nil {
+							return err
+						}
+						val.Set(reflect.Indirect(p))
+					}
+				case reflect.Map:
+					// Executing external query.
+					if relation.All == true {
+						item.SetMapIndex(keyv, reflect.ValueOf(relation.Collection.FindAll(terms...)))
+					} else {
+						item.SetMapIndex(keyv, reflect.ValueOf(relation.Collection.Find(terms...)))
+					}
+				}
+
+			}
 		}
 	}
 
 	return nil
 }
 
-// Returns all items from a query.
+/*
+	Copies *sql.Rows into the slice of maps or structs given by the pointer dst.
+*/
 func (self *Table) fetchRows(dst interface{}, rows *sql.Rows) error {
 
 	dstv := reflect.ValueOf(dst)
@@ -333,7 +385,7 @@ func (self *Table) fetchRows(dst interface{}, rows *sql.Rows) error {
 					item.SetMapIndex(reflect.ValueOf(column), cv)
 				case reflect.Struct:
 					f := func(s string) bool {
-						return strings.ToLower(s) == column
+						return compareColumnToField(s, column)
 					}
 					v := item.Elem().FieldByNameFunc(f)
 					if v.IsValid() {
@@ -357,7 +409,9 @@ func (self *Table) fetchRows(dst interface{}, rows *sql.Rows) error {
 	return nil
 }
 
-// Transforms db.Set into arguments for sql.Exec/sql.Query.
+/*
+	Transforms db.Set into arguments for sql.Exec/sql.Query.
+*/
 func (self *Table) compileSet(term db.Set) (string, db.SqlArgs) {
 	sql := make([]string, len(term))
 	args := make(db.SqlArgs, len(term))
@@ -372,7 +426,9 @@ func (self *Table) compileSet(term db.Set) (string, db.SqlArgs) {
 	return strings.Join(sql, ", "), args
 }
 
-// Transforms conditions into arguments for sql.Exec/sql.Query
+/*
+	Transforms conditions into arguments for sql.Exec/sql.Query
+*/
 func (self *Table) compileConditions(term interface{}) (string, db.SqlArgs) {
 	sql := []string{}
 	args := db.SqlArgs{}
@@ -418,7 +474,9 @@ func (self *Table) compileConditions(term interface{}) (string, db.SqlArgs) {
 	return "", args
 }
 
-// Transforms db.Cond into SQL conditions for sql.Exec/sql.Query
+/*
+	Transforms db.Cond into SQL conditions for sql.Exec/sql.Query
+*/
 func (self *Table) compileStatement(where db.Cond) (string, []string) {
 
 	for key, val := range where {
@@ -438,7 +496,9 @@ func (self *Table) compileStatement(where db.Cond) (string, []string) {
 	return "", []string{}
 }
 
-// Deletes all the rows in the table.
+/*
+	Deletes all the rows in the table.
+*/
 func (self *Table) Truncate() error {
 
 	_, err := self.parent.doExec(
@@ -448,7 +508,9 @@ func (self *Table) Truncate() error {
 	return err
 }
 
-// Deletes all the rows in the table that match certain conditions.
+/*
+	Deletes all the rows in the table that match certain conditions.
+*/
 func (self *Table) Remove(terms ...interface{}) error {
 
 	conds, args := self.compileConditions(terms)
@@ -465,7 +527,9 @@ func (self *Table) Remove(terms ...interface{}) error {
 	return err
 }
 
-// Modifies all the rows in the table that match certain conditions.
+/*
+	Modifies all the rows in the table that match certain conditions.
+*/
 func (self *Table) Update(terms ...interface{}) error {
 	var fields string
 	var fargs db.SqlArgs
@@ -501,179 +565,8 @@ func (self *Table) FindAll(terms ...interface{}) []db.Item {
 }
 
 /*
-// Returns all the rows in the table that match certain conditions.
-func (self *Table) FindAll2(terms ...interface{}) []db.Item {
-
-	var err error
-
-	var relate interface{}
-	var relateAll interface{}
-
-	fields := "*"
-	conditions := ""
-	limit := ""
-	offset := ""
-	sort := ""
-	sortBy := []string{}
-
-	// Analyzing
-	for _, term := range terms {
-
-		switch v := term.(type) {
-		case db.Limit:
-			limit = fmt.Sprintf("LIMIT %d", v)
-		case db.Sort:
-			for sk, sv := range v {
-				sv = strings.ToUpper(to.String(sv))
-				if sv == "-1" {
-					sv = "DESC"
-				}
-				if sv == "1" {
-					sv = "ASC"
-				}
-				sortBy = append(sortBy, fmt.Sprintf("%s %s", sk, sv))
-			}
-		case db.Offset:
-			offset = fmt.Sprintf("OFFSET %d", v)
-		case db.Fields:
-			fields = strings.Join(v, ", ")
-		case db.Relate:
-			relate = v
-		case db.RelateAll:
-			relateAll = v
-		}
-	}
-
-	if len(sortBy) > 0 {
-		sort = fmt.Sprintf("ORDER BY %s", strings.Join(sortBy, ", "))
-	}
-
-	conditions, args := self.compileConditions(terms)
-
-	if conditions == "" {
-		conditions = "1 = 1"
-	}
-
-	rows, err := self.parent.doQuery(
-		fmt.Sprintf("SELECT %s FROM %s", fields, self.Name()),
-		fmt.Sprintf("WHERE %s", conditions), args,
-		sort, limit, offset,
-	)
-
-	// Will remove panics in a future version.
-	if err != nil {
-		panic(err)
-	}
-
-	result := []map[string]interface{}{}
-	err = self.fetchRows(&result, rows)
-
-	// Will remove panics in a future version.
-	if err != nil {
-		panic(err)
-	}
-
-	var col db.Collection
-	var relations []db.Relation
-
-	// This query is related to other collections.
-	if relate != nil {
-
-		i := 0
-
-		for name, terms := range relate.(db.Relate) {
-
-			col = nil
-
-			for _, term := range terms {
-				switch t := term.(type) {
-				case db.Collection:
-					col = t
-				}
-			}
-
-			if col == nil {
-				col = self.parent.ExistentCollection(name)
-			}
-
-			relations = append(relations, db.Relation{All: false, Name: name, Collection: col, On: terms})
-
-			i++
-		}
-	}
-
-	if relateAll != nil {
-
-		i := 0
-
-		for name, terms := range relateAll.(db.RelateAll) {
-
-			col = nil
-
-			for _, term := range terms {
-				switch t := term.(type) {
-				case db.Collection:
-					col = t
-				}
-			}
-
-			if col == nil {
-				col = self.parent.ExistentCollection(name)
-			}
-
-			relations = append(relations, db.Relation{All: true, Name: name, Collection: col, On: terms})
-
-			i++
-		}
-	}
-
-	items := make([]db.Item, len(result))
-
-	for i, item := range result {
-
-		// Querying relations
-		for _, relation := range relations {
-
-			terms := []interface{}{}
-
-			for _, term := range relation.On {
-				switch term.(type) {
-				// Just waiting for db.Cond statements.
-				case db.Cond:
-					for k, v := range term.(db.Cond) {
-						switch s := v.(type) {
-						case string:
-							// Matching dynamic values.
-							matched, _ := regexp.MatchString("\\{.+\\}", s)
-							if matched == true {
-								// Replacing dynamic values.
-								ik := strings.Trim(s, "{}")
-								term = db.Cond{k: item[ik]}
-							}
-						}
-					}
-				}
-				terms = append(terms, term)
-			}
-
-			// Executing external query.
-			if relation.All == true {
-				item[relation.Name] = relation.Collection.FindAll(terms...)
-			} else {
-				item[relation.Name] = relation.Collection.Find(terms...)
-			}
-
-		}
-
-		// Appending to results.
-		items[i] = item
-	}
-
-	return items
-}
+	Returns the number of rows in the current table that match certain conditions.
 */
-
-// Returns the number of rows in the current table that match certain conditions.
 func (self *Table) Count(terms ...interface{}) (int, error) {
 
 	terms = append(terms, db.Fields{"COUNT(1) AS _total"})
@@ -687,7 +580,9 @@ func (self *Table) Count(terms ...interface{}) (int, error) {
 	return 0, nil
 }
 
-// Returns the first row in the table that matches certain conditions.
+/*
+	Returns the first row in the table that matches certain conditions.
+*/
 func (self *Table) Find(terms ...interface{}) db.Item {
 
 	terms = append(terms, db.Limit(1))
@@ -701,6 +596,9 @@ func (self *Table) Find(terms ...interface{}) db.Item {
 	return nil
 }
 
+/*
+	Converts a Go value into internal database representation.
+*/
 func toInternal(val interface{}) string {
 
 	switch t := val.(type) {
@@ -721,11 +619,16 @@ func toInternal(val interface{}) string {
 	return to.String(val)
 }
 
+/*
+	Convers a database representation (after auto-conversion) into a Go value.
+*/
 func toNative(val interface{}) interface{} {
 	return val
 }
 
-// Inserts rows into the currently active table.
+/*
+	Appends items into the table. An item could be either a map or a struct.
+*/
 func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 
 	ids := make([]db.Id, len(items))
@@ -782,7 +685,9 @@ func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 	return ids, nil
 }
 
-// Returns true if the collection exists.
+/*
+	Returns true if the collection exists.
+*/
 func (self *Table) Exists() bool {
 	result, err := self.parent.doQuery(
 		fmt.Sprintf(`
