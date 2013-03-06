@@ -277,6 +277,8 @@ func (self *Source) Collections() []string {
 			rows.Scan(&collection)
 			collections = append(collections, collection)
 		}
+	} else {
+		panic(err)
 	}
 
 	return collections

@@ -206,7 +206,7 @@ func (self *Source) Driver() interface{} {
 }
 
 /*
-	Tries to open a database file.
+	Tries to open a database.
 */
 func (self *Source) Open() error {
 	var err error
@@ -265,6 +265,8 @@ func (self *Source) Collections() []string {
 			rows.Scan(&collection)
 			collections = append(collections, collection)
 		}
+	} else {
+		panic(err)
 	}
 
 	return collections
