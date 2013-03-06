@@ -24,117 +24,56 @@
 package db
 
 import (
-	"fmt"
-	"github.com/gosexy/sugar"
-	"regexp"
-	"strconv"
-	"strings"
+	"github.com/gosexy/to"
 	"time"
 )
 
-// Returns the item value as a string.
-func (item Item) GetString(name string) string {
-	return fmt.Sprintf("%v", item[name])
+/*
+	These methods have been deprecated, you could use github.com/gosexy/to for
+	conversion sugar
+*/
+
+// Deprecated: Returns the item value as a string.
+func (self *Item) GetString(key string) string {
+	return to.String((*self)[key])
 }
 
-// Returns the item value as a Go date.
-func (item Item) GetDate(name string) time.Time {
-	var date time.Time
-
-	switch item[name].(type) {
-	case time.Time:
-		date = item[name].(time.Time)
-	case string:
-		value := item[name].(string)
-		date, _ = time.Parse("2006-01-02 15:04:05", value)
-	}
-
-	return date
+// Deprecated: Returns the item value as a Go date.
+func (self *Item) GetDate(key string) time.Time {
+	return to.Time((*self)[key])
 }
 
-// Returns the item value as a Go duration.
-func (item Item) GetDuration(name string) time.Duration {
-	duration, _ := time.ParseDuration("0h0m0s")
-
-	switch item[name].(type) {
-	case time.Duration:
-		duration = item[name].(time.Duration)
-	case string:
-		var matched bool
-		var re *regexp.Regexp
-		value := item[name].(string)
-
-		matched, _ = regexp.MatchString(`^\d{2}:\d{2}:\d{2}$`, value)
-
-		if matched {
-			re, _ = regexp.Compile(`^(\d{2}):(\d{2}):(\d{2})$`)
-			all := re.FindAllStringSubmatch(value, -1)
-
-			formatted := fmt.Sprintf("%sh%sm%ss", all[0][1], all[0][2], all[0][3])
-			duration, _ = time.ParseDuration(formatted)
-		}
-	}
-	return duration
+// Deprecated: Returns the item value as a Go duration.
+func (self *Item) GetDuration(key string) time.Duration {
+	return to.Duration((*self)[key])
 }
 
-// Returns the item value as a Map.
-func (item Item) GetMap(name string) sugar.Map {
-	dict := sugar.Map{}
-
-	switch item[name].(type) {
-	case map[string]interface{}:
-		for k, _ := range item[name].(map[string]interface{}) {
-			dict[k] = item[name].(map[string]interface{})[k]
-		}
-	case sugar.Map:
-		dict = item[name].(sugar.Map)
-	}
-
-	return dict
+// Deprecated: Returns the item value as a map[string] interface{}.
+func (self *Item) GetMap(key string) map[string]interface{} {
+	return to.Map((*self)[key])
 }
 
-// Returns the item value as an array.
-func (item Item) GetList(name string) sugar.List {
-	list := sugar.List{}
-
-	switch item[name].(type) {
-	case []interface{}:
-		list = make(sugar.List, len(item[name].([]interface{})))
-
-		for k, _ := range item[name].([]interface{}) {
-			list[k] = item[name].([]interface{})[k]
-		}
-	}
-
-	return list
+// Deprecated: Returns the item value as a []interface{}.
+func (self *Item) GetList(key string) []interface{} {
+	return to.List((*self)[key])
 }
 
-// Returns the item value as an integer.
-func (item Item) GetInt(name string) int64 {
-	i, _ := strconv.ParseInt(fmt.Sprintf("%v", item[name]), 10, 64)
-	return i
+// Deprecated: Returns the item value as an integer.
+func (self *Item) GetInt(key string) int64 {
+	return to.Int64((*self)[key])
 }
 
-// Returns the item value as a floating point number.
-func (item Item) GetFloat(name string) float64 {
-	f, _ := strconv.ParseFloat(fmt.Sprintf("%v", item[name]), 64)
-	return f
+// Deprecated: Returns the item value as an integer.
+func (self *Item) GetUint(key string) uint64 {
+	return to.Uint64((*self)[key])
 }
 
-// Returns the item value as a boolean.
-func (item Item) GetBool(name string) bool {
+// Deprecated: Returns the item value as a floating point number.
+func (self *Item) GetFloat(key string) float64 {
+	return to.Float64((*self)[key])
+}
 
-	if item[name] == nil {
-		return false
-	}
-
-	switch item[name].(type) {
-	default:
-		b := strings.ToLower(fmt.Sprintf("%v", item[name]))
-		if b == "" || b == "0" || b == "false" {
-			return false
-		}
-	}
-
-	return true
+// Deprecated: Returns the item value as a boolean.
+func (self *Item) GetBool(key string) bool {
+	return to.Bool((*self)[key])
 }
