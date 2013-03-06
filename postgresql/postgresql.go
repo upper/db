@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012 José Carlos Nieto, http://xiam.menteslibres.org/
+  Copyright (c) 2012-2013 José Carlos Nieto, http://xiam.menteslibres.org/
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the
@@ -25,24 +25,30 @@ package postgresql
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/gosexy/db"
 	_ "github.com/xiam/gopostgresql"
-	//_ "github.com/bmizerany/pq"
 	"reflect"
 	"regexp"
 	"strings"
-	"time"
 )
+
+var Debug = false
+
+// Format for saving dates.
+var DateFormat = "2006-01-02 15:04:05"
+
+// Format for saving times.
+var TimeFormat = "%d:%02d:%02d.%d"
+
+var SSLMode = "disable"
+
+var columnPattern = regexp.MustCompile(`^([a-z]+)\(?([0-9,]+)?\)?\s?([a-z]*)?`)
 
 func init() {
 	db.Register("postgresql", &Source{})
 }
-
-var Debug = false
-
-const dateFormat = "2006-01-02 15:04:05"
-const timeFormat = "%d:%02d:%02d"
 
 type sqlQuery struct {
 	Query   []string
@@ -55,16 +61,16 @@ func sqlCompile(terms []interface{}) *sqlQuery {
 	q.Query = []string{}
 
 	for _, term := range terms {
-		switch term.(type) {
+		switch t := term.(type) {
 		case string:
-			q.Query = append(q.Query, term.(string))
+			q.Query = append(q.Query, t)
 		case db.SqlArgs:
-			for _, arg := range term.(db.SqlArgs) {
+			for _, arg := range t {
 				q.SqlArgs = append(q.SqlArgs, arg)
 			}
 		case db.SqlValues:
-			args := make([]string, len(term.(db.SqlValues)))
-			for i, arg := range term.(db.SqlValues) {
+			args := make([]string, len(t))
+			for i, arg := range t {
 				args[i] = "?"
 				q.SqlArgs = append(q.SqlArgs, arg)
 			}
@@ -167,15 +173,9 @@ func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
 	return self.session.Exec(query, chunks.SqlArgs...)
 }
 
-// Configures and returns a PostgreSQL dabase session.
-func Session(config db.DataSource) db.Database {
-	m := &Source{}
-	m.config = config
-	m.collections = make(map[string]db.Collection)
-	return m
-}
-
-// Closes a previously opened PostgreSQL database session.
+/*
+	Closes a database session.
+*/
 func (self *Source) Close() error {
 	if self.session != nil {
 		return self.session.Close()
@@ -183,19 +183,25 @@ func (self *Source) Close() error {
 	return nil
 }
 
-// Configures a datasource and tries to open a connection.
+/*
+	Configures and returns a database session.
+*/
 func (self *Source) Setup(config db.DataSource) error {
 	self.config = config
 	self.collections = make(map[string]db.Collection)
 	return self.Open()
 }
 
-// Tries to open a connection to the current PostgreSQL session.
+/*
+	Tries to open a database.
+*/
 func (self *Source) Open() error {
 	var err error
 
 	if self.config.Host == "" {
-		self.config.Host = "127.0.0.1"
+		if self.config.Socket == "" {
+			self.config.Host = "127.0.0.1"
+		}
 	}
 
 	if self.config.Port == 0 {
@@ -206,7 +212,17 @@ func (self *Source) Open() error {
 		return fmt.Errorf("Database name is required.")
 	}
 
-	conn := fmt.Sprintf("user=%s password=%s host=%s port=%d dbname=%s sslmode=disable", self.config.User, self.config.Password, self.config.Host, self.config.Port, self.config.Database)
+	if self.config.Socket != "" && self.config.Host != "" {
+		return errors.New("Socket or Host are mutually exclusive.")
+	}
+
+	var conn string
+
+	if self.config.Host != "" {
+		conn = fmt.Sprintf("user=%s password=%s host=%s port=%d dbname=%s sslmode=%s", self.config.User, self.config.Password, self.config.Host, self.config.Port, self.config.Database, SSLMode)
+	} else if self.config.Socket != "" {
+		conn = fmt.Sprintf("user=%s password=%s host=%s dbname=%s sslmode=%s", self.config.User, self.config.Password, self.config.Socket, self.config.Database, SSLMode)
+	}
 
 	self.session, err = sql.Open("postgres", conn)
 
@@ -217,24 +233,32 @@ func (self *Source) Open() error {
 	return nil
 }
 
-// Changes the active database.
+/*
+	Changes the active database.
+*/
 func (self *Source) Use(database string) error {
 	self.config.Database = database
 	return self.Open()
 }
 
-// Deletes the currently active database.
+/*
+	Drops the currently active database.
+*/
 func (self *Source) Drop() error {
 	self.session.Query(fmt.Sprintf("DROP DATABASE %s", self.config.Database))
 	return nil
 }
 
-// Returns a *sql.DB object that represents an internal session.
+/*
+	Returns a *sql.DB object that represents an internal session.
+*/
 func (self *Source) Driver() interface{} {
 	return self.session
 }
 
-// Returns the list of PostgreSQL tables in the current database.
+/*
+	Returns a list of all tables in the current database.
+*/
 func (self *Source) Collections() []string {
 	var collections []string
 	var collection string
@@ -253,28 +277,9 @@ func (self *Source) Collections() []string {
 	return collections
 }
 
-func toInternal(val interface{}) string {
-
-	switch val.(type) {
-	case []byte:
-		return fmt.Sprintf("%s", string(val.([]byte)))
-	case time.Time:
-		return val.(time.Time).Format(dateFormat)
-	case time.Duration:
-		t := val.(time.Duration)
-		return fmt.Sprintf(timeFormat, int(t.Hours()), int(t.Minutes())%60, int(t.Seconds())%60)
-	case bool:
-		if val.(bool) == true {
-			return "1"
-		} else {
-			return "0"
-		}
-	}
-
-	return fmt.Sprintf("%v", val)
-}
-
-// Returns a collection. Panics if the collection does not exists.
+/*
+	Returns a collection that must exists or panics.
+*/
 func (self *Source) ExistentCollection(name string) db.Collection {
 	col, err := self.Collection(name)
 	if err != nil {
@@ -283,45 +288,53 @@ func (self *Source) ExistentCollection(name string) db.Collection {
 	return col
 }
 
-// Returns a collection by name.
+/*
+	Returns a table struct by name.
+*/
 func (self *Source) Collection(name string) (db.Collection, error) {
 
 	if collection, ok := self.collections[name]; ok == true {
 		return collection, nil
 	}
 
-	t := &Table{}
+	table := &Table{}
 
-	t.parent = self
-	t.name = name
+	table.parent = self
+	table.name = name
 
 	// Table exists?
-	if t.Exists() == false {
-		return t, fmt.Errorf("Table %s does not exists.", name)
+	if table.Exists() == false {
+		return table, fmt.Errorf("Table %s does not exists.", name)
 	}
 
 	// Fetching table datatypes and mapping to internal gotypes.
-
-	rows, err := t.parent.doQuery(
+	rows, err := table.parent.doQuery(
 		"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?",
-		db.SqlArgs{t.name},
+		db.SqlArgs{table.name},
 	)
 
 	if err != nil {
-		return t, err
+		return table, err
 	}
 
-	columns := t.sqlFetchAll(rows)
+	columns := []struct {
+		ColumnName string
+		DataType   string
+	}{}
 
-	pattern, _ := regexp.Compile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
+	err = table.fetchRows(&columns, rows)
 
-	t.types = make(map[string]reflect.Kind, len(columns))
+	if err != nil {
+		return nil, err
+	}
+
+	table.types = make(map[string]reflect.Kind, len(columns))
 
 	for _, column := range columns {
-		cname := strings.ToLower(column["column_name"].(string))
-		ctype := strings.ToLower(column["data_type"].(string))
+		column.ColumnName = strings.ToLower(column.ColumnName)
+		column.DataType = strings.ToLower(column.DataType)
 
-		results := pattern.FindStringSubmatch(ctype)
+		results := columnPattern.FindStringSubmatch(column.DataType)
 
 		// Default properties.
 		dextra := ""
@@ -333,26 +346,24 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 			dextra = results[3]
 		}
 
-		vtype := reflect.String
+		ctype := reflect.String
 
 		// Guessing datatypes.
 		switch dtype {
 		case "smallint", "integer", "bigint", "serial", "bigserial":
 			if dextra == "unsigned" {
-				vtype = reflect.Uint64
+				ctype = reflect.Uint64
 			} else {
-				vtype = reflect.Int64
+				ctype = reflect.Int64
 			}
 		case "real", "double":
-			vtype = reflect.Float64
+			ctype = reflect.Float64
 		}
 
-		//fmt.Printf("Imported %v (from %v)\n", vtype, dtype)
-
-		t.types[cname] = vtype
+		table.types[column.ColumnName] = ctype
 	}
 
-	self.collections[name] = t
+	self.collections[name] = table
 
-	return t, nil
+	return table, nil
 }
