@@ -178,7 +178,7 @@ type Table struct {
 }
 
 /*
-	Configures and returns a SQLite database session.
+	Configures and returns a database session.
 */
 func (self *Source) Setup(config db.DataSource) error {
 	self.config = config
@@ -225,7 +225,7 @@ func (self *Source) Open() error {
 }
 
 /*
-	Closes a SQLite database session.
+	Closes a database session.
 */
 func (self *Source) Close() error {
 	if self.session != nil {
@@ -258,11 +258,13 @@ func (self *Source) Collections() []string {
 	var collections []string
 	var collection string
 
-	rows, _ := self.session.Query("SELECT tbl_name FROM sqlite_master WHERE type = ?", "table")
+	rows, err := self.session.Query("SELECT tbl_name FROM sqlite_master WHERE type = ?", "table")
 
-	for rows.Next() {
-		rows.Scan(&collection)
-		collections = append(collections, collection)
+	if err == nil {
+		for rows.Next() {
+			rows.Scan(&collection)
+			collections = append(collections, collection)
+		}
 	}
 
 	return collections
@@ -280,7 +282,7 @@ func (self *Source) ExistentCollection(name string) db.Collection {
 }
 
 /*
-	Returns a SQLite table structure by name.
+	Returns a table struct by name.
 */
 func (self *Source) Collection(name string) (db.Collection, error) {
 
@@ -305,7 +307,6 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 		return table, err
 	}
 
-	// Change to struct
 	columns := []struct {
 		Name string
 		Type string

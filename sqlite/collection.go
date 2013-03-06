@@ -601,6 +601,9 @@ func (self *Table) Update(terms ...interface{}) error {
 	return err
 }
 
+/*
+	Returns a slice of rows that match certain conditions.
+*/
 func (self *Table) FindAll(terms ...interface{}) []db.Item {
 	results := []db.Item{}
 	err := self.FetchAll(&results, terms...)
