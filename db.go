@@ -178,6 +178,8 @@ type DataSource struct {
 	Database string
 	User     string
 	Password string
+	Socket   string
+	Charset  string
 }
 
 // Database methods.
