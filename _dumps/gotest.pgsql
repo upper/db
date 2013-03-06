@@ -67,14 +67,10 @@ CREATE TABLE data_types (
     _int64 integer,
     _float32 numeric(10,6),
     _float64 numeric(10,6),
-    _byte bit(1),
-    _rune bit(1),
     _bool boolean,
     _string text,
     _date timestamp without time zone,
-    _bytea character varying,
-    _time time without time zone,
-    _uintptr integer
+    _time time without time zone
 );
 
 
