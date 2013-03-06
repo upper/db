@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012 José Carlos Nieto, http://xiam.menteslibres.org/
+  Copyright (c) 2012-2013 José Carlos Nieto, http://xiam.menteslibres.org/
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the
@@ -30,6 +30,8 @@ import (
 	"net/url"
 	"time"
 )
+
+var Debug = false
 
 // Registers this driver.
 func init() {
@@ -123,7 +125,7 @@ func (self *Source) Open() error {
 	self.session, err = mgo.DialWithTimeout(connURL.String(), 5*time.Second)
 
 	if err != nil {
-		return fmt.Errorf("Could not connect to %v.", self.config.Host)
+		return fmt.Errorf("Could not connect to %s: %s.", self.config.Host, err.Error())
 	}
 
 	if self.config.Database != "" {

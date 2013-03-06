@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012 José Carlos Nieto, http://xiam.menteslibres.org/
+  Copyright (c) 2012-2013 José Carlos Nieto, http://xiam.menteslibres.org/
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the
@@ -42,9 +42,27 @@ type SourceCollection struct {
 	collection *mgo.Collection
 }
 
-// Returns the collection name
+/*
+	Returns the collection name as a string.
+*/
 func (self *SourceCollection) Name() string {
 	return self.name
+}
+
+/*
+	Fetches a result delimited by terms into a pointer to map or struct given by
+	dst.
+*/
+func (self *SourceCollection) Fetch(dst interface{}, terms ...interface{}) error {
+	return nil
+}
+
+/*
+	Fetches results delimited by terms into an slice of maps or structs given by
+	the pointer dst.
+*/
+func (self *SourceCollection) FetchAll(dst interface{}, terms ...interface{}) error {
+	return nil
 }
 
 // Transforms conditions into something *mgo.Session can understand.
@@ -78,7 +96,9 @@ func marshal(where db.Cond) map[string]interface{} {
 	return conds
 }
 
-// Deletes the collection (there is no truncate).
+/*
+	Deletes the whole collection.
+*/
 func (self *SourceCollection) Truncate() error {
 	err := self.collection.DropCollection()
 
@@ -89,7 +109,9 @@ func (self *SourceCollection) Truncate() error {
 	return nil
 }
 
-// Returns true if the collection exists.
+/*
+	Returns true if the collection exists.
+*/
 func (self *SourceCollection) Exists() bool {
 	query := self.parent.database.C("system.namespaces").Find(db.Item{"name": fmt.Sprintf("%s.%s", self.parent.Name(), self.Name())})
 	count, _ := query.Count()
@@ -99,46 +121,11 @@ func (self *SourceCollection) Exists() bool {
 	return false
 }
 
-// Appends an item to the collection.
+/*
+	Appends items to the collection. An item could be either a map or a struct.
+*/
 func (self *SourceCollection) Append(items ...interface{}) ([]db.Id, error) {
-
-	var err error
-
-	ids := []db.Id{}
-
-	parent := reflect.TypeOf(self.collection)
-	method, _ := parent.MethodByName("Insert")
-
-	args := make([]reflect.Value, 1+len(items))
-	args[0] = reflect.ValueOf(self.collection)
-
-	itop := len(items)
-
-	for i := 0; i < itop; i++ {
-		id := db.Id(bson.NewObjectId().Hex())
-
-		switch items[i].(type) {
-		case map[string]interface{}:
-			if items[i].(map[string]interface{})["_id"] == nil {
-				items[i].(map[string]interface{})["_id"] = id
-			}
-		case db.Item:
-			if items[i].(db.Item)["_id"] == nil {
-				items[i].(db.Item)["_id"] = id
-			}
-		}
-
-		args[i+1] = reflect.ValueOf(toInternal(items[i]))
-		ids = append(ids, id)
-	}
-
-	exec := method.Func.Call(args)
-
-	if exec[0].Interface() != nil {
-		err = exec[0].Interface().(error)
-	}
-
-	return ids, err
+	return nil, nil
 }
 
 // Compiles terms into something *mgo.Session can understand.

@@ -3,216 +3,335 @@ package mongo
 import (
 	"fmt"
 	"github.com/gosexy/db"
-	"github.com/gosexy/sugar"
+	"github.com/gosexy/to"
 	"github.com/kr/pretty"
 	"math/rand"
+	"reflect"
 	"testing"
 	"time"
 )
 
-const host = "debian"
+const wrapperName = "mongo"
+
+const host = "127.0.0.1"
+const socket = "/tmp/mongodb-27017.sock"
 const dbname = "gotest"
+const username = "gouser"
+const password = "gopass"
 
-func testItem() db.Item {
+var settings = db.DataSource{
+	Database: dbname,
+	Host:     host,
+	// https://bugs.launchpad.net/mgo/+bug/954436
+	//Socket:   socket,
 
-	data := db.Item{
-		"_uint":    uint(1),
-		"_uintptr": uintptr(1),
-
-		"_uint8":  uint8(1),
-		"_uint16": uint16(1),
-		"_uint32": uint32(1),
-		"_uint64": uint64(1),
-
-		"_int":   int(-1),
-		"_int8":  int8(-1),
-		"_int16": int16(-1),
-		"_int32": int32(-1),
-		"_int64": int64(-1),
-
-		"_float32": float32(1.0),
-		"_float64": float64(1.0),
-
-		//"_complex64": complex64(1),
-		//"_complex128": complex128(1),
-
-		"_byte": byte(1),
-		"_rune": rune(1),
-
-		"_bool":   bool(true),
-		"_string": string("abc"),
-
-		"_list": sugar.List{1, 2, 3},
-		"_map":  sugar.Map{"a": 1, "b": 2, "c": 3},
-
-		"_date": time.Date(2012, 7, 28, 0, 0, 0, 0, time.UTC),
-	}
-
-	return data
+	//User:     username,
+	//Password: password,
 }
 
-func TestOpen(t *testing.T) {
+// Structure for testing conversions.
+type testValuesStruct struct {
+	Uint   uint
+	Uint8  uint8
+	Uint16 uint16
+	Uint32 uint32
+	Uint64 uint64
 
-	sess, err := db.Open("mongo", db.DataSource{Host: "1.1.1.1"})
+	Int   int
+	Int8  int8
+	Int16 int16
+	Int32 int32
+	Int64 int64
 
-	if err != nil {
-		t.Logf("Got %t, this was intended.", err)
-		return
-	}
+	Float32 float32
+	Float64 float64
 
-	sess.Close()
+	Bool   bool
+	String string
 
-	t.Errorf("Reached.")
+	Date time.Time
+	Time time.Duration
 }
 
-func TestAuthFail(t *testing.T) {
-
-	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname, User: "unknown", Password: "fail"})
-
-	if err != nil {
-		t.Logf("Got %t, this was intended.", err)
-		return
-	}
-
-	sess.Close()
-
-	t.Errorf("Reached.")
+// Some test values.
+var testValues = testValuesStruct{
+	1, 1, 1, 1, 1,
+	-1, -1, -1, -1, -1,
+	1.337, 1.337,
+	true,
+	"Hello world!",
+	time.Date(2012, 7, 28, 1, 2, 3, 0, time.UTC),
+	time.Second * time.Duration(7331),
 }
 
-func TestDrop(t *testing.T) {
+// Outputs some information to stdout, useful for development.
+func TestEnableDebug(t *testing.T) {
+	Debug = true
+}
 
-	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
+/*
+// Trying to open an empty datasource, must fail.
+func TestOpenFailed(t *testing.T) {
+	_, err := db.Open(wrapperName, db.DataSource{})
+
+	if err == nil {
+		t.Errorf("Could not open database.")
+	}
+}
+*/
+
+// Truncates all collections/tables, one by one.
+func TestTruncate(t *testing.T) {
+
+	var err error
+
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Errorf(err.Error())
-		return
+		t.Fatalf(err.Error())
 	}
 
 	defer sess.Close()
 
-	sess.Drop()
+	collections := sess.Collections()
+
+	for _, name := range collections {
+		col, _ := sess.Collection(name)
+		col.Truncate()
+
+		total, err := col.Count()
+
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+
+		if total != 0 {
+			t.Errorf("Could not truncate.")
+		}
+	}
+
 }
 
+// Appends maps and structs.
 func TestAppend(t *testing.T) {
 
-	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Errorf(err.Error())
-		return
+		t.Fatalf(err.Error())
 	}
 
 	defer sess.Close()
 
-	col, _ := sess.Collection("people")
+	_, err = sess.Collection("doesnotexists")
 
-	if col.Exists() == true {
-		t.Errorf("Collection should not exists, yet.")
-		return
+	if err == nil {
+		t.Fatalf("Collection should not exists.")
 	}
 
-	names := []string{"Juan", "José", "Pedro", "María", "Roberto", "Manuel", "Miguel"}
+	people, _ := sess.Collection("people")
 
-	for i := 0; i < len(names); i++ {
-		col.Append(db.Item{"name": names[i]})
+	// To be inserted
+	names := []string{
+		"Juan",
+		"José",
+		"Pedro",
+		"María",
+		"Roberto",
+		"Manuel",
+		"Miguel",
 	}
 
-	if col.Exists() == false {
-		t.Errorf("Collection should exists.")
-		return
+	var total int
+
+	// Append db.Item
+	people.Truncate()
+
+	for _, name := range names {
+		people.Append(db.Item{"name": name})
 	}
 
-	count, err := col.Count()
+	total, _ = people.Count()
 
-	if err != nil {
-		t.Error("Failed to count on collection.")
+	if total != len(names) {
+		t.Fatalf("Could not append all items.")
 	}
 
-	if count != len(names) {
-		t.Error("Could not append all items.")
+	// Append map[string]string
+	people.Truncate()
+
+	for _, name := range names {
+		people.Append(map[string]string{"name": name})
+	}
+
+	total, _ = people.Count()
+
+	if total != len(names) {
+		t.Fatalf("Could not append all items.")
+	}
+
+	// Append map[string]interface{}
+	people.Truncate()
+
+	for _, name := range names {
+		people.Append(map[string]interface{}{"name": name})
+	}
+
+	total, _ = people.Count()
+
+	if total != len(names) {
+		t.Fatalf("Could not append all items.")
+	}
+
+	// Append struct
+	people.Truncate()
+
+	for _, name := range names {
+		people.Append(struct{ Name string }{name})
+	}
+
+	total, _ = people.Count()
+
+	if total != len(names) {
+		t.Fatalf("Could not append all items.")
 	}
 
 }
 
+// Tries to find and fetch rows.
 func TestFind(t *testing.T) {
 
-	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
+	var err error
+
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Errorf(err.Error())
-		return
+		t.Fatalf(err.Error())
 	}
 
 	defer sess.Close()
 
 	people, _ := sess.Collection("people")
 
+	// Testing Find()
 	result := people.Find(db.Cond{"name": "José"})
 
 	if result["name"] != "José" {
-		t.Error("Could not find a recently appended item.")
+		t.Fatalf("Could not find a recently appended item.")
+	}
+
+	// Fetch into map slice.
+	dst := []map[string]string{}
+
+	err = people.FetchAll(&dst, db.Cond{"name": "José"})
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if len(dst) != 1 {
+		t.Fatalf("Could not find a recently appended item.")
+	}
+
+	if dst[0]["name"] != "José" {
+		t.Fatalf("Could not find a recently appended item.")
+	}
+
+	// Fetch into struct slice.
+	dst2 := []struct{ Name string }{}
+
+	err = people.FetchAll(&dst2, db.Cond{"name": "José"})
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if len(dst2) != 1 {
+		t.Fatalf("Could not find a recently appended item.")
+	}
+
+	if dst2[0].Name != "José" {
+		t.Fatalf("Could not find a recently appended item.")
+	}
+
+	// Fetch into map.
+	dst3 := map[string]interface{}{}
+
+	err = people.Fetch(&dst3, db.Cond{"name": "José"})
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if dst3["name"] != "José" {
+		t.Fatalf("Could not find a recently appended item.")
+	}
+
+	// Fetch into struct.
+	dst4 := struct{ Name string }{}
+
+	err = people.Fetch(&dst4, db.Cond{"name": "José"})
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if dst4.Name != "José" {
+		t.Fatalf("Could not find a recently appended item.")
 	}
 
 }
 
+// Tries to delete rows.
 func TestDelete(t *testing.T) {
-
-	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Errorf(err.Error())
-		return
+		t.Fatalf(err.Error())
 	}
 
 	defer sess.Close()
 
-	people := sess.ExistentCollection("people")
+	people, _ := sess.Collection("people")
 
-	err = people.Remove(db.Cond{"name": "Juan"})
-
-	if err != nil {
-		t.Error("Failed to remove.")
-	}
+	people.Remove(db.Cond{"name": "Juan"})
 
 	result := people.Find(db.Cond{"name": "Juan"})
 
 	if len(result) > 0 {
-		t.Error("Could not remove a recently appended item.")
+		t.Fatalf("Could not remove a recently appended item.")
 	}
+
 }
 
+// Tries to update rows.
 func TestUpdate(t *testing.T) {
-	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Errorf(err.Error())
-		return
+		t.Fatalf(err.Error())
 	}
 
 	defer sess.Close()
 
 	people, _ := sess.Collection("people")
 
-	err = people.Update(db.Cond{"name": "José"}, db.Set{"name": "Joseph"})
-
-	if err != nil {
-		t.Error("Failed to update collection.")
-	}
+	people.Update(db.Cond{"name": "José"}, db.Set{"name": "Joseph"})
 
 	result := people.Find(db.Cond{"name": "Joseph"})
 
 	if len(result) == 0 {
-		t.Error("Could not update a recently appended item.")
+		t.Fatalf("Could not update a recently appended item.")
 	}
 }
 
+// Tries to add test data and relations.
 func TestPopulate(t *testing.T) {
 
-	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
 		t.Errorf(err.Error())
-		return
 	}
 
 	defer sess.Close()
@@ -243,122 +362,198 @@ func TestPopulate(t *testing.T) {
 		for j := 0; j < 5; j++ {
 			children.Append(db.Item{
 				"name":      fmt.Sprintf("%s's child %d", person["name"], j+1),
-				"parent_id": person["_id"],
+				"parent_id": person["id"],
 			})
 		}
 
 		// Lives in
 		people.Update(
-			db.Cond{"_id": person["_id"]},
+			db.Cond{"id": person["id"]},
 			db.Set{"place_code_id": int(rand.Float32() * float32(len(results)))},
 		)
 
 		// Has visited
-		for k := 0; k < 3; k++ {
+		for j := 0; j < 3; j++ {
 			place := places.Find(db.Cond{
 				"code_id": int(rand.Float32() * float32(len(results))),
 			})
 			visits.Append(db.Item{
-				"place_id":  place["_id"],
-				"person_id": person["_id"],
+				"place_id":  place["id"],
+				"person_id": person["id"],
 			})
 		}
 	}
 
 }
 
+// Tests relations between collections.
 func TestRelation(t *testing.T) {
-	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
 		t.Errorf(err.Error())
-		return
 	}
 
 	defer sess.Close()
 
 	people, _ := sess.Collection("people")
-	places, _ := sess.Collection("places")
-	children, _ := sess.Collection("children")
-	visits, _ := sess.Collection("visits")
 
-	result := people.FindAll(
+	results := people.FindAll(
 		db.Relate{
 			"lives_in": db.On{
-				places,
+				sess.ExistentCollection("places"),
 				db.Cond{"code_id": "{place_code_id}"},
 			},
 		},
 		db.RelateAll{
 			"has_children": db.On{
-				children,
-				db.Cond{"parent_id": "{_id}"},
+				sess.ExistentCollection("children"),
+				db.Cond{"parent_id": "{id}"},
 			},
 			"has_visited": db.On{
-				visits,
-				db.Cond{"person_id": "{_id}"},
+				sess.ExistentCollection("visits"),
+				db.Cond{"person_id": "{id}"},
 				db.Relate{
 					"place": db.On{
-						places,
-						db.Cond{"_id": "{place_id}"},
+						sess.ExistentCollection("places"),
+						db.Cond{"id": "{place_id}"},
 					},
 				},
 			},
 		},
 	)
 
-	fmt.Printf("%# v\n", pretty.Formatter(result))
+	fmt.Printf("relations (1) %# v\n", pretty.Formatter(results))
 }
 
-func TestDataTypes(t *testing.T) {
+// Tests relations between collections using structs.
+func TestRelationStruct(t *testing.T) {
+	var err error
 
-	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
 		t.Errorf(err.Error())
-		return
 	}
 
 	defer sess.Close()
 
-	dataTypes, _ := sess.Collection("data_types")
+	people := sess.ExistentCollection("people")
+
+	results := []struct {
+		Id          int
+		Name        string
+		PlaceCodeId int
+		LivesIn     struct {
+			Name string
+		}
+		HasChildren []struct {
+			Name string
+		}
+		HasVisited []struct {
+			PlaceId int
+			Place   struct {
+				Name string
+			}
+		}
+	}{}
+
+	err = people.FetchAll(&results,
+		db.Relate{
+			"LivesIn": db.On{
+				sess.ExistentCollection("places"),
+				db.Cond{"code_id": "{PlaceCodeId}"},
+			},
+		},
+		db.RelateAll{
+			"HasChildren": db.On{
+				sess.ExistentCollection("children"),
+				db.Cond{"parent_id": "{Id}"},
+			},
+			"HasVisited": db.On{
+				sess.ExistentCollection("visits"),
+				db.Cond{"person_id": "{Id}"},
+				db.Relate{
+					"Place": db.On{
+						sess.ExistentCollection("places"),
+						db.Cond{"id": "{PlaceId}"},
+					},
+				},
+			},
+		},
+	)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	fmt.Printf("relations (2) %# v\n", pretty.Formatter(results))
+}
+
+// Tests datatype conversions.
+func TestDataTypes(t *testing.T) {
+
+	sess, err := db.Open(wrapperName, settings)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	defer sess.Close()
+
+	dataTypes := sess.ExistentCollection("data_types")
 
 	dataTypes.Truncate()
 
-	testData := testItem()
-
-	ids, err := dataTypes.Append(testData)
+	ids, err := dataTypes.Append(testValues)
 
 	if err != nil {
-		t.Errorf("Could not append test data.")
+		t.Fatalf(err.Error())
 	}
 
-	found, _ := dataTypes.Count(db.Cond{"_id": db.Id(ids[0])})
+	found, err := dataTypes.Count(db.Cond{"id": db.Id(ids[0])})
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
 
 	if found == 0 {
-		t.Errorf("Cannot find recently inserted item (by ID).")
+		t.Errorf("Expecting an item.")
 	}
 
-	// Getting and reinserting.
-
+	// Getting and reinserting (a db.Item).
 	item := dataTypes.Find()
 
 	_, err = dataTypes.Append(item)
 
 	if err == nil {
-		t.Errorf("Expecting duplicated-key error.")
+		t.Fatalf("Expecting duplicated-key error.")
 	}
 
-	delete(item, "_id")
+	delete(item, "id")
 
 	_, err = dataTypes.Append(item)
 
 	if err != nil {
-		t.Errorf("Could not append second element.")
+		t.Fatalf(err.Error())
 	}
 
-	// Testing rows
+	// Testing struct
+	sresults := []testValuesStruct{}
+	err = dataTypes.FetchAll(&sresults)
 
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Testing struct equality
+	for _, item := range sresults {
+		if reflect.DeepEqual(item, testValues) == false {
+			t.Errorf("Struct is different.")
+		}
+	}
+
+	// Testing maps
 	results := dataTypes.FindAll()
 
 	for _, item := range results {
@@ -374,59 +569,44 @@ func TestDataTypes(t *testing.T) {
 				"_int16",
 				"_int32",
 				"_int64":
-				if item.GetInt(key) != int64(testData["_int"].(int)) {
-					t.Errorf("Wrong datatype %v.", key)
+				if to.Int64(item[key]) != testValues.Int64 {
+					t.Fatalf("Wrong datatype %v.", key)
 				}
 
 			// Unsigned integers.
 			case
 				"_uint",
-				"_uintptr",
 				"_uint8",
 				"_uint16",
 				"_uint32",
-				"_uint64",
-				"_byte",
-				"_rune":
-				if item.GetInt(key) != int64(testData["_uint"].(uint)) {
-					t.Errorf("Wrong datatype %v.", key)
+				"_uint64":
+				if to.Uint64(item[key]) != testValues.Uint64 {
+					t.Fatalf("Wrong datatype %v.", key)
 				}
 
 			// Floating point.
 			case "_float32":
 			case "_float64":
-				if item.GetFloat(key) != testData["_float64"].(float64) {
-					t.Errorf("Wrong datatype %v.", key)
+				if to.Float64(item[key]) != testValues.Float64 {
+					t.Fatalf("Wrong datatype %v.", key)
 				}
 
 			// Boolean
 			case "_bool":
-				if item.GetBool(key) != testData["_bool"].(bool) {
-					t.Errorf("Wrong datatype %v.", key)
+				if to.Bool(item[key]) != testValues.Bool {
+					t.Fatalf("Wrong datatype %v.", key)
 				}
 
 			// String
 			case "_string":
-				if item.GetString(key) != testData["_string"].(string) {
-					t.Errorf("Wrong datatype %v.", key)
-				}
-
-			// Map
-			case "_map":
-				if item.GetMap(key)["a"] != testData["_map"].(sugar.Map)["a"] {
-					t.Errorf("Wrong datatype %v.", key)
-				}
-
-			// Array
-			case "_list":
-				if item.GetList(key)[0] != testData["_list"].(sugar.List)[0] {
-					t.Errorf("Wrong datatype %v.", key)
+				if to.String(item[key]) != testValues.String {
+					t.Fatalf("Wrong datatype %v.", key)
 				}
 
 			// Date
 			case "_date":
-				if item.GetDate(key).Equal(testData["_date"].(time.Time)) == false {
-					t.Errorf("Wrong datatype %v.", key)
+				if to.Time(item[key]).Equal(testValues.Date) == false {
+					t.Fatalf("Wrong datatype %v.", key)
 				}
 			}
 		}
