@@ -40,7 +40,7 @@ var Debug = false
 var DateFormat = "2006-01-02 15:04:05"
 
 // Format for saving times.
-var TimeFormat = "%d:%02d:%02d.%09d"
+var TimeFormat = "%d:%02d:%02d.%d"
 
 var columnPattern = regexp.MustCompile(`^([a-zA-Z]+)\(?([0-9,]+)?\)?\s?([a-zA-Z]*)?`)
 

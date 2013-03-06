@@ -3,6 +3,7 @@ package sqlite
 import (
 	"fmt"
 	"github.com/gosexy/db"
+	"github.com/gosexy/to"
 	"github.com/kr/pretty"
 	"math/rand"
 	"testing"
@@ -10,41 +11,43 @@ import (
 )
 
 const dbpath = "./_dumps/gotest.sqlite3.db"
+const wrapperName = "sqlite"
 
-func testItem() db.Item {
+var settings = db.DataSource{
+	Database: dbpath,
+}
 
-	_time, _ := time.ParseDuration("17h20m")
+type testValuesStruct struct {
+	Uint   uint
+	Uint8  uint8
+	Uint16 uint16
+	Uint32 uint32
+	Uint64 uint64
 
-	data := db.Item{
-		"_uint":    uint(1),
-		"_uintptr": uintptr(1),
+	Int   int
+	Int8  int8
+	Int16 int16
+	Int32 int32
+	Int64 int64
 
-		"_uint8":  uint8(1),
-		"_uint16": uint16(1),
-		"_uint32": uint32(1),
-		"_uint64": uint64(1),
+	Float32 float32
+	Float64 float64
 
-		"_int":   int(-1),
-		"_int8":  int8(-1),
-		"_int16": int16(-1),
-		"_int32": int32(-1),
-		"_int64": int64(-1),
+	Bool   bool
+	String string
 
-		"_float32": float32(1.0),
-		"_float64": float64(1.0),
+	Date time.Time
+	Time time.Duration
+}
 
-		"_byte": byte(1),
-		"_rune": rune(1),
-
-		"_bool":   bool(true),
-		"_string": string("abc"),
-		"_bytea":  []byte{'a', 'b', 'c'},
-
-		"_date": time.Date(2012, 7, 28, 1, 2, 3, 0, time.UTC),
-		"_time": _time,
-	}
-
-	return data
+var testValues = testValuesStruct{
+	1, 1, 1, 1, 1,
+	-1, -1, -1, -1, -1,
+	1.337, 1.337,
+	true,
+	"Hello world!",
+	time.Date(2012, 7, 28, 1, 2, 3, 0, time.UTC),
+	time.Second * time.Duration(7331),
 }
 
 func TestEnableDebug(t *testing.T) {
@@ -52,17 +55,18 @@ func TestEnableDebug(t *testing.T) {
 }
 
 func TestOpenFailed(t *testing.T) {
-	_, err := db.Open("sqlite", db.DataSource{})
+	_, err := db.Open(wrapperName, db.DataSource{})
 
 	if err == nil {
-		t.Fatalf("An error was expected.")
+		t.FailNow()
 	}
-
 }
 
 func TestTruncate(t *testing.T) {
 
-	sess, err := db.Open("sqlite", db.DataSource{Database: dbpath})
+	var err error
+
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -76,10 +80,14 @@ func TestTruncate(t *testing.T) {
 		col := sess.ExistentCollection(name)
 		col.Truncate()
 
-		total, _ := col.Count()
+		total, err := col.Count()
+
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
 
 		if total != 0 {
-			t.Fatalf("Could not truncate table %s.", name)
+			t.FailNow()
 		}
 	}
 
@@ -87,10 +95,10 @@ func TestTruncate(t *testing.T) {
 
 func TestAppend(t *testing.T) {
 
-	sess, err := db.Open("sqlite", db.DataSource{Database: dbpath})
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		panic(err)
+		t.Fatalf(err.Error())
 	}
 
 	defer sess.Close()
@@ -104,7 +112,16 @@ func TestAppend(t *testing.T) {
 	people := sess.ExistentCollection("people")
 
 	// To be inserted
-	names := []string{"Juan", "José", "Pedro", "María", "Roberto", "Manuel", "Miguel"}
+	names := []string{
+		"Juan",
+		"José",
+		"Pedro",
+		"María",
+		"Roberto",
+		"Manuel",
+		"Miguel",
+	}
+
 	var total int
 
 	// Append db.Item
@@ -165,7 +182,7 @@ func TestFind(t *testing.T) {
 
 	var err error
 
-	sess, err := db.Open("sqlite", db.DataSource{Database: dbpath})
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -175,12 +192,14 @@ func TestFind(t *testing.T) {
 
 	people, _ := sess.Collection("people")
 
+	// Testing Find()
 	result := people.Find(db.Cond{"name": "José"})
 
 	if result["name"] != "José" {
 		t.Fatalf("Could not find a recently appended item.")
 	}
 
+	// Fetch into map slice.
 	dst := []map[string]string{}
 
 	err = people.FetchAll(&dst, db.Cond{"name": "José"})
@@ -197,7 +216,7 @@ func TestFind(t *testing.T) {
 		t.Fatalf("Could not find a recently appended item.")
 	}
 
-	// Struct and FetchAll()
+	// Fetch into struct slice.
 	dst2 := []struct{ Name string }{}
 
 	err = people.FetchAll(&dst2, db.Cond{"name": "José"})
@@ -214,7 +233,7 @@ func TestFind(t *testing.T) {
 		t.Fatalf("Could not find a recently appended item.")
 	}
 
-	// Map and Fetch()
+	// Fetch into map.
 	dst3 := map[string]interface{}{}
 
 	err = people.Fetch(&dst3, db.Cond{"name": "José"})
@@ -227,7 +246,7 @@ func TestFind(t *testing.T) {
 		t.Fatalf("Could not find a recently appended item.")
 	}
 
-	// Struct and Fetch()
+	// Fetch into struct.
 	dst4 := struct{ Name string }{}
 
 	err = people.Fetch(&dst4, db.Cond{"name": "José"})
@@ -243,15 +262,15 @@ func TestFind(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	sess, err := db.Open("sqlite", db.DataSource{Database: dbpath})
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		panic(err)
+		t.Fatalf(err.Error())
 	}
 
 	defer sess.Close()
 
-	people, _ := sess.Collection("people")
+	people := sess.ExistentCollection("people")
 
 	people.Remove(db.Cond{"name": "Juan"})
 
@@ -264,15 +283,15 @@ func TestDelete(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	sess, err := db.Open("sqlite", db.DataSource{Database: dbpath})
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		panic(err)
+		t.Fatalf(err.Error())
 	}
 
 	defer sess.Close()
 
-	people, _ := sess.Collection("people")
+	people := sess.ExistentCollection("people")
 
 	people.Update(db.Cond{"name": "José"}, db.Set{"name": "Joseph"})
 
@@ -285,18 +304,18 @@ func TestUpdate(t *testing.T) {
 
 func TestPopulate(t *testing.T) {
 
-	sess, err := db.Open("sqlite", db.DataSource{Database: dbpath})
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		panic(err)
+		t.Errorf(err.Error())
 	}
 
 	defer sess.Close()
 
-	people, _ := sess.Collection("people")
-	places, _ := sess.Collection("places")
-	children, _ := sess.Collection("children")
-	visits, _ := sess.Collection("visits")
+	people := sess.ExistentCollection("people")
+	places := sess.ExistentCollection("places")
+	children := sess.ExistentCollection("children")
+	visits := sess.ExistentCollection("visits")
 
 	values := []string{"Alaska", "Nebraska", "Alaska", "Acapulco", "Rome", "Singapore", "Alabama", "Cancún"}
 
@@ -330,7 +349,7 @@ func TestPopulate(t *testing.T) {
 		)
 
 		// Has visited
-		for k := 0; k < 3; k++ {
+		for j := 0; j < 3; j++ {
 			place := places.Find(db.Cond{
 				"code_id": int(rand.Float32() * float32(len(results))),
 			})
@@ -344,10 +363,10 @@ func TestPopulate(t *testing.T) {
 }
 
 func TestRelation(t *testing.T) {
-	sess, err := db.Open("sqlite", db.DataSource{Database: dbpath})
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		panic(err)
+		t.Errorf(err.Error())
 	}
 
 	defer sess.Close()
@@ -379,13 +398,13 @@ func TestRelation(t *testing.T) {
 		},
 	)
 
-	fmt.Printf("%# v\n", pretty.Formatter(results))
+	fmt.Printf("relations (1) %# v\n", pretty.Formatter(results))
 }
 
 func TestRelationStruct(t *testing.T) {
 	var err error
 
-	sess, err := db.Open("sqlite", db.DataSource{Database: dbpath})
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
 		t.Errorf(err.Error())
@@ -442,40 +461,40 @@ func TestRelationStruct(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	fmt.Printf("STRUCT %# v\n", pretty.Formatter(results))
+	fmt.Printf("relations (2) %# v\n", pretty.Formatter(results))
 }
 
 func TestDataTypes(t *testing.T) {
 
-	sess, err := db.Open("sqlite", db.DataSource{Database: dbpath})
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
-		return
 	}
 
 	defer sess.Close()
 
-	dataTypes, _ := sess.Collection("data_types")
+	dataTypes := sess.ExistentCollection("data_types")
 
 	dataTypes.Truncate()
 
-	testData := testItem()
-
-	ids, err := dataTypes.Append(testData)
+	ids, err := dataTypes.Append(testValues)
 
 	if err != nil {
-		t.Fatalf("Could not append test data: %s.", err.Error())
+		t.Fatalf(err.Error())
 	}
 
-	found, _ := dataTypes.Count(db.Cond{"id": db.Id(ids[0])})
+	found, err := dataTypes.Count(db.Cond{"id": db.Id(ids[0])})
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
 
 	if found == 0 {
-		t.Fatalf("Cannot find recently inserted item (by ID).")
+		t.FailNow()
 	}
 
-	// Getting and reinserting.
-
+	// Getting and reinserting (a db.Item).
 	item := dataTypes.Find()
 
 	_, err = dataTypes.Append(item)
@@ -489,11 +508,18 @@ func TestDataTypes(t *testing.T) {
 	_, err = dataTypes.Append(item)
 
 	if err != nil {
-		t.Fatalf("Could not append second element: %s.", err.Error())
+		t.Fatalf(err.Error())
 	}
 
-	// Testing rows
+	// Testing struct
+	res1 := []testValuesStruct{}
+	err = dataTypes.FetchAll(&res1)
 
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Testing maps
 	results := dataTypes.FindAll()
 
 	for _, item := range results {
@@ -509,46 +535,50 @@ func TestDataTypes(t *testing.T) {
 				"_int16",
 				"_int32",
 				"_int64":
-				if item.GetInt(key) != int64(testData["_int"].(int)) {
+				if to.Int64(item[key]) != testValues.Int64 {
 					t.Fatalf("Wrong datatype %v.", key)
 				}
 
 			// Unsigned integers.
 			case
 				"_uint",
-				"_uintptr",
+				//"_uintptr",
 				"_uint8",
 				"_uint16",
 				"_uint32",
-				"_uint64",
-				"_byte",
-				"_rune":
-				if item.GetInt(key) != int64(testData["_uint"].(uint)) {
+				"_uint64":
+				if item.GetUint(key) != testValues.Uint64 {
 					t.Fatalf("Wrong datatype %v.", key)
 				}
+				/*
+					case "_byte":
+						if item[key].(byte) != testValues.Byte {
+							t.Fatalf("Wrong datatype %v.", key)
+						}
+				*/
 
 			// Floating point.
 			case "_float32":
 			case "_float64":
-				if item.GetFloat(key) != testData["_float64"].(float64) {
+				if item.GetFloat(key) != testValues.Float64 {
 					t.Fatalf("Wrong datatype %v.", key)
 				}
 
 			// Boolean
 			case "_bool":
-				if item.GetBool(key) != testData["_bool"].(bool) {
+				if item.GetBool(key) != testValues.Bool {
 					t.Fatalf("Wrong datatype %v.", key)
 				}
 
 			// String
 			case "_string":
-				if item.GetString(key) != testData["_string"].(string) {
+				if item.GetString(key) != testValues.String {
 					t.Fatalf("Wrong datatype %v.", key)
 				}
 
 			// Date
 			case "_date":
-				if item.GetDate(key).Equal(testData["_date"].(time.Time)) == false {
+				if item.GetDate(key).Format(DateFormat) != testValues.Date.Format(DateFormat) {
 					t.Fatalf("Wrong datatype %v.", key)
 				}
 			}

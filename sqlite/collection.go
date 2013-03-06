@@ -38,6 +38,41 @@ import (
 var extRelationPattern = regexp.MustCompile(`\{(.+)\}`)
 var columnComparePattern = regexp.MustCompile(`[^a-zA-Z0-9]`)
 
+var durationType = reflect.TypeOf(time.Duration(0))
+var timeType = reflect.TypeOf(time.Time{})
+
+func (self *Table) columnLike(s string) string {
+	for col, _ := range self.types {
+		if compareColumnToField(s, col) == true {
+			return col
+		}
+	}
+	return s
+}
+
+func convertValue(src string, dstk reflect.Kind) (reflect.Value, error) {
+	var srcv reflect.Value
+
+	// Destination type.
+	switch dstk {
+	case reflect.Interface:
+		// Destination is interface, nuff said.
+		srcv = reflect.ValueOf(src)
+	case durationType.Kind():
+		// Destination is time.Duration
+		srcv = reflect.ValueOf(to.Duration(src))
+	case timeType.Kind():
+		// Destination is time.Time
+		srcv = reflect.ValueOf(to.Time(src))
+	default:
+		// Destination is of an unknown type.
+		cv, _ := to.Convert(src, dstk)
+		srcv = reflect.ValueOf(cv)
+	}
+
+	return srcv, nil
+}
+
 /*
 	Returns true if a table column looks like a struct field.
 */
@@ -247,8 +282,6 @@ func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 											return compareColumnToField(s, extkey)
 										}
 										val = item.FieldByNameFunc(f)
-										fmt.Printf("fielv :%v, name: %v\n", val, extkey)
-										fmt.Printf("curr: %v\n", item.Interface())
 									case reflect.Map:
 										val = item.MapIndex(reflect.ValueOf(extkey))
 									}
@@ -285,9 +318,6 @@ func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 						p := reflect.New(val.Type())
 						q := p.Interface()
 						if relation.All == true {
-							fmt.Printf("all\n")
-							//err = relation.Collection.FetchAll(&p, terms...)
-							//val.Set(reflect.ValueOf(relation.Collection.FindAll(terms...)))
 							err = relation.Collection.FetchAll(q, terms...)
 						} else {
 							err = relation.Collection.Fetch(q, terms...)
@@ -318,18 +348,21 @@ func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 */
 func (self *Table) fetchRows(dst interface{}, rows *sql.Rows) error {
 
+	// Destination.
 	dstv := reflect.ValueOf(dst)
 
 	if dstv.Kind() != reflect.Ptr || dstv.Elem().Kind() != reflect.Slice || dstv.IsNil() {
 		return errors.New("fetchRows expects a pointer to slice.")
 	}
 
+	// Column names.
 	columns, err := rows.Columns()
 
 	if err != nil {
 		return err
 	}
 
+	// Column names to lower case.
 	for i, _ := range columns {
 		columns[i] = strings.ToLower(columns[i])
 	}
@@ -341,6 +374,7 @@ func (self *Table) fetchRows(dst interface{}, rows *sql.Rows) error {
 
 	for rows.Next() {
 
+		// Allocating results.
 		values := make([]*sql.RawBytes, expecting)
 		scanArgs := make([]interface{}, expecting)
 
@@ -355,6 +389,8 @@ func (self *Table) fetchRows(dst interface{}, rows *sql.Rows) error {
 			item = reflect.MakeMap(itemt)
 		case reflect.Struct:
 			item = reflect.New(itemt)
+		default:
+			return fmt.Errorf("Don't know how to deal with %s, use either map or struct.", itemt.Kind())
 		}
 
 		err := rows.Scan(scanArgs...)
@@ -363,10 +399,14 @@ func (self *Table) fetchRows(dst interface{}, rows *sql.Rows) error {
 			return err
 		}
 
+		// Range over row values.
 		for i, value := range values {
 			if value != nil {
 				column := columns[i]
+				svalue := string(*value)
+
 				var cv reflect.Value
+
 				if _, ok := self.types[column]; ok == true {
 					v, _ := to.Convert(string(*value), self.types[column])
 					cv = reflect.ValueOf(v)
@@ -374,28 +414,34 @@ func (self *Table) fetchRows(dst interface{}, rows *sql.Rows) error {
 					v, _ := to.Convert(string(*value), reflect.String)
 					cv = reflect.ValueOf(v)
 				}
+
 				switch itemt.Kind() {
+				// Destination is a map.
 				case reflect.Map:
 					if cv.Type() != itemt {
-						if item.Type().Elem().Kind() != reflect.Interface {
-							c, _ := to.Convert(string(*value), item.Type().Elem().Kind())
-							cv = reflect.ValueOf(c)
-						}
+						// Converting value.
+						cv, _ = convertValue(svalue, item.Type().Elem().Kind())
 					}
-					item.SetMapIndex(reflect.ValueOf(column), cv)
+					if cv.IsValid() {
+						item.SetMapIndex(reflect.ValueOf(column), cv)
+					}
+				// Destionation is a struct.
 				case reflect.Struct:
+					// Get appropriate column.
 					f := func(s string) bool {
 						return compareColumnToField(s, column)
 					}
-					v := item.Elem().FieldByNameFunc(f)
-					if v.IsValid() {
-						if cv.Type() != itemt {
-							if v.Type().Kind() != reflect.Interface {
-								c, _ := to.Convert(string(*value), v.Type().Kind())
-								cv = reflect.ValueOf(c)
-							}
+					// Destination field.
+					destf := item.Elem().FieldByNameFunc(f)
+					if destf.IsValid() {
+						if cv.Type().Kind() != destf.Type().Kind() {
+							// Converting value.
+							cv, _ = convertValue(svalue, destf.Type().Kind())
 						}
-						v.Set(cv)
+						// Copying value.
+						if cv.IsValid() {
+							destf.Set(cv)
+						}
 					}
 				}
 			}
@@ -647,7 +693,7 @@ func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 			values = make([]string, nfields)
 			fields = make([]string, nfields)
 			for i := 0; i < nfields; i++ {
-				fields[i] = itemt.Field(i).Name
+				fields[i] = self.columnLike(itemt.Field(i).Name)
 				values[i] = toInternal(itemv.Field(i).Interface())
 			}
 		case reflect.Map:
@@ -657,7 +703,7 @@ func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 			mkeys := itemv.MapKeys()
 			for i, keyv := range mkeys {
 				valv := itemv.MapIndex(keyv)
-				fields[i] = to.String(keyv.Interface())
+				fields[i] = self.columnLike(to.String(keyv.Interface()))
 				values[i] = toInternal(valv.Interface())
 			}
 		default:
