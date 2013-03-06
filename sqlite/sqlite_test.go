@@ -6,6 +6,7 @@ import (
 	"github.com/gosexy/to"
 	"github.com/kr/pretty"
 	"math/rand"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -17,6 +18,7 @@ var settings = db.DataSource{
 	Database: dbpath,
 }
 
+// Structure for testing conversions.
 type testValuesStruct struct {
 	Uint   uint
 	Uint8  uint8
@@ -40,6 +42,7 @@ type testValuesStruct struct {
 	Time time.Duration
 }
 
+// Some test values.
 var testValues = testValuesStruct{
 	1, 1, 1, 1, 1,
 	-1, -1, -1, -1, -1,
@@ -50,18 +53,21 @@ var testValues = testValuesStruct{
 	time.Second * time.Duration(7331),
 }
 
+// Outputs some information to stdout, useful for development.
 func TestEnableDebug(t *testing.T) {
 	Debug = true
 }
 
+// Trying to open an empty datasource, must fail.
 func TestOpenFailed(t *testing.T) {
 	_, err := db.Open(wrapperName, db.DataSource{})
 
 	if err == nil {
-		t.FailNow()
+		t.Errorf("Could not open database.")
 	}
 }
 
+// Truncates all collections/tables, one by one.
 func TestTruncate(t *testing.T) {
 
 	var err error
@@ -87,12 +93,13 @@ func TestTruncate(t *testing.T) {
 		}
 
 		if total != 0 {
-			t.FailNow()
+			t.Errorf("Could not truncate.")
 		}
 	}
 
 }
 
+// Appends maps and structs.
 func TestAppend(t *testing.T) {
 
 	sess, err := db.Open(wrapperName, settings)
@@ -178,6 +185,7 @@ func TestAppend(t *testing.T) {
 
 }
 
+// Tries to find and fetch rows.
 func TestFind(t *testing.T) {
 
 	var err error
@@ -261,6 +269,7 @@ func TestFind(t *testing.T) {
 
 }
 
+// Tries to delete rows.
 func TestDelete(t *testing.T) {
 	sess, err := db.Open(wrapperName, settings)
 
@@ -282,6 +291,7 @@ func TestDelete(t *testing.T) {
 
 }
 
+// Tries to update rows.
 func TestUpdate(t *testing.T) {
 	sess, err := db.Open(wrapperName, settings)
 
@@ -302,6 +312,7 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
+// Tries to add test data and relations.
 func TestPopulate(t *testing.T) {
 
 	sess, err := db.Open(wrapperName, settings)
@@ -362,6 +373,7 @@ func TestPopulate(t *testing.T) {
 
 }
 
+// Tests relations between collections.
 func TestRelation(t *testing.T) {
 	sess, err := db.Open(wrapperName, settings)
 
@@ -401,6 +413,7 @@ func TestRelation(t *testing.T) {
 	fmt.Printf("relations (1) %# v\n", pretty.Formatter(results))
 }
 
+// Tests relations between collections using structs.
 func TestRelationStruct(t *testing.T) {
 	var err error
 
@@ -464,6 +477,7 @@ func TestRelationStruct(t *testing.T) {
 	fmt.Printf("relations (2) %# v\n", pretty.Formatter(results))
 }
 
+// Tests datatype conversions.
 func TestDataTypes(t *testing.T) {
 
 	sess, err := db.Open(wrapperName, settings)
@@ -491,7 +505,7 @@ func TestDataTypes(t *testing.T) {
 	}
 
 	if found == 0 {
-		t.FailNow()
+		t.Errorf("Expecting an item.")
 	}
 
 	// Getting and reinserting (a db.Item).
@@ -512,11 +526,18 @@ func TestDataTypes(t *testing.T) {
 	}
 
 	// Testing struct
-	res1 := []testValuesStruct{}
-	err = dataTypes.FetchAll(&res1)
+	sresults := []testValuesStruct{}
+	err = dataTypes.FetchAll(&sresults)
 
 	if err != nil {
 		t.Fatalf(err.Error())
+	}
+
+	// Testing struct equality
+	for _, item := range sresults {
+		if reflect.DeepEqual(item, testValues) == false {
+			t.Errorf("Struct is different.")
+		}
 	}
 
 	// Testing maps
@@ -542,43 +563,36 @@ func TestDataTypes(t *testing.T) {
 			// Unsigned integers.
 			case
 				"_uint",
-				//"_uintptr",
 				"_uint8",
 				"_uint16",
 				"_uint32",
 				"_uint64":
-				if item.GetUint(key) != testValues.Uint64 {
+				if to.Uint64(item[key]) != testValues.Uint64 {
 					t.Fatalf("Wrong datatype %v.", key)
 				}
-				/*
-					case "_byte":
-						if item[key].(byte) != testValues.Byte {
-							t.Fatalf("Wrong datatype %v.", key)
-						}
-				*/
 
 			// Floating point.
 			case "_float32":
 			case "_float64":
-				if item.GetFloat(key) != testValues.Float64 {
+				if to.Float64(item[key]) != testValues.Float64 {
 					t.Fatalf("Wrong datatype %v.", key)
 				}
 
 			// Boolean
 			case "_bool":
-				if item.GetBool(key) != testValues.Bool {
+				if to.Bool(item[key]) != testValues.Bool {
 					t.Fatalf("Wrong datatype %v.", key)
 				}
 
 			// String
 			case "_string":
-				if item.GetString(key) != testValues.String {
+				if to.String(item[key]) != testValues.String {
 					t.Fatalf("Wrong datatype %v.", key)
 				}
 
 			// Date
 			case "_date":
-				if item.GetDate(key).Format(DateFormat) != testValues.Date.Format(DateFormat) {
+				if to.Time(item[key]).Equal(testValues.Date) == false {
 					t.Fatalf("Wrong datatype %v.", key)
 				}
 			}
