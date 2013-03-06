@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012 José Carlos Nieto, http://xiam.menteslibres.org/
+  Copyright (c) 2012-2013 José Carlos Nieto, http://xiam.menteslibres.org/
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the
@@ -24,27 +24,33 @@
 package mysql
 
 import (
-	_ "github.com/Go-SQL-Driver/MySQL"
-	//_ "github.com/ziutek/mymysql/godrv"
 	"database/sql"
+	"errors"
 	"fmt"
+	_ "github.com/Go-SQL-Driver/MySQL"
 	"github.com/gosexy/db"
 	"reflect"
 	"regexp"
 	"strings"
-	"time"
 )
 
 var Debug = false
 
-const dateFormat = "2006-01-02 15:04:05.000000000"
-const timeFormat = "%d:%02d:%02d.%09d"
+// Format for saving dates.
+const DateFormat = "2006-01-02 15:04:05.000"
+
+// Format for saving times.
+const TimeFormat = "%d:%02d:%02d.%03d"
+
+var columnPattern = regexp.MustCompile(`^([a-z]+)\(?([0-9,]+)?\)?\s?([a-z]*)?`)
 
 func init() {
 	db.Register("mysql", &Source{})
 }
 
-// MySQl datasource.
+/*
+	Driver's session data.
+*/
 type Source struct {
 	session     *sql.DB
 	config      db.DataSource
@@ -69,16 +75,16 @@ func sqlCompile(terms []interface{}) *sqlQuery {
 	q.Query = []string{}
 
 	for _, term := range terms {
-		switch term.(type) {
+		switch t := term.(type) {
 		case string:
-			q.Query = append(q.Query, term.(string))
+			q.Query = append(q.Query, t)
 		case db.SqlArgs:
-			for _, arg := range term.(db.SqlArgs) {
+			for _, arg := range t {
 				q.SqlArgs = append(q.SqlArgs, arg)
 			}
 		case db.SqlValues:
-			args := make([]string, len(term.(db.SqlValues)))
-			for i, arg := range term.(db.SqlValues) {
+			args := make([]string, len(t))
+			for i, arg := range t {
 				args[i] = "?"
 				q.SqlArgs = append(q.SqlArgs, arg)
 			}
@@ -87,10 +93,6 @@ func sqlCompile(terms []interface{}) *sqlQuery {
 	}
 
 	return q
-}
-
-func sqlTable(name string) string {
-	return name
 }
 
 func sqlFields(names []string) string {
@@ -108,39 +110,33 @@ func sqlValues(values []string) db.SqlValues {
 	return ret
 }
 
-// Returns database name.
+func sqlTable(name string) string {
+	return name
+}
+
+/*
+	Returns the name of the database.
+*/
 func (self *Source) Name() string {
 	return self.config.Database
 }
 
-func toInternal(val interface{}) string {
-
-	switch val.(type) {
-	case []byte:
-		return fmt.Sprintf("%s", string(val.([]byte)))
-	case time.Time:
-		return val.(time.Time).Format(dateFormat)
-	case time.Duration:
-		t := val.(time.Duration)
-		return fmt.Sprintf(timeFormat, int(t.Hours()), int(t.Minutes())%60, int(t.Seconds())%60, t.Nanoseconds())
-	case bool:
-		if val.(bool) == true {
-			return "1"
-		} else {
-			return "0"
-		}
+// Wraps sql.DB.QueryRow
+func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
+	if self.session == nil {
+		return nil, errors.New("You're currently not connected.")
 	}
 
-	return fmt.Sprintf("%v", val)
-}
+	chunks := sqlCompile(terms)
 
-func toNative(val interface{}) interface{} {
+	query := strings.Join(chunks.Query, " ")
 
-	switch val.(type) {
+	if Debug == true {
+		fmt.Printf("Q: %s\n", query)
+		fmt.Printf("A: %v\n", chunks.SqlArgs)
 	}
 
-	return val
-
+	return self.session.QueryRow(query, chunks.SqlArgs...), nil
 }
 
 // Wraps sql.DB.Query
@@ -179,15 +175,9 @@ func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
 	return self.session.Exec(query, chunks.SqlArgs...)
 }
 
-// Configures and returns a database session.
-func Session(config db.DataSource) db.Database {
-	self := &Source{}
-	self.config = config
-	self.collections = make(map[string]db.Collection)
-	return self
-}
-
-// Closes a previously opened database session.
+/*
+	Closes a database session.
+*/
 func (self *Source) Close() error {
 	if self.session != nil {
 		return self.session.Close()
@@ -195,19 +185,25 @@ func (self *Source) Close() error {
 	return nil
 }
 
-// Configures a datasource and tries to open a connection.
+/*
+	Configures and returns a database session.
+*/
 func (self *Source) Setup(config db.DataSource) error {
 	self.config = config
 	self.collections = make(map[string]db.Collection)
 	return self.Open()
 }
 
-// Tries to open a connection to the current datasource.
+/*
+	Tries to open a database connection.
+*/
 func (self *Source) Open() error {
 	var err error
 
 	if self.config.Host == "" {
-		self.config.Host = "127.0.0.1"
+		if self.config.Socket == "" {
+			self.config.Host = "127.0.0.1"
+		}
 	}
 
 	if self.config.Port == 0 {
@@ -218,8 +214,21 @@ func (self *Source) Open() error {
 		return fmt.Errorf("Database name is required.")
 	}
 
-	conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", self.config.User, self.config.Password, self.config.Host, self.config.Port, self.config.Database)
-	//conn := fmt.Sprintf("tcp:%s*%s/%s/%s", self.config.Host, self.config.Database, self.config.User, self.config.Password)
+	if self.config.Socket != "" && self.config.Host != "" {
+		return errors.New("Socket or Host are mutually exclusive.")
+	}
+
+	if self.config.Charset == "" {
+		self.config.Charset = "utf8"
+	}
+
+	var conn string
+
+	if self.config.Host != "" {
+		conn = fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s", self.config.User, self.config.Password, self.config.Host, self.config.Port, self.config.Database, self.config.Charset)
+	} else if self.config.Socket != "" {
+		conn = fmt.Sprintf("%s:%s@unix(%s)/%s?charset=%s", self.config.User, self.config.Password, self.config.Socket, self.config.Database, self.config.Charset)
+	}
 
 	self.session, err = sql.Open("mysql", conn)
 
@@ -230,25 +239,33 @@ func (self *Source) Open() error {
 	return nil
 }
 
-// Changes the active database
+/*
+	Changes the active database.
+*/
 func (self *Source) Use(database string) error {
 	self.config.Database = database
 	_, err := self.session.Exec(fmt.Sprintf("USE %s", database))
 	return err
 }
 
-// Deletes the currently active database.
+/*
+	Drops the currently active database.
+*/
 func (self *Source) Drop() error {
 	_, err := self.session.Exec(fmt.Sprintf("DROP DATABASE %s", self.config.Database))
 	return err
 }
 
-// Returns the *sql.DB underlying driver.
+/*
+	Returns a *sql.DB object that represents an internal session.
+*/
 func (self *Source) Driver() interface{} {
 	return self.session
 }
 
-// Returns the names of all the collection on the current database.
+/*
+	Returns a list of all tables in the current database.
+*/
 func (self *Source) Collections() []string {
 	var collections []string
 	var collection string
@@ -265,7 +282,9 @@ func (self *Source) Collections() []string {
 	return collections
 }
 
-// Returns a collection. Panics if the collection does not exists.
+/*
+	Returns a collection that must exists or panics.
+*/
 func (self *Source) ExistentCollection(name string) db.Collection {
 	col, err := self.Collection(name)
 	if err != nil {
@@ -274,7 +293,9 @@ func (self *Source) ExistentCollection(name string) db.Collection {
 	return col
 }
 
-// Returns a collection by name.
+/*
+	Returns a table struct by name.
+*/
 func (self *Source) Collection(name string) (db.Collection, error) {
 
 	if col, ok := self.collections[name]; ok == true {
@@ -301,16 +322,25 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 		return table, err
 	}
 
-	columns := table.sqlFetchAll(rows)
+	columns := []struct {
+		Field string
+		Type  string
+	}{}
 
-	pattern, _ := regexp.Compile("^([a-z]+)\\(?([0-9,]+)?\\)?\\s?([a-z]*)?")
+	err = table.fetchRows(&columns, rows)
+
+	if err != nil {
+		return nil, err
+	}
 
 	table.types = make(map[string]reflect.Kind, len(columns))
 
 	for _, column := range columns {
-		cname := strings.ToLower(column["field"].(string))
-		ctype := strings.ToLower(column["type"].(string))
-		results := pattern.FindStringSubmatch(ctype)
+
+		column.Field = strings.ToLower(column.Field)
+		column.Type = strings.ToLower(column.Type)
+
+		results := columnPattern.FindStringSubmatch(column.Type)
 
 		// Default properties.
 		dextra := ""
@@ -322,26 +352,24 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 			dextra = results[3]
 		}
 
-		vtype := reflect.String
+		ctype := reflect.String
 
 		// Guessing datatypes.
 		switch dtype {
 		case "tinyint", "smallint", "mediumint", "int", "bigint":
 			if dextra == "unsigned" {
-				vtype = reflect.Uint64
+				ctype = reflect.Uint64
 			} else {
-				vtype = reflect.Int64
+				ctype = reflect.Int64
 			}
 		case "decimal", "float", "double":
-			vtype = reflect.Float64
+			ctype = reflect.Float64
 		}
 
-		/*
-		 fmt.Printf("Imported %v (from %v)\n", vtype, dtype)
-		*/
-
-		table.types[cname] = vtype
+		table.types[column.Field] = ctype
 	}
+
+	self.collections[name] = table
 
 	return table, nil
 }
