@@ -24,9 +24,9 @@
 package mongo
 
 import (
+	"errors"
 	"fmt"
 	"github.com/gosexy/db"
-	"github.com/gosexy/sugar"
 	"github.com/gosexy/to"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
@@ -42,6 +42,18 @@ type SourceCollection struct {
 	collection *mgo.Collection
 }
 
+var extRelationPattern = regexp.MustCompile(`\{(.+)\}`)
+var columnComparePattern = regexp.MustCompile(`[^a-zA-Z0-9]`)
+
+/*
+	Returns true if a table column looks like a struct field.
+*/
+func compareColumnToField(s, c string) bool {
+	s = columnComparePattern.ReplaceAllString(s, "")
+	c = columnComparePattern.ReplaceAllString(c, "")
+	return strings.ToLower(s) == strings.ToLower(c)
+}
+
 /*
 	Returns the collection name as a string.
 */
@@ -54,6 +66,41 @@ func (self *SourceCollection) Name() string {
 	dst.
 */
 func (self *SourceCollection) Fetch(dst interface{}, terms ...interface{}) error {
+	/*
+		At this moment it is not possible to create a slice of a given element
+		type: https://code.google.com/p/go/issues/detail?id=2339
+
+		When it gets available this function should change, it must rely on
+		FetchAll() the same way Find() relies on FindAll().
+	*/
+
+	found := self.Find(terms...)
+
+	dstv := reflect.ValueOf(dst)
+
+	if dstv.Kind() != reflect.Ptr || dstv.IsNil() {
+		return fmt.Errorf("Fetch() expects a pointer.")
+	}
+
+	itemv := dstv.Elem().Type()
+
+	switch itemv.Kind() {
+	case reflect.Struct:
+		for column, _ := range found {
+			f := func(s string) bool {
+				return compareColumnToField(s, column)
+			}
+			v := dstv.Elem().FieldByNameFunc(f)
+			if v.IsValid() {
+				v.Set(reflect.ValueOf(found[column]))
+			}
+		}
+	case reflect.Map:
+		dstv.Elem().Set(reflect.ValueOf(found))
+	default:
+		return fmt.Errorf("Expecting a pointer to map or struct, got %s.", itemv.Kind())
+	}
+
 	return nil
 }
 
@@ -62,15 +109,178 @@ func (self *SourceCollection) Fetch(dst interface{}, terms ...interface{}) error
 	the pointer dst.
 */
 func (self *SourceCollection) FetchAll(dst interface{}, terms ...interface{}) error {
+
+	var err error
+
+	var dstv reflect.Value
+	var itemv reflect.Value
+	var itemk reflect.Kind
+
+	queryChunks := struct {
+		Fields     []string
+		Limit      int
+		Offset     int
+		Sort       *db.Sort
+		Relate     db.Relate
+		RelateAll  db.RelateAll
+		Relations  []db.Relation
+		Conditions interface{}
+	}{}
+
+	queryChunks.Relate = make(db.Relate)
+	queryChunks.RelateAll = make(db.RelateAll)
+
+	// Checking input
+	dstv = reflect.ValueOf(dst)
+
+	if dstv.Kind() != reflect.Ptr || dstv.IsNil() || dstv.Elem().Kind() != reflect.Slice {
+		return errors.New("FetchAll() expects a pointer to slice.")
+	}
+
+	itemv = dstv.Elem()
+	itemk = itemv.Type().Elem().Kind()
+
+	if itemk != reflect.Struct && itemk != reflect.Map {
+		return errors.New("FetchAll() expects a pointer to slice of maps or structs.")
+	}
+
+	// Analyzing given terms.
+	for _, term := range terms {
+
+		switch v := term.(type) {
+		case db.Limit:
+			queryChunks.Limit = int(v)
+		case db.Sort:
+			queryChunks.Sort = &v
+		case db.Offset:
+			queryChunks.Offset = int(v)
+		case db.Fields:
+			queryChunks.Fields = append(queryChunks.Fields, v...)
+		case db.Relate:
+			for name, terms := range v {
+				queryChunks.Relations = append(queryChunks.Relations, db.Relation{All: false, Name: name, Collection: nil, On: terms})
+			}
+		case db.RelateAll:
+			for name, terms := range v {
+				queryChunks.Relations = append(queryChunks.Relations, db.Relation{All: true, Name: name, Collection: nil, On: terms})
+			}
+		}
+	}
+
+	// No specific fields given.
+	if len(queryChunks.Fields) == 0 {
+		queryChunks.Fields = []string{"*"}
+	}
+
+	// Actually executing query.
+	q := self.buildQuery(terms...)
+
+	// Fetching rows.
+	err = q.All(dst)
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("DEST %v\n", dst)
+
+	if len(queryChunks.Relations) > 0 {
+
+		// Iterate over results.
+		for i := 0; i < dstv.Elem().Len(); i++ {
+
+			item := itemv.Index(i)
+
+			for _, relation := range queryChunks.Relations {
+
+				terms := make([]interface{}, len(relation.On))
+
+				for j, term := range relation.On {
+					switch t := term.(type) {
+					// Just waiting for db.Cond statements.
+					case db.Cond:
+						for k, v := range t {
+							switch s := v.(type) {
+							case string:
+								matches := extRelationPattern.FindStringSubmatch(s)
+								if len(matches) > 1 {
+									extkey := matches[1]
+									var val reflect.Value
+									switch itemk {
+									case reflect.Struct:
+										f := func(s string) bool {
+											return compareColumnToField(s, extkey)
+										}
+										val = item.FieldByNameFunc(f)
+									case reflect.Map:
+										val = item.MapIndex(reflect.ValueOf(extkey))
+									}
+									if val.IsValid() {
+										fmt.Printf("CONST: %v --> %v\n", term, val.Interface())
+										term = db.Cond{k: toInternal(val.Interface())}
+									}
+								}
+							}
+						}
+					case db.Collection:
+						relation.Collection = t
+					}
+					terms[j] = term
+				}
+
+				if relation.Collection == nil {
+					relation.Collection, err = self.parent.Collection(relation.Name)
+					if err != nil {
+						return fmt.Errorf("Could not relate to collection %s: %s", relation.Name, err.Error())
+					}
+				}
+
+				keyv := reflect.ValueOf(relation.Name)
+
+				switch itemk {
+				case reflect.Struct:
+					f := func(s string) bool {
+						return compareColumnToField(s, relation.Name)
+					}
+
+					val := item.FieldByNameFunc(f)
+
+					if val.IsValid() {
+						p := reflect.New(val.Type())
+						q := p.Interface()
+						if relation.All == true {
+							err = relation.Collection.FetchAll(q, terms...)
+						} else {
+							err = relation.Collection.Fetch(q, terms...)
+						}
+						if err != nil {
+							return err
+						}
+						val.Set(reflect.Indirect(p))
+					}
+				case reflect.Map:
+					// Executing external query.
+					if relation.All == true {
+						item.SetMapIndex(keyv, reflect.ValueOf(relation.Collection.FindAll(terms...)))
+					} else {
+						item.SetMapIndex(keyv, reflect.ValueOf(relation.Collection.Find(terms...)))
+					}
+				}
+
+			}
+		}
+	}
+
 	return nil
 }
 
 // Transforms conditions into something *mgo.Session can understand.
-func marshal(where db.Cond) map[string]interface{} {
-	conds := make(map[string]interface{})
+func compileStatement(where db.Cond) bson.M {
+	conds := bson.M{}
 
 	for key, val := range where {
-		chunks := strings.Split(strings.Trim(key, " "), " ")
+		key = strings.Trim(key, " ")
+		chunks := strings.Split(key, " ")
 
 		if len(chunks) >= 2 {
 			op := ""
@@ -86,7 +296,7 @@ func marshal(where db.Cond) map[string]interface{} {
 			default:
 				op = chunks[1]
 			}
-			conds[chunks[0]] = map[string]interface{}{op: toInternal(val)}
+			conds[chunks[0]] = bson.M{op: toInternal(val)}
 		} else {
 			conds[key] = toInternal(val)
 		}
@@ -125,17 +335,30 @@ func (self *SourceCollection) Exists() bool {
 	Appends items to the collection. An item could be either a map or a struct.
 */
 func (self *SourceCollection) Append(items ...interface{}) ([]db.Id, error) {
-	return nil, nil
+	ids := []db.Id{}
+	for _, item := range items {
+		// Dirty trick to return the Id with ease.
+		res, err := self.collection.Upsert(bson.M{"_id": nil}, item)
+		if err != nil {
+			return ids, err
+		}
+		var id db.Id
+		if res.UpsertedId != nil {
+			id = db.Id(res.UpsertedId.(bson.ObjectId).Hex())
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
 }
 
 // Compiles terms into something *mgo.Session can understand.
 func (self *SourceCollection) compileConditions(term interface{}) interface{} {
-	switch term.(type) {
+
+	switch t := term.(type) {
 	case []interface{}:
 		values := []interface{}{}
-		itop := len(term.([]interface{}))
-		for i := 0; i < itop; i++ {
-			value := self.compileConditions(term.([]interface{})[i])
+		for i, _ := range t {
+			value := self.compileConditions(t[i])
 			if value != nil {
 				values = append(values, value)
 			}
@@ -145,28 +368,26 @@ func (self *SourceCollection) compileConditions(term interface{}) interface{} {
 		}
 	case db.Or:
 		values := []interface{}{}
-		itop := len(term.(db.Or))
-		for i := 0; i < itop; i++ {
-			values = append(values, self.compileConditions(term.(db.Or)[i]))
+		for i, _ := range t {
+			values = append(values, self.compileConditions(t[i]))
 		}
-		condition := map[string]interface{}{"$or": values}
+		condition := bson.M{"$or": values}
 		return condition
 	case db.And:
 		values := []interface{}{}
-		itop := len(term.(db.And))
-		for i := 0; i < itop; i++ {
-			values = append(values, self.compileConditions(term.(db.And)[i]))
+		for i, _ := range t {
+			values = append(values, self.compileConditions(t[i]))
 		}
-		condition := map[string]interface{}{"$and": values}
+		condition := bson.M{"$and": values}
 		return condition
 	case db.Cond:
-		return marshal(term.(db.Cond))
+		return compileStatement(t)
 	}
 	return nil
 }
 
 // Compiles terms into something that *mgo.Session can understand.
-func (self *SourceCollection) compileQuery(terms []interface{}) interface{} {
+func (self *SourceCollection) compileQuery(terms ...interface{}) interface{} {
 	var query interface{}
 
 	compiled := self.compileConditions(terms)
@@ -199,7 +420,7 @@ func (self *SourceCollection) compileQuery(terms []interface{}) interface{} {
 // Removes all the items that match the given conditions.
 func (self *SourceCollection) Remove(terms ...interface{}) error {
 
-	query := self.compileQuery(terms)
+	query := self.compileQuery(terms...)
 
 	_, err := self.collection.RemoveAll(query)
 
@@ -208,46 +429,39 @@ func (self *SourceCollection) Remove(terms ...interface{}) error {
 
 // Updates all the items that match the given conditions.
 func (self *SourceCollection) Update(terms ...interface{}) error {
+	var err error
 
-	var set interface{}
-	var upsert interface{}
-	var modify interface{}
+	var action = struct {
+		Set    *db.Set
+		Upsert *db.Upsert
+		Modify *db.Modify
+	}{}
 
-	set = nil
-	upsert = nil
-	modify = nil
+	query := self.compileQuery(terms...)
 
-	query := self.compileQuery(terms)
-
-	itop := len(terms)
-
-	for i := 0; i < itop; i++ {
-		term := terms[i]
-
-		switch term.(type) {
+	for i, _ := range terms {
+		switch t := terms[i].(type) {
 		case db.Set:
-			set = term.(db.Set)
+			action.Set = &t
 		case db.Upsert:
-			upsert = term.(db.Upsert)
+			action.Upsert = &t
 		case db.Modify:
-			modify = term.(db.Modify)
+			action.Modify = &t
 		}
 	}
 
-	var err error
-
-	if set != nil {
-		_, err = self.collection.UpdateAll(query, db.Item{"$set": set})
+	if action.Set != nil {
+		_, err = self.collection.UpdateAll(query, db.Item{"$set": action.Set})
 		return err
 	}
 
-	if modify != nil {
-		_, err = self.collection.UpdateAll(query, modify)
+	if action.Modify != nil {
+		_, err = self.collection.UpdateAll(query, action.Modify)
 		return err
 	}
 
-	if upsert != nil {
-		_, err = self.collection.Upsert(query, upsert)
+	if action.Upsert != nil {
+		_, err = self.collection.Upsert(query, action.Upsert)
 		return err
 	}
 
@@ -277,113 +491,106 @@ func (self *SourceCollection) invoke(fn string, terms []interface{}) []reflect.V
 
 // Returns the number of items that match the given conditions.
 func (self *SourceCollection) Count(terms ...interface{}) (int, error) {
-	q := self.invoke("BuildQuery", terms)
 
-	p := q[0].Interface().(*mgo.Query)
+	q := self.buildQuery(terms...)
 
-	count, err := p.Count()
+	count, err := q.Count()
 
 	return count, err
 }
 
 // Returns the first db.Item that matches the given conditions.
 func (self *SourceCollection) Find(terms ...interface{}) db.Item {
-
-	var item db.Item
-
 	terms = append(terms, db.Limit(1))
 
-	result := self.invoke("FindAll", terms)
+	result := self.FindAll(terms...)
 
 	if len(result) > 0 {
-		response := result[0].Interface().([]db.Item)
-		if len(response) > 0 {
-			item = response[0]
-		}
+		return result[0]
 	}
 
-	return item
+	return nil
 }
 
 // Returns a mgo.Query based on the given terms.
-func (self *SourceCollection) BuildQuery(terms ...interface{}) *mgo.Query {
+func (self *SourceCollection) buildQuery(terms ...interface{}) *mgo.Query {
 
-	var sort interface{}
-
-	limit := -1
-	offset := -1
-	sort = nil
+	var delim = struct {
+		Limit  int
+		Offset int
+		Sort   *db.Sort
+	}{
+		-1,
+		-1,
+		nil,
+	}
 
 	// Conditions
-	query := self.compileQuery(terms)
+	query := self.compileQuery(terms...)
 
-	itop := len(terms)
-	for i := 0; i < itop; i++ {
-		term := terms[i]
-
-		switch term.(type) {
+	for i, _ := range terms {
+		switch t := terms[i].(type) {
 		case db.Limit:
-			limit = int(term.(db.Limit))
+			delim.Limit = int(t)
 		case db.Offset:
-			offset = int(term.(db.Offset))
+			delim.Offset = int(t)
 		case db.Sort:
-			sort = term.(db.Sort)
+			delim.Sort = &t
 		}
 	}
 
 	// Actually executing query, returning a pointer.
-	// fmt.Printf("actual: %v\n", query)
-	q := self.collection.Find(query)
+	res := self.collection.Find(query)
 
 	// Applying limits and offsets.
-	if offset > -1 {
-		q = q.Skip(offset)
+	if delim.Offset > -1 {
+		res = res.Skip(delim.Offset)
 	}
 
-	if limit > -1 {
-		q = q.Limit(limit)
+	if delim.Limit > -1 {
+		res = res.Limit(delim.Limit)
 	}
 
 	// Sorting result
-	if sort != nil {
-		for key, val := range sort.(db.Sort) {
+	if delim.Sort != nil {
+		for key, val := range *delim.Sort {
 			sval := to.String(val)
 			if sval == "-1" || sval == "DESC" {
-				q = q.Sort("-" + key)
+				res = res.Sort("-" + key)
 			} else if sval == "1" || sval == "ASC" {
-				q = q.Sort(key)
+				res = res.Sort(key)
 			} else {
 				panic(fmt.Sprintf(`Unknown sort value "%s".`, sval))
 			}
 		}
 	}
 
-	return q
+	return res
 }
 
 // Transforms data from db.Item format into mgo format.
 func toInternal(val interface{}) interface{} {
 
-	switch val.(type) {
+	switch t := val.(type) {
 	case []db.Id:
-		ids := make([]bson.ObjectId, len(val.([]db.Id)))
-		for i, _ := range val.([]db.Id) {
-			ids[i] = bson.ObjectIdHex(string(val.([]db.Id)[i]))
+		ids := make([]bson.ObjectId, len(t))
+		for i, _ := range t {
+			ids[i] = bson.ObjectIdHex(string(t[i]))
 		}
 		return ids
 	case db.Id:
-		return bson.ObjectIdHex(string(val.(db.Id)))
+		return bson.ObjectIdHex(string(t))
 	case db.Item:
-		for k, _ := range val.(db.Item) {
-			val.(db.Item)[k] = toInternal(val.(db.Item)[k])
+		for k, _ := range t {
+			t[k] = toInternal(t[k])
 		}
 	case db.Cond:
-		for k, _ := range val.(db.Cond) {
-			val.(db.Cond)[k] = toInternal(val.(db.Cond)[k])
+		for k, _ := range t {
+			t[k] = toInternal(t[k])
 		}
 	case map[string]interface{}:
-		for k, _ := range val.(map[string]interface{}) {
-			val.(map[string]interface{})[k] = toInternal(val.(map[string]interface{})[k])
+		for k, _ := range t {
+			t[k] = toInternal(t[k])
 		}
 	}
 
@@ -393,15 +600,15 @@ func toInternal(val interface{}) interface{} {
 // Transforms data from mgo format into db.Item format.
 func toNative(val interface{}) interface{} {
 
-	switch val.(type) {
+	switch t := val.(type) {
 	case bson.M:
-		v2 := map[string]interface{}{}
-		for k, v := range val.(bson.M) {
-			v2[k] = toNative(v)
+		v := map[string]interface{}{}
+		for i, _ := range t {
+			v[i] = toNative(t[i])
 		}
-		return v2
+		return v
 	case bson.ObjectId:
-		return db.Id(val.(bson.ObjectId).Hex())
+		return db.Id(t.Hex())
 	}
 
 	return val
@@ -410,135 +617,10 @@ func toNative(val interface{}) interface{} {
 
 // Returns all the items that match the given conditions. See Find().
 func (self *SourceCollection) FindAll(terms ...interface{}) []db.Item {
-	var items []db.Item
-	var result []interface{}
-
-	var relate interface{}
-	var relateAll interface{}
-
-	var itop int
-
-	// Analyzing
-	itop = len(terms)
-
-	for i := 0; i < itop; i++ {
-		term := terms[i]
-
-		switch term.(type) {
-		case db.Relate:
-			relate = term.(db.Relate)
-		case db.RelateAll:
-			relateAll = term.(db.RelateAll)
-		}
+	results := []db.Item{}
+	err := self.FetchAll(&results, terms...)
+	if err != nil {
+		panic(err)
 	}
-
-	// Retrieving data
-	q := self.invoke("BuildQuery", terms)
-
-	p := q[0].Interface().(*mgo.Query)
-
-	p.All(&result)
-
-	var relations []sugar.Map
-
-	// This query is related to other collections.
-	if relate != nil {
-		for rname, rterms := range relate.(db.Relate) {
-			rcollection, _ := self.parent.Collection(rname)
-
-			ttop := len(rterms)
-			for t := ttop - 1; t >= 0; t-- {
-				rterm := rterms[t]
-				switch rterm.(type) {
-				case db.Collection:
-					rcollection = rterm.(db.Collection)
-				}
-			}
-
-			relations = append(relations, sugar.Map{"all": false, "name": rname, "collection": rcollection, "terms": rterms})
-		}
-	}
-
-	if relateAll != nil {
-		for rname, rterms := range relateAll.(db.RelateAll) {
-			rcollection, _ := self.parent.Collection(rname)
-
-			ttop := len(rterms)
-			for t := ttop - 1; t >= 0; t-- {
-				rterm := rterms[t]
-				switch rterm.(type) {
-				case db.Collection:
-					rcollection = rterm.(db.Collection)
-				}
-			}
-
-			relations = append(relations, sugar.Map{"all": true, "name": rname, "collection": rcollection, "terms": rterms})
-		}
-	}
-
-	var term interface{}
-
-	jtop := len(relations)
-
-	itop = len(result)
-	items = make([]db.Item, itop)
-
-	for i := 0; i < itop; i++ {
-
-		item := db.Item{}
-
-		// Default values.
-		for key, val := range result[i].(bson.M) {
-			item[key] = toNative(val)
-		}
-
-		// Querying relations
-		for j := 0; j < jtop; j++ {
-
-			relation := relations[j]
-
-			terms := []interface{}{}
-
-			ktop := len(relation["terms"].(db.On))
-
-			for k := 0; k < ktop; k++ {
-
-				//term = tcopy[k]
-				term = relation["terms"].(db.On)[k]
-
-				switch term.(type) {
-				// Just waiting for db.Cond statements.
-				case db.Cond:
-					for wkey, wval := range term.(db.Cond) {
-						//if reflect.TypeOf(wval).Kind() == reflect.String { // does not always work.
-						if reflect.TypeOf(wval).Name() == "string" {
-							// Matching dynamic values.
-							matched, _ := regexp.MatchString("\\{.+\\}", wval.(string))
-							if matched {
-								// Replacing dynamic values.
-								kname := strings.Trim(wval.(string), "{}")
-								term = db.Cond{wkey: item[kname]}
-							}
-						}
-					}
-				}
-				terms = append(terms, term)
-			}
-
-			// Executing external query.
-			if relation["all"] == true {
-				value := relation["collection"].(*SourceCollection).invoke("FindAll", terms)
-				item[relation["name"].(string)] = value[0].Interface().([]db.Item)
-			} else {
-				value := relation["collection"].(*SourceCollection).invoke("Find", terms)
-				item[relation["name"].(string)] = value[0].Interface().(db.Item)
-			}
-
-		}
-
-		// Appending to results.
-		items[i] = item
-	}
-
-	return items
+	return results
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/gosexy/db"
 	"github.com/gosexy/to"
 	"github.com/kr/pretty"
+	"labix.org/v2/mgo/bson"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -60,7 +61,7 @@ var testValues = testValuesStruct{
 	1.337, 1.337,
 	true,
 	"Hello world!",
-	time.Date(2012, 7, 28, 1, 2, 3, 0, time.UTC),
+	time.Date(2012, 7, 28, 1, 2, 3, 0, time.Local),
 	time.Second * time.Duration(7331),
 }
 
@@ -195,7 +196,6 @@ func TestAppend(t *testing.T) {
 	if total != len(names) {
 		t.Fatalf("Could not append all items.")
 	}
-
 }
 
 // Tries to find and fetch rows.
@@ -211,7 +211,7 @@ func TestFind(t *testing.T) {
 
 	defer sess.Close()
 
-	people, _ := sess.Collection("people")
+	people := sess.ExistentCollection("people")
 
 	// Testing Find()
 	result := people.Find(db.Cond{"name": "José"})
@@ -351,8 +351,8 @@ func TestPopulate(t *testing.T) {
 	}
 
 	results := people.FindAll(
-		db.Fields{"id", "name"},
-		db.Sort{"name": "ASC", "id": -1},
+		db.Fields{"_id", "name"},
+		db.Sort{"name": "ASC", "_id": -1},
 	)
 
 	for _, person := range results {
@@ -362,13 +362,13 @@ func TestPopulate(t *testing.T) {
 		for j := 0; j < 5; j++ {
 			children.Append(db.Item{
 				"name":      fmt.Sprintf("%s's child %d", person["name"], j+1),
-				"parent_id": person["id"],
+				"parent_id": person["_id"],
 			})
 		}
 
 		// Lives in
 		people.Update(
-			db.Cond{"id": person["id"]},
+			db.Cond{"_id": person["_id"]},
 			db.Set{"place_code_id": int(rand.Float32() * float32(len(results)))},
 		)
 
@@ -378,8 +378,8 @@ func TestPopulate(t *testing.T) {
 				"code_id": int(rand.Float32() * float32(len(results))),
 			})
 			visits.Append(db.Item{
-				"place_id":  place["id"],
-				"person_id": person["id"],
+				"place_id":  place["_id"],
+				"person_id": person["_id"],
 			})
 		}
 	}
@@ -408,15 +408,15 @@ func TestRelation(t *testing.T) {
 		db.RelateAll{
 			"has_children": db.On{
 				sess.ExistentCollection("children"),
-				db.Cond{"parent_id": "{id}"},
+				db.Cond{"parent_id": "{_id}"},
 			},
 			"has_visited": db.On{
 				sess.ExistentCollection("visits"),
-				db.Cond{"person_id": "{id}"},
+				db.Cond{"person_id": "{_id}"},
 				db.Relate{
 					"place": db.On{
 						sess.ExistentCollection("places"),
-						db.Cond{"id": "{place_id}"},
+						db.Cond{"_id": "{place_id}"},
 					},
 				},
 			},
@@ -441,9 +441,9 @@ func TestRelationStruct(t *testing.T) {
 	people := sess.ExistentCollection("people")
 
 	results := []struct {
-		Id          int
+		Id          bson.ObjectId `_id`
 		Name        string
-		PlaceCodeId int
+		PlaceCodeId int `place_code_id`
 		LivesIn     struct {
 			Name string
 		}
@@ -451,7 +451,7 @@ func TestRelationStruct(t *testing.T) {
 			Name string
 		}
 		HasVisited []struct {
-			PlaceId int
+			PlaceId bson.ObjectId `place_id`
 			Place   struct {
 				Name string
 			}
@@ -476,7 +476,7 @@ func TestRelationStruct(t *testing.T) {
 				db.Relate{
 					"Place": db.On{
 						sess.ExistentCollection("places"),
-						db.Cond{"id": "{PlaceId}"},
+						db.Cond{"_id": "{PlaceId}"},
 					},
 				},
 			},
@@ -501,7 +501,7 @@ func TestDataTypes(t *testing.T) {
 
 	defer sess.Close()
 
-	dataTypes := sess.ExistentCollection("data_types")
+	dataTypes, _ := sess.Collection("data_types")
 
 	dataTypes.Truncate()
 
@@ -511,7 +511,7 @@ func TestDataTypes(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	found, err := dataTypes.Count(db.Cond{"id": db.Id(ids[0])})
+	found, err := dataTypes.Count(db.Cond{"_id": db.Id(ids[0])})
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -530,7 +530,7 @@ func TestDataTypes(t *testing.T) {
 		t.Fatalf("Expecting duplicated-key error.")
 	}
 
-	delete(item, "id")
+	delete(item, "_id")
 
 	_, err = dataTypes.Append(item)
 

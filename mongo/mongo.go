@@ -151,6 +151,12 @@ func (self *Source) Close() error {
 
 // Returns the names of all collection in the current database.
 func (self *Source) Collections() []string {
-	names, _ := self.database.CollectionNames()
-	return names
+	cols := []string{}
+	rawcols, _ := self.database.CollectionNames()
+	for _, col := range rawcols {
+		if col != "system.indexes" {
+			cols = append(cols, col)
+		}
+	}
+	return cols
 }
