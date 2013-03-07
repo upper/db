@@ -5,10 +5,10 @@ import (
 	"github.com/gosexy/db"
 	"github.com/gosexy/to"
 	"github.com/kr/pretty"
-	"labix.org/v2/mgo/bson"
 	"math/rand"
 	"reflect"
 	"testing"
+	//"labix.org/v2/mgo/bson"
 	"time"
 )
 
@@ -441,7 +441,7 @@ func TestRelationStruct(t *testing.T) {
 	people := sess.ExistentCollection("people")
 
 	results := []struct {
-		Id          bson.ObjectId `_id`
+		Id          interface{} `_id`
 		Name        string
 		PlaceCodeId int `place_code_id`
 		LivesIn     struct {
@@ -451,7 +451,7 @@ func TestRelationStruct(t *testing.T) {
 			Name string
 		}
 		HasVisited []struct {
-			PlaceId bson.ObjectId `place_id`
+			PlaceId interface{} `place_id`
 			Place   struct {
 				Name string
 			}

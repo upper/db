@@ -182,8 +182,6 @@ func (self *SourceCollection) FetchAll(dst interface{}, terms ...interface{}) er
 		return err
 	}
 
-	fmt.Printf("DEST %v\n", dst)
-
 	if len(queryChunks.Relations) > 0 {
 
 		// Iterate over results.
@@ -216,7 +214,6 @@ func (self *SourceCollection) FetchAll(dst interface{}, terms ...interface{}) er
 										val = item.MapIndex(reflect.ValueOf(extkey))
 									}
 									if val.IsValid() {
-										fmt.Printf("CONST: %v --> %v\n", term, val.Interface())
 										term = db.Cond{k: toInternal(val.Interface())}
 									}
 								}
