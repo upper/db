@@ -28,6 +28,7 @@ import (
 	"fmt"
 	_ "github.com/Go-SQL-Driver/MySQL"
 	"github.com/gosexy/db"
+	"github.com/gosexy/db/util"
 	"github.com/gosexy/db/util/sqlutil"
 	"github.com/gosexy/to"
 	"strings"
@@ -40,7 +41,7 @@ import (
 */
 func (self *Table) Fetch(dst interface{}, terms ...interface{}) error {
 	found := self.Find(terms...)
-	return sqlutil.Fetch(dst, found)
+	return util.Fetch(dst, found)
 }
 
 /*
@@ -53,7 +54,7 @@ func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 
 	queryChunks := sqlutil.NewQueryChunks()
 
-	err = sqlutil.ValidateDestination(dst)
+	err = util.ValidateDestination(dst)
 
 	if err != nil {
 		return err
@@ -410,13 +411,6 @@ func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 	}
 
 	return ids, nil
-}
-
-/*
-	Returns the table name as a string.
-*/
-func (self *Table) Name() string {
-	return self.TableName
 }
 
 func toInternalInterface(val interface{}) interface{} {

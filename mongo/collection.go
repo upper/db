@@ -27,7 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gosexy/db"
-	"github.com/gosexy/db/util/sqlutil"
+	"github.com/gosexy/db/util"
 	"github.com/gosexy/to"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
@@ -41,7 +41,7 @@ type SourceCollection struct {
 	name       string
 	parent     *Source
 	collection *mgo.Collection
-	sqlutil.Table
+	util.C
 }
 
 var extRelationPattern = regexp.MustCompile(`\{(.+)\}`)
@@ -57,19 +57,12 @@ func compareColumnToField(s, c string) bool {
 }
 
 /*
-	Returns the collection name as a string.
-*/
-func (self *SourceCollection) Name() string {
-	return self.name
-}
-
-/*
 	Fetches a result delimited by terms into a pointer to map or struct given by
 	dst.
 */
 func (self *SourceCollection) Fetch(dst interface{}, terms ...interface{}) error {
 	found := self.Find(terms...)
-	return sqlutil.Fetch(dst, found)
+	return util.Fetch(dst, found)
 }
 
 /*

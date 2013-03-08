@@ -294,7 +294,7 @@ type Table struct {
 	source *Source
 	//name   string
 	//types  map[string]reflect.Kind
-	sqlutil.Table
+	sqlutil.T
 }
 
 /*
@@ -311,7 +311,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 	table.source = self
 	table.DB = self
 
-	table.TableName = name
+	table.SetName = name
 
 	// Table exists?
 	if table.Exists() == false {
@@ -321,7 +321,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 	// Fetching table datatypes and mapping to internal gotypes.
 	rows, err := table.source.doQuery(
 		"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?",
-		db.SqlArgs{table.TableName},
+		db.SqlArgs{table.Name()},
 	)
 
 	if err != nil {

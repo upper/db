@@ -78,8 +78,10 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 
 	col := &SourceCollection{}
 	col.parent = self
-	col.name = name
 	col.collection = self.database.C(name)
+
+	col.DB = self
+	col.SetName = name
 
 	if col.Exists() == false {
 		err = fmt.Errorf("Collection %s does not exists.", name)

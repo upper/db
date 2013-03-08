@@ -63,7 +63,7 @@ type Table struct {
 	source *Source
 	//name   string
 	//types  map[string]reflect.Kind
-	sqlutil.Table
+	sqlutil.T
 }
 
 type sqlQuery struct {
@@ -307,7 +307,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 	table.source = self
 	table.DB = self
 
-	table.TableName = name
+	table.SetName = name
 
 	// Table exists?
 	if table.Exists() == false {
