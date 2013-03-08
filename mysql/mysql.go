@@ -29,6 +29,7 @@ import (
 	"fmt"
 	_ "github.com/Go-SQL-Driver/MySQL"
 	"github.com/gosexy/db"
+	"github.com/gosexy/db/util/sqlutil"
 	"reflect"
 	"regexp"
 	"strings"
@@ -59,9 +60,10 @@ type Source struct {
 
 // Mysql table/collection.
 type Table struct {
-	parent *Source
-	name   string
-	types  map[string]reflect.Kind
+	source *Source
+	//name   string
+	//types  map[string]reflect.Kind
+	sqlutil.Table
 }
 
 type sqlQuery struct {
@@ -108,10 +110,6 @@ func sqlValues(values []string) db.SqlValues {
 		ret[i] = values[i]
 	}
 	return ret
-}
-
-func sqlTable(name string) string {
-	return name
 }
 
 /*
@@ -306,8 +304,10 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 
 	table := &Table{}
 
-	table.parent = self
-	table.name = name
+	table.source = self
+	table.DB = self
+
+	table.TableName = name
 
 	// Table exists?
 	if table.Exists() == false {
@@ -315,7 +315,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 	}
 
 	// Fetching table datatypes and mapping to internal gotypes.
-	rows, err := table.parent.doQuery(
+	rows, err := table.source.doQuery(
 		"SHOW COLUMNS FROM",
 		table.Name(),
 	)
@@ -329,13 +329,13 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 		Type  string
 	}{}
 
-	err = table.fetchRows(&columns, rows)
+	err = table.FetchRows(&columns, rows)
 
 	if err != nil {
 		return nil, err
 	}
 
-	table.types = make(map[string]reflect.Kind, len(columns))
+	table.ColumnTypes = make(map[string]reflect.Kind, len(columns))
 
 	for _, column := range columns {
 
@@ -368,7 +368,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 			ctype = reflect.Float64
 		}
 
-		table.types[column.Field] = ctype
+		table.ColumnTypes[column.Field] = ctype
 	}
 
 	self.collections[name] = table
