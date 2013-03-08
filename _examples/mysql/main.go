@@ -1,9 +1,11 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/gosexy/db"
 	_ "github.com/gosexy/db/mysql"
+	"github.com/gosexy/db/util/sqlutil"
 )
 
 var settings = db.DataSource{
@@ -58,6 +60,21 @@ func main() {
 	})
 
 	items := animals.FindAll()
+
+	for _, item := range items {
+		fmt.Printf("animal: %s, young: %s\n", item["animal"], item["young"])
+	}
+
+	// Custom SQL
+	drv := sess.Driver().(*sql.DB)
+
+	rows, err := drv.Query("SELECT * from animals")
+
+	items = []db.Item{}
+
+	// Empty virtual table
+	vtable := &sqlutil.T{}
+	vtable.FetchRows(&items, rows)
 
 	for _, item := range items {
 		fmt.Printf("animal: %s, young: %s\n", item["animal"], item["young"])
