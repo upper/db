@@ -386,6 +386,29 @@ func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 }
 
 /*
+	Returns true if the collection exists.
+*/
+func (self *Table) Exists() bool {
+	result, err := self.source.doQuery(
+		fmt.Sprintf(`
+			SELECT name
+				FROM sqlite_master
+				WHERE type = 'table' AND name = '%s'
+			`,
+			self.Name(),
+		),
+	)
+	if err != nil {
+		return false
+	}
+	if result.Next() == true {
+		result.Close()
+		return true
+	}
+	return false
+}
+
+/*
 	Converts a Go value into internal database representation.
 */
 func toInternal(val interface{}) string {
@@ -413,27 +436,4 @@ func toInternal(val interface{}) string {
 */
 func toNative(val interface{}) interface{} {
 	return val
-}
-
-/*
-	Returns true if the collection exists.
-*/
-func (self *Table) Exists() bool {
-	result, err := self.source.doQuery(
-		fmt.Sprintf(`
-			SELECT name
-				FROM sqlite_master
-				WHERE type = 'table' AND name = '%s'
-			`,
-			self.Name(),
-		),
-	)
-	if err != nil {
-		return false
-	}
-	if result.Next() == true {
-		result.Close()
-		return true
-	}
-	return false
 }
