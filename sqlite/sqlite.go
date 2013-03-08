@@ -112,6 +112,7 @@ func (self *Source) Name() string {
 	return self.config.Database
 }
 
+// Wraps sql.DB.QueryRow
 func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
 	if self.session == nil {
 		return nil, errors.New("You're currently not connected.")
