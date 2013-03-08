@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gosexy/db"
+	"github.com/gosexy/db/util/sqlutil"
 	"github.com/gosexy/to"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
@@ -40,6 +41,7 @@ type SourceCollection struct {
 	name       string
 	parent     *Source
 	collection *mgo.Collection
+	sqlutil.Table
 }
 
 var extRelationPattern = regexp.MustCompile(`\{(.+)\}`)
@@ -66,42 +68,8 @@ func (self *SourceCollection) Name() string {
 	dst.
 */
 func (self *SourceCollection) Fetch(dst interface{}, terms ...interface{}) error {
-	/*
-		At this moment it is not possible to create a slice of a given element
-		type: https://code.google.com/p/go/issues/detail?id=2339
-
-		When it gets available this function should change, it must rely on
-		FetchAll() the same way Find() relies on FindAll().
-	*/
-
 	found := self.Find(terms...)
-
-	dstv := reflect.ValueOf(dst)
-
-	if dstv.Kind() != reflect.Ptr || dstv.IsNil() {
-		return fmt.Errorf("Fetch() expects a pointer.")
-	}
-
-	itemv := dstv.Elem().Type()
-
-	switch itemv.Kind() {
-	case reflect.Struct:
-		for column, _ := range found {
-			f := func(s string) bool {
-				return compareColumnToField(s, column)
-			}
-			v := dstv.Elem().FieldByNameFunc(f)
-			if v.IsValid() {
-				v.Set(reflect.ValueOf(found[column]))
-			}
-		}
-	case reflect.Map:
-		dstv.Elem().Set(reflect.ValueOf(found))
-	default:
-		return fmt.Errorf("Expecting a pointer to map or struct, got %s.", itemv.Kind())
-	}
-
-	return nil
+	return sqlutil.Fetch(dst, found)
 }
 
 /*
@@ -182,90 +150,11 @@ func (self *SourceCollection) FetchAll(dst interface{}, terms ...interface{}) er
 		return err
 	}
 
-	if len(queryChunks.Relations) > 0 {
+	// Fetching relations
+	err = self.FetchRelations(dst, queryChunks.Relations, toInternal)
 
-		// Iterate over results.
-		for i := 0; i < dstv.Elem().Len(); i++ {
-
-			item := itemv.Index(i)
-
-			for _, relation := range queryChunks.Relations {
-
-				terms := make([]interface{}, len(relation.On))
-
-				for j, term := range relation.On {
-					switch t := term.(type) {
-					// Just waiting for db.Cond statements.
-					case db.Cond:
-						for k, v := range t {
-							switch s := v.(type) {
-							case string:
-								matches := extRelationPattern.FindStringSubmatch(s)
-								if len(matches) > 1 {
-									extkey := matches[1]
-									var val reflect.Value
-									switch itemk {
-									case reflect.Struct:
-										f := func(s string) bool {
-											return compareColumnToField(s, extkey)
-										}
-										val = item.FieldByNameFunc(f)
-									case reflect.Map:
-										val = item.MapIndex(reflect.ValueOf(extkey))
-									}
-									if val.IsValid() {
-										term = db.Cond{k: toInternal(val.Interface())}
-									}
-								}
-							}
-						}
-					case db.Collection:
-						relation.Collection = t
-					}
-					terms[j] = term
-				}
-
-				if relation.Collection == nil {
-					relation.Collection, err = self.parent.Collection(relation.Name)
-					if err != nil {
-						return fmt.Errorf("Could not relate to collection %s: %s", relation.Name, err.Error())
-					}
-				}
-
-				keyv := reflect.ValueOf(relation.Name)
-
-				switch itemk {
-				case reflect.Struct:
-					f := func(s string) bool {
-						return compareColumnToField(s, relation.Name)
-					}
-
-					val := item.FieldByNameFunc(f)
-
-					if val.IsValid() {
-						p := reflect.New(val.Type())
-						q := p.Interface()
-						if relation.All == true {
-							err = relation.Collection.FetchAll(q, terms...)
-						} else {
-							err = relation.Collection.Fetch(q, terms...)
-						}
-						if err != nil {
-							return err
-						}
-						val.Set(reflect.Indirect(p))
-					}
-				case reflect.Map:
-					// Executing external query.
-					if relation.All == true {
-						item.SetMapIndex(keyv, reflect.ValueOf(relation.Collection.FindAll(terms...)))
-					} else {
-						item.SetMapIndex(keyv, reflect.ValueOf(relation.Collection.Find(terms...)))
-					}
-				}
-
-			}
-		}
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -463,27 +352,6 @@ func (self *SourceCollection) Update(terms ...interface{}) error {
 	}
 
 	return nil
-}
-
-// Calls a SourceCollection function by name.
-func (self *SourceCollection) invoke(fn string, terms []interface{}) []reflect.Value {
-
-	reflected := reflect.TypeOf(self)
-
-	method, _ := reflected.MethodByName(fn)
-
-	args := make([]reflect.Value, 1+len(terms))
-
-	args[0] = reflect.ValueOf(self)
-
-	itop := len(terms)
-	for i := 0; i < itop; i++ {
-		args[i+1] = reflect.ValueOf(terms[i])
-	}
-
-	exec := method.Func.Call(args)
-
-	return exec
 }
 
 // Returns the number of items that match the given conditions.

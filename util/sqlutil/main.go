@@ -312,7 +312,7 @@ func NewQueryChunks() *QueryChunks {
 	return self
 }
 
-func (self *Table) FetchRelations(dst interface{}, queryChunks *QueryChunks, convertFn func(interface{}) string) error {
+func (self *Table) FetchRelations(dst interface{}, relations []db.Relation, convertFn func(interface{}) interface{}) error {
 	var err error
 
 	var dstv reflect.Value
@@ -333,14 +333,14 @@ func (self *Table) FetchRelations(dst interface{}, queryChunks *QueryChunks, con
 		return errors.New("FetchAll() expects a pointer to slice of maps or structs.")
 	}
 
-	if len(queryChunks.Relations) > 0 {
+	if len(relations) > 0 {
 
 		// Iterate over results.
 		for i := 0; i < dstv.Elem().Len(); i++ {
 
 			item := itemv.Index(i)
 
-			for _, relation := range queryChunks.Relations {
+			for _, relation := range relations {
 
 				terms := make([]interface{}, len(relation.On))
 

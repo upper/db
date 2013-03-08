@@ -148,7 +148,7 @@ func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 	}
 
 	// Fetching relations
-	err = self.FetchRelations(dst, queryChunks, toInternal)
+	err = self.FetchRelations(dst, queryChunks.Relations, toInternalInterface)
 
 	if err != nil {
 		return err
@@ -417,6 +417,10 @@ func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 */
 func (self *Table) Name() string {
 	return self.TableName
+}
+
+func toInternalInterface(val interface{}) interface{} {
+	return toInternal(val)
 }
 
 func toInternal(val interface{}) string {

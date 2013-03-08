@@ -147,7 +147,7 @@ func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 	}
 
 	// Fetching relations
-	err = self.FetchRelations(dst, queryChunks, toInternal)
+	err = self.FetchRelations(dst, queryChunks.Relations, toInternalInterface)
 
 	if err != nil {
 		return err
@@ -406,6 +406,10 @@ func (self *Table) Exists() bool {
 		return true
 	}
 	return false
+}
+
+func toInternalInterface(val interface{}) interface{} {
+	return toInternal(val)
 }
 
 /*
