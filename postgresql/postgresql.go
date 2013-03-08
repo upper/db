@@ -310,6 +310,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 
 	table.source = self
 	table.DB = self
+	table.PrimaryKey = "id"
 
 	table.SetName = name
 

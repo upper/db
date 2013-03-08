@@ -394,12 +394,18 @@ func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 			return ids, err
 		}
 
+		tail := ""
+
+		if _, ok := self.ColumnTypes[self.PrimaryKey]; ok == true {
+			tail = fmt.Sprintf("RETURNING %s", self.PrimaryKey)
+		}
+
 		row, err := self.source.doQueryRow(
 			fmt.Sprintf(`INSERT INTO "%s"`, self.Name()),
 			sqlFields(fields),
 			"VALUES",
 			sqlValues(values),
-			"RETURNING id",
+			tail,
 		)
 
 		// Error ocurred, stop appending.
