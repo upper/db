@@ -35,6 +35,7 @@ import (
 )
 
 type T struct {
+	PrimaryKey  string
 	ColumnTypes map[string]reflect.Kind
 	util.C
 }

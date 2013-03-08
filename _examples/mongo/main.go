@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"github.com/gosexy/db"
 	_ "github.com/gosexy/db/mongo"
-	"github.com/gosexy/sugar"
 )
 
 var settings = db.DataSource{
-	Host:     "debian",
+	Host:     "localhost",
 	Database: "dev",
 }
 
@@ -44,7 +43,7 @@ func main() {
 
 	animals.Append(db.Item{
 		"animal": "Canidae",
-		"young":  sugar.List{"Puppy", "Pup"},
+		"young":  []string{"Puppy", "Pup"},
 		"female": "Bitch",
 		"male":   "Dog",
 		"group":  "Pack",

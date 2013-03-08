@@ -7,7 +7,8 @@ import (
 )
 
 var settings = db.DataSource{
-	Host:     "debian",
+	//Host:     "localhost",
+	Socket:   "/var/run/postgresql/",
 	Database: "gotest",
 	User:     "gouser",
 	Password: "gopass",
@@ -26,7 +27,7 @@ func main() {
 	animals, err := sess.Collection("animals")
 
 	if err != nil {
-		fmt.Printf("Please create the `animals` table.")
+		fmt.Printf("Please create the `animals` table: %s", err.Error())
 		return
 	}
 

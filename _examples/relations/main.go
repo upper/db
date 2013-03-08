@@ -11,7 +11,7 @@ import (
 )
 
 var settings = db.DataSource{
-	Host:     "debian",
+	Host:     "localhost",
 	Database: "myself",
 }
 
