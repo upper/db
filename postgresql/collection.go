@@ -24,89 +24,42 @@
 package postgresql
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/gosexy/db"
+	"github.com/gosexy/db/util/sqlutil"
 	"github.com/gosexy/to"
-	"reflect"
-	"regexp"
 	"strings"
 	"time"
 )
 
-var extRelationPattern = regexp.MustCompile(`\{(.+)\}`)
-var columnComparePattern = regexp.MustCompile(`[^a-zA-Z0-9]`)
-
-var durationType = reflect.TypeOf(time.Duration(0))
-var timeType = reflect.TypeOf(time.Time{})
-
-// Represents a PostgreSQL table.
-type Table struct {
-	parent *Source
-	name   string
-	types  map[string]reflect.Kind
-}
-
-func (self *Table) columnLike(s string) string {
-	for col, _ := range self.types {
-		if compareColumnToField(s, col) == true {
-			return col
-		}
-	}
-	return s
-}
-
-func convertValue(src string, dstk reflect.Kind) (reflect.Value, error) {
-	var srcv reflect.Value
-
-	// Destination type.
-	switch dstk {
-	case reflect.Interface:
-		// Destination is interface, nuff said.
-		srcv = reflect.ValueOf(src)
-	case durationType.Kind():
-		// Destination is time.Duration
-		srcv = reflect.ValueOf(to.Duration(src))
-	case timeType.Kind():
-		// Destination is time.Time
-		srcv = reflect.ValueOf(to.Time(src))
-	default:
-		// Destination is of an unknown type.
-		cv, _ := to.Convert(src, dstk)
-		srcv = reflect.ValueOf(cv)
-	}
-
-	return srcv, nil
-}
-
 /*
-	Returns true if a table column looks like a struct field.
+	Fetches a result delimited by terms into a pointer to map or struct given by
+	dst.
 */
-func compareColumnToField(s, c string) bool {
-	s = columnComparePattern.ReplaceAllString(s, "")
-	c = columnComparePattern.ReplaceAllString(c, "")
-	return strings.ToLower(s) == strings.ToLower(c)
+func (self *Table) Fetch(dst interface{}, terms ...interface{}) error {
+	found := self.Find(terms...)
+	return sqlutil.Fetch(dst, found)
 }
 
 /*
 	Returns the table name as a string.
 */
 func (self *Table) Name() string {
-	return self.name
+	return self.TableName
 }
 
 /*
 	Returns true if the collection exists.
 */
 func (self *Table) Exists() bool {
-	result, err := self.parent.doQuery(
+	result, err := self.source.doQuery(
 		fmt.Sprintf(`
 				SELECT table_name
 					FROM information_schema.tables
 				WHERE table_catalog = '%s' AND table_name = '%s'
 			`,
-			self.parent.Name(),
+			self.source.Name(),
 			self.Name(),
 		),
 	)
@@ -121,50 +74,6 @@ func (self *Table) Exists() bool {
 }
 
 /*
-	Fetches a result delimited by terms into a pointer to map or struct given by
-	dst.
-*/
-func (self *Table) Fetch(dst interface{}, terms ...interface{}) error {
-
-	/*
-		At this moment it is not possible to create a slice of a given element
-		type: https://code.google.com/p/go/issues/detail?id=2339
-
-		When it gets available this function should change, it must rely on
-		FetchAll() the same way Find() relies on FindAll().
-	*/
-
-	found := self.Find(terms...)
-
-	dstv := reflect.ValueOf(dst)
-
-	if dstv.Kind() != reflect.Ptr || dstv.IsNil() {
-		return fmt.Errorf("Fetch() expects a pointer.")
-	}
-
-	itemv := dstv.Elem().Type()
-
-	switch itemv.Kind() {
-	case reflect.Struct:
-		for column, _ := range found {
-			f := func(s string) bool {
-				return compareColumnToField(s, column)
-			}
-			v := dstv.Elem().FieldByNameFunc(f)
-			if v.IsValid() {
-				v.Set(reflect.ValueOf(found[column]))
-			}
-		}
-	case reflect.Map:
-		dstv.Elem().Set(reflect.ValueOf(found))
-	default:
-		return fmt.Errorf("Expecting a pointer to map or struct, got %s.", itemv.Kind())
-	}
-
-	return nil
-}
-
-/*
 	Fetches results delimited by terms into an slice of maps or structs given by
 	the pointer dst.
 */
@@ -172,37 +81,12 @@ func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 
 	var err error
 
-	var dstv reflect.Value
-	var itemv reflect.Value
-	var itemk reflect.Kind
+	queryChunks := sqlutil.NewQueryChunks()
 
-	queryChunks := struct {
-		Fields     []string
-		Limit      string
-		Offset     string
-		Sort       string
-		Relate     db.Relate
-		RelateAll  db.RelateAll
-		Relations  []db.Relation
-		Conditions string
-		Arguments  db.SqlArgs
-	}{}
+	err = sqlutil.ValidateDestination(dst)
 
-	queryChunks.Relate = make(db.Relate)
-	queryChunks.RelateAll = make(db.RelateAll)
-
-	// Checking input
-	dstv = reflect.ValueOf(dst)
-
-	if dstv.Kind() != reflect.Ptr || dstv.IsNil() || dstv.Elem().Kind() != reflect.Slice {
-		return errors.New("FetchAll() expects a pointer to slice.")
-	}
-
-	itemv = dstv.Elem()
-	itemk = itemv.Type().Elem().Kind()
-
-	if itemk != reflect.Struct && itemk != reflect.Map {
-		return errors.New("FetchAll() expects a pointer to slice of maps or structs.")
+	if err != nil {
+		return err
 	}
 
 	// Analyzing given terms.
@@ -244,11 +128,19 @@ func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 			queryChunks.Fields = append(queryChunks.Fields, v...)
 		case db.Relate:
 			for name, terms := range v {
-				queryChunks.Relations = append(queryChunks.Relations, db.Relation{All: false, Name: name, Collection: nil, On: terms})
+				col, err := self.RelationCollection(name, terms)
+				if err != nil {
+					return err
+				}
+				queryChunks.Relations = append(queryChunks.Relations, db.Relation{All: false, Name: name, Collection: col, On: terms})
 			}
 		case db.RelateAll:
 			for name, terms := range v {
-				queryChunks.Relations = append(queryChunks.Relations, db.Relation{All: true, Name: name, Collection: nil, On: terms})
+				col, err := self.RelationCollection(name, terms)
+				if err != nil {
+					return err
+				}
+				queryChunks.Relations = append(queryChunks.Relations, db.Relation{All: true, Name: name, Collection: col, On: terms})
 			}
 		}
 	}
@@ -266,7 +158,7 @@ func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 	}
 
 	// Actually executing query.
-	rows, err := self.parent.doQuery(
+	rows, err := self.source.doQuery(
 		// Mandatory
 		fmt.Sprintf(`SELECT %s FROM "%s"`, strings.Join(queryChunks.Fields, ", "), self.Name()),
 		fmt.Sprintf("WHERE %s", queryChunks.Conditions), queryChunks.Arguments,
@@ -279,209 +171,22 @@ func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 	}
 
 	// Fetching rows.
-	err = self.fetchRows(dst, rows)
+	err = self.FetchRows(dst, rows)
 
 	if err != nil {
 		return err
 	}
 
-	if len(queryChunks.Relations) > 0 {
-
-		// Iterate over results.
-		for i := 0; i < dstv.Elem().Len(); i++ {
-
-			item := itemv.Index(i)
-
-			for _, relation := range queryChunks.Relations {
-
-				terms := make([]interface{}, len(relation.On))
-
-				for j, term := range relation.On {
-					switch t := term.(type) {
-					// Just waiting for db.Cond statements.
-					case db.Cond:
-						for k, v := range t {
-							switch s := v.(type) {
-							case string:
-								matches := extRelationPattern.FindStringSubmatch(s)
-								if len(matches) > 1 {
-									extkey := matches[1]
-									var val reflect.Value
-									switch itemk {
-									case reflect.Struct:
-										f := func(s string) bool {
-											return compareColumnToField(s, extkey)
-										}
-										val = item.FieldByNameFunc(f)
-									case reflect.Map:
-										val = item.MapIndex(reflect.ValueOf(extkey))
-									}
-									if val.IsValid() {
-										term = db.Cond{k: val.Interface()}
-									}
-								}
-							}
-						}
-					case db.Collection:
-						relation.Collection = t
-					}
-					terms[j] = term
-				}
-
-				if relation.Collection == nil {
-					relation.Collection, err = self.parent.Collection(relation.Name)
-					if err != nil {
-						return fmt.Errorf("Could not relate to collection %s: %s", relation.Name, err.Error())
-					}
-				}
-
-				keyv := reflect.ValueOf(relation.Name)
-
-				switch itemk {
-				case reflect.Struct:
-					f := func(s string) bool {
-						return compareColumnToField(s, relation.Name)
-					}
-
-					val := item.FieldByNameFunc(f)
-
-					if val.IsValid() {
-						p := reflect.New(val.Type())
-						q := p.Interface()
-						if relation.All == true {
-							err = relation.Collection.FetchAll(q, terms...)
-						} else {
-							err = relation.Collection.Fetch(q, terms...)
-						}
-						if err != nil {
-							return err
-						}
-						val.Set(reflect.Indirect(p))
-					}
-				case reflect.Map:
-					// Executing external query.
-					if relation.All == true {
-						item.SetMapIndex(keyv, reflect.ValueOf(relation.Collection.FindAll(terms...)))
-					} else {
-						item.SetMapIndex(keyv, reflect.ValueOf(relation.Collection.Find(terms...)))
-					}
-				}
-
-			}
-		}
-	}
-
-	return nil
-}
-
-/*
-	Copies *sql.Rows into the slice of maps or structs given by the pointer dst.
-*/
-func (self *Table) fetchRows(dst interface{}, rows *sql.Rows) error {
-
-	// Destination.
-	dstv := reflect.ValueOf(dst)
-
-	if dstv.Kind() != reflect.Ptr || dstv.Elem().Kind() != reflect.Slice || dstv.IsNil() {
-		return errors.New("fetchRows expects a pointer to slice.")
-	}
-
-	// Column names.
-	columns, err := rows.Columns()
-
 	if err != nil {
 		return err
 	}
 
-	// Column names to lower case.
-	for i, _ := range columns {
-		columns[i] = strings.ToLower(columns[i])
+	// Fetching relations
+	err = self.FetchRelations(dst, queryChunks, toInternal)
+
+	if err != nil {
+		return err
 	}
-
-	expecting := len(columns)
-
-	slicev := dstv.Elem()
-	itemt := slicev.Type().Elem()
-
-	for rows.Next() {
-
-		// Allocating results.
-		values := make([]*sql.RawBytes, expecting)
-		scanArgs := make([]interface{}, expecting)
-
-		for i := range columns {
-			scanArgs[i] = &values[i]
-		}
-
-		var item reflect.Value
-
-		switch itemt.Kind() {
-		case reflect.Map:
-			item = reflect.MakeMap(itemt)
-		case reflect.Struct:
-			item = reflect.New(itemt)
-		default:
-			return fmt.Errorf("Don't know how to deal with %s, use either map or struct.", itemt.Kind())
-		}
-
-		err := rows.Scan(scanArgs...)
-
-		if err != nil {
-			return err
-		}
-
-		// Range over row values.
-		for i, value := range values {
-			if value != nil {
-				column := columns[i]
-				svalue := string(*value)
-
-				var cv reflect.Value
-
-				if _, ok := self.types[column]; ok == true {
-					v, _ := to.Convert(string(*value), self.types[column])
-					cv = reflect.ValueOf(v)
-				} else {
-					v, _ := to.Convert(string(*value), reflect.String)
-					cv = reflect.ValueOf(v)
-				}
-
-				switch itemt.Kind() {
-				// Destination is a map.
-				case reflect.Map:
-					if cv.Type() != itemt {
-						// Converting value.
-						cv, _ = convertValue(svalue, item.Type().Elem().Kind())
-					}
-					if cv.IsValid() {
-						item.SetMapIndex(reflect.ValueOf(column), cv)
-					}
-				// Destionation is a struct.
-				case reflect.Struct:
-					// Get appropriate column.
-					f := func(s string) bool {
-						return compareColumnToField(s, column)
-					}
-					// Destination field.
-					destf := item.Elem().FieldByNameFunc(f)
-					if destf.IsValid() {
-						if cv.Type().Kind() != destf.Type().Kind() {
-							// Converting value.
-							cv, _ = convertValue(svalue, destf.Type().Kind())
-						}
-						// Copying value.
-						if cv.IsValid() {
-							destf.Set(cv)
-						}
-					}
-				}
-			}
-		}
-
-		slicev = reflect.Append(slicev, reflect.Indirect(item))
-	}
-
-	dstv.Elem().Set(slicev)
 
 	return nil
 }
@@ -578,7 +283,7 @@ func (self *Table) compileStatement(where db.Cond) (string, []string) {
 */
 func (t *Table) Truncate() error {
 
-	_, err := t.parent.doExec(
+	_, err := t.source.doExec(
 		fmt.Sprintf(`TRUNCATE TABLE "%s"`, t.Name()),
 	)
 
@@ -596,7 +301,7 @@ func (t *Table) Remove(terms ...interface{}) error {
 		conditions = "1 = 1"
 	}
 
-	_, err := t.parent.doExec(
+	_, err := t.source.doExec(
 		fmt.Sprintf(`DELETE FROM "%s"`, t.Name()),
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
@@ -624,7 +329,7 @@ func (self *Table) Update(terms ...interface{}) error {
 		conds = "1 = 1"
 	}
 
-	_, err := self.parent.doExec(
+	_, err := self.source.doExec(
 		fmt.Sprintf(`UPDATE "%s" SET %s`, self.Name(), fields), fargs,
 		fmt.Sprintf("WHERE %s", conds), args,
 	)
@@ -637,10 +342,13 @@ func (self *Table) Update(terms ...interface{}) error {
 */
 func (self *Table) FindAll(terms ...interface{}) []db.Item {
 	results := []db.Item{}
+
 	err := self.FetchAll(&results, terms...)
+
 	if err != nil {
 		panic(err)
 	}
+
 	return results
 }
 
@@ -677,6 +385,50 @@ func (self *Table) Find(terms ...interface{}) db.Item {
 }
 
 /*
+	Appends items into the table. An item could be either a map or a struct.
+*/
+func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
+
+	ids := make([]db.Id, len(items))
+
+	for i, item := range items {
+
+		fields, values, err := self.FieldValues(item, toInternal)
+
+		// Error ocurred, stop appending.
+		if err != nil {
+			return ids, err
+		}
+
+		row, err := self.source.doQueryRow(
+			fmt.Sprintf(`INSERT INTO "%s"`, self.Name()),
+			sqlFields(fields),
+			"VALUES",
+			sqlValues(values),
+			"RETURNING id",
+		)
+
+		// Error ocurred, stop appending.
+		if err != nil {
+			return ids, err
+		}
+
+		var id int
+		err = row.Scan(&id)
+
+		// Error ocurred, stop appending.
+		if err != nil {
+			return ids, err
+		}
+
+		// Last inserted ID could be zero too.
+		ids[i] = db.Id(to.String(id))
+	}
+
+	return ids, nil
+}
+
+/*
 	Converts a Go value into internal database representation.
 */
 func toInternal(val interface{}) string {
@@ -704,70 +456,4 @@ func toInternal(val interface{}) string {
 */
 func toNative(val interface{}) interface{} {
 	return val
-}
-
-/*
-	Appends items into the table. An item could be either a map or a struct.
-*/
-func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
-
-	ids := make([]db.Id, len(items))
-
-	for i, item := range items {
-
-		var values []string
-		var fields []string
-
-		itemv := reflect.ValueOf(item)
-		itemt := itemv.Type()
-
-		switch itemt.Kind() {
-		case reflect.Struct:
-			nfields := itemv.NumField()
-			values = make([]string, nfields)
-			fields = make([]string, nfields)
-			for i := 0; i < nfields; i++ {
-				fields[i] = self.columnLike(itemt.Field(i).Name)
-				values[i] = toInternal(itemv.Field(i).Interface())
-			}
-		case reflect.Map:
-			nfields := itemv.Len()
-			values = make([]string, nfields)
-			fields = make([]string, nfields)
-			mkeys := itemv.MapKeys()
-			for i, keyv := range mkeys {
-				valv := itemv.MapIndex(keyv)
-				fields[i] = self.columnLike(to.String(keyv.Interface()))
-				values[i] = toInternal(valv.Interface())
-			}
-		default:
-			return ids, fmt.Errorf("Append() accepts Struct or Map only, %v received.", itemt.Kind())
-		}
-
-		row, err := self.parent.doQueryRow(
-			fmt.Sprintf(`INSERT INTO "%s"`, self.Name()),
-			sqlFields(fields),
-			"VALUES",
-			sqlValues(values),
-			"RETURNING id",
-		)
-
-		// Error ocurred, stop appending.
-		if err != nil {
-			return ids, err
-		}
-
-		var id int
-		err = row.Scan(&id)
-
-		// Error ocurred, stop appending.
-		if err != nil {
-			return ids, err
-		}
-
-		// Last inserted ID could be zero too.
-		ids[i] = db.Id(to.String(id))
-	}
-
-	return ids, nil
 }

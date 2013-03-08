@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gosexy/db"
+	"github.com/gosexy/db/util/sqlutil"
 	_ "github.com/xiam/gopostgresql"
 	"reflect"
 	"regexp"
@@ -288,6 +289,14 @@ func (self *Source) ExistentCollection(name string) db.Collection {
 	return col
 }
 
+// Represents a PostgreSQL table.
+type Table struct {
+	source *Source
+	//name   string
+	//types  map[string]reflect.Kind
+	sqlutil.Table
+}
+
 /*
 	Returns a table struct by name.
 */
@@ -299,8 +308,10 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 
 	table := &Table{}
 
-	table.parent = self
-	table.name = name
+	table.source = self
+	table.DB = self
+
+	table.TableName = name
 
 	// Table exists?
 	if table.Exists() == false {
@@ -308,9 +319,9 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 	}
 
 	// Fetching table datatypes and mapping to internal gotypes.
-	rows, err := table.parent.doQuery(
+	rows, err := table.source.doQuery(
 		"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?",
-		db.SqlArgs{table.name},
+		db.SqlArgs{table.TableName},
 	)
 
 	if err != nil {
@@ -322,15 +333,16 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 		DataType   string
 	}{}
 
-	err = table.fetchRows(&columns, rows)
+	err = table.FetchRows(&columns, rows)
 
 	if err != nil {
 		return nil, err
 	}
 
-	table.types = make(map[string]reflect.Kind, len(columns))
+	table.ColumnTypes = make(map[string]reflect.Kind, len(columns))
 
 	for _, column := range columns {
+
 		column.ColumnName = strings.ToLower(column.ColumnName)
 		column.DataType = strings.ToLower(column.DataType)
 
@@ -360,7 +372,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 			ctype = reflect.Float64
 		}
 
-		table.types[column.ColumnName] = ctype
+		table.ColumnTypes[column.ColumnName] = ctype
 	}
 
 	self.collections[name] = table
