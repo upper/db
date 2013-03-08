@@ -268,7 +268,7 @@ func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 	// Actually executing query.
 	rows, err := self.parent.doQuery(
 		// Mandatory
-		fmt.Sprintf("SELECT %s FROM %s", strings.Join(queryChunks.Fields, ", "), self.Name()),
+		fmt.Sprintf(`SELECT %s FROM "%s"`, strings.Join(queryChunks.Fields, ", "), self.Name()),
 		fmt.Sprintf("WHERE %s", queryChunks.Conditions), queryChunks.Arguments,
 		// Optional
 		queryChunks.Sort, queryChunks.Limit, queryChunks.Offset,
@@ -597,7 +597,7 @@ func (t *Table) Remove(terms ...interface{}) error {
 	}
 
 	_, err := t.parent.doExec(
-		fmt.Sprintf("DELETE FROM %s", t.Name()),
+		fmt.Sprintf(`DELETE FROM "%s"`, t.Name()),
 		fmt.Sprintf("WHERE %s", conditions), cargs,
 	)
 
@@ -625,7 +625,7 @@ func (self *Table) Update(terms ...interface{}) error {
 	}
 
 	_, err := self.parent.doExec(
-		fmt.Sprintf("UPDATE %s SET %s", self.Name(), fields), fargs,
+		fmt.Sprintf(`UPDATE "%s" SET %s`, self.Name(), fields), fargs,
 		fmt.Sprintf("WHERE %s", conds), args,
 	)
 
@@ -745,8 +745,7 @@ func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 		}
 
 		row, err := self.parent.doQueryRow(
-			"INSERT INTO",
-			self.Name(),
+			fmt.Sprintf(`INSERT INTO "%s"`, self.Name()),
 			sqlFields(fields),
 			"VALUES",
 			sqlValues(values),

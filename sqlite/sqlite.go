@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gosexy/db"
+	"github.com/gosexy/db/util/sqlutil"
 	_ "github.com/xiam/gosqlite3"
 	"reflect"
 	"regexp"
@@ -172,9 +173,10 @@ func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
 	Represents a SQLite table.
 */
 type Table struct {
-	parent *Source
-	name   string
-	types  map[string]reflect.Kind
+	source *Source
+	//name   string
+	//types  map[string]reflect.Kind
+	sqlutil.Table
 }
 
 /*
@@ -185,18 +187,6 @@ func (self *Source) Setup(config db.DataSource) error {
 	self.collections = make(map[string]db.Collection)
 	return self.Open()
 }
-
-/*
-	Deprecated: Configures and returns a SQLite database session.
-*/
-/*
-func SqliteSession(config db.DataSource) db.Database {
-	m := &Source{}
-	m.config = config
-	m.collections = make(map[string]db.Collection)
-	return m
-}
-*/
 
 /*
 	Returns a *sql.DB object that represents an internal session.
@@ -294,8 +284,10 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 
 	table := &Table{}
 
-	table.parent = self
-	table.name = name
+	table.source = self
+	table.DB = self
+
+	table.TableName = name
 
 	// Table exists?
 	if table.Exists() == false {
@@ -303,7 +295,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 	}
 
 	// Fetching table datatypes and mapping to internal gotypes.
-	rows, err := table.parent.session.Query(fmt.Sprintf("PRAGMA TABLE_INFO('%s')", table.name))
+	rows, err := table.source.session.Query(fmt.Sprintf("PRAGMA TABLE_INFO('%s')", table.Name()))
 
 	if err != nil {
 		return table, err
@@ -314,13 +306,13 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 		Type string
 	}{}
 
-	err = table.fetchRows(&columns, rows)
+	err = table.FetchRows(&columns, rows)
 
 	if err != nil {
 		return nil, err
 	}
 
-	table.types = make(map[string]reflect.Kind, len(columns))
+	table.ColumnTypes = make(map[string]reflect.Kind, len(columns))
 
 	for _, column := range columns {
 
@@ -355,7 +347,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 			ctype = reflect.String
 		}
 
-		table.types[column.Name] = ctype
+		table.ColumnTypes[column.Name] = ctype
 	}
 
 	self.collections[name] = table

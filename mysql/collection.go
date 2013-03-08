@@ -255,7 +255,7 @@ func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 	// Actually executing query.
 	rows, err := self.parent.doQuery(
 		// Mandatory
-		fmt.Sprintf("SELECT %s FROM %s", strings.Join(queryChunks.Fields, ", "), self.Name()),
+		fmt.Sprintf("SELECT %s FROM `%s`", strings.Join(queryChunks.Fields, ", "), self.Name()),
 		fmt.Sprintf("WHERE %s", queryChunks.Conditions), queryChunks.Arguments,
 		// Optional
 		queryChunks.Sort, queryChunks.Limit, queryChunks.Offset,
@@ -728,8 +728,7 @@ func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
 		}
 
 		res, err := self.parent.doExec(
-			"INSERT INTO",
-			self.Name(),
+			fmt.Sprintf("INSERT INTO `%s`", self.Name()),
 			sqlFields(fields),
 			"VALUES",
 			sqlValues(values),
