@@ -125,23 +125,11 @@ func Fetch(dst interface{}, item db.Item) error {
 func (self *C) FetchRelations(dst interface{}, relations []db.Relation, convertFn func(interface{}) interface{}) error {
 	var err error
 
-	var dstv reflect.Value
-	var itemv reflect.Value
-	var itemk reflect.Kind
+	err = ValidateDestination(dst)
 
-	// Checking input
-	dstv = reflect.ValueOf(dst)
-
-	if dstv.Kind() != reflect.Ptr || dstv.IsNil() || dstv.Elem().Kind() != reflect.Slice {
-		return errors.New("FetchAll() expects a pointer to slice.")
-	}
-
-	itemv = dstv.Elem()
-	itemk = itemv.Type().Elem().Kind()
-
-	if itemk != reflect.Struct && itemk != reflect.Map {
-		return errors.New("FetchAll() expects a pointer to slice of maps or structs.")
-	}
+	dstv := reflect.ValueOf(dst)
+	itemv := dstv.Elem()
+	itemk := itemv.Type().Elem().Kind()
 
 	if len(relations) > 0 {
 
@@ -235,14 +223,14 @@ func ValidateDestination(dst interface{}) error {
 	dstv = reflect.ValueOf(dst)
 
 	if dstv.Kind() != reflect.Ptr || dstv.IsNil() || dstv.Elem().Kind() != reflect.Slice {
-		return errors.New("FetchAll() expects a pointer to slice.")
+		return errors.New("Expecting a pointer to slice.")
 	}
 
 	itemv = dstv.Elem()
 	itemk = itemv.Type().Elem().Kind()
 
 	if itemk != reflect.Struct && itemk != reflect.Map {
-		return errors.New("FetchAll() expects a pointer to slice of maps or structs.")
+		return errors.New("Expecting a pointer to slice of maps or structs.")
 	}
 
 	return nil

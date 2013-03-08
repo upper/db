@@ -214,18 +214,19 @@ func (self *SourceCollection) Exists() bool {
 	Appends items to the collection. An item could be either a map or a struct.
 */
 func (self *SourceCollection) Append(items ...interface{}) ([]db.Id, error) {
-	ids := []db.Id{}
-	for _, item := range items {
+	var id db.Id
+	ids := make([]db.Id, len(items))
+	for i, item := range items {
+		id = ""
 		// Dirty trick to return the Id with ease.
-		res, err := self.collection.Upsert(bson.M{"_id": nil}, item)
+		res, err := self.collection.Upsert(bson.M{"_id": nil}, toInternal(item))
 		if err != nil {
 			return ids, err
 		}
-		var id db.Id
 		if res.UpsertedId != nil {
 			id = db.Id(res.UpsertedId.(bson.ObjectId).Hex())
 		}
-		ids = append(ids, id)
+		ids[i] = id
 	}
 	return ids, nil
 }
