@@ -28,7 +28,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gosexy/db"
-	"github.com/gosexy/db/util/sqlutil"
 	_ "github.com/xiam/gopostgresql"
 	"reflect"
 	"regexp"
@@ -287,14 +286,6 @@ func (self *Source) ExistentCollection(name string) db.Collection {
 		panic(err.Error())
 	}
 	return col
-}
-
-// Represents a PostgreSQL table.
-type Table struct {
-	source *Source
-	//name   string
-	//types  map[string]reflect.Kind
-	sqlutil.T
 }
 
 /*
