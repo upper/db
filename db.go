@@ -207,20 +207,27 @@ type Collection interface {
 
 	Count(...interface{}) (int, error)
 
-	Find(...interface{}) Item
-	FindAll(...interface{}) []Item
-
-	FetchAll(interface{}, ...interface{}) error
-	Fetch(interface{}, ...interface{}) error
+	Find(...interface{}) (Item, error)
+	FindAll(...interface{}) ([]Item, error)
 
 	Update(...interface{}) error
 	Exists() bool
+
+	Query(...interface{}) (Result, error)
 
 	Remove(...interface{}) error
 
 	Truncate() error
 
 	Name() string
+}
+
+// Result methods.
+type Result interface {
+	All(interface{}) error
+	One(interface{}) error
+	Next(interface{}) error
+	Close() error
 }
 
 // Specifies which fields to return in a query.

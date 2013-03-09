@@ -122,98 +122,164 @@ func Fetch(dst interface{}, item db.Item) error {
 	return nil
 }
 
-func (self *C) FetchRelations(dst interface{}, relations []db.Relation, convertFn func(interface{}) interface{}) error {
+func fetchItemRelations(itemv reflect.Value, relations []db.Relation, convertFn func(interface{}) interface{}) error {
 	var err error
 
-	err = ValidateDestination(dst)
+	itemk := itemv.Type().Kind()
 
-	dstv := reflect.ValueOf(dst)
-	itemv := dstv.Elem()
-	itemk := itemv.Type().Elem().Kind()
+	for _, relation := range relations {
 
-	if len(relations) > 0 {
+		terms := make([]interface{}, len(relation.On))
 
-		// Iterate over results.
-		for i := 0; i < dstv.Elem().Len(); i++ {
-
-			item := itemv.Index(i)
-
-			for _, relation := range relations {
-
-				terms := make([]interface{}, len(relation.On))
-
-				for j, term := range relation.On {
-					switch t := term.(type) {
-					// Just waiting for db.Cond statements.
-					case db.Cond:
-						for k, v := range t {
-							switch s := v.(type) {
-							case string:
-								matches := extRelationPattern.FindStringSubmatch(s)
-								if len(matches) > 1 {
-									extkey := matches[1]
-									var val reflect.Value
-									switch itemk {
-									case reflect.Struct:
-										f := func(s string) bool {
-											return CompareColumnToField(s, extkey)
-										}
-										val = item.FieldByNameFunc(f)
-									case reflect.Map:
-										val = item.MapIndex(reflect.ValueOf(extkey))
-									}
-									if val.IsValid() {
-										term = db.Cond{k: convertFn(val.Interface())}
-									}
+		for j, term := range relation.On {
+			switch t := term.(type) {
+			// Just waiting for db.Cond statements.
+			case db.Cond:
+				for k, v := range t {
+					switch s := v.(type) {
+					case string:
+						matches := extRelationPattern.FindStringSubmatch(s)
+						if len(matches) > 1 {
+							extkey := matches[1]
+							var val reflect.Value
+							switch itemk {
+							case reflect.Struct:
+								f := func(s string) bool {
+									return CompareColumnToField(s, extkey)
 								}
+								val = itemv.FieldByNameFunc(f)
+							case reflect.Map:
+								val = itemv.MapIndex(reflect.ValueOf(extkey))
+							}
+							if val.IsValid() {
+								term = db.Cond{k: convertFn(val.Interface())}
 							}
 						}
-					case db.Collection:
-						relation.Collection = t
-					}
-					terms[j] = term
-				}
-
-				keyv := reflect.ValueOf(relation.Name)
-
-				switch itemk {
-				case reflect.Struct:
-
-					f := func(s string) bool {
-						return CompareColumnToField(s, relation.Name)
-					}
-
-					val := item.FieldByNameFunc(f)
-
-					if val.IsValid() {
-						p := reflect.New(val.Type())
-						q := p.Interface()
-						if relation.All == true {
-							err = relation.Collection.FetchAll(q, terms...)
-						} else {
-							err = relation.Collection.Fetch(q, terms...)
-						}
-						if err != nil {
-							return err
-						}
-						val.Set(reflect.Indirect(p))
-					}
-				case reflect.Map:
-					// Executing external query.
-					if relation.All == true {
-						item.SetMapIndex(keyv, reflect.ValueOf(relation.Collection.FindAll(terms...)))
-					} else {
-						item.SetMapIndex(keyv, reflect.ValueOf(relation.Collection.Find(terms...)))
 					}
 				}
+			case db.Collection:
+				relation.Collection = t
+			}
+			terms[j] = term
+		}
+
+		keyv := reflect.ValueOf(relation.Name)
+
+		switch itemk {
+		case reflect.Struct:
+
+			f := func(s string) bool {
+				return CompareColumnToField(s, relation.Name)
+			}
+
+			val := itemv.FieldByNameFunc(f)
+
+			if val.IsValid() {
+				var res db.Result
+
+				res, err = relation.Collection.Query(terms...)
+
+				if err != nil {
+					return err
+				}
+
+				p := reflect.New(val.Type())
+				q := p.Interface()
+
+				if relation.All == true {
+					err = res.All(q)
+				} else {
+					err = res.One(q)
+				}
+
+				if err != nil {
+					return err
+				}
+
+				val.Set(reflect.Indirect(p))
 
 			}
+		case reflect.Map:
+			var err error
+			var res db.Result
+			var p reflect.Value
+
+			res, err = relation.Collection.Query(terms...)
+
+			if err != nil {
+				return err
+			}
+
+			// Executing external query.
+			if relation.All == true {
+				var items []map[string]interface{}
+				err = res.All(&items)
+				p = reflect.ValueOf(items)
+			} else {
+				var item []map[string]interface{}
+				err = res.One(&item)
+				p = reflect.ValueOf(item)
+			}
+
+			if err != nil {
+				return err
+			}
+
+			itemv.SetMapIndex(keyv, p)
 		}
+
 	}
+
 	return nil
 }
 
-func ValidateDestination(dst interface{}) error {
+func (self *C) FetchRelation(dst interface{}, relations []db.Relation, convertFn func(interface{}) interface{}) error {
+	var err error
+
+	if relations == nil {
+		return nil
+	}
+
+	dstv := reflect.ValueOf(dst)
+
+	if dstv.Kind() != reflect.Ptr || dstv.IsNil() {
+		return errors.New("Expecting a pointer.")
+	}
+
+	err = fetchItemRelations(dstv.Elem(), relations, convertFn)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (self *C) FetchRelations(dst interface{}, relations []db.Relation, convertFn func(interface{}) interface{}) error {
+	var err error
+
+	if relations == nil {
+		return nil
+	}
+
+	err = ValidateSliceDestination(dst)
+
+	dstv := reflect.ValueOf(dst)
+	itemv := dstv.Elem()
+
+	// Iterate over results.
+	for i := 0; i < dstv.Elem().Len(); i++ {
+		item := itemv.Index(i)
+		err = fetchItemRelations(item, relations, convertFn)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func ValidateSliceDestination(dst interface{}) error {
 
 	var dstv reflect.Value
 	var itemv reflect.Value

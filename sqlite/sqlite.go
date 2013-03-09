@@ -28,7 +28,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gosexy/db"
-	"github.com/gosexy/db/util/sqlutil"
 	_ "github.com/xiam/gosqlite3"
 	"reflect"
 	"regexp"
@@ -47,6 +46,16 @@ var columnPattern = regexp.MustCompile(`^([a-zA-Z]+)\(?([0-9,]+)?\)?\s?([a-zA-Z]
 
 func init() {
 	db.Register("sqlite", &Source{})
+}
+
+/*
+	Driver's session data.
+*/
+type Source struct {
+	config      db.DataSource
+	session     *sql.DB
+	name        string
+	collections map[string]db.Collection
 }
 
 type sqlQuery struct {
@@ -96,16 +105,6 @@ func sqlValues(values []string) db.SqlValues {
 }
 
 /*
-	Driver's session data.
-*/
-type Source struct {
-	config      db.DataSource
-	session     *sql.DB
-	name        string
-	collections map[string]db.Collection
-}
-
-/*
 	Returns the name of the database.
 */
 func (self *Source) Name() string {
@@ -114,6 +113,7 @@ func (self *Source) Name() string {
 
 // Wraps sql.DB.QueryRow
 func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
+
 	if self.session == nil {
 		return nil, errors.New("You're currently not connected.")
 	}
@@ -168,16 +168,6 @@ func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
 	}
 
 	return self.session.Exec(query, chunks.SqlArgs...)
-}
-
-/*
-	Represents a SQLite table.
-*/
-type Table struct {
-	source *Source
-	//name   string
-	//types  map[string]reflect.Kind
-	sqlutil.T
 }
 
 /*

@@ -27,7 +27,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gosexy/db"
-	"github.com/gosexy/db/util"
 	"github.com/gosexy/db/util/sqlutil"
 	"github.com/gosexy/to"
 	"strings"
@@ -35,29 +34,18 @@ import (
 )
 
 /*
-	Fetches a result delimited by terms into a pointer to map or struct given by
-	dst.
+	Represents a SQLite table.
 */
-func (self *Table) Fetch(dst interface{}, terms ...interface{}) error {
-	found := self.Find(terms...)
-	return util.Fetch(dst, found)
+type Table struct {
+	source *Source
+	sqlutil.T
 }
 
-/*
-	Fetches results delimited by terms into an slice of maps or structs given by
-	the pointer dst.
-*/
-func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
+func (self *Table) Query(terms ...interface{}) (db.Result, error) {
 
 	var err error
 
 	queryChunks := sqlutil.NewQueryChunks()
-
-	err = util.ValidateDestination(dst)
-
-	if err != nil {
-		return err
-	}
 
 	// Analyzing given terms.
 	for _, term := range terms {
@@ -67,7 +55,7 @@ func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 			if queryChunks.Limit == "" {
 				queryChunks.Limit = fmt.Sprintf("LIMIT %d", v)
 			} else {
-				return errors.New("A query can accept only one db.Limit() parameter.")
+				return nil, errors.New("A query can accept only one db.Limit() parameter.")
 			}
 		case db.Sort:
 			if queryChunks.Sort == "" {
@@ -86,13 +74,13 @@ func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 				}
 				queryChunks.Sort = fmt.Sprintf("ORDER BY %s", strings.Join(sortChunks, ", "))
 			} else {
-				return errors.New("A query can accept only one db.Sort{} parameter.")
+				return nil, errors.New("A query can accept only one db.Sort{} parameter.")
 			}
 		case db.Offset:
 			if queryChunks.Offset == "" {
 				queryChunks.Offset = fmt.Sprintf("OFFSET %d", v)
 			} else {
-				return errors.New("A query can accept only one db.Offset() parameter.")
+				return nil, errors.New("A query can accept only one db.Offset() parameter.")
 			}
 		case db.Fields:
 			queryChunks.Fields = append(queryChunks.Fields, v...)
@@ -100,7 +88,7 @@ func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 			for name, terms := range v {
 				col, err := self.RelationCollection(name, terms)
 				if err != nil {
-					return err
+					return nil, err
 				}
 				queryChunks.Relations = append(queryChunks.Relations, db.Relation{All: false, Name: name, Collection: col, On: terms})
 			}
@@ -108,7 +96,7 @@ func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 			for name, terms := range v {
 				col, err := self.RelationCollection(name, terms)
 				if err != nil {
-					return err
+					return nil, err
 				}
 				queryChunks.Relations = append(queryChunks.Relations, db.Relation{All: true, Name: name, Collection: col, On: terms})
 			}
@@ -137,18 +125,51 @@ func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 	)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Fetching rows.
-	err = self.FetchRows(dst, rows)
+	result := &Result{
+		rows:      rows,
+		table:     self,
+		relations: queryChunks.Relations,
+	}
+
+	return result, nil
+}
+
+/*
+	Fetches a result delimited by terms into a pointer to map or struct given by
+	dst.
+*/
+/*
+func (self *Table) Fetch(dst interface{}, terms ...interface{}) error {
+	found := self.Find(terms...)
+	return util.Fetch(dst, found)
+}
+*/
+
+/*
+	Fetches results delimited by terms into an slice of maps or structs given by
+	the pointer dst.
+*/
+/*
+func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
+
+	var err error
+
+	err = util.ValidateSliceDestination(dst)
 
 	if err != nil {
 		return err
 	}
 
-	// Fetching relations
-	err = self.FetchRelations(dst, queryChunks.Relations, toInternalInterface)
+	res, err := self.Query(terms...)
+
+	if err != nil {
+		return err
+	}
+
+	err = res.All(dst)
 
 	if err != nil {
 		return err
@@ -156,6 +177,7 @@ func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
 
 	return nil
 }
+*/
 
 /*
 	Transforms db.Set into arguments for sql.Exec/sql.Query.
@@ -306,48 +328,49 @@ func (self *Table) Update(terms ...interface{}) error {
 /*
 	Returns a slice of rows that match certain conditions.
 */
-func (self *Table) FindAll(terms ...interface{}) []db.Item {
-	results := []db.Item{}
+func (self *Table) FindAll(terms ...interface{}) ([]db.Item, error) {
+	items := []db.Item{}
 
-	err := self.FetchAll(&results, terms...)
+	res, err := self.Query(terms...)
 
-	if err != nil {
-		panic(err)
+	if err == nil {
+		err = res.All(&items)
 	}
 
-	return results
+	return items, err
 }
 
 /*
 	Returns the number of rows in the current table that match certain conditions.
 */
 func (self *Table) Count(terms ...interface{}) (int, error) {
-
 	terms = append(terms, db.Fields{"COUNT(1) AS _total"})
 
-	result := self.FindAll(terms...)
+	result, err := self.FindAll(terms...)
 
-	if len(result) > 0 {
+	if err == nil {
 		return to.Int(result[0]["_total"]), nil
 	}
 
-	return 0, nil
+	return 0, err
 }
 
 /*
 	Returns the first row in the table that matches certain conditions.
 */
-func (self *Table) Find(terms ...interface{}) db.Item {
+func (self *Table) Find(terms ...interface{}) (db.Item, error) {
+	var item db.Item
+	var err error
 
 	terms = append(terms, db.Limit(1))
 
-	result := self.FindAll(terms...)
+	res, err := self.Query(terms...)
 
-	if len(result) > 0 {
-		return result[0]
+	if err == nil {
+		err = res.One(&item)
 	}
 
-	return nil
+	return item, err
 }
 
 /*
@@ -399,14 +422,14 @@ func (self *Table) Exists() bool {
 			self.Name(),
 		),
 	)
+
 	if err != nil {
 		return false
 	}
-	if result.Next() == true {
-		result.Close()
-		return true
-	}
-	return false
+
+	defer result.Close()
+
+	return result.Next()
 }
 
 func toInternalInterface(val interface{}) interface{} {

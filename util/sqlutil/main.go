@@ -61,6 +61,143 @@ func (self *T) ColumnLike(s string) string {
 	return s
 }
 
+func (self *T) fetchResult(itemt reflect.Type, rows *sql.Rows, columns []string) (reflect.Value, error) {
+	var err error
+
+	var item reflect.Value
+
+	expecting := len(columns)
+
+	// Allocating results.
+	values := make([]*sql.RawBytes, expecting)
+	scanArgs := make([]interface{}, expecting)
+
+	for i := range columns {
+		scanArgs[i] = &values[i]
+	}
+
+	switch itemt.Kind() {
+	case reflect.Map:
+		item = reflect.MakeMap(itemt)
+	case reflect.Struct:
+		item = reflect.New(itemt)
+	default:
+		return item, fmt.Errorf("Don't know how to deal with %s, use either map or struct.", itemt.Kind())
+	}
+
+	err = rows.Scan(scanArgs...)
+
+	if err != nil {
+		return item, err
+	}
+
+	// Range over row values.
+	for i, value := range values {
+		if value != nil {
+			column := columns[i]
+			svalue := string(*value)
+
+			var cv reflect.Value
+
+			if _, ok := self.ColumnTypes[column]; ok == true {
+				v, _ := to.Convert(string(*value), self.ColumnTypes[column])
+				cv = reflect.ValueOf(v)
+			} else {
+				v, _ := to.Convert(string(*value), reflect.String)
+				cv = reflect.ValueOf(v)
+			}
+
+			switch itemt.Kind() {
+			// Destination is a map.
+			case reflect.Map:
+				if cv.Type().Kind() != itemt.Elem().Kind() {
+					if itemt.Elem().Kind() != reflect.Interface {
+						// Converting value.
+						cv, _ = util.ConvertValue(svalue, itemt.Elem().Kind())
+					}
+				}
+				if cv.IsValid() {
+					item.SetMapIndex(reflect.ValueOf(column), cv)
+				}
+			// Destionation is a struct.
+			case reflect.Struct:
+				// Get appropriate column.
+				f := func(s string) bool {
+					return util.CompareColumnToField(s, column)
+				}
+				// Destination field.
+				destf := item.Elem().FieldByNameFunc(f)
+				if destf.IsValid() {
+					if cv.Type().Kind() != destf.Type().Kind() {
+						if destf.Type().Kind() != reflect.Interface {
+							// Converting value.
+							cv, _ = util.ConvertValue(svalue, destf.Type().Kind())
+						}
+					}
+					// Copying value.
+					if cv.IsValid() {
+						destf.Set(cv)
+					}
+				}
+			}
+		}
+	}
+
+	return item, nil
+}
+
+func getRowColumns(rows *sql.Rows) ([]string, error) {
+	// Column names.
+	columns, err := rows.Columns()
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Column names to lower case.
+	for i, _ := range columns {
+		columns[i] = strings.ToLower(columns[i])
+	}
+
+	return columns, nil
+}
+
+/*
+	Copies *sql.Rows into the slice of maps or structs given by the pointer dst.
+*/
+func (self *T) FetchRow(dst interface{}, rows *sql.Rows) error {
+
+	dstv := reflect.ValueOf(dst)
+
+	if dstv.Kind() != reflect.Ptr || dstv.IsNil() {
+		return errors.New("fetchRows expects a pointer to slice.")
+	}
+
+	itemv := dstv.Elem()
+
+	columns, err := getRowColumns(rows)
+
+	if err != nil {
+		return err
+	}
+
+	next := rows.Next()
+
+	if next == false {
+		return fmt.Errorf("No more rows.")
+	}
+
+	item, err := self.fetchResult(itemv.Type(), rows, columns)
+
+	if err != nil {
+		return err
+	}
+
+	itemv.Set(reflect.Indirect(item))
+
+	return nil
+}
+
 /*
 	Copies *sql.Rows into the slice of maps or structs given by the pointer dst.
 */
@@ -70,107 +207,30 @@ func (self *T) FetchRows(dst interface{}, rows *sql.Rows) error {
 	dstv := reflect.ValueOf(dst)
 
 	if dstv.Kind() != reflect.Ptr || dstv.Elem().Kind() != reflect.Slice || dstv.IsNil() {
-		return errors.New("fetchRows expects a pointer to slice.")
+		return errors.New("Expecting a pointer to slice of maps or structs.")
 	}
 
-	// Column names.
-	columns, err := rows.Columns()
+	columns, err := getRowColumns(rows)
 
 	if err != nil {
 		return err
 	}
-
-	// Column names to lower case.
-	for i, _ := range columns {
-		columns[i] = strings.ToLower(columns[i])
-	}
-
-	expecting := len(columns)
 
 	slicev := dstv.Elem()
 	itemt := slicev.Type().Elem()
 
 	for rows.Next() {
 
-		// Allocating results.
-		values := make([]*sql.RawBytes, expecting)
-		scanArgs := make([]interface{}, expecting)
-
-		for i := range columns {
-			scanArgs[i] = &values[i]
-		}
-
-		var item reflect.Value
-
-		switch itemt.Kind() {
-		case reflect.Map:
-			item = reflect.MakeMap(itemt)
-		case reflect.Struct:
-			item = reflect.New(itemt)
-		default:
-			return fmt.Errorf("Don't know how to deal with %s, use either map or struct.", itemt.Kind())
-		}
-
-		err := rows.Scan(scanArgs...)
+		item, err := self.fetchResult(itemt, rows, columns)
 
 		if err != nil {
 			return err
 		}
 
-		// Range over row values.
-		for i, value := range values {
-			if value != nil {
-				column := columns[i]
-				svalue := string(*value)
-
-				var cv reflect.Value
-
-				if _, ok := self.ColumnTypes[column]; ok == true {
-					v, _ := to.Convert(string(*value), self.ColumnTypes[column])
-					cv = reflect.ValueOf(v)
-				} else {
-					v, _ := to.Convert(string(*value), reflect.String)
-					cv = reflect.ValueOf(v)
-				}
-
-				switch itemt.Kind() {
-				// Destination is a map.
-				case reflect.Map:
-					if cv.Type().Kind() != itemt.Elem().Kind() {
-						if itemt.Elem().Kind() != reflect.Interface {
-							// Converting value.
-							cv, _ = util.ConvertValue(svalue, itemt.Elem().Kind())
-						}
-					}
-					if cv.IsValid() {
-						item.SetMapIndex(reflect.ValueOf(column), cv)
-					}
-				// Destionation is a struct.
-				case reflect.Struct:
-					// Get appropriate column.
-					f := func(s string) bool {
-						return util.CompareColumnToField(s, column)
-					}
-					// Destination field.
-					destf := item.Elem().FieldByNameFunc(f)
-					if destf.IsValid() {
-						if cv.Type().Kind() != destf.Type().Kind() {
-							if destf.Type().Kind() != reflect.Interface {
-								// Converting value.
-								cv, _ = util.ConvertValue(svalue, destf.Type().Kind())
-							}
-						}
-						// Copying value.
-						if cv.IsValid() {
-							destf.Set(cv)
-						}
-					}
-				}
-			}
-		}
-
 		slicev = reflect.Append(slicev, reflect.Indirect(item))
 	}
+
+	rows.Close()
 
 	dstv.Elem().Set(slicev)
 
