@@ -140,48 +140,6 @@ func (self *Table) Query(terms ...interface{}) (db.Result, error) {
 }
 
 /*
-	Fetches a result delimited by terms into a pointer to map or struct given by
-	dst.
-*/
-/*
-func (self *Table) Fetch(dst interface{}, terms ...interface{}) error {
-	found := self.Find(terms...)
-	return util.Fetch(dst, found)
-}
-*/
-
-/*
-	Fetches results delimited by terms into an slice of maps or structs given by
-	the pointer dst.
-*/
-/*
-func (self *Table) FetchAll(dst interface{}, terms ...interface{}) error {
-
-	var err error
-
-	err = util.ValidateSliceDestination(dst)
-
-	if err != nil {
-		return err
-	}
-
-	res, err := self.Query(terms...)
-
-	if err != nil {
-		return err
-	}
-
-	err = res.All(dst)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-*/
-
-/*
 	Transforms db.Set into arguments for sql.Exec/sql.Query.
 */
 func (self *Table) compileSet(term db.Set) (string, db.SqlArgs) {
