@@ -29,7 +29,6 @@ import (
 	"fmt"
 	_ "github.com/Go-SQL-Driver/MySQL"
 	"github.com/gosexy/db"
-	"github.com/gosexy/db/util/sqlutil"
 	"reflect"
 	"regexp"
 	"strings"
@@ -56,14 +55,6 @@ type Source struct {
 	session     *sql.DB
 	config      db.DataSource
 	collections map[string]db.Collection
-}
-
-// Mysql table/collection.
-type Table struct {
-	source *Source
-	//name   string
-	//types  map[string]reflect.Kind
-	sqlutil.T
 }
 
 type sqlQuery struct {
