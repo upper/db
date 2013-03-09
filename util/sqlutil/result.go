@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012 José Carlos Nieto, http://xiam.menteslibres.org/
+  Copyright (c) 2012-2013 José Carlos Nieto, http://xiam.menteslibres.org/
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the
@@ -21,24 +21,69 @@
   WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-package sqlite
+package sqlutil
 
 import (
-	"github.com/gosexy/db/util/sqlutil"
+	"database/sql"
+	"github.com/gosexy/db"
 )
 
 type Result struct {
-	sqlutil.Result
+	Rows      *sql.Rows
+	Table     *T
+	Relations []db.Relation
 }
 
-func (self *Result) All(dst interface{}) error {
-	return self.FetchAll(dst, toInternalInterface)
+func (self *Result) FetchAll(dst interface{}, convertFn func(interface{}) interface{}) error {
+	var err error
+	defer self.Close()
+
+	err = self.Table.FetchRows(dst, self.Rows)
+
+	if err != nil {
+		return err
+	}
+
+	err = self.Table.FetchRelations(dst, self.Relations, convertFn)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (self *Result) Next(dst interface{}) error {
-	return self.FetchNext(dst, toInternalInterface)
+func (self *Result) FetchNext(dst interface{}, convertFn func(interface{}) interface{}) error {
+	var err error
+
+	err = self.Table.FetchRow(dst, self.Rows)
+
+	if err != nil {
+		return err
+	}
+
+	err = self.Table.FetchRelation(dst, self.Relations, convertFn)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (self *Result) One(dst interface{}) error {
-	return self.FetchOne(dst, toInternalInterface)
+func (self *Result) FetchOne(dst interface{}, convertFn func(interface{}) interface{}) error {
+	defer self.Close()
+
+	err := self.FetchNext(dst, convertFn)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (self *Result) Close() error {
+	err := self.Rows.Close()
+	return err
 }

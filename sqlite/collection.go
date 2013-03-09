@@ -129,9 +129,11 @@ func (self *Table) Query(terms ...interface{}) (db.Result, error) {
 	}
 
 	result := &Result{
-		rows:      rows,
-		table:     self,
-		relations: queryChunks.Relations,
+		sqlutil.Result{
+			Rows:      rows,
+			Table:     &self.T,
+			Relations: queryChunks.Relations,
+		},
 	}
 
 	return result, nil
