@@ -17,7 +17,7 @@ like [MongoDB][1] or an SQL database like [MySQL][2], [PostgreSQL][3] or
 [SQLite3][4], `gosexy/db` talks to the database in the language the database
 expects and returns you a set of results.
 
-```
+```go
 items, err := people.FindAll(
   db.Cond{"name": "john"},
 )
@@ -36,7 +36,7 @@ any database-pro spells.
 One of the features you may find useful is the ability of `gosexy/db` to make
 relations between different databases that talk different protocols with ease:
 
-```
+```go
 items, err := peopleCollection.FindAll(
   db.RelateAll{
     "works": db.On{
