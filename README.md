@@ -27,11 +27,42 @@ for i, item := range items {
 }
 ```
 
+`db.Collection.FindAll()` will accept different structures in no special order,
+in the above example we are passing a `db.Cond{}` type, that's a condition,
+you could also use `db.And{}`, `db.Or{}`, `db.Limit(n)`, `db.Offset(n)`, etc.
+each one of them having different meanings.
+
 While this level of abstraction would not be able to represent a complex query
 or to use any database-specific features it's fairly convenient for doing the
-simple CRUD stuff. And for advanced queries the underlying driver is always
+simple CRUD stuff, and for advanced queries the underlying driver is always
 exposed as a `*sql.DB` or a `*mgo.Session` so you can still be able to use
 any database-pro spells.
+
+Fetching all rows may be not so adequate for processing large datasets, in that
+case we can use `db.Collection.Query()` instead of `db.Collection.FindAll()` and
+then iterate over the results.
+
+```go
+// Makes a query and stores the result.
+res, err = people.Query(
+  db.Cond{"name": "john"},
+)
+
+if err != nil {
+  panic(err.Error())
+}
+
+person := struct{ Name string }{}
+
+for true {
+  // res.Next() will accept a pointer to map or struct.
+  err = res.Next(&person)
+  if err != nil {
+    break
+  }
+  // fmt.Printf("%v\n", person)
+}
+```
 
 One of the features you may find useful is the ability of `gosexy/db` to make
 relations between different databases that talk different protocols with ease:
