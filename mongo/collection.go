@@ -24,15 +24,12 @@
 package mongo
 
 import (
-	"errors"
 	"fmt"
 	"github.com/gosexy/db"
 	"github.com/gosexy/db/util"
 	"github.com/gosexy/to"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
-	"reflect"
-	"regexp"
 	"strings"
 )
 
@@ -44,38 +41,7 @@ type SourceCollection struct {
 	util.C
 }
 
-var extRelationPattern = regexp.MustCompile(`\{(.+)\}`)
-var columnComparePattern = regexp.MustCompile(`[^a-zA-Z0-9]`)
-
-/*
-	Returns true if a table column looks like a struct field.
-*/
-func compareColumnToField(s, c string) bool {
-	s = columnComparePattern.ReplaceAllString(s, "")
-	c = columnComparePattern.ReplaceAllString(c, "")
-	return strings.ToLower(s) == strings.ToLower(c)
-}
-
-/*
-	Fetches a result delimited by terms into a pointer to map or struct given by
-	dst.
-*/
-func (self *SourceCollection) Fetch(dst interface{}, terms ...interface{}) error {
-	found := self.Find(terms...)
-	return util.Fetch(dst, found)
-}
-
-/*
-	Fetches results delimited by terms into an slice of maps or structs given by
-	the pointer dst.
-*/
-func (self *SourceCollection) FetchAll(dst interface{}, terms ...interface{}) error {
-
-	var err error
-
-	var dstv reflect.Value
-	var itemv reflect.Value
-	var itemk reflect.Kind
+func (self *SourceCollection) Query(terms ...interface{}) (db.Result, error) {
 
 	queryChunks := struct {
 		Fields     []string
@@ -90,20 +56,6 @@ func (self *SourceCollection) FetchAll(dst interface{}, terms ...interface{}) er
 
 	queryChunks.Relate = make(db.Relate)
 	queryChunks.RelateAll = make(db.RelateAll)
-
-	// Checking input
-	dstv = reflect.ValueOf(dst)
-
-	if dstv.Kind() != reflect.Ptr || dstv.IsNil() || dstv.Elem().Kind() != reflect.Slice {
-		return errors.New("FetchAll() expects a pointer to slice.")
-	}
-
-	itemv = dstv.Elem()
-	itemk = itemv.Type().Elem().Kind()
-
-	if itemk != reflect.Struct && itemk != reflect.Map {
-		return errors.New("FetchAll() expects a pointer to slice of maps or structs.")
-	}
 
 	// Analyzing given terms.
 	for _, term := range terms {
@@ -136,21 +88,14 @@ func (self *SourceCollection) FetchAll(dst interface{}, terms ...interface{}) er
 	// Actually executing query.
 	q := self.buildQuery(terms...)
 
-	// Fetching rows.
-	err = q.All(dst)
-
-	if err != nil {
-		return err
+	result := &Result{
+		query:      q,
+		collection: &self.C,
+		relations:  queryChunks.Relations,
+		iter:       q.Iter(),
 	}
 
-	// Fetching relations
-	err = self.FetchRelations(dst, queryChunks.Relations, toInternal)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return result, nil
 }
 
 // Transforms conditions into something *mgo.Session can understand.
@@ -350,7 +295,6 @@ func (self *SourceCollection) Update(terms ...interface{}) error {
 
 // Returns the number of items that match the given conditions.
 func (self *SourceCollection) Count(terms ...interface{}) (int, error) {
-
 	q := self.buildQuery(terms...)
 
 	count, err := q.Count()
@@ -359,19 +303,19 @@ func (self *SourceCollection) Count(terms ...interface{}) (int, error) {
 }
 
 // Returns the first db.Item that matches the given conditions.
-func (self *SourceCollection) Find(terms ...interface{}) db.Item {
+func (self *SourceCollection) Find(terms ...interface{}) (db.Item, error) {
 	terms = append(terms, db.Limit(1))
 
-	result := self.FindAll(terms...)
+	result, err := self.FindAll(terms...)
 
 	if len(result) > 0 {
-		return result[0]
+		return result[0], nil
 	}
 
-	return nil
+	return nil, err
 }
 
-// Returns a mgo.Query based on the given terms.
+// Returns a *mgo.Query based on the given terms.
 func (self *SourceCollection) buildQuery(terms ...interface{}) *mgo.Query {
 
 	var delim = struct {
@@ -458,7 +402,6 @@ func toInternal(val interface{}) interface{} {
 
 // Transforms data from mgo format into db.Item format.
 func toNative(val interface{}) interface{} {
-
 	switch t := val.(type) {
 	case bson.M:
 		v := map[string]interface{}{}
@@ -475,11 +418,13 @@ func toNative(val interface{}) interface{} {
 }
 
 // Returns all the items that match the given conditions. See Find().
-func (self *SourceCollection) FindAll(terms ...interface{}) []db.Item {
+func (self *SourceCollection) FindAll(terms ...interface{}) ([]db.Item, error) {
+	var err error
 	results := []db.Item{}
-	err := self.FetchAll(&results, terms...)
+	q, err := self.Query(terms...)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return results
+	err = q.All(&results)
+	return results, err
 }
