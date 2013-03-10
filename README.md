@@ -1,51 +1,104 @@
 # gosexy/db
 
-This package is a wrapper of many third party database drivers. The goal of this abstraction is to provide a common,
-simplified and consistent layer for working with different databases without the need of SQL statements.
+`gosexy/db` is a set of wrappers for SQL and NoSQL database drivers for Go
+currently compatible with [MongoDB][1], [MySQL][2], [PostgreSQL][3]
+and [SQLite3][4].
 
-## Available wrappers
+The goal of this package is to provide a common, simple, consistent layer of
+abstraction for performing mundane operations such as create, read, update,
+and delete rows (CRUD) on different databases.
 
-* [mongo](http://gosexy.org/db/wrappers/mongo)
-* [mysql](http://gosexy.org/db/wrappers/mysql)
-* [postgresql](http://gosexy.org/db/wrappers/postgresql)
-* [sqlite](http://gosexy.org/db/wrappers/sqlite)
+While `gosexy/db` is *not* an ORM it can be used as the base for one, that's
+up to the final user, but `gosexy/db` prefers to stay out of the way.
+
+Let me show you an example, this chunk of code searches on the "people"
+table/collection. It does not matter whether we are querying a NoSQL database
+like [MongoDB][1] or an SQL database like [MySQL][2], [PostgreSQL][3] or
+[SQLite3][4], `gosexy/db` talks to the database in the language the database
+expects and returns you a set of results.
+
+```
+items, err := people.FindAll(
+  db.Cond{"name": "john"},
+)
+
+for i, item := range items {
+  // ...
+}
+```
+
+While this level of abstraction would not be able to represent a complex query
+or to use any database-specific features it's fairly convenient for doing the
+simple CRUD stuff. And for advanced queries the underlying driver is always
+exposed as a `*sql.DB` or a `*mgo.Session` so you can still be able to use
+any database-pro spells.
+
+One of the features you may find useful is the ability of `gosexy/db` to make
+relations between different databases that talk different protocols with ease:
+
+```
+items, err := peopleCollection.FindAll(
+  db.RelateAll{
+    "works": db.On{
+      worksCollection,
+      db.Cond{"author_id": "{id}"},
+    },
+  },
+)
+```
+
+In the above example, `peopleCollection` and `worksCollection` are
+`db.Collection` objects and they could be collections or tables of any of the
+supported databases. You can even relate NoSQL collections to SQL tables!
+
+`gosexy/db` is a work in progress but its core features are ready for use.
 
 ## Installation
 
 Use `go get` to download and install `gosexy/db`.
 
 ```sh
-# Getting gosexy/db
-$ go get github.com/gosexy/db
+go get github.com/gosexy/db
 ```
 
-The `gosexy/db` package provides shared interfaces and datatypes only, in order to connect to an actual database
-a wrapper is required.
+The `gosexy/db` package provides shared interfaces and datatypes only, it can't
+connect to any database by itself, in order to connect to an actual database
+a database wrapper is required.
+
+## Database wrappers
+
+Database wrappers may have special installation requirements, please refer to
+the appropriate documentation reference on the following list.
+
+* [mongo](http://gosexy.org/db/wrappers/mongo)
+* [mysql](http://gosexy.org/db/wrappers/mysql)
+* [postgresql](http://gosexy.org/db/wrappers/postgresql)
+* [sqlite](http://gosexy.org/db/wrappers/sqlite)
 
 ## Usage example
 
-Let's suppose we want to use the `mongo` driver for [MongoDB][1].
+Let's suppose we want to use the "mongo" wrapper for [MongoDB][1].
+
+Use `go get` to retrieve and install the "mongo" wrapper.
 
 ```sh
-# Installing the driver
-$ go get github.com/gosexy/db/mongo
+go get github.com/gosexy/db/mongo
 ```
 
-Once the driver is installed, import it into your project.
+Import `gosexy/db` and the wrapper into your project.
 
 ```go
-// Importing driver and abstraction layer
 import (
   "github.com/gosexy/db"
-  /* Import the driver to the blank namespace */
+  // The wrapper goes to the blank namespace.
   _ "github.com/gosexy/db/mongo"
 )
 ```
 
-Set up a variable to hold your database connection credentials.
+Set up a variable to configure your database connection.
 
 ```go
-settings := db.DataSource{
+var settings = db.DataSource{
   Host:     "localhost",
   Database: "dbname",
   User:     "myusername",
@@ -53,18 +106,20 @@ settings := db.DataSource{
 }
 ```
 
-Then use `db.Open` to connect to the database you've just set up.
+Use `db.Open` to connect to the database you've just set up.
 
 ```go
 // Connect using the mongo driver.
 sess, err := db.Open("mongo", settings)
+
 if err != nil {
   panic(err)
 }
+
 defer sess.Close()
 ```
 
-Now you can query the database.
+Insert some items and retrieve rows.
 
 ```go
 animals, _ := sess.Collection("animals")
@@ -100,85 +155,15 @@ for _, item := range items {
 }
 ```
 
-The same example goes for other drivers with few modifications, just change the driver name to
-`mysql`, `postgresql` or `sqlite`. Please consider that SQL databases do not accept datatypes like
-`sugar.List{}` and that they expect an existing table.
-
-### Full example
-
-```go
-// _examples/mongo.go
-package main
-
-import (
-	"fmt"
-	"github.com/gosexy/db"
-	_ "github.com/gosexy/db/mongo"
-	"github.com/gosexy/sugar"
-)
-
-const host = "debian"
-const dbname = "dev"
-
-func main() {
-
-	sess, err := db.Open("mongo", db.DataSource{Host: host, Database: dbname})
-
-	if err != nil {
-		panic(err)
-	}
-
-	defer sess.Close()
-
-	sess.Drop()
-
-	animals, _ := sess.Collection("animals")
-
-	animals.Append(db.Item{
-		"animal": "Bird",
-		"young":  "Chick",
-		"female": "Hen",
-		"male":   "Cock",
-		"group":  "flock",
-	})
-
-	animals.Append(db.Item{
-		"animal": "Bovidae",
-		"young":  "Calf",
-		"female": "Cow",
-		"male":   "Bull",
-		"group":  "Herd",
-	})
-
-	animals.Append(db.Item{
-		"animal": "Canidae",
-		"young":  sugar.List{"Puppy", "Pup"},
-		"female": "Bitch",
-		"male":   "Dog",
-		"group":  "Pack",
-	})
-
-	items := animals.FindAll()
-
-	for _, item := range items {
-		fmt.Printf("animal: %s, young: %s\n", item["animal"], item["young"])
-	}
-
-}
-```
+The same example goes for other wrappers, you just change the driver name to
+`mysql`, `postgresql` or `sqlite`.
 
 ## Documentation
 
-There is an [online reference](http://gosexy.org/db).
+If you're in trouble, you may want to try the
+[online reference](http://gosexy.org/db) and the [documentation page][5].
 
-You can also read `gosexy/db` documentation from a terminal.
-
-```sh
-# Reading gosexy/db docs.
-$ go doc github.com/gosexy/db
-# Reading driver docs.
-$ go doc github.com/gosexy/db
-```
+Speak IRC? you can contact [the author][6] at #menteslibres on freenode.
 
 
 ## Things to do
@@ -190,10 +175,24 @@ This is an evolving project, there are still some things to do:
 
 ## Changelog
 
+    2013/03/10 - Breaking change: Find() and FindAll() now will return ([item],
+                 error).
+               - Adding db.Result and methods for iterating over results.
+               - Adding the ability to use struct{} for fetching and inserting
+                 rows.
+               - Adding helper package gosexy/db/util for internal usage.
     2012/12/02 - Changing db.Table.Collection and adding db.Open().
-    2012/09/21 - Changing some methods parameters and return values, improving error handling and testing many data types.
-    2012/08/29 - Created the main site docs and moved the repo to "http://github.com/gosexy".
-    2012/07/23 - Splitted database wrappers into packages. Changed ``db.Where`` to ``db.Cond``.
+    2012/09/21 - Changing some methods parameters and return values, improving
+                 error handling and testing many data types.
+    2012/08/29 - Created the main site docs and moved the repo to
+                 "http://github.com/gosexy".
+    2012/07/23 - Splitted database wrappers into packages. Changed db.Where to
+                 db.Cond.
     2012/07/09 - First public beta with MySQL, MongoDB, PostgreSQL and SQLite3.
 
 [1]: http://mongodb.org
+[2]: http://mysql.com
+[3]: http://postgresql.org
+[4]: http://sqlite.com
+[5]: http://godoc.org/github.com/gosexy/db
+[6]: http://xiam.menteslibres.org
