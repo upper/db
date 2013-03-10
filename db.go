@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012 José Carlos Nieto, http://xiam.menteslibres.org/
+  Copyright (c) 2012-2013 José Carlos Nieto, http://xiam.menteslibres.org/
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the
@@ -22,8 +22,10 @@
 */
 
 /*
-This package is a wrapper of many third party database drivers. The goal of this abstraction is to provide a common,
-simplified and consistent layer for working with different databases without the need of SQL statements.
+	This package is a wrapper of many third party database drivers. The goal of
+	this abstraction is to provide a simple, common and consistent layer for
+	executing operationg among different kinds of databases without the need of
+	explicit SQL statements.
 */
 package db
 
@@ -31,99 +33,151 @@ import (
 	"fmt"
 )
 
-// Handles conditions and operators in an expression.
-//
-// Examples:
-//
-// Cond { "age": 18 } // Means the condition is to have the "age" field equal to 18.
-//
-// Cond { "age $lt": 18 } // $lt is a MongoDB operator, if you're using MongoDB, means that you want the "age" field to be lower than 18.
-//
-// Cond { "age >=": 18 } // >= is a SQL operator, if you're using SQL, means that you want the "age" field to be mayor or equal to 18.
+/*
+	Handles conditions and operators in an expression.
+
+	Examples:
+
+
+	db.Cond { "age": 18 } // Age equals 18
+
+	db.Cond { "age >=": 18 } // Age greater or equal than 18 (SQL/NoSQL)
+
+	db.Cond { "age $lt": 18 } // Age less than 18 (MongoDB specific)
+*/
 type Cond map[string]interface{}
 
-// Handles "And", "Or" and "Cond" types in an expression.
-//
-// Example:
-//
-// And (
-//   Cond { "name": "Peter" },
-//   Cond { "last_name": "Parker "},
-// )
+/*
+	Logical conjuction, accepts db.Cond{}, db.Or{} and other db.And{} expressions.
+
+	Example:
+
+	db.And (
+		db.Cond { "name": "Peter" },
+		db.Cond { "last_name": "Parker "},
+	)
+
+	db.And (
+		db.Or {
+			db.Cond{ "name": "Peter" },
+			db.Cond{ "name": "Mickey" },
+		},
+		db.Cond{ "last_name": "Mouse" },
+	)
+*/
 type And []interface{}
 
-// Handles "And", "Or" and "Cond" types.
-//
-// Example:
-//
-// Or (
-//   Cond { "year": 2012 },
-//   Cond { "year": 1987 },
-// )
+/*
+	Logical disjuction, accepts db.Cond{}, db.And{} and other db.Or{} expressions.
+
+	Example:
+
+	db.Or (
+		db.Cond { "year": 2012 },
+		db.Cond { "year": 1987 },
+	)
+*/
 type Or []interface{}
 
-// Determines the order of returned Items in Find() or FindAll() expressions.
-//
-// Example:
-//
-// Sort { "age": -1 } // If using MongoDB, means sort by age in descending order.
-//
-// Sort { "age": "ASC" } // If using SQL, means sort by age in ascending order.
+/*
+	Determines how results will be sorted.
+
+	Example:
+	db.Sort { "age": -1 } // Order by age, descendent.
+	db.Sort { "age": 1 } // Order by age, ascendent.
+
+	db.Sort { "age": "DESC" } // Order by age, descendent.
+	db.Sort { "age": "ASC" } // Order by age, ascendent.
+*/
 type Sort map[string]interface{}
 
-// Determines how the matched item or items are going to change in Update() and UpdateAll() expressions.
-//
-// Example:
-//
-// Modify {
-//  "$inc": {
-//    "counter": 1
-//  }
-// }
+/*
+	How rows are going to be modified when using *db.Collection.Update() and
+	*db.Collection.UpdateAll(). At this time working only for the "mongo"
+	wrapper.
+
+	Example:
+
+	db.Modify {
+	 "$inc": {
+		 "counter": 1
+	 }
+	}
+*/
 type Modify map[string]interface{}
 
-// Specifies relations with external collections, the specific relation with the parent expression can be determined with
-// the name of field on the external collection plus the name of the referred parent column between brackets, however this can be only
-// used along with Cond keytypes.
-//
-// Example:
-//
-// On {
-//   db.Collection("external"),
-//   Cond { "external_key": "{parent_value}" }, // Relation exists where the "external_key" field is equal to the parent's "parent_value".
-// }
+/*
+	Defines a relation between each one of the results of a query and any other
+	collection. You can relate an item with another item in any other collection
+	using a condition.
+
+	A constant condition looks like this:
+
+	db.Cond { "external_field": "value" }
+
+	A dynamic condition looks like this (note the brackets):
+
+	db.Cond { "id": "{foreign_key}" }
+
+	The above condition will match the result where the "id" column is equal to
+	the "foreign_key" value of the local collection.
+
+	Example:
+
+	// The db.On constraint.
+
+	db.On {
+		// The external collection.
+		sess.ExistentCollection("parents"),
+
+		// Reference constraint.
+		Cond { "id": "{parent_id}" },
+	}
+
+	You can use db.On only as a value for db.Relate and db.RelateAll maps.
+*/
 type On []interface{}
 
-// Specifies a one-to-one relation in Find() and FindAll() expressions. It consists of a name and an On keytype.
-//
-// You can use the same keytypes you would use in a normal Find() and FindAll() expressions besides a Collection, you can also use
-// other nested Relate and RelateAll statements. If no Collection is given, the one with the relation name will be tried.
-//
-// Example:
-//
-// Relate {
-//   "father": On {
-//     db.Collection("people"),
-//     Cond { "gender": "man" },
-//     Cond { "id": "{parent_id}" },
-//   }
-// }
+/*
+	A map that defines a one-to-one relation with another table.
+
+	The name of the key will define the name of the relation. A db.On{} constraint
+	is required.
+
+	Example that relates a result with a row from the "parents" collection.
+
+	// A relation exists where the parents.id column matches the
+
+	// collection.parent_id value.
+
+	db.Relate {
+		"myparent": On {
+			db.ExistentCollection("parents"),
+			Cond { "id": "{parent_id}" },
+		}
+	}
+
+*/
 type Relate map[string]On
 
-// Specifies a one-to-many relation in Find() and FindAll() expressions. It consists of a name and an On keytype.
-//
-// You can use the same keytypes you would use in a normal Find() and FindAll() expressions besides a Collection, you can also use
-// other nested Relate and RelateAll statements. If no Collection is given, the one with the relation name will be tried.
-//
-// Example:
-//
-// RelateAll {
-//   "children": On {
-//     db.Collection("people"),
-//     Cond { "age $lt": 12 },
-//     Cond { "parent_id": "{_id}" },
-//   }
-// }
+/*
+	Like db.Relate but defines a one-to-many relation.
+
+	Example that relates a result with many rows from the "sons" collection:
+
+
+	// A relation exists where the sons.parent_id column matches the collection.id
+
+	// value
+
+	db.RelateAll {
+		"children": db.On {
+			db.ExistentCollection("sons"),
+			Cond { "age <=": 18 },
+			Cond { "parent_id": "{id}" },
+		}
+	}
+*/
 type RelateAll map[string]On
 
 type Relation struct {
@@ -133,132 +187,247 @@ type Relation struct {
 	On         On
 }
 
-// Limits the number of results a FindAll() expression returns.
-//
-// Example:
-//
-//   Limit(10)
+/*
+	Sets the maximum number of rows to be fetched in a query.
+
+	If no db.Limit is specified, all matches will be returned.
+
+	Example:
+
+		db.Limit(10)
+*/
 type Limit uint
 
-// Specifies how many matched results will be skipped in a FindAll() expression before returning.
-//
-// Example:
-//
-//   Offset(10)
+/*
+	Sets the number of rows to be skipped before counting the limit in a query.
+
+	If no db.Offset is specified no rows will be skipped.
+
+	Example:
+
+		db.Offset(7)
+*/
 type Offset uint
 
-// Determines new values for the fields on the matched item or items in Update() and UpdateAll() expressions.
-//
-// Example:
-//
-// Set {
-//   "name": "New Name"
-// }
+/*
+	Determines new values for fields in *db.Collection.Update() and
+	*db.Collection.UpdateAll() expressions.
+
+	Example:
+
+	db.Set {
+		"name": "New Name",
+	}
+*/
 type Set map[string]interface{}
 
-// Determines new values for the fields on the matched item or items in Update() and UpdateAll() expressions, if no item is found,
-// a new one will be created.
-//
-// Example:
-//
-// Upsert {
-//   "name": "New Name"
-// }
+/*
+	Like db.Set{} but it will insert the specified values if no match is found.
+
+	db.Upsert {
+		"name": "New Name",
+	}
+*/
 type Upsert map[string]interface{}
 
-// Rows from a result.
+// A query result.
 type Item map[string]interface{}
 
+// A result id.
 type Id string
 
 // Connection and authentication data.
 type DataSource struct {
-	Host     string
-	Port     int
+	// Host to connect to. Cannot be used if Socket is specified.
+	Host string
+	// Port to connect to. Cannot be used if Socket is specified.
+	Port int
+	// Name of the database to use.
 	Database string
-	User     string
+	// Authentication user name.
+	User string
+	// Authentication password.
 	Password string
-	Socket   string
-	Charset  string
+	// A path of a UNIX socket. Cannot be user if Host is specified.
+	Socket string
+	// Charset of the database.
+	Charset string
 }
 
 // Database methods.
 type Database interface {
+	/*
+		Returns an interface{} to the underlying driver the wrapper uses. Useful
+		for custom SQL queries.
+	*/
 	Driver() interface{}
 
+	/*
+		Attempts to open a connection using the db.DataSource data.
+	*/
 	Open() error
+
+	/*
+		Closes the currently active connection to the database, if any.
+	*/
 	Close() error
 
+	/*
+		Returns a db.Collection struct by name. Returns an error if the collection
+		does not exists.
+	*/
 	Collection(string) (Collection, error)
+
+	/*
+		Returns a db.Collection struct, panics if the collection does not exists.
+	*/
 	ExistentCollection(string) Collection
+	/*
+		Returns the names of all the collections in the active database.
+	*/
 	Collections() []string
 
+	/*
+		Changes the active database.
+	*/
 	Use(string) error
+	/*
+		Drops the active database.
+	*/
 	Drop() error
 
+	/*
+		Sets the connection data.
+	*/
 	Setup(DataSource) error
 
+	/*
+		Returns the name of the active database.
+	*/
 	Name() string
 }
 
 // Collection methods.
 type Collection interface {
+	/*
+		Inserts an item into the collection. Accepts maps or structs only.
+	*/
 	Append(...interface{}) ([]Id, error)
 
+	/*
+		Returns the number of rows that given the given conditions.
+	*/
 	Count(...interface{}) (int, error)
 
+	/*
+		Returns a db.Item map of the first item that matches the given conditions.
+	*/
 	Find(...interface{}) (Item, error)
+
+	/*
+		Returns a []db.Item slice of all the items that match the given conditions.
+
+		Useful for small datasets.
+	*/
 	FindAll(...interface{}) ([]Item, error)
 
+	/*
+		Finds a matching row and sets new values for the given fields.
+	*/
 	Update(...interface{}) error
+
+	/*
+		Returns true if the collection exists.
+	*/
 	Exists() bool
 
+	/*
+		Returns a db.Result that can be used for iterating over the rows.
+
+		Useful for large datasets.
+	*/
 	Query(...interface{}) (Result, error)
 
+	/*
+		Deletes all the rows that match the given conditions.
+	*/
 	Remove(...interface{}) error
 
+	/*
+		Deletes all the rows in the collection.
+	*/
 	Truncate() error
 
+	/*
+		Returns the name of the collection.
+	*/
 	Name() string
 }
 
 // Result methods.
 type Result interface {
+	/*
+		Fetches all the results of the query into the given pointer.
+
+		Accepts a pointer to slice of maps or structs.
+	*/
 	All(interface{}) error
+
+	/*
+		Fetches the first result of the query into the given pointer and discards
+		the rest.
+
+		Accepts a pointer to map or struct.
+	*/
 	One(interface{}) error
+
+	/*
+		Fetches the next result of the query into the given pointer. Returns error if
+		there are no more results.
+
+		Warning: If you're only using part of these results you must manually Close()
+		the result.
+
+		Accepts a pointer to map or struct.
+	*/
 	Next(interface{}) error
+
+	/*
+		Closes the result.
+	*/
 	Close() error
 }
 
-// Specifies which fields to return in a query.
+// Specifies which fields will be returned in a query.
 type Fields []string
 
-// Specifies single or multiple requests in FindAll() expressions.
+// These are internal variables.
 type MultiFlag bool
 type SqlValues []string
 type SqlArgs []string
 
+// Registered wrappers.
 var wrappers = make(map[string]Database)
 
 /*
-	Registers a driver with a name.
+	Registers a database wrapper with an unique name.
 */
 func Register(name string, driver Database) {
 	if name == "" {
-		panic("db: Wrapper name cannot be nil.")
+		panic("Missing wrapper name.")
 	}
 	if _, ok := wrappers[name]; ok != false {
-		panic("db: Wrapper was already registered.")
+		panic("A wrapper with the same name was already registered.")
 	}
 	wrappers[name] = driver
 }
 
 /*
-	Opens a session with the specified driver.
+	Opens a database using the named driver and the db.DataSource settings.
 */
 func Open(name string, settings DataSource) (Database, error) {
 	if _, ok := wrappers[name]; ok == false {
-		panic(fmt.Sprintf("db: Unknown wrapper: %s.", name))
+		panic(fmt.Sprintf("Unknown wrapper: %s.", name))
 	}
 	err := wrappers[name].Setup(settings)
 	if err != nil {
