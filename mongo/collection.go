@@ -374,6 +374,8 @@ func (self *SourceCollection) buildQuery(terms ...interface{}) *mgo.Query {
 // Transforms data from db.Item format into mgo format.
 func toInternal(val interface{}) interface{} {
 
+	// TODO: use reflection to target kinds and not just types.
+
 	switch t := val.(type) {
 	case []db.Id:
 		ids := make([]bson.ObjectId, len(t))
@@ -402,6 +404,9 @@ func toInternal(val interface{}) interface{} {
 
 // Transforms data from mgo format into db.Item format.
 func toNative(val interface{}) interface{} {
+
+	// TODO: use reflection to target kinds and not just types.
+
 	switch t := val.(type) {
 	case bson.M:
 		v := map[string]interface{}{}

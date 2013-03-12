@@ -148,7 +148,7 @@ func (self *Table) compileSet(term db.Set) (string, db.SqlArgs) {
 	i := 0
 	for key, arg := range term {
 		sql[i] = fmt.Sprintf("%s = ?", key)
-		args[i] = to.String(arg)
+		args[i] = toInternal(arg)
 		i++
 	}
 
@@ -212,7 +212,7 @@ func (self *Table) compileStatement(where db.Cond) (string, []string) {
 		key = strings.Trim(key, " ")
 		chunks := strings.Split(key, " ")
 
-		strval := to.String(val)
+		strval := toInternal(val)
 
 		if len(chunks) >= 2 {
 			return fmt.Sprintf("%s %s ?", chunks[0], chunks[1]), []string{strval}

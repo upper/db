@@ -325,6 +325,29 @@ func TestFind(t *testing.T) {
 
 }
 
+// Tests limit and offset.
+func TestLimitOffset(t *testing.T) {
+
+	var err error
+
+	sess, err := db.Open(wrapperName, settings)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	defer sess.Close()
+
+	people, _ := sess.Collection("people")
+
+	items, _ := people.FindAll(db.Limit(2), db.Offset(1))
+
+	if len(items) != 2 {
+		t.Fatalf("Test failed")
+	}
+
+}
+
 // Tries to delete rows.
 func TestDelete(t *testing.T) {
 	sess, err := db.Open(wrapperName, settings)
@@ -543,6 +566,7 @@ func TestRelationStruct(t *testing.T) {
 // Tests datatype conversions.
 func TestDataTypes(t *testing.T) {
 	var res db.Result
+	var items []db.Item
 
 	sess, err := db.Open(wrapperName, settings)
 
@@ -587,6 +611,31 @@ func TestDataTypes(t *testing.T) {
 
 	if err != nil {
 		t.Fatalf(err.Error())
+	}
+
+	// Testing date ranges
+	items, err = dataTypes.FindAll(db.Cond{
+		"_date": time.Now(),
+	})
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if len(items) > 0 {
+		t.Fatalf("Expecting no results.")
+	}
+
+	items, err = dataTypes.FindAll(db.Cond{
+		"_date <=": time.Now(),
+	})
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if len(items) != 2 {
+		t.Fatalf("Expecting some results.")
 	}
 
 	// Testing struct
