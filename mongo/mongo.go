@@ -124,6 +124,10 @@ func (self *Source) Open() error {
 		connURL.User = url.UserPassword(self.config.User, self.config.Password)
 	}
 
+	if self.config.Database != "" {
+		connURL.Path = "/" + self.config.Database
+	}
+
 	self.session, err = mgo.DialWithTimeout(connURL.String(), 5*time.Second)
 
 	if err != nil {
