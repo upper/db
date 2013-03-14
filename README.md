@@ -1,8 +1,8 @@
 # gosexy/db
 
-`gosexy/db` is a set of wrappers for SQL and NoSQL database drivers for Go
-currently compatible with [MongoDB][1], [MySQL][2], [PostgreSQL][3]
-and [SQLite3][4].
+`gosexy/db` is a set of wrappers for SQL and NoSQL database drivers for the
+[Go][7] programming languaje. Currently compatible with [MongoDB][1],
+[MySQL][2], [PostgreSQL][3] and [SQLite3][4].
 
 ## The project
 
@@ -241,3 +241,5 @@ This is an evolving project, there are still some things to do:
 [4]: http://sqlite.com
 [5]: http://godoc.org/github.com/gosexy/db
 [6]: http://xiam.menteslibres.org
+[7]: http://www.golang.org
+
