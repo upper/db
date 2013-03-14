@@ -231,21 +231,35 @@ func (self *Table) compileConditions(term interface{}) (string, db.SqlArgs) {
 */
 func (self *Table) compileStatement(where db.Cond) (string, []string) {
 
-	for key, val := range where {
+	str := make([]string, len(where))
+	arg := make([]string, len(where))
+
+	i := 0
+
+	for key, _ := range where {
 		key = strings.Trim(key, " ")
-		chunks := strings.Split(key, " ")
+		chunks := strings.SplitN(key, " ", 2)
 
-		strval := toInternal(val)
+		op := "="
 
-		if len(chunks) >= 2 {
-			return fmt.Sprintf("%s %s ?", chunks[0], chunks[1]), []string{strval}
-		} else {
-			return fmt.Sprintf("%s = ?", chunks[0]), []string{strval}
+		if len(chunks) > 1 {
+			op = chunks[1]
 		}
 
+		str[i] = fmt.Sprintf("%s %s ?", chunks[0], op)
+		arg[i] = toInternal(where[key])
+
+		i++
 	}
 
-	return "", []string{}
+	switch len(str) {
+	case 1:
+		return str[0], arg
+	case 0:
+		return "", []string{}
+	}
+
+	return "(" + strings.Join(str, " AND ") + ")", arg
 }
 
 /*

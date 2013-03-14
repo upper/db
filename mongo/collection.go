@@ -104,9 +104,9 @@ func compileStatement(where db.Cond) bson.M {
 
 	for key, val := range where {
 		key = strings.Trim(key, " ")
-		chunks := strings.Split(key, " ")
+		chunks := strings.SplitN(key, " ", 2)
 
-		if len(chunks) >= 2 {
+		if len(chunks) > 1 {
 			op := ""
 			switch chunks[1] {
 			case ">":
