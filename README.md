@@ -4,16 +4,22 @@
 currently compatible with [MongoDB][1], [MySQL][2], [PostgreSQL][3]
 and [SQLite3][4].
 
-The goal of this package is to provide a common, simple, consistent layer of
-abstraction for performing mundane operations such as create, read, update,
-and delete rows (CRUD) on different databases.
+## The project
 
-While `gosexy/db` is *not* an ORM it can be used as the base for one, that's
-up to the final user, but `gosexy/db` prefers to stay out of the way.
+The goal of this package is to provide a common, simple, consistent layer of
+abstraction for performing mundane operations such as *create*, *read*,
+*update*, and *delete* rows (CRUD) on different databases.
+
+While `gosexy/db` is *not* an ORM *per se* it can be used as the base for one,
+we leave that up to the final user, `gosexy/db` prefers to stay out of the way
+and just focusing in providing compatibility between databases, like a
+babelfish.
+
+### An introductory example
 
 Let me show you an example, this chunk of code searches on the "people"
 table/collection. It does not matter whether we are querying a NoSQL database
-like [MongoDB][1] or an SQL database like [MySQL][2], [PostgreSQL][3] or
+like [MongoDB][1] or a SQL database like [MySQL][2], [PostgreSQL][3] or
 [SQLite3][4], `gosexy/db` talks to the database in the language the database
 expects and returns you a set of results.
 
@@ -34,9 +40,11 @@ each one of them having different meanings.
 
 While this level of abstraction would not be able to represent a complex query
 or to use any database-specific features it's fairly convenient for doing the
-simple CRUD stuff, and for advanced queries the underlying driver is always
-exposed as a `*sql.DB` or a `*mgo.Session` so you can still be able to use
-any database-pro spells.
+simple CRUD stuff, and regarding more advanced queries, the underlying driver
+could always be retrieved as a `*sql.DB` or a `*mgo.Session` so you can still
+be able to use any database-pro spells.
+
+### Iterating over results
 
 Fetching all rows may be not so adequate for processing large datasets, in that
 case we can use `db.Collection.Query()` instead of `db.Collection.FindAll()` and
@@ -64,8 +72,11 @@ for true {
 }
 ```
 
-One of the features you may find useful is the ability of `gosexy/db` to make
-relations between different databases that talk different protocols with ease:
+### Inter-database relations
+
+One of the features you may find convenient is the ability of `gosexy/db` to
+make relations between different databases that talk different protocols with
+ease:
 
 ```go
 items, err := peopleCollection.FindAll(
@@ -82,6 +93,8 @@ In the above example, `peopleCollection` and `worksCollection` are
 `db.Collection` objects and they could be collections or tables of any of the
 supported databases. You can even relate NoSQL collections to SQL tables!
 
+### Current state
+
 `gosexy/db` is a work in progress but its core features are ready for use.
 
 ## Installation
@@ -92,14 +105,15 @@ Use `go get` to download and install `gosexy/db`.
 go get github.com/gosexy/db
 ```
 
-The `gosexy/db` package provides shared interfaces and datatypes only, it can't
-connect to any database by itself, in order to connect to an actual database
-a database wrapper is required.
+The `gosexy/db` package provides interface definitions and datatypes only, it
+can't connect to any database by itself, in order to connect to an actual
+database a database *wrapper* is required.
 
 ## Database wrappers
 
-Database wrappers may have special installation requirements, please refer to
-the appropriate documentation reference on the following list.
+Database wrappers are all different and may have special installation
+requirements, please refer to the appropriate documentation reference on the
+following list.
 
 * [mongo](http://gosexy.org/db/wrappers/mongo)
 * [mysql](http://gosexy.org/db/wrappers/mysql)
@@ -191,11 +205,11 @@ The same example goes for other wrappers, you just change the driver name to
 
 ## Documentation
 
-If you're in trouble, you may want to try the
-[online reference](http://gosexy.org/db) and the [documentation page][5].
+We have an [online reference](http://gosexy.org/db) and you can always have a
+quick look to the API at our [documentation page][5].
 
-Speak IRC? you can contact [the author][6] at #menteslibres on freenode.
-
+Got problems? try to use the
+[forum](https://groups.google.com/forum/?fromgroups=#!forum/gosexy).
 
 ## Things to do
 
