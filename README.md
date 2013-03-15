@@ -61,7 +61,7 @@ if err != nil {
 
 person := struct{ Name string }{}
 
-for true {
+for {
   // res.Next() will accept a pointer to map or struct.
   err = res.Next(&person)
   if err != nil {

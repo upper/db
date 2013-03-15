@@ -307,7 +307,7 @@ func TestFind(t *testing.T) {
 	dst5 := struct{ Name string }{}
 	found := false
 
-	for true {
+	for {
 		err = res.Next(&dst5)
 		if err != nil {
 			break
