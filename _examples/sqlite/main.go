@@ -57,7 +57,11 @@ func main() {
 		"group":  "Pack",
 	})
 
-	items := animals.FindAll()
+	items, err := animals.FindAll()
+
+	if err != nil {
+		panic(err.Error())
+	}
 
 	for _, item := range items {
 		fmt.Printf("animal: %s, young: %s\n", item["animal"], item["young"])
@@ -76,7 +80,11 @@ func main() {
 		"age":  26,
 	})
 
-	items = birthdays.FindAll()
+	items, err = birthdays.FindAll()
+
+	if err != nil {
+		panic(err.Error())
+	}
 
 	for _, item := range items {
 		fmt.Printf("name: %s, born: %s, age: %d\n", item["name"], item["born"], item["age"])

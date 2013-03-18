@@ -186,7 +186,7 @@ func main() {
 
 	// TESTING RELATION
 
-	peopleAndWorks := peopleIAdmire.FindAll(
+	peopleAndWorks, err := peopleIAdmire.FindAll(
 		db.RelateAll{
 			"works": db.On{
 				worksOfPeopleIAdmire,
@@ -194,6 +194,10 @@ func main() {
 			},
 		},
 	)
+
+	if err != nil {
+		panic(err.Error())
+	}
 
 	fmt.Printf("People I Admire:\n\n")
 
