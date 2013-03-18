@@ -216,7 +216,7 @@ func fetchItemRelations(itemv reflect.Value, relations []db.Relation, convertFn 
 				err = res.All(&items)
 				p = reflect.ValueOf(items)
 			} else {
-				var item []map[string]interface{}
+				var item map[string]interface{}
 				err = res.One(&item)
 				p = reflect.ValueOf(item)
 			}

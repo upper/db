@@ -3,6 +3,7 @@ package postgresql
 import (
 	"fmt"
 	"github.com/gosexy/db"
+	"github.com/gosexy/dig"
 	"github.com/gosexy/to"
 	"github.com/kr/pretty"
 	"math/rand"
@@ -490,6 +491,20 @@ func TestRelation(t *testing.T) {
 	)
 
 	fmt.Printf("relations (1) %# v\n", pretty.Formatter(results))
+
+	var testv string
+
+	testv = dig.String(&results, 0, "lives_in", "name")
+
+	if testv == "" {
+		t.Fatalf("Test failed, expected some value.")
+	}
+
+	testv = dig.String(&results, 1, "has_children", 2, "name")
+
+	if testv == "" {
+		t.Fatalf("Test failed, expected some value.")
+	}
 }
 
 // Tests relations between collections using structs.
