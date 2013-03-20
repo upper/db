@@ -186,13 +186,17 @@ animals.Append(db.Item{
 
 animals.Append(db.Item{
   "animal": "Canidae",
-  "young":  sugar.List{"Puppy", "Pup"},
+  "young":  []string{"Puppy", "Pup"},
   "female": "Bitch",
   "male":   "Dog",
   "group":  "Pack",
 })
 
-items := animals.FindAll()
+items, err := animals.FindAll()
+
+if err != nil {
+  panic(err.Error())
+}
 
 for _, item := range items {
   fmt.Printf("animal: %s, young: %s\n", item["animal"], item["young"])
