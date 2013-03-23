@@ -26,7 +26,7 @@ package mysql
 import (
 	"errors"
 	"fmt"
-	_ "github.com/Go-SQL-Driver/MySQL"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/gosexy/db"
 	"github.com/gosexy/db/util/sqlutil"
 	"github.com/gosexy/to"
