@@ -12,7 +12,7 @@ abstraction for performing mundane operations such as *create*, *read*,
 
 While `gosexy/db` is *not* an ORM *per se* it can be used as the base for one,
 we leave that up to you, `gosexy/db` prefers to stay out of the way and just
-focusing in providing compatibility between databases, it's like a *babelfish*.
+focusing in providing compatibility between databases, it's like a *babelfish*!
 
 ### An introductory example
 
@@ -134,7 +134,7 @@ Import `gosexy/db` and the wrapper into your project.
 ```go
 import (
   "github.com/gosexy/db"
-  // The wrapper goes to the blank namespace.
+  // The wrapper goes to the blank identifier.
   _ "github.com/gosexy/db/mongo"
 )
 ```
