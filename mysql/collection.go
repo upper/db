@@ -324,7 +324,7 @@ func (self *Table) Count(terms ...interface{}) (int, error) {
 	result, err := self.FindAll(terms...)
 
 	if err == nil {
-		return to.Int(result[0]["_total"]), nil
+		return int(to.Int64(result[0]["_total"])), nil
 	}
 
 	return 0, err
