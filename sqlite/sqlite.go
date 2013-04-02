@@ -27,7 +27,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/gosexy/db"
+	"menteslibres.net/gosexy/db"
 	_ "github.com/xiam/gosqlite3"
 	"reflect"
 	"regexp"

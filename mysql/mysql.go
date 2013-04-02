@@ -28,7 +28,7 @@ import (
 	"errors"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/gosexy/db"
+	"menteslibres.net/gosexy/db"
 	"reflect"
 	"regexp"
 	"strings"

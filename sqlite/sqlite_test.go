@@ -2,9 +2,9 @@ package sqlite
 
 import (
 	"fmt"
-	"github.com/gosexy/db"
-	"github.com/gosexy/dig"
-	"github.com/gosexy/to"
+	"menteslibres.net/gosexy/db"
+	"menteslibres.net/gosexy/dig"
+	"menteslibres.net/gosexy/to"
 	"github.com/kr/pretty"
 	"math/rand"
 	"reflect"

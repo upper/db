@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/gosexy/db"
-	_ "github.com/gosexy/db/postgresql"
+	"menteslibres.net/gosexy/db"
+	_ "menteslibres.net/gosexy/db/postgresql"
 )
 
 var settings = db.DataSource{

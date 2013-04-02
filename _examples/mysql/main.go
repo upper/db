@@ -3,9 +3,9 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"github.com/gosexy/db"
-	_ "github.com/gosexy/db/mysql"
-	"github.com/gosexy/db/util/sqlutil"
+	"menteslibres.net/gosexy/db"
+	_ "menteslibres.net/gosexy/db/mysql"
+	"menteslibres.net/gosexy/db/util/sqlutil"
 )
 
 var settings = db.DataSource{

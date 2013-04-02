@@ -25,8 +25,8 @@ package mongo
 
 import (
 	"errors"
-	"github.com/gosexy/db"
-	"github.com/gosexy/db/util"
+	"menteslibres.net/gosexy/db"
+	"menteslibres.net/gosexy/db/util"
 	"labix.org/v2/mgo"
 )
 

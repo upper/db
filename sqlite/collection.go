@@ -26,9 +26,9 @@ package sqlite
 import (
 	"errors"
 	"fmt"
-	"github.com/gosexy/db"
-	"github.com/gosexy/db/util/sqlutil"
-	"github.com/gosexy/to"
+	"menteslibres.net/gosexy/db"
+	"menteslibres.net/gosexy/db/util/sqlutil"
+	"menteslibres.net/gosexy/to"
 	"strings"
 	"time"
 )

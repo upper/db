@@ -24,7 +24,7 @@
 package postgresql
 
 import (
-	"github.com/gosexy/db/util/sqlutil"
+	"menteslibres.net/gosexy/db/util/sqlutil"
 )
 
 type Result struct {

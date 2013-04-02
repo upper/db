@@ -27,9 +27,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/gosexy/db"
-	"github.com/gosexy/db/util"
-	"github.com/gosexy/to"
+	"menteslibres.net/gosexy/db"
+	"menteslibres.net/gosexy/db/util"
+	"menteslibres.net/gosexy/to"
 	"reflect"
 	"strings"
 )

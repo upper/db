@@ -6,9 +6,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/gosexy/db"
-	_ "github.com/gosexy/db/mysql"
-	_ "github.com/gosexy/db/postgresql"
+	"menteslibres.net/gosexy/db"
+	_ "menteslibres.net/gosexy/db/mysql"
+	_ "menteslibres.net/gosexy/db/postgresql"
 )
 
 /*

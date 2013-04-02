@@ -25,7 +25,7 @@ package mongo
 
 import (
 	"fmt"
-	"github.com/gosexy/db"
+	"menteslibres.net/gosexy/db"
 	"labix.org/v2/mgo"
 	"net/url"
 	"time"

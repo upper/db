@@ -25,7 +25,7 @@ package sqlutil
 
 import (
 	"database/sql"
-	"github.com/gosexy/db"
+	"menteslibres.net/gosexy/db"
 )
 
 type Result struct {

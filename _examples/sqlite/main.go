@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/gosexy/db"
-	"github.com/gosexy/db/sqlite"
+	"menteslibres.net/gosexy/db"
+	"menteslibres.net/gosexy/db/sqlite"
 	"time"
 )
 

@@ -25,9 +25,9 @@ package mongo
 
 import (
 	"fmt"
-	"github.com/gosexy/db"
-	"github.com/gosexy/db/util"
-	"github.com/gosexy/to"
+	"menteslibres.net/gosexy/db"
+	"menteslibres.net/gosexy/db/util"
+	"menteslibres.net/gosexy/to"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"strings"

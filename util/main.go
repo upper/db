@@ -26,8 +26,8 @@ package util
 import (
 	"errors"
 	"fmt"
-	"github.com/gosexy/db"
-	"github.com/gosexy/to"
+	"menteslibres.net/gosexy/db"
+	"menteslibres.net/gosexy/to"
 	"reflect"
 	"regexp"
 	"strings"

@@ -6,8 +6,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/gosexy/db"
-	_ "github.com/gosexy/db/mongo"
+	"menteslibres.net/gosexy/db"
+	_ "menteslibres.net/gosexy/db/mongo"
 )
 
 var settings = db.DataSource{

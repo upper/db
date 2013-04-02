@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/gosexy/db"
-	"github.com/gosexy/db/mongo"
+	"menteslibres.net/gosexy/db"
+	"menteslibres.net/gosexy/db/mongo"
 	"github.com/kr/pretty"
 )
 

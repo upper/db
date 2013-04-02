@@ -2,9 +2,9 @@ package mongo
 
 import (
 	"fmt"
-	"github.com/gosexy/db"
-	"github.com/gosexy/dig"
-	"github.com/gosexy/to"
+	"menteslibres.net/gosexy/db"
+	"menteslibres.net/gosexy/dig"
+	"menteslibres.net/gosexy/to"
 	"github.com/kr/pretty"
 	"labix.org/v2/mgo/bson"
 	"math/rand"
