@@ -59,7 +59,9 @@ if err != nil {
   panic(err.Error())
 }
 
-person := struct{ Name string }{}
+person := struct{
+  PersonName string `field:"name"` // Supports struct tags.
+}{}
 
 for {
   // res.Next() will accept a pointer to map or struct.
@@ -223,6 +225,7 @@ This is an evolving project, there are still some things to do:
 
 ## Changelog
 
+    2013/04/06 - Adding support for struct tags.
     2013/03/10 - Breaking change: Find() and FindAll() now will return ([item],
                  error).
                - Adding db.Result and methods for iterating over results.
@@ -243,6 +246,6 @@ This is an evolving project, there are still some things to do:
 [3]: http://postgresql.org
 [4]: http://sqlite.com
 [5]: http://godoc.org/menteslibres.net/gosexy/db
-[6]: http://xiam.menteslibres.org
+[6]: https://menteslibres.net/xiam
 [7]: http://www.golang.org
 
