@@ -68,13 +68,58 @@ func (self *C) RelationCollection(name string, terms db.On) (db.Collection, erro
 	return col, nil
 }
 
+func columnCompare(s string) string {
+	return strings.ToLower(columnCompareExclude.ReplaceAllString(s, ""))
+}
+
+/*
+	Returns the most appropriate struct field index for a given column name.
+
+	If no column matches returns -1.
+*/
+func MatchStructField(s reflect.Type, columnName string) int {
+	n := s.NumField()
+
+	columnNameLower := columnCompare(columnName)
+
+	for i := 0; i < n; i++ {
+
+		field := s.Field(i)
+
+		// Field is exported.
+		if field.PkgPath == "" {
+
+			tag := field.Tag
+
+			// Tag: field:"columnName"
+			fieldName := tag.Get("field")
+
+			if fieldName != "" {
+				if fieldName == columnName {
+					return i
+				}
+			}
+
+			// Matching column to name.
+			fieldNameLower := columnCompare(field.Name)
+
+			if fieldNameLower == columnNameLower {
+				return i
+			}
+
+		}
+
+	}
+
+	// No match.
+	return -1
+}
+
 /*
 	Returns true if a table column looks like a struct field.
 */
 func CompareColumnToField(s, c string) bool {
-	s = columnCompareExclude.ReplaceAllString(s, "")
-	c = columnCompareExclude.ReplaceAllString(c, "")
-	return strings.ToLower(s) == strings.ToLower(c)
+	return columnCompare(s) == columnCompare(c)
 }
 
 /*
@@ -105,12 +150,14 @@ func Fetch(dst interface{}, item db.Item) error {
 	switch el.Kind() {
 	case reflect.Struct:
 		for column, _ := range item {
-			f := func(s string) bool {
-				return CompareColumnToField(s, column)
-			}
-			v := dstv.Elem().FieldByNameFunc(f)
-			if v.IsValid() {
-				v.Set(reflect.ValueOf(item[column]))
+			fi := MatchStructField(dstv.Type(), column)
+			if fi < 0 {
+				continue
+			} else {
+				v := dstv.Elem().Field(fi)
+				if v.IsValid() {
+					v.Set(reflect.ValueOf(item[column]))
+				}
 			}
 		}
 	case reflect.Map:
@@ -144,10 +191,12 @@ func fetchItemRelations(itemv reflect.Value, relations []db.Relation, convertFn 
 							var val reflect.Value
 							switch itemk {
 							case reflect.Struct:
-								f := func(s string) bool {
-									return CompareColumnToField(s, extkey)
+								fi := MatchStructField(itemv.Type(), extkey)
+								if fi < 0 {
+									continue
+								} else {
+									val = itemv.Field(fi)
 								}
-								val = itemv.FieldByNameFunc(f)
 							case reflect.Map:
 								val = itemv.MapIndex(reflect.ValueOf(extkey))
 							}
@@ -167,12 +216,15 @@ func fetchItemRelations(itemv reflect.Value, relations []db.Relation, convertFn 
 
 		switch itemk {
 		case reflect.Struct:
+			var val reflect.Value
 
-			f := func(s string) bool {
-				return CompareColumnToField(s, relation.Name)
+			fi := MatchStructField(itemv.Type(), relation.Name)
+
+			if fi < 0 {
+				continue
+			} else {
+				val = itemv.Field(fi)
 			}
-
-			val := itemv.FieldByNameFunc(f)
 
 			if val.IsValid() {
 				var res db.Result

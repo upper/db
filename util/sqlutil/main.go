@@ -93,8 +93,11 @@ func (self *T) fetchResult(itemt reflect.Type, rows *sql.Rows, columns []string)
 
 	// Range over row values.
 	for i, value := range values {
+
 		if value != nil {
+			// Real column name
 			column := columns[i]
+			// Value as string.
 			svalue := string(*value)
 
 			var cv reflect.Value
@@ -121,23 +124,29 @@ func (self *T) fetchResult(itemt reflect.Type, rows *sql.Rows, columns []string)
 				}
 			// Destionation is a struct.
 			case reflect.Struct:
-				// Get appropriate column.
-				f := func(s string) bool {
-					return util.CompareColumnToField(s, column)
-				}
-				// Destination field.
-				destf := item.Elem().FieldByNameFunc(f)
-				if destf.IsValid() {
-					if cv.Type().Kind() != destf.Type().Kind() {
-						if destf.Type().Kind() != reflect.Interface {
-							// Converting value.
-							cv, _ = util.ConvertValue(svalue, destf.Type().Kind())
+
+				fi := util.MatchStructField(itemt, column)
+
+				if fi < 0 {
+					continue
+				} else {
+
+					// Destination field.
+					destf := item.Elem().Field(fi)
+
+					if destf.IsValid() {
+						if cv.Type().Kind() != destf.Type().Kind() {
+							if destf.Type().Kind() != reflect.Interface {
+								// Converting value.
+								cv, _ = util.ConvertValue(svalue, destf.Type().Kind())
+							}
+						}
+						// Copying value.
+						if cv.IsValid() {
+							destf.Set(cv)
 						}
 					}
-					// Copying value.
-					if cv.IsValid() {
-						destf.Set(cv)
-					}
+
 				}
 			}
 		}
@@ -246,24 +255,56 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) string)
 	itemt := itemv.Type()
 
 	switch itemt.Kind() {
+
 	case reflect.Struct:
 		nfields := itemv.NumField()
-		values = make([]string, nfields)
-		fields = make([]string, nfields)
+
+		values = make([]string, 0, nfields)
+		fields = make([]string, 0, nfields)
+
 		for i := 0; i < nfields; i++ {
-			fields[i] = self.ColumnLike(itemt.Field(i).Name)
-			values[i] = convertFn(itemv.Field(i).Interface())
+
+			field := itemt.Field(i)
+
+			if field.PkgPath == "" {
+
+				value := itemv.Field(i).Interface()
+
+				// Struct tags
+				tag := field.Tag
+
+				// omitempty:bool
+				ignoreNil := tag.Get("ignorenil")
+
+				if ignoreNil == "true" {
+					if value == nil || value == "" {
+						continue
+					}
+				}
+
+				// field:string
+				fieldName := tag.Get("field")
+
+				if fieldName == "" {
+					fieldName = self.ColumnLike(field.Name)
+				}
+
+				fields = append(fields, fieldName)
+				values = append(values, convertFn(value))
+			}
 		}
 	case reflect.Map:
 		nfields := itemv.Len()
 		values = make([]string, nfields)
 		fields = make([]string, nfields)
 		mkeys := itemv.MapKeys()
+
 		for i, keyv := range mkeys {
 			valv := itemv.MapIndex(keyv)
 			fields[i] = self.ColumnLike(to.String(keyv.Interface()))
 			values[i] = convertFn(valv.Interface())
 		}
+
 	default:
 		return nil, nil, fmt.Errorf("Expecting Struct or Map, received %v.", itemt.Kind())
 	}

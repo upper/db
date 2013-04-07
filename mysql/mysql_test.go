@@ -2,11 +2,11 @@ package mysql
 
 import (
 	"fmt"
+	"github.com/kr/pretty"
+	"math/rand"
 	"menteslibres.net/gosexy/db"
 	"menteslibres.net/gosexy/dig"
 	"menteslibres.net/gosexy/to"
-	"github.com/kr/pretty"
-	"math/rand"
 	"reflect"
 	"testing"
 	"time"
@@ -184,7 +184,14 @@ func TestAppend(t *testing.T) {
 	people.Truncate()
 
 	for _, name := range names {
-		people.Append(struct{ Name string }{name})
+		people.Append(struct {
+			ignoreMe string
+			LastName string `ignorenil:"true"`
+			// Must ignore OtherName and use "name" as column.
+			OtherName string `field:"name",ignorenil:"true"`
+			// Should not get inserted.
+			nothing string
+		}{"nuff said", "", name, "nothing"})
 	}
 
 	total, _ = people.Count()
@@ -242,7 +249,11 @@ func TestFind(t *testing.T) {
 	}
 
 	// Fetch into struct slice.
-	dst2 := []struct{ Name string }{}
+	dst2 := []struct {
+		foo        string
+		PersonName string `field:"name"`
+		none       string
+	}{}
 
 	res, err = people.Query(db.Cond{"name": "José"})
 
@@ -260,7 +271,7 @@ func TestFind(t *testing.T) {
 		t.Fatalf("Could not find a recently appended item.")
 	}
 
-	if dst2[0].Name != "José" {
+	if dst2[0].PersonName != "José" {
 		t.Fatalf("Could not find a recently appended item.")
 	}
 
@@ -305,7 +316,9 @@ func TestFind(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	dst5 := struct{ Name string }{}
+	dst5 := struct {
+		PersonName string `field:"name"`
+	}{}
 	found := false
 
 	for {
@@ -313,7 +326,7 @@ func TestFind(t *testing.T) {
 		if err != nil {
 			break
 		}
-		if dst5.Name == "José" {
+		if dst5.PersonName == "José" {
 			found = true
 		}
 	}
