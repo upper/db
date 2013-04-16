@@ -27,8 +27,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"menteslibres.net/gosexy/db"
 	_ "github.com/xiam/gopostgresql"
+	"menteslibres.net/gosexy/db"
 	"reflect"
 	"regexp"
 	"strings"
@@ -245,7 +245,7 @@ func (self *Source) Use(database string) error {
 	Drops the currently active database.
 */
 func (self *Source) Drop() error {
-	self.session.Query(fmt.Sprintf("DROP DATABASE %s", self.config.Database))
+	self.session.Query(fmt.Sprintf(`DROP DATABASE "%s"`, self.config.Database))
 	return nil
 }
 

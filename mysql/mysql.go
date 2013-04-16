@@ -233,7 +233,7 @@ func (self *Source) Open() error {
 */
 func (self *Source) Use(database string) error {
 	self.config.Database = database
-	_, err := self.session.Exec(fmt.Sprintf("USE %s", database))
+	_, err := self.session.Exec(fmt.Sprintf("USE `%s`", database))
 	return err
 }
 
@@ -241,7 +241,7 @@ func (self *Source) Use(database string) error {
 	Drops the currently active database.
 */
 func (self *Source) Drop() error {
-	_, err := self.session.Exec(fmt.Sprintf("DROP DATABASE %s", self.config.Database))
+	_, err := self.session.Exec(fmt.Sprintf("DROP DATABASE `%s`", self.config.Database))
 	return err
 }
 
@@ -307,8 +307,10 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 
 	// Fetching table datatypes and mapping to internal gotypes.
 	rows, err := table.source.doQuery(
-		"SHOW COLUMNS FROM",
-		table.Name(),
+		fmt.Sprintf(
+			"SHOW COLUMNS FROM `%s`",
+			table.Name(),
+		),
 	)
 
 	if err != nil {
