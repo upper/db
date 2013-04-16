@@ -125,14 +125,14 @@ func (self *T) fetchResult(itemt reflect.Type, rows *sql.Rows, columns []string)
 			// Destionation is a struct.
 			case reflect.Struct:
 
-				fi := util.MatchStructField(itemt, column)
+				index := util.GetStructFieldIndex(itemt, column)
 
-				if fi < 0 {
+				if index == nil {
 					continue
 				} else {
 
 					// Destination field.
-					destf := item.Elem().Field(fi)
+					destf := item.Elem().FieldByIndex(index)
 
 					if destf.IsValid() {
 						if cv.Type().Kind() != destf.Type().Kind() {
@@ -274,9 +274,7 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) string)
 				tag := field.Tag
 
 				// omitempty:bool
-				ignoreNil := tag.Get("ignorenil")
-
-				if ignoreNil == "true" {
+				if tag.Get("ignorenil") == "true" {
 					if value == nil || value == "" {
 						continue
 					}
@@ -289,8 +287,19 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) string)
 					fieldName = self.ColumnLike(field.Name)
 				}
 
-				fields = append(fields, fieldName)
-				values = append(values, convertFn(value))
+				// inline:bool
+				if tag.Get("inline") == "true" {
+					infields, invalues, inerr := self.FieldValues(value, convertFn)
+					if inerr != nil {
+						return nil, nil, inerr
+					}
+					fields = append(fields, infields...)
+					values = append(values, invalues...)
+				} else {
+					fields = append(fields, fieldName)
+					values = append(values, convertFn(value))
+				}
+
 			}
 		}
 	case reflect.Map:

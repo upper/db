@@ -93,8 +93,9 @@ type Sort map[string]interface{}
 
 /*
 	How rows are going to be modified when using *db.Collection.Update() and
-	*db.Collection.UpdateAll(). At this time working only for the "mongo"
-	wrapper.
+	*db.Collection.UpdateAll().
+
+	Currently unused.
 
 	Example:
 
@@ -224,6 +225,8 @@ type Set map[string]interface{}
 /*
 	Like db.Set{} but it will insert the specified values if no match is found.
 
+	Currently unused.
+
 	db.Upsert {
 		"name": "New Name",
 	}
@@ -334,7 +337,7 @@ type Collection interface {
 	/*
 		Finds a matching row and sets new values for the given fields.
 	*/
-	Update(...interface{}) error
+	Update(interface{}, interface{}) error
 
 	/*
 		Returns true if the collection exists.

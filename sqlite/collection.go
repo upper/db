@@ -140,23 +140,6 @@ func (self *Table) Query(terms ...interface{}) (db.Result, error) {
 }
 
 /*
-	Transforms db.Set into arguments for sql.Exec/sql.Query.
-*/
-func (self *Table) compileSet(term db.Set) (string, db.SqlArgs) {
-	sql := make([]string, len(term))
-	args := make(db.SqlArgs, len(term))
-
-	i := 0
-	for key, arg := range term {
-		sql[i] = fmt.Sprintf("%s = ?", key)
-		args[i] = toInternal(arg)
-		i++
-	}
-
-	return strings.Join(sql, ", "), args
-}
-
-/*
 	Transforms conditions into arguments for sql.Exec/sql.Query
 */
 func (self *Table) compileConditions(term interface{}) (string, db.SqlArgs) {
@@ -274,27 +257,40 @@ func (self *Table) Remove(terms ...interface{}) error {
 /*
 	Modifies all the rows in the table that match certain conditions.
 */
-func (self *Table) Update(terms ...interface{}) error {
+func (self *Table) Update(selector interface{}, update interface{}) error {
+	var err error
+	var updateFields []string
+	var updateArgs db.SqlArgs
 
-	var fields string
-	var fargs db.SqlArgs
+	selectorConds, selectorArgs := self.compileConditions(selector)
 
-	conds, args := self.compileConditions(terms)
+	if selectorConds == "" {
+		return errors.New("Received no conditions.")
+	}
 
-	for _, term := range terms {
-		switch t := term.(type) {
-		case db.Set:
-			fields, fargs = self.compileSet(t)
+	fields, values, err := self.FieldValues(update, toInternal)
+
+	if err == nil {
+		total := len(fields)
+		updateFields = make([]string, total)
+		updateArgs = make(db.SqlArgs, total)
+		for i := 0; i < total; i++ {
+			updateFields[i] = fmt.Sprintf("%s = ?", fields[i])
+			updateArgs[i] = values[i]
 		}
+	} else {
+		return err
 	}
 
-	if conds == "" {
-		conds = "1 = 1"
-	}
-
-	_, err := self.source.doExec(
-		fmt.Sprintf("UPDATE '%s' SET %s", self.Name(), fields), fargs,
-		fmt.Sprintf("WHERE %s", conds), args,
+	_, err = self.source.doExec(
+		fmt.Sprintf(
+			"UPDATE '%s' SET %s",
+			self.Name(),
+			strings.Join(updateFields, ", "),
+		),
+		updateArgs,
+		fmt.Sprintf("WHERE %s", selectorConds),
+		selectorArgs,
 	)
 
 	return err

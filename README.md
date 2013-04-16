@@ -218,13 +218,13 @@ Got problems? try to use the
 
 ## Things to do
 
-This is an evolving project, there are still some things to do:
+This is an evolving project, there are still lots of things to do:
 
 * Add db.Upsert and db.Modify for SQL databases.
 * Add CouchDB support.
 
 ## Changelog
-
+    2013/04/15 - Adding support for Update() with structs and maps.
     2013/04/06 - Adding support for struct tags.
     2013/03/10 - Breaking change: Find() and FindAll() now will return ([item],
                  error).

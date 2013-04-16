@@ -25,11 +25,11 @@ package mongo
 
 import (
 	"fmt"
+	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
 	"menteslibres.net/gosexy/db"
 	"menteslibres.net/gosexy/db/util"
 	"menteslibres.net/gosexy/to"
-	"labix.org/v2/mgo"
-	"labix.org/v2/mgo/bson"
 	"strings"
 )
 
@@ -253,44 +253,12 @@ func (self *SourceCollection) Remove(terms ...interface{}) error {
 }
 
 // Updates all the items that match the given conditions.
-func (self *SourceCollection) Update(terms ...interface{}) error {
+func (self *SourceCollection) Update(selector interface{}, update interface{}) error {
 	var err error
+	query := self.compileQuery(selector)
 
-	var action = struct {
-		Set    *db.Set
-		Upsert *db.Upsert
-		Modify *db.Modify
-	}{}
-
-	query := self.compileQuery(terms...)
-
-	for i, _ := range terms {
-		switch t := terms[i].(type) {
-		case db.Set:
-			action.Set = &t
-		case db.Upsert:
-			action.Upsert = &t
-		case db.Modify:
-			action.Modify = &t
-		}
-	}
-
-	if action.Set != nil {
-		_, err = self.collection.UpdateAll(query, db.Item{"$set": action.Set})
-		return err
-	}
-
-	if action.Modify != nil {
-		_, err = self.collection.UpdateAll(query, action.Modify)
-		return err
-	}
-
-	if action.Upsert != nil {
-		_, err = self.collection.Upsert(query, action.Upsert)
-		return err
-	}
-
-	return nil
+	_, err = self.collection.UpdateAll(query, bson.M{"$set": update})
+	return err
 }
 
 // Returns the number of items that match the given conditions.

@@ -2,11 +2,11 @@ package postgresql
 
 import (
 	"fmt"
+	"github.com/kr/pretty"
+	"math/rand"
 	"menteslibres.net/gosexy/db"
 	"menteslibres.net/gosexy/dig"
 	"menteslibres.net/gosexy/to"
-	"github.com/kr/pretty"
-	"math/rand"
 	"reflect"
 	"testing"
 	"time"
@@ -373,6 +373,8 @@ func TestDelete(t *testing.T) {
 
 // Tries to update rows.
 func TestUpdate(t *testing.T) {
+	var found int
+
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
@@ -383,11 +385,21 @@ func TestUpdate(t *testing.T) {
 
 	people := sess.ExistentCollection("people")
 
+	// Update with map.
 	people.Update(db.Cond{"name": "José"}, db.Set{"name": "Joseph"})
 
-	result, _ := people.Find(db.Cond{"name": "Joseph"})
+	found, _ = people.Count(db.Cond{"name": "Joseph"})
 
-	if len(result) == 0 {
+	if found != 1 {
+		t.Fatalf("Could not update a recently appended item.")
+	}
+
+	// Update with struct.
+	people.Update(db.Cond{"name": "Joseph"}, struct{ Name string }{"José"})
+
+	found, _ = people.Count(db.Cond{"name": "José"})
+
+	if found != 1 {
 		t.Fatalf("Could not update a recently appended item.")
 	}
 }
