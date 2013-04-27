@@ -34,6 +34,10 @@ import (
 	"strings"
 )
 
+var (
+	ErrNoMoreRows = errors.New(`There are no more rows in this result set.`)
+)
+
 type T struct {
 	PrimaryKey  string
 	ColumnTypes map[string]reflect.Kind
@@ -103,21 +107,18 @@ func (self *T) fetchResult(itemt reflect.Type, rows *sql.Rows, columns []string)
 			var cv reflect.Value
 
 			if _, ok := self.ColumnTypes[column]; ok == true {
-				v, _ := to.Convert(string(*value), self.ColumnTypes[column])
+				v, _ := to.Convert(svalue, self.ColumnTypes[column])
 				cv = reflect.ValueOf(v)
 			} else {
-				v, _ := to.Convert(string(*value), reflect.String)
+				v, _ := to.Convert(svalue, reflect.String)
 				cv = reflect.ValueOf(v)
 			}
 
 			switch itemt.Kind() {
 			// Destination is a map.
 			case reflect.Map:
-				if cv.Type().Kind() != itemt.Elem().Kind() {
-					if itemt.Elem().Kind() != reflect.Interface {
-						// Converting value.
-						cv, _ = util.ConvertValue(svalue, itemt.Elem().Kind())
-					}
+				if cv.Type() != itemt.Elem() {
+					cv, _ = util.StringToType(svalue, itemt.Elem())
 				}
 				if cv.IsValid() {
 					item.SetMapIndex(reflect.ValueOf(column), cv)
@@ -135,10 +136,9 @@ func (self *T) fetchResult(itemt reflect.Type, rows *sql.Rows, columns []string)
 					destf := item.Elem().FieldByIndex(index)
 
 					if destf.IsValid() {
-						if cv.Type().Kind() != destf.Type().Kind() {
+						if cv.Type() != destf.Type() {
 							if destf.Type().Kind() != reflect.Interface {
-								// Converting value.
-								cv, _ = util.ConvertValue(svalue, destf.Type().Kind())
+								cv, _ = util.StringToType(svalue, destf.Type())
 							}
 						}
 						// Copying value.
@@ -178,8 +178,8 @@ func (self *T) FetchRow(dst interface{}, rows *sql.Rows) error {
 
 	dstv := reflect.ValueOf(dst)
 
-	if dstv.Kind() != reflect.Ptr || dstv.IsNil() {
-		return errors.New("fetchRows expects a pointer to slice.")
+	if dstv.IsNil() || dstv.Kind() != reflect.Ptr {
+		return util.ErrExpectingPointer
 	}
 
 	itemv := dstv.Elem()
@@ -193,7 +193,7 @@ func (self *T) FetchRow(dst interface{}, rows *sql.Rows) error {
 	next := rows.Next()
 
 	if next == false {
-		return fmt.Errorf("No more rows.")
+		return ErrNoMoreRows
 	}
 
 	item, err := self.fetchResult(itemv.Type(), rows, columns)
@@ -215,8 +215,16 @@ func (self *T) FetchRows(dst interface{}, rows *sql.Rows) error {
 	// Destination.
 	dstv := reflect.ValueOf(dst)
 
+	if dstv.IsNil() || dstv.Kind() != reflect.Ptr {
+		return util.ErrExpectingPointer
+	}
+
+	if dstv.Elem().Kind() != reflect.Slice {
+		return util.ErrExpectingSlicePointer
+	}
+
 	if dstv.Kind() != reflect.Ptr || dstv.Elem().Kind() != reflect.Slice || dstv.IsNil() {
-		return errors.New("Expecting a pointer to slice of maps or structs.")
+		return util.ErrExpectingSliceMapStruct
 	}
 
 	columns, err := getRowColumns(rows)

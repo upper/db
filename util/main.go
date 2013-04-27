@@ -34,6 +34,12 @@ import (
 	"time"
 )
 
+var (
+	ErrExpectingPointer        = errors.New(`Expecting a pointer destination (dst interface{}).`)
+	ErrExpectingSlicePointer   = errors.New(`Expecting a pointer to an slice (dst interface{}).`)
+	ErrExpectingSliceMapStruct = errors.New(`Expecting a pointer to an slice of maps or structs (dst interface{}).`)
+)
+
 var extRelationPattern = regexp.MustCompile(`\{(.+)\}`)
 var columnCompareExclude = regexp.MustCompile(`[^a-zA-Z0-9]`)
 
@@ -305,7 +311,7 @@ func (self *C) FetchRelation(dst interface{}, relations []db.Relation, convertFn
 	dstv := reflect.ValueOf(dst)
 
 	if dstv.Kind() != reflect.Ptr || dstv.IsNil() {
-		return errors.New("Expecting a pointer.")
+		return ErrExpectingPointer
 	}
 
 	err = fetchItemRelations(dstv.Elem(), relations, convertFn)
@@ -350,21 +356,39 @@ func ValidateSliceDestination(dst interface{}) error {
 	// Checking input
 	dstv = reflect.ValueOf(dst)
 
-	if dstv.Kind() != reflect.Ptr || dstv.IsNil() || dstv.Elem().Kind() != reflect.Slice {
-		return errors.New("Expecting a pointer to slice.")
+	if dstv.IsNil() || dstv.Kind() != reflect.Ptr {
+		return ErrExpectingPointer
+	}
+
+	if dstv.Elem().Kind() != reflect.Slice {
+		return ErrExpectingSlicePointer
 	}
 
 	itemv = dstv.Elem()
 	itemk = itemv.Type().Elem().Kind()
 
 	if itemk != reflect.Struct && itemk != reflect.Map {
-		return errors.New("Expecting a pointer to slice of maps or structs.")
+		return ErrExpectingSliceMapStruct
 	}
 
 	return nil
 }
 
-func ConvertValue(src string, dstk reflect.Kind) (reflect.Value, error) {
+func StringToType(src string, dstt reflect.Type) (reflect.Value, error) {
+	var srcv reflect.Value
+	switch dstt {
+	case durationType:
+		srcv = reflect.ValueOf(to.Duration(src))
+	case timeType:
+		// Destination is time.Time
+		srcv = reflect.ValueOf(to.Time(src))
+	default:
+		return StringToKind(src, dstt.Kind())
+	}
+	return srcv, nil
+}
+
+func StringToKind(src string, dstk reflect.Kind) (reflect.Value, error) {
 	var srcv reflect.Value
 
 	// Destination type.
@@ -372,15 +396,11 @@ func ConvertValue(src string, dstk reflect.Kind) (reflect.Value, error) {
 	case reflect.Interface:
 		// Destination is interface, nuff said.
 		srcv = reflect.ValueOf(src)
-	case durationType.Kind():
-		// Destination is time.Duration
-		srcv = reflect.ValueOf(to.Duration(src))
-	case timeType.Kind():
-		// Destination is time.Time
-		srcv = reflect.ValueOf(to.Time(src))
 	default:
-		// Destination is of an unknown type.
-		cv, _ := to.Convert(src, dstk)
+		cv, err := to.Convert(src, dstk)
+		if err != nil {
+			return srcv, nil
+		}
 		srcv = reflect.ValueOf(cv)
 	}
 

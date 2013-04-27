@@ -73,7 +73,7 @@ func TestOpenFailed(t *testing.T) {
 	_, err := db.Open(wrapperName, db.DataSource{})
 
 	if err == nil {
-		t.Errorf("Could not open database.")
+		t.Fatalf("Could not open database.")
 	}
 }
 
@@ -103,7 +103,7 @@ func TestTruncate(t *testing.T) {
 		}
 
 		if total != 0 {
-			t.Errorf("Could not truncate.")
+			t.Fatalf("Could not truncate.")
 		}
 	}
 
@@ -422,7 +422,7 @@ func TestPopulate(t *testing.T) {
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Fatalf(err.Error())
 	}
 
 	defer sess.Close()
@@ -482,7 +482,7 @@ func TestRelation(t *testing.T) {
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Fatalf(err.Error())
 	}
 
 	defer sess.Close()
@@ -539,7 +539,7 @@ func TestRelationStruct(t *testing.T) {
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Fatalf(err.Error())
 	}
 
 	defer sess.Close()
@@ -632,7 +632,7 @@ func TestDataTypes(t *testing.T) {
 	}
 
 	if found == 0 {
-		t.Errorf("Expecting an item.")
+		t.Fatalf("Expecting an item.")
 	}
 
 	// Getting and reinserting (a db.Item).
@@ -695,7 +695,7 @@ func TestDataTypes(t *testing.T) {
 	// Testing struct equality
 	for _, item := range sresults {
 		if reflect.DeepEqual(item, testValues) == false {
-			t.Errorf("Struct is different.")
+			t.Fatalf("Struct is different.")
 		}
 	}
 
