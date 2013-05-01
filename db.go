@@ -31,6 +31,7 @@ package db
 
 import (
 	"fmt"
+	"reflect"
 )
 
 /*
@@ -416,12 +417,15 @@ var wrappers = make(map[string]Database)
 	Registers a database wrapper with an unique name.
 */
 func Register(name string, driver Database) {
+
 	if name == "" {
 		panic("Missing wrapper name.")
 	}
+
 	if _, ok := wrappers[name]; ok != false {
-		panic("A wrapper with the same name was already registered.")
+		panic("Register called twice for driver " + name)
 	}
+
 	wrappers[name] = driver
 }
 
@@ -429,12 +433,21 @@ func Register(name string, driver Database) {
 	Opens a database using the named driver and the db.DataSource settings.
 */
 func Open(name string, settings DataSource) (Database, error) {
-	if _, ok := wrappers[name]; ok == false {
+
+	driver, ok := wrappers[name]
+
+	if ok == false {
 		panic(fmt.Sprintf("Unknown wrapper: %s.", name))
 	}
-	err := wrappers[name].Setup(settings)
+
+	// Creating a new connection everytime Open() is called.
+	conn := reflect.New(reflect.ValueOf(driver).Elem().Type()).Interface().(Database)
+
+	err := conn.Setup(settings)
+
 	if err != nil {
 		return nil, err
 	}
-	return wrappers[name], nil
+
+	return conn, nil
 }

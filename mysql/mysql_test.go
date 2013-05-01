@@ -216,6 +216,21 @@ func TestFind(t *testing.T) {
 
 	defer sess.Close()
 
+	/*
+		// Testing simultaneous connection.
+		sess2, err := db.Open(wrapperName, db.DataSource {
+			Database: "mysql",
+			Socket: socket,
+			User: "root",
+		})
+
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+
+		defer sess2.Close()
+	*/
+
 	people, _ := sess.Collection("people")
 
 	// Testing Find()

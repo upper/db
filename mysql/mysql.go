@@ -179,6 +179,7 @@ func (self *Source) Close() error {
 */
 func (self *Source) Setup(config db.DataSource) error {
 	self.config = config
+	self.session = nil
 	self.collections = make(map[string]db.Collection)
 	return self.Open()
 }
