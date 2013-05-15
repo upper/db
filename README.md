@@ -64,12 +64,20 @@ person := struct{
 }{}
 
 for {
-  // res.Next() will accept a pointer to map or struct.
+  // res.Next() accepts a pointer to map or a pointer to struct.
   err = res.Next(&person)
-  if err != nil {
+
+  if err == nil {
+    // If there is no error we can use person.
+    fmt.Printf("%v\n", person)
+  } else if err == db.ErrNoMoreRows {
+    // This error means we have read all rows.
     break
+  } else {
+    // Another kind of error needs proper management.
+    panic(err.Error())
   }
-  // fmt.Printf("%v\n", person)
+
 }
 ```
 
