@@ -25,7 +25,6 @@ package postgresql
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	_ "github.com/xiam/gopostgresql"
 	"menteslibres.net/gosexy/db"
@@ -110,7 +109,7 @@ func (self *Source) Name() string {
 // Wraps sql.DB.QueryRow
 func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
 	if self.session == nil {
-		return nil, fmt.Errorf("You're currently not connected.")
+		return nil, db.ErrNotConnected
 	}
 
 	chunks := sqlCompile(terms)
@@ -132,7 +131,7 @@ func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
 // Wraps sql.DB.Query
 func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
 	if self.session == nil {
-		return nil, fmt.Errorf("You're currently not connected.")
+		return nil, db.ErrNotConnected
 	}
 
 	chunks := sqlCompile(terms)
@@ -154,7 +153,7 @@ func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
 // Wraps sql.DB.Exec
 func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
 	if self.session == nil {
-		return nil, fmt.Errorf("You're currently not connected.")
+		return nil, db.ErrNotConnected
 	}
 
 	chunks := sqlCompile(terms)
@@ -209,11 +208,11 @@ func (self *Source) Open() error {
 	}
 
 	if self.config.Database == "" {
-		return fmt.Errorf("Database name is required.")
+		return db.ErrMissingDatabaseName
 	}
 
 	if self.config.Socket != "" && self.config.Host != "" {
-		return errors.New("Socket or Host are mutually exclusive.")
+		return db.ErrSockerOrHost
 	}
 
 	var conn string
@@ -227,7 +226,7 @@ func (self *Source) Open() error {
 	self.session, err = sql.Open("postgres", conn)
 
 	if err != nil {
-		return fmt.Errorf("Could not connect to %s: %s", self.config.Host, err.Error())
+		return err
 	}
 
 	return nil
@@ -307,7 +306,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 
 	// Table exists?
 	if table.Exists() == false {
-		return table, fmt.Errorf("Table %s does not exists.", name)
+		return table, db.ErrCollectionDoesNotExists
 	}
 
 	// Fetching table datatypes and mapping to internal gotypes.

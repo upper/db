@@ -25,17 +25,11 @@ package sqlutil
 
 import (
 	"database/sql"
-	"errors"
-	"fmt"
 	"menteslibres.net/gosexy/db"
 	"menteslibres.net/gosexy/db/util"
 	"menteslibres.net/gosexy/to"
 	"reflect"
 	"strings"
-)
-
-var (
-	ErrNoMoreRows = errors.New(`There are no more rows in this result set.`)
 )
 
 type T struct {
@@ -86,7 +80,7 @@ func (self *T) fetchResult(itemt reflect.Type, rows *sql.Rows, columns []string)
 	case reflect.Struct:
 		item = reflect.New(itemt)
 	default:
-		return item, fmt.Errorf("Don't know how to deal with %s, use either map or struct.", itemt.Kind())
+		return item, db.ErrExpectingMapOrStruct
 	}
 
 	err = rows.Scan(scanArgs...)
@@ -179,7 +173,7 @@ func (self *T) FetchRow(dst interface{}, rows *sql.Rows) error {
 	dstv := reflect.ValueOf(dst)
 
 	if dstv.IsNil() || dstv.Kind() != reflect.Ptr {
-		return util.ErrExpectingPointer
+		return db.ErrExpectingPointer
 	}
 
 	itemv := dstv.Elem()
@@ -193,7 +187,7 @@ func (self *T) FetchRow(dst interface{}, rows *sql.Rows) error {
 	next := rows.Next()
 
 	if next == false {
-		return ErrNoMoreRows
+		return db.ErrNoMoreRows
 	}
 
 	item, err := self.fetchResult(itemv.Type(), rows, columns)
@@ -216,15 +210,15 @@ func (self *T) FetchRows(dst interface{}, rows *sql.Rows) error {
 	dstv := reflect.ValueOf(dst)
 
 	if dstv.IsNil() || dstv.Kind() != reflect.Ptr {
-		return util.ErrExpectingPointer
+		return db.ErrExpectingPointer
 	}
 
 	if dstv.Elem().Kind() != reflect.Slice {
-		return util.ErrExpectingSlicePointer
+		return db.ErrExpectingSlicePointer
 	}
 
 	if dstv.Kind() != reflect.Ptr || dstv.Elem().Kind() != reflect.Slice || dstv.IsNil() {
-		return util.ErrExpectingSliceMapStruct
+		return db.ErrExpectingSliceMapStruct
 	}
 
 	columns, err := getRowColumns(rows)
@@ -323,7 +317,7 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) string)
 		}
 
 	default:
-		return nil, nil, fmt.Errorf("Expecting Struct or Map, received %v.", itemt.Kind())
+		return nil, nil, db.ErrExpectingMapOrStruct
 	}
 
 	return fields, values, nil

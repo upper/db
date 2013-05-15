@@ -24,7 +24,6 @@
 package postgresql
 
 import (
-	"errors"
 	"fmt"
 	"menteslibres.net/gosexy/db"
 	"menteslibres.net/gosexy/db/util/sqlutil"
@@ -53,7 +52,7 @@ func (self *Table) Query(terms ...interface{}) (db.Result, error) {
 			if queryChunks.Limit == "" {
 				queryChunks.Limit = fmt.Sprintf("LIMIT %d", v)
 			} else {
-				return nil, errors.New("A query can accept only one db.Limit() parameter.")
+				return nil, db.ErrQueryLimitParam
 			}
 		case db.Sort:
 			if queryChunks.Sort == "" {
@@ -72,13 +71,13 @@ func (self *Table) Query(terms ...interface{}) (db.Result, error) {
 				}
 				queryChunks.Sort = fmt.Sprintf("ORDER BY %s", strings.Join(sortChunks, ", "))
 			} else {
-				return nil, errors.New("A query can accept only one db.Sort{} parameter.")
+				return nil, db.ErrQuerySortParam
 			}
 		case db.Offset:
 			if queryChunks.Offset == "" {
 				queryChunks.Offset = fmt.Sprintf("OFFSET %d", v)
 			} else {
-				return nil, errors.New("A query can accept only one db.Offset() parameter.")
+				return nil, db.ErrQueryOffsetParam
 			}
 		case db.Fields:
 			queryChunks.Fields = append(queryChunks.Fields, v...)
@@ -287,7 +286,7 @@ func (self *Table) Update(selector interface{}, update interface{}) error {
 	selectorConds, selectorArgs := self.compileConditions(selector)
 
 	if selectorConds == "" {
-		return errors.New("Received no conditions.")
+		return db.ErrMissingConditions
 	}
 
 	fields, values, err := self.FieldValues(update, toInternal)

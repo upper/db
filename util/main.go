@@ -24,7 +24,6 @@
 package util
 
 import (
-	"errors"
 	"fmt"
 	"menteslibres.net/gosexy/db"
 	"menteslibres.net/gosexy/to"
@@ -32,12 +31,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-)
-
-var (
-	ErrExpectingPointer        = errors.New(`Expecting a pointer destination (dst interface{}).`)
-	ErrExpectingSlicePointer   = errors.New(`Expecting a pointer to an slice (dst interface{}).`)
-	ErrExpectingSliceMapStruct = errors.New(`Expecting a pointer to an slice of maps or structs (dst interface{}).`)
 )
 
 var extRelationPattern = regexp.MustCompile(`\{(.+)\}`)
@@ -158,7 +151,7 @@ func Fetch(dst interface{}, item db.Item) error {
 	dstv := reflect.ValueOf(dst)
 
 	if dstv.Kind() != reflect.Ptr || dstv.IsNil() {
-		return fmt.Errorf("Fetch() expects a pointer.")
+		return db.ErrExpectingPointer
 	}
 
 	el := dstv.Elem().Type()
@@ -179,7 +172,7 @@ func Fetch(dst interface{}, item db.Item) error {
 	case reflect.Map:
 		dstv.Elem().Set(reflect.ValueOf(item))
 	default:
-		return fmt.Errorf("Expecting a pointer to map or struct, got %s.", el.Kind())
+		return db.ErrExpectingMapOrStruct
 	}
 
 	return nil
@@ -311,7 +304,7 @@ func (self *C) FetchRelation(dst interface{}, relations []db.Relation, convertFn
 	dstv := reflect.ValueOf(dst)
 
 	if dstv.Kind() != reflect.Ptr || dstv.IsNil() {
-		return ErrExpectingPointer
+		return db.ErrExpectingPointer
 	}
 
 	err = fetchItemRelations(dstv.Elem(), relations, convertFn)
@@ -357,18 +350,18 @@ func ValidateSliceDestination(dst interface{}) error {
 	dstv = reflect.ValueOf(dst)
 
 	if dstv.IsNil() || dstv.Kind() != reflect.Ptr {
-		return ErrExpectingPointer
+		return db.ErrExpectingPointer
 	}
 
 	if dstv.Elem().Kind() != reflect.Slice {
-		return ErrExpectingSlicePointer
+		return db.ErrExpectingSlicePointer
 	}
 
 	itemv = dstv.Elem()
 	itemk = itemv.Type().Elem().Kind()
 
 	if itemk != reflect.Struct && itemk != reflect.Map {
-		return ErrExpectingSliceMapStruct
+		return db.ErrExpectingSliceMapStruct
 	}
 
 	return nil

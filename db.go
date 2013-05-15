@@ -30,6 +30,7 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 )
@@ -409,6 +410,23 @@ type Fields []string
 type MultiFlag bool
 type SqlValues []string
 type SqlArgs []string
+
+// Error messages
+var (
+	ErrExpectingPointer        = errors.New(`Expecting a pointer destination (dst interface{}).`)
+	ErrExpectingSlicePointer   = errors.New(`Expecting a pointer to an slice (dst interface{}).`)
+	ErrExpectingSliceMapStruct = errors.New(`Expecting a pointer to an slice of maps or structs (dst interface{}).`)
+	ErrExpectingMapOrStruct    = errors.New(`Expecting either a pointer to a map or a pointer to a struct.`)
+	ErrNoMoreRows              = errors.New(`There are no more rows in this result set.`)
+	ErrNotConnected            = errors.New(`You're currently not connected.`)
+	ErrMissingDatabaseName     = errors.New(`Missing a database name.`)
+	ErrCollectionDoesNotExists = errors.New(`Collection does not exists.`)
+	ErrSockerOrHost            = errors.New(`You can connect either to a socket or a host but not both.`)
+	ErrQueryLimitParam         = errors.New(`A query can accept only one db.Limit() parameter.`)
+	ErrQuerySortParam          = errors.New(`A query can accept only one db.Sort{} parameter.`)
+	ErrQueryOffsetParam        = errors.New(`A query can accept only one db.Offset() parameter.`)
+	ErrMissingConditions       = errors.New(`Missing selector conditions.`)
+)
 
 // Registered wrappers.
 var wrappers = make(map[string]Database)

@@ -25,8 +25,8 @@ package mongo
 
 import (
 	"fmt"
-	"menteslibres.net/gosexy/db"
 	"labix.org/v2/mgo"
+	"menteslibres.net/gosexy/db"
 	"net/url"
 	"time"
 )
@@ -84,7 +84,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 	col.SetName = name
 
 	if col.Exists() == false {
-		err = fmt.Errorf("Collection %s does not exists.", name)
+		err = db.ErrCollectionDoesNotExists
 	}
 
 	return col, err
@@ -131,7 +131,7 @@ func (self *Source) Open() error {
 	self.session, err = mgo.DialWithTimeout(connURL.String(), 5*time.Second)
 
 	if err != nil {
-		return fmt.Errorf("Could not connect to %s: %s.", self.config.Host, err.Error())
+		return err
 	}
 
 	if self.config.Database != "" {

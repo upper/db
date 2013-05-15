@@ -24,10 +24,9 @@
 package mongo
 
 import (
-	"errors"
+	"labix.org/v2/mgo"
 	"menteslibres.net/gosexy/db"
 	"menteslibres.net/gosexy/db/util"
-	"labix.org/v2/mgo"
 )
 
 type Result struct {
@@ -61,7 +60,7 @@ func (self *Result) All(dst interface{}) error {
 func (self *Result) Next(dst interface{}) error {
 
 	if self.iter.Next(dst) == false {
-		return errors.New("No more results.")
+		return db.ErrNoMoreRows
 	}
 
 	if self.iter.Err() != nil {

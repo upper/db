@@ -25,7 +25,6 @@ package sqlite
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	_ "github.com/xiam/gosqlite3"
 	"menteslibres.net/gosexy/db"
@@ -115,7 +114,7 @@ func (self *Source) Name() string {
 func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
 
 	if self.session == nil {
-		return nil, errors.New("You're currently not connected.")
+		return nil, db.ErrNotConnected
 	}
 
 	chunks := sqlCompile(terms)
@@ -135,7 +134,7 @@ func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
 */
 func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
 	if self.session == nil {
-		return nil, fmt.Errorf("You're currently not connected.")
+		return nil, db.ErrNotConnected
 	}
 
 	chunks := sqlCompile(terms)
@@ -155,7 +154,7 @@ func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
 */
 func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
 	if self.session == nil {
-		return nil, fmt.Errorf("You're currently not connected.")
+		return nil, db.ErrNotConnected
 	}
 
 	chunks := sqlCompile(terms)
@@ -193,13 +192,13 @@ func (self *Source) Open() error {
 	var err error
 
 	if self.config.Database == "" {
-		return fmt.Errorf("Missing database path.")
+		return db.ErrMissingDatabaseName
 	}
 
 	self.session, err = sql.Open("sqlite3", self.config.Database)
 
 	if err != nil {
-		return fmt.Errorf("Could not open %s: %s", self.config.Database, err.Error())
+		return err
 	}
 
 	return nil
@@ -282,7 +281,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 
 	// Table exists?
 	if table.Exists() == false {
-		return table, fmt.Errorf("Table %s does not exists.", name)
+		return table, db.ErrCollectionDoesNotExists
 	}
 
 	// Fetching table datatypes and mapping to internal gotypes.
