@@ -338,11 +338,14 @@ func TestFind(t *testing.T) {
 
 	for {
 		err = res.Next(&dst5)
-		if err != nil {
+		if err == nil {
+			if dst5.PersonName == "José" {
+				found = true
+			}
+		} else if err == db.ErrNoMoreRows {
 			break
-		}
-		if dst5.PersonName == "José" {
-			found = true
+		} else {
+			t.Fatalf(err.Error())
 		}
 	}
 
