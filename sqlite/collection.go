@@ -79,7 +79,7 @@ func (self *Table) Query(terms ...interface{}) (db.Result, error) {
 			if queryChunks.Offset == "" {
 				queryChunks.Offset = fmt.Sprintf("OFFSET %d", v)
 			} else {
-				return nil, ErrQueryOffsetParam
+				return nil, db.ErrQueryOffsetParam
 			}
 		case db.Fields:
 			queryChunks.Fields = append(queryChunks.Fields, v...)
