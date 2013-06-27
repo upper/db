@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/kr/pretty"
 	"math/rand"
@@ -737,4 +738,71 @@ func TestDataTypes(t *testing.T) {
 		}
 	}
 
+}
+
+func BenchmarkAppendRaw(b *testing.B) {
+	sess, err := db.Open(wrapperName, settings)
+
+	if err != nil {
+		b.Fatalf(err.Error())
+	}
+
+	defer sess.Close()
+
+	people := sess.ExistentCollection("people")
+	people.Truncate()
+
+	driver := sess.Driver().(*sql.DB)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := driver.Exec(`INSERT INTO people (name) VALUES("john")`)
+		if err != nil {
+			b.Fatalf(err.Error())
+		}
+	}
+}
+
+// Contributed by wei2912
+// See: https://github.com/gosexy/db/issues/20#issuecomment-20097801
+func BenchmarkAppendDbItem(b *testing.B) {
+	sess, err := db.Open(wrapperName, settings)
+
+	if err != nil {
+		b.Fatalf(err.Error())
+	}
+
+	defer sess.Close()
+
+	people := sess.ExistentCollection("people")
+	people.Truncate()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err = people.Append(db.Item{"name": "john"})
+		if err != nil {
+			b.Fatalf(err.Error())
+		}
+	}
+}
+
+func BenchmarkAppendStruct(b *testing.B) {
+	sess, err := db.Open(wrapperName, settings)
+
+	if err != nil {
+		b.Fatalf(err.Error())
+	}
+
+	defer sess.Close()
+
+	people := sess.ExistentCollection("people")
+	people.Truncate()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err = people.Append(struct{ Name string }{"john"})
+		if err != nil {
+			b.Fatalf(err.Error())
+		}
+	}
 }
