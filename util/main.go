@@ -138,46 +138,6 @@ func (self *C) Name() string {
 	return self.SetName
 }
 
-func Fetch(dst interface{}, item db.Item) error {
-
-	/*
-		At this moment it is not possible to create a slice of a given element
-		type: https://code.google.com/p/go/issues/detail?id=2339
-
-		When it gets available this function should change, it must rely on
-		FetchAll() the same way Find() relies on FindAll().
-	*/
-
-	dstv := reflect.ValueOf(dst)
-
-	if dstv.Kind() != reflect.Ptr || dstv.IsNil() {
-		return db.ErrExpectingPointer
-	}
-
-	el := dstv.Elem().Type()
-
-	switch el.Kind() {
-	case reflect.Struct:
-		for column, _ := range item {
-			index := GetStructFieldIndex(dstv.Type(), column)
-			if index == nil {
-				continue
-			} else {
-				v := dstv.Elem().FieldByIndex(index)
-				if v.IsValid() {
-					v.Set(reflect.ValueOf(item[column]))
-				}
-			}
-		}
-	case reflect.Map:
-		dstv.Elem().Set(reflect.ValueOf(item))
-	default:
-		return db.ErrExpectingMapOrStruct
-	}
-
-	return nil
-}
-
 func fetchItemRelations(itemv reflect.Value, relations []db.Relation, convertFn func(interface{}) interface{}) error {
 	var err error
 
