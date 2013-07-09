@@ -797,10 +797,7 @@ func BenchmarkAppendDbItem_Transaction(b *testing.B) {
 	people := sess.ExistentCollection("people")
 	people.Truncate()
 
-	driver := sess.Driver().(*sql.DB)
-
-	b.ResetTimer()
-	_, err = driver.Exec(`BEGIN`)
+	err = sess.Begin()
 	if err != nil {
 		b.Fatalf(err.Error())
 	}
@@ -812,7 +809,7 @@ func BenchmarkAppendDbItem_Transaction(b *testing.B) {
 		}
 	}
 
-	_, err = driver.Exec(`END`)
+	err = sess.End()
 	if err != nil {
 		b.Fatalf(err.Error())
 	}

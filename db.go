@@ -310,6 +310,16 @@ type Database interface {
 		Returns the name of the active database.
 	*/
 	Name() string
+
+	/*
+		Starts a transaction block.
+	*/
+	Begin() error
+
+	/*
+		Ends a transaction block.
+	*/
+	End() error
 }
 
 // Collection methods.

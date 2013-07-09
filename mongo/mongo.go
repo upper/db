@@ -72,6 +72,24 @@ func (self *Source) Use(database string) error {
 	return nil
 }
 
+/*
+	Starts a transaction block.
+*/
+func (self *Source) Begin() error {
+	// TODO:
+	// MongoDB does not supports something like BEGIN and END statements.
+	return nil
+}
+
+/*
+	Ends a transaction block.
+*/
+func (self *Source) End() error {
+	// TODO:
+	// MongoDB does not supports something like BEGIN and END statements.
+	return nil
+}
+
 // Returns a collection from the current database.
 func (self *Source) Collection(name string) (db.Collection, error) {
 	var err error
