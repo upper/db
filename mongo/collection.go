@@ -289,10 +289,12 @@ func (self *SourceCollection) buildQuery(terms ...interface{}) *mgo.Query {
 	var delim = struct {
 		Limit  int
 		Offset int
+		Fields *db.Fields
 		Sort   *db.Sort
 	}{
 		-1,
 		-1,
+		nil,
 		nil,
 	}
 
@@ -301,6 +303,8 @@ func (self *SourceCollection) buildQuery(terms ...interface{}) *mgo.Query {
 
 	for i, _ := range terms {
 		switch t := terms[i].(type) {
+		case db.Fields:
+			delim.Fields = &t
 		case db.Limit:
 			delim.Limit = int(t)
 		case db.Offset:
@@ -322,7 +326,16 @@ func (self *SourceCollection) buildQuery(terms ...interface{}) *mgo.Query {
 		res = res.Limit(delim.Limit)
 	}
 
-	// Sorting result
+	// Delimiting fields.
+	if delim.Fields != nil {
+		sel := bson.M{}
+		for _, field := range *delim.Fields {
+			sel[field] = true
+		}
+		res = res.Select(sel)
+	}
+
+	// Sorting result.
 	if delim.Sort != nil {
 		for key, val := range *delim.Sort {
 			sval := to.String(val)
