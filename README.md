@@ -1,8 +1,10 @@
 # gosexy/db
 
 `gosexy/db` is a set of wrappers for SQL and NoSQL database drivers for the
-[Go][7] programming languaje. Currently compatible with [MongoDB][1],
+[Go][7] programming languaje, it's currently compatible with [MongoDB][1],
 [MySQL][2], [PostgreSQL][3] and [SQLite3][4].
+
+If you're interested on a quick tour see the [project page][8].
 
 ## The project
 
@@ -12,7 +14,7 @@ abstraction for performing mundane operations such as *create*, *read*,
 
 While `gosexy/db` is *not* an ORM *per se* it can be used as the base for one,
 we leave that up to you, `gosexy/db` prefers to stay out of the way and just
-focusing in providing compatibility between databases, it's like a *babelfish*!
+focusing in providing a layer of compatibility between databases.
 
 ### An introductory example
 
@@ -33,21 +35,22 @@ for i, item := range items {
 ```
 
 `db.Collection.FindAll()` will accept different structures in no special order,
-in the above example we are passing a `db.Cond{}` type, that's a condition,
-you could also use `db.And{}`, `db.Or{}`, `db.Limit(n)`, `db.Offset(n)`, etc.
-each one of them having different meanings.
+in the above example we passed a `db.Cond{}` type, that's a condition, you could
+also use other statemets such as `db.And{}`, `db.Or{}`, `db.Limit(n)`,
+`db.Offset(n)`, etc. to customize your query.
 
 While this level of abstraction would not be able to represent a complex query
-or to use any database-specific features it's fairly convenient for doing the
-simple CRUD stuff, and regarding more advanced queries, the underlying driver
-could always be retrieved as a `*sql.DB` or a `*mgo.Session` so you can still
-be able to use any database-pro spells.
+or to use any database-specific features it's fairly convenient for doing most
+of the operations you would do with a database, and if you ever need to do more
+advanced queries, the underlying driver could always be retrieved as a `*sql.DB`
+or a `*mgo.Session` so you can still be able to use any database-specific
+pro spells.
 
 ### Iterating over results
 
 Fetching all rows may be not so adequate for processing large datasets, in that
-case we can use `db.Collection.Query()` instead of `db.Collection.FindAll()` and
-then iterate over the results.
+case we could use `db.Collection.Query()` instead of `db.Collection.FindAll()`
+and then iterate over the results.
 
 ```go
 // Makes a query and stores the result.
@@ -102,10 +105,6 @@ In the above example, `peopleCollection` and `worksCollection` are
 `db.Collection` objects and they could be collections or tables of any of the
 supported databases. You can even relate NoSQL collections to SQL tables!
 
-### Current state
-
-`gosexy/db` is a work in progress but its core features are ready for use.
-
 ## Installation
 
 Use `go get` to download and install `gosexy/db`.
@@ -113,21 +112,6 @@ Use `go get` to download and install `gosexy/db`.
 ```sh
 go get menteslibres.net/gosexy/db
 ```
-
-The `gosexy/db` package provides interface definitions and datatypes only, it
-can't connect to any database by itself, in order to connect to an actual
-database a database *wrapper* is required.
-
-## Database wrappers
-
-Database wrappers are all different and may have special installation
-requirements, please refer to the appropriate documentation reference on the
-following list.
-
-* [mongo](http://gosexy.org/db/wrappers/mongo)
-* [mysql](http://gosexy.org/db/wrappers/mysql)
-* [postgresql](http://gosexy.org/db/wrappers/postgresql)
-* [sqlite](http://gosexy.org/db/wrappers/sqlite)
 
 ## Usage example
 
@@ -213,13 +197,13 @@ for _, item := range items {
 }
 ```
 
-The same example goes for other wrappers, you just change the driver name to
-`mysql`, `postgresql` or `sqlite`.
+Remember this example uses the `mongo` wrapper, but there are other wrappers
+available and they work with the same code.
 
 ## Documentation
 
-We have an [online reference](http://gosexy.org/db) and you can always have a
-quick look to the API at our [documentation page][5].
+We have an [online reference][8] and you can always have a quick look to the
+API at our [documentation page][5].
 
 Got problems? try to use the
 [forum](https://groups.google.com/forum/?fromgroups=#!forum/gosexy).
@@ -256,4 +240,5 @@ This is an evolving project, there are still lots of things to do:
 [5]: http://godoc.org/menteslibres.net/gosexy/db
 [6]: https://menteslibres.net/xiam
 [7]: http://www.golang.org
+[8]: https://menteslibres.net/gosexy/db
 
