@@ -214,10 +214,10 @@ type Collection interface {
 type Result interface {
 
 	// Removes all items within the result set.
-	Remove()
+	Remove() error
 
 	// Updates all items within the result set.
-	Update(interface{})
+	Update(interface{}) error
 
 	// Counts all items within the result set.
 	Count() (int, error)
@@ -246,7 +246,7 @@ type Result interface {
 }
 
 // Specifies which fields will be returned in a query.
-// type Fields []string
+type Fields []string
 
 // These are internal variables.
 //type MultiFlag bool
