@@ -36,30 +36,31 @@ import (
 var Debug = false
 
 // Format for saving dates.
-var DateFormat = "2006-01-02 15:04:05"
+var DateFormat = `2006-01-02 15:04:05`
 
 // Format for saving times.
-var TimeFormat = "%d:%02d:%02d.%d"
+var TimeFormat = `%d:%02d:%02d.%d`
 
 var columnPattern = regexp.MustCompile(`^([a-zA-Z]+)\(?([0-9,]+)?\)?\s?([a-zA-Z]*)?`)
 
+const driverName = `sqlite`
+
 func init() {
-	db.Register("sqlite", &Source{})
+	db.Register(driverName, &Source{})
 }
 
-/*
-	Driver's session data.
-*/
+type sqlValues_t []string
+
 type Source struct {
-	config      db.DataSource
+	config      db.Settings
 	session     *sql.DB
 	name        string
 	collections map[string]db.Collection
 }
 
 type sqlQuery struct {
-	Query   []string
-	SqlArgs []interface{}
+	Query []string
+	Args  []interface{}
 }
 
 func sqlCompile(terms []interface{}) *sqlQuery {
@@ -71,17 +72,17 @@ func sqlCompile(terms []interface{}) *sqlQuery {
 		switch t := term.(type) {
 		case string:
 			q.Query = append(q.Query, t)
-		case db.SqlArgs:
+		case []string:
 			for _, arg := range t {
-				q.SqlArgs = append(q.SqlArgs, arg)
+				q.Args = append(q.Args, arg)
 			}
-		case db.SqlValues:
+		case sqlValues_t:
 			args := make([]string, len(t))
 			for i, arg := range t {
-				args[i] = "?"
-				q.SqlArgs = append(q.SqlArgs, arg)
+				args[i] = `?`
+				q.Args = append(q.Args, arg)
 			}
-			q.Query = append(q.Query, "("+strings.Join(args, ", ")+")")
+			q.Query = append(q.Query, `(`+strings.Join(args, `, `)+`)`)
 		}
 	}
 
@@ -95,63 +96,14 @@ func sqlFields(names []string) string {
 	return `("` + strings.Join(names, `", "`) + `")`
 }
 
-func sqlValues(values []string) db.SqlValues {
-	ret := make(db.SqlValues, len(values))
+func sqlValues(values []string) sqlValues_t {
+	ret := make(sqlValues_t, len(values))
 	for i, _ := range values {
 		ret[i] = values[i]
 	}
 	return ret
 }
 
-/*
-	Returns the name of the database.
-*/
-func (self *Source) Name() string {
-	return self.config.Database
-}
-
-// Wraps sql.DB.QueryRow
-func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
-
-	if self.session == nil {
-		return nil, db.ErrNotConnected
-	}
-
-	chunks := sqlCompile(terms)
-
-	query := strings.Join(chunks.Query, " ")
-
-	if Debug == true {
-		fmt.Printf("Q: %s\n", query)
-		fmt.Printf("A: %v\n", chunks.SqlArgs)
-	}
-
-	return self.session.QueryRow(query, chunks.SqlArgs...), nil
-}
-
-/*
-	Wraps sql.DB.Query
-*/
-func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
-	if self.session == nil {
-		return nil, db.ErrNotConnected
-	}
-
-	chunks := sqlCompile(terms)
-
-	query := strings.Join(chunks.Query, " ")
-
-	if Debug == true {
-		fmt.Printf("Q: %s\n", query)
-		fmt.Printf("A: %v\n", chunks.SqlArgs)
-	}
-
-	return self.session.Query(query, chunks.SqlArgs...)
-}
-
-/*
-	Wraps sql.DB.Exec
-*/
 func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
 	if self.session == nil {
 		return nil, db.ErrNotConnected
@@ -159,35 +111,52 @@ func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
 
 	chunks := sqlCompile(terms)
 
-	query := strings.Join(chunks.Query, " ")
+	query := strings.Join(chunks.Query, ` `)
 
 	if Debug == true {
 		fmt.Printf("Q: %s\n", query)
-		fmt.Printf("A: %v\n", chunks.SqlArgs)
+		fmt.Printf("A: %v\n", chunks.Args)
 	}
 
-	return self.session.Exec(query, chunks.SqlArgs...)
+	return self.session.Exec(query, chunks.Args...)
 }
 
-/*
-	Configures and returns a database session.
-*/
-func (self *Source) Setup(config db.DataSource) error {
+func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
+
+	if self.session == nil {
+		return nil, db.ErrNotConnected
+	}
+
+	chunks := sqlCompile(terms)
+
+	query := strings.Join(chunks.Query, ` `)
+
+	if Debug == true {
+		fmt.Printf("Q: %s\n", query)
+		fmt.Printf("A: %v\n", chunks.Args)
+	}
+
+	return self.session.Query(query, chunks.Args...)
+}
+
+// Returns the string name of the database.
+func (self *Source) Name() string {
+	return self.config.Database
+}
+
+// Stores database settings.
+func (self *Source) Setup(config db.Settings) error {
 	self.config = config
 	self.collections = make(map[string]db.Collection)
 	return self.Open()
 }
 
-/*
-	Returns a *sql.DB object that represents an internal session.
-*/
+// Returns the underlying *sql.DB instance.
 func (self *Source) Driver() interface{} {
 	return self.session
 }
 
-/*
-	Tries to open a database.
-*/
+// Attempts to connect to a database using the stored settings.
 func (self *Source) Open() error {
 	var err error
 
@@ -195,7 +164,7 @@ func (self *Source) Open() error {
 		return db.ErrMissingDatabaseName
 	}
 
-	self.session, err = sql.Open("sqlite3", self.config.Database)
+	self.session, err = sql.Open(`sqlite3`, self.config.Database)
 
 	if err != nil {
 		return err
@@ -204,9 +173,7 @@ func (self *Source) Open() error {
 	return nil
 }
 
-/*
-	Closes a database session.
-*/
+// Closes the current database session.
 func (self *Source) Close() error {
 	if self.session != nil {
 		return self.session.Close()
@@ -214,74 +181,51 @@ func (self *Source) Close() error {
 	return nil
 }
 
-/*
-	Changes the active database.
-*/
+// Changes the active database.
 func (self *Source) Use(database string) error {
 	self.config.Database = database
-	_, err := self.session.Exec(fmt.Sprintf("USE '%s'", database))
+	_, err := self.session.Exec(fmt.Sprintf(`USE '%s'`, database))
 	return err
 }
 
-/*
-	Starts a transaction block.
-*/
+// Starts a transaction block.
 func (self *Source) Begin() error {
 	_, err := self.session.Exec(`BEGIN`)
 	return err
 }
 
-/*
-	Ends a transaction block.
-*/
+// Ends a transaction block.
 func (self *Source) End() error {
 	_, err := self.session.Exec(`END`)
 	return err
 }
 
-/*
-	Drops the currently active database.
-*/
+// Drops the currently active database.
 func (self *Source) Drop() error {
-	_, err := self.session.Exec(fmt.Sprintf("DROP DATABASE '%s'", self.config.Database))
+	_, err := self.session.Exec(fmt.Sprintf(`DROP DATABASE '%s'`, self.config.Database))
 	return err
 }
 
-/*
-	Returns a list of all tables in the current database.
-*/
-func (self *Source) Collections() []string {
+// Returns a list of all tables within the currently active database.
+func (self *Source) Collections() ([]string, error) {
 	var collections []string
 	var collection string
 
-	rows, err := self.session.Query("SELECT tbl_name FROM sqlite_master WHERE type = ?", "table")
+	rows, err := self.session.Query(`SELECT tbl_name FROM sqlite_master WHERE type = ?`, `table`)
 
-	if err == nil {
-		for rows.Next() {
-			rows.Scan(&collection)
-			collections = append(collections, collection)
-		}
-	} else {
-		panic(err)
-	}
-
-	return collections
-}
-
-/*
-	Returns a collection that must exists or panics.
-*/
-func (self *Source) ExistentCollection(name string) db.Collection {
-	col, err := self.Collection(name)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return col
+
+	for rows.Next() {
+		rows.Scan(&collection)
+		collections = append(collections, collection)
+	}
+
+	return collections, nil
 }
 
-/*
-	Returns a table struct by name.
-*/
+// Returns a collection instance by name.
 func (self *Source) Collection(name string) (db.Collection, error) {
 
 	if collection, ok := self.collections[name]; ok == true {
@@ -301,7 +245,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 	}
 
 	// Fetching table datatypes and mapping to internal gotypes.
-	rows, err := table.source.session.Query(fmt.Sprintf("PRAGMA TABLE_INFO('%s')", table.Name()))
+	rows, err := table.source.session.Query(fmt.Sprintf(`PRAGMA TABLE_INFO('%s')`, table.Name()))
 
 	if err != nil {
 		return table, err

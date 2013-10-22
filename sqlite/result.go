@@ -42,3 +42,15 @@ func (self *Result) Next(dst interface{}) error {
 func (self *Result) One(dst interface{}) error {
 	return self.FetchOne(dst, toInternalInterface)
 }
+
+func (self *Result) Remove() error {
+	return nil
+}
+
+func (self *Result) Update(terms interface{}) error {
+	return nil
+}
+
+func (self *Result) Count() (int, error) {
+	return 0, nil
+}
