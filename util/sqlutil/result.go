@@ -25,13 +25,11 @@ package sqlutil
 
 import (
 	"database/sql"
-	"menteslibres.net/gosexy/db"
 )
 
 type Result struct {
-	Rows      *sql.Rows
-	Table     *T
-	Relations []db.Relation
+	Rows  *sql.Rows
+	Table *T
 }
 
 func (self *Result) FetchAll(dst interface{}, convertFn func(interface{}) interface{}) error {
@@ -44,12 +42,6 @@ func (self *Result) FetchAll(dst interface{}, convertFn func(interface{}) interf
 		return err
 	}
 
-	err = self.Table.FetchRelations(dst, self.Relations, convertFn)
-
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -57,12 +49,6 @@ func (self *Result) FetchNext(dst interface{}, convertFn func(interface{}) inter
 	var err error
 
 	err = self.Table.FetchRow(dst, self.Rows)
-
-	if err != nil {
-		return err
-	}
-
-	err = self.Table.FetchRelation(dst, self.Relations, convertFn)
 
 	if err != nil {
 		return err

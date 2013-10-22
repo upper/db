@@ -22,10 +22,11 @@
 */
 
 /*
-	This package is a wrapper of many third party database drivers. The goal of
-	this abstraction is to provide a simple, common and consistent layer for
-	executing operationg among different kinds of databases without the need of
-	explicit SQL statements.
+	menteslibres.net/db wraps third party database drivers in an attempt to make
+	permanent storage with Go as easy as possible. The package features a common,
+	consistent layer that allows executing operations against different kinds of
+	databases using Go expressions, without the need for explicit database-specific
+	instructions.
 */
 package db
 
@@ -36,23 +37,24 @@ import (
 )
 
 /*
-	Handles conditions and operators in an expression.
+	The db.Cond{} expression is used to filter results in a query, it can be
+	viewed as a replacement for the SQL "WHERE" clause.
 
 	Examples:
 
+	db.Cond { "age": 18 }				// Where age equals 18.
 
-	db.Cond { "age": 18 } // Age equals 18
+	db.Cond { "age >=": 18 }		// Where age is greater than or equal to 18.
 
-	db.Cond { "age >=": 18 } // Age greater or equal than 18 (SQL/NoSQL)
-
-	db.Cond { "age $lt": 18 } // Age less than 18 (MongoDB specific)
+	db.Cond { "age $lt": 18 }		// Where age is lower than 18 (MongoDB specific).
 */
 type Cond map[string]interface{}
 
 /*
-	Logical conjuction, accepts db.Cond{}, db.Or{} and other db.And{} expressions.
+	The db.And() expression is used to glue two or more expressions under logical
+	conjunction, it accepts db.Cond{}, db.Or() and other db.And() expressions.
 
-	Example:
+	Examples:
 
 	db.And (
 		db.Cond { "name": "Peter" },
@@ -60,17 +62,18 @@ type Cond map[string]interface{}
 	)
 
 	db.And (
-		db.Or {
+		db.Or (
 			db.Cond{ "name": "Peter" },
 			db.Cond{ "name": "Mickey" },
-		},
+		),
 		db.Cond{ "last_name": "Mouse" },
 	)
 */
 type And []interface{}
 
 /*
-	Logical disjuction, accepts db.Cond{}, db.And{} and other db.Or{} expressions.
+	The db.Or() expression is used to glue two or more expressions under logical
+	disjunction, it accepts db.Cond{}, db.And() and other db.Or() expressions.
 
 	Example:
 
@@ -82,118 +85,20 @@ type And []interface{}
 type Or []interface{}
 
 /*
-	Determines how results will be sorted.
+	The db.Sort expression determines how results will be sorted.
 
-	Example:
-	db.Sort { "age": -1 } // Order by age, descendent.
-	db.Sort { "age": 1 } // Order by age, ascendent.
+	Examples:
 
-	db.Sort { "age": "DESC" } // Order by age, descendent.
-	db.Sort { "age": "ASC" } // Order by age, ascendent.
+	db.Sort { "age": -1 }				// Order by age, descendent.
+	db.Sort { "age": 1 }				// Order by age, ascendent.
 */
 type Sort map[string]interface{}
 
 /*
-	How rows are going to be modified when using *db.Collection.Update() and
-	*db.Collection.UpdateAll().
+	The db.Limit() expression sets the maximum number of rows to be returned in a
+	query.
 
-	Currently unused.
-
-	Example:
-
-	db.Modify {
-	 "$inc": {
-		 "counter": 1
-	 }
-	}
-*/
-type Modify map[string]interface{}
-
-/*
-	Defines a relation between each one of the results of a query and any other
-	collection. You can relate an item with another item in any other collection
-	using a condition.
-
-	A constant condition looks like this:
-
-	db.Cond { "external_field": "value" }
-
-	A dynamic condition looks like this (note the brackets):
-
-	db.Cond { "id": "{foreign_key}" }
-
-	The above condition will match the result where the "id" column is equal to
-	the "foreign_key" value of the local collection.
-
-	Example:
-
-	// The db.On constraint.
-
-	db.On {
-		// The external collection.
-		sess.ExistentCollection("parents"),
-
-		// Reference constraint.
-		Cond { "id": "{parent_id}" },
-	}
-
-	You can use db.On only as a value for db.Relate and db.RelateAll maps.
-*/
-type On []interface{}
-
-/*
-	A map that defines a one-to-one relation with another table.
-
-	The name of the key will define the name of the relation. A db.On{} constraint
-	is required.
-
-	Example that relates a result with a row from the "parents" collection.
-
-	// A relation exists where the parents.id column matches the
-
-	// collection.parent_id value.
-
-	db.Relate {
-		"myparent": On {
-			db.ExistentCollection("parents"),
-			Cond { "id": "{parent_id}" },
-		}
-	}
-
-*/
-type Relate map[string]On
-
-/*
-	Like db.Relate but defines a one-to-many relation.
-
-	Example that relates a result with many rows from the "sons" collection:
-
-
-	// A relation exists where the sons.parent_id column matches the collection.id
-
-	// value
-
-	db.RelateAll {
-		"children": db.On {
-			db.ExistentCollection("sons"),
-			Cond { "age <=": 18 },
-			Cond { "parent_id": "{id}" },
-		}
-	}
-*/
-type RelateAll map[string]On
-
-type Relation struct {
-	All        bool
-	Name       string
-	Collection Collection
-	On         On
-}
-
-/*
-	Sets the maximum number of rows to be fetched in a query.
-
-	If no db.Limit is specified, all matches will be returned.
+	If no db.Limit() is specified, all rows will be returned.
 
 	Example:
 
@@ -202,9 +107,10 @@ type Relation struct {
 type Limit uint
 
 /*
-	Sets the number of rows to be skipped before counting the limit in a query.
+	The db.Offset() expression sets the number of rows to be skipped from a
+	result.
 
-	If no db.Offset is specified no rows will be skipped.
+	If no db.Offset() is specified, no rows will be skipped.
 
 	Example:
 
@@ -213,8 +119,8 @@ type Limit uint
 type Offset uint
 
 /*
-	Determines new values for fields in *db.Collection.Update() and
-	*db.Collection.UpdateAll() expressions.
+	The db.Set{} expression is used in *db.Collection.Update()*, it defines new
+	values for the given fields.
 
 	Example:
 
@@ -224,25 +130,14 @@ type Offset uint
 */
 type Set map[string]interface{}
 
-/*
-	Like db.Set{} but it will insert the specified values if no match is found.
-
-	Currently unused.
-
-	db.Upsert {
-		"name": "New Name",
-	}
-*/
-type Upsert map[string]interface{}
-
 // A query result.
 type Item map[string]interface{}
 
-// A result id.
-type Id string
+// A result ID.
+type Id interface{}
 
 // Connection and authentication data.
-type DataSource struct {
+type Settings struct {
 	// Host to connect to. Cannot be used if Socket is specified.
 	Host string
 	// Port to connect to. Cannot be used if Socket is specified.
@@ -261,165 +156,102 @@ type DataSource struct {
 
 // Database methods.
 type Database interface {
-	/*
-		Returns an interface{} to the underlying driver the wrapper uses. Useful
-		for custom SQL queries.
-	*/
+	// Returns the underlying driver the wrapper uses as an interface{}, so you
+	// can still use database-specific features when you need it.
 	Driver() interface{}
 
-	/*
-		Attempts to open a connection using the db.DataSource data.
-	*/
+	// Attempts to open a connection using the current settings.
 	Open() error
 
-	/*
-		Closes the currently active connection to the database, if any.
-	*/
+	// Closes the currently active connection to the database.
 	Close() error
 
-	/*
-		Returns a db.Collection struct by name. Returns an error if the collection
-		does not exists.
-	*/
+	// Returns a db.Collection struct by name.
 	Collection(string) (Collection, error)
 
-	/*
-		Returns a db.Collection struct, panics if the collection does not exists.
-	*/
-	ExistentCollection(string) Collection
-	/*
-		Returns the names of all the collections in the active database.
-	*/
-	Collections() []string
+	// Returns the names of all the collections within the active database.
+	Collections() ([]string, error)
 
-	/*
-		Changes the active database.
-	*/
+	// Changes the active database.
 	Use(string) error
-	/*
-		Drops the active database.
-	*/
+
+	// Drops the active database.
 	Drop() error
 
-	/*
-		Sets the connection data.
-	*/
-	Setup(DataSource) error
+	// Sets database connection settings.
+	Setup(Settings) error
 
-	/*
-		Returns the name of the active database.
-	*/
+	// Returns the string name of the active database.
 	Name() string
 
-	/*
-		Starts a transaction block.
-	*/
+	// Starts a transaction block (if the database supports transactions).
 	Begin() error
 
-	/*
-		Ends a transaction block.
-	*/
+	// Ends a transaction block (if the database supports transactions).
 	End() error
 }
 
 // Collection methods.
 type Collection interface {
-	/*
-		Inserts an item into the collection. Accepts maps or structs only.
-	*/
-	Append(...interface{}) ([]Id, error)
 
-	/*
-		Returns the number of rows that given the given conditions.
-	*/
-	Count(...interface{}) (int, error)
+	// Inserts a new item into the collection. Can work with maps or structs.
+	Append(interface{}) (Id, error)
 
-	/*
-		Returns a db.Item map of the first item that matches the given conditions.
-	*/
-	Find(...interface{}) (Item, error)
-
-	/*
-		Returns a []db.Item slice of all the items that match the given conditions.
-
-		Useful for small datasets.
-	*/
-	FindAll(...interface{}) ([]Item, error)
-
-	/*
-		Finds a matching row and sets new values for the given fields.
-	*/
-	Update(interface{}, interface{}) error
-
-	/*
-		Returns true if the collection exists.
-	*/
+	// Returns true if the collection exists.
 	Exists() bool
 
-	/*
-		Returns a db.Result that can be used for iterating over the rows.
+	// Creates a filter with the given conditions and returns a result set.
+	Filter(...interface{}) (Result, error)
 
-		Useful for large datasets.
-	*/
-	Query(...interface{}) (Result, error)
-
-	/*
-		Deletes all the rows that match the given conditions.
-	*/
-	Remove(...interface{}) error
-
-	/*
-		Deletes all the rows in the collection.
-	*/
+	// Truncates the collection.
 	Truncate() error
 
-	/*
-		Returns the name of the collection.
-	*/
+	// Returns the string name of the collection.
 	Name() string
 }
 
 // Result methods.
 type Result interface {
-	/*
-		Fetches all the results of the query into the given pointer.
 
-		Accepts a pointer to slice of maps or structs.
-	*/
+	// Removes all items within the result set.
+	Remove()
+
+	// Updates all items within the result set.
+	Update(interface{})
+
+	// Counts all items within the result set.
+	Count() (int, error)
+
+	// Fetches all the results of the query into the given pointer.
+	//
+	// Accepts a pointer to slice of maps or structs.
 	All(interface{}) error
 
-	/*
-		Fetches the first result of the query into the given pointer and discards
-		the rest.
-
-		Accepts a pointer to map or struct.
-	*/
+	// Fetches the first result of the query into the given pointer and discards
+	// the rest.
+	//
+	// Accepts a pointer to map or struct.
 	One(interface{}) error
 
-	/*
-		Fetches the next result of the query into the given pointer. Returns error if
-		there are no more results.
-
-		Warning: If you're only using part of these results you must manually Close()
-		the result.
-
-		Accepts a pointer to map or struct.
-	*/
+	// Fetches the next result of the query into the given pointer. Returns error if
+	// there are no more results.
+	// Warning: If you're only using part of these results you must manually Close()
+	// the result.
+	//
+	// Accepts a pointer to map or struct.
 	Next(interface{}) error
 
-	/*
-		Closes the result.
-	*/
+	// Closes the resultset.
 	Close() error
 }
 
 // Specifies which fields will be returned in a query.
-type Fields []string
+// type Fields []string
 
 // These are internal variables.
-type MultiFlag bool
-type SqlValues []string
-type SqlArgs []string
+//type MultiFlag bool
+//type SqlValues []string
+//type SqlArgs []string
 
 // Error messages
 var (
@@ -441,9 +273,7 @@ var (
 // Registered wrappers.
 var wrappers = make(map[string]Database)
 
-/*
-	Registers a database wrapper with an unique name.
-*/
+// Registers a database wrapper with a unique name.
 func Register(name string, driver Database) {
 
 	if name == "" {
@@ -457,10 +287,9 @@ func Register(name string, driver Database) {
 	wrappers[name] = driver
 }
 
-/*
-	Opens a database using the named driver and the db.DataSource settings.
-*/
-func Open(name string, settings DataSource) (Database, error) {
+// Configures a connection to a database using the named wrapper and the given
+// settings.
+func Open(name string, settings Settings) (Database, error) {
 
 	driver, ok := wrappers[name]
 
@@ -469,8 +298,11 @@ func Open(name string, settings DataSource) (Database, error) {
 	}
 
 	// Creating a new connection everytime Open() is called.
-	conn := reflect.New(reflect.ValueOf(driver).Elem().Type()).Interface().(Database)
+	t := reflect.ValueOf(driver).Elem().Type()
 
+	conn := reflect.New(t).Interface().(Database)
+
+	// Setting up the connection with the given source.
 	err := conn.Setup(settings)
 
 	if err != nil {

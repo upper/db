@@ -43,11 +43,8 @@ type QueryChunks struct {
 	Limit      string
 	Offset     string
 	Sort       string
-	Relate     db.Relate
-	RelateAll  db.RelateAll
-	Relations  []db.Relation
 	Conditions string
-	Arguments  db.SqlArgs
+	Arguments  []string
 }
 
 func (self *T) ColumnLike(s string) string {
@@ -324,9 +321,6 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) string)
 }
 
 func NewQueryChunks() *QueryChunks {
-	self := &QueryChunks{
-		Relate:    make(db.Relate),
-		RelateAll: make(db.RelateAll),
-	}
+	self := &QueryChunks{}
 	return self
 }

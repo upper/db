@@ -24,7 +24,6 @@
 package util
 
 import (
-	"fmt"
 	"menteslibres.net/gosexy/db"
 	"menteslibres.net/gosexy/to"
 	"reflect"
@@ -42,29 +41,6 @@ var timeType = reflect.TypeOf(time.Time{})
 type C struct {
 	DB      db.Database
 	SetName string
-}
-
-func (self *C) RelationCollection(name string, terms db.On) (db.Collection, error) {
-
-	var err error
-	var col db.Collection
-
-	for _, v := range terms {
-
-		switch t := v.(type) {
-		case db.Collection:
-			col = t
-		}
-	}
-
-	if col == nil {
-		col, err = self.DB.Collection(name)
-		if err != nil || col == nil {
-			return nil, fmt.Errorf("Failed relation %s: %s", name, err.Error())
-		}
-	}
-
-	return col, nil
 }
 
 func columnCompare(s string) string {
@@ -136,168 +112,6 @@ func CompareColumnToField(s, c string) bool {
 */
 func (self *C) Name() string {
 	return self.SetName
-}
-
-func fetchItemRelations(itemv reflect.Value, relations []db.Relation, convertFn func(interface{}) interface{}) error {
-	var err error
-
-	itemk := itemv.Type().Kind()
-
-	for _, relation := range relations {
-
-		terms := make([]interface{}, len(relation.On))
-
-		for j, term := range relation.On {
-			switch t := term.(type) {
-			// Just waiting for db.Cond statements.
-			case db.Cond:
-				for k, v := range t {
-					switch s := v.(type) {
-					case string:
-						matches := extRelationPattern.FindStringSubmatch(s)
-						if len(matches) > 1 {
-							extkey := matches[1]
-							var val reflect.Value
-							switch itemk {
-							case reflect.Struct:
-								index := GetStructFieldIndex(itemv.Type(), extkey)
-								if index == nil {
-									continue
-								} else {
-									val = itemv.FieldByIndex(index)
-								}
-							case reflect.Map:
-								val = itemv.MapIndex(reflect.ValueOf(extkey))
-							}
-							if val.IsValid() {
-								term = db.Cond{k: convertFn(val.Interface())}
-							}
-						}
-					}
-				}
-			case db.Collection:
-				relation.Collection = t
-			}
-			terms[j] = term
-		}
-
-		keyv := reflect.ValueOf(relation.Name)
-
-		switch itemk {
-		case reflect.Struct:
-			var val reflect.Value
-
-			index := GetStructFieldIndex(itemv.Type(), relation.Name)
-
-			if index == nil {
-				continue
-			} else {
-				val = itemv.FieldByIndex(index)
-			}
-
-			if val.IsValid() {
-				var res db.Result
-
-				res, err = relation.Collection.Query(terms...)
-
-				if err != nil {
-					return err
-				}
-
-				p := reflect.New(val.Type())
-				q := p.Interface()
-
-				if relation.All == true {
-					err = res.All(q)
-				} else {
-					err = res.One(q)
-				}
-
-				if err != nil {
-					return err
-				}
-
-				val.Set(reflect.Indirect(p))
-
-			}
-		case reflect.Map:
-			var err error
-			var res db.Result
-			var p reflect.Value
-
-			res, err = relation.Collection.Query(terms...)
-
-			if err != nil {
-				return err
-			}
-
-			// Executing external query.
-			if relation.All == true {
-				var items []map[string]interface{}
-				err = res.All(&items)
-				p = reflect.ValueOf(items)
-			} else {
-				var item map[string]interface{}
-				err = res.One(&item)
-				p = reflect.ValueOf(item)
-			}
-
-			if err != nil {
-				return err
-			}
-
-			itemv.SetMapIndex(keyv, p)
-		}
-
-	}
-
-	return nil
-}
-
-func (self *C) FetchRelation(dst interface{}, relations []db.Relation, convertFn func(interface{}) interface{}) error {
-	var err error
-
-	if relations == nil {
-		return nil
-	}
-
-	dstv := reflect.ValueOf(dst)
-
-	if dstv.Kind() != reflect.Ptr || dstv.IsNil() {
-		return db.ErrExpectingPointer
-	}
-
-	err = fetchItemRelations(dstv.Elem(), relations, convertFn)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (self *C) FetchRelations(dst interface{}, relations []db.Relation, convertFn func(interface{}) interface{}) error {
-	var err error
-
-	if relations == nil {
-		return nil
-	}
-
-	err = ValidateSliceDestination(dst)
-
-	dstv := reflect.ValueOf(dst)
-	itemv := dstv.Elem()
-
-	// Iterate over results.
-	for i := 0; i < dstv.Elem().Len(); i++ {
-		item := itemv.Index(i)
-		err = fetchItemRelations(item, relations, convertFn)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func ValidateSliceDestination(dst interface{}) error {
