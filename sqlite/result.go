@@ -24,10 +24,17 @@
 package sqlite
 
 import (
+	"fmt"
 	"menteslibres.net/gosexy/db/util/sqlutil"
 )
 
+type counter struct {
+	Total uint64 `field:"total"`
+}
+
 type Result struct {
+	t           *Table
+	queryChunks *sqlutil.QueryChunks
 	sqlutil.Result
 }
 
@@ -51,6 +58,23 @@ func (self *Result) Update(terms interface{}) error {
 	return nil
 }
 
-func (self *Result) Count() (int, error) {
-	return 0, nil
+func (self *Result) Count() (uint64, error) {
+
+	rows, err := self.t.source.doQuery(
+		fmt.Sprintf(
+			`SELECT COUNT(1) AS total FROM %s WHERE %s`,
+			self.t.Name(),
+			self.queryChunks.Conditions,
+		),
+		self.queryChunks.Arguments,
+	)
+
+	if err != nil {
+		return 0, err
+	}
+
+	dst := counter{}
+	self.Table.FetchRow(&dst, rows)
+
+	return dst.Total, nil
 }

@@ -220,7 +220,7 @@ type Result interface {
 	Update(interface{}) error
 
 	// Counts all items within the result set.
-	Count() (int, error)
+	Count() (uint64, error)
 
 	// Fetches all the results of the query into the given pointer.
 	//

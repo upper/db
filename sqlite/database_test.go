@@ -104,6 +104,7 @@ func TestTruncate(t *testing.T) {
 
 // Appends some artists, albums and tracks.
 func TestAppend(t *testing.T) {
+
 	var err error
 	var id interface{}
 
@@ -150,6 +151,39 @@ func TestAppend(t *testing.T) {
 
 	if to.Int64(id) == 0 {
 		t.Fatalf("Expecting an ID.")
+	}
+
+}
+
+func TestResult(t *testing.T) {
+
+	var err error
+	var res db.Result
+
+	sess, err := db.Open(wrapperName, settings)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	defer sess.Close()
+
+	artist, _ := sess.Collection("artist")
+
+	res, err = artist.Filter()
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	total, err := res.Count()
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if total == 0 {
+		t.Fatalf("Should not be empty, we've just added some rows.")
 	}
 
 }

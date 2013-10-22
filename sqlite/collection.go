@@ -41,8 +41,6 @@ type Table struct {
 // Creates a filter with the given terms.
 func (self *Table) Filter(terms ...interface{}) (db.Result, error) {
 
-	var err error
-
 	queryChunks := sqlutil.NewQueryChunks()
 
 	// Analyzing given terms.
@@ -95,22 +93,27 @@ func (self *Table) Filter(terms ...interface{}) (db.Result, error) {
 		queryChunks.Conditions = `1 = 1`
 	}
 
-	// Actually executing query.
-	rows, err := self.source.doQuery(
-		// Mandatory
-		fmt.Sprintf(`SELECT %s FROM '%s'`, strings.Join(queryChunks.Fields, `, `), self.Name()),
-		fmt.Sprintf(`WHERE %s`, queryChunks.Conditions), queryChunks.Arguments,
-		// Optional
-		queryChunks.Sort, queryChunks.Limit, queryChunks.Offset,
-	)
+	/*
+		// Actually executing query.
+		rows, err := self.source.doQuery(
+			// Mandatory
+			fmt.Sprintf(`SELECT %s FROM '%s'`, strings.Join(queryChunks.Fields, `, `), self.Name()),
+			fmt.Sprintf(`WHERE %s`, queryChunks.Conditions), queryChunks.Arguments,
+			// Optional
+			queryChunks.Sort, queryChunks.Limit, queryChunks.Offset,
+		)
 
-	if err != nil {
-		return nil, err
-	}
+		if err != nil {
+			return nil, err
+		}
+	*/
 
 	result := &Result{
+		self,
+		queryChunks,
 		sqlutil.Result{
-			Rows:  rows,
+			//Rows:  rows,
+
 			Table: &self.T,
 		},
 	}
