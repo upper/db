@@ -1,14 +1,8 @@
 package sqlite
 
 import (
-	"database/sql"
-	"fmt"
-	"github.com/kr/pretty"
-	"math/rand"
 	"menteslibres.net/gosexy/db"
-	"menteslibres.net/gosexy/dig"
 	"menteslibres.net/gosexy/to"
-	"reflect"
 	"testing"
 	"time"
 )
@@ -16,7 +10,7 @@ import (
 const dbpath = "./_dumps/gotest.sqlite3.db"
 const wrapperName = "sqlite"
 
-var settings = db.DataSource{
+var settings = db.Settings{
 	Database: dbpath,
 }
 
@@ -62,14 +56,14 @@ func TestEnableDebug(t *testing.T) {
 
 // Trying to open an empty datasource, must fail.
 func TestOpenFailed(t *testing.T) {
-	_, err := db.Open(wrapperName, db.DataSource{})
+	_, err := db.Open(wrapperName, db.Settings{})
 
 	if err == nil {
-		t.Errorf("Could not open database.")
+		t.Errorf("Expecting an error.")
 	}
 }
 
-// Truncates all collections/tables, one by one.
+// Truncates all collections.
 func TestTruncate(t *testing.T) {
 
 	var err error
@@ -82,25 +76,85 @@ func TestTruncate(t *testing.T) {
 
 	defer sess.Close()
 
-	collections := sess.Collections()
+	collections, err := sess.Collections()
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
 
 	for _, name := range collections {
-		col := sess.ExistentCollection(name)
-		col.Truncate()
 
-		total, err := col.Count()
-
+		col, err := sess.Collection(name)
 		if err != nil {
 			t.Fatalf(err.Error())
 		}
 
-		if total != 0 {
-			t.Errorf("Could not truncate.")
+		exists := col.Exists()
+
+		if exists == true {
+			err = col.Truncate()
+
+			if err != nil {
+				t.Fatalf(err.Error())
+			}
 		}
+
+	}
+}
+
+// Appends some artists, albums and tracks.
+func TestAppend(t *testing.T) {
+	var err error
+	var id interface{}
+
+	sess, err := db.Open(wrapperName, settings)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	defer sess.Close()
+
+	artistCollection, err := sess.Collection("artist")
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Appending a map.
+	id, err = artistCollection.Append(map[string]string{
+		"name": "Thom Yorke",
+	})
+
+	if to.Int64(id) == 0 {
+		t.Fatalf("Expecting an ID.")
+	}
+
+	// Appending a struct.
+	id, err = artistCollection.Append(struct {
+		Name string `field:name`
+	}{
+		"Flea",
+	})
+
+	if to.Int64(id) == 0 {
+		t.Fatalf("Expecting an ID.")
+	}
+
+	// Appending a struct (using tags).
+	id, err = artistCollection.Append(struct {
+		ArtistName string `field:"name"`
+	}{
+		"Slash",
+	})
+
+	if to.Int64(id) == 0 {
+		t.Fatalf("Expecting an ID.")
 	}
 
 }
 
+/*
 // Appends maps and structs.
 func TestAppend(t *testing.T) {
 	sess, err := db.Open(wrapperName, settings)
@@ -835,3 +889,4 @@ func BenchmarkAppendStruct(b *testing.B) {
 		}
 	}
 }
+*/
