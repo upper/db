@@ -27,7 +27,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/xiam/gosqlite3"
-	"menteslibres.net/gosexy/db"
+	"upper.io/db"
 	"reflect"
 	"regexp"
 	"strings"

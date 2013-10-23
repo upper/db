@@ -1,7 +1,7 @@
 package sqlite
 
 import (
-	"menteslibres.net/gosexy/db"
+	"upper.io/db"
 	"menteslibres.net/gosexy/to"
 	"testing"
 	"time"

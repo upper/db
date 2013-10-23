@@ -110,7 +110,7 @@ supported databases. You can even relate NoSQL collections to SQL tables!
 Use `go get` to download and install `gosexy/db`.
 
 ```sh
-go get menteslibres.net/gosexy/db
+go get upper.io/db
 ```
 
 ## Usage example
@@ -120,16 +120,16 @@ Let's suppose we want to use the "mongo" wrapper for [MongoDB][1].
 Use `go get` to retrieve and install the "mongo" wrapper.
 
 ```sh
-go get menteslibres.net/gosexy/db/mongo
+go get upper.io/db/mongo
 ```
 
 Import `gosexy/db` and the wrapper into your project.
 
 ```go
 import (
-  "menteslibres.net/gosexy/db"
+  "upper.io/db"
   // The wrapper goes to the blank identifier.
-  _ "menteslibres.net/gosexy/db/mongo"
+  _ "upper.io/db/mongo"
 )
 ```
 
@@ -237,8 +237,8 @@ This is an evolving project, there are still lots of things to do:
 [2]: http://mysql.com
 [3]: http://postgresql.org
 [4]: http://sqlite.com
-[5]: http://godoc.org/menteslibres.net/gosexy/db
+[5]: http://godoc.org/upper.io/db
 [6]: https://menteslibres.net/xiam
 [7]: http://www.golang.org
-[8]: https://menteslibres.net/gosexy/db
+[8]: https://upper.io/db
 

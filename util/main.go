@@ -24,7 +24,7 @@
 package util
 
 import (
-	"menteslibres.net/gosexy/db"
+	"upper.io/db"
 	"menteslibres.net/gosexy/to"
 	"reflect"
 	"regexp"
