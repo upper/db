@@ -25,7 +25,6 @@ package sqlite
 
 import (
 	"database/sql"
-	"fmt"
 	"menteslibres.net/gosexy/to"
 	"reflect"
 	"strings"
@@ -352,7 +351,7 @@ func TestResultFecth(t *testing.T) {
 
 	res.Close()
 
-	// Testing Result.All() with map
+	// Testing Result.All() with a slice of maps.
 	res, err = artist.Filter()
 
 	if err != nil {
@@ -366,17 +365,57 @@ func TestResultFecth(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	fmt.Printf("ROWS: %v\n", all_rows_m)
-	/*
-
-		for _, single_row_m := range all_rows_m {
-			fmt.Printf("ROW: %v\n", single_row_m)
-			if to.Int64(single_row_m["id"]) == 0 {
-				t.Fatalf("Expecting a not null ID.")
-			}
+	for _, single_row_m := range all_rows_m {
+		if to.Int64(single_row_m["id"]) == 0 {
+			t.Fatalf("Expecting a not null ID.")
 		}
-	*/
+	}
 
+	// Testing Result.All() with a slice of structs.
+	res, err = artist.Filter()
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	all_rows_s := []struct {
+		Id   uint64
+		Name string
+	}{}
+	err = res.All(&all_rows_s)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	for _, single_row_s := range all_rows_s {
+		if single_row_s.Id == 0 {
+			t.Fatalf("Expecting a not null ID.")
+		}
+	}
+
+	// Testing Result.All() with a slice of tagged structs.
+	res, err = artist.Filter()
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	all_rows_t := []struct {
+		Value1 uint64 `field:"id"`
+		Value2 string `field:"name"`
+	}{}
+	err = res.All(&all_rows_t)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	for _, single_row_t := range all_rows_t {
+		if single_row_t.Value1 == 0 {
+			t.Fatalf("Expecting a not null ID.")
+		}
+	}
 }
 
 // This test tries to update some previously added rows.
