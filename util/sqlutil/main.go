@@ -25,11 +25,11 @@ package sqlutil
 
 import (
 	"database/sql"
-	"upper.io/db"
-	"upper.io/db/util"
 	"menteslibres.net/gosexy/to"
 	"reflect"
 	"strings"
+	"upper.io/db"
+	"upper.io/db/util"
 )
 
 type T struct {

@@ -45,6 +45,18 @@ func (self *Result) FetchAll(dst interface{}, convertFn func(interface{}) interf
 	return nil
 }
 
+func (self *Result) FetchNextRow(dst interface{}, rows *sql.Rows, convertFn func(interface{}) interface{}) error {
+	var err error
+
+	err = self.Table.FetchRow(dst, rows)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (self *Result) FetchNext(dst interface{}, convertFn func(interface{}) interface{}) error {
 	var err error
 

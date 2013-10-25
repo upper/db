@@ -24,12 +24,12 @@
 package util
 
 import (
-	"upper.io/db"
 	"menteslibres.net/gosexy/to"
 	"reflect"
 	"regexp"
 	"strings"
 	"time"
+	"upper.io/db"
 )
 
 var extRelationPattern = regexp.MustCompile(`\{(.+)\}`)

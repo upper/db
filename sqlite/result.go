@@ -24,7 +24,9 @@
 package sqlite
 
 import (
+	"database/sql"
 	"fmt"
+	"strings"
 	"upper.io/db/util/sqlutil"
 )
 
@@ -36,6 +38,8 @@ type Result struct {
 	t           *Table
 	queryChunks *sqlutil.QueryChunks
 	sqlutil.Result
+	// This is the main query cursor, for Next() and One().
+	cursor *sql.Rows
 }
 
 func (self *Result) All(dst interface{}) error {
@@ -43,7 +47,38 @@ func (self *Result) All(dst interface{}) error {
 }
 
 func (self *Result) Next(dst interface{}) error {
-	return self.FetchNext(dst, toInternalInterface)
+
+	var err error
+
+	// We need a cursor, if the cursor does not exists yet then we create one.
+	if self.cursor == nil {
+		self.cursor, err = self.t.source.doQuery(
+			// Mandatory SQL.
+			fmt.Sprintf(
+				`SELECT %s FROM '%s' WHERE %s`,
+				// Fields.
+				strings.Join(self.queryChunks.Fields, `, `),
+				// Table name
+				self.t.Name(),
+				// Conditions
+				self.queryChunks.Conditions,
+			),
+			// Arguments
+			self.queryChunks.Arguments,
+			// Optional SQL
+			self.queryChunks.Sort,
+			self.queryChunks.Limit,
+			self.queryChunks.Offset,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Fetching the next result from the cursor.
+	err = self.FetchNextRow(dst, self.cursor, toInternalInterface)
+
+	return err
 }
 
 func (self *Result) One(dst interface{}) error {
@@ -58,11 +93,18 @@ func (self *Result) Update(terms interface{}) error {
 	return nil
 }
 
+func (self *Result) Close() error {
+	if self.cursor != nil {
+		return self.cursor.Close()
+	}
+	return nil
+}
+
 func (self *Result) Count() (uint64, error) {
 
 	rows, err := self.t.source.doQuery(
 		fmt.Sprintf(
-			`SELECT COUNT(1) AS total FROM %s WHERE %s`,
+			`SELECT COUNT(1) AS total FROM '%s' WHERE %s`,
 			self.t.Name(),
 			self.queryChunks.Conditions,
 		),

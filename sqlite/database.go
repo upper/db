@@ -27,10 +27,10 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/xiam/gosqlite3"
-	"upper.io/db"
 	"reflect"
 	"regexp"
 	"strings"
+	"upper.io/db"
 )
 
 var Debug = false

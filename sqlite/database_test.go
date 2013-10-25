@@ -1,10 +1,10 @@
 package sqlite
 
 import (
-	"upper.io/db"
 	"menteslibres.net/gosexy/to"
 	"testing"
 	"time"
+	"upper.io/db"
 )
 
 const dbpath = "./_dumps/gotest.sqlite3.db"
@@ -124,7 +124,7 @@ func TestAppend(t *testing.T) {
 
 	// Appending a map.
 	id, err = artistCollection.Append(map[string]string{
-		"name": "Thom Yorke",
+		"name": "Ozzie",
 	})
 
 	if to.Int64(id) == 0 {
@@ -155,7 +155,7 @@ func TestAppend(t *testing.T) {
 
 }
 
-func TestResult(t *testing.T) {
+func TestResultCount(t *testing.T) {
 
 	var err error
 	var res db.Result
@@ -185,6 +185,122 @@ func TestResult(t *testing.T) {
 	if total == 0 {
 		t.Fatalf("Should not be empty, we've just added some rows.")
 	}
+
+}
+
+func TestResultFind(t *testing.T) {
+
+	var err error
+	var res db.Result
+
+	sess, err := db.Open(wrapperName, settings)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	defer sess.Close()
+
+	artist, _ := sess.Collection("artist")
+
+	// Testing map
+	res, err = artist.Filter()
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	row_m := map[string]interface{}{}
+
+	for {
+		err = res.Next(&row_m)
+
+		if err == db.ErrNoMoreRows {
+			// No more row_ms left.
+			break
+		}
+
+		if err == nil {
+			if to.Int64(row_m["id"]) == 0 {
+				t.Fatalf("Expecting a not null ID.")
+			}
+			if to.String(row_m["name"]) == "" {
+				t.Fatalf("Expecting a name.")
+			}
+		} else {
+			t.Fatalf(err.Error())
+		}
+	}
+
+	res.Close()
+
+	// Testing struct
+	row_s := struct {
+		Id   uint64
+		Name string
+	}{}
+
+	res, err = artist.Filter()
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	for {
+		err = res.Next(&row_s)
+
+		if err == db.ErrNoMoreRows {
+			// No more row_ss left.
+			break
+		}
+
+		if err == nil {
+			if row_s.Id == 0 {
+				t.Fatalf("Expecting a not null ID.")
+			}
+			if row_s.Name == "" {
+				t.Fatalf("Expecting a name.")
+			}
+		} else {
+			t.Fatalf(err.Error())
+		}
+	}
+
+	res.Close()
+
+	// Testing tagged struct
+	row_t := struct {
+		Value1 uint64 `field:"id"`
+		Value2 string `field:"name"`
+	}{}
+
+	res, err = artist.Filter()
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	for {
+		err = res.Next(&row_t)
+
+		if err == db.ErrNoMoreRows {
+			// No more row_ts left.
+			break
+		}
+
+		if err == nil {
+			if row_t.Value1 == 0 {
+				t.Fatalf("Expecting a not null ID.")
+			}
+			if row_t.Value2 == "" {
+				t.Fatalf("Expecting a name.")
+			}
+		} else {
+			t.Fatalf(err.Error())
+		}
+	}
+
+	res.Close()
 
 }
 

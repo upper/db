@@ -1,7 +1,7 @@
 PRAGMA foreign_keys=OFF;
 BEGIN TRANSACTION;
 
-CREATE TABLE artist (id integer primery key, name varchar(60));
+CREATE TABLE artist (id integer primary key, name varchar(60));
 CREATE TABLE album (id integer primary key, artist_id integer, name varchar(60));
 CREATE TABLE tracks (id integer primary key, album_id integer, name varchar(60));
 

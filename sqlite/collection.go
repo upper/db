@@ -25,11 +25,11 @@ package sqlite
 
 import (
 	"fmt"
-	"upper.io/db"
-	"upper.io/db/util/sqlutil"
 	"menteslibres.net/gosexy/to"
 	"strings"
 	"time"
+	"upper.io/db"
+	"upper.io/db/util/sqlutil"
 )
 
 // A SQLite table.
@@ -93,29 +93,13 @@ func (self *Table) Filter(terms ...interface{}) (db.Result, error) {
 		queryChunks.Conditions = `1 = 1`
 	}
 
-	/*
-		// Actually executing query.
-		rows, err := self.source.doQuery(
-			// Mandatory
-			fmt.Sprintf(`SELECT %s FROM '%s'`, strings.Join(queryChunks.Fields, `, `), self.Name()),
-			fmt.Sprintf(`WHERE %s`, queryChunks.Conditions), queryChunks.Arguments,
-			// Optional
-			queryChunks.Sort, queryChunks.Limit, queryChunks.Offset,
-		)
-
-		if err != nil {
-			return nil, err
-		}
-	*/
-
 	result := &Result{
 		self,
 		queryChunks,
 		sqlutil.Result{
-			//Rows:  rows,
-
 			Table: &self.T,
 		},
+		nil,
 	}
 
 	return result, nil
