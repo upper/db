@@ -42,8 +42,14 @@ type Result struct {
 	cursor *sql.Rows
 }
 
-func (self *Result) All(dst interface{}) error {
-	return self.FetchAll(dst, toInternalInterface)
+func (self *Result) One(dst interface{}) error {
+	var err error
+	defer self.Close()
+	err = self.Next(dst)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (self *Result) Next(dst interface{}) error {
@@ -78,26 +84,66 @@ func (self *Result) Next(dst interface{}) error {
 	// Fetching the next result from the cursor.
 	err = self.FetchNextRow(dst, self.cursor, toInternalInterface)
 
+	if err != nil {
+		self.Close()
+	}
+
 	return err
 }
 
-func (self *Result) One(dst interface{}) error {
-	return self.FetchOne(dst, toInternalInterface)
-}
-
 func (self *Result) Remove() error {
-	return nil
+	var err error
+	_, err = self.t.source.doExec(
+		fmt.Sprintf(
+			`DELETE FROM '%s' WHERE %s`,
+			self.t.Name(),
+			self.queryChunks.Conditions,
+		),
+		self.queryChunks.Arguments,
+	)
+	return err
+
 }
 
-func (self *Result) Update(terms interface{}) error {
-	return nil
+func (self *Result) Update(values interface{}) error {
+
+	ff, vv, err := self.t.FieldValues(values, toInternal)
+
+	if err != nil {
+		return err
+	}
+
+	total := len(ff)
+
+	updateFields := make([]string, total)
+	updateArgs := make([]string, total)
+
+	for i := 0; i < total; i++ {
+		updateFields[i] = fmt.Sprintf(`%s = ?`, ff[i])
+		updateArgs[i] = vv[i]
+	}
+
+	_, err = self.t.source.doExec(
+		fmt.Sprintf(
+			`UPDATE '%s' SET %s WHERE %s`,
+			self.t.Name(),
+			strings.Join(updateFields, `, `),
+			self.queryChunks.Conditions,
+		),
+		updateArgs,
+		self.queryChunks.Arguments,
+	)
+
+	return err
 }
 
 func (self *Result) Close() error {
+	var err error
 	if self.cursor != nil {
-		return self.cursor.Close()
+		err = self.cursor.Close()
+		self.cursor = nil
 	}
-	return nil
+	return err
 }
 
 func (self *Result) Count() (uint64, error) {
@@ -117,6 +163,8 @@ func (self *Result) Count() (uint64, error) {
 
 	dst := counter{}
 	self.Table.FetchRow(&dst, rows)
+
+	rows.Close()
 
 	return dst.Total, nil
 }

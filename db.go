@@ -222,17 +222,6 @@ type Result interface {
 	// Counts all items within the result set.
 	Count() (uint64, error)
 
-	// Fetches all the results of the query into the given pointer.
-	//
-	// Accepts a pointer to slice of maps or structs.
-	All(interface{}) error
-
-	// Fetches the first result of the query into the given pointer and discards
-	// the rest.
-	//
-	// Accepts a pointer to map or struct.
-	One(interface{}) error
-
 	// Fetches the next result of the query into the given pointer. Returns error if
 	// there are no more results.
 	// Warning: If you're only using part of these results you must manually Close()
@@ -240,6 +229,8 @@ type Result interface {
 	//
 	// Accepts a pointer to map or struct.
 	Next(interface{}) error
+
+	One(interface{}) error
 
 	// Closes the resultset.
 	Close() error

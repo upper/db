@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"menteslibres.net/gosexy/to"
+	"strings"
 	"testing"
 	"time"
 	"upper.io/db"
@@ -301,7 +302,140 @@ func TestResultFind(t *testing.T) {
 	}
 
 	res.Close()
+}
 
+// Updates previously added rows.
+func TestUpdate(t *testing.T) {
+	var err error
+
+	sess, err := db.Open(wrapperName, settings)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	defer sess.Close()
+
+	artistCollection, err := sess.Collection("artist")
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Value
+	value := struct {
+		Id   uint64
+		Name string
+	}{}
+
+	// Getting row
+	res, err := artistCollection.Filter(db.Cond{"id": 1})
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	err = res.One(&value)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Updating with a map
+	row_m := map[string]interface{}{
+		"name": strings.ToUpper(value.Name),
+	}
+
+	err = res.Update(row_m)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	err = res.One(&value)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if value.Name != row_m["name"] {
+		t.Fatalf("Expecting a modification.")
+	}
+
+	// Updating with a struct
+	row_s := struct {
+		Name string
+	}{strings.ToLower(value.Name)}
+
+	err = res.Update(row_s)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	err = res.One(&value)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if value.Name != row_s.Name {
+		t.Fatalf("Expecting a modification.")
+	}
+
+	// Updating with a tagged struct
+	row_t := struct {
+		Value1 string `field:"name"`
+	}{strings.Replace(value.Name, "z", "Z", -1)}
+
+	err = res.Update(row_t)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	err = res.One(&value)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if value.Name != row_t.Value1 {
+		t.Fatalf("Expecting a modification.")
+	}
+
+}
+
+func TestRemove(t *testing.T) {
+
+	var err error
+
+	sess, err := db.Open(wrapperName, settings)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	defer sess.Close()
+
+	artistCollection, err := sess.Collection("artist")
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Getting row
+	res, err := artistCollection.Filter(db.Cond{"id": 1})
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	err = res.Remove()
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
 }
 
 /*

@@ -164,7 +164,7 @@ func (self *Source) Open() error {
 		return db.ErrMissingDatabaseName
 	}
 
-	self.session, err = sql.Open(`sqlite3`, self.config.Database)
+	self.session, err = sql.Open(`sqlite3`, fmt.Sprintf(`file:%s?cache=shared`, self.config.Database))
 
 	if err != nil {
 		return err
