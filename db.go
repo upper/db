@@ -232,6 +232,8 @@ type Result interface {
 
 	One(interface{}) error
 
+	All(interface{}) error
+
 	// Closes the resultset.
 	Close() error
 }

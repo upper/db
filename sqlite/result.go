@@ -35,11 +35,56 @@ type counter struct {
 }
 
 type Result struct {
-	t           *Table
+	table       *Table
 	queryChunks *sqlutil.QueryChunks
-	sqlutil.Result
 	// This is the main query cursor, for Next() and One().
 	cursor *sql.Rows
+}
+
+func (self *Result) setCursor() error {
+	var err error
+	// We need a cursor, if the cursor does not exists yet then we create one.
+	if self.cursor == nil {
+		self.cursor, err = self.table.source.doQuery(
+			// Mandatory SQL.
+			fmt.Sprintf(
+				`SELECT %s FROM '%s' WHERE %s`,
+				// Fields.
+				strings.Join(self.queryChunks.Fields, `, `),
+				// Table name
+				self.table.Name(),
+				// Conditions
+				self.queryChunks.Conditions,
+			),
+			// Arguments
+			self.queryChunks.Arguments,
+			// Optional SQL
+			self.queryChunks.Sort,
+			self.queryChunks.Limit,
+			self.queryChunks.Offset,
+		)
+	}
+	return err
+}
+
+func (self *Result) All(dst interface{}) error {
+
+	var err error
+	defer self.Close()
+
+	// Current cursor.
+	err = self.setCursor()
+
+	if err != nil {
+		return err
+	}
+
+	// Fetching the next result from the cursor.
+	//err = self.FetchAllRows(dst, self.cursor, toInternalInterface)
+
+	err = self.table.T.FetchRows(dst, self.cursor)
+
+	return err
 }
 
 func (self *Result) One(dst interface{}) error {
@@ -56,33 +101,15 @@ func (self *Result) Next(dst interface{}) error {
 
 	var err error
 
-	// We need a cursor, if the cursor does not exists yet then we create one.
-	if self.cursor == nil {
-		self.cursor, err = self.t.source.doQuery(
-			// Mandatory SQL.
-			fmt.Sprintf(
-				`SELECT %s FROM '%s' WHERE %s`,
-				// Fields.
-				strings.Join(self.queryChunks.Fields, `, `),
-				// Table name
-				self.t.Name(),
-				// Conditions
-				self.queryChunks.Conditions,
-			),
-			// Arguments
-			self.queryChunks.Arguments,
-			// Optional SQL
-			self.queryChunks.Sort,
-			self.queryChunks.Limit,
-			self.queryChunks.Offset,
-		)
-		if err != nil {
-			return err
-		}
+	// Current cursor.
+	err = self.setCursor()
+
+	if err != nil {
+		self.Close()
 	}
 
 	// Fetching the next result from the cursor.
-	err = self.FetchNextRow(dst, self.cursor, toInternalInterface)
+	err = self.table.T.FetchRow(dst, self.cursor)
 
 	if err != nil {
 		self.Close()
@@ -93,10 +120,10 @@ func (self *Result) Next(dst interface{}) error {
 
 func (self *Result) Remove() error {
 	var err error
-	_, err = self.t.source.doExec(
+	_, err = self.table.source.doExec(
 		fmt.Sprintf(
 			`DELETE FROM '%s' WHERE %s`,
-			self.t.Name(),
+			self.table.Name(),
 			self.queryChunks.Conditions,
 		),
 		self.queryChunks.Arguments,
@@ -107,7 +134,7 @@ func (self *Result) Remove() error {
 
 func (self *Result) Update(values interface{}) error {
 
-	ff, vv, err := self.t.FieldValues(values, toInternal)
+	ff, vv, err := self.table.FieldValues(values, toInternal)
 
 	if err != nil {
 		return err
@@ -123,10 +150,10 @@ func (self *Result) Update(values interface{}) error {
 		updateArgs[i] = vv[i]
 	}
 
-	_, err = self.t.source.doExec(
+	_, err = self.table.source.doExec(
 		fmt.Sprintf(
 			`UPDATE '%s' SET %s WHERE %s`,
-			self.t.Name(),
+			self.table.Name(),
 			strings.Join(updateFields, `, `),
 			self.queryChunks.Conditions,
 		),
@@ -148,10 +175,10 @@ func (self *Result) Close() error {
 
 func (self *Result) Count() (uint64, error) {
 
-	rows, err := self.t.source.doQuery(
+	rows, err := self.table.source.doQuery(
 		fmt.Sprintf(
 			`SELECT COUNT(1) AS total FROM '%s' WHERE %s`,
-			self.t.Name(),
+			self.table.Name(),
 			self.queryChunks.Conditions,
 		),
 		self.queryChunks.Arguments,
@@ -162,7 +189,7 @@ func (self *Result) Count() (uint64, error) {
 	}
 
 	dst := counter{}
-	self.Table.FetchRow(&dst, rows)
+	self.table.T.FetchRow(&dst, rows)
 
 	rows.Close()
 

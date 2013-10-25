@@ -96,9 +96,6 @@ func (self *Table) Filter(terms ...interface{}) (db.Result, error) {
 	result := &Result{
 		self,
 		queryChunks,
-		sqlutil.Result{
-			Table: &self.T,
-		},
 		nil,
 	}
 

@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"database/sql"
+	"fmt"
 	"menteslibres.net/gosexy/to"
 	"reflect"
 	"strings"
@@ -327,6 +328,32 @@ func TestResultFecth(t *testing.T) {
 	}
 
 	res.Close()
+
+	// Testing Result.All() with map
+	res, err = artist.Filter()
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	all_rows_m := []map[string]interface{}{}
+	err = res.All(&all_rows_m)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	fmt.Printf("ROWS: %v\n", all_rows_m)
+	/*
+
+		for _, single_row_m := range all_rows_m {
+			fmt.Printf("ROW: %v\n", single_row_m)
+			if to.Int64(single_row_m["id"]) == 0 {
+				t.Fatalf("Expecting a not null ID.")
+			}
+		}
+	*/
+
 }
 
 // This test tries to update some previously added rows.
