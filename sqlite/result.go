@@ -27,6 +27,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"upper.io/db"
 	"upper.io/db/util/sqlutil"
 )
 
@@ -37,10 +38,11 @@ type counter struct {
 type Result struct {
 	table       *Table
 	queryChunks *sqlutil.QueryChunks
-	// This is the main query cursor, for Next() and One().
+	// This is the main query cursor. It starts as a nil value.
 	cursor *sql.Rows
 }
 
+// Executes a SELECT statement that can feed Next(), All() or One().
 func (self *Result) setCursor() error {
 	var err error
 	// We need a cursor, if the cursor does not exists yet then we create one.
@@ -67,10 +69,13 @@ func (self *Result) setCursor() error {
 	return err
 }
 
+// Dumps all results into a pointer to an slice of structs or maps.
 func (self *Result) All(dst interface{}) error {
-
 	var err error
-	defer self.Close()
+
+	if self.cursor != nil {
+		return db.ErrQueryIsPending
+	}
 
 	// Current cursor.
 	err = self.setCursor()
@@ -79,24 +84,30 @@ func (self *Result) All(dst interface{}) error {
 		return err
 	}
 
-	// Fetching the next result from the cursor.
-	//err = self.FetchAllRows(dst, self.cursor, toInternalInterface)
+	defer self.Close()
 
+	// Fetching all results within the cursor.
 	err = self.table.T.FetchRows(dst, self.cursor)
 
 	return err
 }
 
+// Fetches only one result from the resultset.
 func (self *Result) One(dst interface{}) error {
 	var err error
-	defer self.Close()
-	err = self.Next(dst)
-	if err != nil {
-		return err
+
+	if self.cursor != nil {
+		return db.ErrQueryIsPending
 	}
-	return nil
+
+	defer self.Close()
+
+	err = self.Next(dst)
+
+	return err
 }
 
+// Fetches the next result from the resultset.
 func (self *Result) Next(dst interface{}) error {
 
 	var err error
@@ -118,6 +129,7 @@ func (self *Result) Next(dst interface{}) error {
 	return err
 }
 
+// Removes the matching items from the collection.
 func (self *Result) Remove() error {
 	var err error
 	_, err = self.table.source.doExec(
@@ -132,6 +144,8 @@ func (self *Result) Remove() error {
 
 }
 
+// Updates matching items from the collection with values of the given map or
+// struct.
 func (self *Result) Update(values interface{}) error {
 
 	ff, vv, err := self.table.FieldValues(values, toInternal)
@@ -164,6 +178,7 @@ func (self *Result) Update(values interface{}) error {
 	return err
 }
 
+// Closes the result set.
 func (self *Result) Close() error {
 	var err error
 	if self.cursor != nil {
@@ -173,6 +188,7 @@ func (self *Result) Close() error {
 	return err
 }
 
+// Counts matching elements.
 func (self *Result) Count() (uint64, error) {
 
 	rows, err := self.table.source.doQuery(

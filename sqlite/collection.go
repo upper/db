@@ -32,7 +32,7 @@ import (
 	"upper.io/db/util/sqlutil"
 )
 
-// A SQLite table.
+// Represents a SQLite table.
 type Table struct {
 	source *Source
 	sqlutil.T
@@ -93,6 +93,7 @@ func (self *Table) Filter(terms ...interface{}) (db.Result, error) {
 		queryChunks.Conditions = `1 = 1`
 	}
 
+	// Creating a result handler.
 	result := &Result{
 		self,
 		queryChunks,
@@ -191,128 +192,7 @@ func (self *Table) Truncate() error {
 	return err
 }
 
-/*
-	Deletes all the rows in the table that match certain conditions.
-*/
-/*
-func (self *Table) Remove(terms ...interface{}) error {
-
-	conds, args := self.compileConditions(terms)
-
-	if conds == "" {
-		conds = "1 = 1"
-	}
-
-	_, err := self.source.doExec(
-		fmt.Sprintf("DELETE FROM '%s'", self.Name()),
-		fmt.Sprintf("WHERE %s", conds), args,
-	)
-
-	return err
-}
-*/
-
-/*
-	Modifies all the rows in the table that match certain conditions.
-*/
-/*
-func (self *Table) Update(selector interface{}, update interface{}) error {
-	var err error
-	var updateFields []string
-	var updateArgs db.SqlArgs
-
-	selectorConds, selectorArgs := self.compileConditions(selector)
-
-	if selectorConds == "" {
-		return db.ErrMissingConditions
-	}
-
-	fields, values, err := self.FieldValues(update, toInternal)
-
-	if err == nil {
-		total := len(fields)
-		updateFields = make([]string, total)
-		updateArgs = make(db.SqlArgs, total)
-		for i := 0; i < total; i++ {
-			updateFields[i] = fmt.Sprintf("%s = ?", fields[i])
-			updateArgs[i] = values[i]
-		}
-	} else {
-		return err
-	}
-
-	_, err = self.source.doExec(
-		fmt.Sprintf(
-			"UPDATE '%s' SET %s",
-			self.Name(),
-			strings.Join(updateFields, ", "),
-		),
-		updateArgs,
-		fmt.Sprintf("WHERE %s", selectorConds),
-		selectorArgs,
-	)
-
-	return err
-}
-*/
-
-/*
-	Returns a slice of rows that match certain conditions.
-*/
-/*
-func (self *Table) FindAll(terms ...interface{}) ([]db.Item, error) {
-	items := []db.Item{}
-
-	res, err := self.Query(terms...)
-
-	if err == nil {
-		err = res.All(&items)
-	}
-
-	return items, err
-}
-*/
-
-/*
-	Returns the number of rows in the current table that match certain conditions.
-*/
-/*
-func (self *Table) Count(terms ...interface{}) (int, error) {
-	terms = append(terms, db.Fields{"COUNT(1) AS _total"})
-
-	result, err := self.FindAll(terms...)
-
-	if err == nil {
-		return int(to.Int64(result[0]["_total"])), nil
-	}
-
-	return 0, err
-}
-*/
-
-/*
-	Returns the first row in the table that matches certain conditions.
-*/
-/*
-func (self *Table) Find(terms ...interface{}) (db.Item, error) {
-	var item db.Item
-	var err error
-
-	terms = append(terms, db.Limit(1))
-
-	res, err := self.Query(terms...)
-
-	if err == nil {
-		err = res.One(&item)
-	}
-
-	return item, err
-}
-*/
-
-/*
-	Appends items into the table. An item could be either a map or a struct.
-*/
+// Appends an item (map or struct) into the collection.
 func (self *Table) Append(item interface{}) (db.Id, error) {
 
 	fields, values, err := self.FieldValues(item, toInternal)
@@ -365,9 +245,7 @@ func toInternalInterface(val interface{}) interface{} {
 	return toInternal(val)
 }
 
-/*
-	Converts a Go value into internal database representation.
-*/
+// Converts a Go value into internal database representation.
 func toInternal(val interface{}) string {
 
 	switch t := val.(type) {
@@ -388,9 +266,7 @@ func toInternal(val interface{}) string {
 	return to.String(val)
 }
 
-/*
-	Convers a database representation (after auto-conversion) into a Go value.
-*/
+// Convers a database representation (after auto-conversion) into a Go value.
 func toNative(val interface{}) interface{} {
 	return val
 }
