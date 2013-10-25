@@ -6,9 +6,9 @@ package main
 
 import (
 	"fmt"
-	"menteslibres.net/gosexy/db"
-	_ "menteslibres.net/gosexy/db/mysql"
-	_ "menteslibres.net/gosexy/db/postgresql"
+	"upper.io/db"
+	_ "upper.io/db/mysql"
+	_ "upper.io/db/postgresql"
 )
 
 /*

@@ -27,7 +27,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
-	"menteslibres.net/gosexy/db"
+	"upper.io/db"
 	"reflect"
 	"regexp"
 	"strings"

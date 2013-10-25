@@ -25,8 +25,8 @@ package mongo
 
 import (
 	"labix.org/v2/mgo"
-	"menteslibres.net/gosexy/db"
-	"menteslibres.net/gosexy/db/util"
+	"upper.io/db"
+	"upper.io/db/util"
 )
 
 type Result struct {

@@ -3,9 +3,9 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"menteslibres.net/gosexy/db"
-	_ "menteslibres.net/gosexy/db/mysql"
-	"menteslibres.net/gosexy/db/util/sqlutil"
+	"upper.io/db"
+	_ "upper.io/db/mysql"
+	"upper.io/db/util/sqlutil"
 )
 
 var settings = db.DataSource{

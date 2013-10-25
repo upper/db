@@ -24,7 +24,7 @@
 package postgresql
 
 import (
-	"menteslibres.net/gosexy/db/util/sqlutil"
+	"upper.io/db/util/sqlutil"
 )
 
 type Result struct {

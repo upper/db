@@ -5,7 +5,7 @@ import (
 	"github.com/kr/pretty"
 	"labix.org/v2/mgo/bson"
 	"math/rand"
-	"menteslibres.net/gosexy/db"
+	"upper.io/db"
 	"menteslibres.net/gosexy/dig"
 	"menteslibres.net/gosexy/to"
 	"reflect"

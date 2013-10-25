@@ -26,7 +26,7 @@ package mongo
 import (
 	"fmt"
 	"labix.org/v2/mgo"
-	"menteslibres.net/gosexy/db"
+	"upper.io/db"
 	"net/url"
 	"time"
 )

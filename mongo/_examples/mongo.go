@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"menteslibres.net/gosexy/db"
-	"menteslibres.net/gosexy/db/mongo"
+	"upper.io/db"
+	"upper.io/db/mongo"
 	"github.com/kr/pretty"
 )
 

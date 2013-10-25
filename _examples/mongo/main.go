@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"menteslibres.net/gosexy/db"
-	_ "menteslibres.net/gosexy/db/mongo"
+	"upper.io/db"
+	_ "upper.io/db/mongo"
 )
 
 var settings = db.DataSource{

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/kr/pretty"
 	"math/rand"
-	"menteslibres.net/gosexy/db"
+	"upper.io/db"
 	"menteslibres.net/gosexy/dig"
 	"menteslibres.net/gosexy/to"
 	"reflect"

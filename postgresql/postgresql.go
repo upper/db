@@ -27,7 +27,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/xiam/gopostgresql"
-	"menteslibres.net/gosexy/db"
+	"upper.io/db"
 	"reflect"
 	"regexp"
 	"strings"

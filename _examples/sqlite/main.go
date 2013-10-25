@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"menteslibres.net/gosexy/db"
-	"menteslibres.net/gosexy/db/sqlite"
+	"upper.io/db"
+	"upper.io/db/sqlite"
 	"time"
 )
 
