@@ -1,14 +1,14 @@
 DROP TABLE IF EXISTS artist;
 
 CREATE TABLE artist (
-  id SERIAL PRIMARY KEY,
+  id serial primary key,
   name VARCHAR(60)
 );
 
 DROP TABLE IF EXISTS data_types;
 
 CREATE TABLE data_types (
-  id integer NOT NULL,
+  id serial primary key,
   _uint integer,
   _uint8 integer,
   _uint16 integer,

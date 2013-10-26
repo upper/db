@@ -1,26 +1,60 @@
+/*
+  Copyright (c) 2012-2013 José Carlos Nieto, https://menteslibres.net/xiam
+
+  Permission is hereby granted, free of charge, to any person obtaining
+  a copy of this software and associated documentation files (the
+  "Software"), to deal in the Software without restriction, including
+  without limitation the rights to use, copy, modify, merge, publish,
+  distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to
+  the following conditions:
+
+  The above copyright notice and this permission notice shall be
+  included in all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+/*
+	Tests for the postgresql wrapper.
+
+	Execute the Makefile in ./_dumps/ to create the expected database structure.
+
+	cd _dumps
+	make
+	cd ..
+	go test
+*/
 package postgresql
 
 import (
-	"fmt"
-	"github.com/kr/pretty"
-	"math/rand"
-	"upper.io/db"
-	"menteslibres.net/gosexy/dig"
+	"database/sql"
 	"menteslibres.net/gosexy/to"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
+	"upper.io/db"
 )
 
+// Wrapper.
 const wrapperName = "postgresql"
 
+// Wrapper settings.
 const host = "127.0.0.1"
 const socket = "/var/run/postgresql/"
-const dbname = "gotest"
-const username = "gouser"
-const password = "gopass"
+const dbname = "upperio_tests"
+const username = "upperio"
+const password = "upperio"
 
-var settings = db.DataSource{
+// Global settings for tests.
+var settings = db.Settings{
 	Database: dbname,
 	//Host: host,
 	Socket:   socket,
@@ -28,31 +62,31 @@ var settings = db.DataSource{
 	Password: password,
 }
 
-// Structure for testing conversions.
+// Structure for testing conversions and datatypes.
 type testValuesStruct struct {
-	Uint   uint
-	Uint8  uint8
-	Uint16 uint16
-	Uint32 uint32
-	Uint64 uint64
+	Uint   uint   `field:"_uint"`
+	Uint8  uint8  `field:"_uint8"`
+	Uint16 uint16 `field:"_uint16"`
+	Uint32 uint32 `field:"_uint32"`
+	Uint64 uint64 `field:"_uint64"`
 
-	Int   int
-	Int8  int8
-	Int16 int16
-	Int32 int32
-	Int64 int64
+	Int   int   `field:"_int"`
+	Int8  int8  `field:"_int8"`
+	Int16 int16 `field:"_int16"`
+	Int32 int32 `field:"_int32"`
+	Int64 int64 `field:"_int64"`
 
-	Float32 float32
-	Float64 float64
+	Float32 float32 `field:"_float32"`
+	Float64 float64 `field:"_float64"`
 
-	Bool   bool
-	String string
+	Bool   bool   `field:"_bool"`
+	String string `field:"_string"`
 
-	Date time.Time
-	Time time.Duration
+	Date time.Time     `field:"_date"`
+	Time time.Duration `field:"_time"`
 }
 
-// Some test values.
+// Declaring some values to insert, we expect the same values to be returned.
 var testValues = testValuesStruct{
 	1, 1, 1, 1, 1,
 	-1, -1, -1, -1, -1,
@@ -63,144 +97,131 @@ var testValues = testValuesStruct{
 	time.Second * time.Duration(7331),
 }
 
-// Outputs some information to stdout, useful for development.
+// Enabling outputting some information to stdout (like the SQL query and its
+// arguments), useful for development.
 func TestEnableDebug(t *testing.T) {
 	Debug = true
 }
 
-// Trying to open an empty datasource, must fail.
+// Trying to open an empty datasource, it must fail.
 func TestOpenFailed(t *testing.T) {
-	_, err := db.Open(wrapperName, db.DataSource{})
+	_, err := db.Open(wrapperName, db.Settings{})
 
 	if err == nil {
-		t.Errorf("Could not open database.")
+		t.Errorf("Expecting an error.")
 	}
 }
 
-// Truncates all collections/tables, one by one.
+// Truncates all collections.
 func TestTruncate(t *testing.T) {
 
 	var err error
 
+	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
+	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
-	collections := sess.Collections()
+	// Getting a list of all collections in this database.
+	collections, err := sess.Collections()
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
 
 	for _, name := range collections {
-		col := sess.ExistentCollection(name)
-		col.Truncate()
 
-		total, err := col.Count()
-
+		// Pointing the collection.
+		col, err := sess.Collection(name)
 		if err != nil {
 			t.Fatalf(err.Error())
 		}
 
-		if total != 0 {
-			t.Errorf("Could not truncate.")
-		}
-	}
+		// Since this is a SQL collection (table), the structure must exists before
+		// we can use it.
+		exists := col.Exists()
 
+		if exists == true {
+			// Truncating the structure, if exists.
+			err = col.Truncate()
+
+			if err != nil {
+				t.Fatalf(err.Error())
+			}
+		}
+
+	}
 }
 
-// Appends maps and structs.
+// This test appends some data into the "artist" table.
 func TestAppend(t *testing.T) {
 
+	var err error
+	var id interface{}
+
+	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
+	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
-	_, err = sess.Collection("doesnotexists")
+	// Getting a pointer to the "artist" collection.
+	artist, err := sess.Collection("artist")
 
-	if err == nil {
-		t.Fatalf("Collection should not exists.")
+	if err != nil {
+		t.Fatalf(err.Error())
 	}
 
-	people := sess.ExistentCollection("people")
+	// Appending a map.
+	id, err = artist.Append(map[string]string{
+		"name": "Ozzie",
+	})
 
-	// To be inserted
-	names := []string{
-		"Juan",
-		"José",
-		"Pedro",
-		"María",
-		"Roberto",
-		"Manuel",
-		"Miguel",
+	if to.Int64(id) == 0 {
+		t.Fatalf("Expecting an ID.")
 	}
 
-	var total int
+	// Appending a struct.
+	id, err = artist.Append(struct {
+		Name string `field:name`
+	}{
+		"Flea",
+	})
 
-	// Append db.Item
-	people.Truncate()
-
-	for _, name := range names {
-		people.Append(db.Item{"name": name})
+	if to.Int64(id) == 0 {
+		t.Fatalf("Expecting an ID.")
 	}
 
-	total, _ = people.Count()
+	// Appending a struct (using tags to specify the field name).
+	id, err = artist.Append(struct {
+		ArtistName string `field:"name"`
+	}{
+		"Slash",
+	})
 
-	if total != len(names) {
-		t.Fatalf("Could not append all items.")
-	}
-
-	// Append map[string]string
-	people.Truncate()
-
-	for _, name := range names {
-		people.Append(map[string]string{"name": name})
-	}
-
-	total, _ = people.Count()
-
-	if total != len(names) {
-		t.Fatalf("Could not append all items.")
-	}
-
-	// Append map[string]interface{}
-	people.Truncate()
-
-	for _, name := range names {
-		people.Append(map[string]interface{}{"name": name})
-	}
-
-	total, _ = people.Count()
-
-	if total != len(names) {
-		t.Fatalf("Could not append all items.")
-	}
-
-	// Append struct
-	people.Truncate()
-
-	for _, name := range names {
-		people.Append(struct{ Name string }{name})
-	}
-
-	total, _ = people.Count()
-
-	if total != len(names) {
-		t.Fatalf("Could not append all items.")
+	if to.Int64(id) == 0 {
+		t.Fatalf("Expecting an ID.")
 	}
 
 }
 
-// Tries to find and fetch rows.
-func TestFind(t *testing.T) {
+// This test tries to use an empty filter and count how many elements were
+// added into the artist collection.
+func TestResultCount(t *testing.T) {
 
 	var err error
 	var res db.Result
 
+	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
@@ -209,541 +230,519 @@ func TestFind(t *testing.T) {
 
 	defer sess.Close()
 
-	people, _ := sess.Collection("people")
+	// We should close the database when it's no longer in use.
+	artist, _ := sess.Collection("artist")
 
-	// Testing Find()
-	item, _ := people.Find(db.Cond{"name": "José"})
-
-	if item["name"] != "José" {
-		t.Fatalf("Could not find a recently appended item.")
-	}
-
-	// Fetch into map slice.
-	dst := []map[string]string{}
-
-	res, err = people.Query(db.Cond{"name": "José"})
+	res, err = artist.Filter()
 
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	err = res.All(&dst)
+	// Counting all the matching rows.
+	total, err := res.Count()
 
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	if len(dst) != 1 {
-		t.Fatalf("Could not find a recently appended item.")
+	if total == 0 {
+		t.Fatalf("Should not be empty, we've just added some rows!")
 	}
 
-	if dst[0]["name"] != "José" {
-		t.Fatalf("Could not find a recently appended item.")
-	}
+}
 
-	// Fetch into struct slice.
-	dst2 := []struct{ Name string }{}
+// This test uses and result and tries to fetch items one by one.
+func TestResultFetch(t *testing.T) {
 
-	res, err = people.Query(db.Cond{"name": "José"})
+	var err error
+	var res db.Result
+
+	// Opening database.
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	err = res.All(&dst2)
+	// We should close the database when it's no longer in use.
+	defer sess.Close()
+
+	artist, err := sess.Collection("artist")
 
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	if len(dst2) != 1 {
-		t.Fatalf("Could not find a recently appended item.")
-	}
-
-	if dst2[0].Name != "José" {
-		t.Fatalf("Could not find a recently appended item.")
-	}
-
-	// Fetch into map.
-	dst3 := map[string]interface{}{}
-
-	res, err = people.Query(db.Cond{"name": "José"})
+	// Testing map
+	res, err = artist.Filter()
 
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	err = res.One(&dst3)
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	// Fetch into struct.
-	dst4 := struct{ Name string }{}
-
-	res, err = people.Query(db.Cond{"name": "José"})
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	err = res.One(&dst4)
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	if dst4.Name != "José" {
-		t.Fatalf("Could not find a recently appended item.")
-	}
-
-	// Makes a query and stores the result
-	res, err = people.Query(nil)
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	dst5 := struct{ Name string }{}
-	found := false
+	row_m := map[string]interface{}{}
 
 	for {
-		err = res.Next(&dst5)
-		if err != nil {
+		err = res.Next(&row_m)
+
+		if err == db.ErrNoMoreRows {
+			// No more row_ms left.
 			break
 		}
-		if dst5.Name == "José" {
-			found = true
+
+		if err == nil {
+			if to.Int64(row_m["id"]) == 0 {
+				t.Fatalf("Expecting a not null ID.")
+			}
+			if to.String(row_m["name"]) == "" {
+				t.Fatalf("Expecting a name.")
+			}
+		} else {
+			t.Fatalf(err.Error())
 		}
 	}
 
 	res.Close()
 
-	if found == false {
-		t.Fatalf("José was not found.")
-	}
-
-}
-
-// Tests limit and offset.
-func TestLimitOffset(t *testing.T) {
-
-	var err error
-
-	sess, err := db.Open(wrapperName, settings)
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	defer sess.Close()
-
-	people, _ := sess.Collection("people")
-
-	items, _ := people.FindAll(db.Limit(2), db.Offset(1))
-
-	if len(items) != 2 {
-		t.Fatalf("Test failed")
-	}
-
-}
-
-// Tries to delete rows.
-func TestDelete(t *testing.T) {
-	sess, err := db.Open(wrapperName, settings)
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	defer sess.Close()
-
-	people := sess.ExistentCollection("people")
-
-	people.Remove(db.Cond{"name": "Juan"})
-
-	result, _ := people.Find(db.Cond{"name": "Juan"})
-
-	if len(result) > 0 {
-		t.Fatalf("Could not remove a recently appended item.")
-	}
-
-}
-
-// Tries to update rows.
-func TestUpdate(t *testing.T) {
-	var found int
-
-	sess, err := db.Open(wrapperName, settings)
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	defer sess.Close()
-
-	people := sess.ExistentCollection("people")
-
-	// Update with map.
-	people.Update(db.Cond{"name": "José"}, db.Set{"name": "Joseph"})
-
-	found, _ = people.Count(db.Cond{"name": "Joseph"})
-
-	if found != 1 {
-		t.Fatalf("Could not update a recently appended item.")
-	}
-
-	// Update with struct.
-	people.Update(db.Cond{"name": "Joseph"}, struct{ Name string }{"José"})
-
-	found, _ = people.Count(db.Cond{"name": "José"})
-
-	if found != 1 {
-		t.Fatalf("Could not update a recently appended item.")
-	}
-}
-
-// Tries to add test data and relations.
-func TestPopulate(t *testing.T) {
-
-	sess, err := db.Open(wrapperName, settings)
-
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-
-	defer sess.Close()
-
-	people := sess.ExistentCollection("people")
-	places := sess.ExistentCollection("places")
-	children := sess.ExistentCollection("children")
-	visits := sess.ExistentCollection("visits")
-
-	values := []string{"Alaska", "Nebraska", "Alaska", "Acapulco", "Rome", "Singapore", "Alabama", "Cancún"}
-
-	for i, value := range values {
-		places.Append(db.Item{
-			"code_id": i,
-			"name":    value,
-		})
-	}
-
-	results, _ := people.FindAll(
-		db.Fields{"id", "name"},
-		db.Sort{"name": "ASC", "id": -1},
-	)
-
-	for _, person := range results {
-
-		// Has 5 children.
-
-		for j := 0; j < 5; j++ {
-			children.Append(db.Item{
-				"name":      fmt.Sprintf("%s's child %d", person["name"], j+1),
-				"parent_id": person["id"],
-			})
-		}
-
-		// Lives in
-		people.Update(
-			db.Cond{"id": person["id"]},
-			db.Set{"place_code_id": int(rand.Float32() * float32(len(results)))},
-		)
-
-		// Has visited
-		for j := 0; j < 3; j++ {
-			place, _ := places.Find(db.Cond{
-				"code_id": int(rand.Float32() * float32(len(results))),
-			})
-			visits.Append(db.Item{
-				"place_id":  place["id"],
-				"person_id": person["id"],
-			})
-		}
-	}
-
-}
-
-// Tests relations between collections.
-func TestRelation(t *testing.T) {
-	sess, err := db.Open(wrapperName, settings)
-
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-
-	defer sess.Close()
-
-	people, _ := sess.Collection("people")
-
-	results, _ := people.FindAll(
-		db.Relate{
-			"lives_in": db.On{
-				sess.ExistentCollection("places"),
-				db.Cond{"code_id": "{place_code_id}"},
-			},
-		},
-		db.RelateAll{
-			"has_children": db.On{
-				sess.ExistentCollection("children"),
-				db.Cond{"parent_id": "{id}"},
-			},
-			"has_visited": db.On{
-				sess.ExistentCollection("visits"),
-				db.Cond{"person_id": "{id}"},
-				db.Relate{
-					"place": db.On{
-						sess.ExistentCollection("places"),
-						db.Cond{"id": "{place_id}"},
-					},
-				},
-			},
-		},
-	)
-
-	fmt.Printf("relations (1) %# v\n", pretty.Formatter(results))
-
-	var testv string
-
-	testv = dig.String(&results, 0, "lives_in", "name")
-
-	if testv == "" {
-		t.Fatalf("Test failed, expected some value.")
-	}
-
-	testv = dig.String(&results, 1, "has_children", 2, "name")
-
-	if testv == "" {
-		t.Fatalf("Test failed, expected some value.")
-	}
-}
-
-// Tests relations between collections using structs.
-func TestRelationStruct(t *testing.T) {
-	var err error
-	var res db.Result
-
-	sess, err := db.Open(wrapperName, settings)
-
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-
-	defer sess.Close()
-
-	people := sess.ExistentCollection("people")
-
-	results := []struct {
-		Id          int
-		Name        string
-		PlaceCodeId int
-		LivesIn     struct {
-			Name string
-		}
-		HasChildren []struct {
-			Name string
-		}
-		HasVisited []struct {
-			PlaceId int
-			Place   struct {
-				Name string
-			}
-		}
+	// Testing struct
+	row_s := struct {
+		Id   uint64
+		Name string
 	}{}
 
-	res, err = people.Query(
-		db.Relate{
-			"LivesIn": db.On{
-				sess.ExistentCollection("places"),
-				db.Cond{"code_id": "{PlaceCodeId}"},
-			},
-		},
-		db.RelateAll{
-			"HasChildren": db.On{
-				sess.ExistentCollection("children"),
-				db.Cond{"parent_id": "{Id}"},
-			},
-			"HasVisited": db.On{
-				sess.ExistentCollection("visits"),
-				db.Cond{"person_id": "{Id}"},
-				db.Relate{
-					"Place": db.On{
-						sess.ExistentCollection("places"),
-						db.Cond{"id": "{PlaceId}"},
-					},
-				},
-			},
-		},
-	)
+	res, err = artist.Filter()
 
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	err = res.All(&results)
+	for {
+		err = res.Next(&row_s)
+
+		if err == db.ErrNoMoreRows {
+			// No more row_s' left.
+			break
+		}
+
+		if err == nil {
+			if row_s.Id == 0 {
+				t.Fatalf("Expecting a not null ID.")
+			}
+			if row_s.Name == "" {
+				t.Fatalf("Expecting a name.")
+			}
+		} else {
+			t.Fatalf(err.Error())
+		}
+	}
+
+	res.Close()
+
+	// Testing tagged struct
+	row_t := struct {
+		Value1 uint64 `field:"id"`
+		Value2 string `field:"name"`
+	}{}
+
+	res, err = artist.Filter()
 
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	fmt.Printf("relations (2) %# v\n", pretty.Formatter(results))
+	for {
+		err = res.Next(&row_t)
+
+		if err == db.ErrNoMoreRows {
+			// No more row_t's left.
+			break
+		}
+
+		if err == nil {
+			if row_t.Value1 == 0 {
+				t.Fatalf("Expecting a not null ID.")
+			}
+			if row_t.Value2 == "" {
+				t.Fatalf("Expecting a name.")
+			}
+		} else {
+			t.Fatalf(err.Error())
+		}
+	}
+
+	res.Close()
+
+	// Testing Result.All() with a slice of maps.
+	res, err = artist.Filter()
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	all_rows_m := []map[string]interface{}{}
+	err = res.All(&all_rows_m)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	for _, single_row_m := range all_rows_m {
+		if to.Int64(single_row_m["id"]) == 0 {
+			t.Fatalf("Expecting a not null ID.")
+		}
+	}
+
+	// Testing Result.All() with a slice of structs.
+	res, err = artist.Filter()
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	all_rows_s := []struct {
+		Id   uint64
+		Name string
+	}{}
+	err = res.All(&all_rows_s)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	for _, single_row_s := range all_rows_s {
+		if single_row_s.Id == 0 {
+			t.Fatalf("Expecting a not null ID.")
+		}
+	}
+
+	// Testing Result.All() with a slice of tagged structs.
+	res, err = artist.Filter()
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	all_rows_t := []struct {
+		Value1 uint64 `field:"id"`
+		Value2 string `field:"name"`
+	}{}
+	err = res.All(&all_rows_t)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	for _, single_row_t := range all_rows_t {
+		if single_row_t.Value1 == 0 {
+			t.Fatalf("Expecting a not null ID.")
+		}
+	}
 }
 
-// Tests datatype conversions.
-func TestDataTypes(t *testing.T) {
-	var res db.Result
-	var items []db.Item
+// This test tries to update some previously added rows.
+func TestUpdate(t *testing.T) {
+	var err error
 
+	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
+	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
-	dataTypes := sess.ExistentCollection("data_types")
+	// Getting a pointer to the "artist" collection.
+	artist, err := sess.Collection("artist")
 
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Value
+	value := struct {
+		Id   uint64
+		Name string
+	}{}
+
+	// Getting the artist with id = 1.
+	res, err := artist.Filter(db.Cond{"id": 1})
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	err = res.One(&value)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Updating with a map
+	row_m := map[string]interface{}{
+		"name": strings.ToUpper(value.Name),
+	}
+
+	err = res.Update(row_m)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	err = res.One(&value)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if value.Name != row_m["name"] {
+		t.Fatalf("Expecting a modification.")
+	}
+
+	// Updating with a struct
+	row_s := struct {
+		Name string
+	}{strings.ToLower(value.Name)}
+
+	err = res.Update(row_s)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	err = res.One(&value)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if value.Name != row_s.Name {
+		t.Fatalf("Expecting a modification.")
+	}
+
+	// Updating with a tagged struct
+	row_t := struct {
+		Value1 string `field:"name"`
+	}{strings.Replace(value.Name, "z", "Z", -1)}
+
+	err = res.Update(row_t)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	err = res.One(&value)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if value.Name != row_t.Value1 {
+		t.Fatalf("Expecting a modification.")
+	}
+
+}
+
+// This test tries to remove some previously added rows.
+func TestRemove(t *testing.T) {
+
+	var err error
+
+	// Opening database.
+	sess, err := db.Open(wrapperName, settings)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// We should close the database when it's no longer in use.
+	defer sess.Close()
+
+	// Getting a pointer to the "artist" collection.
+	artist, err := sess.Collection("artist")
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Getting the artist with id = 1
+	res, err := artist.Filter(db.Cond{"id": 1})
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Trying to remove the row.
+	err = res.Remove()
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+}
+
+// This test tries to add many different datatypes to a single row in a
+// collection, then it tries to get the stored datatypes and check if the
+// stored and the original values match.
+func TestDataTypes(t *testing.T) {
+	var res db.Result
+
+	// Opening database.
+	sess, err := db.Open(wrapperName, settings)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// We should close the database when it's no longer in use.
+	defer sess.Close()
+
+	// Getting a pointer to the "data_types" collection.
+	dataTypes, err := sess.Collection("data_types")
 	dataTypes.Truncate()
 
-	ids, err := dataTypes.Append(testValues)
+	// Appending our test subject.
+	id, err := dataTypes.Append(testValues)
 
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	found, err := dataTypes.Count(db.Cond{"id": db.Id(ids[0])})
+	// Trying to get the same subject we added.
+	res, err = dataTypes.Filter(db.Cond{"id": id})
 
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	if found == 0 {
+	exists, err := res.Count()
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if exists == 0 {
 		t.Errorf("Expecting an item.")
 	}
 
-	// Getting and reinserting (a db.Item).
-	item, _ := dataTypes.Find()
+	// Trying to dump the subject into an empty structure of the same type.
+	var item testValuesStruct
+	res.One(&item)
 
-	_, err = dataTypes.Append(item)
-
-	if err == nil {
-		t.Fatalf("Expecting duplicated-key error.")
+	// The original value and the test subject must match.
+	if reflect.DeepEqual(item, testValues) == false {
+		t.Errorf("Struct is different.")
 	}
+}
 
-	delete(item, "id")
+// We are going to benchmark the engine, so this is no longed needed.
+func TestDisableDebug(t *testing.T) {
+	Debug = false
+}
 
-	_, err = dataTypes.Append(item)
+// Benchmarking raw database/sql.
+func BenchmarkAppendRaw(b *testing.B) {
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		b.Fatalf(err.Error())
 	}
 
-	// Testing date ranges
-	items, err = dataTypes.FindAll(db.Cond{
-		"_date": time.Now(),
-	})
+	defer sess.Close()
+
+	artist, err := sess.Collection("artist")
+	artist.Truncate()
+
+	driver := sess.Driver().(*sql.DB)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := driver.Exec(`INSERT INTO artist (name) VALUES("Hayao Miyazaki")`)
+		if err != nil {
+			b.Fatalf(err.Error())
+		}
+	}
+}
+
+// Benchmarking Append().
+//
+// Contributed by wei2912
+// See: https://github.com/gosexy/db/issues/20#issuecomment-20097801
+func BenchmarkAppendDbItem(b *testing.B) {
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		b.Fatalf(err.Error())
 	}
 
-	if len(items) > 0 {
-		t.Fatalf("Expecting no results.")
-	}
+	defer sess.Close()
 
-	items, err = dataTypes.FindAll(db.Cond{
-		"_date <=": time.Now(),
-	})
+	artist, err := sess.Collection("artist")
+	artist.Truncate()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err = artist.Append(map[string]string{"name": "Leonardo DaVinci"})
+		if err != nil {
+			b.Fatalf(err.Error())
+		}
+	}
+}
+
+// Benchmarking Append() with transactions.
+//
+// Contributed by wei2912
+// See: https://github.com/gosexy/db/issues/20#issuecomment-20167939
+// Applying the BEGIN and END transaction optimizations.
+func BenchmarkAppendDbItem_Transaction(b *testing.B) {
+	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		b.Fatalf(err.Error())
 	}
 
-	if len(items) != 2 {
-		t.Fatalf("Expecting some results.")
-	}
+	defer sess.Close()
 
-	// Testing struct
-	sresults := []testValuesStruct{}
+	artist, err := sess.Collection("artist")
+	artist.Truncate()
 
-	res, err = dataTypes.Query()
-
+	err = sess.Begin()
 	if err != nil {
-		t.Fatalf(err.Error())
+		b.Fatalf(err.Error())
 	}
 
-	err = res.All(&sresults)
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	// Testing struct equality
-	for _, item := range sresults {
-		if reflect.DeepEqual(item, testValues) == false {
-			t.Errorf("Struct is different.")
+	for i := 0; i < b.N; i++ {
+		_, err = artist.Append(db.Item{"name": "Isaac Asimov"})
+		if err != nil {
+			b.Fatalf(err.Error())
 		}
 	}
 
-	// Testing maps
-	results, _ := dataTypes.FindAll()
+	err = sess.End()
+	if err != nil {
+		b.Fatalf(err.Error())
+	}
+}
 
-	for _, item := range results {
+// Benchmarking Append with a struct.
+func BenchmarkAppendStruct(b *testing.B) {
+	sess, err := db.Open(wrapperName, settings)
 
-		for key, _ := range item {
-
-			switch key {
-
-			// Signed integers.
-			case
-				"_int",
-				"_int8",
-				"_int16",
-				"_int32",
-				"_int64":
-				if to.Int64(item[key]) != testValues.Int64 {
-					t.Fatalf("Wrong datatype %v.", key)
-				}
-
-			// Unsigned integers.
-			case
-				"_uint",
-				"_uint8",
-				"_uint16",
-				"_uint32",
-				"_uint64":
-				if to.Uint64(item[key]) != testValues.Uint64 {
-					t.Fatalf("Wrong datatype %v.", key)
-				}
-
-			// Floating point.
-			case "_float32":
-			case "_float64":
-				if to.Float64(item[key]) != testValues.Float64 {
-					t.Fatalf("Wrong datatype %v.", key)
-				}
-
-			// Boolean
-			case "_bool":
-				if to.Bool(item[key]) != testValues.Bool {
-					t.Fatalf("Wrong datatype %v.", key)
-				}
-
-			// String
-			case "_string":
-				if to.String(item[key]) != testValues.String {
-					t.Fatalf("Wrong datatype %v.", key)
-				}
-
-			// Date
-			case "_date":
-				if to.Time(item[key]).Equal(testValues.Date) == false {
-					t.Fatalf("Wrong datatype %v.", key)
-				}
-			}
-		}
+	if err != nil {
+		b.Fatalf(err.Error())
 	}
 
+	defer sess.Close()
+
+	artist, err := sess.Collection("artist")
+	artist.Truncate()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err = artist.Append(struct{ Name string }{"John Lennon"})
+		if err != nil {
+			b.Fatalf(err.Error())
+		}
+	}
 }

@@ -184,8 +184,7 @@ func (self *Source) Close() error {
 // Changes the active database.
 func (self *Source) Use(database string) error {
 	self.config.Database = database
-	_, err := self.session.Exec(fmt.Sprintf(`USE '%s'`, database))
-	return err
+	return self.Open()
 }
 
 // Starts a transaction block.
@@ -275,7 +274,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 
 		// Default properties.
 		dextra := ""
-		dtype := "text"
+		dtype := `text`
 
 		dtype = results[1]
 
@@ -287,13 +286,13 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 
 		// Guessing datatypes.
 		switch dtype {
-		case "integer":
-			if dextra == "unsigned" {
+		case `integer`:
+			if dextra == `unsigned` {
 				ctype = reflect.Uint64
 			} else {
 				ctype = reflect.Int64
 			}
-		case "real", "numeric":
+		case `real`, `numeric`:
 			ctype = reflect.Float64
 		default:
 			ctype = reflect.String
