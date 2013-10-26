@@ -21,6 +21,16 @@
   WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+/*
+	Tests for the sqlite wrapper.
+
+	Execute the Makefile in ./_dumps/ to create the expected database structure.
+
+	cd _dumps
+	make
+	cd ..
+	go test
+*/
 package sqlite
 
 import (
@@ -235,7 +245,7 @@ func TestResultCount(t *testing.T) {
 }
 
 // This test uses and result and tries to fetch items one by one.
-func TestResultFecth(t *testing.T) {
+func TestResultFetch(t *testing.T) {
 
 	var err error
 	var res db.Result
@@ -250,7 +260,11 @@ func TestResultFecth(t *testing.T) {
 	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
-	artist, _ := sess.Collection("artist")
+	artist, err := sess.Collection("artist")
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
 
 	// Testing map
 	res, err = artist.Filter()
