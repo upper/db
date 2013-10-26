@@ -459,8 +459,8 @@ func TestUpdate(t *testing.T) {
 		Name string
 	}{}
 
-	// Getting the artist with id = 1.
-	res, err := artist.Filter(db.Cond{"id": 1})
+	// Getting the first artist.
+	res, err := artist.Filter(db.Cond{"id !=": 0}, db.Limit(1))
 
 	if err != nil {
 		t.Fatalf(err.Error())
