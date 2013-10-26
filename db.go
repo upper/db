@@ -22,11 +22,14 @@
 */
 
 /*
-	menteslibres.net/db wraps third party database drivers in an attempt to make
-	permanent storage with Go as easy as possible. The package features a common,
-	consistent layer that allows executing operations against different kinds of
-	databases using Go expressions, without the need for explicit database-specific
-	instructions.
+	"One API to use them all."
+
+	The upper.io/db package wraps third party database/sql drivers and some NoSQL
+	drivers and provides a simple API layer to use these wrappers, without the
+	need to write repetitive database-specific statements by hand.
+
+	Tha main goal of the upper.io/db is simple: to save Go maps or structs to a
+	permanent storage engine and then stay out of the way.
 */
 package db
 
@@ -222,19 +225,22 @@ type Result interface {
 	// Counts all items within the result set.
 	Count() (uint64, error)
 
-	// Fetches the next result of the query into the given pointer. Returns error if
-	// there are no more results.
-	// Warning: If you're only using part of these results you must manually Close()
-	// the result.
-	//
-	// Accepts a pointer to map or struct.
+	// Fetches the next result within the result set and dumps it into the given
+	// pointer to struct or pointer to map. You must manually call Close() after
+	// finishing using Next().
 	Next(interface{}) error
 
+	// Fetches the first result within the result set and dumps it into the given
+	// pointer to struct or pointer to map. Then it calls Close() to free the
+	// result set.
 	One(interface{}) error
 
+	// Fetches all results within the result set and dumps them into the given
+	// pointer to slice of maps or structs. Then it calls Close() to free the
+	// result set.
 	All(interface{}) error
 
-	// Closes the resultset.
+	// Frees the result set.
 	Close() error
 }
 
