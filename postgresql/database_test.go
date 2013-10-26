@@ -467,8 +467,8 @@ func TestUpdate(t *testing.T) {
 		Name string
 	}{}
 
-	// Getting the artist with id = 1.
-	res, err := artist.Filter(db.Cond{"id": 1})
+	// Getting the first artist.
+	res, err := artist.Filter(db.Cond{"id !=": 0}, db.Limit(1))
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -658,7 +658,7 @@ func BenchmarkAppendRaw(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := driver.Exec(`INSERT INTO artist (name) VALUES("Hayao Miyazaki")`)
+		_, err := driver.Exec(`INSERT INTO artist (name) VALUES('Hayao Miyazaki')`)
 		if err != nil {
 			b.Fatalf(err.Error())
 		}
