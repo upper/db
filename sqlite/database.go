@@ -217,6 +217,8 @@ func (self *Source) Collections() ([]string, error) {
 		return nil, err
 	}
 
+	defer rows.Close()
+
 	for rows.Next() {
 		rows.Scan(&collection)
 		collections = append(collections, collection)

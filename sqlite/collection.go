@@ -222,7 +222,7 @@ func (self *Table) Append(item interface{}) (db.Id, error) {
 
 // Returns true if the collection exists.
 func (self *Table) Exists() bool {
-	result, err := self.source.doQuery(
+	rows, err := self.source.doQuery(
 		fmt.Sprintf(`
 			SELECT name
 				FROM sqlite_master
@@ -236,9 +236,9 @@ func (self *Table) Exists() bool {
 		return false
 	}
 
-	defer result.Close()
+	defer rows.Close()
 
-	return result.Next()
+	return rows.Next()
 }
 
 func toInternalInterface(val interface{}) interface{} {
