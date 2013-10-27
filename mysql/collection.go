@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012-2013 José Carlos Nieto, http://xiam.menteslibres.org/
+  Copyright (c) 2012-2013 José Carlos Nieto, https://menteslibres.net/xiam
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the
@@ -26,11 +26,11 @@ package mysql
 import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
-	"upper.io/db"
-	"upper.io/db/util/sqlutil"
 	"menteslibres.net/gosexy/to"
 	"strings"
 	"time"
+	"upper.io/db"
+	"upper.io/db/util/sqlutil"
 )
 
 // Mysql table/collection.
@@ -39,9 +39,8 @@ type Table struct {
 	sqlutil.T
 }
 
-func (self *Table) Query(terms ...interface{}) (db.Result, error) {
-
-	var err error
+// Creates a filter with the given terms.
+func (self *Table) Filter(terms ...interface{}) (db.Result, error) {
 
 	queryChunks := sqlutil.NewQueryChunks()
 
@@ -51,7 +50,7 @@ func (self *Table) Query(terms ...interface{}) (db.Result, error) {
 		switch v := term.(type) {
 		case db.Limit:
 			if queryChunks.Limit == "" {
-				queryChunks.Limit = fmt.Sprintf("LIMIT %d", v)
+				queryChunks.Limit = fmt.Sprintf(`LIMIT %d`, v)
 			} else {
 				return nil, db.ErrQueryLimitParam
 			}
@@ -61,88 +60,54 @@ func (self *Table) Query(terms ...interface{}) (db.Result, error) {
 				i := 0
 				for column, sort := range v {
 					sort = strings.ToUpper(to.String(sort))
-					if sort == "-1" {
-						sort = "DESC"
+					if sort == `-1` {
+						sort = `DESC`
 					}
-					if sort == "1" {
-						sort = "ASC"
+					if sort == `1` {
+						sort = `ASC`
 					}
-					sortChunks[i] = fmt.Sprintf("%s %s", column, sort)
+					sortChunks[i] = fmt.Sprintf(`%s %s`, column, sort)
 					i++
 				}
-				queryChunks.Sort = fmt.Sprintf("ORDER BY %s", strings.Join(sortChunks, ", "))
+				queryChunks.Sort = fmt.Sprintf(`ORDER BY %s`, strings.Join(sortChunks, `, `))
 			} else {
 				return nil, db.ErrQuerySortParam
 			}
 		case db.Offset:
 			if queryChunks.Offset == "" {
-				queryChunks.Offset = fmt.Sprintf("OFFSET %d", v)
+				queryChunks.Offset = fmt.Sprintf(`OFFSET %d`, v)
 			} else {
 				return nil, db.ErrQueryOffsetParam
-			}
-		case db.Fields:
-			queryChunks.Fields = append(queryChunks.Fields, v...)
-		case db.Relate:
-			for name, terms := range v {
-				col, err := self.RelationCollection(name, terms)
-				if err != nil {
-					return nil, err
-				}
-				queryChunks.Relations = append(queryChunks.Relations, db.Relation{All: false, Name: name, Collection: col, On: terms})
-			}
-		case db.RelateAll:
-			for name, terms := range v {
-				col, err := self.RelationCollection(name, terms)
-				if err != nil {
-					return nil, err
-				}
-				queryChunks.Relations = append(queryChunks.Relations, db.Relation{All: true, Name: name, Collection: col, On: terms})
 			}
 		}
 	}
 
 	// No specific fields given.
 	if len(queryChunks.Fields) == 0 {
-		queryChunks.Fields = []string{"*"}
+		queryChunks.Fields = []string{`*`}
 	}
 
 	// Compiling conditions
 	queryChunks.Conditions, queryChunks.Arguments = self.compileConditions(terms)
 
 	if queryChunks.Conditions == "" {
-		queryChunks.Conditions = "1 = 1"
+		queryChunks.Conditions = `1 = 1`
 	}
 
-	// Actually executing query.
-	rows, err := self.source.doQuery(
-		// Mandatory
-		fmt.Sprintf("SELECT %s FROM `%s`", strings.Join(queryChunks.Fields, ", "), self.Name()),
-		fmt.Sprintf("WHERE %s", queryChunks.Conditions), queryChunks.Arguments,
-		// Optional
-		queryChunks.Sort, queryChunks.Limit, queryChunks.Offset,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
+	// Creating a result handler.
 	result := &Result{
-		sqlutil.Result{
-			Rows:      rows,
-			Table:     &self.T,
-			Relations: queryChunks.Relations,
-		},
+		self,
+		queryChunks,
+		nil,
 	}
 
 	return result, nil
 }
 
-/*
-	Transforms conditions into arguments for sql.Exec/sql.Query
-*/
-func (self *Table) compileConditions(term interface{}) (string, db.SqlArgs) {
+// Transforms conditions into arguments for sql.Exec/sql.Query
+func (self *Table) compileConditions(term interface{}) (string, []string) {
 	sql := []string{}
-	args := db.SqlArgs{}
+	args := []string{}
 
 	switch t := term.(type) {
 	case []interface{}:
@@ -154,7 +119,7 @@ func (self *Table) compileConditions(term interface{}) (string, db.SqlArgs) {
 			}
 		}
 		if len(sql) > 0 {
-			return "(" + strings.Join(sql, " AND ") + ")", args
+			return `(` + strings.Join(sql, ` AND `) + `)`, args
 		}
 	case db.Or:
 		for i := range t {
@@ -165,7 +130,7 @@ func (self *Table) compileConditions(term interface{}) (string, db.SqlArgs) {
 			}
 		}
 		if len(sql) > 0 {
-			return "(" + strings.Join(sql, " OR ") + ")", args
+			return `(` + strings.Join(sql, ` OR `) + `)`, args
 		}
 	case db.And:
 		for i := range t {
@@ -176,7 +141,7 @@ func (self *Table) compileConditions(term interface{}) (string, db.SqlArgs) {
 			}
 		}
 		if len(sql) > 0 {
-			return "(" + strings.Join(sql, " AND ") + ")", args
+			return `(` + strings.Join(sql, ` AND `) + `)`, args
 		}
 	case db.Cond:
 		return self.compileStatement(t)
@@ -185,9 +150,6 @@ func (self *Table) compileConditions(term interface{}) (string, db.SqlArgs) {
 	return "", args
 }
 
-/*
-	Transforms db.Cond into SQL conditions for sql.Exec/sql.Query
-*/
 func (self *Table) compileStatement(where db.Cond) (string, []string) {
 
 	str := make([]string, len(where))
@@ -196,16 +158,16 @@ func (self *Table) compileStatement(where db.Cond) (string, []string) {
 	i := 0
 
 	for key, _ := range where {
-		key = strings.Trim(key, " ")
-		chunks := strings.SplitN(key, " ", 2)
+		key = strings.Trim(key, ` `)
+		chunks := strings.SplitN(key, ` `, 2)
 
-		op := "="
+		op := `=`
 
 		if len(chunks) > 1 {
 			op = chunks[1]
 		}
 
-		str[i] = fmt.Sprintf("%s %s ?", chunks[0], op)
+		str[i] = fmt.Sprintf(`%s %s ?`, chunks[0], op)
 		arg[i] = toInternal(where[key])
 
 		i++
@@ -218,12 +180,10 @@ func (self *Table) compileStatement(where db.Cond) (string, []string) {
 		return "", []string{}
 	}
 
-	return "(" + strings.Join(str, " AND ") + ")", arg
+	return `(` + strings.Join(str, ` AND `) + `)`, arg
 }
 
-/*
-	Deletes all the rows in the table.
-*/
+// Deletes all the rows within the collection.
 func (self *Table) Truncate() error {
 
 	_, err := self.source.doExec(
@@ -233,102 +193,38 @@ func (self *Table) Truncate() error {
 	return err
 }
 
-/*
-	Deletes all the rows in the table that match certain conditions.
-*/
-func (self *Table) Remove(terms ...interface{}) error {
+// Appends an item (map or struct) into the collection.
+func (self *Table) Append(item interface{}) (db.Id, error) {
+	var id interface{}
 
-	conditions, cargs := self.compileConditions(terms)
+	fields, values, err := self.FieldValues(item, toInternal)
 
-	if conditions == "" {
-		conditions = "1 = 1"
+	// Error ocurred, stop appending.
+	if err != nil {
+		return nil, err
 	}
 
-	_, err := self.source.doExec(
-		fmt.Sprintf("DELETE FROM `%s`", self.Name()),
-		fmt.Sprintf("WHERE %s", conditions), cargs,
+	res, err := self.source.doExec(
+		fmt.Sprintf("INSERT INTO `%s`", self.Name()),
+		sqlFields(fields),
+		"VALUES",
+		sqlValues(values),
 	)
 
-	return err
-}
-
-/*
-	Modifies all the rows in the table that match certain conditions.
-*/
-func (self *Table) Update(selector interface{}, update interface{}) error {
-	var err error
-	var updateFields []string
-	var updateArgs db.SqlArgs
-
-	selectorConds, selectorArgs := self.compileConditions(selector)
-
-	if selectorConds == "" {
-		return db.ErrMissingConditions
+	// Error ocurred, stop appending.
+	if err != nil {
+		return nil, err
 	}
 
-	fields, values, err := self.FieldValues(update, toInternal)
+	// Last inserted ID could be zero too.
+	id, _ = res.LastInsertId()
 
-	if err == nil {
-		total := len(fields)
-		updateFields = make([]string, total)
-		updateArgs = make(db.SqlArgs, total)
-		for i := 0; i < total; i++ {
-			updateFields[i] = fmt.Sprintf("%s = ?", fields[i])
-			updateArgs[i] = values[i]
-		}
-	} else {
-		return err
-	}
-
-	_, err = self.source.doExec(
-		fmt.Sprintf(
-			"UPDATE `%s` SET %s",
-			self.Name(),
-			strings.Join(updateFields, ", "),
-		),
-		updateArgs,
-		fmt.Sprintf("WHERE %s", selectorConds),
-		selectorArgs,
-	)
-
-	return err
+	return id, nil
 }
 
-/*
-	Returns a slice of rows that match certain conditions.
-*/
-func (self *Table) FindAll(terms ...interface{}) ([]db.Item, error) {
-	items := []db.Item{}
-
-	res, err := self.Query(terms...)
-
-	if err == nil {
-		err = res.All(&items)
-	}
-
-	return items, err
-}
-
-/*
-	Returns the number of rows in the current table that match certain conditions.
-*/
-func (self *Table) Count(terms ...interface{}) (int, error) {
-	terms = append(terms, db.Fields{"COUNT(1) AS _total"})
-
-	result, err := self.FindAll(terms...)
-
-	if err == nil {
-		return int(to.Int64(result[0]["_total"])), nil
-	}
-
-	return 0, err
-}
-
-/*
-	Returns true if the collection exists.
-*/
+// Returns true if the collection exists.
 func (self *Table) Exists() bool {
-	result, err := self.source.doQuery(
+	rows, err := self.source.doQuery(
 		fmt.Sprintf(`
 				SELECT table_name
 					FROM information_schema.tables
@@ -338,74 +234,21 @@ func (self *Table) Exists() bool {
 			self.Name(),
 		),
 	)
+
 	if err != nil {
 		return false
 	}
-	if result.Next() == true {
-		result.Close()
-		return true
-	}
-	return false
-}
 
-/*
-	Returns the first row in the table that matches certain conditions.
-*/
-func (self *Table) Find(terms ...interface{}) (db.Item, error) {
-	var item db.Item
-	var err error
+	defer rows.Close()
 
-	terms = append(terms, db.Limit(1))
-
-	res, err := self.Query(terms...)
-
-	if err == nil {
-		err = res.One(&item)
-	}
-
-	return item, err
-}
-
-/*
-	Appends items into the table. An item could be either a map or a struct.
-*/
-func (self *Table) Append(items ...interface{}) ([]db.Id, error) {
-
-	ids := make([]db.Id, len(items))
-
-	for i, item := range items {
-
-		fields, values, err := self.FieldValues(item, toInternal)
-
-		// Error ocurred, stop appending.
-		if err != nil {
-			return ids, err
-		}
-
-		res, err := self.source.doExec(
-			fmt.Sprintf("INSERT INTO `%s`", self.Name()),
-			sqlFields(fields),
-			"VALUES",
-			sqlValues(values),
-		)
-
-		// Error ocurred, stop appending.
-		if err != nil {
-			return ids, err
-		}
-
-		// Last inserted ID could be zero too.
-		id, _ := res.LastInsertId()
-		ids[i] = db.Id(to.String(id))
-	}
-
-	return ids, nil
+	return rows.Next()
 }
 
 func toInternalInterface(val interface{}) interface{} {
 	return toInternal(val)
 }
 
+// Converts a Go value into internal database representation.
 func toInternal(val interface{}) string {
 
 	switch t := val.(type) {
@@ -426,6 +269,7 @@ func toInternal(val interface{}) string {
 	return to.String(val)
 }
 
+// Converts a database representation (after auto-conversion) into a Go value.
 func toNative(val interface{}) interface{} {
 	return val
 }
