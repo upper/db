@@ -215,13 +215,13 @@ func (self *Source) Use(database string) error {
 
 // Starts a transaction block.
 func (self *Source) Begin() error {
-	_, err := self.session.Exec(`BEGIN`)
+	_, err := self.session.Exec(`START TRANSACTION`)
 	return err
 }
 
 // Ends a transaction block.
 func (self *Source) End() error {
-	_, err := self.session.Exec(`END`)
+	_, err := self.session.Exec(`COMMIT`)
 	return err
 }
 
