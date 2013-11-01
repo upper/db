@@ -1,19 +1,22 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
+	"time"
 	"upper.io/db"
 	_ "upper.io/db/mysql"
-	"upper.io/db/util/sqlutil"
 )
 
-var settings = db.DataSource{
-	//Host:     "localhost",
-	Socket:   "/var/run/mysqld/mysqld.sock",
-	Database: "gotest",
-	User:     "gouser",
-	Password: "gopass",
+var settings = db.Settings{
+	Database: `upperio_tests`,
+	Socket:   `/var/run/mysqld/mysqld.sock`,
+	User:     `upperio`,
+	Password: `upperio`,
+}
+
+type Birthday struct {
+	Name string    `field:"name"`
+	Born time.Time `field:"born"`
 }
 
 func main() {
@@ -21,67 +24,74 @@ func main() {
 	sess, err := db.Open("mysql", settings)
 
 	if err != nil {
-		panic(err)
+		fmt.Println("Unable to connect:", err.Error())
+		return
 	}
 
 	defer sess.Close()
 
-	animals, err := sess.Collection("animals")
+	birthdayCollection, err := sess.Collection("birthdays")
 
 	if err != nil {
-		fmt.Printf("Please create the `animals` table.: %s", err.Error())
+		fmt.Println("Could not use collection:", err.Error())
 		return
 	}
 
-	animals.Truncate()
+	err = birthdayCollection.Truncate()
 
-	animals.Append(db.Item{
-		"animal": "Bird",
-		"young":  "Chick",
-		"female": "Hen",
-		"male":   "Cock",
-		"group":  "flock",
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	birthdayCollection.Append(Birthday{
+		Name: "Hayao Miyazaki",
+		Born: time.Date(1941, time.January, 5, 0, 0, 0, 0, time.UTC),
 	})
 
-	animals.Append(db.Item{
-		"animal": "Bovidae",
-		"young":  "Calf",
-		"female": "Cow",
-		"male":   "Bull",
-		"group":  "Herd",
+	birthdayCollection.Append(Birthday{
+		Name: "Nobuo Uematsu",
+		Born: time.Date(1959, time.March, 21, 0, 0, 0, 0, time.UTC),
 	})
 
-	animals.Append(db.Item{
-		"animal": "Canidae",
-		"young":  "Puppy, Pup",
-		"female": "Bitch",
-		"male":   "Dog",
-		"group":  "Pack",
+	birthdayCollection.Append(Birthday{
+		Name: "Hironobu Sakaguchi",
+		Born: time.Date(1962, time.November, 25, 0, 0, 0, 0, time.UTC),
 	})
 
-	items, err := animals.FindAll()
+	var res db.Result
+
+	res, err = birthdayCollection.Filter()
 
 	if err != nil {
 		panic(err.Error())
 	}
 
-	for _, item := range items {
-		fmt.Printf("animal: %s, young: %s\n", item["animal"], item["young"])
+	var birthdays []Birthday
+	var birthday Birthday
+
+	// Pulling all at once.
+	err = res.All(&birthdays)
+
+	if err != nil {
+		panic(err.Error())
+		return
 	}
 
-	// Custom SQL
-	drv := sess.Driver().(*sql.DB)
+	for _, birthday = range birthdays {
+		fmt.Printf("%s was born in %s.\n", birthday.Name, birthday.Born.Format("January 2, 2006"))
+	}
 
-	rows, err := drv.Query("SELECT * from animals")
-
-	items = []db.Item{}
-
-	// Empty virtual table
-	vtable := &sqlutil.T{}
-	vtable.FetchRows(&items, rows)
-
-	for _, item := range items {
-		fmt.Printf("animal: %s, young: %s\n", item["animal"], item["young"])
+	// Pulling one by one
+	for {
+		err = res.Next(&birthday)
+		if err == nil {
+			fmt.Printf("%s was born in %s.\n", birthday.Name, birthday.Born.Format("January 2, 2006"))
+		} else if err == db.ErrNoMoreRows {
+			break
+		} else {
+			panic(err.Error())
+		}
 	}
 
 }
