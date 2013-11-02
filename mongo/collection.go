@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012-2013 José Carlos Nieto, http://xiam.menteslibres.org/
+  Copyright (c) 2012-2013 José Carlos Nieto, https://menteslibres.net/xiam
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the
@@ -27,39 +27,33 @@ import (
 	"fmt"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
+	"strings"
 	"upper.io/db"
 	"upper.io/db/util"
-	"menteslibres.net/gosexy/to"
-	"strings"
 )
 
 // Mongodb Collection
-type SourceCollection struct {
+type Collection struct {
 	name       string
 	parent     *Source
 	collection *mgo.Collection
 	util.C
 }
 
-func (self *SourceCollection) Query(terms ...interface{}) (db.Result, error) {
+type chunks struct {
+	Fields     []string
+	Limit      int
+	Offset     int
+	Sort       *db.Sort
+	Conditions interface{}
+}
 
-	queryChunks := struct {
-		Fields     []string
-		Limit      int
-		Offset     int
-		Sort       *db.Sort
-		Relate     db.Relate
-		RelateAll  db.RelateAll
-		Relations  []db.Relation
-		Conditions interface{}
-	}{}
+func (self *Collection) Filter(terms ...interface{}) (db.Result, error) {
 
-	queryChunks.Relate = make(db.Relate)
-	queryChunks.RelateAll = make(db.RelateAll)
+	queryChunks := &chunks{}
 
 	// Analyzing given terms.
 	for _, term := range terms {
-
 		switch v := term.(type) {
 		case db.Limit:
 			queryChunks.Limit = int(v)
@@ -69,14 +63,6 @@ func (self *SourceCollection) Query(terms ...interface{}) (db.Result, error) {
 			queryChunks.Offset = int(v)
 		case db.Fields:
 			queryChunks.Fields = append(queryChunks.Fields, v...)
-		case db.Relate:
-			for name, terms := range v {
-				queryChunks.Relations = append(queryChunks.Relations, db.Relation{All: false, Name: name, Collection: nil, On: terms})
-			}
-		case db.RelateAll:
-			for name, terms := range v {
-				queryChunks.Relations = append(queryChunks.Relations, db.Relation{All: true, Name: name, Collection: nil, On: terms})
-			}
 		}
 	}
 
@@ -85,14 +71,13 @@ func (self *SourceCollection) Query(terms ...interface{}) (db.Result, error) {
 		queryChunks.Fields = []string{"*"}
 	}
 
-	// Actually executing query.
-	q := self.buildQuery(terms...)
+	queryChunks.Conditions = self.compileQuery(terms...)
 
+	// Actually executing query.
 	result := &Result{
-		query:      q,
-		collection: &self.C,
-		relations:  queryChunks.Relations,
-		iter:       q.Iter(),
+		self,
+		queryChunks,
+		nil,
 	}
 
 	return result, nil
@@ -103,20 +88,20 @@ func compileStatement(where db.Cond) bson.M {
 	conds := bson.M{}
 
 	for key, val := range where {
-		key = strings.Trim(key, " ")
-		chunks := strings.SplitN(key, " ", 2)
+		key = strings.Trim(key, ` `)
+		chunks := strings.SplitN(key, ` `, 2)
 
 		if len(chunks) > 1 {
 			op := ""
 			switch chunks[1] {
-			case ">":
-				op = "$gt"
-			case "<":
-				op = "$gt"
-			case "<=":
-				op = "$lte"
-			case ">=":
-				op = "$gte"
+			case `>`:
+				op = `$gt`
+			case `<`:
+				op = `$gt`
+			case `<=`:
+				op = `$lte`
+			case `>=`:
+				op = `$gte`
 			default:
 				op = chunks[1]
 			}
@@ -130,54 +115,8 @@ func compileStatement(where db.Cond) bson.M {
 	return conds
 }
 
-/*
-	Deletes the whole collection.
-*/
-func (self *SourceCollection) Truncate() error {
-	err := self.collection.DropCollection()
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-/*
-	Returns true if the collection exists.
-*/
-func (self *SourceCollection) Exists() bool {
-	query := self.parent.database.C("system.namespaces").Find(db.Item{"name": fmt.Sprintf("%s.%s", self.parent.Name(), self.Name())})
-	count, _ := query.Count()
-	if count > 0 {
-		return true
-	}
-	return false
-}
-
-/*
-	Appends items to the collection. An item could be either a map or a struct.
-*/
-func (self *SourceCollection) Append(items ...interface{}) ([]db.Id, error) {
-	var id db.Id
-	ids := make([]db.Id, len(items))
-	for i, item := range items {
-		id = ""
-		// Dirty trick to return the Id with ease.
-		res, err := self.collection.Upsert(bson.M{"_id": nil}, toInternal(item))
-		if err != nil {
-			return ids, err
-		}
-		if res.UpsertedId != nil {
-			id = db.Id(res.UpsertedId.(bson.ObjectId).Hex())
-		}
-		ids[i] = id
-	}
-	return ids, nil
-}
-
 // Compiles terms into something *mgo.Session can understand.
-func (self *SourceCollection) compileConditions(term interface{}) interface{} {
+func (self *Collection) compileConditions(term interface{}) interface{} {
 
 	switch t := term.(type) {
 	case []interface{}:
@@ -196,14 +135,14 @@ func (self *SourceCollection) compileConditions(term interface{}) interface{} {
 		for i, _ := range t {
 			values = append(values, self.compileConditions(t[i]))
 		}
-		condition := bson.M{"$or": values}
+		condition := bson.M{`$or`: values}
 		return condition
 	case db.And:
 		values := []interface{}{}
 		for i, _ := range t {
 			values = append(values, self.compileConditions(t[i]))
 		}
-		condition := bson.M{"$and": values}
+		condition := bson.M{`$and`: values}
 		return condition
 	case db.Cond:
 		return compileStatement(t)
@@ -212,7 +151,7 @@ func (self *SourceCollection) compileConditions(term interface{}) interface{} {
 }
 
 // Compiles terms into something that *mgo.Session can understand.
-func (self *SourceCollection) compileQuery(terms ...interface{}) interface{} {
+func (self *Collection) compileQuery(terms ...interface{}) interface{} {
 	var query interface{}
 
 	compiled := self.compileConditions(terms)
@@ -242,134 +181,50 @@ func (self *SourceCollection) compileQuery(terms ...interface{}) interface{} {
 	return query
 }
 
-// Removes all the items that match the given conditions.
-func (self *SourceCollection) Remove(terms ...interface{}) error {
+// Deletes all the rows within the collection.
+func (self *Collection) Truncate() error {
+	err := self.collection.DropCollection()
 
-	query := self.compileQuery(terms...)
+	if err != nil {
+		return err
+	}
 
-	_, err := self.collection.RemoveAll(query)
-
-	return err
+	return nil
 }
 
-// Updates all the items that match the given conditions.
-func (self *SourceCollection) Update(selector interface{}, update interface{}) error {
-	var err error
-	query := self.compileQuery(selector)
+// Appends an item (map or struct) into the collection.
+func (self *Collection) Append(item interface{}) (db.Id, error) {
+	var id db.Id
 
-	_, err = self.collection.UpdateAll(query, bson.M{"$set": update})
-	return err
+	// Dirty trick to return the Id with ease.
+	res, err := self.collection.Upsert(bson.M{"_id": nil}, toInternal(item))
+
+	if err != nil {
+		return nil, err
+	}
+
+	if res.UpsertedId != nil {
+		id = res.UpsertedId.(bson.ObjectId)
+	}
+
+	return id, nil
 }
 
-// Returns the number of items that match the given conditions.
-func (self *SourceCollection) Count(terms ...interface{}) (int, error) {
-	q := self.buildQuery(terms...)
-
-	count, err := q.Count()
-
-	return count, err
-}
-
-// Returns the first db.Item that matches the given conditions.
-func (self *SourceCollection) Find(terms ...interface{}) (db.Item, error) {
-	terms = append(terms, db.Limit(1))
-
-	result, err := self.FindAll(terms...)
-
-	if len(result) > 0 {
-		return result[0], nil
+// Returns true if the collection exists.
+func (self *Collection) Exists() bool {
+	query := self.parent.database.C(`system.namespaces`).Find(db.Item{`name`: fmt.Sprintf(`%s.%s`, self.parent.Name(), self.Name())})
+	count, _ := query.Count()
+	if count > 0 {
+		return true
 	}
-
-	return nil, err
-}
-
-// Returns a *mgo.Query based on the given terms.
-func (self *SourceCollection) buildQuery(terms ...interface{}) *mgo.Query {
-
-	var delim = struct {
-		Limit  int
-		Offset int
-		Fields *db.Fields
-		Sort   *db.Sort
-	}{
-		-1,
-		-1,
-		nil,
-		nil,
-	}
-
-	// Conditions
-	query := self.compileQuery(terms...)
-
-	for i, _ := range terms {
-		switch t := terms[i].(type) {
-		case db.Fields:
-			delim.Fields = &t
-		case db.Limit:
-			delim.Limit = int(t)
-		case db.Offset:
-			delim.Offset = int(t)
-		case db.Sort:
-			delim.Sort = &t
-		}
-	}
-
-	// Actually executing query, returning a pointer.
-	res := self.collection.Find(query)
-
-	// Applying limits and offsets.
-	if delim.Offset > -1 {
-		res = res.Skip(delim.Offset)
-	}
-
-	if delim.Limit > -1 {
-		res = res.Limit(delim.Limit)
-	}
-
-	// Delimiting fields.
-	if delim.Fields != nil {
-		sel := bson.M{}
-		for _, field := range *delim.Fields {
-			sel[field] = true
-		}
-		res = res.Select(sel)
-	}
-
-	// Sorting result.
-	if delim.Sort != nil {
-		for key, val := range *delim.Sort {
-			sval := to.String(val)
-			if sval == "-1" || sval == "DESC" {
-				res = res.Sort("-" + key)
-			} else if sval == "1" || sval == "ASC" {
-				res = res.Sort(key)
-			} else {
-				panic(fmt.Sprintf(`Unknown sort value "%s".`, sval))
-			}
-		}
-	}
-
-	return res
+	return false
 }
 
 // Transforms data from db.Item format into mgo format.
 func toInternal(val interface{}) interface{} {
 
 	// TODO: use reflection to target kinds and not just types.
-
 	switch t := val.(type) {
-	case []db.Id:
-		ids := make([]bson.ObjectId, len(t))
-		for i, _ := range t {
-			ids[i] = bson.ObjectIdHex(string(t[i]))
-		}
-		return ids
-	case db.Id:
-		return bson.ObjectIdHex(string(t))
-	case db.Item:
-		for k, _ := range t {
-			t[k] = toInternal(t[k])
-		}
 	case db.Cond:
 		for k, _ := range t {
 			t[k] = toInternal(t[k])
@@ -401,16 +256,4 @@ func toNative(val interface{}) interface{} {
 
 	return val
 
-}
-
-// Returns all the items that match the given conditions. See Find().
-func (self *SourceCollection) FindAll(terms ...interface{}) ([]db.Item, error) {
-	var err error
-	results := []db.Item{}
-	q, err := self.Query(terms...)
-	if err != nil {
-		return nil, err
-	}
-	err = q.All(&results)
-	return results, err
 }

@@ -155,7 +155,7 @@ func (self *Source) Collections() ([]string, error) {
 func (self *Source) Collection(name string) (db.Collection, error) {
 	var err error
 
-	col := &SourceCollection{}
+	col := &Collection{}
 	col.parent = self
 	col.collection = self.database.C(name)
 

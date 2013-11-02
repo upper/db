@@ -24,75 +24,168 @@
 package mongo
 
 import (
+	"fmt"
 	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
+	"menteslibres.net/gosexy/to"
 	"upper.io/db"
-	"upper.io/db/util"
+	//"upper.io/db/util"
+	"errors"
 )
 
 type Result struct {
-	query      *mgo.Query
-	collection *util.C
-	iter       *mgo.Iter
-	relations  []db.Relation
+	c           *Collection
+	queryChunks *chunks
+	//collection *util.C
+	iter *mgo.Iter
 }
 
+var (
+	errUnknownSortValue = errors.New(`Unknown sort value "%s".`)
+)
+
+// Creates a *mgo.Iter we can use in Next(), All() or One().
+func (self *Result) setCursor() error {
+	if self.iter == nil {
+		q, err := self.query()
+		if err != nil {
+			return err
+		}
+		self.iter = q.Iter()
+	}
+	return nil
+}
+
+// Dumps all results into a pointer to an slice of structs or maps.
 func (self *Result) All(dst interface{}) error {
+
 	var err error
 
-	err = self.query.All(dst)
+	err = self.setCursor()
 
 	if err != nil {
 		return err
 	}
 
-	// Fetching relations
-	err = self.collection.FetchRelations(dst, self.relations, toInternal)
+	err = self.iter.All(dst)
 
 	if err != nil {
 		return err
 	}
 
-	dst = toNative(dst)
+	self.Close()
 
 	return nil
 }
 
-func (self *Result) Next(dst interface{}) error {
+// Fetches only one result from the resultset.
+func (self *Result) One(dst interface{}) error {
+	var err error
+	err = self.Next(dst)
 
-	if self.iter.Next(dst) == false {
+	if err != nil {
+		return err
+	}
+
+	self.Close()
+
+	return nil
+}
+
+// Fetches the next result from the resultset.
+func (self *Result) Next(dst interface{}) error {
+	err := self.setCursor()
+
+	if err != nil {
+		return err
+	}
+
+	success := self.iter.Next(dst)
+
+	if success == false {
 		return db.ErrNoMoreRows
 	}
 
-	if self.iter.Err() != nil {
-		return self.iter.Err()
-	}
-
-	self.collection.FetchRelation(dst, self.relations, toInternal)
-
-	dst = toNative(dst)
-
 	return nil
 }
 
-func (self *Result) One(dst interface{}) error {
+// Removes the matching items from the collection.
+func (self *Result) Remove() error {
 	var err error
-
-	err = self.query.One(dst)
+	_, err = self.c.collection.RemoveAll(self.queryChunks.Conditions)
 	if err != nil {
 		return err
 	}
+	return nil
+}
 
-	err = self.collection.FetchRelation(dst, self.relations, toInternal)
-
-	if err != nil {
-		return err
+// Closes the result set.
+func (self *Result) Close() error {
+	var err error
+	if self.iter != nil {
+		err = self.iter.Close()
+		self.iter = nil
 	}
-
-	dst = toNative(dst)
-
 	return err
 }
 
-func (self *Result) Close() error {
+// Updates matching items from the collection with values of the given map or
+// struct.
+func (self *Result) Update(src interface{}) error {
+	var err error
+	_, err = self.c.collection.UpdateAll(self.queryChunks.Conditions, map[string]interface{}{"$set": src})
+	if err != nil {
+		return err
+	}
 	return nil
+}
+
+func (self *Result) query() (*mgo.Query, error) {
+	var err error
+
+	q := self.c.collection.Find(self.queryChunks.Conditions)
+
+	if self.queryChunks.Offset > 0 {
+		q = q.Skip(self.queryChunks.Offset)
+	}
+
+	if self.queryChunks.Limit > 0 {
+		q = q.Limit(self.queryChunks.Limit)
+	}
+
+	if self.queryChunks.Fields != nil {
+		sel := bson.M{}
+		for _, field := range self.queryChunks.Fields {
+			if field == `*` {
+				break
+			}
+			sel[field] = true
+		}
+		q = q.Select(sel)
+	}
+
+	if self.queryChunks.Sort != nil {
+		for key, val := range *self.queryChunks.Sort {
+			sval := to.String(val)
+			if sval == "-1" || sval == "DESC" {
+				q = q.Sort("-" + key)
+			} else if sval == "1" || sval == "ASC" {
+				q = q.Sort(key)
+			} else {
+				return nil, fmt.Errorf(errUnknownSortValue.Error(), sval)
+			}
+		}
+	}
+
+	return q, err
+}
+
+// Counts matching elements.
+func (self *Result) Count() (uint64, error) {
+	q, err := self.query()
+	if err != nil {
+		return 0, err
+	}
+	total, err := q.Count()
+	return uint64(total), err
 }
