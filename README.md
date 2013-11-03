@@ -23,80 +23,107 @@ driver `labix.org/v2/mgo`.
 
 Get the main package.
 
-```
+```sh
 go get upper.io/db
 ```
 
 Then, get the wrapper you want to use. Choose one of `mysql`, `sqlite`, `mongo`
 or `postgresql`.
 
-```
+```sh
 go get upper.io/db/sqlite
 ```
 
 ## An actual code example
 
+### Defining a struct
+
 Define a Go struct, use Go datatypes and define column names within field tags.
 
-```
+```go
 type Birthday struct {
-	Name string    `field:"name"`
-	Born time.Time `field:"born"`
+  Name string    `field:"name"`
+  Born time.Time `field:"born"`
 }
 ```
 
-Define your database settings.
+### Open a database session
 
-```
+Define your database settings using the `db.Settings` struct.
+
+```go
 var settings = db.Settings{
-	Database: `example.db`,
+  Database: `example.db`,
 }
 ```
 
 Open a connection to a database using a driver (`sqlite` in this example).
 
-```
+```go
 sess, err = db.Open("sqlite", settings)
 ```
 
+### Use a table/collection
+
 Get a collection reference.
 
-```
- birthdayCollection, err = sess.Collection("birthdays")
+```go
+birthdayCollection, err = sess.Collection("birthdays")
 ```
 
-Use the `Collection.Append` method to insert some data into the collection.
+### Insert a new item
 
-```
-birthdayCollection.Append(Birthday{
+Use the `Collection.Append` method in the collection reference to save a new
+item.
+
+```go
+id, err = birthdayCollection.Append(Birthday{
   Name: "Hayao Miyazaki",
   Born: time.Date(1941, time.January, 5, 0, 0, 0, 0, time.UTC),
 })
 ```
 
-Use the `Collection.Filter` method without arguments to retrieve all the rows
-within the collection.
+### Search for items
+
+Use the `Collection.Filter` method to search for the recently appended item and
+create a result set.
 
 ```
-res, err = birthdayCollection.Filter()
+res, err = birthdayCollection.Filter(db.Cond{"id": id})
+```
 
+### Fetch an item
+
+Use the `Result.One` method from the result set to fetch just one result and
+populate an empty struct of the same type.
+
+```go
 var birthday Birthday
-
-for {
-  err = res.Next(&birthday)
-  if err == nil {
-    fmt.Printf("%s was born in %s.\n", birthday.Name, birthday.Born.Format("January 2, 2006"))
-  } else if err == db.ErrNoMoreRows {
-    break
-  } else {
-    panic(err.Error())
-  }
-}
+err = res.One(&birthday)
 ```
 
-Close this session, you can also use `defer` for closing.
+### Update an item
 
+Modify the struct and commit the update to all the items within the result set
+(just one in this example) to permanent storage.
+
+```go
+birthday.Name = `Miyazaki Hayao`
+err = res.Update(birthday)
 ```
+
+### Remove an iem
+
+Remove all the items within the result set (just one in this example).
+
+```go
+err = res.Remove()
+```
+
+Close this session, you can also use `defer` after a successful `Database.Open`
+for closing.
+
+```go
 sess.Close()
 ```
 
