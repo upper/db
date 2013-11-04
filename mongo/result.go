@@ -24,20 +24,18 @@
 package mongo
 
 import (
+	"errors"
 	"fmt"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"menteslibres.net/gosexy/to"
 	"upper.io/db"
-	//"upper.io/db/util"
-	"errors"
 )
 
 type Result struct {
 	c           *Collection
 	queryChunks *chunks
-	//collection *util.C
-	iter *mgo.Iter
+	iter        *mgo.Iter
 }
 
 var (
@@ -182,10 +180,7 @@ func (self *Result) query() (*mgo.Query, error) {
 
 // Counts matching elements.
 func (self *Result) Count() (uint64, error) {
-	q, err := self.query()
-	if err != nil {
-		return 0, err
-	}
+	q := self.c.collection.Find(self.queryChunks.Conditions)
 	total, err := q.Count()
 	return uint64(total), err
 }
