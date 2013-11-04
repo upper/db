@@ -246,7 +246,7 @@ func TestResultCount(t *testing.T) {
 	// We should close the database when it's no longer in use.
 	artist, _ := sess.Collection("artist")
 
-	res, err = artist.Filter()
+	res, err = artist.Find()
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -288,7 +288,7 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	// Testing map
-	res, err = artist.Filter()
+	res, err = artist.Find()
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -331,7 +331,7 @@ func TestResultFetch(t *testing.T) {
 		Name string        `bson:"name"`
 	}{}
 
-	res, err = artist.Filter()
+	res, err = artist.Find()
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -365,7 +365,7 @@ func TestResultFetch(t *testing.T) {
 		Value2 string        `bson:"name"`
 	}{}
 
-	res, err = artist.Filter()
+	res, err = artist.Find()
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -394,7 +394,7 @@ func TestResultFetch(t *testing.T) {
 	res.Close()
 
 	// Testing Result.All() with a slice of maps.
-	res, err = artist.Filter()
+	res, err = artist.Find()
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -414,7 +414,7 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	// Testing Result.All() with a slice of structs.
-	res, err = artist.Filter()
+	res, err = artist.Find()
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -437,7 +437,7 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	// Testing Result.All() with a slice of tagged structs.
-	res, err = artist.Filter()
+	res, err = artist.Find()
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -488,7 +488,7 @@ func TestUpdate(t *testing.T) {
 	}{}
 
 	// Getting the first artist.
-	res, err := artist.Filter(db.Cond{"_id $ne": nil}, db.Limit(1))
+	res, err := artist.Find(db.Cond{"_id $ne": nil}, db.Limit(1))
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -588,7 +588,7 @@ func TestRemove(t *testing.T) {
 	}
 
 	// Getting the first artist.
-	res, err := artist.Filter(db.Cond{"_id $ne": nil}, db.Limit(1))
+	res, err := artist.Find(db.Cond{"_id $ne": nil}, db.Limit(1))
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -604,7 +604,7 @@ func TestRemove(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	res, err = artist.Filter(db.Cond{"_id": first.Id})
+	res, err = artist.Find(db.Cond{"_id": first.Id})
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -646,7 +646,7 @@ func TestDataTypes(t *testing.T) {
 	}
 
 	// Trying to get the same subject we added.
-	res, err = dataTypes.Filter(db.Cond{"_id": id})
+	res, err = dataTypes.Find(db.Cond{"_id": id})
 
 	if err != nil {
 		t.Fatalf(err.Error())

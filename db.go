@@ -204,7 +204,7 @@ type Collection interface {
 	Exists() bool
 
 	// Creates a filter with the given conditions and returns a result set.
-	Filter(...interface{}) (Result, error)
+	Find(...interface{}) (Result, error)
 
 	// Truncates the collection.
 	Truncate() error

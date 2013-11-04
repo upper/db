@@ -61,7 +61,7 @@ func main() {
 
 	var res db.Result
 
-	res, err = birthdayCollection.Filter()
+	res, err = birthdayCollection.Find()
 
 	if err != nil {
 		panic(err.Error())

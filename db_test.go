@@ -260,9 +260,9 @@ func TestSimpleCRUD(t *testing.T) {
 
 			var res db.Result
 			if wrapper == `mongo` {
-				res, err = col.Filter(db.Cond{"_id": id})
+				res, err = col.Find(db.Cond{"_id": id})
 			} else {
-				res, err = col.Filter(db.Cond{"id": id})
+				res, err = col.Find(db.Cond{"id": id})
 			}
 
 			if err != nil {
@@ -317,7 +317,7 @@ func TestSimpleCRUD(t *testing.T) {
 	}
 }
 
-func TestFilters(t *testing.T) {
+func TestFinds(t *testing.T) {
 	var err error
 
 	for _, wrapper := range wrappers {
@@ -353,7 +353,7 @@ func TestFilters(t *testing.T) {
 			}
 
 			// Querying range.
-			res, err := col.Filter(
+			res, err := col.Find(
 				// 5, 6, 7, 3
 				db.Or{
 					db.And{
@@ -413,7 +413,7 @@ func TestFilters(t *testing.T) {
 				t.Fatalf(`Unexpected count %s.`, wrapper)
 			}
 
-			res, err = col.Filter()
+			res, err = col.Find()
 
 			if err != nil {
 				t.Fatalf(`%s: %s`, wrapper, err.Error())

@@ -48,7 +48,7 @@ type chunks struct {
 	Conditions interface{}
 }
 
-func (self *Collection) Filter(terms ...interface{}) (db.Result, error) {
+func (self *Collection) Find(terms ...interface{}) (db.Result, error) {
 
 	queryChunks := &chunks{}
 

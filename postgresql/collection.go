@@ -38,7 +38,7 @@ type Table struct {
 	sqlutil.T
 }
 
-func (self *Table) Filter(terms ...interface{}) (db.Result, error) {
+func (self *Table) Find(terms ...interface{}) (db.Result, error) {
 
 	queryChunks := sqlutil.NewQueryChunks()
 

@@ -233,7 +233,7 @@ func TestResultCount(t *testing.T) {
 	// We should close the database when it's no longer in use.
 	artist, _ := sess.Collection("artist")
 
-	res, err = artist.Filter()
+	res, err = artist.Find()
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -275,7 +275,7 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	// Testing map
-	res, err = artist.Filter()
+	res, err = artist.Find()
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -311,7 +311,7 @@ func TestResultFetch(t *testing.T) {
 		Name string
 	}{}
 
-	res, err = artist.Filter()
+	res, err = artist.Find()
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -345,7 +345,7 @@ func TestResultFetch(t *testing.T) {
 		Value2 string `field:"name"`
 	}{}
 
-	res, err = artist.Filter()
+	res, err = artist.Find()
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -374,7 +374,7 @@ func TestResultFetch(t *testing.T) {
 	res.Close()
 
 	// Testing Result.All() with a slice of maps.
-	res, err = artist.Filter()
+	res, err = artist.Find()
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -394,7 +394,7 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	// Testing Result.All() with a slice of structs.
-	res, err = artist.Filter()
+	res, err = artist.Find()
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -417,7 +417,7 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	// Testing Result.All() with a slice of tagged structs.
-	res, err = artist.Filter()
+	res, err = artist.Find()
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -468,7 +468,7 @@ func TestUpdate(t *testing.T) {
 	}{}
 
 	// Getting the first artist.
-	res, err := artist.Filter(db.Cond{"id !=": 0}, db.Limit(1))
+	res, err := artist.Find(db.Cond{"id !=": 0}, db.Limit(1))
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -568,7 +568,7 @@ func TestRemove(t *testing.T) {
 	}
 
 	// Getting the artist with id = 1
-	res, err := artist.Filter(db.Cond{"id": 1})
+	res, err := artist.Find(db.Cond{"id": 1})
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -610,7 +610,7 @@ func TestDataTypes(t *testing.T) {
 	}
 
 	// Trying to get the same subject we added.
-	res, err = dataTypes.Filter(db.Cond{"id": id})
+	res, err = dataTypes.Find(db.Cond{"id": id})
 
 	if err != nil {
 		t.Fatalf(err.Error())

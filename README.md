@@ -85,11 +85,11 @@ id, err = birthdayCollection.Append(Birthday{
 
 ### Search for items
 
-Use the `Collection.Filter` method to search for the recently appended item and
+Use the `Collection.Find` method to search for the recently appended item and
 create a result set.
 
 ```
-res, err = birthdayCollection.Filter(db.Cond{"id": id})
+res, err = birthdayCollection.Find(db.Cond{"id": id})
 ```
 
 ### Fetch an item
