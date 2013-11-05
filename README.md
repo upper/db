@@ -89,7 +89,7 @@ Use the `Collection.Find` method to search for the recently appended item and
 create a result set.
 
 ```
-res, err = birthdayCollection.Find(db.Cond{"id": id})
+res = birthdayCollection.Find(db.Cond{"id": id})
 ```
 
 ### Fetch an item
