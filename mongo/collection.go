@@ -44,27 +44,13 @@ type chunks struct {
 	Fields     []string
 	Limit      int
 	Offset     int
-	Sort       *db.Sort
+	Sort       []string
 	Conditions interface{}
 }
 
-func (self *Collection) Find(terms ...interface{}) (db.Result, error) {
+func (self *Collection) Find(terms ...interface{}) db.Result {
 
 	queryChunks := &chunks{}
-
-	// Analyzing given terms.
-	for _, term := range terms {
-		switch v := term.(type) {
-		case db.Limit:
-			queryChunks.Limit = int(v)
-		case db.Sort:
-			queryChunks.Sort = &v
-		case db.Offset:
-			queryChunks.Offset = int(v)
-		case db.Fields:
-			queryChunks.Fields = append(queryChunks.Fields, v...)
-		}
-	}
 
 	// No specific fields given.
 	if len(queryChunks.Fields) == 0 {
@@ -80,7 +66,7 @@ func (self *Collection) Find(terms ...interface{}) (db.Result, error) {
 		nil,
 	}
 
-	return result, nil
+	return result
 }
 
 // Transforms conditions into something *mgo.Session can understand.
@@ -193,8 +179,8 @@ func (self *Collection) Truncate() error {
 }
 
 // Appends an item (map or struct) into the collection.
-func (self *Collection) Append(item interface{}) (db.Id, error) {
-	var id db.Id
+func (self *Collection) Append(item interface{}) (interface{}, error) {
+	var id bson.ObjectId
 
 	// Dirty trick to return the Id with ease.
 	res, err := self.collection.Upsert(bson.M{"_id": nil}, toInternal(item))
@@ -212,7 +198,7 @@ func (self *Collection) Append(item interface{}) (db.Id, error) {
 
 // Returns true if the collection exists.
 func (self *Collection) Exists() bool {
-	query := self.parent.database.C(`system.namespaces`).Find(db.Item{`name`: fmt.Sprintf(`%s.%s`, self.parent.Name(), self.Name())})
+	query := self.parent.database.C(`system.namespaces`).Find(map[string]string{`name`: fmt.Sprintf(`%s.%s`, self.parent.Name(), self.Name())})
 	count, _ := query.Count()
 	if count > 0 {
 		return true
@@ -250,8 +236,6 @@ func toNative(val interface{}) interface{} {
 			v[i] = toNative(t[i])
 		}
 		return v
-	case bson.ObjectId:
-		return db.Id(t.Hex())
 	}
 
 	return val

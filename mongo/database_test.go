@@ -246,11 +246,7 @@ func TestResultCount(t *testing.T) {
 	// We should close the database when it's no longer in use.
 	artist, _ := sess.Collection("artist")
 
-	res, err = artist.Find()
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res = artist.Find()
 
 	// Counting all the matching rows.
 	total, err := res.Count()
@@ -288,11 +284,7 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	// Testing map
-	res, err = artist.Find()
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res = artist.Find()
 
 	row_m := map[string]interface{}{}
 
@@ -331,11 +323,7 @@ func TestResultFetch(t *testing.T) {
 		Name string        `bson:"name"`
 	}{}
 
-	res, err = artist.Find()
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res = artist.Find()
 
 	for {
 		err = res.Next(&row_s)
@@ -365,11 +353,7 @@ func TestResultFetch(t *testing.T) {
 		Value2 string        `bson:"name"`
 	}{}
 
-	res, err = artist.Find()
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res = artist.Find()
 
 	for {
 		err = res.Next(&row_t)
@@ -394,11 +378,7 @@ func TestResultFetch(t *testing.T) {
 	res.Close()
 
 	// Testing Result.All() with a slice of maps.
-	res, err = artist.Find()
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res = artist.Find()
 
 	all_rows_m := []map[string]interface{}{}
 	err = res.All(&all_rows_m)
@@ -414,11 +394,7 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	// Testing Result.All() with a slice of structs.
-	res, err = artist.Find()
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res = artist.Find()
 
 	all_rows_s := []struct {
 		Id   bson.ObjectId `bson:"_id"`
@@ -437,11 +413,7 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	// Testing Result.All() with a slice of tagged structs.
-	res, err = artist.Find()
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res = artist.Find()
 
 	all_rows_t := []struct {
 		Value1 bson.ObjectId `bson:"_id"`
@@ -488,11 +460,7 @@ func TestUpdate(t *testing.T) {
 	}{}
 
 	// Getting the first artist.
-	res, err := artist.Find(db.Cond{"_id $ne": nil}, db.Limit(1))
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res := artist.Find(db.Cond{"_id $ne": nil}).Limit(1)
 
 	err = res.One(&value)
 
@@ -588,11 +556,7 @@ func TestRemove(t *testing.T) {
 	}
 
 	// Getting the first artist.
-	res, err := artist.Find(db.Cond{"_id $ne": nil}, db.Limit(1))
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res := artist.Find(db.Cond{"_id $ne": nil}).Limit(1)
 
 	var first struct {
 		Id bson.ObjectId `bson:"_id"`
@@ -604,11 +568,7 @@ func TestRemove(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	res, err = artist.Find(db.Cond{"_id": first.Id})
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res = artist.Find(db.Cond{"_id": first.Id})
 
 	// Trying to remove the row.
 	err = res.Remove()
@@ -646,11 +606,7 @@ func TestDataTypes(t *testing.T) {
 	}
 
 	// Trying to get the same subject we added.
-	res, err = dataTypes.Find(db.Cond{"_id": id})
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res = dataTypes.Find(db.Cond{"_id": id})
 
 	exists, err := res.Count()
 

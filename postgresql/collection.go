@@ -38,49 +38,9 @@ type Table struct {
 	sqlutil.T
 }
 
-func (self *Table) Find(terms ...interface{}) (db.Result, error) {
+func (self *Table) Find(terms ...interface{}) db.Result {
 
 	queryChunks := sqlutil.NewQueryChunks()
-
-	// Analyzing given terms.
-	for _, term := range terms {
-
-		switch v := term.(type) {
-		case db.Limit:
-			if queryChunks.Limit == "" {
-				queryChunks.Limit = fmt.Sprintf(`LIMIT %d`, v)
-			} else {
-				return nil, db.ErrQueryLimitParam
-			}
-		case db.Sort:
-			if queryChunks.Sort == "" {
-				sortChunks := make([]string, len(v))
-				i := 0
-				for column, sort := range v {
-					sort = strings.ToUpper(to.String(sort))
-					if sort == `-1` {
-						sort = `DESC`
-					}
-					if sort == `1` {
-						sort = `ASC`
-					}
-					sortChunks[i] = fmt.Sprintf(`%s %s`, column, sort)
-					i++
-				}
-				queryChunks.Sort = fmt.Sprintf(`ORDER BY %s`, strings.Join(sortChunks, `, `))
-			} else {
-				return nil, db.ErrQuerySortParam
-			}
-		case db.Offset:
-			if queryChunks.Offset == "" {
-				queryChunks.Offset = fmt.Sprintf(`OFFSET %d`, v)
-			} else {
-				return nil, db.ErrQueryOffsetParam
-			}
-		case db.Fields:
-			queryChunks.Fields = append(queryChunks.Fields, v...)
-		}
-	}
 
 	// No specific fields given.
 	if len(queryChunks.Fields) == 0 {
@@ -101,7 +61,7 @@ func (self *Table) Find(terms ...interface{}) (db.Result, error) {
 		nil,
 	}
 
-	return result, nil
+	return result
 }
 
 // Transforms conditions into arguments for sql.Exec/sql.Query
@@ -194,7 +154,7 @@ func (t *Table) Truncate() error {
 }
 
 // Appends an item (map or struct) into the collection.
-func (self *Table) Append(item interface{}) (db.Id, error) {
+func (self *Table) Append(item interface{}) (interface{}, error) {
 
 	fields, values, err := self.FieldValues(item, toInternal)
 

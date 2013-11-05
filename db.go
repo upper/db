@@ -22,8 +22,6 @@
 */
 
 /*
-	"One API to use them all."
-
 	The upper.io/db package wraps third party database/sql drivers and some NoSQL
 	drivers and provides a simple API layer to use these wrappers, without the
 	need to write repetitive database-specific statements by hand.
@@ -95,7 +93,7 @@ type Or []interface{}
 	db.Sort { "age": -1 }				// Order by age, descendent.
 	db.Sort { "age": 1 }				// Order by age, ascendent.
 */
-type Sort map[string]interface{}
+//type Sort map[string]interface{}
 
 /*
 	The db.Limit() expression sets the maximum number of rows to be returned in a
@@ -107,7 +105,7 @@ type Sort map[string]interface{}
 
 		db.Limit(10)
 */
-type Limit uint
+//type Limit uint
 
 /*
 	The db.Offset() expression sets the number of rows to be skipped from a
@@ -119,7 +117,7 @@ type Limit uint
 
 		db.Offset(7)
 */
-type Offset uint
+//type Offset uint
 
 /*
 	The db.Set{} expression is used in *db.Collection.Update()*, it defines new
@@ -131,13 +129,13 @@ type Offset uint
 		"name": "New Name",
 	}
 */
-type Set map[string]interface{}
+//type Set map[string]interface{}
 
 // A query result.
-type Item map[string]interface{}
+//type Item map[string]interface{}
 
 // A result ID.
-type Id interface{}
+//type Id interface{}
 
 // Connection and authentication data.
 type Settings struct {
@@ -198,13 +196,13 @@ type Database interface {
 type Collection interface {
 
 	// Inserts a new item into the collection. Can work with maps or structs.
-	Append(interface{}) (Id, error)
+	Append(interface{}) (interface{}, error)
 
 	// Returns true if the collection exists.
 	Exists() bool
 
 	// Creates a filter with the given conditions and returns a result set.
-	Find(...interface{}) (Result, error)
+	Find(...interface{}) Result
 
 	// Truncates the collection.
 	Truncate() error
@@ -215,6 +213,13 @@ type Collection interface {
 
 // Result methods.
 type Result interface {
+	Limit(uint) Result
+
+	Skip(uint) Result
+
+	Sort(...string) Result
+
+	Select(...string) Result
 
 	// Removes all items within the result set.
 	Remove() error
@@ -245,7 +250,7 @@ type Result interface {
 }
 
 // Specifies which fields will be returned in a query.
-type Fields []string
+//type Fields []string
 
 // These are internal variables.
 //type MultiFlag bool

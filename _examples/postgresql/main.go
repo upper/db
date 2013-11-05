@@ -61,11 +61,7 @@ func main() {
 
 	var res db.Result
 
-	res, err = birthdayCollection.Find()
-
-	if err != nil {
-		panic(err.Error())
-	}
+	res = birthdayCollection.Find()
 
 	var birthdays []Birthday
 	var birthday Birthday

@@ -69,6 +69,44 @@ func (self *Result) setCursor() error {
 	return err
 }
 
+// Determines the maximum limit of results to be returned.
+func (self *Result) Limit(n uint) db.Result {
+	self.queryChunks.Limit = fmt.Sprintf(`LIMIT %d`, n)
+	return self
+}
+
+// Determines how many documents will be skipped before starting to grab
+// results.
+func (self *Result) Skip(n uint) db.Result {
+	self.queryChunks.Offset = fmt.Sprintf(`OFFSET %d`, n)
+	return self
+}
+
+// Determines sorting of results according to the provided names. Fields may be
+// prefixed by - (minus) which means descending order, ascending order would be
+// used otherwise.
+func (self *Result) Sort(fields ...string) db.Result {
+	sort := make([]string, 0, len(fields))
+
+	for _, field := range fields {
+		if strings.HasPrefix(field, `-`) == true {
+			sort = append(sort, field[1:]+` DESC`)
+		} else {
+			sort = append(sort, field+` ASC`)
+		}
+	}
+
+	self.queryChunks.Sort = `ORDER BY ` + strings.Join(sort, `, `)
+
+	return self
+}
+
+// Retrieves only the given fields.
+func (self *Result) Select(fields ...string) db.Result {
+	self.queryChunks.Fields = fields
+	return self
+}
+
 // Dumps all results into a pointer to an slice of structs or maps.
 func (self *Result) All(dst interface{}) error {
 	var err error

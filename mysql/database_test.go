@@ -93,7 +93,7 @@ var testValues = testValuesStruct{
 	1.337, 1.337,
 	true,
 	"Hello world!",
-	time.Date(2012, 7, 28, 1, 2, 3, 0, time.UTC),
+	time.Date(2012, 7, 28, 1, 2, 3, 0, time.Local),
 	time.Second * time.Duration(7331),
 }
 
@@ -233,11 +233,7 @@ func TestResultCount(t *testing.T) {
 	// We should close the database when it's no longer in use.
 	artist, _ := sess.Collection("artist")
 
-	res, err = artist.Find()
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res = artist.Find()
 
 	// Counting all the matching rows.
 	total, err := res.Count()
@@ -275,11 +271,7 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	// Testing map
-	res, err = artist.Find()
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res = artist.Find()
 
 	row_m := map[string]interface{}{}
 
@@ -311,11 +303,7 @@ func TestResultFetch(t *testing.T) {
 		Name string
 	}{}
 
-	res, err = artist.Find()
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res = artist.Find()
 
 	for {
 		err = res.Next(&row_s)
@@ -345,11 +333,7 @@ func TestResultFetch(t *testing.T) {
 		Value2 string `field:"name"`
 	}{}
 
-	res, err = artist.Find()
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res = artist.Find()
 
 	for {
 		err = res.Next(&row_t)
@@ -374,11 +358,7 @@ func TestResultFetch(t *testing.T) {
 	res.Close()
 
 	// Testing Result.All() with a slice of maps.
-	res, err = artist.Find()
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res = artist.Find()
 
 	all_rows_m := []map[string]interface{}{}
 	err = res.All(&all_rows_m)
@@ -394,11 +374,7 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	// Testing Result.All() with a slice of structs.
-	res, err = artist.Find()
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res = artist.Find()
 
 	all_rows_s := []struct {
 		Id   uint64
@@ -417,11 +393,7 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	// Testing Result.All() with a slice of tagged structs.
-	res, err = artist.Find()
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res = artist.Find()
 
 	all_rows_t := []struct {
 		Value1 uint64 `field:"id"`
@@ -468,11 +440,7 @@ func TestUpdate(t *testing.T) {
 	}{}
 
 	// Getting the first artist.
-	res, err := artist.Find(db.Cond{"id !=": 0}, db.Limit(1))
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res := artist.Find(db.Cond{"id !=": 0}).Limit(1)
 
 	err = res.One(&value)
 
@@ -568,11 +536,7 @@ func TestRemove(t *testing.T) {
 	}
 
 	// Getting the artist with id = 1
-	res, err := artist.Find(db.Cond{"id": 1})
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res := artist.Find(db.Cond{"id": 1})
 
 	// Trying to remove the row.
 	err = res.Remove()
@@ -610,11 +574,7 @@ func TestDataTypes(t *testing.T) {
 	}
 
 	// Trying to get the same subject we added.
-	res, err = dataTypes.Find(db.Cond{"id": id})
-
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	res = dataTypes.Find(db.Cond{"id": id})
 
 	exists, err := res.Count()
 
@@ -713,7 +673,7 @@ func BenchmarkAppendDbItem_Transaction(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		_, err = artist.Append(db.Item{"name": "Isaac Asimov"})
+		_, err = artist.Append(map[string]string{"name": "Isaac Asimov"})
 		if err != nil {
 			b.Fatalf(err.Error())
 		}

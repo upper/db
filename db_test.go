@@ -260,13 +260,9 @@ func TestSimpleCRUD(t *testing.T) {
 
 			var res db.Result
 			if wrapper == `mongo` {
-				res, err = col.Find(db.Cond{"_id": id})
+				res = col.Find(db.Cond{"_id": id})
 			} else {
-				res, err = col.Find(db.Cond{"id": id})
-			}
-
-			if err != nil {
-				t.Fatalf(`Could not filter with simple condition with wrapper %s: %s`, wrapper, err.Error())
+				res = col.Find(db.Cond{"id": id})
 			}
 
 			var testItem Birthday
@@ -353,7 +349,7 @@ func TestFinds(t *testing.T) {
 			}
 
 			// Querying range.
-			res, err := col.Find(
+			res := col.Find(
 				// 5, 6, 7, 3
 				db.Or{
 					db.And{
@@ -362,13 +358,7 @@ func TestFinds(t *testing.T) {
 					},
 					db.Cond{"input": 3},
 				},
-				// 6, 7, 3
-				db.Offset(1),
-				// 6, 7
-				db.Limit(2),
-				// 5, 6
-				db.Sort{"input": "DESC"},
-			)
+			).Skip(1).Limit(2).Sort("-input")
 
 			var total uint64
 			total, err = res.Count()
@@ -413,11 +403,7 @@ func TestFinds(t *testing.T) {
 				t.Fatalf(`Unexpected count %s.`, wrapper)
 			}
 
-			res, err = col.Find()
-
-			if err != nil {
-				t.Fatalf(`%s: %s`, wrapper, err.Error())
-			}
+			res = col.Find()
 
 			total, err = res.Count()
 

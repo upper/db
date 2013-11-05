@@ -25,10 +25,8 @@ package mongo
 
 import (
 	"errors"
-	"fmt"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
-	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 )
 
@@ -52,6 +50,33 @@ func (self *Result) setCursor() error {
 		self.iter = q.Iter()
 	}
 	return nil
+}
+
+// Determines the maximum limit of results to be returned.
+func (self *Result) Limit(n uint) db.Result {
+	self.queryChunks.Limit = int(n)
+	return self
+}
+
+// Determines how many documents will be skipped before starting to grab
+// results.
+func (self *Result) Skip(n uint) db.Result {
+	self.queryChunks.Offset = int(n)
+	return self
+}
+
+// Determines sorting of results according to the provided names. Fields may be
+// prefixed by - (minus) which means descending order, ascending order would be
+// used otherwise.
+func (self *Result) Sort(fields ...string) db.Result {
+	self.queryChunks.Sort = fields
+	return self
+}
+
+// Retrieves only the given fields.
+func (self *Result) Select(fields ...string) db.Result {
+	self.queryChunks.Fields = fields
+	return self
 }
 
 // Dumps all results into a pointer to an slice of structs or maps.
@@ -162,17 +187,8 @@ func (self *Result) query() (*mgo.Query, error) {
 		q = q.Select(sel)
 	}
 
-	if self.queryChunks.Sort != nil {
-		for key, val := range *self.queryChunks.Sort {
-			sval := to.String(val)
-			if sval == "-1" || sval == "DESC" {
-				q = q.Sort("-" + key)
-			} else if sval == "1" || sval == "ASC" {
-				q = q.Sort(key)
-			} else {
-				return nil, fmt.Errorf(errUnknownSortValue.Error(), sval)
-			}
-		}
+	if len(self.queryChunks.Sort) > 0 {
+		q.Sort(self.queryChunks.Sort...)
 	}
 
 	return q, err
