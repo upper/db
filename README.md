@@ -43,7 +43,7 @@ type Birthday struct {
 }
 ```
 
-### Open a database session
+### Openning a database session
 
 Define your database settings using the `db.Settings` struct.
 
@@ -59,7 +59,7 @@ Open a connection to a database using a driver (`sqlite` in this example).
 sess, err = db.Open("sqlite", settings)
 ```
 
-### Use a table/collection
+### Using a table/collection
 
 Get a collection reference.
 
@@ -67,7 +67,7 @@ Get a collection reference.
 birthdayCollection, err = sess.Collection("birthdays")
 ```
 
-### Insert a new item
+### Adding a new item
 
 Use the `Collection.Append` method in the collection reference to save a new
 item.
@@ -79,7 +79,7 @@ id, err = birthdayCollection.Append(Birthday{
 })
 ```
 
-### Search for items
+### Searching for items
 
 Use the `Collection.Find` method to search for the recently appended item and
 create a result set.
@@ -88,7 +88,7 @@ create a result set.
 res = birthdayCollection.Find(db.Cond{"id": id})
 ```
 
-### Fetch an item
+### Fetching an item
 
 Use the `Result.One` method from the result set to fetch just one result and
 populate an empty struct of the same type.
@@ -98,7 +98,7 @@ var birthday Birthday
 err = res.One(&birthday)
 ```
 
-### Update an item
+### Updating an item
 
 Modify the struct and commit the update to all the items within the result set
 (just one in this example) to permanent storage.
@@ -108,7 +108,7 @@ birthday.Name = `Miyazaki Hayao`
 err = res.Update(birthday)
 ```
 
-### Remove an iem
+### Removing an item
 
 Remove all the items within the result set (just one in this example).
 
@@ -116,8 +116,15 @@ Remove all the items within the result set (just one in this example).
 err = res.Remove()
 ```
 
-Close this session, you can also use `defer` after a successful `Database.Open`
-for closing.
+### Closing a result set
+```go
+res.Close()
+```
+
+### Ending session
+
+You can also use `defer` after a successful `Database.Open` for closing a
+database session.
 
 ```go
 sess.Close()
