@@ -1,23 +1,19 @@
 # upper.io/db
 
 [Upper DB][1] is a [Go][2] package for saving and retrieving [Go][2] structs
-to permanent storage with ease.
+to and from permanent storage with ease.
 
-[Upper DB][1] is able to comunicate with SQL and NoSQL databases through a
-simplified API and perform the most common operations on database systems such
-as appending, searching, updating and removing items.
+[Upper DB][1] performs the most common operations on SQL and NoSQL databases
+such as appending, searching, updating and removing items.
 
 ## Database compatibility
 
 Wrappers are provided for the following databases:
 
-* SQLite3
-* MySQL
-* PostgreSQL
-* MongoDB
-
-Wrappers are based on popular SQL drivers for `database/sql` and in the MongoDB
-driver `labix.org/v2/mgo`.
+* [SQLite3](./sqlite)
+* [MySQL](./mysql)
+* [PostgreSQL](./postgresql)
+* [MongoDB](./mongo)
 
 ## Installation
 
@@ -27,18 +23,18 @@ Get the main package.
 go get upper.io/db
 ```
 
-Then, get the wrapper you want to use. Choose one of `mysql`, `sqlite`, `mongo`
-or `postgresql`.
+Then, get the wrapper you want to use. Choose one among `mysql`, `sqlite`,
+`mongo` or `postgresql`.
 
 ```sh
 go get upper.io/db/sqlite
 ```
 
-## An actual code example
+## Code example
 
-### Defining a struct
+### Defining a type struct
 
-Define a Go struct, use Go datatypes and define column names within field tags.
+Use Go datatypes and define column names within field tags.
 
 ```go
 type Birthday struct {
