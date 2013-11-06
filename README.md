@@ -84,9 +84,34 @@ id, err = birthdayCollection.Append(Birthday{
 Use the `Collection.Find` method to search for the recently appended item and
 create a result set.
 
-```
+```go
 res = birthdayCollection.Find(db.Cond{"id": id})
 ```
+
+Use `db.And{}` and `db.Or{}` to limit your result set with logical statements.
+
+```go
+res = birthdayCollection.Find(db.Or{
+  db.Cond{"name": "Hayao"},
+  db.Cond{"name": "Nobuo"},
+})
+```
+
+You can also use operators.
+
+```go
+res = peopleCollection.Find(
+  db.Cond{"age >": 30},
+  db.Cond{"age <=": 40},
+)
+```
+
+This is an slightly more complex example.
+
+```go
+peopleCollection.Find().Limit(10).Skip(4).Sort("-name")
+```
+
 
 ### Fetching an item
 

@@ -22,10 +22,6 @@
 */
 
 /*
-	The upper.io/db package wraps third party database/sql drivers and some NoSQL
-	drivers and provides a simple API layer to use these wrappers, without the
-	need to write repetitive database-specific statements by hand.
-
 	Tha main goal of the upper.io/db is simple: to save Go maps or structs to a
 	permanent storage engine and then stay out of the way.
 */
@@ -84,58 +80,6 @@ type And []interface{}
 	)
 */
 type Or []interface{}
-
-/*
-	The db.Sort expression determines how results will be sorted.
-
-	Examples:
-
-	db.Sort { "age": -1 }				// Order by age, descendent.
-	db.Sort { "age": 1 }				// Order by age, ascendent.
-*/
-//type Sort map[string]interface{}
-
-/*
-	The db.Limit() expression sets the maximum number of rows to be returned in a
-	query.
-
-	If no db.Limit() is specified, all rows will be returned.
-
-	Example:
-
-		db.Limit(10)
-*/
-//type Limit uint
-
-/*
-	The db.Offset() expression sets the number of rows to be skipped from a
-	result.
-
-	If no db.Offset() is specified, no rows will be skipped.
-
-	Example:
-
-		db.Offset(7)
-*/
-//type Offset uint
-
-/*
-	The db.Set{} expression is used in *db.Collection.Update()*, it defines new
-	values for the given fields.
-
-	Example:
-
-	db.Set {
-		"name": "New Name",
-	}
-*/
-//type Set map[string]interface{}
-
-// A query result.
-//type Item map[string]interface{}
-
-// A result ID.
-//type Id interface{}
 
 // Connection and authentication data.
 type Settings struct {
@@ -213,18 +157,24 @@ type Collection interface {
 
 // Result methods.
 type Result interface {
+	// Defines the maximum number of results on this set.
 	Limit(uint) Result
 
+	// Skips over the n initial results from a query.
 	Skip(uint) Result
 
+	// Receives fields that define the order in which elements will be returned in
+	// a query, field names may be prefixed with a minus sign (-) indicating
+	// descending order, ascending order would be used otherwise.
 	Sort(...string) Result
 
+	// Defines specific fields to be returned on results on this result set.
 	Select(...string) Result
 
 	// Removes all items within the result set.
 	Remove() error
 
-	// Updates all items within the result set.
+	// Updates all items within the result set. Receives an struct or an interface{}.
 	Update(interface{}) error
 
 	// Counts all items within the result set.
@@ -245,17 +195,9 @@ type Result interface {
 	// result set.
 	All(interface{}) error
 
-	// Frees the result set.
+	// Closes the result set.
 	Close() error
 }
-
-// Specifies which fields will be returned in a query.
-//type Fields []string
-
-// These are internal variables.
-//type MultiFlag bool
-//type SqlValues []string
-//type SqlArgs []string
 
 // Error messages
 var (
