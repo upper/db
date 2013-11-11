@@ -109,7 +109,11 @@ func (self *T) fetchResult(itemt reflect.Type, rows *sql.Rows, columns []string)
 			// Destination is a map.
 			case reflect.Map:
 				if cv.Type() != itemt.Elem() {
-					cv, _ = util.StringToType(svalue, itemt.Elem())
+					if itemt.Elem().Kind() == reflect.Interface {
+						cv, _ = util.StringToType(svalue, cv.Type())
+					} else {
+						cv, _ = util.StringToType(svalue, itemt.Elem())
+					}
 				}
 				if cv.IsValid() {
 					item.SetMapIndex(reflect.ValueOf(column), cv)
