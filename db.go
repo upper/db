@@ -22,8 +22,8 @@
 */
 
 /*
-	Tha main goal of the upper.io/db is simple: to save Go maps or structs to a
-	permanent storage engine and then stay out of the way.
+	The main goal of the upper.io/db package is to provide a simple way to save
+	and retrive Go structs to and from permantent storage.
 */
 package db
 

@@ -91,9 +91,11 @@ func compileStatement(where db.Cond) bson.M {
 			default:
 				op = chunks[1]
 			}
-			conds[chunks[0]] = bson.M{op: toInternal(val)}
+			//conds[chunks[0]] = bson.M{op: toInternal(val)}
+			conds[chunks[0]] = bson.M{op: val}
 		} else {
-			conds[key] = toInternal(val)
+			//conds[key] = toInternal(val)
+			conds[key] = val
 		}
 
 	}
@@ -183,7 +185,7 @@ func (self *Collection) Append(item interface{}) (interface{}, error) {
 	var id bson.ObjectId
 
 	// Dirty trick to return the Id with ease.
-	res, err := self.collection.Upsert(bson.M{"_id": nil}, toInternal(item))
+	res, err := self.collection.UpsertId(nil, item)
 
 	if err != nil {
 		return nil, err
