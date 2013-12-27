@@ -22,11 +22,13 @@ var (
 
 var settings = map[string]*db.Settings{
 	`sqlite`: &db.Settings{
-		Database: `example.db`,
+		Database: `upperio_tests.db`,
 	},
 	`mongo`: &db.Settings{
 		Database: `upperio_tests`,
 		Host:     `127.0.0.1`,
+		User:     `upperio`,
+		Password: `upperio`,
 	},
 	`mysql`: &db.Settings{
 		Database: `upperio_tests`,

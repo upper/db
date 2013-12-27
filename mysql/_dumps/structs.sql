@@ -1,3 +1,5 @@
+USE gotest;
+
 DROP TABLE IF EXISTS artist;
 
 CREATE TABLE artist (

@@ -1,0 +1,31 @@
+language: go
+
+go:
+  - 1.0
+  - 1.1
+  - 1.2
+  - tip
+
+env:
+  - GOARCH=amd64
+
+install:
+  - apt-get install bzr
+  - go get upper.io/db/mongo
+  - go get upper.io/db/mysql
+  - go get upper.io/db/postgresql
+  - go get upper.io/db/sqlite
+
+services:
+  - mongodb
+
+before_script:
+  - cat mysql/_dumps/setup.sql | mysql -uroot
+#  - cat mysql/_dumps/structs.sql | mysql -uupperio -pupperio upperio_tests
+  - cat postgresql/_dumps/setup.sql | psql -U postgres
+#  - cat postgresql/_dumps/structs.sql | PGPASSWORD="upperio" psql -U upperio upperio_tests
+  - mongo upperio_tests --eval 'db.addUser("upperio", "upperio")'
+
+script:
+  - go build
+  - go test

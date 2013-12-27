@@ -48,6 +48,8 @@ const dbname = "upperio_tests"
 var settings = db.Settings{
 	Host:     host,
 	Database: dbname,
+	User:     "upperio",
+	Password: "upperio",
 }
 
 // Structure for testing conversions and datatypes.
