@@ -1,4 +1,4 @@
-USE gotest;
+USE upperio_tests;
 
 DROP TABLE IF EXISTS artist;
 
