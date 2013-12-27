@@ -10,7 +10,7 @@ env:
   - GOARCH=amd64
 
 install:
-  - apt-get install bzr
+  - sudo apt-get install bzr
   - go get upper.io/db/mongo
   - go get upper.io/db/mysql
   - go get upper.io/db/postgresql
