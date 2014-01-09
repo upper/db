@@ -6,6 +6,8 @@ PostgreSQL and MongoDB.
 
 See the project page, recipes and user documentation at [upper.io/db][3].
 
+[![Build Status](https://travis-ci.org/upper/db.png)](https://travis-ci.org/upper/db)
+
 ## License
 
 > Copyright (c) 2012-2013 José Carlos Nieto, https://menteslibres.net/xiam

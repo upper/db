@@ -1,7 +1,6 @@
 language: go
 
 go:
-  - 1.0
   - 1.1
   - 1.2
   - tip
@@ -27,5 +26,4 @@ before_script:
   - mongo upperio_tests --eval 'db.addUser("upperio", "upperio")'
 
 script:
-  - go build
   - go test
