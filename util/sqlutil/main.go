@@ -277,8 +277,9 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) string)
 				tag := field.Tag
 
 				// omitempty:bool
-				if tag.Get("ignorenil") == "true" {
-					if value == nil || value == "" {
+				if tag.Get("omitempty") == "true" {
+					zero := reflect.Zero(reflect.TypeOf(value)).Interface()
+					if value == zero {
 						continue
 					}
 				}
