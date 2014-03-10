@@ -181,7 +181,7 @@ func (self *Table) Append(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	var id int
+	var id int64
 	err = row.Scan(&id)
 
 	if err != nil {
