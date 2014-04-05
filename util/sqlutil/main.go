@@ -287,6 +287,11 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) string)
 				// field:string
 				fieldName := tag.Get("field")
 
+				if fieldName == "-" {
+					// Skip the field if its tag's value is -
+					continue
+				}
+
 				if fieldName == "" {
 					fieldName = self.ColumnLike(field.Name)
 				}
