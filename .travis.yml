@@ -3,7 +3,7 @@ language: go
 go:
   - 1.1
   - 1.2
-  - tip
+  - 1.2.1
 
 env:
   - GOARCH=amd64
@@ -26,4 +26,5 @@ before_script:
   - mongo upperio_tests --eval 'db.addUser("upperio", "upperio")'
 
 script:
+  - go version
   - go test
