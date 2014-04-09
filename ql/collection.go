@@ -51,7 +51,7 @@ func (self *Table) Find(terms ...interface{}) db.Result {
 	queryChunks.Conditions, queryChunks.Arguments = self.compileConditions(terms)
 
 	if queryChunks.Conditions == "" {
-		queryChunks.Conditions = `1 = 1`
+		queryChunks.Conditions = `1 == 1`
 	}
 
 	// Creating a result handler.
@@ -144,9 +144,9 @@ func (self *Table) compileStatement(where db.Cond) (string, []string) {
 }
 
 // Deletes all the rows within the collection.
-func (self *Table) Truncate() error {
+func (self *Table) Truncate() (err error) {
 
-	_, err := self.source.doExec(
+	_, err = self.source.doExec(
 		fmt.Sprintf(`TRUNCATE TABLE %s`, self.Name()),
 	)
 
@@ -163,24 +163,12 @@ func (self *Table) Append(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	tx, err := self.source.session.Begin()
-
-	if err != nil {
-		return nil, err
-	}
-
 	res, err := self.source.doExec(
 		fmt.Sprintf(`INSERT INTO %s`, self.Name()),
 		sqlFields(fields),
 		`VALUES`,
 		sqlValues(values),
 	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	err = tx.Commit()
 
 	if err != nil {
 		return nil, err
@@ -199,11 +187,12 @@ func (self *Table) Append(item interface{}) (interface{}, error) {
 
 // Returns true if the collection exists.
 func (self *Table) Exists() bool {
-	rows, err := self.source.session.Query(`
-		SELECT Name
+	rows, err := self.source.doQuery(
+		`SELECT Name
 			FROM __Table
-		WHERE Name == ?`,
-		self.Name(),
+		WHERE Name == ?
+		`,
+		[]string{self.Name()},
 	)
 
 	if err != nil {

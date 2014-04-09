@@ -28,7 +28,6 @@ import (
 	"fmt"
 	_ "github.com/cznic/ql/driver"
 	"reflect"
-	"regexp"
 	"strings"
 	"upper.io/db"
 )
@@ -40,8 +39,6 @@ var DateFormat = "2006-01-02 15:04:05"
 
 // Format for saving times.
 var TimeFormat = "%d:%02d:%02d.%d"
-
-var columnPattern = regexp.MustCompile(`^([a-z]+)\(?([0-9,]+)?\)?\s?([a-z]*)?`)
 
 const driverName = `ql`
 
@@ -101,7 +98,9 @@ func sqlValues(values []string) sqlValues_t {
 	return ret
 }
 
-func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
+func (self *Source) doExec(terms ...interface{}) (res sql.Result, err error) {
+	var tx *sql.Tx
+
 	if self.session == nil {
 		return nil, db.ErrNotConnected
 	}
@@ -119,7 +118,19 @@ func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
 		fmt.Printf("A: %v\n", chunks.Args)
 	}
 
-	return self.session.Exec(query, chunks.Args...)
+	if tx, err = self.session.Begin(); err != nil {
+		return nil, err
+	}
+
+	if res, err = tx.Exec(query, chunks.Args...); err != nil {
+		return nil, err
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
@@ -285,7 +296,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 			Name, Type
 		FROM __Column
 		WHERE
-			TableName = ?`,
+			TableName == ?`,
 		[]string{table.Name()},
 	)
 
@@ -294,8 +305,8 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 	}
 
 	columns := []struct {
-		ColumnName string
-		DataType   string
+		Name string
+		Type string
 	}{}
 
 	err = table.FetchRows(&columns, rows)
@@ -308,36 +319,21 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 
 	for _, column := range columns {
 
-		column.ColumnName = strings.ToLower(column.ColumnName)
-		column.DataType = strings.ToLower(column.DataType)
-
-		results := columnPattern.FindStringSubmatch(column.DataType)
+		column.Name = strings.ToLower(column.Name)
+		column.Type = strings.ToLower(column.Type)
 
 		// Default properties.
-		dextra := ""
-		dtype := `varchar`
-
-		dtype = results[1]
-
-		if len(results) > 3 {
-			dextra = results[3]
-		}
+		dtype := column.Type
 
 		ctype := reflect.String
 
 		// Guessing datatypes.
 		switch dtype {
-		case `smallint`, `integer`, `bigint`, `serial`, `bigserial`:
-			if dextra == `unsigned` {
-				ctype = reflect.Uint64
-			} else {
-				ctype = reflect.Int64
-			}
-		case `real`, `double`:
-			ctype = reflect.Float64
+		case `string`:
+			ctype = reflect.String
 		}
 
-		table.ColumnTypes[column.ColumnName] = ctype
+		table.ColumnTypes[column.Name] = ctype
 	}
 
 	self.collections[name] = table

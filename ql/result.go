@@ -50,7 +50,7 @@ func (self *Result) setCursor() error {
 		self.cursor, err = self.table.source.doQuery(
 			// Mandatory SQL.
 			fmt.Sprintf(
-				`SELECT %s FROM "%s" WHERE %s`,
+				`SELECT %s FROM %s WHERE %s`,
 				// Fields.
 				strings.Join(self.queryChunks.Fields, `, `),
 				// Table name
@@ -231,7 +231,7 @@ func (self *Result) Count() (uint64, error) {
 
 	rows, err := self.table.source.doQuery(
 		fmt.Sprintf(
-			`SELECT COUNT(1) AS total FROM "%s" WHERE %s`,
+			`SELECT count(1) AS total FROM %s WHERE %s`,
 			self.table.Name(),
 			self.queryChunks.Conditions,
 		),

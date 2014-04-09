@@ -3,14 +3,12 @@ BEGIN TRANSACTION;
 DROP TABLE IF EXISTS artist;
 
 CREATE TABLE artist (
-  id int,
   name string
 );
 
 DROP TABLE IF EXISTS data_types;
 
 CREATE TABLE data_types (
-  id int,
   _uint int,
   _uint8 int,
   _uint16 int,
