@@ -265,7 +265,7 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	// Testing map
-	res = artist.Find()
+	res = artist.Find().Select("id() AS id", "name")
 
 	row_m := map[string]interface{}{}
 
@@ -297,7 +297,7 @@ func TestResultFetch(t *testing.T) {
 		Name string
 	}{}
 
-	res = artist.Find()
+	res = artist.Find().Select("id() AS id", "name")
 
 	for {
 		err = res.Next(&row_s)
@@ -327,7 +327,7 @@ func TestResultFetch(t *testing.T) {
 		Value2 string `field:"name"`
 	}{}
 
-	res = artist.Find()
+	res = artist.Find().Select("id() AS id", "name")
 
 	for {
 		err = res.Next(&row_t)
@@ -352,7 +352,7 @@ func TestResultFetch(t *testing.T) {
 	res.Close()
 
 	// Testing Result.All() with a slice of maps.
-	res = artist.Find()
+	res = artist.Find().Select("id() AS id", "name")
 
 	all_rows_m := []map[string]interface{}{}
 	err = res.All(&all_rows_m)
@@ -368,7 +368,7 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	// Testing Result.All() with a slice of structs.
-	res = artist.Find()
+	res = artist.Find().Select("id() AS id", "name")
 
 	all_rows_s := []struct {
 		Id   uint64
@@ -387,7 +387,7 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	// Testing Result.All() with a slice of tagged structs.
-	res = artist.Find()
+	res = artist.Find().Select("id() AS id", "name")
 
 	all_rows_t := []struct {
 		Value1 uint64 `field:"id"`
@@ -434,7 +434,7 @@ func TestUpdate(t *testing.T) {
 	}{}
 
 	// Getting the first artist.
-	res := artist.Find(db.Cond{"id !=": 0}).Limit(1)
+	res := artist.Find(db.Cond{"id() !=": 0}).Limit(1)
 
 	err = res.One(&value)
 
@@ -530,7 +530,7 @@ func TestRemove(t *testing.T) {
 	}
 
 	// Getting the artist with id = 1
-	res := artist.Find(db.Cond{"id": 1})
+	res := artist.Find(db.Cond{"id()": 1})
 
 	// Trying to remove the row.
 	err = res.Remove()
