@@ -1,2 +1,2 @@
 all:
-	cat structs.sql | psql -Uupperio upperio_tests
+	cat structs.sql | PGPASSWORD="upperio" psql -Uupperio upperio_tests
