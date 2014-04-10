@@ -80,7 +80,7 @@ var testValues = testValuesStruct{
 	1.337, 1.337,
 	true,
 	"Hello world!",
-	time.Unix(1234567890, 0),
+	time.Date(2012, 7, 28, 1, 2, 3, 0, time.Local),
 	time.Second * time.Duration(7331),
 }
 
