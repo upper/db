@@ -1,7 +1,7 @@
-# gosexy/db/mysql
+# MySQL adapter for upper.io/db
 
-Get the full docs, acknowledgements and examples at
-[http://gosexy.org/db/wrappers/mysql][1].
+See the full docs, acknowledgements and examples at
+[https://upper.io/db/mysql][1]
 
-[1]: http://gosexy.org/db/wrappers/mysql
+[1]: https://upper.io/db/mysql
 
