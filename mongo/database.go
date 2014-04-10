@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012-2013 José Carlos Nieto, https://menteslibres.net/xiam
+  Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the
@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"labix.org/v2/mgo"
 	"net/url"
+	"strings"
 	"time"
 	"upper.io/db"
 )
@@ -136,18 +137,24 @@ func (self *Source) Drop() error {
 	return err
 }
 
-// Returns a list of all tables within the currently active database.
-func (self *Source) Collections() ([]string, error) {
-	cols := []string{}
-	rawcols, err := self.database.CollectionNames()
-	if err != nil {
+// Returns a slice of non-system collection names within the active
+// database.
+func (self *Source) Collections() (cols []string, err error) {
+	var rawcols []string
+	var col string
+
+	if rawcols, err = self.database.CollectionNames(); err != nil {
 		return nil, err
 	}
-	for _, col := range rawcols {
-		if col != "system.indexes" {
+
+	cols = make([]string, 0, len(rawcols))
+
+	for _, col = range rawcols {
+		if strings.HasPrefix(col, "system.") == false {
 			cols = append(cols, col)
 		}
 	}
+
 	return cols, nil
 }
 
