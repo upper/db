@@ -44,7 +44,7 @@ type QueryChunks struct {
 	Offset     string
 	Sort       string
 	Conditions string
-	Arguments  []string
+	Arguments  []interface{}
 }
 
 func (self *T) ColumnLike(s string) string {
@@ -188,6 +188,9 @@ func (self *T) FetchRow(dst interface{}, rows *sql.Rows) error {
 	next := rows.Next()
 
 	if next == false {
+		if err = rows.Err(); err != nil {
+			return err
+		}
 		return db.ErrNoMoreRows
 	}
 
@@ -249,10 +252,10 @@ func (self *T) FetchRows(dst interface{}, rows *sql.Rows) error {
 	return nil
 }
 
-func (self *T) FieldValues(item interface{}, convertFn func(interface{}) string) ([]string, []string, error) {
+func (self *T) FieldValues(item interface{}, convertFn func(interface{}) interface{}) ([]string, []interface{}, error) {
 
 	fields := []string{}
-	values := []string{}
+	values := []interface{}{}
 
 	itemv := reflect.ValueOf(item)
 	itemt := itemv.Type()
@@ -262,7 +265,7 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) string)
 	case reflect.Struct:
 		nfields := itemv.NumField()
 
-		values = make([]string, 0, nfields)
+		values = make([]interface{}, 0, nfields)
 		fields = make([]string, 0, nfields)
 
 		for i := 0; i < nfields; i++ {
@@ -313,7 +316,7 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) string)
 		}
 	case reflect.Map:
 		nfields := itemv.Len()
-		values = make([]string, nfields)
+		values = make([]interface{}, nfields)
 		fields = make([]string, nfields)
 		mkeys := itemv.MapKeys()
 
