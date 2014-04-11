@@ -25,9 +25,9 @@ package ql
 
 import (
 	"fmt"
-	"menteslibres.net/gosexy/to"
+	//"menteslibres.net/gosexy/to"
 	"strings"
-	"time"
+	//"time"
 	"upper.io/db"
 	"upper.io/db/util/sqlutil"
 )
@@ -36,6 +36,10 @@ import (
 type Table struct {
 	source *Source
 	sqlutil.T
+}
+
+func mirrorFn(a interface{}) interface{} {
+	return a
 }
 
 func (self *Table) Find(terms ...interface{}) db.Result {
@@ -65,9 +69,9 @@ func (self *Table) Find(terms ...interface{}) db.Result {
 }
 
 // Transforms conditions into arguments for sql.Exec/sql.Query
-func (self *Table) compileConditions(term interface{}) (string, []string) {
+func (self *Table) compileConditions(term interface{}) (string, []interface{}) {
 	sql := []string{}
-	args := []string{}
+	args := []interface{}{}
 
 	switch t := term.(type) {
 	case []interface{}:
@@ -110,10 +114,10 @@ func (self *Table) compileConditions(term interface{}) (string, []string) {
 	return "", args
 }
 
-func (self *Table) compileStatement(where db.Cond) (string, []string) {
+func (self *Table) compileStatement(where db.Cond) (string, []interface{}) {
 
 	str := make([]string, len(where))
-	arg := make([]string, len(where))
+	arg := make([]interface{}, len(where))
 
 	i := 0
 
@@ -121,14 +125,14 @@ func (self *Table) compileStatement(where db.Cond) (string, []string) {
 		key = strings.Trim(key, ` `)
 		chunks := strings.SplitN(key, ` `, 2)
 
-		op := `=`
+		op := `==`
 
 		if len(chunks) > 1 {
 			op = chunks[1]
 		}
 
 		str[i] = fmt.Sprintf(`%s %s ?`, chunks[0], op)
-		arg[i] = toInternal(where[key])
+		arg[i] = where[key]
 
 		i++
 	}
@@ -137,7 +141,7 @@ func (self *Table) compileStatement(where db.Cond) (string, []string) {
 	case 1:
 		return str[0], arg
 	case 0:
-		return "", []string{}
+		return "", nil
 	}
 
 	return `(` + strings.Join(str, ` AND `) + `)`, arg
@@ -156,7 +160,7 @@ func (self *Table) Truncate() (err error) {
 // Appends an item (map or struct) into the collection.
 func (self *Table) Append(item interface{}) (interface{}, error) {
 
-	fields, values, err := self.FieldValues(item, toInternal)
+	fields, values, err := self.FieldValues(item, mirrorFn)
 
 	// Error ocurred, stop appending.
 	if err != nil {
@@ -192,7 +196,7 @@ func (self *Table) Exists() bool {
 			FROM __Table
 		WHERE Name == ?
 		`,
-		[]string{self.Name()},
+		[]interface{}{self.Name()},
 	)
 
 	if err != nil {
@@ -204,6 +208,7 @@ func (self *Table) Exists() bool {
 	return rows.Next()
 }
 
+/*
 func toInternalInterface(val interface{}) interface{} {
 	return toInternal(val)
 }
@@ -233,3 +238,4 @@ func toInternal(val interface{}) string {
 func toNative(val interface{}) interface{} {
 	return val
 }
+*/

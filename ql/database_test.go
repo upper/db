@@ -35,9 +35,8 @@ package ql
 
 import (
 	"database/sql"
-	"fmt"
 	"menteslibres.net/gosexy/to"
-	"reflect"
+	//"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -81,9 +80,9 @@ type testValuesStruct struct {
 
 // Declaring some values to insert, we expect the same values to be returned.
 var testValues = testValuesStruct{
-	1, 1, 1, 1, 1,
-	-1, -1, -1, -1, -1,
-	1.337, 1.337,
+	uint(1), uint8(1), uint16(1), uint32(1), uint64(1),
+	int(-1), int8(-1), int16(-1), int32(-1), int64(-1),
+	float32(1.337), float64(1.337),
 	true,
 	"Hello world!",
 	time.Date(2012, 7, 28, 1, 2, 3, 0, time.UTC),
@@ -122,7 +121,6 @@ func TestTruncate(t *testing.T) {
 
 	// Getting a list of all collections in this database.
 	collections, err := sess.Collections()
-	fmt.Printf("%v\n", collections)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -540,6 +538,7 @@ func TestRemove(t *testing.T) {
 	}
 }
 
+/*
 // This test tries to add many different datatypes to a single row in a
 // collection, then it tries to get the stored datatypes and check if the
 // stored and the original values match.
@@ -589,6 +588,7 @@ func TestDataTypes(t *testing.T) {
 		t.Errorf("Struct is different.")
 	}
 }
+*/
 
 // We are going to benchmark the engine, so this is no longed needed.
 func TestDisableDebug(t *testing.T) {

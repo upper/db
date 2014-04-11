@@ -131,9 +131,7 @@ func (self *Result) All(dst interface{}) error {
 }
 
 // Fetches only one result from the resultset.
-func (self *Result) One(dst interface{}) error {
-	var err error
-
+func (self *Result) One(dst interface{}) (err error) {
 	if self.cursor != nil {
 		return db.ErrQueryIsPending
 	}
@@ -147,24 +145,21 @@ func (self *Result) One(dst interface{}) error {
 
 // Fetches the next result from the resultset.
 func (self *Result) Next(dst interface{}) error {
-
 	var err error
 
 	// Current cursor.
-	err = self.setCursor()
-
-	if err != nil {
+	if err = self.setCursor(); err != nil {
 		self.Close()
+		return err
 	}
 
 	// Fetching the next result from the cursor.
-	err = self.table.T.FetchRow(dst, self.cursor)
-
-	if err != nil {
+	if err = self.table.T.FetchRow(dst, self.cursor); err != nil {
 		self.Close()
+		return err
 	}
 
-	return err
+	return nil
 }
 
 // Removes the matching items from the collection.
@@ -172,7 +167,7 @@ func (self *Result) Remove() error {
 	var err error
 	_, err = self.table.source.doExec(
 		fmt.Sprintf(
-			`DELETE FROM "%s" WHERE %s`,
+			`DELETE FROM %s WHERE %s`,
 			self.table.Name(),
 			self.queryChunks.Conditions,
 		),
@@ -186,7 +181,7 @@ func (self *Result) Remove() error {
 // struct.
 func (self *Result) Update(values interface{}) error {
 
-	ff, vv, err := self.table.FieldValues(values, toInternal)
+	ff, vv, err := self.table.FieldValues(values, mirrorFn)
 
 	if err != nil {
 		return err
@@ -195,7 +190,7 @@ func (self *Result) Update(values interface{}) error {
 	total := len(ff)
 
 	updateFields := make([]string, total)
-	updateArgs := make([]string, total)
+	updateArgs := make([]interface{}, total)
 
 	for i := 0; i < total; i++ {
 		updateFields[i] = fmt.Sprintf(`%s = ?`, ff[i])
@@ -204,7 +199,7 @@ func (self *Result) Update(values interface{}) error {
 
 	_, err = self.table.source.doExec(
 		fmt.Sprintf(
-			`UPDATE "%s" SET %s WHERE %s`,
+			`UPDATE %s %s WHERE %s`,
 			self.table.Name(),
 			strings.Join(updateFields, `, `),
 			self.queryChunks.Conditions,
