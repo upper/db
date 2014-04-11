@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012-2013 José Carlos Nieto, https://menteslibres.net/xiam
+  Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the
@@ -21,10 +21,8 @@
   WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-/*
-	The main goal of the upper.io/db package is to provide a simple way to save
-	and retrive Go structs to and from permantent storage.
-*/
+// The main goal of the upper.io/db package is to provide a simple way to store
+// data in permanent storage with Go.
 package db
 
 import (
@@ -34,7 +32,7 @@ import (
 )
 
 /*
-	The db.Cond{} expression is used to filter results in a query, it can be
+	The db.Cond{} expression is used to define conditions in a query, it can be
 	viewed as a replacement for the SQL "WHERE" clause.
 
 	Examples:
@@ -83,29 +81,28 @@ type Or []interface{}
 
 // Connection and authentication data.
 type Settings struct {
-	// Host to connect to. Cannot be used if Socket is specified.
+	// Database server hostname or IP. Leave blank if using unix sockets.
 	Host string
-	// Port to connect to. Cannot be used if Socket is specified.
+	// Database server port. Leave blank if using unix sockets.
 	Port int
-	// Name of the database to use.
+	// Name of the database.
 	Database string
-	// Authentication user name.
+	// Username for authentication.
 	User string
-	// Authentication password.
+	// Password for authentication.
 	Password string
-	// A path of a UNIX socket. Cannot be user if Host is specified.
+	// A path of a UNIX socket file. Leave blank if using host and port.
 	Socket string
-	// Charset of the database.
+	// Database charset.
 	Charset string
 }
 
 // Database methods.
 type Database interface {
-	// Returns the underlying driver the wrapper uses as an interface{}, so you
-	// can still use database-specific features when you need it.
+	// Returns the underlying driver the wrapper uses as an interface{}.
 	Driver() interface{}
 
-	// Attempts to open a connection using the current settings.
+	// Attempts to stablish a connection with the database server.
 	Open() error
 
 	// Closes the currently active connection to the database.
@@ -114,10 +111,11 @@ type Database interface {
 	// Returns a db.Collection struct by name.
 	Collection(string) (Collection, error)
 
-	// Returns the names of all the collections within the active database.
+	// Returns the names of all non-system collections within the active
+	// database.
 	Collections() ([]string, error)
 
-	// Changes the active database.
+	// Switches the active database.
 	Use(string) error
 
 	// Drops the active database.
@@ -126,7 +124,7 @@ type Database interface {
 	// Sets database connection settings.
 	Setup(Settings) error
 
-	// Returns the string name of the active database.
+	// Returns the name of the active database.
 	Name() string
 
 	// Starts a transaction block (if the database supports transactions).
@@ -151,7 +149,7 @@ type Collection interface {
 	// Truncates the collection.
 	Truncate() error
 
-	// Returns the string name of the collection.
+	// Returns the name of the collection.
 	Name() string
 }
 
@@ -165,7 +163,7 @@ type Result interface {
 
 	// Receives fields that define the order in which elements will be returned in
 	// a query, field names may be prefixed with a minus sign (-) indicating
-	// descending order, ascending order would be used otherwise.
+	// descending order; ascending order would be used otherwise.
 	Sort(...string) Result
 
 	// Defines specific fields to be returned on results on this result set.
@@ -234,27 +232,28 @@ func Register(name string, driver Database) {
 	wrappers[name] = driver
 }
 
-// Configures a connection to a database using the named wrapper and the given
+// Configures a connection to a database using the named adapter and the given
 // settings.
 func Open(name string, settings Settings) (Database, error) {
 
 	driver, ok := wrappers[name]
-
 	if ok == false {
-		panic(fmt.Sprintf("Unknown wrapper: %s.", name))
+		// Using panic instead of returning error because attemping to use an
+		// nonexistent adapter will never result in a successful connection,
+		// therefore should be considered a developer's mistake and must be catched
+		// at compilation time.
+		panic(fmt.Sprintf("Open: Unknown adapter %s. (see: https://upper.io/db#database-adapters)", name))
 	}
 
 	// Creating a new connection everytime Open() is called.
-	t := reflect.ValueOf(driver).Elem().Type()
+	driverType := reflect.ValueOf(driver).Elem().Type()
+	newAdapter := reflect.New(driverType).Interface().(Database)
 
-	conn := reflect.New(t).Interface().(Database)
-
-	// Setting up the connection with the given source.
-	err := conn.Setup(settings)
-
+	// Setting up the connection.
+	err := newAdapter.Setup(settings)
 	if err != nil {
 		return nil, err
 	}
 
-	return conn, nil
+	return newAdapter, nil
 }

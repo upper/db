@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012-2013 José Carlos Nieto, https://menteslibres.net/xiam
+  Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the
@@ -20,10 +20,7 @@
   OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
   WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-
-/*
-	Tests for the mongo wrapper.
-*/
+// Tests for the mongodb adapter.
 package mongo
 
 import (
@@ -83,7 +80,7 @@ var testValues = testValuesStruct{
 	1.337, 1.337,
 	true,
 	"Hello world!",
-	time.Unix(1234567890, 0),
+	time.Date(2012, 7, 28, 1, 2, 3, 0, time.Local),
 	time.Second * time.Duration(7331),
 }
 

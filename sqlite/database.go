@@ -26,7 +26,10 @@ package sqlite
 import (
 	"database/sql"
 	"fmt"
-	_ "github.com/xiam/gosqlite3"
+	// This hack is not required anymore.
+	// See: https://github.com/mattn/go-sqlite3/issues/40
+	//_ "github.com/xiam/gosqlite3"
+	_ "github.com/mattn/go-sqlite3"
 	"reflect"
 	"regexp"
 	"strings"
