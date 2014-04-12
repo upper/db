@@ -83,7 +83,7 @@ func (self *Table) compileConditions(term interface{}) (string, []interface{}) {
 			}
 		}
 		if len(sql) > 0 {
-			return `(` + strings.Join(sql, ` AND `) + `)`, args
+			return `(` + strings.Join(sql, ` && `) + `)`, args
 		}
 	case db.Or:
 		for i := range t {
@@ -94,7 +94,7 @@ func (self *Table) compileConditions(term interface{}) (string, []interface{}) {
 			}
 		}
 		if len(sql) > 0 {
-			return `(` + strings.Join(sql, ` OR `) + `)`, args
+			return `(` + strings.Join(sql, ` || `) + `)`, args
 		}
 	case db.And:
 		for i := range t {
@@ -105,7 +105,7 @@ func (self *Table) compileConditions(term interface{}) (string, []interface{}) {
 			}
 		}
 		if len(sql) > 0 {
-			return `(` + strings.Join(sql, ` AND `) + `)`, args
+			return `(` + strings.Join(sql, ` && `) + `)`, args
 		}
 	case db.Cond:
 		return self.compileStatement(t)
@@ -144,7 +144,7 @@ func (self *Table) compileStatement(where db.Cond) (string, []interface{}) {
 		return "", nil
 	}
 
-	return `(` + strings.Join(str, ` AND `) + `)`, arg
+	return `(` + strings.Join(str, ` && `) + `)`, arg
 }
 
 // Deletes all the rows within the collection.

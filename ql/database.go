@@ -29,16 +29,19 @@ import (
 	_ "github.com/cznic/ql/driver"
 	"reflect"
 	"strings"
+	"time"
 	"upper.io/db"
 )
 
-var Debug = true
+var Debug = false
 
 // Format for saving dates.
 var DateFormat = "2006-01-02 15:04:05"
 
 // Format for saving times.
 var TimeFormat = "%d:%02d:%02d.%d"
+
+var timeType = reflect.TypeOf(time.Time{}).Kind()
 
 const driverName = `ql`
 
@@ -76,12 +79,6 @@ func sqlCompile(terms []interface{}) *sqlQuery {
 			q.Query = append(q.Query, `(`+strings.Join(args, `, `)+`)`)
 		case string:
 			q.Query = append(q.Query, t)
-		/*
-			case []interface{}:
-				for _, arg := range t {
-					q.Args = append(q.Args, arg)
-				}
-		*/
 		default:
 			if reflect.TypeOf(t).Kind() == reflect.Slice {
 				var v = reflect.ValueOf(t)
@@ -340,7 +337,33 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 
 		// Guessing datatypes.
 		switch dtype {
-		case `string`:
+		case `int`:
+			ctype = reflect.Int
+		case `int8`:
+			ctype = reflect.Int8
+		case `int16`:
+			ctype = reflect.Int16
+		case `int32`, `rune`:
+			ctype = reflect.Int32
+		case `int64`:
+			ctype = reflect.Int64
+		case `uint`:
+			ctype = reflect.Uint
+		case `uint8`:
+			ctype = reflect.Uint8
+		case `uint16`:
+			ctype = reflect.Uint16
+		case `uint32`:
+			ctype = reflect.Uint32
+		case `uint64`:
+			ctype = reflect.Uint64
+		case `float64`:
+			ctype = reflect.Float64
+		case `float32`:
+			ctype = reflect.Float32
+		case `time`:
+			ctype = timeType
+		default:
 			ctype = reflect.String
 		}
 
