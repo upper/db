@@ -195,7 +195,7 @@ func (self *Result) Update(values interface{}) error {
 	total := len(ff)
 
 	updateFields := make([]string, total)
-	updateArgs := make([]string, total)
+	updateArgs := make([]interface{}, total)
 
 	for i := 0; i < total; i++ {
 		updateFields[i] = fmt.Sprintf(`%s = ?`, ff[i])
