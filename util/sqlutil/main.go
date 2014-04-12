@@ -56,10 +56,9 @@ func (self *T) ColumnLike(s string) string {
 	return s
 }
 
-func (self *T) fetchResult(itemt reflect.Type, rows *sql.Rows, columns []string) (reflect.Value, error) {
-	var err error
-
+func (self *T) fetchResult(item_t reflect.Type, rows *sql.Rows, columns []string) (reflect.Value, error) {
 	var item reflect.Value
+	var err error
 
 	expecting := len(columns)
 
@@ -71,11 +70,11 @@ func (self *T) fetchResult(itemt reflect.Type, rows *sql.Rows, columns []string)
 		scanArgs[i] = &values[i]
 	}
 
-	switch itemt.Kind() {
+	switch item_t.Kind() {
 	case reflect.Map:
-		item = reflect.MakeMap(itemt)
+		item = reflect.MakeMap(item_t)
 	case reflect.Struct:
-		item = reflect.New(itemt)
+		item = reflect.New(item_t)
 	default:
 		return item, db.ErrExpectingMapOrStruct
 	}
@@ -105,14 +104,14 @@ func (self *T) fetchResult(itemt reflect.Type, rows *sql.Rows, columns []string)
 				cv = reflect.ValueOf(v)
 			}
 
-			switch itemt.Kind() {
+			switch item_t.Kind() {
 			// Destination is a map.
 			case reflect.Map:
-				if cv.Type() != itemt.Elem() {
-					if itemt.Elem().Kind() == reflect.Interface {
+				if cv.Type() != item_t.Elem() {
+					if item_t.Elem().Kind() == reflect.Interface {
 						cv, _ = util.StringToType(svalue, cv.Type())
 					} else {
-						cv, _ = util.StringToType(svalue, itemt.Elem())
+						cv, _ = util.StringToType(svalue, item_t.Elem())
 					}
 				}
 				if cv.IsValid() {
@@ -121,7 +120,7 @@ func (self *T) fetchResult(itemt reflect.Type, rows *sql.Rows, columns []string)
 			// Destionation is a struct.
 			case reflect.Struct:
 
-				index := util.GetStructFieldIndex(itemt, column)
+				index := util.GetStructFieldIndex(item_t, column)
 
 				if index == nil {
 					continue
@@ -177,7 +176,7 @@ func (self *T) FetchRow(dst interface{}, rows *sql.Rows) error {
 		return db.ErrExpectingPointer
 	}
 
-	itemv := dstv.Elem()
+	item_v := dstv.Elem()
 
 	columns, err := getRowColumns(rows)
 
@@ -194,13 +193,13 @@ func (self *T) FetchRow(dst interface{}, rows *sql.Rows) error {
 		return db.ErrNoMoreRows
 	}
 
-	item, err := self.fetchResult(itemv.Type(), rows, columns)
+	item, err := self.fetchResult(item_v.Type(), rows, columns)
 
 	if err != nil {
 		return err
 	}
 
-	itemv.Set(reflect.Indirect(item))
+	item_v.Set(reflect.Indirect(item))
 
 	return nil
 }
@@ -232,11 +231,11 @@ func (self *T) FetchRows(dst interface{}, rows *sql.Rows) error {
 	}
 
 	slicev := dstv.Elem()
-	itemt := slicev.Type().Elem()
+	item_t := slicev.Type().Elem()
 
 	for rows.Next() {
 
-		item, err := self.fetchResult(itemt, rows, columns)
+		item, err := self.fetchResult(item_t, rows, columns)
 
 		if err != nil {
 			return err
@@ -257,24 +256,24 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) interfa
 	fields := []string{}
 	values := []interface{}{}
 
-	itemv := reflect.ValueOf(item)
-	itemt := itemv.Type()
+	item_v := reflect.ValueOf(item)
+	item_t := item_v.Type()
 
-	switch itemt.Kind() {
+	switch item_t.Kind() {
 
 	case reflect.Struct:
-		nfields := itemv.NumField()
+		nfields := item_v.NumField()
 
 		values = make([]interface{}, 0, nfields)
 		fields = make([]string, 0, nfields)
 
 		for i := 0; i < nfields; i++ {
 
-			field := itemt.Field(i)
+			field := item_t.Field(i)
 
 			if field.PkgPath == "" {
 
-				value := itemv.Field(i).Interface()
+				value := item_v.Field(i).Interface()
 
 				// Struct tags
 				tag := field.Tag
@@ -315,14 +314,14 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) interfa
 			}
 		}
 	case reflect.Map:
-		nfields := itemv.Len()
+		nfields := item_v.Len()
 		values = make([]interface{}, nfields)
 		fields = make([]string, nfields)
-		mkeys := itemv.MapKeys()
+		mkeys := item_v.MapKeys()
 
-		for i, keyv := range mkeys {
-			valv := itemv.MapIndex(keyv)
-			fields[i] = self.ColumnLike(to.String(keyv.Interface()))
+		for i, key_v := range mkeys {
+			valv := item_v.MapIndex(key_v)
+			fields[i] = self.ColumnLike(to.String(key_v.Interface()))
 			values[i] = convertFn(valv.Interface())
 		}
 
