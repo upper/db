@@ -66,9 +66,9 @@ func (self *Table) Find(terms ...interface{}) db.Result {
 }
 
 // Transforms conditions into arguments for sql.Exec/sql.Query
-func (self *Table) compileConditions(term interface{}) (string, []string) {
+func (self *Table) compileConditions(term interface{}) (string, []interface{}) {
 	sql := []string{}
-	args := []string{}
+	args := []interface{}{}
 
 	switch t := term.(type) {
 	case []interface{}:
@@ -111,10 +111,10 @@ func (self *Table) compileConditions(term interface{}) (string, []string) {
 	return "", args
 }
 
-func (self *Table) compileStatement(where db.Cond) (string, []string) {
+func (self *Table) compileStatement(where db.Cond) (string, []interface{}) {
 
 	str := make([]string, len(where))
-	arg := make([]string, len(where))
+	arg := make([]interface{}, len(where))
 
 	i := 0
 
@@ -138,7 +138,7 @@ func (self *Table) compileStatement(where db.Cond) (string, []string) {
 	case 1:
 		return str[0], arg
 	case 0:
-		return "", []string{}
+		return "", []interface{}{}
 	}
 
 	return `(` + strings.Join(str, ` AND `) + `)`, arg
@@ -208,7 +208,7 @@ func toInternalInterface(val interface{}) interface{} {
 }
 
 // Converts a Go value into internal database representation.
-func toInternal(val interface{}) string {
+func toInternal(val interface{}) interface{} {
 
 	switch t := val.(type) {
 	case []byte:
