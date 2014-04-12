@@ -51,7 +51,7 @@ func init() {
 	db.Register(driverName, &Source{})
 }
 
-type sqlValues_t []string
+type sqlValues_t []interface{}
 
 type Source struct {
 	config      db.Settings
@@ -72,12 +72,6 @@ func sqlCompile(terms []interface{}) *sqlQuery {
 
 	for _, term := range terms {
 		switch t := term.(type) {
-		case string:
-			q.Query = append(q.Query, t)
-		case []string:
-			for _, arg := range t {
-				q.Args = append(q.Args, arg)
-			}
 		case sqlValues_t:
 			args := make([]string, len(t))
 			for i, arg := range t {
@@ -85,6 +79,17 @@ func sqlCompile(terms []interface{}) *sqlQuery {
 				q.Args = append(q.Args, arg)
 			}
 			q.Query = append(q.Query, `(`+strings.Join(args, `, `)+`)`)
+		case string:
+			q.Query = append(q.Query, t)
+		default:
+			if reflect.TypeOf(t).Kind() == reflect.Slice {
+				var v = reflect.ValueOf(t)
+				for i := 0; i < v.Len(); i++ {
+					q.Args = append(q.Args, v.Index(i).Interface())
+				}
+			} else {
+				q.Args = append(q.Args, t)
+			}
 		}
 	}
 
@@ -98,7 +103,7 @@ func sqlFields(names []string) string {
 	return `("` + strings.Join(names, `", "`) + `")`
 }
 
-func sqlValues(values []string) sqlValues_t {
+func sqlValues(values []interface{}) sqlValues_t {
 	ret := make(sqlValues_t, len(values))
 	for i, _ := range values {
 		ret[i] = values[i]
