@@ -11,10 +11,17 @@ import (
 	_ "upper.io/db/mongo"
 	_ "upper.io/db/mysql"
 	_ "upper.io/db/postgresql"
+	_ "upper.io/db/ql"
 	_ "upper.io/db/sqlite"
 )
 
-var wrappers = []string{`sqlite`, `mysql`, `postgresql`, `mongo`}
+var wrappers = []string{
+	`sqlite`,
+	`mysql`,
+	`postgresql`,
+	`mongo`,
+	`ql`,
+}
 
 var (
 	errDriverErr = errors.New(`Driver error`)
@@ -41,6 +48,9 @@ var settings = map[string]*db.Settings{
 		Socket:   `/var/run/postgresql/`,
 		User:     `upperio`,
 		Password: `upperio`,
+	},
+	`ql`: &db.Settings{
+		Database: `file://upperio_test.ql`,
 	},
 }
 
@@ -150,6 +160,49 @@ var setupFn = map[string]func(driver interface{}) error{
 		}
 		return errDriverErr
 	},
+	`ql`: func(driver interface{}) error {
+		if sqld, ok := driver.(*sql.DB); ok == true {
+			var err error
+			var tx *sql.Tx
+
+			if tx, err = sqld.Begin(); err != nil {
+				return err
+			}
+
+			_, err = tx.Exec(`DROP TABLE IF EXISTS birthdays`)
+			if err != nil {
+				return err
+			}
+
+			_, err = tx.Exec(`CREATE TABLE birthdays (
+				name string,
+				born time
+			)`)
+			if err != nil {
+				return err
+			}
+
+			_, err = tx.Exec(`DROP TABLE IF EXISTS fibonacci`)
+			if err != nil {
+				return err
+			}
+
+			_, err = tx.Exec(`CREATE TABLE fibonacci (
+				input int,
+				output int
+			)`)
+			if err != nil {
+				return err
+			}
+
+			if err = tx.Commit(); err != nil {
+				return err
+			}
+
+			return nil
+		}
+		return errDriverErr
+	},
 }
 
 type Birthday struct {
@@ -237,6 +290,8 @@ func TestSimpleCRUD(t *testing.T) {
 				t.Fatalf(`Test for wrapper %s failed: %s`, wrapper, err.Error())
 			}
 
+			defer sess.Close()
+
 			controlItem = Birthday{
 				Name: "Hayao Miyazaki",
 				Born: time.Date(1941, time.January, 5, 0, 0, 0, 0, time.Local),
@@ -254,25 +309,37 @@ func TestSimpleCRUD(t *testing.T) {
 
 			var id interface{}
 
-			id, err = col.Append(controlItem)
-
-			if err != nil {
+			if id, err = col.Append(controlItem); err != nil {
 				t.Fatalf(`Could not append item with wrapper %s: %s`, wrapper, err.Error())
 			}
 
 			var res db.Result
-			if wrapper == `mongo` {
+			switch wrapper {
+			case `mongo`:
 				res = col.Find(db.Cond{"_id": id})
-			} else {
+			case `ql`:
+				res = col.Find(db.Cond{"id()": id})
+			default:
 				res = col.Find(db.Cond{"id": id})
 			}
 
-			var testItem Birthday
+			var total uint64
+			total, err = res.Count()
 
-			res.One(&testItem)
+			if total != 1 {
+				t.Fatalf("%s: Expecting one row.", wrapper)
+			}
+
+			var testItem Birthday
+			err = res.One(&testItem)
+			if err != nil {
+				t.Fatalf("%s One(): %s", wrapper, err)
+			}
 
 			if reflect.DeepEqual(testItem, controlItem) == false {
-				t.Errorf("Struct is different with wrapper %s.", wrapper)
+				t.Errorf("%s: testItem: %v\n", testItem)
+				t.Errorf("%s: controlItem: %v\n", controlItem)
+				t.Fatalf("%s: Structs are different", wrapper)
 			}
 
 			controlItem.Name = `宮崎駿`
@@ -285,7 +352,7 @@ func TestSimpleCRUD(t *testing.T) {
 			res.One(&testItem)
 
 			if reflect.DeepEqual(testItem, controlItem) == false {
-				t.Errorf("Struct is different with wrapper %s.", wrapper)
+				t.Fatalf("Struct is different with wrapper %s.", wrapper)
 			}
 
 			err = res.Remove()
@@ -294,7 +361,6 @@ func TestSimpleCRUD(t *testing.T) {
 				t.Fatalf(`Could not update with wrapper %s: %s`, wrapper, err.Error())
 			}
 
-			var total uint64
 			total, err = res.Count()
 
 			if total != 0 {
@@ -328,6 +394,7 @@ func TestFinds(t *testing.T) {
 			if err != nil {
 				t.Fatalf(`Test for wrapper %s failed: %s`, wrapper, err.Error())
 			}
+			defer sess.Close()
 
 			var col db.Collection
 			col, err = sess.Collection("fibonacci")
@@ -399,10 +466,12 @@ func TestFinds(t *testing.T) {
 				t.Fatalf(`%s: %s`, wrapper, err.Error())
 			}
 
-			total, err = res.Count()
+			if total, err = res.Count(); err != nil {
+				t.Fatalf(`%s: %s`, wrapper, err.Error())
+			}
 
 			if total != 0 {
-				t.Fatalf(`Unexpected count %s.`, wrapper)
+				t.Fatalf(`%s: Unexpected count %d.`, wrapper, total)
 			}
 
 			res = col.Find()
@@ -410,7 +479,7 @@ func TestFinds(t *testing.T) {
 			total, err = res.Count()
 
 			if total != 6 {
-				t.Fatalf(`Unexpected count %s.`, wrapper)
+				t.Fatalf(`%s: Unexpected count %d.`, wrapper, total)
 			}
 
 			var items []Fibonacci
