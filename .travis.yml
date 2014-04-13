@@ -1,7 +1,7 @@
 language: go
 
 go:
-  - 1.1
+#  - 1.1 // QL does not compile on go1.2+.
   - 1.2
   - 1.2.1
 
@@ -11,6 +11,7 @@ env:
 install:
   - sudo apt-get install bzr
   - go get github.com/cznic/ql/ql
+  - go install github.com/cznic/ql/ql
   - go get upper.io/db/mongo
   - go get upper.io/db/mysql
   - go get upper.io/db/postgresql
