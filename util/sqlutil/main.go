@@ -149,7 +149,8 @@ func (self *T) fetchResult(item_t reflect.Type, rows *sql.Rows, columns []string
 	return item, nil
 }
 
-func getRowColumns(rows *sql.Rows) ([]string, error) {
+// Returns (lowercased) columns names.
+func GetRowColumns(rows *sql.Rows) ([]string, error) {
 	// Column names.
 	columns, err := rows.Columns()
 
@@ -178,7 +179,7 @@ func (self *T) FetchRow(dst interface{}, rows *sql.Rows) error {
 
 	item_v := dstv.Elem()
 
-	columns, err := getRowColumns(rows)
+	columns, err := GetRowColumns(rows)
 
 	if err != nil {
 		return err
@@ -224,7 +225,7 @@ func (self *T) FetchRows(dst interface{}, rows *sql.Rows) error {
 		return db.ErrExpectingSliceMapStruct
 	}
 
-	columns, err := getRowColumns(rows)
+	columns, err := GetRowColumns(rows)
 
 	if err != nil {
 		return err
