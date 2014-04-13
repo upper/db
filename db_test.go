@@ -337,8 +337,8 @@ func TestSimpleCRUD(t *testing.T) {
 			}
 
 			if reflect.DeepEqual(testItem, controlItem) == false {
-				t.Errorf("%s: testItem: %v\n", testItem)
-				t.Errorf("%s: controlItem: %v\n", controlItem)
+				t.Errorf("%s: testItem: %v\n", wrapper, testItem)
+				t.Errorf("%s: controlItem: %v\n", wrapper, controlItem)
 				t.Fatalf("%s: Structs are different", wrapper)
 			}
 
