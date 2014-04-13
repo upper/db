@@ -26,7 +26,6 @@ package ql
 import (
 	"database/sql"
 	"reflect"
-	"strings"
 	"upper.io/db"
 	"upper.io/db/util"
 	"upper.io/db/util/sqlutil"
