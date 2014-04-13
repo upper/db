@@ -1,7 +1,7 @@
 language: go
 
 go:
-#  - 1.1 // QL does not compile on go1.2+.
+#  - 1.1 // ql fails to compile on go1.2+.
   - 1.2
   - 1.2.1
 
@@ -10,8 +10,7 @@ env:
 
 install:
   - sudo apt-get install bzr
-  - go get github.com/cznic/ql/ql
-  - go install github.com/cznic/ql/ql
+  - go get github.com/cznic/ql/ql # ql command line util.
   - go get upper.io/db/mongo
   - go get upper.io/db/mysql
   - go get upper.io/db/postgresql
@@ -27,7 +26,7 @@ before_script:
   - cat postgresql/_dumps/setup.sql | psql -U postgres
   - cat postgresql/_dumps/structs.sql | PGPASSWORD="upperio" psql -U upperio upperio_tests
   - mongo upperio_tests --eval 'db.addUser("upperio", "upperio")'
-  - cat ql/_dumps/structs.sql | ql -db ql/_dumps/test.db
+  - cat ql/_dumps/structs.sql | $GOPATH/bin/ql -db ql/_dumps/test.db
 
 script:
   - go version
