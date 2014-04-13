@@ -26,17 +26,10 @@ package ql
 import (
 	"database/sql"
 	"fmt"
-	"reflect"
 	"strings"
 	"upper.io/db"
 	"upper.io/db/util/sqlutil"
-	//"menteslibres.net/gosexy/to"
-	"upper.io/db/util"
 )
-
-type T struct {
-	*sqlutil.T
-}
 
 type counter struct {
 	Total uint64 `field:"total"`
@@ -47,6 +40,7 @@ type Result struct {
 	queryChunks *sqlutil.QueryChunks
 	// This is the main query cursor. It starts as a nil value.
 	cursor *sql.Rows
+	t      *t
 }
 
 // Executes a SELECT statement that can feed Next(), All() or One().
@@ -132,7 +126,7 @@ func (self *Result) All(dst interface{}) error {
 	defer self.Close()
 
 	// Fetching all results within the cursor.
-	err = self.table.T.FetchRows(dst, self.cursor)
+	err = self.t.qlFetchRows(dst, self.cursor)
 
 	return err
 }
@@ -161,8 +155,7 @@ func (self *Result) Next(dst interface{}) error {
 	}
 
 	// Fetching the next result from the cursor.
-	t := &T{&self.table.T}
-	if err = t.qlFetchRow(dst, self.cursor); err != nil {
+	if err = self.t.qlFetchRow(dst, self.cursor); err != nil {
 		self.Close()
 		return err
 	}
@@ -246,93 +239,9 @@ func (self *Result) Count() (uint64, error) {
 	}
 
 	dst := counter{}
-	self.table.T.FetchRow(&dst, rows)
+	self.t.FetchRow(&dst, rows)
 
 	rows.Close()
 
 	return dst.Total, nil
-}
-
-func getRowColumns(rows *sql.Rows) ([]string, error) {
-	// Column names.
-	columns, err := rows.Columns()
-
-	if err != nil {
-		return nil, err
-	}
-
-	// Column names to lower case.
-	for i, _ := range columns {
-		columns[i] = strings.ToLower(columns[i])
-	}
-
-	return columns, nil
-}
-
-func (self *T) qlFetchRow(dst interface{}, rows *sql.Rows) error {
-
-	dstv := reflect.ValueOf(dst)
-
-	if dstv.IsNil() || dstv.Kind() != reflect.Ptr {
-		return db.ErrExpectingPointer
-	}
-
-	item_v := dstv.Elem()
-
-	columns, err := getRowColumns(rows)
-
-	if err != nil {
-		return err
-	}
-
-	next := rows.Next()
-
-	if next == false {
-		if err = rows.Err(); err != nil {
-			return err
-		}
-		return db.ErrNoMoreRows
-	}
-
-	item, err := self.qlFetchResult(item_v.Type(), rows, columns)
-
-	if err != nil {
-		return err
-	}
-
-	item_v.Set(reflect.Indirect(item))
-
-	return nil
-}
-
-func (self *T) qlFetchResult(item_t reflect.Type, rows *sql.Rows, columns []string) (item reflect.Value, err error) {
-	expecting := len(columns)
-
-	scanArgs := make([]interface{}, expecting)
-
-	switch item_t.Kind() {
-	case reflect.Struct:
-		// Creating new value of the expected type
-		item = reflect.New(item_t)
-		// Pairing each column with it's index
-		for i, columnName := range columns {
-			index := util.GetStructFieldIndex(item_t, columnName)
-			if index != nil {
-				dest_f := item.Elem().FieldByIndex(index)
-				scanArgs[i] = dest_f.Addr().Interface()
-			}
-		}
-	// case reflect.Map: // TODO
-	default:
-		return item, db.ErrUnsupportedDestination
-		//return item, db.ErrExpectingMapOrStruct
-	}
-
-	err = rows.Scan(scanArgs...)
-
-	if err != nil {
-		return item, err
-	}
-
-	return item, nil
 }

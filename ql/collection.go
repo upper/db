@@ -61,6 +61,7 @@ func (self *Table) Find(terms ...interface{}) db.Result {
 		self,
 		queryChunks,
 		nil,
+		&t{&self.T},
 	}
 
 	return result
