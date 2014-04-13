@@ -11,6 +11,7 @@ env:
 install:
   - sudo apt-get install bzr
   - go get github.com/cznic/ql/ql # ql command line util.
+  - go install github.com/cznic/ql/ql # ql command line util.
   - go get upper.io/db/mongo
   - go get upper.io/db/mysql
   - go get upper.io/db/postgresql
