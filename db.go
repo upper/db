@@ -213,6 +213,7 @@ var (
 	ErrQueryOffsetParam        = errors.New(`A query can accept only one db.Offset() parameter.`)
 	ErrMissingConditions       = errors.New(`Missing selector conditions.`)
 	ErrQueryIsPending          = errors.New(`Can't execute this instruction while the result set is still open.`)
+	ErrUnsupportedDestination  = errors.New(`Unsupported destination type.`)
 )
 
 // Registered wrappers.
