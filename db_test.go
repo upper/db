@@ -342,6 +342,24 @@ func TestSimpleCRUD(t *testing.T) {
 				t.Fatalf("%s: Structs are different", wrapper)
 			}
 
+			var testItems []Birthday
+			err = res.All(&testItems)
+			if err != nil {
+				t.Fatalf("%s All(): %s", wrapper, err)
+			}
+
+			if len(testItems) == 0 {
+				t.Fatalf("%s All(): Expecting at least one row.", wrapper)
+			}
+
+			for _, testItem = range testItems {
+				if reflect.DeepEqual(testItem, controlItem) == false {
+					t.Errorf("%s: testItem: %v\n", wrapper, testItem)
+					t.Errorf("%s: controlItem: %v\n", wrapper, controlItem)
+					t.Fatalf("%s: Structs are different", wrapper)
+				}
+			}
+
 			controlItem.Name = `宮崎駿`
 			err = res.Update(controlItem)
 
