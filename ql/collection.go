@@ -25,9 +25,7 @@ package ql
 
 import (
 	"fmt"
-	//"menteslibres.net/gosexy/to"
 	"strings"
-	//"time"
 	"upper.io/db"
 	"upper.io/db/util/sqlutil"
 )
@@ -207,35 +205,3 @@ func (self *Table) Exists() bool {
 
 	return rows.Next()
 }
-
-/*
-func toInternalInterface(val interface{}) interface{} {
-	return toInternal(val)
-}
-
-// Converts a Go value into internal database representation.
-func toInternal(val interface{}) string {
-
-	switch t := val.(type) {
-	case []byte:
-		return string(t)
-	case time.Time:
-		return t.Format(DateFormat)
-	case time.Duration:
-		return fmt.Sprintf(TimeFormat, int(t/time.Hour), int(t/time.Minute%60), int(t/time.Second%60), t%time.Second/time.Millisecond)
-	case bool:
-		if t == true {
-			return `1`
-		} else {
-			return `0`
-		}
-	}
-
-	return to.String(val)
-}
-
-// Convers a database representation (after auto-conversion) into a Go value.
-func toNative(val interface{}) interface{} {
-	return val
-}
-*/
