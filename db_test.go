@@ -435,8 +435,52 @@ func TestFinds(t *testing.T) {
 				}
 			}
 
-			// Querying range.
-			res := col.Find(
+			// Find() with IN/$in
+			var res db.Result
+			var total uint64
+			var whereIn db.Cond
+
+			switch wrapper {
+			case `mongo`:
+				whereIn = db.Cond{"input": db.Func{"$in", []int{3, 5, 6, 7}}}
+			default:
+				whereIn = db.Cond{"input": db.Func{"IN", []int{3, 5, 6, 7}}}
+			}
+
+			res = col.Find(whereIn).Skip(1).Limit(2).Sort("input")
+
+			total, err = res.Count()
+
+			if err != nil {
+				t.Fatalf(`%s: %s`, wrapper, err.Error())
+			}
+
+			if total != 4 {
+				t.Fatalf(`Expecting a count of 4.`)
+			}
+
+			for {
+				var item Fibonacci
+				err = res.Next(&item)
+				if err == nil {
+					switch item.Input {
+					case 5:
+					case 6:
+						if fib(item.Input) != item.Output {
+							t.Fatalf(`Unexpected value in item with wrapper %s.`, wrapper)
+						}
+					default:
+						t.Fatalf(`Unexpected item: %v with wrapper %s.`, item, wrapper)
+					}
+				} else if err == db.ErrNoMoreRows {
+					break
+				} else {
+					t.Fatalf(`%s: %s`, wrapper, err.Error())
+				}
+			}
+
+			// Find() with range
+			res = col.Find(
 				// 5, 6, 7, 3
 				db.Or{
 					db.And{
@@ -447,7 +491,6 @@ func TestFinds(t *testing.T) {
 				},
 			).Skip(1).Limit(2).Sort("-input")
 
-			var total uint64
 			total, err = res.Count()
 
 			if err != nil {
