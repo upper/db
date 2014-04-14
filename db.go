@@ -46,6 +46,14 @@ import (
 type Cond map[string]interface{}
 
 /*
+	The db.Func expression is used to represent database functions.
+*/
+type Func struct {
+	Name string
+	Args interface{}
+}
+
+/*
 	The db.And() expression is used to glue two or more expressions under logical
 	conjunction, it accepts db.Cond{}, db.Or() and other db.And() expressions.
 

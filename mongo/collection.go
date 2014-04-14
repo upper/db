@@ -70,15 +70,19 @@ func (self *Collection) Find(terms ...interface{}) db.Result {
 }
 
 // Transforms conditions into something *mgo.Session can understand.
-func compileStatement(where db.Cond) bson.M {
+func compileStatement(cond db.Cond) bson.M {
 	conds := bson.M{}
 
-	for key, val := range where {
-		key = strings.Trim(key, ` `)
-		chunks := strings.SplitN(key, ` `, 2)
+	// Walking over conditions
+	for field, value := range cond {
+		// Removing leading or trailing spaces.
+		field = strings.TrimSpace(field)
+
+		chunks := strings.SplitN(field, ` `, 2)
+
+		var op string
 
 		if len(chunks) > 1 {
-			op := ""
 			switch chunks[1] {
 			case `>`:
 				op = `$gt`
@@ -91,11 +95,17 @@ func compileStatement(where db.Cond) bson.M {
 			default:
 				op = chunks[1]
 			}
-			//conds[chunks[0]] = bson.M{op: toInternal(val)}
-			conds[chunks[0]] = bson.M{op: val}
-		} else {
-			//conds[key] = toInternal(val)
-			conds[key] = val
+		}
+
+		switch value := value.(type) {
+		case db.Func:
+			conds[chunks[0]] = bson.M{value.Name: value.Args}
+		default:
+			if op == "" {
+				conds[chunks[0]] = value
+			} else {
+				conds[chunks[0]] = bson.M{op: value}
+			}
 		}
 
 	}

@@ -126,7 +126,11 @@ func (self *Result) Next(dst interface{}) error {
 	success := self.iter.Next(dst)
 
 	if success == false {
-		return db.ErrNoMoreRows
+		err := self.iter.Err()
+		if err == nil {
+			return db.ErrNoMoreRows
+		}
+		return err
 	}
 
 	return nil

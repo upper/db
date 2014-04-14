@@ -26,6 +26,7 @@ package sqlite
 import (
 	"fmt"
 	"menteslibres.net/gosexy/to"
+	"reflect"
 	"strings"
 	"time"
 	"upper.io/db"
@@ -111,27 +112,46 @@ func (self *Table) compileConditions(term interface{}) (string, []interface{}) {
 	return "", args
 }
 
-func (self *Table) compileStatement(where db.Cond) (string, []interface{}) {
+func (self *Table) compileStatement(cond db.Cond) (string, []interface{}) {
 
-	str := make([]string, len(where))
-	arg := make([]interface{}, len(where))
+	total := len(cond)
 
-	i := 0
+	str := make([]string, 0, total)
+	arg := make([]interface{}, 0, total)
 
-	for key, _ := range where {
-		key = strings.Trim(key, ` `)
-		chunks := strings.SplitN(key, ` `, 2)
+	// Walking over conditions
+	for field, value := range cond {
+		// Removing leading or trailing spaces.
+		field = strings.TrimSpace(field)
 
+		chunks := strings.SplitN(field, ` `, 2)
+
+		// Default operator.
 		op := `=`
 
 		if len(chunks) > 1 {
+			// User has defined a different operator.
 			op = chunks[1]
 		}
 
-		str[i] = fmt.Sprintf(`%s %s ?`, chunks[0], op)
-		arg[i] = toInternal(where[key])
-
-		i++
+		switch value := value.(type) {
+		case db.Func:
+			value_i := interfaceArgs(value.Args)
+			if value_i == nil {
+				str = append(str, fmt.Sprintf(`%s %s ()`, chunks[0], value.Name))
+			} else {
+				str = append(str, fmt.Sprintf(`%s %s (?%s)`, chunks[0], value.Name, strings.Repeat(`,?`, len(value_i)-1)))
+				arg = append(arg, value_i...)
+			}
+		default:
+			value_i := interfaceArgs(value)
+			if value_i == nil {
+				str = append(str, fmt.Sprintf(`%s %s ()`, chunks[0], op))
+			} else {
+				str = append(str, fmt.Sprintf(`%s %s (?%s)`, chunks[0], op, strings.Repeat(`,?`, len(value_i)-1)))
+				arg = append(arg, value_i...)
+			}
+		}
 	}
 
 	switch len(str) {
@@ -231,4 +251,35 @@ func toInternal(val interface{}) interface{} {
 // Convers a database representation (after auto-conversion) into a Go value.
 func toNative(val interface{}) interface{} {
 	return val
+}
+
+func interfaceArgs(value interface{}) (args []interface{}) {
+
+	if value == nil {
+		return nil
+	}
+
+	value_v := reflect.ValueOf(value)
+
+	switch value_v.Type().Kind() {
+	case reflect.Slice:
+		var i, total int
+
+		total = value_v.Len()
+		if total > 0 {
+			args = make([]interface{}, total)
+
+			for i = 0; i < total; i++ {
+				args[i] = toInternal(value_v.Index(i).Interface())
+			}
+
+			return args
+		} else {
+			return nil
+		}
+	default:
+		args = []interface{}{toInternal(value)}
+	}
+
+	return args
 }
