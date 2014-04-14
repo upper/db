@@ -1,8 +1,8 @@
 # upper.io/db
 
 `upper.io/db` is a [Go][2] package that allows developers to store and retrive
-data from different kinds of databases through the use of adapters that wrap
-well supported database drivers.
+data to and from different kinds of databases through the use of adapters that
+wrap well supported database drivers.
 
 `upper.io/db` is not an ORM, but you may not need one at all:
 
@@ -17,7 +17,7 @@ See the project page, recipes and user documentation at [upper.io/db][1].
 
 [![Build Status](https://travis-ci.org/upper/db.png)](https://travis-ci.org/upper/db)
 
-## Supported adapters
+## Supported databases
 
 * [MongoDB](https://upper.io/db/mongo) via [mgo](http://godoc.org/labix.org/v2/mgo)
 * [MySQL](https://upper.io/db/mysql) via [mysql](https://github.com/go-sql-driver/mysql)
