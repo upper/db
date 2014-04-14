@@ -6,11 +6,11 @@ wrap well supported database drivers.
 
 `upper.io/db` is not an ORM, but you may not need one at all:
 
-```
-  // This code works the same for all supported databases.
-  var people []Person
-  res = col.Find(db.Cond{"name": "Max"}).Skip(1).Limit(2).Sort("-input")
-  err = res.All(&people)
+```go
+// This code works the same for all supported databases.
+var people []Person
+res = col.Find(db.Cond{"name": "Max"}).Skip(1).Limit(2).Sort("-input")
+err = res.All(&people)
 ```
 
 See the project page, recipes and user documentation at [upper.io/db][1].
