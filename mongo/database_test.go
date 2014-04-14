@@ -532,6 +532,48 @@ func TestUpdate(t *testing.T) {
 
 }
 
+// Test database functions
+func TestFunction(t *testing.T) {
+	var err error
+	var res db.Result
+
+	// Opening database.
+	sess, err := db.Open(wrapperName, settings)
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// We should close the database when it's no longer in use.
+	defer sess.Close()
+
+	// Getting a pointer to the "artist" collection.
+	artist, err := sess.Collection("artist")
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	row_s := struct {
+		Id   uint64
+		Name string
+	}{}
+
+	res = artist.Find(db.Cond{"_id $nin": []int{0, -1}})
+
+	if err = res.One(&row_s); err != nil {
+		t.Fatalf("One: %q", err)
+	}
+
+	res = artist.Find(db.Cond{"_id": db.Func{"$nin", []int{0, -1}}})
+
+	if err = res.One(&row_s); err != nil {
+		t.Fatalf("One: %q", err)
+	}
+
+	res.Close()
+}
+
 // This test tries to remove some previously added rows.
 func TestRemove(t *testing.T) {
 
