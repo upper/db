@@ -25,6 +25,7 @@ package ql
 
 import (
 	"database/sql"
+	"menteslibres.net/gosexy/to"
 	"reflect"
 	"upper.io/db"
 	"upper.io/db/util"
@@ -89,16 +90,42 @@ func (self *t) qlFetchResult(item_t reflect.Type, rows *sql.Rows, columns []stri
 				scanArgs[i] = dest_f.Addr().Interface()
 			}
 		}
-	// case reflect.Map: // TODO
-	default:
-		return item, db.ErrUnsupportedDestination
-		//return item, db.ErrExpectingMapOrStruct
-	}
 
-	err = rows.Scan(scanArgs...)
+		err = rows.Scan(scanArgs...)
 
-	if err != nil {
+		if err != nil {
+			return item, err
+		}
+	case reflect.Map:
+		values := make([]*sql.RawBytes, len(columns))
+		for i, _ := range columns {
+			scanArgs[i] = &values[i]
+		}
+		err = rows.Scan(scanArgs...)
+
+		if err == nil {
+			item = reflect.MakeMap(item_t)
+			for i, columnName := range columns {
+				val_s := string(*values[i])
+
+				var val_v reflect.Value
+
+				if _, ok := self.ColumnTypes[columnName]; ok == true {
+					v, _ := to.Convert(val_s, self.ColumnTypes[columnName])
+					val_v = reflect.ValueOf(v)
+				} else {
+					v, _ := to.Convert(val_s, reflect.String)
+					val_v = reflect.ValueOf(v)
+				}
+
+				key_v := reflect.ValueOf(columnName)
+				item.SetMapIndex(key_v, val_v)
+			}
+		}
+
 		return item, err
+	default:
+		return item, db.ErrExpectingMapOrStruct
 	}
 
 	return item, nil
