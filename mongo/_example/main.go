@@ -2,47 +2,52 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"time"
-	"upper.io/db"
-	_ "upper.io/db/mongo"
+	"upper.io/db"         // Imports the main db package.
+	_ "upper.io/db/mongo" // Imports the mongo adapter.
 )
 
 var settings = db.Settings{
-	Database: `upperio_tests`,
-	Host:     `127.0.0.1`,
+	Database: `upperio_tests`, // Database name.
+	Host:     `127.0.0.1`,     // Using TCP.
 }
 
 type Birthday struct {
-	Name string    `bson:"name"`
+	// Maps the "Name" property to the "name" column of the "birthdays" table.
+	Name string `bson:"name"`
+	// Maps the "Born" property to the "born" column of the "birthdays" table.
 	Born time.Time `bson:"born"`
 }
 
 func main() {
 
+	// Attemping to establish a connection to the database.
 	sess, err := db.Open("mongo", settings)
 
 	if err != nil {
-		fmt.Println("Unable to connect:", err.Error())
-		return
+		log.Fatalf("db.Open(): %q\n", err)
 	}
 
+	// Remember to close the database session.
 	defer sess.Close()
 
+	// Pointing to the "birthdays" table.
 	birthdayCollection, err := sess.Collection("birthdays")
 
 	if err != nil {
 		if err != db.ErrCollectionDoesNotExists {
-			fmt.Println("Could not use collection:", err.Error())
-			return
+			log.Fatalf("Could not use collection: %q\n", err)
 		}
 	} else {
 		err = birthdayCollection.Truncate()
 
 		if err != nil {
-			fmt.Println(err.Error())
-			return
+			log.Fatalf("Truncate(): %q\n", err)
 		}
 	}
+
+	// Inserting some rows into the "birthdays" table.
 
 	birthdayCollection.Append(Birthday{
 		Name: "Hayao Miyazaki",
@@ -59,19 +64,21 @@ func main() {
 		Born: time.Date(1962, time.November, 25, 0, 0, 0, 0, time.UTC),
 	})
 
+	// Let's query for the results we've just inserted.
 	var res db.Result
 
 	res = birthdayCollection.Find()
 
 	var birthdays []Birthday
 
+	// Query all results and fill the birthdays variable with them.
 	err = res.All(&birthdays)
 
 	if err != nil {
-		panic(err.Error())
-		return
+		log.Fatalf("res.All(): %q\n", err)
 	}
 
+	// Printing to stdout.
 	for _, birthday := range birthdays {
 		fmt.Printf("%s was born in %s.\n", birthday.Name, birthday.Born.Format("January 2, 2006"))
 	}
