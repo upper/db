@@ -2,47 +2,53 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"time"
-	"upper.io/db"
-	_ "upper.io/db/mysql"
+	"upper.io/db"         // Imports the main db package.
+	_ "upper.io/db/mysql" // Improts the mysql adapter.
 )
 
 var settings = db.Settings{
-	Database: `upperio_tests`,
-	Socket:   `/var/run/mysqld/mysqld.sock`,
-	User:     `upperio`,
-	Password: `upperio`,
+	Database: `upperio_tests`,               // Database name
+	Socket:   `/var/run/mysqld/mysqld.sock`, // Using unix sockets.
+	User:     `upperio`,                     // Database username.
+	Password: `upperio`,                     // Database password.
 }
 
 type Birthday struct {
-	Name string    `field:"name"`
+	// Maps the "Name" property to the "name" column of the "birthdays" table.
+	Name string `field:"name"`
+	// Maps the "Born" property to the "born" column of the "birthdays" table.
 	Born time.Time `field:"born"`
 }
 
 func main() {
 
+	// Attemping to establish a connection to the database.
 	sess, err := db.Open("mysql", settings)
 
 	if err != nil {
-		fmt.Println("Unable to connect:", err.Error())
-		return
+		log.Fatalf("db.Open(): %q\n", err)
 	}
 
+	// Remember to close the database session.
 	defer sess.Close()
 
+	// Pointing to the "birthdays" table.
 	birthdayCollection, err := sess.Collection("birthdays")
 
 	if err != nil {
-		fmt.Println("Could not use collection:", err.Error())
-		return
+		log.Fatalf("sess.Collection(): %q\n", err)
 	}
 
+	// Attempt to remove existing rows (if any).
 	err = birthdayCollection.Truncate()
 
 	if err != nil {
-		fmt.Println(err.Error())
-		return
+		log.Fatalf("Truncate(): %q\n", err)
 	}
+
+	// Inserting some rows into the "birthdays" table.
 
 	birthdayCollection.Append(Birthday{
 		Name: "Hayao Miyazaki",
@@ -59,19 +65,21 @@ func main() {
 		Born: time.Date(1962, time.November, 25, 0, 0, 0, 0, time.UTC),
 	})
 
+	// Let's query for the results we've just inserted.
 	var res db.Result
 
 	res = birthdayCollection.Find()
 
 	var birthdays []Birthday
 
+	// Query all results and fill the birthdays variable with them.
 	err = res.All(&birthdays)
 
 	if err != nil {
-		panic(err.Error())
-		return
+		log.Fatalf("res.All(): %q\n", err)
 	}
 
+	// Printing to stdout.
 	for _, birthday := range birthdays {
 		fmt.Printf("%s was born in %s.\n", birthday.Name, birthday.Born.Format("January 2, 2006"))
 	}
