@@ -87,7 +87,7 @@ func compileStatement(cond db.Cond) bson.M {
 			case `>`:
 				op = `$gt`
 			case `<`:
-				op = `$gt`
+				op = `$lt`
 			case `<=`:
 				op = `$lte`
 			case `>=`:
