@@ -59,6 +59,10 @@ func (self *Collection) Find(terms ...interface{}) db.Result {
 
 	queryChunks.Conditions = self.compileQuery(terms...)
 
+	if debugEnabled() == true {
+		debugLogQuery(queryChunks)
+	}
+
 	// Actually executing query.
 	result := &Result{
 		self,

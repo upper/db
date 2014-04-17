@@ -36,7 +36,7 @@ package ql
 import (
 	"database/sql"
 	"menteslibres.net/gosexy/to"
-	//"reflect"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -92,7 +92,7 @@ var testValues = testValuesStruct{
 // Enabling outputting some information to stdout (like the SQL query and its
 // arguments), useful for development.
 func TestEnableDebug(t *testing.T) {
-	Debug = true
+	os.Setenv(db.EnvEnableDebug, "TRUE")
 }
 
 // Trying to open an empty datasource, it must fail.
@@ -634,7 +634,7 @@ func TestDataTypes(t *testing.T) {
 
 // We are going to benchmark the engine, so this is no longed needed.
 func TestDisableDebug(t *testing.T) {
-	Debug = false
+	os.Setenv(db.EnvEnableDebug, "")
 }
 
 // Benchmarking raw database/sql.

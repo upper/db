@@ -27,6 +27,7 @@ import (
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"menteslibres.net/gosexy/to"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -86,7 +87,7 @@ var testValues = testValuesStruct{
 
 // Enabling outputting some information to stdout, useful for development.
 func TestEnableDebug(t *testing.T) {
-	Debug = true
+	os.Setenv(db.EnvEnableDebug, "TRUE")
 }
 
 // Trying to open an empty datasource, it must succeed (mongo).
@@ -671,7 +672,7 @@ func TestDataTypes(t *testing.T) {
 
 // We are going to benchmark the engine, so this is no longed needed.
 func TestDisableDebug(t *testing.T) {
-	Debug = false
+	os.Setenv(db.EnvEnableDebug, "")
 }
 
 // Benchmarking raw mgo queries.

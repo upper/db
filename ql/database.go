@@ -27,6 +27,8 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/cznic/ql/driver"
+	"log"
+	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -45,10 +47,6 @@ var timeType = reflect.TypeOf(time.Time{}).Kind()
 
 const driverName = `ql`
 
-func init() {
-	db.Register(driverName, &Source{})
-}
-
 type sqlValues_t []interface{}
 
 type Source struct {
@@ -61,6 +59,21 @@ type Source struct {
 type sqlQuery struct {
 	Query []string
 	Args  []interface{}
+}
+
+func debugEnabled() bool {
+	if os.Getenv(db.EnvEnableDebug) != "" {
+		return true
+	}
+	return false
+}
+
+func init() {
+	db.Register(driverName, &Source{})
+}
+
+func debugLogQuery(s string, q *sqlQuery) {
+	log.Printf("SQL: %s\nARGS: %v\n", strings.TrimSpace(s), q.Args)
 }
 
 func sqlCompile(terms []interface{}) *sqlQuery {
@@ -121,9 +134,8 @@ func (self *Source) doExec(terms ...interface{}) (res sql.Result, err error) {
 		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
 	}
 
-	if Debug == true {
-		fmt.Printf("Q: %s\n", query)
-		fmt.Printf("A: %v\n", chunks.Args)
+	if debugEnabled() == true {
+		debugLogQuery(query, chunks)
 	}
 
 	if tx, err = self.session.Begin(); err != nil {
@@ -154,9 +166,8 @@ func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
 		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
 	}
 
-	if Debug == true {
-		fmt.Printf("Q: %s\n", query)
-		fmt.Printf("A: %v\n", chunks.Args)
+	if debugEnabled() == true {
+		debugLogQuery(query, chunks)
 	}
 
 	return self.session.Query(query, chunks.Args...)

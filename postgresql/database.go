@@ -27,13 +27,13 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/xiam/gopostgresql"
+	"log"
+	"os"
 	"reflect"
 	"regexp"
 	"strings"
 	"upper.io/db"
 )
-
-var Debug = false
 
 // Format for saving dates.
 var DateFormat = "2006-01-02 15:04:05"
@@ -47,10 +47,6 @@ var columnPattern = regexp.MustCompile(`^([a-z]+)\(?([0-9,]+)?\)?\s?([a-z]*)?`)
 
 const driverName = `postgresql`
 
-func init() {
-	db.Register(driverName, &Source{})
-}
-
 type sqlValues_t []interface{}
 
 type Source struct {
@@ -63,6 +59,21 @@ type Source struct {
 type sqlQuery struct {
 	Query []string
 	Args  []interface{}
+}
+
+func debugEnabled() bool {
+	if os.Getenv(db.EnvEnableDebug) != "" {
+		return true
+	}
+	return false
+}
+
+func init() {
+	db.Register(driverName, &Source{})
+}
+
+func debugLogQuery(s string, q *sqlQuery) {
+	log.Printf("SQL: %s\nARGS: %v\n", strings.TrimSpace(s), q.Args)
 }
 
 func sqlCompile(terms []interface{}) *sqlQuery {
@@ -124,9 +135,8 @@ func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
 		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
 	}
 
-	if Debug == true {
-		fmt.Printf("Q: %s\n", query)
-		fmt.Printf("A: %v\n", chunks.Args)
+	if debugEnabled() == true {
+		debugLogQuery(query, chunks)
 	}
 
 	return self.session.Exec(query, chunks.Args...)
@@ -145,9 +155,8 @@ func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
 		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
 	}
 
-	if Debug == true {
-		fmt.Printf("Q: %s\n", query)
-		fmt.Printf("A: %v\n", chunks.Args)
+	if debugEnabled() == true {
+		debugLogQuery(query, chunks)
 	}
 
 	return self.session.Query(query, chunks.Args...)
@@ -166,9 +175,8 @@ func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
 		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
 	}
 
-	if Debug == true {
-		fmt.Printf("Q: %s\n", query)
-		fmt.Printf("A: %v\n", chunks.Args)
+	if debugEnabled() == true {
+		debugLogQuery(query, chunks)
 	}
 
 	return self.session.QueryRow(query, chunks.Args...), nil

@@ -30,13 +30,13 @@ import (
 	// See: https://github.com/mattn/go-sqlite3/issues/40
 	//_ "github.com/xiam/gosqlite3"
 	_ "github.com/mattn/go-sqlite3"
+	"log"
+	"os"
 	"reflect"
 	"regexp"
 	"strings"
 	"upper.io/db"
 )
-
-var Debug = false
 
 // Format for saving dates.
 var DateFormat = `2006-01-02 15:04:05`
@@ -47,10 +47,6 @@ var TimeFormat = `%d:%02d:%02d.%d`
 var columnPattern = regexp.MustCompile(`^([a-zA-Z]+)\(?([0-9,]+)?\)?\s?([a-zA-Z]*)?`)
 
 const driverName = `sqlite`
-
-func init() {
-	db.Register(driverName, &Source{})
-}
 
 type sqlValues_t []interface{}
 
@@ -64,6 +60,21 @@ type Source struct {
 type sqlQuery struct {
 	Query []string
 	Args  []interface{}
+}
+
+func debugEnabled() bool {
+	if os.Getenv(db.EnvEnableDebug) != "" {
+		return true
+	}
+	return false
+}
+
+func init() {
+	db.Register(driverName, &Source{})
+}
+
+func debugLogQuery(s string, q *sqlQuery) {
+	log.Printf("SQL: %s\nARGS: %v\n", strings.TrimSpace(s), q.Args)
 }
 
 func sqlCompile(terms []interface{}) *sqlQuery {
@@ -121,9 +132,8 @@ func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
 
 	query := strings.Join(chunks.Query, ` `)
 
-	if Debug == true {
-		fmt.Printf("Q: %s\n", query)
-		fmt.Printf("A: %v\n", chunks.Args)
+	if debugEnabled() == true {
+		debugLogQuery(query, chunks)
 	}
 
 	return self.session.Exec(query, chunks.Args...)
@@ -139,9 +149,8 @@ func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
 
 	query := strings.Join(chunks.Query, ` `)
 
-	if Debug == true {
-		fmt.Printf("Q: %s\n", query)
-		fmt.Printf("A: %v\n", chunks.Args)
+	if debugEnabled() == true {
+		debugLogQuery(query, chunks)
 	}
 
 	return self.session.Query(query, chunks.Args...)

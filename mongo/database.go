@@ -26,26 +26,36 @@ package mongo
 import (
 	"fmt"
 	"labix.org/v2/mgo"
+	"log"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 	"upper.io/db"
 )
 
-var Debug = false
-
 const driverName = `mongo`
-
-// Registers this driver.
-func init() {
-	db.Register(driverName, &Source{})
-}
 
 type Source struct {
 	name     string
 	config   db.Settings
 	session  *mgo.Session
 	database *mgo.Database
+}
+
+func debugEnabled() bool {
+	if os.Getenv(db.EnvEnableDebug) != "" {
+		return true
+	}
+	return false
+}
+
+func init() {
+	db.Register(driverName, &Source{})
+}
+
+func debugLogQuery(c *chunks) {
+	log.Printf("Fields: %v\nLimit: %v\nOffset: %v\nSort: %v\nConditions: %v\n", c.Fields, c.Limit, c.Offset, c.Sort, c.Conditions)
 }
 
 // Returns the string name of the database.

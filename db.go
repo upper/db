@@ -224,6 +224,10 @@ var (
 	ErrUnsupportedDestination  = errors.New(`Unsupported destination type.`)
 )
 
+var (
+	EnvEnableDebug = `UPPERIO_DB_DEBUG`
+)
+
 // Registered wrappers.
 var wrappers = make(map[string]Database)
 
