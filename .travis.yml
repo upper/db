@@ -5,10 +5,6 @@ go:
   - 1.2
   - 1.2.1
 
-addons:
-  hosts:
-    - testserver.local
-
 env:
   - GOARCH=amd64
 
@@ -27,12 +23,12 @@ services:
 
 before_script:
   - cat mysql/_dumps/setup.sql | mysql -uroot
-  - cat mysql/_dumps/structs.sql | mysql -uupperio -pupperio upperio_tests -htestserver.local
+  - cat mysql/_dumps/structs.sql | mysql -uupperio -pupperio upperio_tests
   - cat postgresql/_dumps/setup.sql | psql -U postgres
-  - cat postgresql/_dumps/structs.sql | PGPASSWORD="upperio" psql -U upperio upperio_tests -htestserver.local
+  - cat postgresql/_dumps/structs.sql | PGPASSWORD="upperio" psql -U upperio upperio_tests
   - mongo upperio_tests --eval 'db.addUser("upperio", "upperio")'
   # - cat ql/_dumps/structs.sql | $GOPATH/bin/ql -db ql/_dumps/test.db
 
 script:
   - go version
-  - go test
+  - go test -host 127.0.0.1

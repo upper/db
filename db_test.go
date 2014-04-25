@@ -3,7 +3,9 @@ package db_test
 import (
 	"database/sql"
 	"errors"
+	"flag"
 	"labix.org/v2/mgo"
+	"log"
 	"reflect"
 	"testing"
 	"time"
@@ -27,31 +29,44 @@ var (
 	errDriverErr = errors.New(`Driver error`)
 )
 
-var settings = map[string]*db.Settings{
-	`sqlite`: &db.Settings{
-		Database: `upperio_tests.db`,
-	},
-	`mongo`: &db.Settings{
-		Database: `upperio_tests`,
-		Host:     `testserver.local`,
-		User:     `upperio`,
-		Password: `upperio`,
-	},
-	`mysql`: &db.Settings{
-		Database: `upperio_tests`,
-		Host:     `testserver.local`,
-		User:     `upperio`,
-		Password: `upperio`,
-	},
-	`postgresql`: &db.Settings{
-		Database: `upperio_tests`,
-		Host:     `testserver.local`,
-		User:     `upperio`,
-		Password: `upperio`,
-	},
-	`ql`: &db.Settings{
-		Database: `file://upperio_test.ql`,
-	},
+var settings map[string]*db.Settings
+
+func init() {
+
+	// Getting host from the environment.
+	host := flag.String("host", "testserver.local", "Testing server address.")
+
+	flag.Parse()
+
+	log.Printf("Running tests against host %s.\n", *host)
+
+	settings = map[string]*db.Settings{
+		`sqlite`: &db.Settings{
+			Database: `upperio_tests.db`,
+		},
+		`mongo`: &db.Settings{
+			Database: `upperio_tests`,
+			Host:     *host,
+			User:     `upperio`,
+			Password: `upperio`,
+		},
+		`mysql`: &db.Settings{
+			Database: `upperio_tests`,
+			Host:     *host,
+			User:     `upperio`,
+			Password: `upperio`,
+		},
+		`postgresql`: &db.Settings{
+			Database: `upperio_tests`,
+			Host:     *host,
+			User:     `upperio`,
+			Password: `upperio`,
+		},
+		`ql`: &db.Settings{
+			Database: `file://upperio_test.ql`,
+		},
+	}
+
 }
 
 var setupFn = map[string]func(driver interface{}) error{
