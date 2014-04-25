@@ -33,19 +33,19 @@ var settings = map[string]*db.Settings{
 	},
 	`mongo`: &db.Settings{
 		Database: `upperio_tests`,
-		Host:     `127.0.0.1`,
+		Host:     `testserver.local`,
 		User:     `upperio`,
 		Password: `upperio`,
 	},
 	`mysql`: &db.Settings{
 		Database: `upperio_tests`,
-		Socket:   `/var/run/mysqld/mysqld.sock`,
+		Host:     `testserver.local`,
 		User:     `upperio`,
 		Password: `upperio`,
 	},
 	`postgresql`: &db.Settings{
 		Database: `upperio_tests`,
-		Socket:   `/var/run/postgresql/`,
+		Host:     `testserver.local`,
 		User:     `upperio`,
 		Password: `upperio`,
 	},

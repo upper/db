@@ -5,6 +5,10 @@ go:
   - 1.2
   - 1.2.1
 
+addons:
+  hosts:
+    - testserver.local
+
 env:
   - GOARCH=amd64
 
