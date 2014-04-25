@@ -39,8 +39,10 @@ import (
 const wrapperName = "mongo"
 
 // Wrapper settings.
-const host = "127.0.0.1"
-const dbname = "upperio_tests"
+const (
+	host   = "testserver.local"
+	dbname = "upperio_tests"
+)
 
 // Global settings for tests.
 var settings = db.Settings{
@@ -91,6 +93,7 @@ func TestEnableDebug(t *testing.T) {
 }
 
 // Trying to open an empty datasource, it must succeed (mongo).
+/*
 func TestOpenFailed(t *testing.T) {
 	_, err := db.Open(wrapperName, db.Settings{})
 
@@ -98,6 +101,7 @@ func TestOpenFailed(t *testing.T) {
 		t.Errorf(err.Error())
 	}
 }
+*/
 
 // Truncates all collections.
 func TestTruncate(t *testing.T) {
@@ -174,6 +178,10 @@ func TestAppend(t *testing.T) {
 	id, err = artist.Append(map[string]string{
 		"name": "Ozzie",
 	})
+
+	if err != nil {
+		t.Fatalf("Append(): %s", err.Error())
+	}
 
 	if id == nil {
 		t.Fatalf("Expecting an ID.")

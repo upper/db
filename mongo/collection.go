@@ -196,17 +196,19 @@ func (self *Collection) Truncate() error {
 
 // Appends an item (map or struct) into the collection.
 func (self *Collection) Append(item interface{}) (interface{}, error) {
+	var err error
 	var id bson.ObjectId
 
-	// Dirty trick to return the Id with ease.
-	res, err := self.collection.UpsertId(nil, item)
+	// Let's create an empty item to allocate an ID.
+	id = bson.NewObjectId()
 
-	if err != nil {
+	if err = self.collection.Insert(bson.M{"_id": id}); err != nil {
 		return nil, err
 	}
 
-	if res.UpsertedId != nil {
-		id = res.UpsertedId.(bson.ObjectId)
+	// Now append data the user wants to append.
+	if err = self.collection.Update(bson.M{"_id": id}, item); err != nil {
+		return nil, err
 	}
 
 	return id, nil
