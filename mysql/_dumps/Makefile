@@ -1,2 +1,2 @@
 all:
-	cat structs.sql | mysql -uupperio -pupperio upperio_tests -hlocalhost
+	cat structs.sql | mysql -uupperio -pupperio upperio_tests -htestserver.local

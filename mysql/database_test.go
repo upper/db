@@ -48,17 +48,17 @@ import (
 const wrapperName = "mysql"
 
 // Wrapper settings.
-const host = "127.0.0.1"
-const socket = "/var/run/mysqld/mysqld.sock"
-const dbname = "upperio_tests"
-const username = "upperio"
-const password = "upperio"
+const (
+	host     = "testserver.local"
+	dbname   = "upperio_tests"
+	username = "upperio"
+	password = "upperio"
+)
 
 // Global settings for tests.
 var settings = db.Settings{
 	Database: dbname,
-	//Host: host,
-	Socket:   socket,
+	Host:     host,
 	User:     username,
 	Password: password,
 }
