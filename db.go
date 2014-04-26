@@ -21,8 +21,8 @@
   WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-// The main goal of the upper.io/db package is to provide a simple way to store
-// data in permanent storage with Go.
+// upper.io/db is a package that deals with saving and retrieving data from
+// different databases using a reduced instruction set.
 package db
 
 import (
