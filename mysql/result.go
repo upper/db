@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2012-2013 José Carlos Nieto, https://menteslibres.net/xiam
+  Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the
@@ -38,8 +38,7 @@ type counter struct {
 type Result struct {
 	table       *Table
 	queryChunks *sqlutil.QueryChunks
-	// This is the main query cursor. It starts as a nil value.
-	cursor *sql.Rows
+	cursor      *sql.Rows // This query cursor keeps results for Next().
 }
 
 // Executes a SELECT statement that can feed Next(), All() or One().
@@ -116,13 +115,11 @@ func (self *Result) All(dst interface{}) error {
 	}
 
 	// Current cursor.
-	err = self.setCursor()
-
-	if err != nil {
+	if err = self.setCursor(); err != nil {
 		return err
 	}
 
-	defer self.Close()
+	defer self.Close() // Make sure the result set closes.
 
 	// Fetching all results within the cursor.
 	err = self.table.T.FetchRows(dst, self.cursor)
@@ -130,7 +127,7 @@ func (self *Result) All(dst interface{}) error {
 	return err
 }
 
-// Fetches only one result from the resultset.
+// Fetches only one result from the result set.
 func (self *Result) One(dst interface{}) error {
 	var err error
 
@@ -151,16 +148,13 @@ func (self *Result) Next(dst interface{}) error {
 	var err error
 
 	// Current cursor.
-	err = self.setCursor()
-
-	if err != nil {
+	if err = self.setCursor(); err != nil {
 		self.Close()
 	}
 
 	// Fetching the next result from the cursor.
-	err = self.table.T.FetchRow(dst, self.cursor)
-
-	if err != nil {
+	if err = self.table.T.FetchRow(dst, self.cursor); err != nil {
+		// Closing result set on error.
 		self.Close()
 	}
 

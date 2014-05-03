@@ -113,6 +113,12 @@ type Database interface {
 	// Attempts to stablish a connection with the database server.
 	Open() error
 
+	// Clones the current database session.
+	// Clone() (Database, error)
+
+	// Returns error if the database server cannot be reached.
+	// Ping() error
+
 	// Closes the currently active connection to the database.
 	Close() error
 
