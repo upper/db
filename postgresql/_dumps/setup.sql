@@ -1,6 +1,6 @@
 CREATE USER upperio WITH PASSWORD 'upperio';
 
-CREATE DATABASE upperio_tests;
+CREATE DATABASE upperio_tests ENCODING 'UTF-8' LC_COLLATE='en_US.UTF-8' LC_CTYPE='en_US.UTF-8' TEMPLATE template0;
 
 GRANT ALL PRIVILEGES ON DATABASE upperio_tests TO upperio;
 
