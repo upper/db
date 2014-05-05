@@ -201,11 +201,32 @@ func (self *Collection) Append(item interface{}) (interface{}, error) {
 
 	id = bson.NewObjectId()
 
-	if _, err = self.collection.Upsert(bson.M{"_id": id}, item); err != nil {
+	// Allocating a new ID.
+	if err = self.collection.Insert(bson.M{"_id": id}); err != nil {
+		return nil, err
+	}
+
+	// Now append data the user wants to append.
+	if err = self.collection.Update(bson.M{"_id": id}, item); err != nil {
 		return nil, err
 	}
 
 	return id, nil
+
+	/*
+		var id bson.ObjectId
+		var err error
+
+		id = bson.NewObjectId()
+
+		_, err = self.collection.Upsert(bson.M{"_id": id}, item);
+
+		if err != nil {
+			return nil, err
+		}
+
+		return id, nil
+	*/
 }
 
 // Returns true if the collection exists.
