@@ -199,15 +199,9 @@ func (self *Collection) Append(item interface{}) (interface{}, error) {
 	var err error
 	var id bson.ObjectId
 
-	// Let's create an empty item to allocate an ID.
 	id = bson.NewObjectId()
 
-	if err = self.collection.Insert(bson.M{"_id": id}); err != nil {
-		return nil, err
-	}
-
-	// Now append data the user wants to append.
-	if err = self.collection.Update(bson.M{"_id": id}, item); err != nil {
+	if _, err = self.collection.Upsert(bson.M{"_id": id}, item); err != nil {
 		return nil, err
 	}
 
