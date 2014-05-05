@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
 	"log"
 	"reflect"
 	"testing"
@@ -25,6 +26,10 @@ var wrappers = []string{
 	`ql`,
 }
 
+const (
+	TestAllWrappers = `all`
+)
+
 var (
 	errDriverErr = errors.New(`Driver error`)
 )
@@ -35,6 +40,7 @@ func init() {
 
 	// Getting host from the environment.
 	host := flag.String("host", "testserver.local", "Testing server address.")
+	wrapper := flag.String("wrapper", "all", "Wrappers to test.")
 
 	flag.Parse()
 
@@ -65,6 +71,11 @@ func init() {
 		`ql`: &db.Settings{
 			Database: `file://upperio_test.ql`,
 		},
+	}
+
+	if *wrapper != TestAllWrappers {
+		wrappers = []string{*wrapper}
+		log.Printf("Testing wrapper %s.", *wrapper)
 	}
 
 }
@@ -331,7 +342,7 @@ func TestSimpleCRUD(t *testing.T) {
 			var res db.Result
 			switch wrapper {
 			case `mongo`:
-				res = col.Find(db.Cond{"_id": id})
+				res = col.Find(db.Cond{"_id": id.(bson.ObjectId)})
 			case `ql`:
 				res = col.Find(db.Cond{"id()": id})
 			default:
