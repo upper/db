@@ -29,15 +29,15 @@ import (
 
 // Application error messages.
 var (
-	ErrExpectingPointer        = errors.New(`Expecting a pointer destination (dst interface{}).`)
-	ErrExpectingSlicePointer   = errors.New(`Expecting a pointer to an slice (dst interface{}).`)
-	ErrExpectingSliceMapStruct = errors.New(`Expecting a pointer to an slice of maps or structs (dst interface{}).`)
-	ErrExpectingMapOrStruct    = errors.New(`Expecting either a pointer to a map or a pointer to a struct.`)
+	ErrExpectingPointer        = errors.New(`Argument must be an address.`)
+	ErrExpectingSlicePointer   = errors.New(`Argument must be a slice address.`)
+	ErrExpectingSliceMapStruct = errors.New(`Argument must be a slice address of maps or structs.`)
+	ErrExpectingMapOrStruct    = errors.New(`Argument must be a map or struct address.`)
 	ErrNoMoreRows              = errors.New(`There are no more rows in this result set.`)
 	ErrNotConnected            = errors.New(`You're currently not connected.`)
 	ErrMissingDatabaseName     = errors.New(`Missing database name.`)
 	ErrCollectionDoesNotExists = errors.New(`Collection does not exists.`)
-	ErrSockerOrHost            = errors.New(`You can connect either to a socket or a host but not both.`)
+	ErrSockerOrHost            = errors.New(`You may connect either to a unix socket or a tcp address, but not both.`)
 	ErrQueryLimitParam         = errors.New(`A query can accept only one db.Limit() parameter.`)
 	ErrQuerySortParam          = errors.New(`A query can accept only one db.Sort{} parameter.`)
 	ErrQueryOffsetParam        = errors.New(`A query can accept only one db.Offset() parameter.`)
