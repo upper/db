@@ -36,6 +36,8 @@ import (
 
 const driverName = `mongo`
 
+var connTimeout = time.Second * 5
+
 type Source struct {
 	name     string
 	config   db.Settings
@@ -98,15 +100,15 @@ func (self *Source) Open() error {
 		connURL.Path = "/" + self.config.Database
 	}
 
-	self.session, err = mgo.DialWithTimeout(connURL.String(), 5*time.Second)
+	if self.config.Database == "" {
+		return db.ErrMissingDatabaseName
+	}
 
-	if err != nil {
+	if self.session, err = mgo.DialWithTimeout(connURL.String(), connTimeout); err != nil {
 		return err
 	}
 
-	if self.config.Database != "" {
-		self.Use(self.config.Database)
-	}
+	self.Use(self.config.Database)
 
 	return nil
 }
