@@ -25,12 +25,6 @@
 // different databases using a reduced instruction set.
 package db
 
-import (
-	"errors"
-	"fmt"
-	"reflect"
-)
-
 /*
 	The db.Cond{} expression is used to define conditions in a query, it can be
 	viewed as a replacement for the SQL "WHERE" clause.
@@ -205,68 +199,6 @@ type Result interface {
 	Close() error
 }
 
-// Error messages
-var (
-	ErrExpectingPointer        = errors.New(`Expecting a pointer destination (dst interface{}).`)
-	ErrExpectingSlicePointer   = errors.New(`Expecting a pointer to an slice (dst interface{}).`)
-	ErrExpectingSliceMapStruct = errors.New(`Expecting a pointer to an slice of maps or structs (dst interface{}).`)
-	ErrExpectingMapOrStruct    = errors.New(`Expecting either a pointer to a map or a pointer to a struct.`)
-	ErrNoMoreRows              = errors.New(`There are no more rows in this result set.`)
-	ErrNotConnected            = errors.New(`You're currently not connected.`)
-	ErrMissingDatabaseName     = errors.New(`Missing a database name.`)
-	ErrCollectionDoesNotExists = errors.New(`Collection does not exists.`)
-	ErrSockerOrHost            = errors.New(`You can connect either to a socket or a host but not both.`)
-	ErrQueryLimitParam         = errors.New(`A query can accept only one db.Limit() parameter.`)
-	ErrQuerySortParam          = errors.New(`A query can accept only one db.Sort{} parameter.`)
-	ErrQueryOffsetParam        = errors.New(`A query can accept only one db.Offset() parameter.`)
-	ErrMissingConditions       = errors.New(`Missing selector conditions.`)
-	ErrQueryIsPending          = errors.New(`Can't execute this instruction while the result set is still open.`)
-	ErrUnsupportedDestination  = errors.New(`Unsupported destination type.`)
-)
-
 var (
 	EnvEnableDebug = `UPPERIO_DB_DEBUG`
 )
-
-// Registered wrappers.
-var wrappers = make(map[string]Database)
-
-// Registers a database wrapper with a unique name.
-func Register(name string, driver Database) {
-
-	if name == "" {
-		panic("Missing wrapper name.")
-	}
-
-	if _, ok := wrappers[name]; ok != false {
-		panic("Register called twice for driver " + name)
-	}
-
-	wrappers[name] = driver
-}
-
-// Configures a connection to a database using the named adapter and the given
-// settings.
-func Open(name string, settings Settings) (Database, error) {
-
-	driver, ok := wrappers[name]
-	if ok == false {
-		// Using panic instead of returning error because attemping to use an
-		// nonexistent adapter will never result in a successful connection,
-		// therefore should be considered a developer's mistake and must be catched
-		// at compilation time.
-		panic(fmt.Sprintf("Open: Unknown adapter %s. (see: https://upper.io/db#database-adapters)", name))
-	}
-
-	// Creating a new connection everytime Open() is called.
-	driverType := reflect.ValueOf(driver).Elem().Type()
-	newAdapter := reflect.New(driverType).Interface().(Database)
-
-	// Setting up the connection.
-	err := newAdapter.Setup(settings)
-	if err != nil {
-		return nil, err
-	}
-
-	return newAdapter, nil
-}
