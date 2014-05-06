@@ -12,11 +12,12 @@ install:
   - sudo apt-get install bzr
   # - go get github.com/cznic/ql/ql # ql command line util.
   # - go install github.com/cznic/ql/ql # ql command line util.
-  - go get upper.io/db/mongo
-  - go get upper.io/db/mysql
-  - go get upper.io/db/postgresql
-  - go get upper.io/db/sqlite
-  - go get upper.io/db/ql
+  - go get -t -d
+  # - go get upper.io/db/mongo
+  # - go get upper.io/db/mysql
+  # - go get upper.io/db/postgresql
+  # - go get upper.io/db/sqlite
+  # - go get upper.io/db/ql
 
 services:
   - mongodb

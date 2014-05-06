@@ -199,9 +199,9 @@ func (self *Collection) Append(item interface{}) (interface{}, error) {
 	var err error
 	var id bson.ObjectId
 
-	// Let's create an empty item to allocate an ID.
 	id = bson.NewObjectId()
 
+	// Allocating a new ID.
 	if err = self.collection.Insert(bson.M{"_id": id}); err != nil {
 		return nil, err
 	}
@@ -212,6 +212,21 @@ func (self *Collection) Append(item interface{}) (interface{}, error) {
 	}
 
 	return id, nil
+
+	/*
+		var id bson.ObjectId
+		var err error
+
+		id = bson.NewObjectId()
+
+		_, err = self.collection.Upsert(bson.M{"_id": id}, item);
+
+		if err != nil {
+			return nil, err
+		}
+
+		return id, nil
+	*/
 }
 
 // Returns true if the collection exists.
