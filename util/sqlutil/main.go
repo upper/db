@@ -260,6 +260,13 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) interfa
 	item_v := reflect.ValueOf(item)
 	item_t := item_v.Type()
 
+	if item_t.Kind() == reflect.Ptr {
+		// Single derefence. Just in case user passed a pointer to struct instead of a struct.
+		item = item_v.Elem().Interface()
+		item_v = reflect.ValueOf(item)
+		item_t = item_v.Type()
+	}
+
 	switch item_t.Kind() {
 
 	case reflect.Struct:
