@@ -24,6 +24,7 @@
 package postgresql
 
 import (
+	"database/sql"
 	"fmt"
 	"menteslibres.net/gosexy/to"
 	"reflect"
@@ -202,9 +203,13 @@ func (self *Table) Append(item interface{}) (interface{}, error) {
 	}
 
 	var id int64
-	err = row.Scan(&id)
 
-	if err != nil {
+	if err = row.Scan(&id); err != nil {
+		if err == sql.ErrNoRows {
+			// Can't tell the row's id. Maybe there isn't any?
+			return nil, nil
+		}
+		// Other kind of error.
 		return nil, err
 	}
 
