@@ -43,6 +43,25 @@ type C struct {
 	SetName string
 }
 
+type tagOptions map[string]bool
+
+func parseTagOptions(s string) tagOptions {
+	opts := make(tagOptions)
+	chunks := strings.Split(s, ",")
+	for _, chunk := range chunks {
+		opts[strings.TrimSpace(chunk)] = true
+	}
+	return opts
+}
+
+// Based on http://golang.org/src/pkg/encoding/json/tags.go
+func ParseTag(tag string) (string, tagOptions) {
+	if i := strings.Index(tag, ","); i != -1 {
+		return tag[:i], parseTagOptions(tag[i+1:])
+	}
+	return tag, parseTagOptions("")
+}
+
 func columnCompare(s string) string {
 	return strings.ToLower(columnCompareExclude.ReplaceAllString(s, ""))
 }
@@ -56,42 +75,51 @@ func GetStructFieldIndex(t reflect.Type, columnName string) []int {
 
 	n := t.NumField()
 
-	columnNameLower := columnCompare(columnName)
-
 	for i := 0; i < n; i++ {
 
 		field := t.Field(i)
 
-		// Field is exported.
-		if field.PkgPath == "" {
+		if field.PkgPath != "" {
+			// Field is unexported.
+			continue
+		}
 
-			tag := field.Tag
+		// Attempt to use db:"column_name"
+		fieldName, fieldOptions := ParseTag(field.Tag.Get("db"))
 
-			// Tag: field:"columnName"
-			fieldName := tag.Get("field")
+		// Deprecated "field" tag.
+		if deprecatedField := field.Tag.Get("field"); deprecatedField != "" {
+			fieldName = deprecatedField
+		}
 
-			if fieldName != "" {
-				if fieldName == columnName {
-					return []int{i}
-				}
-			}
+		// Deprecated "inline" tag.
+		if deprecatedInline := field.Tag.Get("inline"); deprecatedInline != "" {
+			fieldOptions["inline"] = true
+		}
 
-			// Simply matching column to name.
-			fieldNameLower := columnCompare(field.Name)
+		// Matching fieldName
+		if fieldName == "-" {
+			continue
+		}
 
-			if fieldNameLower == columnNameLower {
+		// Attempt to match field name.
+		if fieldName == columnName {
+			return []int{i}
+		}
+
+		if fieldName == "" {
+			if columnCompare(field.Name) == columnCompare(columnName) {
 				return []int{i}
 			}
+		}
 
-			// Tag: inline:bool
-			if tag.Get("inline") == "true" {
-				index := GetStructFieldIndex(field.Type, columnName)
-				if index != nil {
-					res := append([]int{i}, index...)
-					return res
-				}
+		// Inline option.
+		if fieldOptions["inline"] == true {
+			index := GetStructFieldIndex(field.Type, columnName)
+			if index != nil {
+				res := append([]int{i}, index...)
+				return res
 			}
-
 		}
 
 	}

@@ -270,6 +270,7 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) interfa
 	switch item_t.Kind() {
 
 	case reflect.Struct:
+
 		nfields := item_v.NumField()
 
 		values = make([]interface{}, 0, nfields)
@@ -279,47 +280,60 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) interfa
 
 			field := item_t.Field(i)
 
-			if field.PkgPath == "" {
+			if field.PkgPath != "" {
+				// Field is unexported.
+				continue
+			}
 
-				value := item_v.Field(i).Interface()
+			// Field options.
+			fieldName, fieldOptions := util.ParseTag(field.Tag.Get("db"))
 
-				// Struct tags
-				tag := field.Tag
+			// Deprecated "field" tag.
+			if deprecatedField := field.Tag.Get("field"); deprecatedField != "" {
+				fieldName = deprecatedField
+			}
 
-				// omitempty:bool
-				if tag.Get("omitempty") == "true" {
-					zero := reflect.Zero(reflect.TypeOf(value)).Interface()
-					if value == zero {
-						continue
-					}
-				}
+			// Deprecated "omitempty" tag.
+			if deprecatedOmitEmpty := field.Tag.Get("omitempty"); deprecatedOmitEmpty != "" {
+				fieldOptions["omitempty"] = true
+			}
 
-				// field:string
-				fieldName := tag.Get("field")
+			// Deprecated "inline" tag.
+			if deprecatedInline := field.Tag.Get("inline"); deprecatedInline != "" {
+				fieldOptions["inline"] = true
+			}
 
-				if fieldName == "-" {
-					// Skip the field if its tag's value is -
+			// Processing field name.
+			if fieldName == "-" {
+				continue
+			}
+
+			if fieldName == "" {
+				fieldName = self.ColumnLike(field.Name)
+			}
+
+			// Processing tag options.
+			value := item_v.Field(i).Interface()
+
+			if fieldOptions["omitempty"] == true {
+				zero := reflect.Zero(reflect.TypeOf(value)).Interface()
+				if value == zero {
 					continue
 				}
-
-				if fieldName == "" {
-					fieldName = self.ColumnLike(field.Name)
-				}
-
-				// inline:bool
-				if tag.Get("inline") == "true" {
-					infields, invalues, inerr := self.FieldValues(value, convertFn)
-					if inerr != nil {
-						return nil, nil, inerr
-					}
-					fields = append(fields, infields...)
-					values = append(values, invalues...)
-				} else {
-					fields = append(fields, fieldName)
-					values = append(values, convertFn(value))
-				}
-
 			}
+
+			if fieldOptions["inline"] == true {
+				infields, invalues, inerr := self.FieldValues(value, convertFn)
+				if inerr != nil {
+					return nil, nil, inerr
+				}
+				fields = append(fields, infields...)
+				values = append(values, invalues...)
+			} else {
+				fields = append(fields, fieldName)
+				values = append(values, convertFn(value))
+			}
+
 		}
 	case reflect.Map:
 		nfields := item_v.Len()
