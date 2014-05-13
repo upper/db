@@ -89,6 +89,9 @@ var setupFn = map[string]func(driver interface{}) error{
 
 			col = mgod.DB("upperio_tests").C("fibonacci")
 			col.DropCollection()
+
+			col = mgod.DB("upperio_tests").C("is_even")
+			col.DropCollection()
 			return nil
 		}
 		return errDriverErr
@@ -96,6 +99,7 @@ var setupFn = map[string]func(driver interface{}) error{
 	`postgresql`: func(driver interface{}) error {
 		if sqld, ok := driver.(*sql.DB); ok == true {
 			var err error
+
 			_, err = sqld.Exec(`DROP TABLE IF EXISTS birthdays`)
 			if err != nil {
 				return err
@@ -108,7 +112,8 @@ var setupFn = map[string]func(driver interface{}) error{
 			if err != nil {
 				return err
 			}
-			_, err = sqld.Exec(`DROP TABLE IF EXISTS fibonacci`)
+
+			_, err = sqld.Exec(`DROP TABLE IF EXISTS "fibonacci"`)
 			if err != nil {
 				return err
 			}
@@ -120,6 +125,19 @@ var setupFn = map[string]func(driver interface{}) error{
 			if err != nil {
 				return err
 			}
+
+			_, err = sqld.Exec(`DROP TABLE IF EXISTS "is_even"`)
+			if err != nil {
+				return err
+			}
+			_, err = sqld.Exec(`CREATE TABLE "is_even" (
+					"input" NUMERIC,
+					"is_even" INT
+			)`)
+			if err != nil {
+				return err
+			}
+
 			return nil
 		}
 		return errDriverErr
@@ -151,6 +169,17 @@ var setupFn = map[string]func(driver interface{}) error{
 			if err != nil {
 				return err
 			}
+			_, err = sqld.Exec(`DROP TABLE IF EXISTS is_even`)
+			if err != nil {
+				return err
+			}
+			_, err = sqld.Exec(`CREATE TABLE is_even (
+				input BIGINT(20) UNSIGNED NOT NULL,
+				is_even TINYINT(1)
+			) CHARSET=utf8`)
+			if err != nil {
+				return err
+			}
 			return nil
 		}
 		return errDriverErr
@@ -178,6 +207,17 @@ var setupFn = map[string]func(driver interface{}) error{
 				"id" INTEGER PRIMARY KEY,
 				"input" INTEGER,
 				"output" INTEGER
+			)`)
+			if err != nil {
+				return err
+			}
+			_, err = sqld.Exec(`DROP TABLE IF EXISTS "is_even"`)
+			if err != nil {
+				return err
+			}
+			_, err = sqld.Exec(`CREATE TABLE "is_even" (
+				"input" INTEGER,
+				"is_even" INTEGER
 			)`)
 			if err != nil {
 				return err
@@ -221,6 +261,19 @@ var setupFn = map[string]func(driver interface{}) error{
 				return err
 			}
 
+			_, err = tx.Exec(`DROP TABLE IF EXISTS is_even`)
+			if err != nil {
+				return err
+			}
+
+			_, err = tx.Exec(`CREATE TABLE is_even (
+				input int,
+				is_even bool
+			)`)
+			if err != nil {
+				return err
+			}
+
 			if err = tx.Commit(); err != nil {
 				return err
 			}
@@ -232,13 +285,28 @@ var setupFn = map[string]func(driver interface{}) error{
 }
 
 type Birthday struct {
-	Name string    `field:"name"`
-	Born time.Time `field:"born"`
+	Name   string    // `db:"name"`	// Must match by name.
+	Born   time.Time // `db:"born"` // Must match by name.
+	OmitMe bool      `db:"-" bson:"-"`
 }
 
 type Fibonacci struct {
-	Input  uint64 `field:"input"`
-	Output uint64 `field:"output"`
+	Input  uint64 `db:"input"`
+	Output uint64 `db:"output"`
+	OmitMe bool   `db:"omit_me,omitempty" bson:"omit_me,omitempty"`
+}
+
+type OddEven struct {
+	Input  int  `db:"input"`
+	IsEven bool `db:"is_even" bson:"is_even"` // The "bson" tag is required by mgo.
+	OmitMe bool `db:"-,omitempty" bson:"-,omitempty"`
+}
+
+func even(i int) bool {
+	if i%2 == 0 {
+		return true
+	}
+	return false
 }
 
 func fib(i uint64) uint64 {
@@ -402,7 +470,7 @@ func TestSimpleCRUD(t *testing.T) {
 			err = res.Remove()
 
 			if err != nil {
-				t.Fatalf(`Could not update with wrapper %s: %s`, wrapper, err.Error())
+				t.Fatalf(`Could not remove with wrapper %s: %s`, wrapper, err.Error())
 			}
 
 			total, err = res.Count()
@@ -425,7 +493,7 @@ func TestSimpleCRUD(t *testing.T) {
 	}
 }
 
-func TestFinds(t *testing.T) {
+func TestFibonacci(t *testing.T) {
 	var err error
 
 	for _, wrapper := range wrappers {
@@ -454,7 +522,7 @@ func TestFinds(t *testing.T) {
 			// Adding some items.
 			var i uint64
 			for i = 0; i < 10; i++ {
-				item := Fibonacci{i, fib(i)}
+				item := Fibonacci{Input: i, Output: fib(i)}
 				_, err = col.Append(item)
 				if err != nil {
 					t.Fatalf(`Could not append item with wrapper %s: %s`, wrapper, err.Error())
@@ -604,4 +672,142 @@ func TestFinds(t *testing.T) {
 
 		}
 	}
+}
+
+func TestEven(t *testing.T) {
+	var err error
+
+	for _, wrapper := range wrappers {
+		if settings[wrapper] == nil {
+			t.Fatalf(`No such settings entry for wrapper %s.`, wrapper)
+		} else {
+			var sess db.Database
+
+			sess, err = db.Open(wrapper, *settings[wrapper])
+			if err != nil {
+				t.Fatalf(`Test for wrapper %s failed: %s`, wrapper, err.Error())
+			}
+			defer sess.Close()
+
+			var col db.Collection
+			col, err = sess.Collection("is_even")
+
+			if err != nil {
+				if wrapper == `mongo` && err == db.ErrCollectionDoesNotExists {
+					// Expected error with mongodb.
+				} else {
+					t.Fatalf(`Could not use collection with wrapper %s: %s`, wrapper, err.Error())
+				}
+			}
+
+			// Adding some items.
+			var i int
+			for i = 1; i < 100; i++ {
+				item := OddEven{Input: i, IsEven: even(i)}
+				_, err = col.Append(item)
+				if err != nil {
+					t.Fatalf(`Could not append item with wrapper %s: %s`, wrapper, err.Error())
+				}
+			}
+
+			// Retrieving items
+			res := col.Find(db.Cond{"is_even": true})
+
+			for {
+				var item OddEven
+				err = res.Next(&item)
+				if err != nil {
+					if err == db.ErrNoMoreRows {
+						break
+					} else {
+						t.Fatalf(`%s: %v`, wrapper, err)
+					}
+				}
+				if item.Input%2 != 0 {
+					t.Fatalf("Expecting even numbers with wrapper %s. Got: %v\n", wrapper, item)
+				}
+			}
+
+			if err = res.Remove(); err != nil {
+				t.Fatalf(`Could not remove with wrapper %s: %s`, wrapper, err.Error())
+			}
+
+			res = col.Find()
+
+			for {
+				// Testing named inputs (using tags).
+				var item struct {
+					Value uint `db:"input" bson:"input"` // The "bson" tag is required by mgo.
+				}
+				err = res.Next(&item)
+				if err != nil {
+					if err == db.ErrNoMoreRows {
+						break
+					} else {
+						t.Fatalf(`%s: %v`, wrapper, err)
+					}
+				}
+				if item.Value%2 == 0 {
+					t.Fatalf("Expecting odd numbers only with wrapper %s. Got: %v\n", wrapper, item)
+				}
+			}
+
+			for {
+				// Testing inline tag.
+				var item struct {
+					OddEven `db:",inline" bson:",inline"`
+				}
+				err = res.Next(&item)
+				if err != nil {
+					if err == db.ErrNoMoreRows {
+						break
+					} else {
+						t.Fatalf(`%s: %v`, wrapper, err)
+					}
+				}
+				if item.Input%2 == 0 {
+					t.Fatalf("Expecting odd numbers only with wrapper %s. Got: %v\n", wrapper, item)
+				}
+			}
+
+			// Testing omision tag.
+			for {
+				var item struct {
+					Value uint `db:"-"`
+				}
+				err = res.Next(&item)
+				if err != nil {
+					if err == db.ErrNoMoreRows {
+						break
+					} else {
+						t.Fatalf(`%s: %v`, wrapper, err)
+					}
+				}
+				if item.Value != 0 {
+					t.Fatalf("Expecting no data with wrapper %s. Got: %v\n", wrapper, item)
+				}
+			}
+
+			// Testing (deprecated) "field" tag.
+			for {
+				// Testing named inputs (using tags).
+				var item struct {
+					Value uint `field:"input"`
+				}
+				err = res.Next(&item)
+				if err != nil {
+					if err == db.ErrNoMoreRows {
+						break
+					} else {
+						t.Fatalf(`%s: %v`, wrapper, err)
+					}
+				}
+				if item.Value%2 == 0 {
+					t.Fatalf("Expecting no data with wrapper %s. Got: %v\n", wrapper, item)
+				}
+			}
+
+		}
+	}
+
 }
