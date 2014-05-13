@@ -85,9 +85,12 @@ func (self *t) qlFetchResult(item_t reflect.Type, rows *sql.Rows, columns []stri
 		// Pairing each column with its index.
 		for i, columnName := range columns {
 			index := util.GetStructFieldIndex(item_t, columnName)
-			if index != nil {
+			if len(index) > 0 {
 				dest_f := item.Elem().FieldByIndex(index)
 				scanArgs[i] = dest_f.Addr().Interface()
+			} else {
+				var placeholder sql.RawBytes
+				scanArgs[i] = &placeholder
 			}
 		}
 
