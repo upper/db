@@ -38,6 +38,7 @@ import (
 type Table struct {
 	source *Source
 	sqlutil.T
+	names []string
 }
 
 func (self *Table) Find(terms ...interface{}) db.Result {
@@ -83,6 +84,8 @@ func (self *Table) compileConditions(term interface{}) (string, []interface{}) {
 		if len(sql) > 0 {
 			return `(` + strings.Join(sql, ` AND `) + `)`, args
 		}
+	case db.Raw:
+		return fmt.Sprintf(`%v`, t.Value), args
 	case db.Or:
 		for i := range t {
 			rsql, rargs := self.compileConditions(t[i])
@@ -164,14 +167,23 @@ func (self *Table) compileStatement(cond db.Cond) (string, []interface{}) {
 	return `(` + strings.Join(str, ` AND `) + `)`, arg
 }
 
+func (self *Table) tableN(i int) string {
+	if len(self.names) < i {
+		chunks := strings.SplitN(self.names[i], " ", 2)
+		if len(chunks) > 0 {
+			return fmt.Sprintf(`"%s"`, chunks[0])
+		}
+	}
+	return ""
+}
+
 // Deletes all the rows within the collection.
-func (t *Table) Truncate() error {
-
-	_, err := t.source.doExec(
-		fmt.Sprintf(`TRUNCATE TABLE "%s"`, t.Name()),
-	)
-
-	return err
+func (self *Table) Truncate() error {
+	s := fmt.Sprintf(`TRUNCATE TABLE %s`, self.tableN(0))
+	if _, err := self.source.doExec(s); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Appends an item (map or struct) into the collection.
@@ -191,7 +203,7 @@ func (self *Table) Append(item interface{}) (interface{}, error) {
 	}
 
 	row, err := self.source.doQueryRow(
-		fmt.Sprintf(`INSERT INTO "%s"`, self.Name()),
+		fmt.Sprintf(`INSERT INTO %s`, self.tableN(0)),
 		sqlFields(fields),
 		`VALUES`,
 		sqlValues(values),
@@ -218,24 +230,14 @@ func (self *Table) Append(item interface{}) (interface{}, error) {
 
 // Returns true if the collection exists.
 func (self *Table) Exists() bool {
-	rows, err := self.source.doQuery(
-		fmt.Sprintf(`
-				SELECT table_name
-					FROM information_schema.tables
-				WHERE table_catalog = '%s' AND table_name = '%s'
-		`,
-			self.source.Name(),
-			self.Name(),
-		),
-	)
-
-	if err != nil {
+	if err := self.source.tableExists(self.names...); err != nil {
 		return false
 	}
+	return true
+}
 
-	defer rows.Close()
-
-	return rows.Next()
+func (self *Table) Name() string {
+	return strings.Join(self.names, `, `)
 }
 
 func toInternalInterface(val interface{}) interface{} {

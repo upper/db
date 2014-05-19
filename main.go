@@ -81,6 +81,10 @@ type And []interface{}
 */
 type Or []interface{}
 
+type Raw struct {
+	Value interface{}
+}
+
 // Connection and authentication data.
 type Settings struct {
 	// Database server hostname or IP. Leave blank if using unix sockets.
@@ -117,7 +121,7 @@ type Database interface {
 	Close() error
 
 	// Returns a db.Collection struct by name.
-	Collection(string) (Collection, error)
+	Collection(...string) (Collection, error)
 
 	// Returns the names of all non-system collections within the active
 	// database.

@@ -39,8 +39,7 @@ var durationType = reflect.TypeOf(time.Duration(0))
 var timeType = reflect.TypeOf(time.Time{})
 
 type C struct {
-	DB      db.Database
-	SetName string
+	DB db.Database
 }
 
 type tagOptions map[string]bool
@@ -133,13 +132,6 @@ func GetStructFieldIndex(t reflect.Type, columnName string) []int {
 */
 func CompareColumnToField(s, c string) bool {
 	return columnCompare(s) == columnCompare(c)
-}
-
-/*
-	Returns the table name as a string.
-*/
-func (self *C) Name() string {
-	return self.SetName
 }
 
 func ValidateSliceDestination(dst interface{}) error {

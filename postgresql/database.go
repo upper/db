@@ -33,6 +33,7 @@ import (
 	"regexp"
 	"strings"
 	"upper.io/db"
+	"upper.io/db/util/sqlutil"
 )
 
 // Format for saving dates.
@@ -62,6 +63,7 @@ type sqlQuery struct {
 }
 
 func debugEnabled() bool {
+	return true
 	if os.Getenv(db.EnvEnableDebug) != "" {
 		return true
 	}
@@ -291,88 +293,120 @@ func (self *Source) Collections() ([]string, error) {
 	return collections, nil
 }
 
+func (self *Source) tableExists(names ...string) error {
+	for _, name := range names {
+		rows, err := self.doQuery(
+			fmt.Sprintf(`
+				SELECT table_name
+					FROM information_schema.tables
+				WHERE table_catalog = '%s' AND table_name = '%s'
+			`,
+				self.Name(),
+				name,
+			),
+		)
+
+		if err != nil {
+			return db.ErrCollectionDoesNotExists
+		}
+
+		defer rows.Close()
+
+		if rows.Next() == false {
+			return db.ErrCollectionDoesNotExists
+		}
+	}
+
+	return nil
+}
+
 // Returns a collection instance by name.
-func (self *Source) Collection(name string) (db.Collection, error) {
+func (self *Source) Collection(names ...string) (db.Collection, error) {
 
-	if collection, ok := self.collections[name]; ok == true {
-		return collection, nil
+	if len(names) == 0 {
+		return nil, db.ErrMissingCollectionName
 	}
 
-	table := &Table{}
-
-	table.source = self
-	table.DB = self
-	table.PrimaryKey = `id`
-
-	table.SetName = name
-
-	// Table exists?
-	if table.Exists() == false {
-		return table, db.ErrCollectionDoesNotExists
+	col := &Table{
+		source: self,
+		T: sqlutil.T{
+			PrimaryKey:  `id`,
+			ColumnTypes: make(map[string]reflect.Kind),
+		},
+		names: names,
 	}
 
-	// Fetching table datatypes and mapping to internal gotypes.
-	rows, err := table.source.doQuery(
-		`SELECT
-			column_name, data_type
-		FROM information_schema.columns
-		WHERE
-			table_name = ?`,
-		[]string{table.Name()},
-	)
-
-	if err != nil {
-		return table, err
-	}
-
-	columns := []struct {
-		ColumnName string
-		DataType   string
+	columns_t := []struct {
+		ColumnName string `db:"column_name"`
+		DataType   string `db:"data_type"`
 	}{}
 
-	err = table.FetchRows(&columns, rows)
+	for _, name := range names {
+		chunks := strings.SplitN(name, " ", 2)
 
-	if err != nil {
-		return nil, err
-	}
+		if len(chunks) > 0 {
 
-	table.ColumnTypes = make(map[string]reflect.Kind, len(columns))
+			name = chunks[0]
 
-	for _, column := range columns {
-
-		column.ColumnName = strings.ToLower(column.ColumnName)
-		column.DataType = strings.ToLower(column.DataType)
-
-		results := columnPattern.FindStringSubmatch(column.DataType)
-
-		// Default properties.
-		dextra := ""
-		dtype := `varchar`
-
-		dtype = results[1]
-
-		if len(results) > 3 {
-			dextra = results[3]
-		}
-
-		ctype := reflect.String
-
-		// Guessing datatypes.
-		switch dtype {
-		case `smallint`, `integer`, `bigint`, `serial`, `bigserial`:
-			if dextra == `unsigned` {
-				ctype = reflect.Uint64
-			} else {
-				ctype = reflect.Int64
+			if err := self.tableExists(name); err != nil {
+				return nil, err
 			}
-		case `real`, `double`:
-			ctype = reflect.Float64
-		}
 
-		table.ColumnTypes[column.ColumnName] = ctype
+			rows, err := self.doQuery(
+				`SELECT
+					column_name, data_type
+				FROM information_schema.columns
+				WHERE
+					table_name = ?`,
+				[]string{name},
+			)
+
+			if err != nil {
+				return nil, err
+			}
+
+			err = col.FetchRows(&columns_t, rows)
+
+			if err != nil {
+				return nil, err
+			}
+
+			for _, column := range columns_t {
+
+				column.ColumnName = strings.ToLower(column.ColumnName)
+				column.DataType = strings.ToLower(column.DataType)
+
+				results := columnPattern.FindStringSubmatch(column.DataType)
+
+				// Default properties.
+				dextra := ""
+				dtype := `varchar`
+
+				dtype = results[1]
+
+				if len(results) > 3 {
+					dextra = results[3]
+				}
+
+				ctype := reflect.String
+
+				// Guessing datatypes.
+				switch dtype {
+				case `smallint`, `integer`, `bigint`, `serial`, `bigserial`:
+					if dextra == `unsigned` {
+						ctype = reflect.Uint64
+					} else {
+						ctype = reflect.Int64
+					}
+				case `real`, `double`:
+					ctype = reflect.Float64
+				}
+
+				col.ColumnTypes[column.ColumnName] = ctype
+			}
+
+		}
 	}
 
-	self.collections[name] = table
-
-	return table, nil
+	return col, nil
 }

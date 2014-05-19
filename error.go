@@ -36,6 +36,7 @@ var (
 	ErrNoMoreRows              = errors.New(`There are no more rows in this result set.`)
 	ErrNotConnected            = errors.New(`You're currently not connected.`)
 	ErrMissingDatabaseName     = errors.New(`Missing database name.`)
+	ErrMissingCollectionName   = errors.New(`Missing collection name.`)
 	ErrCollectionDoesNotExists = errors.New(`Collection does not exists.`)
 	ErrSockerOrHost            = errors.New(`You may connect either to a unix socket or a tcp address, but not both.`)
 	ErrQueryLimitParam         = errors.New(`A query can accept only one db.Limit() parameter.`)
