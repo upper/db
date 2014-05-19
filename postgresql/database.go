@@ -63,7 +63,6 @@ type sqlQuery struct {
 }
 
 func debugEnabled() bool {
-	return true
 	if os.Getenv(db.EnvEnableDebug) != "" {
 		return true
 	}
