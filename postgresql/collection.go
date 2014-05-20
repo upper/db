@@ -168,7 +168,7 @@ func (self *Table) compileStatement(cond db.Cond) (string, []interface{}) {
 }
 
 func (self *Table) tableN(i int) string {
-	if len(self.names) < i {
+	if len(self.names) > i {
 		chunks := strings.SplitN(self.names[i], " ", 2)
 		if len(chunks) > 0 {
 			return fmt.Sprintf(`"%s"`, chunks[0])
