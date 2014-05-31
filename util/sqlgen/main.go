@@ -38,9 +38,9 @@ const (
 		SET {{.FieldValues}}
 	`
 
-	sqlCountLayout = `
+	sqlSelectCountLayout = `
 		SELECT
-			COUNT(1) AS total
+			COUNT(1) AS _t
 		FROM {{.Source}}
 			{{if .Where}}
 				WHERE {{.Where}}
@@ -54,12 +54,16 @@ const (
 			({{.Values}})
 	`
 
-	sqlTruncate = `
+	sqlTruncateLayout = `
 		TRUNCATE TABLE {{.Source}}
 	`
 
-	sqlDropDatabase = `
+	sqlDropDatabaseLayout = `
 		DROP DATABASE {{.Database}}
+	`
+
+	sqlDropTableLayout = `
+		DROP TABLE {{.Source}}
 	`
 
 	sqlTautology       = `1 = 1`
@@ -73,9 +77,17 @@ const (
 	sqlFunction = `{{.Function}}({{.Value}})`
 )
 
+type Type uint
+
+const (
+	SqlTruncate = iota
+	SqlDropTable
+	SqlDropDatabase
+	SqlSelectCount
+)
+
 type (
 	Fields      []string
-	Source      string
 	Limit       int
 	Offset      int
 	Sort        string
@@ -86,6 +98,7 @@ type (
 	Operator    string
 	Field       string
 	Function    string
+	Where       string
 )
 
 func mustParse(text string, data interface{}) string {
@@ -106,7 +119,9 @@ func (self *FieldValues) String() string {
 }
 
 type Statement struct {
+	Type
 	Source
+	Database
 	Limit
 	Offset
 	Field
@@ -115,8 +130,19 @@ type Statement struct {
 	PrimaryKey
 	Values
 	Function
+	Where
 }
 
 func (self *Statement) String() string {
+	switch self.Type {
+	case SqlTruncate:
+		return mustParse(sqlTruncateLayout, self)
+	case SqlDropTable:
+		return mustParse(sqlDropTableLayout, self)
+	case SqlDropDatabase:
+		return mustParse(sqlDropDatabaseLayout, self)
+	case SqlSelectCount:
+		return mustParse(sqlSelectCountLayout, self)
+	}
 	return ""
 }

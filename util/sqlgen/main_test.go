@@ -1,8 +1,19 @@
 package sqlgen
 
 import (
+	"regexp"
+	"strings"
 	"testing"
 )
+
+var reInvisible = regexp.MustCompile(`[\t\n\r]`)
+var reSpace = regexp.MustCompile(`\s+`)
+
+func trim(a string) string {
+	a = reInvisible.ReplaceAllString(strings.TrimSpace(a), " ")
+	a = reSpace.ReplaceAllString(strings.TrimSpace(a), " ")
+	return a
+}
 
 func TestColumnString(t *testing.T) {
 	var s, e string
@@ -107,4 +118,72 @@ func TestColumnValues(t *testing.T) {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 
+}
+
+func TestTruncateTable(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:   SqlTruncate,
+		Source: Source{"source name"},
+	}
+
+	s = strings.TrimSpace(stmt.String())
+	e = `TRUNCATE TABLE "source name"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestDropTable(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:   SqlDropTable,
+		Source: Source{"source name"},
+	}
+
+	s = strings.TrimSpace(stmt.String())
+	e = `DROP TABLE "source name"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestDropDatabase(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:     SqlDropDatabase,
+		Database: Database{"source name"},
+	}
+
+	s = trim(stmt.String())
+	e = `DROP DATABASE "source name"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestSelectCount(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:   SqlSelectCount,
+		Source: Source{"source name"},
+	}
+
+	s = trim(stmt.String())
+	e = `SELECT COUNT(1) AS _t FROM "source name"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
 }
