@@ -9,11 +9,11 @@ type Column struct {
 }
 
 func (self Column) String() string {
-	chunks := strings.Split(self.v, sqlColumnSeparator)
+	chunks := strings.Split(self.v, Layout.ColumnSeparator)
 
 	for i := range chunks {
-		chunks[i] = mustParse(sqlIdentifierQuote, Raw{chunks[i]})
+		chunks[i] = mustParse(Layout.IdentifierQuote, Raw{chunks[i]})
 	}
 
-	return strings.Join(chunks, sqlColumnSeparator)
+	return strings.Join(chunks, Layout.ColumnSeparator)
 }

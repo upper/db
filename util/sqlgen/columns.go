@@ -16,7 +16,7 @@ func (self Columns) String() string {
 			out[i] = self[i].String()
 		}
 
-		return strings.Join(out, sqlIdentifierSeparator)
+		return strings.Join(out, Layout.IdentifierSeparator)
 	}
 	return ""
 }

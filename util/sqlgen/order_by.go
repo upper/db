@@ -7,7 +7,7 @@ type OrderBy struct {
 
 func (self OrderBy) String() string {
 	if self.Columns.Len() > 0 {
-		return mustParse(sqlOrderByLayout, self)
+		return mustParse(Layout.OrderByLayout, self)
 	}
 	return ""
 }
@@ -25,9 +25,9 @@ const (
 func (self Sort) String() string {
 	switch self.v {
 	case SqlSortAsc:
-		return sqlAscKeyword
+		return Layout.AscKeyword
 	case SqlSortDesc:
-		return sqlDescKeyword
+		return Layout.DescKeyword
 	}
 	return ""
 }

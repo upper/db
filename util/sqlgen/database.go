@@ -9,5 +9,5 @@ type Database struct {
 }
 
 func (self Database) String() string {
-	return mustParse(sqlIdentifierQuote, Raw{fmt.Sprintf(`%v`, self.v)})
+	return mustParse(Layout.IdentifierQuote, Raw{fmt.Sprintf(`%v`, self.v)})
 }

@@ -5,97 +5,6 @@ import (
 	"text/template"
 )
 
-const (
-	sqlColumnSeparator     = `.`
-	sqlIdentifierSeparator = `, `
-	sqlIdentifierQuote     = `"{{.Raw}}"`
-	sqlValueSeparator      = `, `
-	sqlValueQuote          = `'{{.}}'`
-
-	sqlAndKeyword      = `AND`
-	sqlOrKeyword       = `OR`
-	sqlNotKeyword      = `NOT`
-	sqlDescKeyword     = `DESC`
-	sqlAscKeyword      = `ASC`
-	sqlDefaultOperator = `=`
-	sqlClauseGroup     = `({{.}})`
-	sqlClauseOperator  = ` {{.}} `
-	sqlColumnValue     = `{{.Column}} {{.Operator}} {{.Value}}`
-
-	sqlOrderByLayout = `
-		{{if .Columns}}
-			ORDER BY {{.Columns}} {{.Sort}}
-		{{end}}
-	`
-
-	sqlWhereLayout = `
-		{{if .Conds}}
-			WHERE {{.Conds}}
-		{{end}}
-	`
-
-	sqlSelectLayout = `
-		SELECT
-
-			{{if .Columns}}
-				{{.Columns}}
-			{{else}}
-				*
-			{{end}}
-
-			FROM {{.Table}}
-
-			{{.Where}}
-
-			{{.OrderBy}}
-
-			{{if .Limit}}
-				LIMIT {{.Limit}}
-			{{end}}
-
-			{{if .Offset}}
-				OFFSET {{.Offset}}
-			{{end}}
-	`
-	sqlDeleteLayout = `
-		DELETE
-			FROM {{.Table}}
-			{{.Where}}
-	`
-	sqlUpdateLayout = `
-		UPDATE
-			{{.Table}}
-		SET {{.ColumnValues}}
-			{{ .Where }}
-	`
-
-	sqlSelectCountLayout = `
-		SELECT
-			COUNT(1) AS _t
-		FROM {{.Table}}
-			{{.Where}}
-	`
-
-	sqlInsertLayout = `
-		INSERT INTO {{.Table}}
-			({{.Columns}})
-		VALUES
-			({{.Values}})
-	`
-
-	sqlTruncateLayout = `
-		TRUNCATE TABLE {{.Table}}
-	`
-
-	sqlDropDatabaseLayout = `
-		DROP DATABASE {{.Database}}
-	`
-
-	sqlDropTableLayout = `
-		DROP TABLE {{.Table}}
-	`
-)
-
 type Type uint
 
 const (
@@ -142,21 +51,21 @@ type Statement struct {
 func (self *Statement) Compile() string {
 	switch self.Type {
 	case SqlTruncate:
-		return mustParse(sqlTruncateLayout, self)
+		return mustParse(Layout.TruncateLayout, self)
 	case SqlDropTable:
-		return mustParse(sqlDropTableLayout, self)
+		return mustParse(Layout.DropTableLayout, self)
 	case SqlDropDatabase:
-		return mustParse(sqlDropDatabaseLayout, self)
+		return mustParse(Layout.DropDatabaseLayout, self)
 	case SqlSelectCount:
-		return mustParse(sqlSelectCountLayout, self)
+		return mustParse(Layout.SelectCountLayout, self)
 	case SqlSelect:
-		return mustParse(sqlSelectLayout, self)
+		return mustParse(Layout.SelectLayout, self)
 	case SqlDelete:
-		return mustParse(sqlDeleteLayout, self)
+		return mustParse(Layout.DeleteLayout, self)
 	case SqlUpdate:
-		return mustParse(sqlUpdateLayout, self)
+		return mustParse(Layout.UpdateLayout, self)
 	case SqlInsert:
-		return mustParse(sqlInsertLayout, self)
+		return mustParse(Layout.InsertLayout, self)
 	}
 	return ""
 }

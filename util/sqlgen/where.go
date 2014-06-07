@@ -15,17 +15,17 @@ type conds struct {
 }
 
 func (self Or) String() string {
-	return groupCondition(self, mustParse(sqlClauseOperator, sqlOrKeyword))
+	return groupCondition(self, mustParse(Layout.ClauseOperator, Layout.OrKeyword))
 }
 
 func (self And) String() string {
-	return groupCondition(self, mustParse(sqlClauseOperator, sqlAndKeyword))
+	return groupCondition(self, mustParse(Layout.ClauseOperator, Layout.AndKeyword))
 }
 
 func (self Where) String() string {
-	grouped := groupCondition(self, mustParse(sqlClauseOperator, sqlAndKeyword))
+	grouped := groupCondition(self, mustParse(Layout.ClauseOperator, Layout.AndKeyword))
 	if grouped != "" {
-		return mustParse(sqlWhereLayout, conds{grouped})
+		return mustParse(Layout.WhereLayout, conds{grouped})
 	}
 	return ""
 }
@@ -52,7 +52,7 @@ func groupCondition(terms []interface{}, joinKeyword string) string {
 	}
 
 	if len(chunks) > 0 {
-		return mustParse(sqlClauseGroup, strings.Join(chunks, joinKeyword))
+		return mustParse(Layout.ClauseGroup, strings.Join(chunks, joinKeyword))
 	}
 
 	return ""
