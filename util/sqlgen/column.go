@@ -12,7 +12,7 @@ func (self Column) String() string {
 	chunks := strings.Split(self.v, sqlColumnSeparator)
 
 	for i := range chunks {
-		chunks[i] = mustParse(sqlEscape, Raw{chunks[i]})
+		chunks[i] = mustParse(sqlIdentifierQuote, Raw{chunks[i]})
 	}
 
 	return strings.Join(chunks, sqlColumnSeparator)

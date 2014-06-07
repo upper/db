@@ -15,8 +15,7 @@ func (self Value) String() string {
 	if raw, ok := self.v.(Raw); ok {
 		return raw.Raw
 	}
-
-	return mustParse(sqlEscape, Raw{fmt.Sprintf(`%v`, self.v)})
+	return mustParse(sqlValueQuote, Raw{fmt.Sprintf(`%v`, self.v)})
 }
 
 func (self Values) String() string {
@@ -29,7 +28,7 @@ func (self Values) String() string {
 			chunks = append(chunks, self[i].String())
 		}
 
-		return strings.Join(chunks, sqlValueComma)
+		return strings.Join(chunks, sqlValueSeparator)
 	}
 
 	return ""

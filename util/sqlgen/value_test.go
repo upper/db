@@ -11,7 +11,7 @@ func TestValue(t *testing.T) {
 	val = Value{1}
 
 	s = val.String()
-	e = `"1"`
+	e = `'1'`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -38,7 +38,7 @@ func TestValues(t *testing.T) {
 	}
 
 	s = val.String()
-	e = `1, 2, "3"`
+	e = `1, 2, '3'`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)

@@ -15,7 +15,7 @@ func TestWhereAnd(t *testing.T) {
 	}
 
 	s = and.String()
-	e = `("id" > 8 AND "id" < 99 AND "name" = "John")`
+	e = `("id" > 8 AND "id" < 99 AND "name" = 'John')`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -54,7 +54,7 @@ func TestWhereAndOr(t *testing.T) {
 	}
 
 	s = and.String()
-	e = `("id" > 8 AND "id" < 99 AND "name" = "John" AND ("last_name" = "Smith" OR "last_name" = "Reyes"))`
+	e = `("id" > 8 AND "id" < 99 AND "name" = 'John' AND ("last_name" = 'Smith' OR "last_name" = 'Reyes'))`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -82,8 +82,8 @@ func TestWhereAndRawOrAnd(t *testing.T) {
 		},
 	}
 
-	s = where.String()
-	e = `(("id" > 8 AND "id" < 99) AND "name" = "John" AND city_id = 728 AND ("last_name" = "Smith" OR "last_name" = "Reyes") AND ("age" > 18 AND "age" < 41))`
+	s = trim(where.String())
+	e = `WHERE (("id" > 8 AND "id" < 99) AND "name" = 'John' AND city_id = 728 AND ("last_name" = 'Smith' OR "last_name" = 'Reyes') AND ("age" > 18 AND "age" < 41))`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)

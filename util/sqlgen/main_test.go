@@ -110,6 +110,26 @@ func TestSelectStarFrom(t *testing.T) {
 	}
 }
 
+func TestSelectArtistNameFrom(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:  SqlSelect,
+		Table: Table{"artist"},
+		Columns: Columns{
+			Column{"artist.name"},
+		},
+	}
+
+	s = trim(stmt.Compile())
+	e = `SELECT "artist"."name" FROM "artist"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
 func TestSelectFieldsFrom(t *testing.T) {
 	var s, e string
 	var stmt Statement
@@ -289,7 +309,7 @@ func TestSelectFieldsFromWhere(t *testing.T) {
 	}
 
 	s = trim(stmt.Compile())
-	e = `SELECT "foo", "bar", "baz" FROM "table name" WHERE ("baz" = "99")`
+	e = `SELECT "foo", "bar", "baz" FROM "table name" WHERE ("baz" = '99')`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -316,7 +336,7 @@ func TestSelectFieldsFromWhereLimitOffset(t *testing.T) {
 	}
 
 	s = trim(stmt.Compile())
-	e = `SELECT "foo", "bar", "baz" FROM "table name" WHERE ("baz" = "99") LIMIT 10 OFFSET 23`
+	e = `SELECT "foo", "bar", "baz" FROM "table name" WHERE ("baz" = '99') LIMIT 10 OFFSET 23`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -336,7 +356,7 @@ func TestDelete(t *testing.T) {
 	}
 
 	s = trim(stmt.Compile())
-	e = `DELETE FROM "table name" WHERE ("baz" = "99")`
+	e = `DELETE FROM "table name" WHERE ("baz" = '99')`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -359,7 +379,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	s = trim(stmt.Compile())
-	e = `UPDATE "table name" SET "foo" = "76" WHERE ("baz" = "99")`
+	e = `UPDATE "table name" SET "foo" = '76' WHERE ("baz" = '99')`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -378,7 +398,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	s = trim(stmt.Compile())
-	e = `UPDATE "table name" SET "foo" = "76", "bar" = 88 WHERE ("baz" = "99")`
+	e = `UPDATE "table name" SET "foo" = '76', "bar" = 88 WHERE ("baz" = '99')`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -405,7 +425,7 @@ func TestInsert(t *testing.T) {
 	}
 
 	s = trim(stmt.Compile())
-	e = `INSERT INTO "table name" ("foo", "bar", "baz") VALUES ("1", "2", 3)`
+	e = `INSERT INTO "table name" ("foo", "bar", "baz") VALUES ('1', '2', 3)`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)

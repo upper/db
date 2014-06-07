@@ -11,7 +11,7 @@ func TestColumnValue(t *testing.T) {
 	cv = ColumnValue{Column{"id"}, "=", Value{1}}
 
 	s = cv.String()
-	e = `"id" = "1"`
+	e = `"id" = '1'`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -40,7 +40,7 @@ func TestColumnValues(t *testing.T) {
 	}
 
 	s = cvs.String()
-	e = `"id" > "8", "other"."id" < 100, "name" = "Haruki Murakami", "created" >= NOW(), "modified" <= NOW()`
+	e = `"id" > '8', "other"."id" < 100, "name" = 'Haruki Murakami', "created" >= NOW(), "modified" <= NOW()`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)

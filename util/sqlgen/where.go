@@ -10,16 +10,24 @@ type (
 	Where []interface{}
 )
 
+type conds struct {
+	Conds string
+}
+
 func (self Or) String() string {
-	return groupCondition(self, sqlOrKeyword)
+	return groupCondition(self, mustParse(sqlClauseOperator, sqlOrKeyword))
 }
 
 func (self And) String() string {
-	return groupCondition(self, sqlAndKeyword)
+	return groupCondition(self, mustParse(sqlClauseOperator, sqlAndKeyword))
 }
 
 func (self Where) String() string {
-	return groupCondition(self, sqlAndKeyword)
+	grouped := groupCondition(self, mustParse(sqlClauseOperator, sqlAndKeyword))
+	if grouped != "" {
+		return mustParse(sqlWhereLayout, conds{grouped})
+	}
+	return ""
 }
 
 func groupCondition(terms []interface{}, joinKeyword string) string {
@@ -44,7 +52,7 @@ func groupCondition(terms []interface{}, joinKeyword string) string {
 	}
 
 	if len(chunks) > 0 {
-		return mustParse(sqlConditionGroup, strings.Join(chunks, " "+joinKeyword+" "))
+		return mustParse(sqlClauseGroup, strings.Join(chunks, joinKeyword))
 	}
 
 	return ""

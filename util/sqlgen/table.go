@@ -9,5 +9,5 @@ type Table struct {
 }
 
 func (self Table) String() string {
-	return mustParse(sqlEscape, Raw{fmt.Sprintf(`%v`, self.v)})
+	return mustParse(sqlIdentifierQuote, Raw{fmt.Sprintf(`%v`, self.v)})
 }

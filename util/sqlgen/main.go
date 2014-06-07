@@ -2,21 +2,38 @@ package sqlgen
 
 import (
 	"bytes"
-	"fmt"
 	"text/template"
 )
 
 const (
-	sqlColumnSeparator = `.`
-	sqlColumnComma     = `, `
-	sqlValueComma      = `, `
-	sqlEscape          = `"{{.Raw}}"`
+	sqlColumnSeparator     = `.`
+	sqlIdentifierSeparator = `, `
+	sqlIdentifierQuote     = `"{{.Raw}}"`
+	sqlValueSeparator      = `, `
+	sqlValueQuote          = `'{{.}}'`
+
+	sqlAndKeyword      = `AND`
+	sqlOrKeyword       = `OR`
+	sqlNotKeyword      = `NOT`
+	sqlDescKeyword     = `DESC`
+	sqlAscKeyword      = `ASC`
+	sqlDefaultOperator = `=`
+	sqlClauseGroup     = `({{.}})`
+	sqlClauseOperator  = ` {{.}} `
+	sqlColumnValue     = `{{.Column}} {{.Operator}} {{.Value}}`
 
 	sqlOrderByLayout = `
 		{{if .Columns}}
 			ORDER BY {{.Columns}} {{.Sort}}
 		{{end}}
 	`
+
+	sqlWhereLayout = `
+		{{if .Conds}}
+			WHERE {{.Conds}}
+		{{end}}
+	`
+
 	sqlSelectLayout = `
 		SELECT
 
@@ -28,9 +45,7 @@ const (
 
 			FROM {{.Table}}
 
-			{{if .Where}}
-				WHERE {{.Where}}
-			{{end}}
+			{{.Where}}
 
 			{{.OrderBy}}
 
@@ -45,26 +60,20 @@ const (
 	sqlDeleteLayout = `
 		DELETE
 			FROM {{.Table}}
-			{{if .Where}}
-				WHERE {{.Where}}
-			{{end}}
+			{{.Where}}
 	`
 	sqlUpdateLayout = `
 		UPDATE
 			{{.Table}}
 		SET {{.ColumnValues}}
-			{{if .Where}}
-				WHERE {{.Where}}
-			{{end}}
+			{{ .Where }}
 	`
 
 	sqlSelectCountLayout = `
 		SELECT
 			COUNT(1) AS _t
 		FROM {{.Table}}
-			{{if .Where}}
-				WHERE {{.Where}}
-			{{end}}
+			{{.Where}}
 	`
 
 	sqlInsertLayout = `
@@ -85,15 +94,6 @@ const (
 	sqlDropTableLayout = `
 		DROP TABLE {{.Table}}
 	`
-
-	sqlAndKeyword      = `AND`
-	sqlOrKeyword       = `OR`
-	sqlDescKeyword     = `DESC`
-	sqlAscKeyword      = `ASC`
-	sqlDefaultOperator = `=`
-	sqlConditionGroup  = `({{.}})`
-
-	sqlColumnValue = `{{.Column}} {{.Operator}} {{.Value}}`
 )
 
 type Type uint
@@ -120,7 +120,6 @@ func mustParse(text string, data interface{}) string {
 	t := template.Must(template.New("").Parse(text))
 
 	if err := t.Execute(&b, data); err != nil {
-		fmt.Printf("data: %v\n", data)
 		panic("t.Execute: " + err.Error())
 	}
 
