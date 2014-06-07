@@ -18,7 +18,13 @@ const (
 		{{end}}
 	`
 	sqlSelectLayout = `
-		SELECT {{.Columns}}
+		SELECT
+
+			{{if .Columns}}
+				{{.Columns}}
+			{{else}}
+				*
+			{{end}}
 
 			FROM {{.Source}}
 
@@ -80,18 +86,14 @@ const (
 		DROP TABLE {{.Source}}
 	`
 
-	sqlTautology       = `1 = 1`
-	sqlAllFields       = `*`
 	sqlAndKeyword      = `AND`
 	sqlOrKeyword       = `OR`
-	sqlDefaultOperator = `=`
 	sqlDescKeyword     = `DESC`
 	sqlAscKeyword      = `ASC`
+	sqlDefaultOperator = `=`
 	sqlConditionGroup  = `({{.}})`
 
 	sqlColumnValue = `{{.Column}} {{.Operator}} {{.Value}}`
-
-	sqlFunction = `{{.Function}}({{.Value}})`
 )
 
 type Type uint

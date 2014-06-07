@@ -103,6 +103,23 @@ func TestSelectCountWhere(t *testing.T) {
 	}
 }
 
+func TestSelectStarFrom(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:   SqlSelect,
+		Source: Source{"source name"},
+	}
+
+	s = trim(stmt.Compile())
+	e = `SELECT * FROM "source name"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
 func TestSelectFieldsFrom(t *testing.T) {
 	var s, e string
 	var stmt Statement
