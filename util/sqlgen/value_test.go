@@ -25,5 +25,22 @@ func TestValue(t *testing.T) {
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
+}
 
+func TestValues(t *testing.T) {
+	var s, e string
+	var val Values
+
+	val = Values{
+		Value{Raw{"1"}},
+		Value{Raw{"2"}},
+		Value{"3"},
+	}
+
+	s = val.String()
+	e = `1, 2, "3"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
 }

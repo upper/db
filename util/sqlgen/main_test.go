@@ -339,3 +339,98 @@ func TestSelectFieldsFromWhereLimitOffset(t *testing.T) {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 }
+
+func TestDelete(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:   SqlDelete,
+		Source: Source{"source name"},
+		Where: Where{
+			ColumnValue{Column{"baz"}, "=", Value{99}},
+		},
+	}
+
+	s = trim(stmt.Compile())
+	e = `DELETE FROM "source name" WHERE ("baz" = "99")`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestUpdate(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:   SqlUpdate,
+		Source: Source{"source name"},
+		ColumnValues: ColumnValues{
+			[]ColumnValue{
+				{Column{"foo"}, "=", Value{76}},
+			},
+		},
+		Where: Where{
+			ColumnValue{Column{"baz"}, "=", Value{99}},
+		},
+	}
+
+	s = trim(stmt.Compile())
+	e = `UPDATE "source name" SET "foo" = "76" WHERE ("baz" = "99")`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+
+	stmt = Statement{
+		Type:   SqlUpdate,
+		Source: Source{"source name"},
+		ColumnValues: ColumnValues{
+			[]ColumnValue{
+				{Column{"foo"}, "=", Value{76}},
+				{Column{"bar"}, "=", Value{Raw{"88"}}},
+			},
+		},
+		Where: Where{
+			ColumnValue{Column{"baz"}, "=", Value{99}},
+		},
+	}
+
+	s = trim(stmt.Compile())
+	e = `UPDATE "source name" SET "foo" = "76", "bar" = 88 WHERE ("baz" = "99")`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestInsert(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:   SqlInsert,
+		Source: Source{"source name"},
+		Columns: Columns{
+			[]Column{
+				Column{"foo"},
+				Column{"bar"},
+				Column{"baz"},
+			},
+		},
+		Values: Values{
+			Value{"1"},
+			Value{2},
+			Value{Raw{"3"}},
+		},
+	}
+
+	s = trim(stmt.Compile())
+	e = `INSERT INTO "source name" ("foo", "bar", "baz") VALUES ("1", "2", 3)`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}

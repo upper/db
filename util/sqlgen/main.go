@@ -9,6 +9,7 @@ import (
 const (
 	sqlColumnSeparator = `.`
 	sqlColumnComma     = `, `
+	sqlValueComma      = `, `
 	sqlEscape          = `"{{.Raw}}"`
 
 	sqlOrderByLayout = `
@@ -45,7 +46,10 @@ const (
 	sqlUpdateLayout = `
 		UPDATE
 			{{.Source}}
-		SET {{.FieldValues}}
+		SET {{.ColumnValues}}
+			{{if .Where}}
+				WHERE {{.Where}}
+			{{end}}
 	`
 
 	sqlSelectCountLayout = `
@@ -97,7 +101,10 @@ const (
 	SqlDropTable
 	SqlDropDatabase
 	SqlSelectCount
+	SqlInsert
 	SqlSelect
+	SqlUpdate
+	SqlDelete
 )
 
 type (
@@ -125,6 +132,8 @@ type Statement struct {
 	Limit
 	Offset
 	Columns
+	Values
+	ColumnValues
 	OrderBy
 	Where
 }
@@ -141,6 +150,12 @@ func (self *Statement) Compile() string {
 		return mustParse(sqlSelectCountLayout, self)
 	case SqlSelect:
 		return mustParse(sqlSelectLayout, self)
+	case SqlDelete:
+		return mustParse(sqlDeleteLayout, self)
+	case SqlUpdate:
+		return mustParse(sqlUpdateLayout, self)
+	case SqlInsert:
+		return mustParse(sqlInsertLayout, self)
 	}
 	return ""
 }
