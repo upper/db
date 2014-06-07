@@ -1,19 +1,9 @@
 package sqlgen
 
 import (
-	"regexp"
 	"strings"
 	"testing"
 )
-
-var reInvisible = regexp.MustCompile(`[\t\n\r]`)
-var reSpace = regexp.MustCompile(`\s+`)
-
-func trim(a string) string {
-	a = reInvisible.ReplaceAllString(strings.TrimSpace(a), " ")
-	a = reSpace.ReplaceAllString(strings.TrimSpace(a), " ")
-	return a
-}
 
 func TestTruncateTable(t *testing.T) {
 	var s, e string
@@ -127,11 +117,9 @@ func TestSelectFieldsFrom(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			[]Column{
-				{"foo"},
-				{"bar"},
-				{"baz"},
-			},
+			{"foo"},
+			{"bar"},
+			{"baz"},
 		},
 		Source: Source{"source name"},
 	}
@@ -152,11 +140,9 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			[]Column{
-				{"foo"},
-				{"bar"},
-				{"baz"},
-			},
+			{"foo"},
+			{"bar"},
+			{"baz"},
 		},
 		Limit:  42,
 		Source: Source{"source name"},
@@ -173,11 +159,9 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			[]Column{
-				{"foo"},
-				{"bar"},
-				{"baz"},
-			},
+			{"foo"},
+			{"bar"},
+			{"baz"},
 		},
 		Offset: 17,
 		Source: Source{"source name"},
@@ -194,11 +178,9 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			[]Column{
-				{"foo"},
-				{"bar"},
-				{"baz"},
-			},
+			{"foo"},
+			{"bar"},
+			{"baz"},
 		},
 		Limit:  42,
 		Offset: 17,
@@ -221,17 +203,13 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			[]Column{
-				{"foo"},
-				{"bar"},
-				{"baz"},
-			},
+			{"foo"},
+			{"bar"},
+			{"baz"},
 		},
 		OrderBy: OrderBy{
 			Columns: Columns{
-				[]Column{
-					{"foo"},
-				},
+				{"foo"},
 			},
 		},
 		Source: Source{"source name"},
@@ -248,17 +226,13 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			[]Column{
-				{"foo"},
-				{"bar"},
-				{"baz"},
-			},
+			{"foo"},
+			{"bar"},
+			{"baz"},
 		},
 		OrderBy: OrderBy{
 			Columns: Columns{
-				[]Column{
-					{"foo"},
-				},
+				{"foo"},
 			},
 			Sort: Sort{SqlSortAsc},
 		},
@@ -276,17 +250,13 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			[]Column{
-				{"foo"},
-				{"bar"},
-				{"baz"},
-			},
+			{"foo"},
+			{"bar"},
+			{"baz"},
 		},
 		OrderBy: OrderBy{
 			Columns: Columns{
-				[]Column{
-					{"foo"},
-				},
+				{"foo"},
 			},
 			Sort: Sort{SqlSortDesc},
 		},
@@ -308,11 +278,9 @@ func TestSelectFieldsFromWhere(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			[]Column{
-				{"foo"},
-				{"bar"},
-				{"baz"},
-			},
+			{"foo"},
+			{"bar"},
+			{"baz"},
 		},
 		Source: Source{"source name"},
 		Where: Where{
@@ -335,11 +303,9 @@ func TestSelectFieldsFromWhereLimitOffset(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			[]Column{
-				{"foo"},
-				{"bar"},
-				{"baz"},
-			},
+			{"foo"},
+			{"bar"},
+			{"baz"},
 		},
 		Source: Source{"source name"},
 		Where: Where{
@@ -385,9 +351,7 @@ func TestUpdate(t *testing.T) {
 		Type:   SqlUpdate,
 		Source: Source{"source name"},
 		ColumnValues: ColumnValues{
-			[]ColumnValue{
-				{Column{"foo"}, "=", Value{76}},
-			},
+			{Column{"foo"}, "=", Value{76}},
 		},
 		Where: Where{
 			ColumnValue{Column{"baz"}, "=", Value{99}},
@@ -405,10 +369,8 @@ func TestUpdate(t *testing.T) {
 		Type:   SqlUpdate,
 		Source: Source{"source name"},
 		ColumnValues: ColumnValues{
-			[]ColumnValue{
-				{Column{"foo"}, "=", Value{76}},
-				{Column{"bar"}, "=", Value{Raw{"88"}}},
-			},
+			{Column{"foo"}, "=", Value{76}},
+			{Column{"bar"}, "=", Value{Raw{"88"}}},
 		},
 		Where: Where{
 			ColumnValue{Column{"baz"}, "=", Value{99}},
@@ -431,11 +393,9 @@ func TestInsert(t *testing.T) {
 		Type:   SqlInsert,
 		Source: Source{"source name"},
 		Columns: Columns{
-			[]Column{
-				Column{"foo"},
-				Column{"bar"},
-				Column{"baz"},
-			},
+			Column{"foo"},
+			Column{"bar"},
+			Column{"baz"},
 		},
 		Values: Values{
 			Value{"1"},

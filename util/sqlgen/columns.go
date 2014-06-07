@@ -4,16 +4,16 @@ import (
 	"strings"
 )
 
-type Columns struct {
-	v []Column
-}
+type Columns []Column
 
 func (self Columns) String() string {
-	if len(self.v) > 0 {
-		out := make([]string, len(self.v))
+	l := len(self)
 
-		for i := range self.v {
-			out[i] = self.v[i].String()
+	if l > 0 {
+		out := make([]string, l)
+
+		for i := 0; i < l; i++ {
+			out[i] = self[i].String()
 		}
 
 		return strings.Join(out, sqlColumnComma)
@@ -22,5 +22,5 @@ func (self Columns) String() string {
 }
 
 func (self Columns) Len() int {
-	return len(self.v)
+	return len(self)
 }

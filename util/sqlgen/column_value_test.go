@@ -32,13 +32,11 @@ func TestColumnValues(t *testing.T) {
 	var cvs ColumnValues
 
 	cvs = ColumnValues{
-		[]ColumnValue{
-			{Column{"id"}, ">", Value{8}},
-			{Column{"other.id"}, "<", Value{Raw{"100"}}},
-			{Column{"name"}, "=", Value{"Haruki Murakami"}},
-			{Column{"created"}, ">=", Value{Raw{"NOW()"}}},
-			{Column{"modified"}, "<=", Value{Raw{"NOW()"}}},
-		},
+		{Column{"id"}, ">", Value{8}},
+		{Column{"other.id"}, "<", Value{Raw{"100"}}},
+		{Column{"name"}, "=", Value{"Haruki Murakami"}},
+		{Column{"created"}, ">=", Value{Raw{"NOW()"}}},
+		{Column{"modified"}, "<=", Value{Raw{"NOW()"}}},
 	}
 
 	s = cvs.String()

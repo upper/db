@@ -14,15 +14,15 @@ func (self ColumnValue) String() string {
 	return mustParse(sqlColumnValue, self)
 }
 
-type ColumnValues struct {
-	v []ColumnValue
-}
+type ColumnValues []ColumnValue
 
 func (self ColumnValues) String() string {
-	out := make([]string, len(self.v))
+	l := len(self)
 
-	for i := range self.v {
-		out[i] = self.v[i].String()
+	out := make([]string, l)
+
+	for i := 0; i < l; i++ {
+		out[i] = self[i].String()
 	}
 
 	return strings.Join(out, sqlColumnComma)
