@@ -11,17 +11,24 @@ const (
 	sqlColumnComma     = `, `
 	sqlEscape          = `"{{.Raw}}"`
 
+	sqlOrderByLayout = `
+		{{if .Columns}}
+			ORDER BY {{.Columns}} {{.Sort}}
+		{{end}}
+	`
+
 	sqlSelectLayout = `
-		SELECT {{.Fields}} FROM {{.Source}}
+		SELECT {{.Columns}} FROM {{.Source}}
 			{{if .Where}}
 				WHERE {{.Where}}
 			{{end}}
-			{{if .OrderBy}}
-				ORDER BY {{.OrderBy}} {{.Sort}}
-			{{end}}
+
+			{{.OrderBy}}
+
 			{{if .Limit}}
 				LIMIT {{.Limit}}
 			{{end}}
+
 			{{if .Offset}}
 				OFFSET {{.Offset}}
 			{{end}}
@@ -71,6 +78,8 @@ const (
 	sqlAnd             = `AND`
 	sqlOr              = `OR`
 	sqlDefaultOperator = `=`
+	sqlDescKeyword     = `DESC`
+	sqlAscKeyword      = `ASC`
 
 	sqlColumnValue = `{{.Column}} {{.Operator}} {{.Value}}`
 
@@ -84,21 +93,12 @@ const (
 	SqlDropTable
 	SqlDropDatabase
 	SqlSelectCount
+	SqlSelect
 )
 
 type (
-	Fields      []string
-	Limit       int
-	Offset      int
-	Sort        string
-	OrderBy     string
-	FieldValues map[string]string
-	PrimaryKey  string
-	Values      []string
-	Operator    string
-	Field       string
-	Function    string
-	Where       string
+	Limit  int
+	Offset int
 )
 
 func mustParse(text string, data interface{}) string {
@@ -114,26 +114,18 @@ func mustParse(text string, data interface{}) string {
 	return b.String()
 }
 
-func (self *FieldValues) String() string {
-	return ""
-}
-
 type Statement struct {
 	Type
 	Source
 	Database
 	Limit
 	Offset
-	Field
 	Columns
-	FieldValues
-	PrimaryKey
-	Values
-	Function
+	OrderBy
 	Where
 }
 
-func (self *Statement) String() string {
+func (self *Statement) Compile() string {
 	switch self.Type {
 	case SqlTruncate:
 		return mustParse(sqlTruncateLayout, self)
@@ -143,6 +135,8 @@ func (self *Statement) String() string {
 		return mustParse(sqlDropDatabaseLayout, self)
 	case SqlSelectCount:
 		return mustParse(sqlSelectCountLayout, self)
+	case SqlSelect:
+		return mustParse(sqlSelectLayout, self)
 	}
 	return ""
 }

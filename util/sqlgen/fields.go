@@ -17,3 +17,7 @@ func (self Columns) String() string {
 
 	return strings.Join(out, sqlColumnComma)
 }
+
+func (self Columns) Len() int {
+	return len(self.v)
+}

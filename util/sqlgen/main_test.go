@@ -129,7 +129,7 @@ func TestTruncateTable(t *testing.T) {
 		Source: Source{"source name"},
 	}
 
-	s = strings.TrimSpace(stmt.String())
+	s = strings.TrimSpace(stmt.Compile())
 	e = `TRUNCATE TABLE "source name"`
 
 	if s != e {
@@ -146,7 +146,7 @@ func TestDropTable(t *testing.T) {
 		Source: Source{"source name"},
 	}
 
-	s = strings.TrimSpace(stmt.String())
+	s = strings.TrimSpace(stmt.Compile())
 	e = `DROP TABLE "source name"`
 
 	if s != e {
@@ -163,7 +163,7 @@ func TestDropDatabase(t *testing.T) {
 		Database: Database{"source name"},
 	}
 
-	s = trim(stmt.String())
+	s = trim(stmt.Compile())
 	e = `DROP DATABASE "source name"`
 
 	if s != e {
@@ -180,8 +180,189 @@ func TestSelectCount(t *testing.T) {
 		Source: Source{"source name"},
 	}
 
-	s = trim(stmt.String())
+	s = trim(stmt.Compile())
 	e = `SELECT COUNT(1) AS _t FROM "source name"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestSelectFieldsFrom(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type: SqlSelect,
+		Columns: Columns{
+			[]Column{
+				{"foo"},
+				{"bar"},
+				{"baz"},
+			},
+		},
+		Source: Source{"source name"},
+	}
+
+	s = trim(stmt.Compile())
+	e = `SELECT "foo", "bar", "baz" FROM "source name"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	// LIMIT only.
+	stmt = Statement{
+		Type: SqlSelect,
+		Columns: Columns{
+			[]Column{
+				{"foo"},
+				{"bar"},
+				{"baz"},
+			},
+		},
+		Limit:  42,
+		Source: Source{"source name"},
+	}
+
+	s = trim(stmt.Compile())
+	e = `SELECT "foo", "bar", "baz" FROM "source name" LIMIT 42`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+
+	// OFFSET only.
+	stmt = Statement{
+		Type: SqlSelect,
+		Columns: Columns{
+			[]Column{
+				{"foo"},
+				{"bar"},
+				{"baz"},
+			},
+		},
+		Offset: 17,
+		Source: Source{"source name"},
+	}
+
+	s = trim(stmt.Compile())
+	e = `SELECT "foo", "bar", "baz" FROM "source name" OFFSET 17`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+
+	// LIMIT AND OFFSET.
+	stmt = Statement{
+		Type: SqlSelect,
+		Columns: Columns{
+			[]Column{
+				{"foo"},
+				{"bar"},
+				{"baz"},
+			},
+		},
+		Limit:  42,
+		Offset: 17,
+		Source: Source{"source name"},
+	}
+
+	s = trim(stmt.Compile())
+	e = `SELECT "foo", "bar", "baz" FROM "source name" LIMIT 42 OFFSET 17`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestSelectFieldsFromWithOrderBy(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	// Simple ORDER BY
+	stmt = Statement{
+		Type: SqlSelect,
+		Columns: Columns{
+			[]Column{
+				{"foo"},
+				{"bar"},
+				{"baz"},
+			},
+		},
+		OrderBy: OrderBy{
+			Columns: Columns{
+				[]Column{
+					{"foo"},
+				},
+			},
+		},
+		Source: Source{"source name"},
+	}
+
+	s = trim(stmt.Compile())
+	e = `SELECT "foo", "bar", "baz" FROM "source name" ORDER BY "foo"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+
+	// ORDER BY field ASC
+	stmt = Statement{
+		Type: SqlSelect,
+		Columns: Columns{
+			[]Column{
+				{"foo"},
+				{"bar"},
+				{"baz"},
+			},
+		},
+		OrderBy: OrderBy{
+			Columns: Columns{
+				[]Column{
+					{"foo"},
+				},
+			},
+			Sort: Sort{SqlSortAsc},
+		},
+		Source: Source{"source name"},
+	}
+
+	s = trim(stmt.Compile())
+	e = `SELECT "foo", "bar", "baz" FROM "source name" ORDER BY "foo" ASC`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+
+	// ORDER BY field DESC
+	stmt = Statement{
+		Type: SqlSelect,
+		Columns: Columns{
+			[]Column{
+				{"foo"},
+				{"bar"},
+				{"baz"},
+			},
+		},
+		OrderBy: OrderBy{
+			Columns: Columns{
+				[]Column{
+					{"foo"},
+				},
+			},
+			Sort: Sort{SqlSortDesc},
+		},
+		Source: Source{"source name"},
+	}
+
+	s = trim(stmt.Compile())
+	e = `SELECT "foo", "bar", "baz" FROM "source name" ORDER BY "foo" DESC`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
