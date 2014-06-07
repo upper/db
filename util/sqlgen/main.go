@@ -26,7 +26,7 @@ const (
 				*
 			{{end}}
 
-			FROM {{.Source}}
+			FROM {{.Table}}
 
 			{{if .Where}}
 				WHERE {{.Where}}
@@ -44,14 +44,14 @@ const (
 	`
 	sqlDeleteLayout = `
 		DELETE
-			FROM {{.Source}}
+			FROM {{.Table}}
 			{{if .Where}}
 				WHERE {{.Where}}
 			{{end}}
 	`
 	sqlUpdateLayout = `
 		UPDATE
-			{{.Source}}
+			{{.Table}}
 		SET {{.ColumnValues}}
 			{{if .Where}}
 				WHERE {{.Where}}
@@ -61,21 +61,21 @@ const (
 	sqlSelectCountLayout = `
 		SELECT
 			COUNT(1) AS _t
-		FROM {{.Source}}
+		FROM {{.Table}}
 			{{if .Where}}
 				WHERE {{.Where}}
 			{{end}}
 	`
 
 	sqlInsertLayout = `
-		INSERT INTO {{.Source}}
+		INSERT INTO {{.Table}}
 			({{.Columns}})
 		VALUES
 			({{.Values}})
 	`
 
 	sqlTruncateLayout = `
-		TRUNCATE TABLE {{.Source}}
+		TRUNCATE TABLE {{.Table}}
 	`
 
 	sqlDropDatabaseLayout = `
@@ -83,7 +83,7 @@ const (
 	`
 
 	sqlDropTableLayout = `
-		DROP TABLE {{.Source}}
+		DROP TABLE {{.Table}}
 	`
 
 	sqlAndKeyword      = `AND`
@@ -129,7 +129,7 @@ func mustParse(text string, data interface{}) string {
 
 type Statement struct {
 	Type
-	Source
+	Table
 	Database
 	Limit
 	Offset

@@ -4,10 +4,10 @@ import (
 	"fmt"
 )
 
-type Source struct {
+type Table struct {
 	v string
 }
 
-func (self Source) String() string {
+func (self Table) String() string {
 	return mustParse(sqlEscape, Raw{fmt.Sprintf(`%v`, self.v)})
 }
