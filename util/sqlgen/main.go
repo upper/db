@@ -16,9 +16,11 @@ const (
 			ORDER BY {{.Columns}} {{.Sort}}
 		{{end}}
 	`
-
 	sqlSelectLayout = `
-		SELECT {{.Columns}} FROM {{.Source}}
+		SELECT {{.Columns}}
+
+			FROM {{.Source}}
+
 			{{if .Where}}
 				WHERE {{.Where}}
 			{{end}}
@@ -34,7 +36,8 @@ const (
 			{{end}}
 	`
 	sqlDeleteLayout = `
-		DELETE FROM {{.Source}}
+		DELETE
+			FROM {{.Source}}
 			{{if .Where}}
 				WHERE {{.Where}}
 			{{end}}
@@ -75,11 +78,12 @@ const (
 
 	sqlTautology       = `1 = 1`
 	sqlAllFields       = `*`
-	sqlAnd             = `AND`
-	sqlOr              = `OR`
+	sqlAndKeyword      = `AND`
+	sqlOrKeyword       = `OR`
 	sqlDefaultOperator = `=`
 	sqlDescKeyword     = `DESC`
 	sqlAscKeyword      = `ASC`
+	sqlConditionGroup  = `({{.}})`
 
 	sqlColumnValue = `{{.Column}} {{.Operator}} {{.Value}}`
 
