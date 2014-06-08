@@ -443,6 +443,10 @@ func TestUpdate(t *testing.T) {
 	// Getting the first artist.
 	res := artist.Find(db.Cond{"id !=": 0}).Limit(1)
 
+	if err = res.One(&value); err != nil {
+		t.Fatalf(err.Error())
+	}
+
 	// Updating with a map
 	row_m := map[string]interface{}{
 		"name": strings.ToUpper(value.Name),
@@ -454,9 +458,8 @@ func TestUpdate(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	err = res.One(&value)
-
-	if err != nil {
+	// Pulling it again.
+	if err = res.One(&value); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -469,15 +472,11 @@ func TestUpdate(t *testing.T) {
 		Name string
 	}{strings.ToLower(value.Name)}
 
-	err = res.Update(row_s)
-
-	if err != nil {
+	if err = res.Update(row_s); err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	err = res.One(&value)
-
-	if err != nil {
+	if err = res.One(&value); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -490,15 +489,11 @@ func TestUpdate(t *testing.T) {
 		Value1 string `field:"name"`
 	}{strings.Replace(value.Name, "z", "Z", -1)}
 
-	err = res.Update(row_t)
-
-	if err != nil {
+	if err = res.Update(row_t); err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	err = res.One(&value)
-
-	if err != nil {
+	if err = res.One(&value); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -692,6 +687,7 @@ func BenchmarkAppendDbItem(b *testing.B) {
 // Contributed by wei2912
 // See: https://github.com/gosexy/db/issues/20#issuecomment-20167939
 // Applying the BEGIN and END transaction optimizations.
+/*
 func BenchmarkAppendDbItem_Transaction(b *testing.B) {
 	sess, err := db.Open(wrapperName, settings)
 
@@ -743,3 +739,4 @@ func BenchmarkAppendStruct(b *testing.B) {
 		}
 	}
 }
+*/

@@ -37,16 +37,14 @@ import (
 
 // Represents a PostgreSQL table.
 type Table struct {
-	*sqlutil.T
+	sqlutil.T
 	source *Source
 	names  []string
 }
 
 const defaultOperator = `=`
 
-func conditionValue(cond db.Cond) (columnValues sqlgen.ColumnValues, args []interface{}) {
-
-	l := len(cond)
+func conditionValues(cond db.Cond) (columnValues sqlgen.ColumnValues, args []interface{}) {
 
 	args = []interface{}{}
 
@@ -69,22 +67,32 @@ func conditionValue(cond db.Cond) (columnValues sqlgen.ColumnValues, args []inte
 		case db.Func:
 			// Catches functions.
 			value_i := interfaceArgs(value.Args)
+			columnValue.Operator = value.Name
+
 			if value_i == nil {
 				// A function with no arguments.
-				columnValue.Value = sqlgen.Value{sqlgen.Raw{fmt.Sprintf(`%s()`, value.Name)}}
+				columnValue.Value = sqlgen.Value{sqlgen.Raw{`()`}}
 			} else {
 				// A function with one or more arguments.
-				columnValue.Value = sqlgen.Value{sqlgen.Raw{fmt.Sprintf(`%s(?%s)`, value.Name, strings.Repeat(`?`, len(value_i)-1))}}
+				columnValue.Value = sqlgen.Value{sqlgen.Raw{fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(value_i)-1))}}
 			}
+
+			args = append(args, value_i...)
 		default:
 			// Catches everything else.
 			value_i := interfaceArgs(value)
-			if value_i == nil {
+			l := len(value_i)
+			if value_i == nil || l == 0 {
 				// Nil value given.
 				columnValue.Value = sqlgen.Value{sqlgen.Raw{`NULL`}}
 			} else {
-				// Another kind of value given.
-				columnValue.Value = sqlgen.Value{sqlgen.Raw{fmt.Sprintf(`(?%s)`, strings.Repeat(`?`, len(value_i)-1))}}
+				if l > 1 {
+					// Array value given.
+					columnValue.Value = sqlgen.Value{sqlgen.Raw{fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(value_i)-1))}}
+				} else {
+					// Single value given.
+					columnValue.Value = sqlPlaceholder
+				}
 				args = append(args, value_i...)
 			}
 		}
@@ -125,25 +133,22 @@ func whereValues(term interface{}) (where sqlgen.Where, args []interface{}) {
 		}
 		where = append(where, or)
 	case db.Cond:
-		k, v := conditionValue(t)
+		k, v := conditionValues(t)
 		args = append(args, v...)
-		where = append(where, k)
+		for _, kk := range k {
+			where = append(where, kk)
+		}
 	}
 
 	return where, args
 }
 
 func (self *Table) Find(terms ...interface{}) db.Result {
-	var arguments []interface{}
-
-	stmt := sqlgen.Statement{}
-
-	stmt.Where, arguments = whereValues(terms)
+	where, arguments := whereValues(terms)
 
 	result := &Result{
 		table:     self,
-		cursor:    nil,
-		stmt:      stmt,
+		where:     where,
 		arguments: arguments,
 	}
 
@@ -187,8 +192,8 @@ func (self *Table) Append(item interface{}) (interface{}, error) {
 		columns = append(columns, sqlgen.Column{col})
 	}
 
-	for _, val := range vals {
-		values = append(values, sqlgen.Value{val})
+	for i := 0; i < len(vals); i++ {
+		values = append(values, sqlPlaceholder)
 	}
 
 	// Error ocurred, stop appending.
@@ -208,17 +213,7 @@ func (self *Table) Append(item interface{}) (interface{}, error) {
 		Columns: columns,
 		Values:  values,
 		Extra:   sqlgen.Extra(extra),
-	})
-
-	/*
-		row, err := self.source.doQueryRow(
-			fmt.Sprintf(`INSERT INTO %s`, self.tableN(0)),
-			sqlFields(fields),
-			`VALUES`,
-			sqlValues(values),
-			tail,
-		)
-	*/
+	}, vals...)
 
 	if err != nil {
 		return nil, err

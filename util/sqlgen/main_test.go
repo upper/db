@@ -471,3 +471,31 @@ func TestInsert(t *testing.T) {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 }
+
+func TestInsertExtra(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:  SqlInsert,
+		Table: Table{"table name"},
+		Extra: "RETURNING id",
+		Columns: Columns{
+			Column{"foo"},
+			Column{"bar"},
+			Column{"baz"},
+		},
+		Values: Values{
+			Value{"1"},
+			Value{2},
+			Value{Raw{"3"}},
+		},
+	}
+
+	s = trim(stmt.Compile())
+	e = `INSERT INTO "table name" ("foo", "bar", "baz") VALUES ('1', '2', 3) RETURNING id`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}

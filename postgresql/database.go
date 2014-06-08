@@ -46,19 +46,15 @@ var SSLMode = "disable"
 
 var columnPattern = regexp.MustCompile(`^([a-z]+)\(?([0-9,]+)?\)?\s?([a-z]*)?`)
 
-var sqlPlaceholder = sqlgen.Value{sqlgen.Raw{"?"}}
+var sqlPlaceholder = sqlgen.Value{sqlgen.Raw{`?`}}
 
-type pgstmt struct {
-	*sqlgen.Statement
-	Extra string
-}
+var reInvisibleChars = regexp.MustCompile(`[\s\r\n\t]+`)
 
 const Driver = `postgresql`
 
 type Source struct {
 	config      db.Settings
 	session     *sql.DB
-	name        string
 	collections map[string]db.Collection
 }
 
@@ -74,7 +70,9 @@ func init() {
 }
 
 func debugLogQuery(s string, args []interface{}) {
-	log.Printf("SQL: %s\nARGS: %v\n", strings.TrimSpace(s), args)
+	s = reInvisibleChars.ReplaceAllString(s, ` `)
+	s = strings.TrimSpace(s)
+	log.Printf("\n\tSQL: %s\n\tARGS: %v\n\n", s, args)
 }
 
 func (self *Source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
@@ -94,7 +92,7 @@ func (self *Source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Resu
 		debugLogQuery(query, args)
 	}
 
-	return self.session.Exec(query, args)
+	return self.session.Exec(query, args...)
 }
 
 func (self *Source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Rows, error) {
@@ -113,7 +111,7 @@ func (self *Source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 		debugLogQuery(query, args)
 	}
 
-	return self.session.Query(query, args)
+	return self.session.Query(query, args...)
 }
 
 func (self *Source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Row, error) {
@@ -132,7 +130,7 @@ func (self *Source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql
 		debugLogQuery(query, args)
 	}
 
-	return self.session.QueryRow(query, args), nil
+	return self.session.QueryRow(query, args...), nil
 }
 
 // Returns the string name of the database.
@@ -232,10 +230,6 @@ func (self *Source) Collections() ([]string, error) {
 		},
 	})
 
-	/*
-		rows, err := self.session.Query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`)
-	*/
-
 	if err != nil {
 		return nil, err
 	}
@@ -263,20 +257,7 @@ func (self *Source) tableExists(names ...string) error {
 				sqlgen.ColumnValue{sqlgen.Column{"table_catalog"}, "=", sqlPlaceholder},
 				sqlgen.ColumnValue{sqlgen.Column{"table_name"}, "=", sqlPlaceholder},
 			},
-		}, self.name, name)
-
-		/*
-			rows, err := self.doQuery(
-				fmt.Sprintf(`
-					SELECT table_name
-						FROM information_schema.tables
-					WHERE table_catalog = '%s' AND table_name = '%s'
-				`,
-					self.Name(),
-					name,
-				),
-			)
-		*/
+		}, self.config.Database, name)
 
 		if err != nil {
 			return db.ErrCollectionDoesNotExists
@@ -292,6 +273,11 @@ func (self *Source) tableExists(names ...string) error {
 	return nil
 }
 
+type pgColumnSchema struct {
+	ColumnName string `db:"column_name"`
+	DataType   string `db:"data_type"`
+}
+
 // Returns a collection instance by name.
 func (self *Source) Collection(names ...string) (db.Collection, error) {
 
@@ -304,10 +290,9 @@ func (self *Source) Collection(names ...string) (db.Collection, error) {
 		names:  names,
 	}
 
-	columns_t := []struct {
-		ColumnName string `db:"column_name"`
-		DataType   string `db:"data_type"`
-	}{}
+	col.PrimaryKey = `id`
+
+	columns_t := []pgColumnSchema{}
 
 	for _, name := range names {
 		chunks := strings.SplitN(name, " ", 2)
@@ -336,26 +321,15 @@ func (self *Source) Collection(names ...string) (db.Collection, error) {
 				},
 			}, name)
 
-			/*
-				rows, err := self.doQuery(
-					`SELECT
-						column_name, data_type
-					FROM information_schema.columns
-					WHERE
-						table_name = ?`,
-					[]string{name},
-				)
-			*/
-
 			if err != nil {
 				return nil, err
 			}
 
-			err = col.FetchRows(&columns_t, rows)
-
-			if err != nil {
+			if err = col.FetchRows(&columns_t, rows); err != nil {
 				return nil, err
 			}
+
+			col.ColumnTypes = make(map[string]reflect.Kind, len(columns_t))
 
 			for _, column := range columns_t {
 
