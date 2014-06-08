@@ -73,6 +73,23 @@ func TestSelectCount(t *testing.T) {
 	}
 }
 
+func TestSelectCountRelation(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:  SqlSelectCount,
+		Table: Table{"information_schema.tables"},
+	}
+
+	s = trim(stmt.Compile())
+	e = `SELECT COUNT(1) AS _t FROM "information_schema"."tables"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
 func TestSelectCountWhere(t *testing.T) {
 	var s, e string
 	var stmt Statement

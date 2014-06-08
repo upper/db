@@ -1,7 +1,7 @@
 package sqlgen
 
 import (
-	"fmt"
+	"strings"
 )
 
 type Table struct {
@@ -9,5 +9,11 @@ type Table struct {
 }
 
 func (self Table) String() string {
-	return mustParse(Layout.IdentifierQuote, Raw{fmt.Sprintf(`%v`, self.Value)})
+	chunks := strings.Split(self.Value, Layout.ColumnSeparator)
+
+	for i := range chunks {
+		chunks[i] = mustParse(Layout.IdentifierQuote, Raw{chunks[i]})
+	}
+
+	return strings.Join(chunks, Layout.ColumnSeparator)
 }
