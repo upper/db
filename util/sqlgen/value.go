@@ -8,14 +8,14 @@ import (
 type Values []Value
 
 type Value struct {
-	v interface{}
+	Value interface{}
 }
 
 func (self Value) String() string {
-	if raw, ok := self.v.(Raw); ok {
+	if raw, ok := self.Value.(Raw); ok {
 		return raw.Raw
 	}
-	return mustParse(Layout.ValueQuote, Raw{fmt.Sprintf(`%v`, self.v)})
+	return mustParse(Layout.ValueQuote, Raw{fmt.Sprintf(`%v`, self.Value)})
 }
 
 func (self Values) String() string {

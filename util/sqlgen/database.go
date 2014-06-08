@@ -5,9 +5,9 @@ import (
 )
 
 type Database struct {
-	v string
+	Value string
 }
 
 func (self Database) String() string {
-	return mustParse(Layout.IdentifierQuote, Raw{fmt.Sprintf(`%v`, self.v)})
+	return mustParse(Layout.IdentifierQuote, Raw{fmt.Sprintf(`%v`, self.Value)})
 }

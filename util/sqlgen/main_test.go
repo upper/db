@@ -228,8 +228,8 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 			{"baz"},
 		},
 		OrderBy: OrderBy{
-			Columns: Columns{
-				{"foo"},
+			SortColumns: SortColumns{
+				SortColumn{Column: Column{"foo"}},
 			},
 		},
 		Table: Table{"table name"},
@@ -251,10 +251,9 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 			{"baz"},
 		},
 		OrderBy: OrderBy{
-			Columns: Columns{
-				{"foo"},
+			SortColumns{
+				SortColumn{Column{"foo"}, Sort{SqlSortAsc}},
 			},
-			Sort: Sort{SqlSortAsc},
 		},
 		Table: Table{"table name"},
 	}
@@ -275,16 +274,40 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 			{"baz"},
 		},
 		OrderBy: OrderBy{
-			Columns: Columns{
-				{"foo"},
+			SortColumns{
+				{Column{"foo"}, Sort{SqlSortDesc}},
 			},
-			Sort: Sort{SqlSortDesc},
 		},
 		Table: Table{"table name"},
 	}
 
 	s = trim(stmt.Compile())
 	e = `SELECT "foo", "bar", "baz" FROM "table name" ORDER BY "foo" DESC`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+
+	// ORDER BY many fields
+	stmt = Statement{
+		Type: SqlSelect,
+		Columns: Columns{
+			{"foo"},
+			{"bar"},
+			{"baz"},
+		},
+		OrderBy: OrderBy{
+			SortColumns{
+				{Column{"foo"}, Sort{SqlSortDesc}},
+				{Column{"bar"}, Sort{SqlSortAsc}},
+				{Column{"baz"}, Sort{SqlSortDesc}},
+			},
+		},
+		Table: Table{"table name"},
+	}
+
+	s = trim(stmt.Compile())
+	e = `SELECT "foo", "bar", "baz" FROM "table name" ORDER BY "foo" DESC, "bar" ASC, "baz" DESC`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)

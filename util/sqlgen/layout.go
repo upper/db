@@ -15,6 +15,7 @@ type layout struct {
 	ClauseGroup         string
 	ClauseOperator      string
 	ColumnValue         string
+	SortByColumnLayout  string
 	WhereLayout         string
 	OrderByLayout       string
 	InsertLayout        string
@@ -42,6 +43,7 @@ var Layout = layout{
 	defaultClauseGroup,
 	defaultClauseOperator,
 	defaultColumnValue,
+	defaultSortByColumnLayout,
 	defaultWhereLayout,
 	defaultOrderByLayout,
 	defaultInsertLayout,

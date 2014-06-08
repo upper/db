@@ -5,11 +5,11 @@ import (
 )
 
 type Column struct {
-	v string
+	Value string
 }
 
 func (self Column) String() string {
-	chunks := strings.Split(self.v, Layout.ColumnSeparator)
+	chunks := strings.Split(self.Value, Layout.ColumnSeparator)
 
 	for i := range chunks {
 		chunks[i] = mustParse(Layout.IdentifierQuote, Raw{chunks[i]})

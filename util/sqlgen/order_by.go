@@ -1,12 +1,33 @@
 package sqlgen
 
-type OrderBy struct {
-	Columns
+import "strings"
+
+type SortColumn struct {
+	Column
 	Sort
 }
 
+type SortColumns []SortColumn
+
+func (self SortColumns) String() string {
+	l := len(self)
+	s := make([]string, 0, l)
+	for i := 0; i < l; i++ {
+		s = append(s, self[i].String())
+	}
+	return strings.Join(s, Layout.IdentifierSeparator)
+}
+
+func (self SortColumn) String() string {
+	return mustParse(Layout.SortByColumnLayout, self)
+}
+
+type OrderBy struct {
+	SortColumns
+}
+
 func (self OrderBy) String() string {
-	if self.Columns.Len() > 0 {
+	if len(self.SortColumns) > 0 {
 		return mustParse(Layout.OrderByLayout, self)
 	}
 	return ""

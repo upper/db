@@ -17,9 +17,11 @@ const (
 	defaultClauseOperator  = ` {{.}} `
 	defaultColumnValue     = `{{.Column}} {{.Operator}} {{.Value}}`
 
+	defaultSortByColumnLayout = `{{.Column}} {{.Sort}}`
+
 	defaultOrderByLayout = `
-		{{if .Columns}}
-			ORDER BY {{.Columns}} {{.Sort}}
+		{{if .SortColumns}}
+			ORDER BY {{.SortColumns}}
 		{{end}}
 	`
 
@@ -76,6 +78,7 @@ const (
 			({{.Columns}})
 		VALUES
 			({{.Values}})
+		{{.Extra}}
 	`
 
 	defaultTruncateLayout = `

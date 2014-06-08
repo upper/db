@@ -21,6 +21,7 @@ const (
 type (
 	Limit  int
 	Offset int
+	Extra  string
 )
 
 func mustParse(text string, data interface{}) string {
@@ -45,6 +46,7 @@ type Statement struct {
 	Values
 	ColumnValues
 	OrderBy
+	Extra
 	Where
 }
 
