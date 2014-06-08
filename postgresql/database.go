@@ -56,6 +56,7 @@ type Source struct {
 	config      db.Settings
 	session     *sql.DB
 	collections map[string]db.Collection
+	tx          *sql.Tx
 }
 
 func debugEnabled() bool {
@@ -92,6 +93,10 @@ func (self *Source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Resu
 		debugLogQuery(query, args)
 	}
 
+	if self.tx != nil {
+		return self.tx.Exec(query, args...)
+	}
+
 	return self.session.Exec(query, args...)
 }
 
@@ -109,6 +114,10 @@ func (self *Source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 
 	if debugEnabled() == true {
 		debugLogQuery(query, args)
+	}
+
+	if self.tx != nil {
+		return self.tx.Query(query, args...)
 	}
 
 	return self.session.Query(query, args...)
@@ -130,12 +139,57 @@ func (self *Source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql
 		debugLogQuery(query, args)
 	}
 
+	if self.tx != nil {
+		return self.tx.QueryRow(query, args...), nil
+	}
+
 	return self.session.QueryRow(query, args...), nil
 }
 
 // Returns the string name of the database.
 func (self *Source) Name() string {
 	return self.config.Database
+}
+
+//  Ping verifies a connection to the database is still alive,
+//  establishing a connection if necessary.
+func (self *Source) Ping() error {
+	return self.session.Ping()
+}
+
+func (self *Source) clone() (*Source, error) {
+	src := &Source{}
+	src.Setup(self.config)
+
+	if err := src.Open(); err != nil {
+		return nil, err
+	}
+
+	return src, nil
+}
+
+func (self *Source) Clone() (db.Database, error) {
+	return self.clone()
+}
+
+func (self *Source) Transaction() (db.Tx, error) {
+	var err error
+	var clone *Source
+	var sqlTx *sql.Tx
+
+	if sqlTx, err = self.session.Begin(); err != nil {
+		return nil, err
+	}
+
+	if clone, err = self.clone(); err != nil {
+		return nil, err
+	}
+
+	tx := &Tx{clone}
+
+	clone.tx = sqlTx
+
+	return tx, nil
 }
 
 // Stores database settings.

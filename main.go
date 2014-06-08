@@ -112,10 +112,10 @@ type Database interface {
 	Open() error
 
 	// Clones the current database session.
-	// Clone() (Database, error)
+	Clone() (Database, error)
 
 	// Returns error if the database server cannot be reached.
-	// Ping() error
+	Ping() error
 
 	// Closes the currently active connection to the database.
 	Close() error
@@ -140,10 +140,17 @@ type Database interface {
 	Name() string
 
 	// Starts a transaction block (if the database supports transactions).
-	//Begin() error
+	Transaction() (Tx, error)
+}
 
-	// Ends a transaction block (if the database supports transactions).
-	//End() error
+// A transaction is basically a copy of the Database interface{} with an
+// additional method.
+type Tx interface {
+	Database
+
+	Rollback() error
+
+	Commit() error
 }
 
 // Collection methods.

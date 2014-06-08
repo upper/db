@@ -44,9 +44,6 @@ import (
 	"upper.io/db"
 )
 
-// Wrapper.
-const wrapperName = "postgresql"
-
 // Wrapper settings.
 const (
 	host     = "testserver.local"
@@ -106,7 +103,7 @@ func TestEnableDebug(t *testing.T) {
 
 // Trying to open an empty datasource, it must fail.
 func TestOpenFailed(t *testing.T) {
-	_, err := db.Open(wrapperName, db.Settings{})
+	_, err := db.Open(Driver, db.Settings{})
 
 	if err == nil {
 		t.Errorf("Expecting an error.")
@@ -119,7 +116,7 @@ func TestTruncate(t *testing.T) {
 	var err error
 
 	// Opening database.
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -166,7 +163,7 @@ func TestAppend(t *testing.T) {
 	var id interface{}
 
 	// Opening database.
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -223,7 +220,7 @@ func TestResultCount(t *testing.T) {
 	var res db.Result
 
 	// Opening database.
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -256,7 +253,7 @@ func TestResultFetch(t *testing.T) {
 	var res db.Result
 
 	// Opening database.
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -418,7 +415,7 @@ func TestUpdate(t *testing.T) {
 	var err error
 
 	// Opening database.
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -509,7 +506,7 @@ func TestFunction(t *testing.T) {
 	var res db.Result
 
 	// Opening database.
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -551,7 +548,7 @@ func TestRemove(t *testing.T) {
 	var err error
 
 	// Opening database.
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -585,7 +582,7 @@ func TestDataTypes(t *testing.T) {
 	var res db.Result
 
 	// Opening database.
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -634,24 +631,25 @@ func TestDisableDebug(t *testing.T) {
 }
 
 // Benchmarking raw database/sql.
-func BenchmarkAppendRaw(b *testing.B) {
-	sess, err := db.Open(wrapperName, settings)
+func BenchmarkAppendRawSQL(b *testing.B) {
+	var err error
+	var sess db.Database
 
-	if err != nil {
+	if sess, err = db.Open(Driver, settings); err != nil {
 		b.Fatalf(err.Error())
 	}
 
 	defer sess.Close()
 
-	artist, err := sess.Collection("artist")
-	artist.Truncate()
-
 	driver := sess.Driver().(*sql.DB)
+
+	if _, err = driver.Exec(`TRUNCATE TABLE "artist"`); err != nil {
+		b.Fatalf(err.Error())
+	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := driver.Exec(`INSERT INTO artist (name) VALUES('Hayao Miyazaki')`)
-		if err != nil {
+		if _, err = driver.Exec(`INSERT INTO "artist" ("name") VALUES('Hayao Miyazaki')`); err != nil {
 			b.Fatalf(err.Error())
 		}
 	}
@@ -661,8 +659,8 @@ func BenchmarkAppendRaw(b *testing.B) {
 //
 // Contributed by wei2912
 // See: https://github.com/gosexy/db/issues/20#issuecomment-20097801
-func BenchmarkAppendDbItem(b *testing.B) {
-	sess, err := db.Open(wrapperName, settings)
+func BenchmarkAppendUpper(b *testing.B) {
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		b.Fatalf(err.Error())
@@ -673,70 +671,128 @@ func BenchmarkAppendDbItem(b *testing.B) {
 	artist, err := sess.Collection("artist")
 	artist.Truncate()
 
+	item := struct {
+		Name string `db:"name"`
+	}{"Hayao Miyazaki"}
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err = artist.Append(map[string]string{"name": "Leonardo DaVinci"})
-		if err != nil {
+		if _, err = artist.Append(item); err != nil {
 			b.Fatalf(err.Error())
 		}
+	}
+}
+
+// Benchmarking raw database/sql.
+func BenchmarkAppendTxRawSQL(b *testing.B) {
+	var err error
+	var sess db.Database
+	var tx *sql.Tx
+
+	if sess, err = db.Open(Driver, settings); err != nil {
+		b.Fatalf(err.Error())
+	}
+
+	defer sess.Close()
+
+	driver := sess.Driver().(*sql.DB)
+
+	if tx, err = driver.Begin(); err != nil {
+		b.Fatalf(err.Error())
+	}
+
+	if _, err = tx.Exec(`TRUNCATE TABLE "artist"`); err != nil {
+		b.Fatalf(err.Error())
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err = tx.Exec(`INSERT INTO "artist" ("name") VALUES('Hayao Miyazaki')`); err != nil {
+			b.Fatalf(err.Error())
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		b.Fatalf(err.Error())
 	}
 }
 
 // Benchmarking Append() with transactions.
-//
-// Contributed by wei2912
-// See: https://github.com/gosexy/db/issues/20#issuecomment-20167939
-// Applying the BEGIN and END transaction optimizations.
-/*
-func BenchmarkAppendDbItem_Transaction(b *testing.B) {
-	sess, err := db.Open(wrapperName, settings)
+func BenchmarkAppendTxUpper(b *testing.B) {
+	var sess db.Database
+	var err error
 
-	if err != nil {
+	if sess, err = db.Open(Driver, settings); err != nil {
 		b.Fatalf(err.Error())
 	}
 
 	defer sess.Close()
 
-	artist, err := sess.Collection("artist")
-	artist.Truncate()
-
-	err = sess.Begin()
-	if err != nil {
+	var tx db.Tx
+	if tx, err = sess.Transaction(); err != nil {
 		b.Fatalf(err.Error())
 	}
 
-	for i := 0; i < b.N; i++ {
-		_, err = artist.Append(map[string]string{"name": "Isaac Asimov"})
-		if err != nil {
-			b.Fatalf(err.Error())
-		}
-	}
-
-	err = sess.End()
-	if err != nil {
-		b.Fatalf(err.Error())
-	}
-}
-
-// Benchmarking Append with a struct.
-func BenchmarkAppendStruct(b *testing.B) {
-	sess, err := db.Open(wrapperName, settings)
-
-	if err != nil {
+	var artist db.Collection
+	if artist, err = tx.Collection("artist"); err != nil {
 		b.Fatalf(err.Error())
 	}
 
-	defer sess.Close()
+	if err = artist.Truncate(); err != nil {
+		b.Fatalf(err.Error())
+	}
 
-	artist, err := sess.Collection("artist")
-	artist.Truncate()
+	item := struct {
+		Name string `db:"name"`
+	}{"Hayao Miyazaki"}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err = artist.Append(struct{ Name string }{"John Lennon"})
-		if err != nil {
+		if _, err = artist.Append(item); err != nil {
 			b.Fatalf(err.Error())
 		}
 	}
+
+	if err = tx.Commit(); err != nil {
+		b.Fatalf(err.Error())
+	}
 }
-*/
+
+// Benchmarking Append() with map.
+func BenchmarkAppendTxUpperMap(b *testing.B) {
+	var sess db.Database
+	var err error
+
+	if sess, err = db.Open(Driver, settings); err != nil {
+		b.Fatalf(err.Error())
+	}
+
+	defer sess.Close()
+
+	var tx db.Tx
+	if tx, err = sess.Transaction(); err != nil {
+		b.Fatalf(err.Error())
+	}
+
+	var artist db.Collection
+	if artist, err = tx.Collection("artist"); err != nil {
+		b.Fatalf(err.Error())
+	}
+
+	if err = artist.Truncate(); err != nil {
+		b.Fatalf(err.Error())
+	}
+
+	item := map[string]string{"name": "Hayao Miyazaki"}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err = artist.Append(item); err != nil {
+			b.Fatalf(err.Error())
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		b.Fatalf(err.Error())
+	}
+}
