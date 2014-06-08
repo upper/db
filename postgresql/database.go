@@ -33,7 +33,7 @@ import (
 	"regexp"
 	"strings"
 	"upper.io/db"
-	"upper.io/db/util/sqlutil"
+	"upper.io/db/util/sqlgen"
 )
 
 // Format for saving dates.
@@ -46,20 +46,20 @@ var SSLMode = "disable"
 
 var columnPattern = regexp.MustCompile(`^([a-z]+)\(?([0-9,]+)?\)?\s?([a-z]*)?`)
 
-const driverName = `postgresql`
+var sqlPlaceholder = sqlgen.Value{sqlgen.Raw{"?"}}
 
-type sqlValues_t []interface{}
+type pgstmt struct {
+	*sqlgen.Statement
+	Extra string
+}
+
+const Driver = `postgresql`
 
 type Source struct {
 	config      db.Settings
 	session     *sql.DB
 	name        string
 	collections map[string]db.Collection
-}
-
-type sqlQuery struct {
-	Query []string
-	Args  []interface{}
 }
 
 func debugEnabled() bool {
@@ -70,117 +70,69 @@ func debugEnabled() bool {
 }
 
 func init() {
-	db.Register(driverName, &Source{})
+	db.Register(Driver, &Source{})
 }
 
-func debugLogQuery(s string, q *sqlQuery) {
-	log.Printf("SQL: %s\nARGS: %v\n", strings.TrimSpace(s), q.Args)
+func debugLogQuery(s string, args []interface{}) {
+	log.Printf("SQL: %s\nARGS: %v\n", strings.TrimSpace(s), args)
 }
 
-func sqlCompile(terms []interface{}) *sqlQuery {
-	q := &sqlQuery{}
+func (self *Source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
 
-	q.Query = []string{}
-
-	for _, term := range terms {
-		switch t := term.(type) {
-		case sqlValues_t:
-			args := make([]string, len(t))
-			for i, arg := range t {
-				args[i] = `?`
-				q.Args = append(q.Args, arg)
-			}
-			q.Query = append(q.Query, `(`+strings.Join(args, `, `)+`)`)
-		case string:
-			q.Query = append(q.Query, t)
-		default:
-			if reflect.TypeOf(t).Kind() == reflect.Slice {
-				var v = reflect.ValueOf(t)
-				for i := 0; i < v.Len(); i++ {
-					q.Args = append(q.Args, v.Index(i).Interface())
-				}
-			} else {
-				q.Args = append(q.Args, t)
-			}
-		}
-	}
-
-	return q
-}
-
-func sqlFields(names []string) string {
-	for i, _ := range names {
-		names[i] = strings.Replace(names[i], `"`, `\"`, -1)
-	}
-	return `("` + strings.Join(names, `", "`) + `")`
-}
-
-func sqlValues(values []interface{}) sqlValues_t {
-	ret := make(sqlValues_t, len(values))
-	for i, _ := range values {
-		ret[i] = values[i]
-	}
-	return ret
-}
-
-func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
 	if self.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
-	chunks := sqlCompile(terms)
+	query := stmt.Compile()
 
-	query := strings.Join(chunks.Query, ` `)
-
-	for i := 0; i < len(chunks.Args); i++ {
+	l := len(args)
+	for i := 0; i < l; i++ {
 		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
 	}
 
 	if debugEnabled() == true {
-		debugLogQuery(query, chunks)
+		debugLogQuery(query, args)
 	}
 
-	return self.session.Exec(query, chunks.Args...)
+	return self.session.Exec(query, args)
 }
 
-func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
+func (self *Source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Rows, error) {
 	if self.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
-	chunks := sqlCompile(terms)
+	query := stmt.Compile()
 
-	query := strings.Join(chunks.Query, ` `)
-
-	for i := 0; i < len(chunks.Args); i++ {
+	l := len(args)
+	for i := 0; i < l; i++ {
 		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
 	}
 
 	if debugEnabled() == true {
-		debugLogQuery(query, chunks)
+		debugLogQuery(query, args)
 	}
 
-	return self.session.Query(query, chunks.Args...)
+	return self.session.Query(query, args)
 }
 
-func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
+func (self *Source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Row, error) {
 	if self.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
-	chunks := sqlCompile(terms)
+	query := stmt.Compile()
 
-	query := strings.Join(chunks.Query, ` `)
-
-	for i := 0; i < len(chunks.Args); i++ {
+	l := len(args)
+	for i := 0; i < l; i++ {
 		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
 	}
 
 	if debugEnabled() == true {
-		debugLogQuery(query, chunks)
+		debugLogQuery(query, args)
 	}
 
-	return self.session.QueryRow(query, chunks.Args...), nil
+	return self.session.QueryRow(query, args), nil
 }
 
 // Returns the string name of the database.
@@ -253,22 +205,15 @@ func (self *Source) Use(database string) error {
 	return self.Open()
 }
 
-// Starts a transaction block.
-func (self *Source) Begin() error {
-	_, err := self.session.Exec(`BEGIN`)
-	return err
-}
-
-// Ends a transaction block.
-func (self *Source) End() error {
-	_, err := self.session.Exec(`END`)
-	return err
-}
-
 // Drops the currently active database.
 func (self *Source) Drop() error {
-	self.session.Query(fmt.Sprintf(`DROP DATABASE "%s"`, self.config.Database))
-	return nil
+
+	_, err := self.doQuery(sqlgen.Statement{
+		Type:     sqlgen.SqlDropDatabase,
+		Database: sqlgen.Database{self.config.Database},
+	})
+
+	return err
 }
 
 // Returns a list of all tables within the currently active database.
@@ -276,7 +221,20 @@ func (self *Source) Collections() ([]string, error) {
 	var collections []string
 	var collection string
 
-	rows, err := self.session.Query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`)
+	rows, err := self.doQuery(sqlgen.Statement{
+		Type: sqlgen.SqlSelect,
+		Columns: sqlgen.Columns{
+			{"table_name"},
+		},
+		Table: sqlgen.Table{"information_schema.tables"},
+		Where: sqlgen.Where{
+			sqlgen.ColumnValue{sqlgen.Column{"table_schema"}, "=", sqlgen.Value{"public"}},
+		},
+	})
+
+	/*
+		rows, err := self.session.Query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`)
+	*/
 
 	if err != nil {
 		return nil, err
@@ -294,16 +252,31 @@ func (self *Source) Collections() ([]string, error) {
 
 func (self *Source) tableExists(names ...string) error {
 	for _, name := range names {
-		rows, err := self.doQuery(
-			fmt.Sprintf(`
-				SELECT table_name
-					FROM information_schema.tables
-				WHERE table_catalog = '%s' AND table_name = '%s'
-			`,
-				self.Name(),
-				name,
-			),
-		)
+
+		rows, err := self.doQuery(sqlgen.Statement{
+			Type:  sqlgen.SqlSelect,
+			Table: sqlgen.Table{"information_schema.tables"},
+			Columns: sqlgen.Columns{
+				{"table_name"},
+			},
+			Where: sqlgen.Where{
+				sqlgen.ColumnValue{sqlgen.Column{"table_catalog"}, "=", sqlPlaceholder},
+				sqlgen.ColumnValue{sqlgen.Column{"table_name"}, "=", sqlPlaceholder},
+			},
+		}, self.name, name)
+
+		/*
+			rows, err := self.doQuery(
+				fmt.Sprintf(`
+					SELECT table_name
+						FROM information_schema.tables
+					WHERE table_catalog = '%s' AND table_name = '%s'
+				`,
+					self.Name(),
+					name,
+				),
+			)
+		*/
 
 		if err != nil {
 			return db.ErrCollectionDoesNotExists
@@ -328,11 +301,7 @@ func (self *Source) Collection(names ...string) (db.Collection, error) {
 
 	col := &Table{
 		source: self,
-		T: sqlutil.T{
-			PrimaryKey:  `id`,
-			ColumnTypes: make(map[string]reflect.Kind),
-		},
-		names: names,
+		names:  names,
 	}
 
 	columns_t := []struct {
@@ -351,14 +320,32 @@ func (self *Source) Collection(names ...string) (db.Collection, error) {
 				return nil, err
 			}
 
-			rows, err := self.doQuery(
-				`SELECT
-					column_name, data_type
-				FROM information_schema.columns
-				WHERE
-					table_name = ?`,
-				[]string{name},
-			)
+			rows, err := self.doQuery(sqlgen.Statement{
+				Type:  sqlgen.SqlSelect,
+				Table: sqlgen.Table{"information_schema.columns"},
+				Columns: sqlgen.Columns{
+					{"column_name"},
+					{"data_type"},
+				},
+				Where: sqlgen.Where{
+					sqlgen.ColumnValue{
+						sqlgen.Column{"table_name"},
+						"=",
+						sqlPlaceholder,
+					},
+				},
+			}, name)
+
+			/*
+				rows, err := self.doQuery(
+					`SELECT
+						column_name, data_type
+					FROM information_schema.columns
+					WHERE
+						table_name = ?`,
+					[]string{name},
+				)
+			*/
 
 			if err != nil {
 				return nil, err

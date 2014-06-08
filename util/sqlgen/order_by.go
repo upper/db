@@ -33,9 +33,7 @@ func (self OrderBy) String() string {
 	return ""
 }
 
-type Sort struct {
-	v uint8
-}
+type Sort uint8
 
 const (
 	SqlSortNone = iota
@@ -44,7 +42,7 @@ const (
 )
 
 func (self Sort) String() string {
-	switch self.v {
+	switch self {
 	case SqlSortAsc:
 		return Layout.AscKeyword
 	case SqlSortDesc:

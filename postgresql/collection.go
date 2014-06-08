@@ -31,147 +31,130 @@ import (
 	"strings"
 	"time"
 	"upper.io/db"
+	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
 )
 
 // Represents a PostgreSQL table.
 type Table struct {
+	*sqlutil.T
 	source *Source
-	sqlutil.T
-	names []string
+	names  []string
 }
 
-func (self *Table) Find(terms ...interface{}) db.Result {
+const defaultOperator = `=`
 
-	queryChunks := sqlutil.NewQueryChunks()
+func conditionValue(cond db.Cond) (columnValues sqlgen.ColumnValues, args []interface{}) {
 
-	// No specific fields given.
-	if len(queryChunks.Fields) == 0 {
-		queryChunks.Fields = []string{`*`}
-	}
+	l := len(cond)
 
-	// Compiling conditions
-	queryChunks.Conditions, queryChunks.Arguments = self.compileConditions(terms)
+	args = []interface{}{}
 
-	if queryChunks.Conditions == "" {
-		queryChunks.Conditions = `1 = 1`
-	}
+	for column, value := range cond {
+		var columnValue sqlgen.ColumnValue
 
-	// Creating a result handler.
-	result := &Result{
-		self,
-		queryChunks,
-		nil,
-	}
+		// Guessing operator from input, or using a default one.
+		column := strings.TrimSpace(column)
+		chunks := strings.SplitN(column, ` `, 2)
 
-	return result
-}
-
-// Transforms conditions into arguments for sql.Exec/sql.Query
-func (self *Table) compileConditions(term interface{}) (string, []interface{}) {
-	sql := []string{}
-	args := []interface{}{}
-
-	switch t := term.(type) {
-	case []interface{}:
-		for i := range t {
-			rsql, rargs := self.compileConditions(t[i])
-			if rsql != "" {
-				sql = append(sql, rsql)
-				args = append(args, rargs...)
-			}
-		}
-		if len(sql) > 0 {
-			return `(` + strings.Join(sql, ` AND `) + `)`, args
-		}
-	case db.Raw:
-		return fmt.Sprintf(`%v`, t.Value), args
-	case db.Or:
-		for i := range t {
-			rsql, rargs := self.compileConditions(t[i])
-			if rsql != "" {
-				sql = append(sql, rsql)
-				args = append(args, rargs...)
-			}
-		}
-		if len(sql) > 0 {
-			return `(` + strings.Join(sql, ` OR `) + `)`, args
-		}
-	case db.And:
-		for i := range t {
-			rsql, rargs := self.compileConditions(t[i])
-			if rsql != "" {
-				sql = append(sql, rsql)
-				args = append(args, rargs...)
-			}
-		}
-		if len(sql) > 0 {
-			return `(` + strings.Join(sql, ` AND `) + `)`, args
-		}
-	case db.Cond:
-		return self.compileStatement(t)
-	}
-
-	return "", args
-}
-
-func (self *Table) compileStatement(cond db.Cond) (string, []interface{}) {
-
-	total := len(cond)
-
-	str := make([]string, 0, total)
-	arg := make([]interface{}, 0, total)
-
-	// Walking over conditions
-	for field, value := range cond {
-		// Removing leading or trailing spaces.
-		field = strings.TrimSpace(field)
-
-		chunks := strings.SplitN(field, ` `, 2)
-
-		// Default operator.
-		op := `=`
+		columnValue.Column = sqlgen.Column{chunks[0]}
 
 		if len(chunks) > 1 {
-			// User has defined a different operator.
-			op = chunks[1]
+			columnValue.Operator = chunks[1]
+		} else {
+			columnValue.Operator = defaultOperator
 		}
 
 		switch value := value.(type) {
 		case db.Func:
+			// Catches functions.
 			value_i := interfaceArgs(value.Args)
 			if value_i == nil {
-				str = append(str, fmt.Sprintf(`%s %s ()`, chunks[0], value.Name))
+				// A function with no arguments.
+				columnValue.Value = sqlgen.Value{sqlgen.Raw{fmt.Sprintf(`%s()`, value.Name)}}
 			} else {
-				str = append(str, fmt.Sprintf(`%s %s (?%s)`, chunks[0], value.Name, strings.Repeat(`,?`, len(value_i)-1)))
-				arg = append(arg, value_i...)
+				// A function with one or more arguments.
+				columnValue.Value = sqlgen.Value{sqlgen.Raw{fmt.Sprintf(`%s(?%s)`, value.Name, strings.Repeat(`?`, len(value_i)-1))}}
 			}
 		default:
+			// Catches everything else.
 			value_i := interfaceArgs(value)
 			if value_i == nil {
-				str = append(str, fmt.Sprintf(`%s %s ()`, chunks[0], op))
+				// Nil value given.
+				columnValue.Value = sqlgen.Value{sqlgen.Raw{`NULL`}}
 			} else {
-				str = append(str, fmt.Sprintf(`%s %s (?%s)`, chunks[0], op, strings.Repeat(`,?`, len(value_i)-1)))
-				arg = append(arg, value_i...)
+				// Another kind of value given.
+				columnValue.Value = sqlgen.Value{sqlgen.Raw{fmt.Sprintf(`(?%s)`, strings.Repeat(`?`, len(value_i)-1))}}
+				args = append(args, value_i...)
 			}
 		}
+
+		columnValues = append(columnValues, columnValue)
 	}
 
-	switch len(str) {
-	case 1:
-		return str[0], arg
-	case 0:
-		return "", []interface{}{}
+	return columnValues, args
+}
+
+func whereValues(term interface{}) (where sqlgen.Where, args []interface{}) {
+
+	args = []interface{}{}
+
+	switch t := term.(type) {
+	case []interface{}:
+		l := len(t)
+		where = make(sqlgen.Where, 0, l)
+		for _, cond := range t {
+			w, v := whereValues(cond)
+			args = append(args, v...)
+			where = append(where, w...)
+		}
+	case db.And:
+		and := make(sqlgen.And, 0, len(t))
+		for _, cond := range t {
+			k, v := whereValues(cond)
+			args = append(args, v...)
+			and = append(and, k)
+		}
+		where = append(where, and)
+	case db.Or:
+		or := make(sqlgen.Or, 0, len(t))
+		for _, cond := range t {
+			k, v := whereValues(cond)
+			args = append(args, v...)
+			or = append(or, k)
+		}
+		where = append(where, or)
+	case db.Cond:
+		k, v := conditionValue(t)
+		args = append(args, v...)
+		where = append(where, k)
 	}
 
-	return `(` + strings.Join(str, ` AND `) + `)`, arg
+	return where, args
+}
+
+func (self *Table) Find(terms ...interface{}) db.Result {
+	var arguments []interface{}
+
+	stmt := sqlgen.Statement{}
+
+	stmt.Where, arguments = whereValues(terms)
+
+	result := &Result{
+		table:     self,
+		cursor:    nil,
+		stmt:      stmt,
+		arguments: arguments,
+	}
+
+	return result
 }
 
 func (self *Table) tableN(i int) string {
 	if len(self.names) > i {
 		chunks := strings.SplitN(self.names[i], " ", 2)
 		if len(chunks) > 0 {
-			return fmt.Sprintf(`"%s"`, chunks[0])
+			return chunks[0]
 		}
 	}
 	return ""
@@ -179,36 +162,63 @@ func (self *Table) tableN(i int) string {
 
 // Deletes all the rows within the collection.
 func (self *Table) Truncate() error {
-	s := fmt.Sprintf(`TRUNCATE TABLE %s`, self.tableN(0))
-	if _, err := self.source.doExec(s); err != nil {
+
+	_, err := self.source.doExec(sqlgen.Statement{
+		Type:  sqlgen.SqlTruncate,
+		Table: sqlgen.Table{self.tableN(0)},
+	})
+
+	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
 // Appends an item (map or struct) into the collection.
 func (self *Table) Append(item interface{}) (interface{}, error) {
 
-	fields, values, err := self.FieldValues(item, toInternal)
+	cols, vals, err := self.FieldValues(item, toInternal)
+
+	var columns sqlgen.Columns
+	var values sqlgen.Values
+
+	for _, col := range cols {
+		columns = append(columns, sqlgen.Column{col})
+	}
+
+	for _, val := range vals {
+		values = append(values, sqlgen.Value{val})
+	}
 
 	// Error ocurred, stop appending.
 	if err != nil {
 		return nil, err
 	}
 
-	tail := ""
+	var extra string
 
 	if _, ok := self.ColumnTypes[self.PrimaryKey]; ok == true {
-		tail = fmt.Sprintf(`RETURNING %s`, self.PrimaryKey)
+		extra = fmt.Sprintf(`RETURNING %s`, self.PrimaryKey)
 	}
 
-	row, err := self.source.doQueryRow(
-		fmt.Sprintf(`INSERT INTO %s`, self.tableN(0)),
-		sqlFields(fields),
-		`VALUES`,
-		sqlValues(values),
-		tail,
-	)
+	row, err := self.source.doQueryRow(sqlgen.Statement{
+		Type:    sqlgen.SqlInsert,
+		Table:   sqlgen.Table{self.tableN(0)},
+		Columns: columns,
+		Values:  values,
+		Extra:   sqlgen.Extra(extra),
+	})
+
+	/*
+		row, err := self.source.doQueryRow(
+			fmt.Sprintf(`INSERT INTO %s`, self.tableN(0)),
+			sqlFields(fields),
+			`VALUES`,
+			sqlValues(values),
+			tail,
+		)
+	*/
 
 	if err != nil {
 		return nil, err

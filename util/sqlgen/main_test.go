@@ -252,7 +252,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 		},
 		OrderBy: OrderBy{
 			SortColumns{
-				SortColumn{Column{"foo"}, Sort{SqlSortAsc}},
+				SortColumn{Column{"foo"}, SqlSortAsc},
 			},
 		},
 		Table: Table{"table name"},
@@ -275,7 +275,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 		},
 		OrderBy: OrderBy{
 			SortColumns{
-				{Column{"foo"}, Sort{SqlSortDesc}},
+				{Column{"foo"}, SqlSortDesc},
 			},
 		},
 		Table: Table{"table name"},
@@ -298,9 +298,9 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 		},
 		OrderBy: OrderBy{
 			SortColumns{
-				{Column{"foo"}, Sort{SqlSortDesc}},
-				{Column{"bar"}, Sort{SqlSortAsc}},
-				{Column{"baz"}, Sort{SqlSortDesc}},
+				{Column{"foo"}, SqlSortDesc},
+				{Column{"bar"}, SqlSortAsc},
+				{Column{"baz"}, SqlSortDesc},
 			},
 		},
 		Table: Table{"table name"},

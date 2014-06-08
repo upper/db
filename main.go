@@ -140,10 +140,10 @@ type Database interface {
 	Name() string
 
 	// Starts a transaction block (if the database supports transactions).
-	Begin() error
+	//Begin() error
 
 	// Ends a transaction block (if the database supports transactions).
-	End() error
+	//End() error
 }
 
 // Collection methods.

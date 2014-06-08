@@ -28,7 +28,7 @@ import (
 	"fmt"
 	"strings"
 	"upper.io/db"
-	"upper.io/db/util/sqlutil"
+	"upper.io/db/util/sqlgen"
 )
 
 type counter struct {
@@ -36,10 +36,14 @@ type counter struct {
 }
 
 type Result struct {
-	table       *Table
-	queryChunks *sqlutil.QueryChunks
-	// This is the main query cursor. It starts as a nil value.
-	cursor *sql.Rows
+	table      *Table
+	cursor     *sql.Rows // This is the main query cursor. It starts as a nil value.
+	stmt       sqlgen.Statement
+	arguments  []interface{}
+	limit      sqlgen.Limit
+	offset     sqlgen.Offset
+	conditions sqlgen.Where
+	orderBy    sqlgen.OrderBy
 }
 
 // Executes a SELECT statement that can feed Next(), All() or One().
@@ -47,38 +51,47 @@ func (self *Result) setCursor() error {
 	var err error
 	// We need a cursor, if the cursor does not exists yet then we create one.
 	if self.cursor == nil {
-		self.cursor, err = self.table.source.doQuery(
-			// Mandatory SQL.
-			fmt.Sprintf(
-				`SELECT %s FROM %s WHERE %s`,
-				// Fields.
-				strings.Join(self.queryChunks.Fields, `, `),
-				// Table name
-				self.table.Name(),
-				// Conditions
-				self.queryChunks.Conditions,
-			),
-			// Arguments
-			self.queryChunks.Arguments,
-			// Optional SQL
-			self.queryChunks.Sort,
-			self.queryChunks.Limit,
-			self.queryChunks.Offset,
-		)
+		self.cursor, err = self.table.source.doQuery(sqlgen.Statement{
+			Type:   sqlgen.SqlSelect,
+			Table:  sqlgen.Table{self.table.Name()},
+			Limit:  self.limit,
+			Offset: self.offset,
+			Where:  self.conditions,
+		}, self.arguments)
+		/*
+			self.cursor, err = self.table.source.doQuery(
+				// Mandatory SQL.
+				fmt.Sprintf(
+					`SELECT %s FROM %s WHERE %s`,
+					// Fields.
+					strings.Join(self.queryChunks.Fields, `, `),
+					// Table name
+					self.table.Name(),
+					// Conditions
+					self.queryChunks.Conditions,
+				),
+				// Arguments
+				self.queryChunks.Arguments,
+				// Optional SQL
+				self.queryChunks.Sort,
+				self.queryChunks.Limit,
+				self.queryChunks.Offset,
+			)
+		*/
 	}
 	return err
 }
 
 // Determines the maximum limit of results to be returned.
 func (self *Result) Limit(n uint) db.Result {
-	self.queryChunks.Limit = fmt.Sprintf(`LIMIT %d`, n)
+	self.limit = sqlgen.Limit(n)
 	return self
 }
 
 // Determines how many documents will be skipped before starting to grab
 // results.
 func (self *Result) Skip(n uint) db.Result {
-	self.queryChunks.Offset = fmt.Sprintf(`OFFSET %d`, n)
+	self.offset = sqlgen.Offset(n)
 	return self
 }
 
@@ -86,24 +99,59 @@ func (self *Result) Skip(n uint) db.Result {
 // prefixed by - (minus) which means descending order, ascending order would be
 // used otherwise.
 func (self *Result) Sort(fields ...string) db.Result {
-	sort := make([]string, 0, len(fields))
+
+	sortColumns := make(sqlgen.SortColumns, 0, len(fields))
 
 	for _, field := range fields {
-		if strings.HasPrefix(field, `-`) == true {
-			sort = append(sort, field[1:]+` DESC`)
+		var sort sqlgen.SortColumn
+
+		if strings.HasPrefix(field, `-`) {
+			// Explicit descending order.
+			sort = sqlgen.SortColumn{
+				sqlgen.Column{field[1:]},
+				sqlgen.SqlSortDesc,
+			}
 		} else {
-			sort = append(sort, field+` ASC`)
+			// Ascending order.
+			sort = sqlgen.SortColumn{
+				sqlgen.Column{field},
+				sqlgen.SqlSortAsc,
+			}
 		}
+
+		sortColumns = append(sortColumns, sort)
 	}
 
-	self.queryChunks.Sort = `ORDER BY ` + strings.Join(sort, `, `)
+	self.orderBy.SortColumns = sortColumns
 
 	return self
+
+	/*
+		sort := make([]string, 0, len(fields))
+
+		for _, field := range fields {
+			if strings.HasPrefix(field, `-`) == true {
+				sort = append(sort, field[1:]+` DESC`)
+			} else {
+				sort = append(sort, field+` ASC`)
+			}
+		}
+
+		self.queryChunks.Sort = `ORDER BY ` + strings.Join(sort, `, `)
+
+		return self
+	*/
 }
 
 // Retrieves only the given fields.
 func (self *Result) Select(fields ...string) db.Result {
-	self.queryChunks.Fields = fields
+	self.stmt.Columns = make(sqlgen.Columns, 0, len(fields))
+
+	l := len(fields)
+	for i := 0; i < l; i++ {
+		self.stmt.Columns = append(self.stmt.Columns, sqlgen.Column{fields[i]})
+	}
+
 	return self
 }
 
@@ -170,14 +218,21 @@ func (self *Result) Next(dst interface{}) error {
 // Removes the matching items from the collection.
 func (self *Result) Remove() error {
 	var err error
-	_, err = self.table.source.doExec(
-		fmt.Sprintf(
-			`DELETE FROM "%s" WHERE %s`,
-			self.table.Name(),
-			self.queryChunks.Conditions,
-		),
-		self.queryChunks.Arguments,
-	)
+	_, err = self.table.source.doExec(sqlgen.Statement{
+		Type:  sqlgen.SqlDelete,
+		Table: sqlgen.Table{self.table.Name()},
+		Where: self.conditions,
+	}, self.arguments)
+	/*
+		_, err = self.table.source.doExec(
+			fmt.Sprintf(
+				`DELETE FROM "%s" WHERE %s`,
+				self.table.Name(),
+				self.queryChunks.Conditions,
+			),
+			self.queryChunks.Arguments,
+		)
+	*/
 	return err
 
 }
@@ -229,23 +284,31 @@ func (self *Result) Close() error {
 // Counts matching elements.
 func (self *Result) Count() (uint64, error) {
 
-	rows, err := self.table.source.doQuery(
-		fmt.Sprintf(
-			`SELECT COUNT(1) AS total FROM %s WHERE %s`,
-			self.table.Name(),
-			self.queryChunks.Conditions,
-		),
-		self.queryChunks.Arguments,
-	)
+	rows, err := self.table.source.doQuery(sqlgen.Statement{
+		Type:  sqlgen.SqlSelectCount,
+		Table: sqlgen.Table{self.table.Name()},
+		Where: self.conditions,
+	}, self.arguments)
+
+	/*
+		rows, err := self.table.source.doQuery(
+			fmt.Sprintf(
+				`SELECT COUNT(1) AS total FROM %s WHERE %s`,
+				self.table.Name(),
+				self.queryChunks.Conditions,
+			),
+			self.queryChunks.Arguments,
+		)
+	*/
 
 	if err != nil {
 		return 0, err
 	}
 
+	defer rows.Close()
+
 	dst := counter{}
 	self.table.T.FetchRow(&dst, rows)
-
-	rows.Close()
 
 	return dst.Total, nil
 }
