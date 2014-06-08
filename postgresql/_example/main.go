@@ -9,10 +9,10 @@ import (
 )
 
 var settings = db.Settings{
-	Database: `upperio_tests`,        // Database name.
-	Socket:   `/var/run/postgresql/`, // Using unix sockets.
-	User:     `upperio`,              // Database username.
-	Password: `upperio`,              // Database password.
+	Database: `upperio_tests`, // Database name.
+	Host:     `testserver.local`,
+	User:     `upperio`, // Database username.
+	Password: `upperio`, // Database password.
 }
 
 type Birthday struct {
