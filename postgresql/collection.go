@@ -121,7 +121,7 @@ func whereValues(term interface{}) (where sqlgen.Where, args []interface{}) {
 		for _, cond := range t {
 			k, v := whereValues(cond)
 			args = append(args, v...)
-			and = append(and, k)
+			and = append(and, k...)
 		}
 		where = append(where, and)
 	case db.Or:
@@ -129,7 +129,7 @@ func whereValues(term interface{}) (where sqlgen.Where, args []interface{}) {
 		for _, cond := range t {
 			k, v := whereValues(cond)
 			args = append(args, v...)
-			or = append(or, k)
+			or = append(or, k...)
 		}
 		where = append(where, or)
 	case db.Cond:

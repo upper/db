@@ -11,19 +11,19 @@ import (
 	"testing"
 	"time"
 	"upper.io/db"
-	_ "upper.io/db/mongo"
-	_ "upper.io/db/mysql"
+	//_ "upper.io/db/mongo"
+	//_ "upper.io/db/mysql"
 	_ "upper.io/db/postgresql"
-	_ "upper.io/db/ql"
-	_ "upper.io/db/sqlite"
+	//_ "upper.io/db/ql"
+	//_ "upper.io/db/sqlite"
 )
 
 var wrappers = []string{
-	`sqlite`,
-	`mysql`,
+	//`sqlite`,
+	//`mysql`,
 	`postgresql`,
-	`mongo`,
-	`ql`,
+	//`mongo`,
+	//`ql`,
 }
 
 const (
@@ -541,7 +541,7 @@ func TestFibonacci(t *testing.T) {
 				whereIn = db.Cond{"input": db.Func{"IN", []int{3, 5, 6, 7}}}
 			}
 
-			res = col.Find(whereIn).Skip(1).Limit(2).Sort("input")
+			res = col.Find(whereIn).Sort("input")
 
 			total, err = res.Count()
 
@@ -552,6 +552,8 @@ func TestFibonacci(t *testing.T) {
 			if total != 4 {
 				t.Fatalf(`Expecting a count of 4.`)
 			}
+
+			res = res.Skip(1).Limit(2)
 
 			for {
 				var item Fibonacci
@@ -583,17 +585,18 @@ func TestFibonacci(t *testing.T) {
 					},
 					db.Cond{"input": 3},
 				},
-			).Skip(1).Limit(2).Sort("-input")
+			).Sort("-input")
 
-			total, err = res.Count()
-
-			if err != nil {
+			if total, err = res.Count(); err != nil {
 				t.Fatalf(`%s: %s`, wrapper, err.Error())
 			}
 
 			if total != 4 {
 				t.Fatalf(`Expecting a count of 4.`)
 			}
+
+			// Skipping.
+			res = res.Skip(1).Limit(2)
 
 			for {
 				var item Fibonacci

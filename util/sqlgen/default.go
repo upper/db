@@ -71,6 +71,14 @@ const (
 			COUNT(1) AS _t
 		FROM {{.Table}}
 			{{.Where}}
+
+			{{if .Limit}}
+				LIMIT {{.Limit}}
+			{{end}}
+
+			{{if .Offset}}
+				OFFSET {{.Offset}}
+			{{end}}
 	`
 
 	defaultInsertLayout = `

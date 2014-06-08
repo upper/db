@@ -228,9 +228,11 @@ func (self *Result) Close() error {
 func (self *Result) Count() (uint64, error) {
 
 	rows, err := self.table.source.doQuery(sqlgen.Statement{
-		Type:  sqlgen.SqlSelectCount,
-		Table: sqlgen.Table{self.table.Name()},
-		Where: self.where,
+		Type:   sqlgen.SqlSelectCount,
+		Table:  sqlgen.Table{self.table.Name()},
+		Where:  self.where,
+		Limit:  self.limit,
+		Offset: self.offset,
 	}, self.arguments...)
 
 	if err != nil {
