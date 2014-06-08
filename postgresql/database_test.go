@@ -21,20 +21,18 @@
   WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-/*
-	Tests for the postgresql wrapper.
-
-	Execute the Makefile in ./_dumps/ to create the expected database structure.
-
-	cd _dumps
-	make
-	cd ..
-	go test
-*/
 package postgresql
+
+// In order to execute these tests you must initialize the database first:
+//
+// cd _dumps
+// make
+// cd ..
+// go test
 
 import (
 	"database/sql"
+	"flag"
 	"menteslibres.net/gosexy/to"
 	"os"
 	"reflect"
@@ -44,21 +42,19 @@ import (
 	"upper.io/db"
 )
 
-// Wrapper settings.
 const (
-	host     = "testserver.local"
-	dbname   = "upperio_tests"
+	database = "upperio_tests"
 	username = "upperio"
 	password = "upperio"
 )
 
-// Global settings for tests.
 var settings = db.Settings{
-	Database: dbname,
-	Host:     host,
+	Database: database,
 	User:     username,
 	Password: password,
 }
+
+var host = flag.String("host", "testserver.local", "Testing server address.")
 
 // Structure for testing conversions and datatypes.
 type testValuesStruct struct {
@@ -95,30 +91,37 @@ var testValues = testValuesStruct{
 	time.Second * time.Duration(7331),
 }
 
-// Enabling outputting some information to stdout (like the SQL query and its
+func init() {
+	flag.Parse()
+	settings.Host = *host
+}
+
+// Loggin some information to stdout (like the SQL query and its
 // arguments), useful for development.
 func TestEnableDebug(t *testing.T) {
 	os.Setenv(db.EnvEnableDebug, "TRUE")
 }
 
-// Trying to open an empty datasource, it must fail.
+// Attempts to open an empty datasource.
 func TestOpenFailed(t *testing.T) {
-	_, err := db.Open(Driver, db.Settings{})
+	var err error
 
-	if err == nil {
-		t.Errorf("Expecting an error.")
+	// Attempt to open an empty database.
+	if _, err = db.Open(Driver, db.Settings{}); err == nil {
+		// Must fail.
+		t.Fatalf("Expecting an error.")
 	}
 }
 
-// Truncates all collections.
+// Attempts to get all collections and truncate each one of them.
 func TestTruncate(t *testing.T) {
-
 	var err error
+	var sess db.Database
+	var collections []string
+	var col db.Collection
 
 	// Opening database.
-	sess, err := db.Open(Driver, settings)
-
-	if err != nil {
+	if sess, err = db.Open(Driver, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -126,158 +129,162 @@ func TestTruncate(t *testing.T) {
 	defer sess.Close()
 
 	// Getting a list of all collections in this database.
-	collections, err := sess.Collections()
-
-	if err != nil {
+	if collections, err = sess.Collections(); err != nil {
 		t.Fatalf(err.Error())
 	}
 
+	if len(collections) == 0 {
+		t.Fatalf("Expecting some collections.")
+	}
+
+	// Walking over collections.
 	for _, name := range collections {
 
-		// Pointing the collection.
-		col, err := sess.Collection(name)
-		if err != nil {
+		// Getting a collection.
+		if col, err = sess.Collection(name); err != nil {
 			t.Fatalf(err.Error())
 		}
 
-		// Since this is a SQL collection (table), the structure must exists before
-		// we can use it.
-		exists := col.Exists()
-
-		if exists == true {
-			// Truncating the structure, if exists.
-			err = col.Truncate()
-
-			if err != nil {
+		// Table must exists before we can use it.
+		if col.Exists() == true {
+			// Truncating the table.
+			if err = col.Truncate(); err != nil {
 				t.Fatalf(err.Error())
 			}
 		}
-
 	}
 }
 
-// This test appends some data into the "artist" table.
+// Attempts to append some data into the "artist" table.
 func TestAppend(t *testing.T) {
-
 	var err error
 	var id interface{}
+	var sess db.Database
+	var artist db.Collection
+	var total uint64
 
-	// Opening database.
-	sess, err := db.Open(Driver, settings)
-
-	if err != nil {
+	if sess, err = db.Open(Driver, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
-	// Getting a pointer to the "artist" collection.
-	artist, err := sess.Collection("artist")
-
-	if err != nil {
+	if artist, err = sess.Collection("artist"); err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	// Appending a map.
-	id, err = artist.Append(map[string]string{
+	// Attempt to append a map.
+	item_m := map[string]string{
 		"name": "Ozzie",
-	})
+	}
+
+	if id, err = artist.Append(item_m); err != nil {
+		t.Fatalf(err.Error())
+	}
 
 	if to.Int64(id) == 0 {
 		t.Fatalf("Expecting an ID.")
 	}
 
-	// Appending a struct.
-	id, err = artist.Append(struct {
-		Name string `field:name`
+	// Attempt to append a struct.
+	item_s := struct {
+		Name string `db:"name"`
 	}{
 		"Flea",
-	})
+	}
+
+	if id, err = artist.Append(item_s); err != nil {
+		t.Fatalf(err.Error())
+	}
 
 	if to.Int64(id) == 0 {
 		t.Fatalf("Expecting an ID.")
 	}
 
-	// Appending a struct (using tags to specify the field name).
-	id, err = artist.Append(struct {
-		ArtistName string `field:"name"`
+	// Append to append a tagged struct.
+	item_t := struct {
+		ArtistName string `db:"name"`
 	}{
 		"Slash",
-	})
+	}
+
+	if id, err = artist.Append(item_t); err != nil {
+		t.Fatalf(err.Error())
+	}
 
 	if to.Int64(id) == 0 {
 		t.Fatalf("Expecting an ID.")
+	}
+
+	// Counting elements, must be exactly 3 elements.
+	if total, err = artist.Find().Count(); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if total != 3 {
+		t.Fatalf("Expecting exactly 3 rows.")
 	}
 
 }
 
-// This test tries to use an empty filter and count how many elements were
-// added into the artist collection.
+// Attempts to count all rows in our newly defined set.
 func TestResultCount(t *testing.T) {
-
 	var err error
 	var res db.Result
+	var sess db.Database
+	var artist db.Collection
+	var total uint64
 
-	// Opening database.
-	sess, err := db.Open(Driver, settings)
-
-	if err != nil {
+	if sess, err = db.Open(Driver, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
 	defer sess.Close()
 
 	// We should close the database when it's no longer in use.
-	artist, _ := sess.Collection("artist")
+	if artist, err = sess.Collection("artist"); err != nil {
+		t.Fatalf(err.Error())
+	}
 
+	// Defining a set with no conditions.
 	res = artist.Find()
 
 	// Counting all the matching rows.
-	total, err := res.Count()
-
-	if err != nil {
+	if total, err = res.Count(); err != nil {
 		t.Fatalf(err.Error())
 	}
 
 	if total == 0 {
-		t.Fatalf("Should not be empty, we've just added some rows!")
+		t.Fatalf("Counter should not be zero, we've just added some rows!")
 	}
-
 }
 
-// This test uses and result and tries to fetch items one by one.
+// Attempts to fetch results one by one.
 func TestResultFetch(t *testing.T) {
-
 	var err error
 	var res db.Result
+	var sess db.Database
+	var artist db.Collection
 
-	// Opening database.
-	sess, err := db.Open(Driver, settings)
-
-	if err != nil {
+	if sess, err = db.Open(Driver, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
-	artist, err := sess.Collection("artist")
-
-	if err != nil {
+	if artist, err = sess.Collection("artist"); err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	// Testing map
-	res = artist.Find()
-
+	// Dumping into a map.
 	row_m := map[string]interface{}{}
+
+	res = artist.Find()
 
 	for {
 		err = res.Next(&row_m)
 
 		if err == db.ErrNoMoreRows {
-			// No more row_ms left.
 			break
 		}
 
@@ -295,7 +302,7 @@ func TestResultFetch(t *testing.T) {
 
 	res.Close()
 
-	// Testing struct
+	// Dumping into an struct with no tags.
 	row_s := struct {
 		Id   uint64
 		Name string
@@ -307,7 +314,6 @@ func TestResultFetch(t *testing.T) {
 		err = res.Next(&row_s)
 
 		if err == db.ErrNoMoreRows {
-			// No more row_s' left.
 			break
 		}
 
@@ -325,7 +331,7 @@ func TestResultFetch(t *testing.T) {
 
 	res.Close()
 
-	// Testing tagged struct
+	// Dumping into a tagged struct.
 	row_t := struct {
 		Value1 uint64 `field:"id"`
 		Value2 string `field:"name"`
@@ -337,7 +343,6 @@ func TestResultFetch(t *testing.T) {
 		err = res.Next(&row_t)
 
 		if err == db.ErrNoMoreRows {
-			// No more row_t's left.
 			break
 		}
 
@@ -355,14 +360,16 @@ func TestResultFetch(t *testing.T) {
 
 	res.Close()
 
-	// Testing Result.All() with a slice of maps.
-	res = artist.Find()
-
+	// Dumping into an slice of maps.
 	all_rows_m := []map[string]interface{}{}
-	err = res.All(&all_rows_m)
 
-	if err != nil {
+	res = artist.Find()
+	if err = res.All(&all_rows_m); err != nil {
 		t.Fatalf(err.Error())
+	}
+
+	if len(all_rows_m) != 3 {
+		t.Fatalf("Expecting 3 items.")
 	}
 
 	for _, single_row_m := range all_rows_m {
@@ -371,17 +378,20 @@ func TestResultFetch(t *testing.T) {
 		}
 	}
 
-	// Testing Result.All() with a slice of structs.
-	res = artist.Find()
+	// Dumping into an slice of structs.
 
 	all_rows_s := []struct {
 		Id   uint64
 		Name string
 	}{}
-	err = res.All(&all_rows_s)
 
-	if err != nil {
+	res = artist.Find()
+	if err = res.All(&all_rows_s); err != nil {
 		t.Fatalf(err.Error())
+	}
+
+	if len(all_rows_s) != 3 {
+		t.Fatalf("Expecting 3 items.")
 	}
 
 	for _, single_row_s := range all_rows_s {
@@ -390,17 +400,20 @@ func TestResultFetch(t *testing.T) {
 		}
 	}
 
-	// Testing Result.All() with a slice of tagged structs.
-	res = artist.Find()
-
+	// Dumping into an slice of tagged structs.
 	all_rows_t := []struct {
 		Value1 uint64 `field:"id"`
 		Value2 string `field:"name"`
 	}{}
-	err = res.All(&all_rows_t)
 
-	if err != nil {
+	res = artist.Find()
+
+	if err = res.All(&all_rows_t); err != nil {
 		t.Fatalf(err.Error())
+	}
+
+	if len(all_rows_t) != 3 {
+		t.Fatalf("Expecting 3 items.")
 	}
 
 	for _, single_row_t := range all_rows_t {
@@ -410,28 +423,23 @@ func TestResultFetch(t *testing.T) {
 	}
 }
 
-// This test tries to update some previously added rows.
+// Attempts to modify previously added rows.
 func TestUpdate(t *testing.T) {
 	var err error
+	var sess db.Database
+	var artist db.Collection
 
-	// Opening database.
-	sess, err := db.Open(Driver, settings)
-
-	if err != nil {
+	if sess, err = db.Open(Driver, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
-	// Getting a pointer to the "artist" collection.
-	artist, err := sess.Collection("artist")
-
-	if err != nil {
+	if artist, err = sess.Collection("artist"); err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	// Value
+	// Defining destination struct
 	value := struct {
 		Id   uint64
 		Name string
@@ -444,14 +452,12 @@ func TestUpdate(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	// Updating with a map
+	// Updating set with a map
 	row_m := map[string]interface{}{
 		"name": strings.ToUpper(value.Name),
 	}
 
-	err = res.Update(row_m)
-
-	if err != nil {
+	if err = res.Update(row_m); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -460,11 +466,12 @@ func TestUpdate(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
+	// Verifying.
 	if value.Name != row_m["name"] {
 		t.Fatalf("Expecting a modification.")
 	}
 
-	// Updating with a struct
+	// Updating set with a struct
 	row_s := struct {
 		Name string
 	}{strings.ToLower(value.Name)}
@@ -473,52 +480,51 @@ func TestUpdate(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
+	// Pulling it again.
 	if err = res.One(&value); err != nil {
 		t.Fatalf(err.Error())
 	}
 
+	// Verifying
 	if value.Name != row_s.Name {
 		t.Fatalf("Expecting a modification.")
 	}
 
-	// Updating with a tagged struct
+	// Updating set with a tagged struct
 	row_t := struct {
-		Value1 string `field:"name"`
+		Value1 string `db:"name"`
 	}{strings.Replace(value.Name, "z", "Z", -1)}
 
 	if err = res.Update(row_t); err != nil {
 		t.Fatalf(err.Error())
 	}
 
+	// Pulling it again.
 	if err = res.One(&value); err != nil {
 		t.Fatalf(err.Error())
 	}
 
+	// Verifying
 	if value.Name != row_t.Value1 {
 		t.Fatalf("Expecting a modification.")
 	}
-
 }
 
-// Test database functions
+// Attempts to use functions within database queries.
 func TestFunction(t *testing.T) {
 	var err error
 	var res db.Result
+	var sess db.Database
+	var artist db.Collection
+	var total uint64
 
-	// Opening database.
-	sess, err := db.Open(Driver, settings)
-
-	if err != nil {
+	if sess, err = db.Open(Driver, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
-	// Getting a pointer to the "artist" collection.
-	artist, err := sess.Collection("artist")
-
-	if err != nil {
+	if artist, err = sess.Collection("artist"); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -530,98 +536,111 @@ func TestFunction(t *testing.T) {
 	res = artist.Find(db.Cond{"id NOT IN": []int{0, -1}})
 
 	if err = res.One(&row_s); err != nil {
-		t.Fatalf("One: %q", err)
+		t.Fatalf(err.Error())
+	}
+
+	if total, err = res.Count(); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if total != 3 {
+		t.Fatalf("Expecting 3 items.")
 	}
 
 	res = artist.Find(db.Cond{"id": db.Func{"NOT IN", []int{0, -1}}})
 
 	if err = res.One(&row_s); err != nil {
-		t.Fatalf("One: %q", err)
+		t.Fatalf(err.Error())
+	}
+
+	if total, err = res.Count(); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if total != 3 {
+		t.Fatalf("Expecting 3 items.")
 	}
 
 	res.Close()
 }
 
-// This test tries to remove some previously added rows.
+// Attempts to delete previously added rows.
 func TestRemove(t *testing.T) {
-
 	var err error
+	var res db.Result
+	var sess db.Database
+	var artist db.Collection
 
-	// Opening database.
-	sess, err := db.Open(Driver, settings)
-
-	if err != nil {
+	if sess, err = db.Open(Driver, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
-	// Getting a pointer to the "artist" collection.
-	artist, err := sess.Collection("artist")
-
-	if err != nil {
+	if artist, err = sess.Collection("artist"); err != nil {
 		t.Fatalf(err.Error())
 	}
 
 	// Getting the artist with id = 1
-	res := artist.Find(db.Cond{"id": 1})
+	res = artist.Find(db.Cond{"id": 1})
 
 	// Trying to remove the row.
-	err = res.Remove()
-
-	if err != nil {
+	if err = res.Remove(); err != nil {
 		t.Fatalf(err.Error())
 	}
 }
 
-// This test tries to add many different datatypes to a single row in a
-// collection, then it tries to get the stored datatypes and check if the
-// stored and the original values match.
+// Attempts to add many different datatypes to a single row in a collection,
+// then it tries to get the stored datatypes and check if the stored and the
+// original values match.
 func TestDataTypes(t *testing.T) {
 	var res db.Result
+	var sess db.Database
+	var dataTypes db.Collection
+	var err error
+	var id interface{}
+	var exists uint64
 
-	// Opening database.
-	sess, err := db.Open(Driver, settings)
-
-	if err != nil {
+	if sess, err = db.Open(Driver, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
 	// Getting a pointer to the "data_types" collection.
-	dataTypes, err := sess.Collection("data_types")
-	dataTypes.Truncate()
-
-	// Appending our test subject.
-	id, err := dataTypes.Append(testValues)
-
-	if err != nil {
+	if dataTypes, err = sess.Collection("data_types"); err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	// Trying to get the same subject we added.
+	// Removing all data.
+	if err = dataTypes.Truncate(); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Appending our test subject.
+	if id, err = dataTypes.Append(testValues); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Defining our set.
 	res = dataTypes.Find(db.Cond{"id": id})
 
-	exists, err := res.Count()
-
-	if err != nil {
+	if exists, err = res.Count(); err != nil {
 		t.Fatalf(err.Error())
 	}
 
 	if exists == 0 {
-		t.Errorf("Expecting an item.")
+		t.Fatalf("Expecting an item.")
 	}
 
 	// Trying to dump the subject into an empty structure of the same type.
 	var item testValuesStruct
+
 	res.One(&item)
 
 	// The original value and the test subject must match.
 	if reflect.DeepEqual(item, testValues) == false {
-		t.Errorf("Struct is different.")
+		t.Fatalf("Struct is different.")
 	}
 }
 
