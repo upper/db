@@ -2,7 +2,26 @@ DROP TABLE IF EXISTS artist;
 
 CREATE TABLE artist (
   id serial primary key,
-  name VARCHAR(60)
+  name varchar(60)
+);
+
+DROP TABLE IF EXISTS publication;
+
+CREATE TABLE publication (
+  id serial primary key,
+  title varchar(80),
+  author_id integer,
+);
+
+DROP TABLE IF EXISTS review;
+
+CREATE TABLE review (
+  id serial primary key,
+  publication_id integer,
+  author_id integer,
+  name varchar(80),
+  comments text,
+  created timestamp without time zone
 );
 
 DROP TABLE IF EXISTS data_types;
