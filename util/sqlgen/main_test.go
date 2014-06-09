@@ -127,6 +127,40 @@ func TestSelectStarFrom(t *testing.T) {
 	}
 }
 
+func TestSelectStarFromAlias(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:  SqlSelect,
+		Table: Table{"table.name AS foo"},
+	}
+
+	s = trim(stmt.Compile())
+	e = `SELECT * FROM "table"."name" AS "foo"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestSelectStarFromMany(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:  SqlSelect,
+		Table: Table{"first.table AS foo, second.table as BAR, third.table aS baz"},
+	}
+
+	s = trim(stmt.Compile())
+	e = `SELECT * FROM "first"."table" AS "foo", "second"."table" AS "BAR", "third"."table" AS "baz"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
 func TestSelectArtistNameFrom(t *testing.T) {
 	var s, e string
 	var stmt Statement
@@ -135,7 +169,7 @@ func TestSelectArtistNameFrom(t *testing.T) {
 		Type:  SqlSelect,
 		Table: Table{"artist"},
 		Columns: Columns{
-			Column{"artist.name"},
+			{"artist.name"},
 		},
 	}
 

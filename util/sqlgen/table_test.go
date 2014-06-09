@@ -1,0 +1,75 @@
+package sqlgen
+
+import (
+	"testing"
+)
+
+func TestTableSimple(t *testing.T) {
+	var s, e string
+	var table Table
+
+	table = Table{"artist"}
+
+	s = trim(table.String())
+	e = `"artist"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestTableCompound(t *testing.T) {
+	var s, e string
+	var table Table
+
+	table = Table{"artist.foo"}
+
+	s = trim(table.String())
+	e = `"artist"."foo"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestTableCompoundAlias(t *testing.T) {
+	var s, e string
+	var table Table
+
+	table = Table{"artist.foo AS baz"}
+
+	s = trim(table.String())
+	e = `"artist"."foo" AS "baz"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestTableMultiple(t *testing.T) {
+	var s, e string
+	var table Table
+
+	table = Table{"artist.foo, artist.bar, artist.baz"}
+
+	s = trim(table.String())
+	e = `"artist"."foo", "artist"."bar", "artist"."baz"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestTableMultipleAlias(t *testing.T) {
+	var s, e string
+	var table Table
+
+	table = Table{"artist.foo AS foo, artist.bar as bar, artist.baz As baz"}
+
+	s = trim(table.String())
+	e = `"artist"."foo" AS "foo", "artist"."bar" AS "bar", "artist"."baz" AS "baz"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
