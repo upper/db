@@ -33,7 +33,6 @@ package postgresql
 import (
 	"database/sql"
 	"flag"
-	"fmt"
 	"menteslibres.net/gosexy/to"
 	"os"
 	"reflect"
@@ -733,19 +732,18 @@ func TestRawRelations(t *testing.T) {
 	review.Append(review_t{
 		PublicationId: foundationId.(uint64),
 		Name:          "Edr Pls",
-		Comments:      "The Foundation series made me fell in love with Isaac Asimov.",
+		Comments:      "The Foundation series made me fall in love with Isaac Asimov.",
 		Created:       time.Now(),
 	})
 
-	// select * from publication p, artist a where p.author_id = a.id;
-
+	// Exec'ing a raw query.
 	var artistPublication db.Collection
 	if artistPublication, err = sess.Collection(`artist AS a, publication AS p`); err != nil {
 		t.Fatalf(err.Error())
 	}
 
 	res := artistPublication.Find(
-		db.Raw{"a.id = p.author_id"},
+		db.Raw{`a.id = p.author_id`},
 	).Select(
 		"p.id",
 		"p.title as publication_title",
@@ -754,16 +752,19 @@ func TestRawRelations(t *testing.T) {
 
 	type artistPublication_t struct {
 		Id               uint64 `db:"id"`
-		PublicationTitle string `id:"publication_title"`
-		ArtistName       string `id:"artist_name"`
+		PublicationTitle string `db:"publication_title"`
+		ArtistName       string `db:"artist_name"`
 	}
 
 	all := []artistPublication_t{}
+
 	if err = res.All(&all); err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	fmt.Printf("all: %v\n", all)
+	if len(all) != 9 {
+		t.Fatalf("Expecting some rows.")
+	}
 
 }
 

@@ -132,6 +132,10 @@ func whereValues(term interface{}) (where sqlgen.Where, args []interface{}) {
 			or = append(or, k...)
 		}
 		where = append(where, or)
+	case db.Raw:
+		if s, ok := t.Value.(string); ok == true {
+			where = append(where, sqlgen.Raw{s})
+		}
 	case db.Cond:
 		k, v := conditionValues(t)
 		args = append(args, v...)
