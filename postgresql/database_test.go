@@ -33,6 +33,7 @@ package postgresql
 import (
 	"database/sql"
 	"flag"
+	"fmt"
 	"menteslibres.net/gosexy/to"
 	"os"
 	"reflect"
@@ -599,21 +600,20 @@ func TestRawRelations(t *testing.T) {
 	var publication db.Collection
 	var review db.Collection
 
-	var artist_t struct {
-		Id   uint64 `db:"id"`
+	type artist_t struct {
+		Id   uint64 `db:"id,omitempty"`
 		Name string `db:"name"`
 	}
 
-	var publication_t struct {
-		Id       uint64 `db:"id"`
+	type publication_t struct {
+		Id       uint64 `db:"id,omitempty"`
 		Title    string `db:"title"`
 		AuthorId uint64 `db:"author_id"`
 	}
 
-	var review_t struct {
-		Id            uint64    `db:"id"`
+	type review_t struct {
+		Id            uint64    `db:"id,omitempty"`
 		PublicationId uint64    `db:"publication_id"`
-		AuthorId      uint64    `db:"author_id"`
 		Name          string    `db:"name"`
 		Comments      string    `db:"comments"`
 		Created       time.Time `db:"created"`
@@ -655,7 +655,7 @@ func TestRawRelations(t *testing.T) {
 	// Adding some artists.
 	var miyazakiId interface{}
 	miyazaki := artist_t{Name: `Hayao Miyazaki`}
-	if miyazakiId, err = artist.Append(artist); err != nil {
+	if miyazakiId, err = artist.Append(miyazaki); err != nil {
 		t.Fatalf(err.Error())
 	}
 	miyazaki.Id = miyazakiId.(uint64)
@@ -674,14 +674,96 @@ func TestRawRelations(t *testing.T) {
 
 	// Adding some publications.
 	publication.Append(publication_t{
-		Title: `Tonari no Totoro`,
-		Id:    miyazakiId.(uint64),
+		Title:    `Tonari no Totoro`,
+		AuthorId: miyazakiId.(uint64),
 	})
 
 	publication.Append(publication_t{
-		Title: `Tonari no Totoro`,
-		Id:    miyazakiId.(uint64),
+		Title:    `Howl's Moving Castle`,
+		AuthorId: miyazakiId.(uint64),
 	})
+
+	publication.Append(publication_t{
+		Title:    `Ponyo`,
+		AuthorId: miyazakiId.(uint64),
+	})
+
+	publication.Append(publication_t{
+		Title:    `Memoria de mis Putas Tristes`,
+		AuthorId: marquezId.(uint64),
+	})
+
+	publication.Append(publication_t{
+		Title:    `El Coronel no tiene quien le escriba`,
+		AuthorId: marquezId.(uint64),
+	})
+
+	publication.Append(publication_t{
+		Title:    `El Amor en los tiempos del Cólera`,
+		AuthorId: marquezId.(uint64),
+	})
+
+	publication.Append(publication_t{
+		Title:    `I, Robot`,
+		AuthorId: asimovId.(uint64),
+	})
+
+	var foundationId interface{}
+	foundationId, err = publication.Append(publication_t{
+		Title:    `Foundation`,
+		AuthorId: asimovId.(uint64),
+	})
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	publication.Append(publication_t{
+		Title:    `The Robots of Dawn`,
+		AuthorId: asimovId.(uint64),
+	})
+
+	// Adding reviews for foundation.
+	review.Append(review_t{
+		PublicationId: foundationId.(uint64),
+		Name:          "John Doe",
+		Comments:      "I love The Foundation series.",
+		Created:       time.Now(),
+	})
+
+	review.Append(review_t{
+		PublicationId: foundationId.(uint64),
+		Name:          "Edr Pls",
+		Comments:      "The Foundation series made me fell in love with Isaac Asimov.",
+		Created:       time.Now(),
+	})
+
+	// select * from publication p, artist a where p.author_id = a.id;
+
+	var artistPublication db.Collection
+	if artistPublication, err = sess.Collection(`artist AS a, publication AS p`); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	res := artistPublication.Find(db.Cond{
+		"a.id": db.Raw{"p.author_id"},
+	}).Select(
+		"p.id",
+		"p.title as publication_title",
+		"a.name AS artist_name",
+	)
+
+	type artistPublication_t struct {
+		Id               uint64 `db:"id"`
+		PublicationTitle string `id:"publication_title"`
+		ArtistName       string `id:"artist_name"`
+	}
+
+	all := []artistPublication_t{}
+	if err = res.All(&all); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	fmt.Printf("all: %v\n", all)
 
 }
 

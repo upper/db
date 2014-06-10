@@ -219,7 +219,7 @@ func (self *Table) Append(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	var id int64
+	var id uint64
 
 	if err = row.Scan(&id); err != nil {
 		if err == sql.ErrNoRows {
