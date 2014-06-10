@@ -590,6 +590,101 @@ func TestRemove(t *testing.T) {
 	}
 }
 
+// Attempts to use SQL raw statements.
+func TestRawRelations(t *testing.T) {
+	var sess db.Database
+	var err error
+
+	var artist db.Collection
+	var publication db.Collection
+	var review db.Collection
+
+	var artist_t struct {
+		Id   uint64 `db:"id"`
+		Name string `db:"name"`
+	}
+
+	var publication_t struct {
+		Id       uint64 `db:"id"`
+		Title    string `db:"title"`
+		AuthorId uint64 `db:"author_id"`
+	}
+
+	var review_t struct {
+		Id            uint64    `db:"id"`
+		PublicationId uint64    `db:"publication_id"`
+		AuthorId      uint64    `db:"author_id"`
+		Name          string    `db:"name"`
+		Comments      string    `db:"comments"`
+		Created       time.Time `db:"created"`
+	}
+
+	if sess, err = db.Open(Driver, settings); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	defer sess.Close()
+
+	// Artist collection.
+	if artist, err = sess.Collection("artist"); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if err = artist.Truncate(); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Publication collection.
+	if publication, err = sess.Collection("publication"); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if err = publication.Truncate(); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Review collection.
+	if review, err = sess.Collection("review"); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if err = review.Truncate(); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Adding some artists.
+	var miyazakiId interface{}
+	miyazaki := artist_t{Name: `Hayao Miyazaki`}
+	if miyazakiId, err = artist.Append(artist); err != nil {
+		t.Fatalf(err.Error())
+	}
+	miyazaki.Id = miyazakiId.(uint64)
+
+	var asimovId interface{}
+	asimov := artist_t{Name: `Isaac Asimov`}
+	if asimovId, err = artist.Append(asimov); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	var marquezId interface{}
+	marquez := artist_t{Name: `Gabriel García Márquez`}
+	if marquezId, err = artist.Append(marquez); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Adding some publications.
+	publication.Append(publication_t{
+		Title: `Tonari no Totoro`,
+		Id:    miyazakiId.(uint64),
+	})
+
+	publication.Append(publication_t{
+		Title: `Tonari no Totoro`,
+		Id:    miyazakiId.(uint64),
+	})
+
+}
+
 // Attempts to add many different datatypes to a single row in a collection,
 // then it tries to get the stored datatypes and check if the stored and the
 // original values match.
