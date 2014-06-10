@@ -744,9 +744,9 @@ func TestRawRelations(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	res := artistPublication.Find(db.Cond{
-		"a.id": db.Raw{"p.author_id"},
-	}).Select(
+	res := artistPublication.Find(
+		db.Raw{"a.id = p.author_id"},
+	).Select(
 		"p.id",
 		"p.title as publication_title",
 		"a.name AS artist_name",
