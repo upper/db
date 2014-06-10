@@ -17,7 +17,8 @@ const (
 	defaultClauseOperator  = ` {{.}} `
 	defaultColumnValue     = `{{.Column}} {{.Operator}} {{.Value}}`
 
-	defaultTableAliasLayout = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
+	defaultTableAliasLayout  = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
+	defaultColumnAliasLayout = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
 
 	defaultSortByColumnLayout = `{{.Column}} {{.Sort}}`
 

@@ -16,6 +16,7 @@ type layout struct {
 	ClauseOperator      string
 	ColumnValue         string
 	TableAliasLayout    string
+	ColumnAliasLayout   string
 	SortByColumnLayout  string
 	WhereLayout         string
 	OrderByLayout       string
@@ -45,6 +46,7 @@ var Layout = layout{
 	defaultClauseOperator,
 	defaultColumnValue,
 	defaultTableAliasLayout,
+	defaultColumnAliasLayout,
 	defaultSortByColumnLayout,
 	defaultWhereLayout,
 	defaultOrderByLayout,

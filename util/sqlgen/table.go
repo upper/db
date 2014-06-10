@@ -7,7 +7,7 @@ import (
 
 var (
 	reTableSeparator = regexp.MustCompile(`\s*?,\s*?`)
-	reAliasSeparator = regexp.MustCompile(`(?i:AS)`)
+	reAliasSeparator = regexp.MustCompile(`(?i:\s+AS\s+)`)
 )
 
 type table_t struct {
