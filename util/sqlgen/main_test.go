@@ -144,6 +144,42 @@ func TestSelectStarFromAlias(t *testing.T) {
 	}
 }
 
+func TestSelectStarFromRawWhere(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:  SqlSelect,
+		Table: Table{"table.name AS foo"},
+		Where: Where{
+			Raw{"foo.id = bar.foo_id"},
+		},
+	}
+
+	s = trim(stmt.Compile())
+	e = `SELECT * FROM "table"."name" AS "foo" WHERE (foo.id = bar.foo_id)`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+
+	stmt = Statement{
+		Type:  SqlSelect,
+		Table: Table{"table.name AS foo"},
+		Where: Where{
+			Raw{"foo.id = bar.foo_id"},
+			Raw{"baz.id = exp.baz_id"},
+		},
+	}
+
+	s = trim(stmt.Compile())
+	e = `SELECT * FROM "table"."name" AS "foo" WHERE (foo.id = bar.foo_id AND baz.id = exp.baz_id)`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
 func TestSelectStarFromMany(t *testing.T) {
 	var s, e string
 	var stmt Statement
