@@ -330,13 +330,13 @@ func (self *Source) tableExists(names ...string) error {
 
 		rows, err := self.doQuery(sqlgen.Statement{
 			Type:  sqlgen.SqlSelect,
-			Table: sqlgen.Table{"information_schema.tables"},
+			Table: sqlgen.Table{`information_schema.tables`},
 			Columns: sqlgen.Columns{
-				{"table_name"},
+				{`table_name`},
 			},
 			Where: sqlgen.Where{
-				sqlgen.ColumnValue{sqlgen.Column{"table_catalog"}, "=", sqlPlaceholder},
-				sqlgen.ColumnValue{sqlgen.Column{"table_name"}, "=", sqlPlaceholder},
+				sqlgen.ColumnValue{sqlgen.Column{`table_catalog`}, `=`, sqlPlaceholder},
+				sqlgen.ColumnValue{sqlgen.Column{`table_name`}, `=`, sqlPlaceholder},
 			},
 		}, self.config.Database, name)
 
@@ -383,19 +383,16 @@ func (self *Source) Collection(names ...string) (db.Collection, error) {
 
 			rows, err := self.doQuery(sqlgen.Statement{
 				Type:  sqlgen.SqlSelect,
-				Table: sqlgen.Table{"information_schema.columns"},
+				Table: sqlgen.Table{`information_schema.columns`},
 				Columns: sqlgen.Columns{
-					{"column_name"},
-					{"data_type"},
+					{`column_name`},
+					{`data_type`},
 				},
 				Where: sqlgen.Where{
-					sqlgen.ColumnValue{
-						sqlgen.Column{"table_name"},
-						"=",
-						sqlPlaceholder,
-					},
+					sqlgen.ColumnValue{sqlgen.Column{`table_catalog`}, `=`, sqlPlaceholder},
+					sqlgen.ColumnValue{sqlgen.Column{`table_name`}, `=`, sqlPlaceholder},
 				},
-			}, name)
+			}, self.config.Database, name)
 
 			if err != nil {
 				return nil, err
