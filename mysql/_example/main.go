@@ -9,17 +9,17 @@ import (
 )
 
 var settings = db.Settings{
-	Database: `upperio_tests`,               // Database name
-	Socket:   `/var/run/mysqld/mysqld.sock`, // Using unix sockets.
-	User:     `upperio`,                     // Database username.
-	Password: `upperio`,                     // Database password.
+	Database: `upperio_tests`, // Database name
+	Host:     `testserver.local`,
+	User:     `upperio`, // Database username.
+	Password: `upperio`, // Database password.
 }
 
 type Birthday struct {
 	// Maps the "Name" property to the "name" column of the "birthdays" table.
-	Name string `field:"name"`
+	Name string `db:"name"`
 	// Maps the "Born" property to the "born" column of the "birthdays" table.
-	Born time.Time `field:"born"`
+	Born time.Time `db:"born"`
 }
 
 func main() {

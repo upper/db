@@ -1,44 +1,46 @@
-/*
-  Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
-
-  Permission is hereby granted, free of charge, to any person obtaining
-  a copy of this software and associated documentation files (the
-  "Software"), to deal in the Software without restriction, including
-  without limitation the rights to use, copy, modify, merge, publish,
-  distribute, sublicense, and/or sell copies of the Software, and to
-  permit persons to whom the Software is furnished to do so, subject to
-  the following conditions:
-
-  The above copyright notice and this permission notice shall be
-  included in all copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+//
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package mysql
 
 import (
 	"database/sql"
-	"fmt"
 	"strings"
 	"upper.io/db"
-	"upper.io/db/util/sqlutil"
+	"upper.io/db/util/sqlgen"
 )
 
 type counter struct {
-	Total uint64 `field:"total"`
+	Total uint64 `db:"_t"`
 }
 
 type Result struct {
-	table       *Table
-	queryChunks *sqlutil.QueryChunks
-	cursor      *sql.Rows // This query cursor keeps results for Next().
+	table     *Table
+	cursor    *sql.Rows // This is the main query cursor. It starts as a nil value.
+	limit     sqlgen.Limit
+	offset    sqlgen.Offset
+	columns   sqlgen.Columns
+	where     sqlgen.Where
+	orderBy   sqlgen.OrderBy
+	arguments []interface{}
 }
 
 // Executes a SELECT statement that can feed Next(), All() or One().
@@ -46,38 +48,28 @@ func (self *Result) setCursor() error {
 	var err error
 	// We need a cursor, if the cursor does not exists yet then we create one.
 	if self.cursor == nil {
-		self.cursor, err = self.table.source.doQuery(
-			// Mandatory SQL.
-			fmt.Sprintf(
-				"SELECT %s FROM `%s` WHERE %s",
-				// Fields.
-				strings.Join(self.queryChunks.Fields, `, `),
-				// Table name
-				self.table.Name(),
-				// Conditions
-				self.queryChunks.Conditions,
-			),
-			// Arguments
-			self.queryChunks.Arguments,
-			// Optional SQL
-			self.queryChunks.Sort,
-			self.queryChunks.Limit,
-			self.queryChunks.Offset,
-		)
+		self.cursor, err = self.table.source.doQuery(sqlgen.Statement{
+			Type:    sqlgen.SqlSelect,
+			Table:   sqlgen.Table{self.table.Name()},
+			Columns: self.columns,
+			Limit:   self.limit,
+			Offset:  self.offset,
+			Where:   self.where,
+		}, self.arguments...)
 	}
 	return err
 }
 
 // Determines the maximum limit of results to be returned.
 func (self *Result) Limit(n uint) db.Result {
-	self.queryChunks.Limit = fmt.Sprintf(`LIMIT %d`, n)
+	self.limit = sqlgen.Limit(n)
 	return self
 }
 
 // Determines how many documents will be skipped before starting to grab
 // results.
 func (self *Result) Skip(n uint) db.Result {
-	self.queryChunks.Offset = fmt.Sprintf(`OFFSET %d`, n)
+	self.offset = sqlgen.Offset(n)
 	return self
 }
 
@@ -85,24 +77,43 @@ func (self *Result) Skip(n uint) db.Result {
 // prefixed by - (minus) which means descending order, ascending order would be
 // used otherwise.
 func (self *Result) Sort(fields ...string) db.Result {
-	sort := make([]string, 0, len(fields))
+
+	sortColumns := make(sqlgen.SortColumns, 0, len(fields))
 
 	for _, field := range fields {
-		if strings.HasPrefix(field, `-`) == true {
-			sort = append(sort, field[1:]+` DESC`)
+		var sort sqlgen.SortColumn
+
+		if strings.HasPrefix(field, `-`) {
+			// Explicit descending order.
+			sort = sqlgen.SortColumn{
+				sqlgen.Column{field[1:]},
+				sqlgen.SqlSortDesc,
+			}
 		} else {
-			sort = append(sort, field+` ASC`)
+			// Ascending order.
+			sort = sqlgen.SortColumn{
+				sqlgen.Column{field},
+				sqlgen.SqlSortAsc,
+			}
 		}
+
+		sortColumns = append(sortColumns, sort)
 	}
 
-	self.queryChunks.Sort = `ORDER BY ` + strings.Join(sort, `, `)
+	self.orderBy.SortColumns = sortColumns
 
 	return self
 }
 
 // Retrieves only the given fields.
 func (self *Result) Select(fields ...string) db.Result {
-	self.queryChunks.Fields = fields
+	self.columns = make(sqlgen.Columns, 0, len(fields))
+
+	l := len(fields)
+	for i := 0; i < l; i++ {
+		self.columns = append(self.columns, sqlgen.Column{fields[i]})
+	}
+
 	return self
 }
 
@@ -115,11 +126,13 @@ func (self *Result) All(dst interface{}) error {
 	}
 
 	// Current cursor.
-	if err = self.setCursor(); err != nil {
+	err = self.setCursor()
+
+	if err != nil {
 		return err
 	}
 
-	defer self.Close() // Make sure the result set closes.
+	defer self.Close()
 
 	// Fetching all results within the cursor.
 	err = self.table.T.FetchRows(dst, self.cursor)
@@ -127,7 +140,7 @@ func (self *Result) All(dst interface{}) error {
 	return err
 }
 
-// Fetches only one result from the result set.
+// Fetches only one result from the resultset.
 func (self *Result) One(dst interface{}) error {
 	var err error
 
@@ -148,13 +161,16 @@ func (self *Result) Next(dst interface{}) error {
 	var err error
 
 	// Current cursor.
-	if err = self.setCursor(); err != nil {
+	err = self.setCursor()
+
+	if err != nil {
 		self.Close()
 	}
 
 	// Fetching the next result from the cursor.
-	if err = self.table.T.FetchRow(dst, self.cursor); err != nil {
-		// Closing result set on error.
+	err = self.table.T.FetchRow(dst, self.cursor)
+
+	if err != nil {
 		self.Close()
 	}
 
@@ -164,14 +180,11 @@ func (self *Result) Next(dst interface{}) error {
 // Removes the matching items from the collection.
 func (self *Result) Remove() error {
 	var err error
-	_, err = self.table.source.doExec(
-		fmt.Sprintf(
-			"DELETE FROM `%s` WHERE %s",
-			self.table.Name(),
-			self.queryChunks.Conditions,
-		),
-		self.queryChunks.Arguments,
-	)
+	_, err = self.table.source.doExec(sqlgen.Statement{
+		Type:  sqlgen.SqlDelete,
+		Table: sqlgen.Table{self.table.Name()},
+		Where: self.where,
+	}, self.arguments...)
 	return err
 
 }
@@ -182,30 +195,19 @@ func (self *Result) Update(values interface{}) error {
 
 	ff, vv, err := self.table.FieldValues(values, toInternal)
 
-	if err != nil {
-		return err
-	}
-
 	total := len(ff)
 
-	updateFields := make([]string, total)
-	updateArgs := make([]interface{}, total)
+	cvs := make(sqlgen.ColumnValues, 0, total)
 
 	for i := 0; i < total; i++ {
-		updateFields[i] = fmt.Sprintf(`%s = ?`, ff[i])
-		updateArgs[i] = vv[i]
+		cvs = append(cvs, sqlgen.ColumnValue{sqlgen.Column{ff[i]}, "=", sqlPlaceholder})
 	}
 
-	_, err = self.table.source.doExec(
-		fmt.Sprintf(
-			"UPDATE `%s` SET %s WHERE %s",
-			self.table.Name(),
-			strings.Join(updateFields, `, `),
-			self.queryChunks.Conditions,
-		),
-		updateArgs,
-		self.queryChunks.Arguments,
-	)
+	_, err = self.table.source.doExec(sqlgen.Statement{
+		Type:         sqlgen.SqlUpdate,
+		Table:        sqlgen.Table{self.table.Name()},
+		ColumnValues: cvs,
+	}, vv...)
 
 	return err
 }
@@ -223,23 +225,22 @@ func (self *Result) Close() error {
 // Counts matching elements.
 func (self *Result) Count() (uint64, error) {
 
-	rows, err := self.table.source.doQuery(
-		fmt.Sprintf(
-			"SELECT COUNT(1) AS total FROM `%s` WHERE %s",
-			self.table.Name(),
-			self.queryChunks.Conditions,
-		),
-		self.queryChunks.Arguments,
-	)
+	rows, err := self.table.source.doQuery(sqlgen.Statement{
+		Type:   sqlgen.SqlSelectCount,
+		Table:  sqlgen.Table{self.table.Name()},
+		Where:  self.where,
+		Limit:  self.limit,
+		Offset: self.offset,
+	}, self.arguments...)
 
 	if err != nil {
 		return 0, err
 	}
 
+	defer rows.Close()
+
 	dst := counter{}
 	self.table.T.FetchRow(&dst, rows)
-
-	rows.Close()
 
 	return dst.Total, nil
 }

@@ -8,6 +8,26 @@ CREATE TABLE artist (
   name VARCHAR(60)
 );
 
+DROP TABLE IF EXISTS publication;
+
+CREATE TABLE publication (
+  id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY(id),
+  title VARCHAR(80),
+  author_id BIGINT(20)
+);
+
+DROP TABLE IF EXISTS review;
+
+CREATE TABLE review (
+  id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY(id),
+  publication_id BIGINT(20),
+  name VARCHAR(80),
+  comments TEXT,
+  created DATETIME
+);
+
 DROP TABLE IF EXISTS data_types;
 
 CREATE TABLE data_types (
