@@ -26,23 +26,23 @@ func quotedTableName(input string) string {
 
 	name := chunks[0]
 
-	nameChunks := strings.SplitN(name, Layout.ColumnSeparator, 2)
+	nameChunks := strings.SplitN(name, layout.ColumnSeparator, 2)
 
 	for i := range nameChunks {
 		nameChunks[i] = strings.TrimSpace(nameChunks[i])
-		nameChunks[i] = mustParse(Layout.IdentifierQuote, Raw{nameChunks[i]})
+		nameChunks[i] = mustParse(layout.IdentifierQuote, Raw{nameChunks[i]})
 	}
 
-	name = strings.Join(nameChunks, Layout.ColumnSeparator)
+	name = strings.Join(nameChunks, layout.ColumnSeparator)
 
 	var alias string
 
 	if len(chunks) > 1 {
 		alias = strings.TrimSpace(chunks[1])
-		alias = mustParse(Layout.IdentifierQuote, Raw{alias})
+		alias = mustParse(layout.IdentifierQuote, Raw{alias})
 	}
 
-	return mustParse(Layout.TableAliasLayout, table_t{name, alias})
+	return mustParse(layout.TableAliasLayout, table_t{name, alias})
 }
 
 func (self Table) String() string {
@@ -55,5 +55,5 @@ func (self Table) String() string {
 		parts[i] = quotedTableName(parts[i])
 	}
 
-	return strings.Join(parts, Layout.IdentifierSeparator)
+	return strings.Join(parts, layout.IdentifierSeparator)
 }

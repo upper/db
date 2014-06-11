@@ -1,6 +1,6 @@
 package sqlgen
 
-type layout struct {
+type Template struct {
 	ColumnSeparator     string
 	IdentifierSeparator string
 	IdentifierQuote     string
@@ -30,7 +30,7 @@ type layout struct {
 	SelectCountLayout   string
 }
 
-var Layout = layout{
+var layout = Template{
 	defaultColumnSeparator,
 	defaultIdentifierSeparator,
 	defaultIdentifierQuote,

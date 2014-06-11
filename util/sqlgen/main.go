@@ -53,21 +53,25 @@ type Statement struct {
 func (self *Statement) Compile() string {
 	switch self.Type {
 	case SqlTruncate:
-		return mustParse(Layout.TruncateLayout, self)
+		return mustParse(layout.TruncateLayout, self)
 	case SqlDropTable:
-		return mustParse(Layout.DropTableLayout, self)
+		return mustParse(layout.DropTableLayout, self)
 	case SqlDropDatabase:
-		return mustParse(Layout.DropDatabaseLayout, self)
+		return mustParse(layout.DropDatabaseLayout, self)
 	case SqlSelectCount:
-		return mustParse(Layout.SelectCountLayout, self)
+		return mustParse(layout.SelectCountLayout, self)
 	case SqlSelect:
-		return mustParse(Layout.SelectLayout, self)
+		return mustParse(layout.SelectLayout, self)
 	case SqlDelete:
-		return mustParse(Layout.DeleteLayout, self)
+		return mustParse(layout.DeleteLayout, self)
 	case SqlUpdate:
-		return mustParse(Layout.UpdateLayout, self)
+		return mustParse(layout.UpdateLayout, self)
 	case SqlInsert:
-		return mustParse(Layout.InsertLayout, self)
+		return mustParse(layout.InsertLayout, self)
 	}
 	return ""
+}
+
+func SetTemplate(tpl Template) {
+	layout = tpl
 }

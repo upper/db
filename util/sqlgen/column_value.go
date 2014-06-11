@@ -11,7 +11,7 @@ type ColumnValue struct {
 }
 
 func (self ColumnValue) String() string {
-	return mustParse(Layout.ColumnValue, self)
+	return mustParse(layout.ColumnValue, self)
 }
 
 type ColumnValues []ColumnValue
@@ -25,5 +25,5 @@ func (self ColumnValues) String() string {
 		out[i] = self[i].String()
 	}
 
-	return strings.Join(out, Layout.IdentifierSeparator)
+	return strings.Join(out, layout.IdentifierSeparator)
 }

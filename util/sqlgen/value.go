@@ -15,7 +15,7 @@ func (self Value) String() string {
 	if raw, ok := self.Value.(Raw); ok {
 		return raw.Raw
 	}
-	return mustParse(Layout.ValueQuote, Raw{fmt.Sprintf(`%v`, self.Value)})
+	return mustParse(layout.ValueQuote, Raw{fmt.Sprintf(`%v`, self.Value)})
 }
 
 func (self Values) String() string {
@@ -28,7 +28,7 @@ func (self Values) String() string {
 			chunks = append(chunks, self[i].String())
 		}
 
-		return strings.Join(chunks, Layout.ValueSeparator)
+		return strings.Join(chunks, layout.ValueSeparator)
 	}
 
 	return ""

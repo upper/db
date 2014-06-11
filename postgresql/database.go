@@ -69,6 +69,37 @@ func debugEnabled() bool {
 }
 
 func init() {
+
+	sqlgen.SetTemplate(sqlgen.Template{
+		pgsqlColumnSeparator,
+		pgsqlIdentifierSeparator,
+		pgsqlIdentifierQuote,
+		pgsqlValueSeparator,
+		pgsqlValueQuote,
+		pgsqlAndKeyword,
+		pgsqlOrKeyword,
+		pgsqlNotKeyword,
+		pgsqlDescKeyword,
+		pgsqlAscKeyword,
+		pgsqlDefaultOperator,
+		pgsqlClauseGroup,
+		pgsqlClauseOperator,
+		pgsqlColumnValue,
+		pgsqlTableAliasLayout,
+		pgsqlColumnAliasLayout,
+		pgsqlSortByColumnLayout,
+		pgsqlWhereLayout,
+		pgsqlOrderByLayout,
+		pgsqlInsertLayout,
+		pgsqlSelectLayout,
+		pgsqlUpdateLayout,
+		pgsqlDeleteLayout,
+		pgsqlTruncateLayout,
+		pgsqlDropDatabaseLayout,
+		pgsqlDropTableLayout,
+		pgsqlSelectCountLayout,
+	})
+
 	db.Register(Driver, &Source{})
 }
 

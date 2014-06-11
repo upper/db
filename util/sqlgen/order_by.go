@@ -15,11 +15,11 @@ func (self SortColumns) String() string {
 	for i := 0; i < l; i++ {
 		s = append(s, self[i].String())
 	}
-	return strings.Join(s, Layout.IdentifierSeparator)
+	return strings.Join(s, layout.IdentifierSeparator)
 }
 
 func (self SortColumn) String() string {
-	return mustParse(Layout.SortByColumnLayout, self)
+	return mustParse(layout.SortByColumnLayout, self)
 }
 
 type OrderBy struct {
@@ -28,7 +28,7 @@ type OrderBy struct {
 
 func (self OrderBy) String() string {
 	if len(self.SortColumns) > 0 {
-		return mustParse(Layout.OrderByLayout, self)
+		return mustParse(layout.OrderByLayout, self)
 	}
 	return ""
 }
@@ -44,9 +44,9 @@ const (
 func (self Sort) String() string {
 	switch self {
 	case SqlSortAsc:
-		return Layout.AscKeyword
+		return layout.AscKeyword
 	case SqlSortDesc:
-		return Layout.DescKeyword
+		return layout.DescKeyword
 	}
 	return ""
 }
