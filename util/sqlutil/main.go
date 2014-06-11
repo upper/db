@@ -25,11 +25,17 @@ package sqlutil
 
 import (
 	"database/sql"
+	"log"
 	"menteslibres.net/gosexy/to"
 	"reflect"
+	"regexp"
 	"strings"
 	"upper.io/db"
 	"upper.io/db/util"
+)
+
+var (
+	reInvisibleChars = regexp.MustCompile(`[\s\r\n\t]+`)
 )
 
 type T struct {
@@ -37,13 +43,10 @@ type T struct {
 	ColumnTypes map[string]reflect.Kind
 }
 
-type QueryChunks struct {
-	Fields     []string
-	Limit      string
-	Offset     string
-	Sort       string
-	Conditions string
-	Arguments  []interface{}
+func DebugQuery(s string, args []interface{}) {
+	s = reInvisibleChars.ReplaceAllString(s, ` `)
+	s = strings.TrimSpace(s)
+	log.Printf("\n\tSQL: %s\n\tARGS: %v\n\n", s, args)
 }
 
 func (self *T) ColumnLike(s string) string {
@@ -351,9 +354,4 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) interfa
 	}
 
 	return fields, values, nil
-}
-
-func NewQueryChunks() *QueryChunks {
-	self := &QueryChunks{}
-	return self
 }

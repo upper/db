@@ -1,25 +1,23 @@
-/*
-  Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
-
-  Permission is hereby granted, free of charge, to any person obtaining
-  a copy of this software and associated documentation files (the
-  "Software"), to deal in the Software without restriction, including
-  without limitation the rights to use, copy, modify, merge, publish,
-  distribute, sublicense, and/or sell copies of the Software, and to
-  permit persons to whom the Software is furnished to do so, subject to
-  the following conditions:
-
-  The above copyright notice and this permission notice shall be
-  included in all copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+//
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package postgresql
 
@@ -27,36 +25,40 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/xiam/gopostgresql"
-	"log"
 	"os"
 	"reflect"
 	"regexp"
 	"strings"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
+	"upper.io/db/util/sqlutil"
 )
 
-// Format for saving dates.
-var DateFormat = "2006-01-02 15:04:05"
-
-// Format for saving times.
-var TimeFormat = "%d:%02d:%02d.%d"
-
-var SSLMode = "disable"
-
-var columnPattern = regexp.MustCompile(`^([a-z]+)\(?([0-9,]+)?\)?\s?([a-z]*)?`)
-
-var sqlPlaceholder = sqlgen.Value{sqlgen.Raw{`?`}}
-
-var reInvisibleChars = regexp.MustCompile(`[\s\r\n\t]+`)
-
 const Driver = `postgresql`
+
+var (
+	// Format for saving dates.
+	DateFormat = "2006-01-02 15:04:05"
+	// Format for saving times.
+	TimeFormat = "%d:%02d:%02d.%d"
+	SSLMode    = "disable"
+)
+
+var (
+	columnPattern  = regexp.MustCompile(`^([a-z]+)\(?([0-9,]+)?\)?\s?([a-z]*)?`)
+	sqlPlaceholder = sqlgen.Value{sqlgen.Raw{`?`}}
+)
 
 type Source struct {
 	config      db.Settings
 	session     *sql.DB
 	collections map[string]db.Collection
 	tx          *sql.Tx
+}
+
+type columnSchema_t struct {
+	ColumnName string `db:"column_name"`
+	DataType   string `db:"data_type"`
 }
 
 func debugEnabled() bool {
@@ -68,12 +70,6 @@ func debugEnabled() bool {
 
 func init() {
 	db.Register(Driver, &Source{})
-}
-
-func debugLogQuery(s string, args []interface{}) {
-	s = reInvisibleChars.ReplaceAllString(s, ` `)
-	s = strings.TrimSpace(s)
-	log.Printf("\n\tSQL: %s\n\tARGS: %v\n\n", s, args)
 }
 
 func (self *Source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
@@ -90,7 +86,7 @@ func (self *Source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Resu
 	}
 
 	if debugEnabled() == true {
-		debugLogQuery(query, args)
+		sqlutil.DebugQuery(query, args)
 	}
 
 	if self.tx != nil {
@@ -113,7 +109,7 @@ func (self *Source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 	}
 
 	if debugEnabled() == true {
-		debugLogQuery(query, args)
+		sqlutil.DebugQuery(query, args)
 	}
 
 	if self.tx != nil {
@@ -136,7 +132,7 @@ func (self *Source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql
 	}
 
 	if debugEnabled() == true {
-		debugLogQuery(query, args)
+		sqlutil.DebugQuery(query, args)
 	}
 
 	if self.tx != nil {
@@ -327,11 +323,6 @@ func (self *Source) tableExists(names ...string) error {
 	return nil
 }
 
-type pgColumnSchema struct {
-	ColumnName string `db:"column_name"`
-	DataType   string `db:"data_type"`
-}
-
 // Returns a collection instance by name.
 func (self *Source) Collection(names ...string) (db.Collection, error) {
 
@@ -346,7 +337,7 @@ func (self *Source) Collection(names ...string) (db.Collection, error) {
 
 	col.PrimaryKey = `id`
 
-	columns_t := []pgColumnSchema{}
+	columns_t := []columnSchema_t{}
 
 	for _, name := range names {
 		chunks := strings.SplitN(name, " ", 2)

@@ -1,25 +1,23 @@
-/*
-  Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
-
-  Permission is hereby granted, free of charge, to any person obtaining
-  a copy of this software and associated documentation files (the
-  "Software"), to deal in the Software without restriction, including
-  without limitation the rights to use, copy, modify, merge, publish,
-  distribute, sublicense, and/or sell copies of the Software, and to
-  permit persons to whom the Software is furnished to do so, subject to
-  the following conditions:
-
-  The above copyright notice and this permission notice shall be
-  included in all copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+//
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package postgresql
 
@@ -35,14 +33,88 @@ import (
 	"upper.io/db/util/sqlutil"
 )
 
-// Represents a PostgreSQL table.
+const defaultOperator = `=`
+
 type Table struct {
 	sqlutil.T
 	source *Source
 	names  []string
 }
 
-const defaultOperator = `=`
+func whereValues(term interface{}) (where sqlgen.Where, args []interface{}) {
+
+	args = []interface{}{}
+
+	switch t := term.(type) {
+	case []interface{}:
+		l := len(t)
+		where = make(sqlgen.Where, 0, l)
+		for _, cond := range t {
+			w, v := whereValues(cond)
+			args = append(args, v...)
+			where = append(where, w...)
+		}
+	case db.And:
+		and := make(sqlgen.And, 0, len(t))
+		for _, cond := range t {
+			k, v := whereValues(cond)
+			args = append(args, v...)
+			and = append(and, k...)
+		}
+		where = append(where, and)
+	case db.Or:
+		or := make(sqlgen.Or, 0, len(t))
+		for _, cond := range t {
+			k, v := whereValues(cond)
+			args = append(args, v...)
+			or = append(or, k...)
+		}
+		where = append(where, or)
+	case db.Raw:
+		if s, ok := t.Value.(string); ok == true {
+			where = append(where, sqlgen.Raw{s})
+		}
+	case db.Cond:
+		k, v := conditionValues(t)
+		args = append(args, v...)
+		for _, kk := range k {
+			where = append(where, kk)
+		}
+	}
+
+	return where, args
+}
+
+func interfaceArgs(value interface{}) (args []interface{}) {
+
+	if value == nil {
+		return nil
+	}
+
+	value_v := reflect.ValueOf(value)
+
+	switch value_v.Type().Kind() {
+	case reflect.Slice:
+		var i, total int
+
+		total = value_v.Len()
+		if total > 0 {
+			args = make([]interface{}, total)
+
+			for i = 0; i < total; i++ {
+				args[i] = toInternal(value_v.Index(i).Interface())
+			}
+
+			return args
+		} else {
+			return nil
+		}
+	default:
+		args = []interface{}{toInternal(value)}
+	}
+
+	return args
+}
 
 func conditionValues(cond db.Cond) (columnValues sqlgen.ColumnValues, args []interface{}) {
 
@@ -101,50 +173,6 @@ func conditionValues(cond db.Cond) (columnValues sqlgen.ColumnValues, args []int
 	}
 
 	return columnValues, args
-}
-
-func whereValues(term interface{}) (where sqlgen.Where, args []interface{}) {
-
-	args = []interface{}{}
-
-	switch t := term.(type) {
-	case []interface{}:
-		l := len(t)
-		where = make(sqlgen.Where, 0, l)
-		for _, cond := range t {
-			w, v := whereValues(cond)
-			args = append(args, v...)
-			where = append(where, w...)
-		}
-	case db.And:
-		and := make(sqlgen.And, 0, len(t))
-		for _, cond := range t {
-			k, v := whereValues(cond)
-			args = append(args, v...)
-			and = append(and, k...)
-		}
-		where = append(where, and)
-	case db.Or:
-		or := make(sqlgen.Or, 0, len(t))
-		for _, cond := range t {
-			k, v := whereValues(cond)
-			args = append(args, v...)
-			or = append(or, k...)
-		}
-		where = append(where, or)
-	case db.Raw:
-		if s, ok := t.Value.(string); ok == true {
-			where = append(where, sqlgen.Raw{s})
-		}
-	case db.Cond:
-		k, v := conditionValues(t)
-		args = append(args, v...)
-		for _, kk := range k {
-			where = append(where, kk)
-		}
-	}
-
-	return where, args
 }
 
 func (self *Table) Find(terms ...interface{}) db.Result {
@@ -249,10 +277,6 @@ func (self *Table) Name() string {
 	return strings.Join(self.names, `, `)
 }
 
-func toInternalInterface(val interface{}) interface{} {
-	return toInternal(val)
-}
-
 // Converts a Go value into internal database representation.
 func toInternal(val interface{}) interface{} {
 	switch t := val.(type) {
@@ -270,40 +294,4 @@ func toInternal(val interface{}) interface{} {
 		}
 	}
 	return to.String(val)
-}
-
-// Convers a database representation (after auto-conversion) into a Go value.
-func toNative(val interface{}) interface{} {
-	return val
-}
-
-func interfaceArgs(value interface{}) (args []interface{}) {
-
-	if value == nil {
-		return nil
-	}
-
-	value_v := reflect.ValueOf(value)
-
-	switch value_v.Type().Kind() {
-	case reflect.Slice:
-		var i, total int
-
-		total = value_v.Len()
-		if total > 0 {
-			args = make([]interface{}, total)
-
-			for i = 0; i < total; i++ {
-				args[i] = toInternal(value_v.Index(i).Interface())
-			}
-
-			return args
-		} else {
-			return nil
-		}
-	default:
-		args = []interface{}{toInternal(value)}
-	}
-
-	return args
 }
