@@ -10,7 +10,7 @@ func TestValue(t *testing.T) {
 
 	val = Value{1}
 
-	s = val.String()
+	s = val.Compile(defaultTemplate)
 	e = `'1'`
 
 	if s != e {
@@ -19,7 +19,7 @@ func TestValue(t *testing.T) {
 
 	val = Value{Raw{"NOW()"}}
 
-	s = val.String()
+	s = val.Compile(defaultTemplate)
 	e = `NOW()`
 
 	if s != e {
@@ -37,7 +37,7 @@ func TestValues(t *testing.T) {
 		Value{"3"},
 	}
 
-	s = val.String()
+	s = val.Compile(defaultTemplate)
 	e = `1, 2, '3'`
 
 	if s != e {

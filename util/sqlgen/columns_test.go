@@ -15,7 +15,7 @@ func TestColumns(t *testing.T) {
 		{"role.id"},
 	}
 
-	s = columns.String()
+	s = columns.Compile(defaultTemplate)
 	e = `"id", "customer", "service_id", "role"."name", "role"."id"`
 
 	if s != e {

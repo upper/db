@@ -10,7 +10,7 @@ func TestTableSimple(t *testing.T) {
 
 	table = Table{"artist"}
 
-	s = trim(table.String())
+	s = trim(table.Compile(defaultTemplate))
 	e = `"artist"`
 
 	if s != e {
@@ -24,7 +24,7 @@ func TestTableCompound(t *testing.T) {
 
 	table = Table{"artist.foo"}
 
-	s = trim(table.String())
+	s = trim(table.Compile(defaultTemplate))
 	e = `"artist"."foo"`
 
 	if s != e {
@@ -38,7 +38,7 @@ func TestTableCompoundAlias(t *testing.T) {
 
 	table = Table{"artist.foo AS baz"}
 
-	s = trim(table.String())
+	s = trim(table.Compile(defaultTemplate))
 	e = `"artist"."foo" AS "baz"`
 
 	if s != e {
@@ -52,7 +52,7 @@ func TestTableMultiple(t *testing.T) {
 
 	table = Table{"artist.foo, artist.bar, artist.baz"}
 
-	s = trim(table.String())
+	s = trim(table.Compile(defaultTemplate))
 	e = `"artist"."foo", "artist"."bar", "artist"."baz"`
 
 	if s != e {
@@ -66,7 +66,7 @@ func TestTableMultipleAlias(t *testing.T) {
 
 	table = Table{"artist.foo AS foo, artist.bar as bar, artist.baz As baz"}
 
-	s = trim(table.String())
+	s = trim(table.Compile(defaultTemplate))
 	e = `"artist"."foo" AS "foo", "artist"."bar" AS "bar", "artist"."baz" AS "baz"`
 
 	if s != e {

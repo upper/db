@@ -14,7 +14,7 @@ func TestWhereAnd(t *testing.T) {
 		ColumnValue{Column{"name"}, "=", Value{"John"}},
 	}
 
-	s = and.String()
+	s = and.Compile(defaultTemplate)
 	e = `("id" > 8 AND "id" < 99 AND "name" = 'John')`
 
 	if s != e {
@@ -31,7 +31,7 @@ func TestWhereOr(t *testing.T) {
 		ColumnValue{Column{"id"}, "=", Value{Raw{"99"}}},
 	}
 
-	s = or.String()
+	s = or.Compile(defaultTemplate)
 	e = `("id" = 8 OR "id" = 99)`
 
 	if s != e {
@@ -53,7 +53,7 @@ func TestWhereAndOr(t *testing.T) {
 		},
 	}
 
-	s = and.String()
+	s = and.Compile(defaultTemplate)
 	e = `("id" > 8 AND "id" < 99 AND "name" = 'John' AND ("last_name" = 'Smith' OR "last_name" = 'Reyes'))`
 
 	if s != e {
@@ -82,7 +82,7 @@ func TestWhereAndRawOrAnd(t *testing.T) {
 		},
 	}
 
-	s = trim(where.String())
+	s = trim(where.Compile(defaultTemplate))
 	e = `WHERE (("id" > 8 AND "id" < 99) AND "name" = 'John' AND city_id = 728 AND ("last_name" = 'Smith' OR "last_name" = 'Reyes') AND ("age" > 18 AND "age" < 41))`
 
 	if s != e {

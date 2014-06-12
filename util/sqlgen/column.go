@@ -13,7 +13,7 @@ type Column struct {
 	Value string
 }
 
-func (self Column) String() string {
+func (self Column) Compile(layout *Template) string {
 	input := strings.TrimSpace(self.Value)
 
 	chunks := reAliasSeparator.Split(input, 2)

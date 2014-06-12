@@ -19,7 +19,7 @@ type Table struct {
 	Name string
 }
 
-func quotedTableName(input string) string {
+func quotedTableName(layout *Template, input string) string {
 	input = strings.TrimSpace(input)
 
 	chunks := reAliasSeparator.Split(input, 2)
@@ -45,14 +45,14 @@ func quotedTableName(input string) string {
 	return mustParse(layout.TableAliasLayout, table_t{name, alias})
 }
 
-func (self Table) String() string {
+func (self Table) Compile(layout *Template) string {
 
 	parts := reTableSeparator.Split(self.Name, -1)
 
 	l := len(parts)
 
 	for i := 0; i < l; i++ {
-		parts[i] = quotedTableName(parts[i])
+		parts[i] = quotedTableName(layout, parts[i])
 	}
 
 	return strings.Join(parts, layout.IdentifierSeparator)

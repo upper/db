@@ -29,33 +29,3 @@ type Template struct {
 	DropTableLayout     string
 	SelectCountLayout   string
 }
-
-var layout = Template{
-	defaultColumnSeparator,
-	defaultIdentifierSeparator,
-	defaultIdentifierQuote,
-	defaultValueSeparator,
-	defaultValueQuote,
-	defaultAndKeyword,
-	defaultOrKeyword,
-	defaultNotKeyword,
-	defaultDescKeyword,
-	defaultAscKeyword,
-	defaultDefaultOperator,
-	defaultClauseGroup,
-	defaultClauseOperator,
-	defaultColumnValue,
-	defaultTableAliasLayout,
-	defaultColumnAliasLayout,
-	defaultSortByColumnLayout,
-	defaultWhereLayout,
-	defaultOrderByLayout,
-	defaultInsertLayout,
-	defaultSelectLayout,
-	defaultUpdateLayout,
-	defaultDeleteLayout,
-	defaultTruncateLayout,
-	defaultDropDatabaseLayout,
-	defaultDropTableLayout,
-	defaultSelectCountLayout,
-}

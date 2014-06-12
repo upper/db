@@ -14,23 +14,23 @@ type conds struct {
 	Conds string
 }
 
-func (self Or) String() string {
-	return groupCondition(self, mustParse(layout.ClauseOperator, layout.OrKeyword))
+func (self Or) Compile(layout *Template) string {
+	return groupCondition(layout, self, mustParse(layout.ClauseOperator, layout.OrKeyword))
 }
 
-func (self And) String() string {
-	return groupCondition(self, mustParse(layout.ClauseOperator, layout.AndKeyword))
+func (self And) Compile(layout *Template) string {
+	return groupCondition(layout, self, mustParse(layout.ClauseOperator, layout.AndKeyword))
 }
 
-func (self Where) String() string {
-	grouped := groupCondition(self, mustParse(layout.ClauseOperator, layout.AndKeyword))
+func (self Where) Compile(layout *Template) string {
+	grouped := groupCondition(layout, self, mustParse(layout.ClauseOperator, layout.AndKeyword))
 	if grouped != "" {
 		return mustParse(layout.WhereLayout, conds{grouped})
 	}
 	return ""
 }
 
-func groupCondition(terms []interface{}, joinKeyword string) string {
+func groupCondition(layout *Template, terms []interface{}, joinKeyword string) string {
 	l := len(terms)
 
 	chunks := make([]string, 0, l)
@@ -40,11 +40,11 @@ func groupCondition(terms []interface{}, joinKeyword string) string {
 		for i = 0; i < l; i++ {
 			switch v := terms[i].(type) {
 			case ColumnValue:
-				chunks = append(chunks, v.String())
+				chunks = append(chunks, v.Compile(layout))
 			case Or:
-				chunks = append(chunks, v.String())
+				chunks = append(chunks, v.Compile(layout))
 			case And:
-				chunks = append(chunks, v.String())
+				chunks = append(chunks, v.Compile(layout))
 			case Raw:
 				chunks = append(chunks, v.String())
 			}

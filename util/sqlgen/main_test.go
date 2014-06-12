@@ -1,7 +1,6 @@
 package sqlgen
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -14,7 +13,7 @@ func TestTruncateTable(t *testing.T) {
 		Table: Table{"table name"},
 	}
 
-	s = strings.TrimSpace(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `TRUNCATE TABLE "table name"`
 
 	if s != e {
@@ -31,7 +30,7 @@ func TestDropTable(t *testing.T) {
 		Table: Table{"table name"},
 	}
 
-	s = strings.TrimSpace(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `DROP TABLE "table name"`
 
 	if s != e {
@@ -48,7 +47,7 @@ func TestDropDatabase(t *testing.T) {
 		Database: Database{"table name"},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `DROP DATABASE "table name"`
 
 	if s != e {
@@ -65,7 +64,7 @@ func TestSelectCount(t *testing.T) {
 		Table: Table{"table name"},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT COUNT(1) AS _t FROM "table name"`
 
 	if s != e {
@@ -82,7 +81,7 @@ func TestSelectCountRelation(t *testing.T) {
 		Table: Table{"information_schema.tables"},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT COUNT(1) AS _t FROM "information_schema"."tables"`
 
 	if s != e {
@@ -102,7 +101,7 @@ func TestSelectCountWhere(t *testing.T) {
 		},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT COUNT(1) AS _t FROM "table name" WHERE ("a" = 7)`
 
 	if s != e {
@@ -119,7 +118,7 @@ func TestSelectStarFrom(t *testing.T) {
 		Table: Table{"table name"},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT * FROM "table name"`
 
 	if s != e {
@@ -136,7 +135,7 @@ func TestSelectStarFromAlias(t *testing.T) {
 		Table: Table{"table.name AS foo"},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT * FROM "table"."name" AS "foo"`
 
 	if s != e {
@@ -156,7 +155,7 @@ func TestSelectStarFromRawWhere(t *testing.T) {
 		},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT * FROM "table"."name" AS "foo" WHERE (foo.id = bar.foo_id)`
 
 	if s != e {
@@ -172,7 +171,7 @@ func TestSelectStarFromRawWhere(t *testing.T) {
 		},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT * FROM "table"."name" AS "foo" WHERE (foo.id = bar.foo_id AND baz.id = exp.baz_id)`
 
 	if s != e {
@@ -189,7 +188,7 @@ func TestSelectStarFromMany(t *testing.T) {
 		Table: Table{"first.table AS foo, second.table as BAR, third.table aS baz"},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT * FROM "first"."table" AS "foo", "second"."table" AS "BAR", "third"."table" AS "baz"`
 
 	if s != e {
@@ -209,7 +208,7 @@ func TestSelectArtistNameFrom(t *testing.T) {
 		},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT "artist"."name" FROM "artist"`
 
 	if s != e {
@@ -231,7 +230,7 @@ func TestSelectFieldsFrom(t *testing.T) {
 		Table: Table{"table name"},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table name"`
 
 	if s != e {
@@ -255,7 +254,7 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 		Table: Table{"table name"},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table name" LIMIT 42`
 
 	if s != e {
@@ -274,7 +273,7 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 		Table:  Table{"table name"},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table name" OFFSET 17`
 
 	if s != e {
@@ -294,7 +293,7 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 		Table:  Table{"table name"},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table name" LIMIT 42 OFFSET 17`
 
 	if s != e {
@@ -322,7 +321,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 		Table: Table{"table name"},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table name" ORDER BY "foo"`
 
 	if s != e {
@@ -345,7 +344,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 		Table: Table{"table name"},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table name" ORDER BY "foo" ASC`
 
 	if s != e {
@@ -368,7 +367,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 		Table: Table{"table name"},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table name" ORDER BY "foo" DESC`
 
 	if s != e {
@@ -393,7 +392,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 		Table: Table{"table name"},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table name" ORDER BY "foo" DESC, "bar" ASC, "baz" DESC`
 
 	if s != e {
@@ -418,7 +417,7 @@ func TestSelectFieldsFromWhere(t *testing.T) {
 		},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table name" WHERE ("baz" = '99')`
 
 	if s != e {
@@ -445,7 +444,7 @@ func TestSelectFieldsFromWhereLimitOffset(t *testing.T) {
 		Offset: 23,
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table name" WHERE ("baz" = '99') LIMIT 10 OFFSET 23`
 
 	if s != e {
@@ -465,7 +464,7 @@ func TestDelete(t *testing.T) {
 		},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `DELETE FROM "table name" WHERE ("baz" = '99')`
 
 	if s != e {
@@ -488,7 +487,7 @@ func TestUpdate(t *testing.T) {
 		},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `UPDATE "table name" SET "foo" = '76' WHERE ("baz" = '99')`
 
 	if s != e {
@@ -507,7 +506,7 @@ func TestUpdate(t *testing.T) {
 		},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `UPDATE "table name" SET "foo" = '76', "bar" = 88 WHERE ("baz" = '99')`
 
 	if s != e {
@@ -534,7 +533,7 @@ func TestInsert(t *testing.T) {
 		},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `INSERT INTO "table name" ("foo", "bar", "baz") VALUES ('1', '2', 3)`
 
 	if s != e {
@@ -562,7 +561,7 @@ func TestInsertExtra(t *testing.T) {
 		},
 	}
 
-	s = trim(stmt.Compile())
+	s = trim(stmt.Compile(defaultTemplate))
 	e = `INSERT INTO "table name" ("foo", "bar", "baz") VALUES ('1', '2', 3) RETURNING id`
 
 	if s != e {

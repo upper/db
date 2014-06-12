@@ -7,28 +7,44 @@ type SortColumn struct {
 	Sort
 }
 
+type sortColumn_s struct {
+	Column string
+	Sort   string
+}
+
 type SortColumns []SortColumn
 
-func (self SortColumns) String() string {
+func (self SortColumns) Compile(layout *Template) string {
 	l := len(self)
 	s := make([]string, 0, l)
 	for i := 0; i < l; i++ {
-		s = append(s, self[i].String())
+		s = append(s, self[i].Compile(layout))
 	}
 	return strings.Join(s, layout.IdentifierSeparator)
 }
 
-func (self SortColumn) String() string {
-	return mustParse(layout.SortByColumnLayout, self)
+func (self SortColumn) Compile(layout *Template) string {
+	data := sortColumn_s{
+		Column: self.Column.Compile(layout),
+		Sort:   self.Sort.Compile(layout),
+	}
+	return mustParse(layout.SortByColumnLayout, data)
 }
 
 type OrderBy struct {
 	SortColumns
 }
 
-func (self OrderBy) String() string {
+type orderBy_s struct {
+	SortColumns string
+}
+
+func (self OrderBy) Compile(layout *Template) string {
 	if len(self.SortColumns) > 0 {
-		return mustParse(layout.OrderByLayout, self)
+		data := orderBy_s{
+			SortColumns: self.SortColumns.Compile(layout),
+		}
+		return mustParse(layout.OrderByLayout, data)
 	}
 	return ""
 }
@@ -41,7 +57,7 @@ const (
 	SqlSortDesc
 )
 
-func (self Sort) String() string {
+func (self Sort) Compile(layout *Template) string {
 	switch self {
 	case SqlSortAsc:
 		return layout.AscKeyword

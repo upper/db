@@ -10,7 +10,7 @@ func TestColumnValue(t *testing.T) {
 
 	cv = ColumnValue{Column{"id"}, "=", Value{1}}
 
-	s = cv.String()
+	s = cv.Compile(defaultTemplate)
 	e = `"id" = '1'`
 
 	if s != e {
@@ -19,7 +19,7 @@ func TestColumnValue(t *testing.T) {
 
 	cv = ColumnValue{Column{"date"}, "=", Value{Raw{"NOW()"}}}
 
-	s = cv.String()
+	s = cv.Compile(defaultTemplate)
 	e = `"date" = NOW()`
 
 	if s != e {
@@ -39,7 +39,7 @@ func TestColumnValues(t *testing.T) {
 		{Column{"modified"}, "<=", Value{Raw{"NOW()"}}},
 	}
 
-	s = cvs.String()
+	s = cvs.Compile(defaultTemplate)
 	e = `"id" > '8', "other"."id" < 100, "name" = 'Haruki Murakami', "created" >= NOW(), "modified" <= NOW()`
 
 	if s != e {

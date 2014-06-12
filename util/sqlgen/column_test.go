@@ -9,7 +9,7 @@ func TestColumnString(t *testing.T) {
 
 	column := Column{"role.name"}
 
-	s = column.String()
+	s = column.Compile(defaultTemplate)
 	e = `"role"."name"`
 
 	if s != e {
@@ -22,7 +22,7 @@ func TestColumnAs(t *testing.T) {
 
 	column := Column{"role.name as foo"}
 
-	s = column.String()
+	s = column.Compile(defaultTemplate)
 	e = `"role"."name" AS "foo"`
 
 	if s != e {

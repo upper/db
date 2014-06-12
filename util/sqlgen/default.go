@@ -6,21 +6,18 @@ const (
 	defaultIdentifierQuote     = `"{{.Raw}}"`
 	defaultValueSeparator      = `, `
 	defaultValueQuote          = `'{{.}}'`
-
-	defaultAndKeyword      = `AND`
-	defaultOrKeyword       = `OR`
-	defaultNotKeyword      = `NOT`
-	defaultDescKeyword     = `DESC`
-	defaultAscKeyword      = `ASC`
-	defaultDefaultOperator = `=`
-	defaultClauseGroup     = `({{.}})`
-	defaultClauseOperator  = ` {{.}} `
-	defaultColumnValue     = `{{.Column}} {{.Operator}} {{.Value}}`
-
-	defaultTableAliasLayout  = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
-	defaultColumnAliasLayout = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
-
-	defaultSortByColumnLayout = `{{.Column}} {{.Sort}}`
+	defaultAndKeyword          = `AND`
+	defaultOrKeyword           = `OR`
+	defaultNotKeyword          = `NOT`
+	defaultDescKeyword         = `DESC`
+	defaultAscKeyword          = `ASC`
+	defaultDefaultOperator     = `=`
+	defaultClauseGroup         = `({{.}})`
+	defaultClauseOperator      = ` {{.}} `
+	defaultColumnValue         = `{{.Column}} {{.Operator}} {{.Value}}`
+	defaultTableAliasLayout    = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
+	defaultColumnAliasLayout   = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
+	defaultSortByColumnLayout  = `{{.Column}} {{.Sort}}`
 
 	defaultOrderByLayout = `
 		{{if .SortColumns}}
@@ -104,3 +101,33 @@ const (
 		DROP TABLE {{.Table}}
 	`
 )
+
+var defaultTemplate = &Template{
+	defaultColumnSeparator,
+	defaultIdentifierSeparator,
+	defaultIdentifierQuote,
+	defaultValueSeparator,
+	defaultValueQuote,
+	defaultAndKeyword,
+	defaultOrKeyword,
+	defaultNotKeyword,
+	defaultDescKeyword,
+	defaultAscKeyword,
+	defaultDefaultOperator,
+	defaultClauseGroup,
+	defaultClauseOperator,
+	defaultColumnValue,
+	defaultTableAliasLayout,
+	defaultColumnAliasLayout,
+	defaultSortByColumnLayout,
+	defaultWhereLayout,
+	defaultOrderByLayout,
+	defaultInsertLayout,
+	defaultSelectLayout,
+	defaultUpdateLayout,
+	defaultDeleteLayout,
+	defaultTruncateLayout,
+	defaultDropDatabaseLayout,
+	defaultDropTableLayout,
+	defaultSelectCountLayout,
+}
