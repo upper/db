@@ -6,6 +6,22 @@ CREATE TABLE artist (
   name string
 );
 
+DROP TABLE IF EXISTS publication;
+
+CREATE TABLE publication (
+  title string,
+  author_id int
+);
+
+DROP TABLE IF EXISTS review;
+
+CREATE TABLE review (
+  publication_id int,
+  name string,
+  comments string,
+  created time
+);
+
 DROP TABLE IF EXISTS data_types;
 
 CREATE TABLE data_types (

@@ -1,25 +1,23 @@
-/*
-  Copyright (c) 2014 José Carlos Nieto, https://menteslibres.net/xiam
-
-  Permission is hereby granted, free of charge, to any person obtaining
-  a copy of this software and associated documentation files (the
-  "Software"), to deal in the Software without restriction, including
-  without limitation the rights to use, copy, modify, merge, publish,
-  distribute, sublicense, and/or sell copies of the Software, and to
-  permit persons to whom the Software is furnished to do so, subject to
-  the following conditions:
-
-  The above copyright notice and this permission notice shall be
-  included in all copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+//
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package ql
 
@@ -27,38 +25,41 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/cznic/ql/driver"
-	"log"
 	"os"
 	"reflect"
 	"strings"
 	"time"
 	"upper.io/db"
+	"upper.io/db/util/sqlgen"
+	"upper.io/db/util/sqlutil"
 )
 
-var Debug = false
+const Driver = `ql`
 
-// Format for saving dates.
-var DateFormat = "2006-01-02 15:04:05"
+var (
+	// Format for saving dates.
+	DateFormat = "2006-01-02 15:04:05.000"
+	// Format for saving times.
+	TimeFormat = "%d:%02d:%02d.%03d"
+	timeType   = reflect.TypeOf(time.Time{}).Kind()
+)
 
-// Format for saving times.
-var TimeFormat = "%d:%02d:%02d.%d"
+var template *sqlgen.Template
 
-var timeType = reflect.TypeOf(time.Time{}).Kind()
-
-const driverName = `ql`
-
-type sqlValues_t []interface{}
+var (
+	sqlPlaceholder = sqlgen.Value{sqlgen.Raw{`?`}}
+)
 
 type Source struct {
 	config      db.Settings
 	session     *sql.DB
-	name        string
 	collections map[string]db.Collection
+	tx          *sql.Tx
 }
 
-type sqlQuery struct {
-	Query []string
-	Args  []interface{}
+type columnSchema_t struct {
+	ColumnName string `db:"name"`
+	DataType   string `db:"type"`
 }
 
 func debugEnabled() bool {
@@ -69,134 +70,202 @@ func debugEnabled() bool {
 }
 
 func init() {
-	db.Register(driverName, &Source{})
+
+	template = &sqlgen.Template{
+		qlColumnSeparator,
+		qlIdentifierSeparator,
+		qlIdentifierQuote,
+		qlValueSeparator,
+		qlValueQuote,
+		qlAndKeyword,
+		qlOrKeyword,
+		qlNotKeyword,
+		qlDescKeyword,
+		qlAscKeyword,
+		qlDefaultOperator,
+		qlClauseGroup,
+		qlClauseOperator,
+		qlColumnValue,
+		qlTableAliasLayout,
+		qlColumnAliasLayout,
+		qlSortByColumnLayout,
+		qlWhereLayout,
+		qlOrderByLayout,
+		qlInsertLayout,
+		qlSelectLayout,
+		qlUpdateLayout,
+		qlDeleteLayout,
+		qlTruncateLayout,
+		qlDropDatabaseLayout,
+		qlDropTableLayout,
+		qlSelectCountLayout,
+	}
+
+	db.Register(Driver, &Source{})
 }
 
-func debugLogQuery(s string, q *sqlQuery) {
-	log.Printf("SQL: %s\nARGS: %v\n", strings.TrimSpace(s), q.Args)
-}
+func (self *Source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
 
-func sqlCompile(terms []interface{}) *sqlQuery {
-	q := &sqlQuery{}
+	if self.session == nil {
+		return nil, db.ErrNotConnected
+	}
 
-	q.Query = []string{}
+	query := stmt.Compile(template)
 
-	for _, term := range terms {
-		switch t := term.(type) {
-		case sqlValues_t:
-			args := make([]string, len(t))
-			for i, arg := range t {
-				args[i] = `?`
-				q.Args = append(q.Args, arg)
-			}
-			q.Query = append(q.Query, `(`+strings.Join(args, `, `)+`)`)
-		case string:
-			q.Query = append(q.Query, t)
-		default:
-			if reflect.TypeOf(t).Kind() == reflect.Slice {
-				var v = reflect.ValueOf(t)
-				for i := 0; i < v.Len(); i++ {
-					q.Args = append(q.Args, v.Index(i).Interface())
-				}
-			} else {
-				q.Args = append(q.Args, t)
-			}
+	l := len(args)
+	for i := 0; i < l; i++ {
+		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
+	}
+
+	if debugEnabled() == true {
+		sqlutil.DebugQuery(query, args)
+	}
+
+	if self.tx == nil {
+		var tx *sql.Tx
+		var err error
+		var res sql.Result
+
+		if tx, err = self.session.Begin(); err != nil {
+			return nil, err
 		}
+
+		if res, err = tx.Exec(query, args...); err != nil {
+			return nil, err
+		}
+
+		if err = tx.Commit(); err != nil {
+			return nil, err
+		}
+
+		return res, nil
 	}
 
-	return q
+	return self.tx.Exec(query, args...)
 }
 
-func sqlFields(names []string) string {
-	return `(` + strings.Join(names, `, `) + `)`
-}
-
-func sqlValues(values []interface{}) sqlValues_t {
-	ret := make(sqlValues_t, len(values))
-	for i, _ := range values {
-		ret[i] = values[i]
-	}
-	return ret
-}
-
-func (self *Source) doExec(terms ...interface{}) (res sql.Result, err error) {
-	var tx *sql.Tx
-
+func (self *Source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Rows, error) {
 	if self.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
-	chunks := sqlCompile(terms)
+	query := stmt.Compile(template)
 
-	query := strings.Join(chunks.Query, ` `)
-
-	for i := 0; i < len(chunks.Args); i++ {
+	l := len(args)
+	for i := 0; i < l; i++ {
 		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
 	}
 
 	if debugEnabled() == true {
-		debugLogQuery(query, chunks)
+		sqlutil.DebugQuery(query, args)
 	}
 
-	if tx, err = self.session.Begin(); err != nil {
-		return nil, err
+	if self.tx == nil {
+		var tx *sql.Tx
+		var err error
+		var rows *sql.Rows
+
+		if tx, err = self.session.Begin(); err != nil {
+			return nil, err
+		}
+
+		if rows, err = tx.Query(query, args...); err != nil {
+			return nil, err
+		}
+
+		if err = tx.Commit(); err != nil {
+			return nil, err
+		}
+
+		return rows, nil
 	}
 
-	if res, err = tx.Exec(query, chunks.Args...); err != nil {
-		return nil, err
-	}
-
-	if err = tx.Commit(); err != nil {
-		return nil, err
-	}
-
-	return res, nil
+	return self.tx.Query(query, args...)
 }
 
-func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
+func (self *Source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Row, error) {
 	if self.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
-	chunks := sqlCompile(terms)
+	query := stmt.Compile(template)
 
-	query := strings.Join(chunks.Query, ` `)
-
-	for i := 0; i < len(chunks.Args); i++ {
+	l := len(args)
+	for i := 0; i < l; i++ {
 		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
 	}
 
 	if debugEnabled() == true {
-		debugLogQuery(query, chunks)
+		sqlutil.DebugQuery(query, args)
 	}
 
-	return self.session.Query(query, chunks.Args...)
-}
+	if self.tx == nil {
+		var tx *sql.Tx
+		var err error
+		var row *sql.Row
 
-func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
-	if self.session == nil {
-		return nil, db.ErrNotConnected
+		if tx, err = self.session.Begin(); err != nil {
+			return nil, err
+		}
+
+		if row = tx.QueryRow(query, args...); err != nil {
+			return nil, err
+		}
+
+		if err = tx.Commit(); err != nil {
+			return nil, err
+		}
+
+		return row, nil
+	} else {
+		return self.tx.QueryRow(query, args...), nil
 	}
-
-	chunks := sqlCompile(terms)
-
-	query := strings.Join(chunks.Query, ` `)
-
-	for i := 0; i < len(chunks.Args); i++ {
-		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
-	}
-
-	if Debug == true {
-		fmt.Printf("Q: %s\n", query)
-		fmt.Printf("A: %v\n", chunks.Args)
-	}
-
-	return self.session.QueryRow(query, chunks.Args...), nil
 }
 
 // Returns the string name of the database.
 func (self *Source) Name() string {
 	return self.config.Database
+}
+
+//  Ping verifies a connection to the database is still alive,
+//  establishing a connection if necessary.
+func (self *Source) Ping() error {
+	return self.session.Ping()
+}
+
+func (self *Source) clone() (*Source, error) {
+	src := &Source{}
+	src.Setup(self.config)
+
+	if err := src.Open(); err != nil {
+		return nil, err
+	}
+
+	return src, nil
+}
+
+func (self *Source) Clone() (db.Database, error) {
+	return self.clone()
+}
+
+func (self *Source) Transaction() (db.Tx, error) {
+	var err error
+	var clone *Source
+	var sqlTx *sql.Tx
+
+	if clone, err = self.clone(); err != nil {
+		return nil, err
+	}
+
+	if sqlTx, err = clone.session.Begin(); err != nil {
+		return nil, err
+	}
+
+	tx := &Tx{clone}
+
+	clone.tx = sqlTx
+
+	return tx, nil
 }
 
 // Stores database settings.
@@ -242,22 +311,15 @@ func (self *Source) Use(database string) error {
 	return self.Open()
 }
 
-// Starts a transaction block.
-func (self *Source) Begin() error {
-	_, err := self.session.Exec(`BEGIN`)
-	return err
-}
-
-// Ends a transaction block.
-func (self *Source) End() error {
-	_, err := self.session.Exec(`END`)
-	return err
-}
-
 // Drops the currently active database.
 func (self *Source) Drop() error {
-	self.session.Query(fmt.Sprintf(`DROP DATABASE "%s"`, self.config.Database))
-	return nil
+
+	_, err := self.doQuery(sqlgen.Statement{
+		Type:     sqlgen.SqlDropDatabase,
+		Database: sqlgen.Database{self.config.Database},
+	})
+
+	return err
 }
 
 // Returns a list of all tables within the currently active database.
@@ -265,7 +327,13 @@ func (self *Source) Collections() ([]string, error) {
 	var collections []string
 	var collection string
 
-	rows, err := self.session.Query(`SELECT Name FROM __Table`)
+	rows, err := self.doQuery(sqlgen.Statement{
+		Type:  sqlgen.SqlSelect,
+		Table: sqlgen.Table{`__Table`},
+		Columns: sqlgen.Columns{
+			{`Name`},
+		},
+	})
 
 	if err != nil {
 		return nil, err
@@ -274,114 +342,136 @@ func (self *Source) Collections() ([]string, error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		if err = rows.Scan(&collection); err != nil {
-			return nil, err
-		}
+		rows.Scan(&collection)
 		collections = append(collections, collection)
-	}
-
-	err = rows.Err()
-
-	if err != nil {
-		return nil, err
 	}
 
 	return collections, nil
 }
 
-// Returns a collection instance by name.
-func (self *Source) Collection(name string) (db.Collection, error) {
+func (self *Source) tableExists(names ...string) error {
+	for _, name := range names {
 
-	if collection, ok := self.collections[name]; ok == true {
-		return collection, nil
-	}
+		rows, err := self.doQuery(sqlgen.Statement{
+			Type:  sqlgen.SqlSelect,
+			Table: sqlgen.Table{`__Table`},
+			Columns: sqlgen.Columns{
+				{`Name`},
+			},
+			Where: sqlgen.Where{
+				sqlgen.ColumnValue{sqlgen.Column{`Name`}, `==`, sqlPlaceholder},
+			},
+		}, name)
 
-	table := &Table{}
-
-	table.source = self
-	table.DB = self
-	table.PrimaryKey = `id`
-
-	table.SetName = name
-
-	// Table exists?
-	if table.Exists() == false {
-		return table, db.ErrCollectionDoesNotExists
-	}
-
-	// Fetching table datatypes and mapping to internal gotypes.
-	rows, err := table.source.doQuery(
-		`SELECT
-			Name, Type
-		FROM __Column
-		WHERE
-			TableName == ?`,
-		[]string{table.Name()},
-	)
-
-	if err != nil {
-		return table, err
-	}
-
-	columns := []struct {
-		Name string
-		Type string
-	}{}
-
-	err = table.FetchRows(&columns, rows)
-
-	if err != nil {
-		return nil, err
-	}
-
-	table.ColumnTypes = make(map[string]reflect.Kind, len(columns))
-
-	for _, column := range columns {
-
-		column.Name = strings.ToLower(column.Name)
-		column.Type = strings.ToLower(column.Type)
-
-		// Default properties.
-		dtype := column.Type
-
-		ctype := reflect.String
-
-		// Guessing datatypes.
-		switch dtype {
-		case `int`:
-			ctype = reflect.Int
-		case `int8`:
-			ctype = reflect.Int8
-		case `int16`:
-			ctype = reflect.Int16
-		case `int32`, `rune`:
-			ctype = reflect.Int32
-		case `int64`:
-			ctype = reflect.Int64
-		case `uint`:
-			ctype = reflect.Uint
-		case `uint8`:
-			ctype = reflect.Uint8
-		case `uint16`:
-			ctype = reflect.Uint16
-		case `uint32`:
-			ctype = reflect.Uint32
-		case `uint64`:
-			ctype = reflect.Uint64
-		case `float64`:
-			ctype = reflect.Float64
-		case `float32`:
-			ctype = reflect.Float32
-		case `time`:
-			ctype = timeType
-		default:
-			ctype = reflect.String
+		if err != nil {
+			return db.ErrCollectionDoesNotExists
 		}
 
-		table.ColumnTypes[column.Name] = ctype
+		defer rows.Close()
+
+		if rows.Next() == false {
+			return db.ErrCollectionDoesNotExists
+		}
 	}
 
-	self.collections[name] = table
+	return nil
+}
 
-	return table, nil
+// Returns a collection instance by name.
+func (self *Source) Collection(names ...string) (db.Collection, error) {
+
+	if len(names) == 0 {
+		return nil, db.ErrMissingCollectionName
+	}
+
+	col := &Table{
+		source: self,
+		names:  names,
+	}
+
+	col.PrimaryKey = `id`
+
+	columns_t := []columnSchema_t{}
+
+	for _, name := range names {
+		chunks := strings.SplitN(name, " ", 2)
+
+		if len(chunks) > 0 {
+
+			name = chunks[0]
+
+			if err := self.tableExists(name); err != nil {
+				return nil, err
+			}
+
+			rows, err := self.doQuery(sqlgen.Statement{
+				Type:  sqlgen.SqlSelect,
+				Table: sqlgen.Table{`__Column`},
+				Columns: sqlgen.Columns{
+					{`Name`},
+					{`Type`},
+				},
+				Where: sqlgen.Where{
+					sqlgen.ColumnValue{sqlgen.Column{`TableName`}, `==`, sqlPlaceholder},
+				},
+			}, name)
+
+			if err != nil {
+				return nil, err
+			}
+
+			if err = col.FetchRows(&columns_t, rows); err != nil {
+				return nil, err
+			}
+
+			col.ColumnTypes = make(map[string]reflect.Kind, len(columns_t))
+
+			for _, column := range columns_t {
+
+				column.ColumnName = strings.ToLower(column.ColumnName)
+				column.DataType = strings.ToLower(column.DataType)
+
+				// Default properties.
+				dtype := column.DataType
+				ctype := reflect.String
+
+				// Guessing datatypes.
+				switch dtype {
+				case `int`:
+					ctype = reflect.Int
+				case `int8`:
+					ctype = reflect.Int8
+				case `int16`:
+					ctype = reflect.Int16
+				case `int32`, `rune`:
+					ctype = reflect.Int32
+				case `int64`:
+					ctype = reflect.Int64
+				case `uint`:
+					ctype = reflect.Uint
+				case `uint8`:
+					ctype = reflect.Uint8
+				case `uint16`:
+					ctype = reflect.Uint16
+				case `uint32`:
+					ctype = reflect.Uint32
+				case `uint64`:
+					ctype = reflect.Uint64
+				case `float64`:
+					ctype = reflect.Float64
+				case `float32`:
+					ctype = reflect.Float32
+				case `time`:
+					ctype = timeType
+				default:
+					ctype = reflect.String
+				}
+
+				col.ColumnTypes[column.ColumnName] = ctype
+			}
+
+		}
+	}
+
+	return col, nil
 }
