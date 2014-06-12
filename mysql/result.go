@@ -28,7 +28,7 @@ import (
 	"upper.io/db/util/sqlgen"
 )
 
-type counter struct {
+type counter_t struct {
 	Total uint64 `db:"_t"`
 }
 
@@ -239,7 +239,7 @@ func (self *Result) Count() (uint64, error) {
 
 	defer rows.Close()
 
-	dst := counter{}
+	dst := counter_t{}
 	self.table.T.FetchRow(&dst, rows)
 
 	return dst.Total, nil

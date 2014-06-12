@@ -43,6 +43,8 @@ var (
 	TimeFormat = "%d:%02d:%02d.%03d"
 )
 
+var template *sqlgen.Template
+
 var (
 	columnPattern  = regexp.MustCompile(`^([a-z]+)\(?([0-9,]+)?\)?\s?([a-z]*)?`)
 	sqlPlaceholder = sqlgen.Value{sqlgen.Raw{`?`}}
@@ -69,7 +71,7 @@ func debugEnabled() bool {
 
 func init() {
 
-	sqlgen.SetTemplate(sqlgen.Template{
+	template = &sqlgen.Template{
 		mysqlColumnSeparator,
 		mysqlIdentifierSeparator,
 		mysqlIdentifierQuote,
@@ -97,7 +99,7 @@ func init() {
 		mysqlDropDatabaseLayout,
 		mysqlDropTableLayout,
 		mysqlSelectCountLayout,
-	})
+	}
 
 	db.Register(Driver, &Source{})
 }
@@ -108,7 +110,7 @@ func (self *Source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Resu
 		return nil, db.ErrNotConnected
 	}
 
-	query := stmt.Compile()
+	query := stmt.Compile(template)
 
 	if debugEnabled() == true {
 		sqlutil.DebugQuery(query, args)
@@ -126,7 +128,7 @@ func (self *Source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 		return nil, db.ErrNotConnected
 	}
 
-	query := stmt.Compile()
+	query := stmt.Compile(template)
 
 	if debugEnabled() == true {
 		sqlutil.DebugQuery(query, args)
@@ -144,7 +146,7 @@ func (self *Source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql
 		return nil, db.ErrNotConnected
 	}
 
-	query := stmt.Compile()
+	query := stmt.Compile(template)
 
 	if debugEnabled() == true {
 		sqlutil.DebugQuery(query, args)
