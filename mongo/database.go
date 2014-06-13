@@ -34,7 +34,7 @@ import (
 	"upper.io/db"
 )
 
-const driverName = `mongo`
+const Driver = `mongo`
 
 var connTimeout = time.Second * 5
 
@@ -53,7 +53,7 @@ func debugEnabled() bool {
 }
 
 func init() {
-	db.Register(driverName, &Source{})
+	db.Register(Driver, &Source{})
 }
 
 func debugLogQuery(c *chunks) {
@@ -69,6 +69,24 @@ func (self *Source) Name() string {
 func (self *Source) Setup(config db.Settings) error {
 	self.config = config
 	return self.Open()
+}
+
+func (self *Source) Clone() (db.Database, error) {
+	clone := &Source{
+		name:     self.name,
+		config:   self.config,
+		session:  self.session.Copy(),
+		database: self.database,
+	}
+	return clone, nil
+}
+
+func (self *Source) Transaction() (db.Tx, error) {
+	return nil, db.ErrUnsupported
+}
+
+func (self *Source) Ping() error {
+	return self.session.Ping()
 }
 
 // Returns the underlying *mgo.Session instance.
@@ -171,15 +189,20 @@ func (self *Source) Collections() (cols []string, err error) {
 }
 
 // Returns a collection instance by name.
-func (self *Source) Collection(name string) (db.Collection, error) {
+func (self *Source) Collection(names ...string) (db.Collection, error) {
 	var err error
+
+	if len(names) > 1 {
+		return nil, db.ErrUnsupported
+	}
+
+	name := names[0]
 
 	col := &Collection{}
 	col.parent = self
 	col.collection = self.database.C(name)
 
 	col.DB = self
-	col.SetName = name
 
 	if col.Exists() == false {
 		err = db.ErrCollectionDoesNotExists

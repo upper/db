@@ -35,9 +35,6 @@ import (
 	"upper.io/db"
 )
 
-// Wrapper.
-const wrapperName = "mongo"
-
 // Wrapper settings.
 const (
 	host   = "testserver.local"
@@ -95,7 +92,7 @@ func TestEnableDebug(t *testing.T) {
 // Trying to open an empty datasource, it must succeed (mongo).
 /*
 func TestOpenFailed(t *testing.T) {
-	_, err := db.Open(wrapperName, db.Settings{})
+	_, err := db.Open(Driver, db.Settings{})
 
 	if err != nil {
 		t.Errorf(err.Error())
@@ -109,7 +106,7 @@ func TestTruncate(t *testing.T) {
 	var err error
 
 	// Opening database.
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -155,7 +152,7 @@ func TestAppend(t *testing.T) {
 	var id interface{}
 
 	// Opening database.
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -243,7 +240,7 @@ func TestResultCount(t *testing.T) {
 	var res db.Result
 
 	// Opening database.
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -276,7 +273,7 @@ func TestResultFetch(t *testing.T) {
 	var res db.Result
 
 	// Opening database.
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -445,7 +442,7 @@ func TestUpdate(t *testing.T) {
 	var err error
 
 	// Opening database.
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -547,7 +544,7 @@ func TestFunction(t *testing.T) {
 	var res db.Result
 
 	// Opening database.
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -589,7 +586,7 @@ func TestRemove(t *testing.T) {
 	var err error
 
 	// Opening database.
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -635,7 +632,7 @@ func TestDataTypes(t *testing.T) {
 	var res db.Result
 
 	// Opening database.
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -685,7 +682,7 @@ func TestDisableDebug(t *testing.T) {
 
 // Benchmarking raw mgo queries.
 func BenchmarkAppendRaw(b *testing.B) {
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		b.Fatalf(err.Error())
@@ -711,7 +708,7 @@ func BenchmarkAppendRaw(b *testing.B) {
 }
 
 func BenchmarkAppendDbItem(b *testing.B) {
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		b.Fatalf(err.Error())
@@ -732,7 +729,7 @@ func BenchmarkAppendDbItem(b *testing.B) {
 }
 
 func BenchmarkAppendStruct(b *testing.B) {
-	sess, err := db.Open(wrapperName, settings)
+	sess, err := db.Open(Driver, settings)
 
 	if err != nil {
 		b.Fatalf(err.Error())

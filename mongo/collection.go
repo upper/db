@@ -183,6 +183,10 @@ func (self *Collection) compileQuery(terms ...interface{}) interface{} {
 	return query
 }
 
+func (self *Collection) Name() string {
+	return self.collection.Name
+}
+
 // Deletes all the rows within the collection.
 func (self *Collection) Truncate() error {
 	err := self.collection.DropCollection()
@@ -231,7 +235,7 @@ func (self *Collection) Append(item interface{}) (interface{}, error) {
 
 // Returns true if the collection exists.
 func (self *Collection) Exists() bool {
-	query := self.parent.database.C(`system.namespaces`).Find(map[string]string{`name`: fmt.Sprintf(`%s.%s`, self.parent.Name(), self.Name())})
+	query := self.parent.database.C(`system.namespaces`).Find(map[string]string{`name`: fmt.Sprintf(`%s.%s`, self.parent.database.Name, self.collection.Name)})
 	count, _ := query.Count()
 	if count > 0 {
 		return true
