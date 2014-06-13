@@ -11,19 +11,19 @@ import (
 	"testing"
 	"time"
 	"upper.io/db"
-	//_ "upper.io/db/mongo"
-	//_ "upper.io/db/mysql"
+	_ "upper.io/db/mongo"
+	_ "upper.io/db/mysql"
 	_ "upper.io/db/postgresql"
-	//_ "upper.io/db/ql"
-	//_ "upper.io/db/sqlite"
+	_ "upper.io/db/ql"
+	_ "upper.io/db/sqlite"
 )
 
 var wrappers = []string{
-	//`sqlite`,
-	//`mysql`,
+	`sqlite`,
+	`mysql`,
 	`postgresql`,
-	//`mongo`,
-	//`ql`,
+	`mongo`,
+	`ql`,
 }
 
 const (

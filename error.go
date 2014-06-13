@@ -43,6 +43,7 @@ var (
 	ErrQuerySortParam          = errors.New(`A query can accept only one db.Sort{} parameter.`)
 	ErrQueryOffsetParam        = errors.New(`A query can accept only one db.Offset() parameter.`)
 	ErrMissingConditions       = errors.New(`Missing selector conditions.`)
+	ErrUnsupported             = errors.New(`This action is currently unsupported on this database.`)
 	ErrQueryIsPending          = errors.New(`Can't execute this instruction while the result set is still open.`)
 	ErrUnsupportedDestination  = errors.New(`Unsupported destination type.`)
 )
