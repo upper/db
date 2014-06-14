@@ -34,7 +34,7 @@ import (
 	"upper.io/db/util/sqlutil"
 )
 
-const Driver = `sqlite`
+const Adapter = `sqlite`
 
 var (
 	// Format for saving dates.
@@ -102,7 +102,7 @@ func init() {
 		sqlSelectCountLayout,
 	}
 
-	db.Register(Driver, &Source{})
+	db.Register(Adapter, &Source{})
 }
 
 func (self *Source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
