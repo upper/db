@@ -52,6 +52,11 @@ func (self *Result) setCursor() error {
 	return nil
 }
 
+func (self *Result) Where(terms ...interface{}) db.Result {
+	self.queryChunks.Conditions = self.c.compileQuery(terms...)
+	return self
+}
+
 // Determines the maximum limit of results to be returned.
 func (self *Result) Limit(n uint) db.Result {
 	self.queryChunks.Limit = int(n)

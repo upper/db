@@ -60,6 +60,7 @@ func (self *Result) setCursor() error {
 	return err
 }
 
+// Sets conditions for reducing the working set.
 func (self *Result) Where(terms ...interface{}) db.Result {
 	self.where, self.arguments = whereValues(terms)
 	return self

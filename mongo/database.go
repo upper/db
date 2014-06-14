@@ -34,7 +34,7 @@ import (
 	"upper.io/db"
 )
 
-const Driver = `mongo`
+const Adapter = `mongo`
 
 var connTimeout = time.Second * 5
 
@@ -53,7 +53,7 @@ func debugEnabled() bool {
 }
 
 func init() {
-	db.Register(Driver, &Source{})
+	db.Register(Adapter, &Source{})
 }
 
 func debugLogQuery(c *chunks) {
