@@ -93,7 +93,7 @@ func TestOpenFailed(t *testing.T) {
 	var err error
 
 	// Attempt to open an empty database.
-	if _, err = db.Open(Driver, db.Settings{}); err == nil {
+	if _, err = db.Open(Adapter, db.Settings{}); err == nil {
 		// Must fail.
 		t.Fatalf("Expecting an error.")
 	}
@@ -107,7 +107,7 @@ func TestTruncate(t *testing.T) {
 	var col db.Collection
 
 	// Opening database.
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -149,7 +149,7 @@ func TestAppend(t *testing.T) {
 	var artist db.Collection
 	var total uint64
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -221,7 +221,7 @@ func TestResultCount(t *testing.T) {
 	var artist db.Collection
 	var total uint64
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -252,7 +252,7 @@ func TestResultFetch(t *testing.T) {
 	var sess db.Database
 	var artist db.Collection
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -415,7 +415,7 @@ func TestUpdate(t *testing.T) {
 	var sess db.Database
 	var artist db.Collection
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -504,7 +504,7 @@ func TestFunction(t *testing.T) {
 	var artist db.Collection
 	var total uint64
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -557,7 +557,7 @@ func TestRemove(t *testing.T) {
 	var sess db.Database
 	var artist db.Collection
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -604,7 +604,7 @@ func TestRawRelations(t *testing.T) {
 		Created       time.Time `db:"created"`
 	}
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -772,7 +772,7 @@ func TestDataTypes(t *testing.T) {
 	var id interface{}
 	var exists uint64
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -828,7 +828,7 @@ func BenchmarkAppendRawSQL(b *testing.B) {
 	var err error
 	var sess db.Database
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatalf(err.Error())
 	}
 
@@ -854,7 +854,7 @@ func BenchmarkAppendRawSQL(b *testing.B) {
 // Contributed by wei2912
 // See: https://github.com/gosexy/db/issues/20#issuecomment-20097801
 func BenchmarkAppendUpper(b *testing.B) {
-	sess, err := db.Open(Driver, settings)
+	sess, err := db.Open(Adapter, settings)
 
 	if err != nil {
 		b.Fatalf(err.Error())
@@ -886,7 +886,7 @@ func BenchmarkAppendTxRawSQL(b *testing.B) {
 	var sess db.Database
 	var tx *sql.Tx
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatalf(err.Error())
 	}
 
@@ -919,7 +919,7 @@ func BenchmarkAppendTxUpper(b *testing.B) {
 	var sess db.Database
 	var err error
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatalf(err.Error())
 	}
 
@@ -960,7 +960,7 @@ func BenchmarkAppendTxUpperMap(b *testing.B) {
 	var sess db.Database
 	var err error
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatalf(err.Error())
 	}
 

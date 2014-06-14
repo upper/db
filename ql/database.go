@@ -34,7 +34,7 @@ import (
 	"upper.io/db/util/sqlutil"
 )
 
-const Driver = `ql`
+const Adapter = `ql`
 
 var (
 	// Format for saving dates.
@@ -101,7 +101,7 @@ func init() {
 		qlSelectCountLayout,
 	}
 
-	db.Register(Driver, &Source{})
+	db.Register(Adapter, &Source{})
 }
 
 func (self *Source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {

@@ -61,6 +61,12 @@ func (self *Result) setCursor() error {
 	return err
 }
 
+// Sets conditions for reducing the working set.
+func (self *Result) Where(terms ...interface{}) db.Result {
+	self.where, self.arguments = whereValues(terms)
+	return self
+}
+
 // Determines the maximum limit of results to be returned.
 func (self *Result) Limit(n uint) db.Result {
 	self.limit = sqlgen.Limit(n)
@@ -204,10 +210,13 @@ func (self *Result) Update(values interface{}) error {
 		cvs = append(cvs, sqlgen.ColumnValue{sqlgen.Column{ff[i]}, "=", sqlPlaceholder})
 	}
 
+	vv = append(vv, self.arguments...)
+
 	_, err = self.table.source.doExec(sqlgen.Statement{
 		Type:         sqlgen.SqlUpdate,
 		Table:        sqlgen.Table{self.table.Name()},
 		ColumnValues: cvs,
+		Where:        self.where,
 	}, vv...)
 
 	return err
