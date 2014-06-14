@@ -105,7 +105,7 @@ func TestOpenFailed(t *testing.T) {
 	var err error
 
 	// Attempt to open an empty database.
-	if _, err = db.Open(Driver, db.Settings{}); err == nil {
+	if _, err = db.Open(Adapter, db.Settings{}); err == nil {
 		// Must fail.
 		t.Fatalf("Expecting an error.")
 	}
@@ -119,7 +119,7 @@ func TestTruncate(t *testing.T) {
 	var col db.Collection
 
 	// Opening database.
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -161,7 +161,7 @@ func TestAppend(t *testing.T) {
 	var artist db.Collection
 	var total uint64
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -233,7 +233,7 @@ func TestResultCount(t *testing.T) {
 	var artist db.Collection
 	var total uint64
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -264,7 +264,7 @@ func TestResultFetch(t *testing.T) {
 	var sess db.Database
 	var artist db.Collection
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -427,7 +427,7 @@ func TestUpdate(t *testing.T) {
 	var sess db.Database
 	var artist db.Collection
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -516,7 +516,7 @@ func TestFunction(t *testing.T) {
 	var artist db.Collection
 	var total uint64
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -569,7 +569,7 @@ func TestRemove(t *testing.T) {
 	var sess db.Database
 	var artist db.Collection
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -598,25 +598,25 @@ func TestRawRelations(t *testing.T) {
 	var review db.Collection
 
 	type artist_t struct {
-		Id   uint64 `db:"id,omitempty"`
+		Id   int64  `db:"id,omitempty"`
 		Name string `db:"name"`
 	}
 
 	type publication_t struct {
-		Id       uint64 `db:"id,omitempty"`
+		Id       int64  `db:"id,omitempty"`
 		Title    string `db:"title"`
-		AuthorId uint64 `db:"author_id"`
+		AuthorId int64  `db:"author_id"`
 	}
 
 	type review_t struct {
-		Id            uint64    `db:"id,omitempty"`
-		PublicationId uint64    `db:"publication_id"`
+		Id            int64     `db:"id,omitempty"`
+		PublicationId int64     `db:"publication_id"`
 		Name          string    `db:"name"`
 		Comments      string    `db:"comments"`
 		Created       time.Time `db:"created"`
 	}
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -655,7 +655,7 @@ func TestRawRelations(t *testing.T) {
 	if miyazakiId, err = artist.Append(miyazaki); err != nil {
 		t.Fatalf(err.Error())
 	}
-	miyazaki.Id = miyazakiId.(uint64)
+	miyazaki.Id = miyazakiId.(int64)
 
 	var asimovId interface{}
 	asimov := artist_t{Name: `Isaac Asimov`}
@@ -672,43 +672,43 @@ func TestRawRelations(t *testing.T) {
 	// Adding some publications.
 	publication.Append(publication_t{
 		Title:    `Tonari no Totoro`,
-		AuthorId: miyazakiId.(uint64),
+		AuthorId: miyazakiId.(int64),
 	})
 
 	publication.Append(publication_t{
 		Title:    `Howl's Moving Castle`,
-		AuthorId: miyazakiId.(uint64),
+		AuthorId: miyazakiId.(int64),
 	})
 
 	publication.Append(publication_t{
 		Title:    `Ponyo`,
-		AuthorId: miyazakiId.(uint64),
+		AuthorId: miyazakiId.(int64),
 	})
 
 	publication.Append(publication_t{
 		Title:    `Memoria de mis Putas Tristes`,
-		AuthorId: marquezId.(uint64),
+		AuthorId: marquezId.(int64),
 	})
 
 	publication.Append(publication_t{
 		Title:    `El Coronel no tiene quien le escriba`,
-		AuthorId: marquezId.(uint64),
+		AuthorId: marquezId.(int64),
 	})
 
 	publication.Append(publication_t{
 		Title:    `El Amor en los tiempos del Cólera`,
-		AuthorId: marquezId.(uint64),
+		AuthorId: marquezId.(int64),
 	})
 
 	publication.Append(publication_t{
 		Title:    `I, Robot`,
-		AuthorId: asimovId.(uint64),
+		AuthorId: asimovId.(int64),
 	})
 
 	var foundationId interface{}
 	foundationId, err = publication.Append(publication_t{
 		Title:    `Foundation`,
-		AuthorId: asimovId.(uint64),
+		AuthorId: asimovId.(int64),
 	})
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -716,19 +716,19 @@ func TestRawRelations(t *testing.T) {
 
 	publication.Append(publication_t{
 		Title:    `The Robots of Dawn`,
-		AuthorId: asimovId.(uint64),
+		AuthorId: asimovId.(int64),
 	})
 
 	// Adding reviews for foundation.
 	review.Append(review_t{
-		PublicationId: foundationId.(uint64),
+		PublicationId: foundationId.(int64),
 		Name:          "John Doe",
 		Comments:      "I love The Foundation series.",
 		Created:       time.Now(),
 	})
 
 	review.Append(review_t{
-		PublicationId: foundationId.(uint64),
+		PublicationId: foundationId.(int64),
 		Name:          "Edr Pls",
 		Comments:      "The Foundation series made me fall in love with Isaac Asimov.",
 		Created:       time.Now(),
@@ -749,7 +749,7 @@ func TestRawRelations(t *testing.T) {
 	)
 
 	type artistPublication_t struct {
-		Id               uint64 `db:"id"`
+		Id               int64  `db:"id"`
 		PublicationTitle string `db:"publication_title"`
 		ArtistName       string `db:"artist_name"`
 	}
@@ -777,7 +777,7 @@ func TestDataTypes(t *testing.T) {
 	var id interface{}
 	var exists uint64
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -830,7 +830,7 @@ func BenchmarkAppendRawSQL(b *testing.B) {
 	var err error
 	var sess db.Database
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatalf(err.Error())
 	}
 
@@ -855,7 +855,7 @@ func BenchmarkAppendRawSQL(b *testing.B) {
 // Contributed by wei2912
 // See: https://github.com/gosexy/db/issues/20#issuecomment-20097801
 func BenchmarkAppendUpper(b *testing.B) {
-	sess, err := db.Open(Driver, settings)
+	sess, err := db.Open(Adapter, settings)
 
 	if err != nil {
 		b.Fatalf(err.Error())
@@ -884,7 +884,7 @@ func BenchmarkAppendTxRawSQL(b *testing.B) {
 	var sess db.Database
 	var tx *sql.Tx
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatalf(err.Error())
 	}
 
@@ -917,7 +917,7 @@ func BenchmarkAppendTxUpper(b *testing.B) {
 	var sess db.Database
 	var err error
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatalf(err.Error())
 	}
 
@@ -958,7 +958,7 @@ func BenchmarkAppendTxUpperMap(b *testing.B) {
 	var sess db.Database
 	var err error
 
-	if sess, err = db.Open(Driver, settings); err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatalf(err.Error())
 	}
 

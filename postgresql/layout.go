@@ -111,7 +111,7 @@ const (
 	`
 
 	pgsqlTruncateLayout = `
-		TRUNCATE TABLE {{.Table}}
+		TRUNCATE TABLE {{.Table}} RESTART IDENTITY
 	`
 
 	pgsqlDropDatabaseLayout = `

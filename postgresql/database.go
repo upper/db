@@ -34,7 +34,7 @@ import (
 	"upper.io/db/util/sqlutil"
 )
 
-const Driver = `postgresql`
+const Adapter = `postgresql`
 
 var (
 	// Format for saving dates.
@@ -102,7 +102,7 @@ func init() {
 		pgsqlSelectCountLayout,
 	}
 
-	db.Register(Driver, &Source{})
+	db.Register(Adapter, &Source{})
 }
 
 func (self *Source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
