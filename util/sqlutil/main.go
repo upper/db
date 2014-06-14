@@ -187,6 +187,8 @@ func (self *T) FetchRow(dst interface{}, rows *sql.Rows) error {
 		return err
 	}
 
+	reset(dst)
+
 	next := rows.Next()
 
 	if next == false {
@@ -235,6 +237,8 @@ func (self *T) FetchRows(dst interface{}, rows *sql.Rows) error {
 
 	slicev := dstv.Elem()
 	item_t := slicev.Type().Elem()
+
+	reset(dst)
 
 	for rows.Next() {
 
@@ -354,4 +358,13 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) interfa
 	}
 
 	return fields, values, nil
+}
+
+func reset(data interface{}) error {
+	// Resetting element.
+	v := reflect.ValueOf(data).Elem()
+	t := v.Type()
+	z := reflect.Zero(t)
+	v.Set(z)
+	return nil
 }

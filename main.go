@@ -188,6 +188,9 @@ type Result interface {
 	// Defines specific fields to be returned on results on this result set.
 	Select(...string) Result
 
+	// Sets conditions.
+	Where(...interface{}) Result
+
 	// Removes all items within the result set.
 	Remove() error
 
