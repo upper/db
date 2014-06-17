@@ -29,3 +29,16 @@ func TestColumnAs(t *testing.T) {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 }
+
+func TestColumnRaw(t *testing.T) {
+	var s, e string
+
+	column := Column{Raw{"role.name As foo"}}
+
+	s = column.Compile(defaultTemplate)
+	e = `role.name As foo`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}

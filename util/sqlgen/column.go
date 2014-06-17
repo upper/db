@@ -1,6 +1,7 @@
 package sqlgen
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -10,31 +11,39 @@ type column_t struct {
 }
 
 type Column struct {
-	Value string
+	Value interface{}
 }
 
 func (self Column) Compile(layout *Template) string {
-	input := strings.TrimSpace(self.Value)
 
-	chunks := reAliasSeparator.Split(input, 2)
+	switch value := self.Value.(type) {
+	case string:
+		input := strings.TrimSpace(value)
 
-	name := chunks[0]
+		chunks := reAliasSeparator.Split(input, 2)
 
-	nameChunks := strings.SplitN(name, layout.ColumnSeparator, 2)
+		name := chunks[0]
 
-	for i := range nameChunks {
-		nameChunks[i] = strings.TrimSpace(nameChunks[i])
-		nameChunks[i] = mustParse(layout.IdentifierQuote, Raw{nameChunks[i]})
+		nameChunks := strings.SplitN(name, layout.ColumnSeparator, 2)
+
+		for i := range nameChunks {
+			nameChunks[i] = strings.TrimSpace(nameChunks[i])
+			nameChunks[i] = mustParse(layout.IdentifierQuote, Raw{nameChunks[i]})
+		}
+
+		name = strings.Join(nameChunks, layout.ColumnSeparator)
+
+		var alias string
+
+		if len(chunks) > 1 {
+			alias = strings.TrimSpace(chunks[1])
+			alias = mustParse(layout.IdentifierQuote, Raw{alias})
+		}
+
+		return mustParse(layout.ColumnAliasLayout, column_t{name, alias})
+	case Raw:
+		return value.String()
 	}
 
-	name = strings.Join(nameChunks, layout.ColumnSeparator)
-
-	var alias string
-
-	if len(chunks) > 1 {
-		alias = strings.TrimSpace(chunks[1])
-		alias = mustParse(layout.IdentifierQuote, Raw{alias})
-	}
-
-	return mustParse(layout.ColumnAliasLayout, column_t{name, alias})
+	return fmt.Sprintf("%v", self.Value)
 }
