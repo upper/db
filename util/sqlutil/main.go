@@ -25,6 +25,7 @@ package sqlutil
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"menteslibres.net/gosexy/to"
 	"reflect"
@@ -43,10 +44,31 @@ type T struct {
 	ColumnTypes map[string]reflect.Kind
 }
 
-func DebugQuery(s string, args []interface{}) {
-	s = reInvisibleChars.ReplaceAllString(s, ` `)
-	s = strings.TrimSpace(s)
-	log.Printf("\n\tSQL: %s\n\tARGS: %v\n\n", s, args)
+type Debug struct {
+	SQL  string
+	Args []interface{}
+	Err  error
+}
+
+func (self *Debug) Print() {
+	self.SQL = reInvisibleChars.ReplaceAllString(self.SQL, ` `)
+	self.SQL = strings.TrimSpace(self.SQL)
+
+	s := make([]string, 0, 3)
+
+	if self.SQL != "" {
+		s = append(s, fmt.Sprintf(`SQL: %s`, self.SQL))
+	}
+
+	if len(self.Args) > 0 {
+		s = append(s, fmt.Sprintf(`ARG: %s`, self.Args))
+	}
+
+	if self.Err != nil {
+		s = append(s, fmt.Sprintf(`ERR: %q`, self.Err))
+	}
+
+	log.Printf("\n\t%s\n\n", strings.Join(s, "\n\t"))
 }
 
 func (self *T) ColumnLike(s string) string {
