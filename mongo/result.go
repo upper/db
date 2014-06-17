@@ -25,6 +25,7 @@ package mongo
 
 import (
 	"errors"
+	"fmt"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"upper.io/db"
@@ -79,8 +80,12 @@ func (self *Result) Sort(fields ...string) db.Result {
 }
 
 // Retrieves only the given fields.
-func (self *Result) Select(fields ...string) db.Result {
-	self.queryChunks.Fields = fields
+func (self *Result) Select(fields ...interface{}) db.Result {
+	fieldslen := len(fields)
+	self.queryChunks.Fields = make([]string, 0, fieldslen)
+	for i := 0; i < fieldslen; i++ {
+		self.queryChunks.Fields = append(self.queryChunks.Fields, fmt.Sprintf(`%v`, fields[i]))
+	}
 	return self
 }
 
