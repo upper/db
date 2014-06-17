@@ -186,7 +186,7 @@ type Result interface {
 	Sort(...string) Result
 
 	// Defines specific fields to be returned on results on this result set.
-	Select(...string) Result
+	Select(...interface{}) Result
 
 	// Sets conditions.
 	Where(...interface{}) Result

@@ -745,7 +745,7 @@ func TestRawRelations(t *testing.T) {
 	).Select(
 		"p.id",
 		"p.title as publication_title",
-		"a.name AS artist_name",
+		db.Raw{"a.name AS artist_name"},
 	)
 
 	type artistPublication_t struct {

@@ -112,12 +112,17 @@ func (self *Result) Sort(fields ...string) db.Result {
 }
 
 // Retrieves only the given fields.
-func (self *Result) Select(fields ...string) db.Result {
+func (self *Result) Select(fields ...interface{}) db.Result {
 	self.columns = make(sqlgen.Columns, 0, len(fields))
 
 	l := len(fields)
 	for i := 0; i < l; i++ {
-		self.columns = append(self.columns, sqlgen.Column{fields[i]})
+		switch value := fields[i].(type) {
+		case db.Raw:
+			self.columns = append(self.columns, sqlgen.Column{value.Value})
+		default:
+			self.columns = append(self.columns, sqlgen.Column{value})
+		}
 	}
 
 	return self
