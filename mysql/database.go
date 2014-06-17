@@ -69,6 +69,13 @@ func debugEnabled() bool {
 	return false
 }
 
+func debugLog(query string, args []interface{}, err error) {
+	if debugEnabled() == true {
+		d := sqlutil.Debug{query, args, err}
+		d.Print()
+	}
+}
+
 func init() {
 
 	template = &sqlgen.Template{
@@ -105,58 +112,75 @@ func init() {
 }
 
 func (self *Source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
+	var query string
+	var res sql.Result
+	var err error
+
+	defer func() {
+		debugLog(query, args, err)
+	}()
 
 	if self.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
-	query := stmt.Compile(template)
-
-	if debugEnabled() == true {
-		sqlutil.DebugQuery(query, args)
-	}
+	query = stmt.Compile(template)
 
 	if self.tx != nil {
-		return self.tx.Exec(query, args...)
+		res, err = self.tx.Exec(query, args...)
+	} else {
+		res, err = self.session.Exec(query, args...)
 	}
 
-	return self.session.Exec(query, args...)
+	return res, err
 }
 
 func (self *Source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Rows, error) {
+	var rows *sql.Rows
+	var query string
+	var err error
+
+	defer func() {
+		debugLog(query, args, err)
+	}()
+
 	if self.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
-	query := stmt.Compile(template)
-
-	if debugEnabled() == true {
-		sqlutil.DebugQuery(query, args)
-	}
+	query = stmt.Compile(template)
 
 	if self.tx != nil {
-		return self.tx.Query(query, args...)
+		rows, err = self.tx.Query(query, args...)
+	} else {
+		rows, err = self.session.Query(query, args...)
 	}
 
-	return self.session.Query(query, args...)
+	return rows, err
 }
 
 func (self *Source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Row, error) {
+	var query string
+	var row *sql.Row
+	var err error
+
+	defer func() {
+		debugLog(query, args, err)
+	}()
+
 	if self.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
-	query := stmt.Compile(template)
-
-	if debugEnabled() == true {
-		sqlutil.DebugQuery(query, args)
-	}
+	query = stmt.Compile(template)
 
 	if self.tx != nil {
-		return self.tx.QueryRow(query, args...), nil
+		row = self.tx.QueryRow(query, args...)
+	} else {
+		row = self.session.QueryRow(query, args...)
 	}
 
-	return self.session.QueryRow(query, args...), nil
+	return row, err
 }
 
 // Returns the string name of the database.
