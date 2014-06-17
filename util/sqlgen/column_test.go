@@ -30,6 +30,19 @@ func TestColumnAs(t *testing.T) {
 	}
 }
 
+func TestColumnImplicitAs(t *testing.T) {
+	var s, e string
+
+	column := Column{"role.name foo"}
+
+	s = column.Compile(defaultTemplate)
+	e = `"role"."name" AS "foo"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
 func TestColumnRaw(t *testing.T) {
 	var s, e string
 

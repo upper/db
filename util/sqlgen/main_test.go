@@ -10,11 +10,11 @@ func TestTruncateTable(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlTruncate,
-		Table: Table{"table name"},
+		Table: Table{"table_name"},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `TRUNCATE TABLE "table name"`
+	e = `TRUNCATE TABLE "table_name"`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -27,11 +27,11 @@ func TestDropTable(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlDropTable,
-		Table: Table{"table name"},
+		Table: Table{"table_name"},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `DROP TABLE "table name"`
+	e = `DROP TABLE "table_name"`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -44,11 +44,11 @@ func TestDropDatabase(t *testing.T) {
 
 	stmt = Statement{
 		Type:     SqlDropDatabase,
-		Database: Database{"table name"},
+		Database: Database{"table_name"},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `DROP DATABASE "table name"`
+	e = `DROP DATABASE "table_name"`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -61,11 +61,11 @@ func TestSelectCount(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlSelectCount,
-		Table: Table{"table name"},
+		Table: Table{"table_name"},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `SELECT COUNT(1) AS _t FROM "table name"`
+	e = `SELECT COUNT(1) AS _t FROM "table_name"`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -95,14 +95,14 @@ func TestSelectCountWhere(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlSelectCount,
-		Table: Table{"table name"},
+		Table: Table{"table_name"},
 		Where: Where{
 			ColumnValue{Column{"a"}, "=", Value{Raw{"7"}}},
 		},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `SELECT COUNT(1) AS _t FROM "table name" WHERE ("a" = 7)`
+	e = `SELECT COUNT(1) AS _t FROM "table_name" WHERE ("a" = 7)`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -115,11 +115,11 @@ func TestSelectStarFrom(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlSelect,
-		Table: Table{"table name"},
+		Table: Table{"table_name"},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `SELECT * FROM "table name"`
+	e = `SELECT * FROM "table_name"`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -248,11 +248,11 @@ func TestSelectFieldsFrom(t *testing.T) {
 			{"bar"},
 			{"baz"},
 		},
-		Table: Table{"table name"},
+		Table: Table{"table_name"},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table name"`
+	e = `SELECT "foo", "bar", "baz" FROM "table_name"`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -272,11 +272,11 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 			{"baz"},
 		},
 		Limit: 42,
-		Table: Table{"table name"},
+		Table: Table{"table_name"},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table name" LIMIT 42`
+	e = `SELECT "foo", "bar", "baz" FROM "table_name" LIMIT 42`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -291,11 +291,11 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 			{"baz"},
 		},
 		Offset: 17,
-		Table:  Table{"table name"},
+		Table:  Table{"table_name"},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table name" OFFSET 17`
+	e = `SELECT "foo", "bar", "baz" FROM "table_name" OFFSET 17`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -311,11 +311,11 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 		},
 		Limit:  42,
 		Offset: 17,
-		Table:  Table{"table name"},
+		Table:  Table{"table_name"},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table name" LIMIT 42 OFFSET 17`
+	e = `SELECT "foo", "bar", "baz" FROM "table_name" LIMIT 42 OFFSET 17`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -339,11 +339,11 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 				SortColumn{Column: Column{"foo"}},
 			},
 		},
-		Table: Table{"table name"},
+		Table: Table{"table_name"},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table name" ORDER BY "foo"`
+	e = `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY "foo"`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -362,11 +362,11 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 				SortColumn{Column{"foo"}, SqlSortAsc},
 			},
 		},
-		Table: Table{"table name"},
+		Table: Table{"table_name"},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table name" ORDER BY "foo" ASC`
+	e = `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY "foo" ASC`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -385,11 +385,11 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 				{Column{"foo"}, SqlSortDesc},
 			},
 		},
-		Table: Table{"table name"},
+		Table: Table{"table_name"},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table name" ORDER BY "foo" DESC`
+	e = `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY "foo" DESC`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -410,11 +410,11 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 				{Column{"baz"}, SqlSortDesc},
 			},
 		},
-		Table: Table{"table name"},
+		Table: Table{"table_name"},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table name" ORDER BY "foo" DESC, "bar" ASC, "baz" DESC`
+	e = `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY "foo" DESC, "bar" ASC, "baz" DESC`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -432,14 +432,14 @@ func TestSelectFieldsFromWhere(t *testing.T) {
 			{"bar"},
 			{"baz"},
 		},
-		Table: Table{"table name"},
+		Table: Table{"table_name"},
 		Where: Where{
 			ColumnValue{Column{"baz"}, "=", Value{99}},
 		},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table name" WHERE ("baz" = '99')`
+	e = `SELECT "foo", "bar", "baz" FROM "table_name" WHERE ("baz" = '99')`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -457,7 +457,7 @@ func TestSelectFieldsFromWhereLimitOffset(t *testing.T) {
 			{"bar"},
 			{"baz"},
 		},
-		Table: Table{"table name"},
+		Table: Table{"table_name"},
 		Where: Where{
 			ColumnValue{Column{"baz"}, "=", Value{99}},
 		},
@@ -466,7 +466,7 @@ func TestSelectFieldsFromWhereLimitOffset(t *testing.T) {
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table name" WHERE ("baz" = '99') LIMIT 10 OFFSET 23`
+	e = `SELECT "foo", "bar", "baz" FROM "table_name" WHERE ("baz" = '99') LIMIT 10 OFFSET 23`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -479,14 +479,14 @@ func TestDelete(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlDelete,
-		Table: Table{"table name"},
+		Table: Table{"table_name"},
 		Where: Where{
 			ColumnValue{Column{"baz"}, "=", Value{99}},
 		},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `DELETE FROM "table name" WHERE ("baz" = '99')`
+	e = `DELETE FROM "table_name" WHERE ("baz" = '99')`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -499,7 +499,7 @@ func TestUpdate(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlUpdate,
-		Table: Table{"table name"},
+		Table: Table{"table_name"},
 		ColumnValues: ColumnValues{
 			{Column{"foo"}, "=", Value{76}},
 		},
@@ -509,7 +509,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `UPDATE "table name" SET "foo" = '76' WHERE ("baz" = '99')`
+	e = `UPDATE "table_name" SET "foo" = '76' WHERE ("baz" = '99')`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -517,7 +517,7 @@ func TestUpdate(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlUpdate,
-		Table: Table{"table name"},
+		Table: Table{"table_name"},
 		ColumnValues: ColumnValues{
 			{Column{"foo"}, "=", Value{76}},
 			{Column{"bar"}, "=", Value{Raw{"88"}}},
@@ -528,7 +528,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `UPDATE "table name" SET "foo" = '76', "bar" = 88 WHERE ("baz" = '99')`
+	e = `UPDATE "table_name" SET "foo" = '76', "bar" = 88 WHERE ("baz" = '99')`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -541,7 +541,7 @@ func TestInsert(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlInsert,
-		Table: Table{"table name"},
+		Table: Table{"table_name"},
 		Columns: Columns{
 			Column{"foo"},
 			Column{"bar"},
@@ -555,7 +555,7 @@ func TestInsert(t *testing.T) {
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `INSERT INTO "table name" ("foo", "bar", "baz") VALUES ('1', '2', 3)`
+	e = `INSERT INTO "table_name" ("foo", "bar", "baz") VALUES ('1', '2', 3)`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -568,7 +568,7 @@ func TestInsertExtra(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlInsert,
-		Table: Table{"table name"},
+		Table: Table{"table_name"},
 		Extra: "RETURNING id",
 		Columns: Columns{
 			Column{"foo"},
@@ -583,7 +583,7 @@ func TestInsertExtra(t *testing.T) {
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
-	e = `INSERT INTO "table name" ("foo", "bar", "baz") VALUES ('1', '2', 3) RETURNING id`
+	e = `INSERT INTO "table_name" ("foo", "bar", "baz") VALUES ('1', '2', 3) RETURNING id`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)

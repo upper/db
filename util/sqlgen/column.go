@@ -22,6 +22,10 @@ func (self Column) Compile(layout *Template) string {
 
 		chunks := reAliasSeparator.Split(input, 2)
 
+		if len(chunks) == 1 {
+			chunks = reSpaceSeparator.Split(input, 2)
+		}
+
 		name := chunks[0]
 
 		nameChunks := strings.SplitN(name, layout.ColumnSeparator, 2)

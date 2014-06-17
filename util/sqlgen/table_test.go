@@ -46,6 +46,20 @@ func TestTableCompoundAlias(t *testing.T) {
 	}
 }
 
+func TestTableImplicitAlias(t *testing.T) {
+	var s, e string
+	var table Table
+
+	table = Table{"artist.foo baz"}
+
+	s = trim(table.Compile(defaultTemplate))
+	e = `"artist"."foo" AS "baz"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
 func TestTableMultiple(t *testing.T) {
 	var s, e string
 	var table Table

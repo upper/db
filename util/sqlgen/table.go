@@ -8,6 +8,7 @@ import (
 var (
 	reTableSeparator = regexp.MustCompile(`\s*?,\s*?`)
 	reAliasSeparator = regexp.MustCompile(`(?i:\s+AS\s+)`)
+	reSpaceSeparator = regexp.MustCompile(`\s+`)
 )
 
 type table_t struct {
@@ -23,6 +24,10 @@ func quotedTableName(layout *Template, input string) string {
 	input = strings.TrimSpace(input)
 
 	chunks := reAliasSeparator.Split(input, 2)
+
+	if len(chunks) == 1 {
+		chunks = reSpaceSeparator.Split(input, 2)
+	}
 
 	name := chunks[0]
 
