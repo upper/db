@@ -216,6 +216,27 @@ func TestSelectArtistNameFrom(t *testing.T) {
 	}
 }
 
+func TestSelectRawFrom(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:  SqlSelect,
+		Table: Table{`artist`},
+		Columns: Columns{
+			{`artist.name`},
+			{Raw{`CONCAT(artist.name, " ", artist.last_name)`}},
+		},
+	}
+
+	s = trim(stmt.Compile(defaultTemplate))
+	e = `SELECT "artist"."name", CONCAT(artist.name, " ", artist.last_name) FROM "artist"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
 func TestSelectFieldsFrom(t *testing.T) {
 	var s, e string
 	var stmt Statement
