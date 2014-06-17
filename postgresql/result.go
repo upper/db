@@ -23,6 +23,7 @@ package postgresql
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
@@ -119,7 +120,7 @@ func (self *Result) Select(fields ...interface{}) db.Result {
 	for i := 0; i < l; i++ {
 		switch value := fields[i].(type) {
 		case db.Raw:
-			self.columns = append(self.columns, sqlgen.Column{value.Value})
+			self.columns = append(self.columns, sqlgen.Column{sqlgen.Raw{fmt.Sprintf(`%v`, value.Value)}})
 		default:
 			self.columns = append(self.columns, sqlgen.Column{value})
 		}
