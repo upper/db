@@ -69,6 +69,13 @@ func debugEnabled() bool {
 	return false
 }
 
+func debugLog(query string, args []interface{}, err error) {
+	if debugEnabled() == true {
+		d := sqlutil.Debug{query, args, err}
+		d.Print()
+	}
+}
+
 func init() {
 
 	template = &sqlgen.Template{
@@ -106,25 +113,29 @@ func init() {
 
 func (self *Source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
 
+	var query string
+	var res sql.Result
+	var err error
+
+	defer func() {
+		debugLog(query, args, err)
+	}()
+
 	if self.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
-	query := stmt.Compile(template)
+	query = stmt.Compile(template)
 
 	l := len(args)
 	for i := 0; i < l; i++ {
 		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
 	}
 
-	if debugEnabled() == true {
-		sqlutil.DebugQuery(query, args)
-	}
-
-	if self.tx == nil {
+	if self.tx != nil {
+		res, err = self.tx.Exec(query, args...)
+	} else {
 		var tx *sql.Tx
-		var err error
-		var res sql.Result
 
 		if tx, err = self.session.Begin(); err != nil {
 			return nil, err
@@ -137,33 +148,35 @@ func (self *Source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Resu
 		if err = tx.Commit(); err != nil {
 			return nil, err
 		}
-
-		return res, nil
 	}
 
-	return self.tx.Exec(query, args...)
+	return res, err
 }
 
 func (self *Source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Rows, error) {
+	var rows *sql.Rows
+	var query string
+	var err error
+
+	defer func() {
+		debugLog(query, args, err)
+	}()
+
 	if self.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
-	query := stmt.Compile(template)
+	query = stmt.Compile(template)
 
 	l := len(args)
 	for i := 0; i < l; i++ {
 		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
 	}
 
-	if debugEnabled() == true {
-		sqlutil.DebugQuery(query, args)
-	}
-
-	if self.tx == nil {
+	if self.tx != nil {
+		rows, err = self.tx.Query(query, args...)
+	} else {
 		var tx *sql.Tx
-		var err error
-		var rows *sql.Rows
 
 		if tx, err = self.session.Begin(); err != nil {
 			return nil, err
@@ -176,33 +189,35 @@ func (self *Source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 		if err = tx.Commit(); err != nil {
 			return nil, err
 		}
-
-		return rows, nil
 	}
 
-	return self.tx.Query(query, args...)
+	return rows, err
 }
 
 func (self *Source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Row, error) {
+	var query string
+	var row *sql.Row
+	var err error
+
+	defer func() {
+		debugLog(query, args, err)
+	}()
+
 	if self.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
-	query := stmt.Compile(template)
+	query = stmt.Compile(template)
 
 	l := len(args)
 	for i := 0; i < l; i++ {
 		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
 	}
 
-	if debugEnabled() == true {
-		sqlutil.DebugQuery(query, args)
-	}
-
-	if self.tx == nil {
+	if self.tx != nil {
+		row = self.tx.QueryRow(query, args...)
+	} else {
 		var tx *sql.Tx
-		var err error
-		var row *sql.Row
 
 		if tx, err = self.session.Begin(); err != nil {
 			return nil, err
@@ -215,11 +230,9 @@ func (self *Source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql
 		if err = tx.Commit(); err != nil {
 			return nil, err
 		}
-
-		return row, nil
-	} else {
-		return self.tx.QueryRow(query, args...), nil
 	}
+
+	return row, err
 }
 
 // Returns the string name of the database.
