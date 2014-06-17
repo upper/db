@@ -172,6 +172,7 @@ func (self *Source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 
 func (self *Source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Row, error) {
 	var query string
+	var row *sql.Row
 	var err error
 
 	defer func() {
@@ -190,10 +191,12 @@ func (self *Source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql
 	}
 
 	if self.tx != nil {
-		return self.tx.QueryRow(query, args...), nil
+		row = self.tx.QueryRow(query, args...)
+	} else {
+		row = self.session.QueryRow(query, args...)
 	}
 
-	return self.session.QueryRow(query, args...), nil
+	return row, err
 }
 
 // Returns the string name of the database.
