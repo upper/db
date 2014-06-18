@@ -592,7 +592,7 @@ func TestDataTypes(t *testing.T) {
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// We should close the database when it's no longer in use.
@@ -606,7 +606,7 @@ func TestDataTypes(t *testing.T) {
 	id, err := dataTypes.Append(testValues)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Trying to get the same subject we added.
@@ -615,7 +615,7 @@ func TestDataTypes(t *testing.T) {
 	exists, err := res.Count()
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if exists == 0 {
