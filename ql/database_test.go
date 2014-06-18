@@ -30,12 +30,14 @@ package ql
 
 import (
 	//"database/sql"
-	"menteslibres.net/gosexy/to"
 	"os"
+
+	"menteslibres.net/gosexy/to"
 	//"reflect"
 	"strings"
 	"testing"
 	"time"
+
 	"upper.io/db"
 )
 
@@ -108,7 +110,7 @@ func TestTruncate(t *testing.T) {
 
 	// Opening database.
 	if sess, err = db.Open(Adapter, settings); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// We should close the database when it's no longer in use.
@@ -116,7 +118,7 @@ func TestTruncate(t *testing.T) {
 
 	// Getting a list of all collections in this database.
 	if collections, err = sess.Collections(); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if len(collections) == 0 {
@@ -128,14 +130,14 @@ func TestTruncate(t *testing.T) {
 
 		// Getting a collection.
 		if col, err = sess.Collection(name); err != nil {
-			t.Fatalf(err.Error())
+			t.Fatal(err)
 		}
 
 		// Table must exists before we can use it.
 		if col.Exists() == true {
 			// Truncating the table.
 			if err = col.Truncate(); err != nil {
-				t.Fatalf(err.Error())
+				t.Fatal(err)
 			}
 		}
 	}
@@ -150,13 +152,13 @@ func TestAppend(t *testing.T) {
 	var total uint64
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	defer sess.Close()
 
 	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Attempt to append a map.
@@ -165,7 +167,7 @@ func TestAppend(t *testing.T) {
 	}
 
 	if id, err = artist.Append(item_m); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if to.Int64(id) == 0 {
@@ -180,7 +182,7 @@ func TestAppend(t *testing.T) {
 	}
 
 	if id, err = artist.Append(item_s); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if to.Int64(id) == 0 {
@@ -195,7 +197,7 @@ func TestAppend(t *testing.T) {
 	}
 
 	if id, err = artist.Append(item_t); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if to.Int64(id) == 0 {
@@ -204,7 +206,7 @@ func TestAppend(t *testing.T) {
 
 	// Counting elements, must be exactly 3 elements.
 	if total, err = artist.Find().Count(); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if total != 3 {
@@ -222,14 +224,14 @@ func TestResultCount(t *testing.T) {
 	var total uint64
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	defer sess.Close()
 
 	// We should close the database when it's no longer in use.
 	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Defining a set with no conditions.
@@ -237,7 +239,7 @@ func TestResultCount(t *testing.T) {
 
 	// Counting all the matching rows.
 	if total, err = res.Count(); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if total == 0 {
@@ -253,13 +255,13 @@ func TestResultFetch(t *testing.T) {
 	var artist db.Collection
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	defer sess.Close()
 
 	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Dumping into a map.
@@ -282,7 +284,7 @@ func TestResultFetch(t *testing.T) {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
-			t.Fatalf(err.Error())
+			t.Fatal(err)
 		}
 	}
 
@@ -311,7 +313,7 @@ func TestResultFetch(t *testing.T) {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
-			t.Fatalf(err.Error())
+			t.Fatal(err)
 		}
 	}
 
@@ -340,7 +342,7 @@ func TestResultFetch(t *testing.T) {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
-			t.Fatalf(err.Error())
+			t.Fatal(err)
 		}
 	}
 
@@ -351,7 +353,7 @@ func TestResultFetch(t *testing.T) {
 
 	res = artist.Find().Select("id() as id", "name")
 	if err = res.All(&all_rows_m); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if len(all_rows_m) != 3 {
@@ -373,7 +375,7 @@ func TestResultFetch(t *testing.T) {
 
 	res = artist.Find().Select("id() as id", "name")
 	if err = res.All(&all_rows_s); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if len(all_rows_s) != 3 {
@@ -395,7 +397,7 @@ func TestResultFetch(t *testing.T) {
 	res = artist.Find().Select("id() as id", "name")
 
 	if err = res.All(&all_rows_t); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if len(all_rows_t) != 3 {
@@ -416,13 +418,13 @@ func TestUpdate(t *testing.T) {
 	var artist db.Collection
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	defer sess.Close()
 
 	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Defining destination struct
@@ -435,7 +437,7 @@ func TestUpdate(t *testing.T) {
 	res := artist.Find(db.Cond{"id() !=": 0}).Limit(1)
 
 	if err = res.One(&value); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Updating set with a map
@@ -444,12 +446,12 @@ func TestUpdate(t *testing.T) {
 	}
 
 	if err = res.Update(row_m); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Pulling it again.
 	if err = res.One(&value); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Verifying.
@@ -463,12 +465,12 @@ func TestUpdate(t *testing.T) {
 	}{strings.ToLower(value.Name)}
 
 	if err = res.Update(row_s); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Pulling it again.
 	if err = res.One(&value); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Verifying
@@ -482,12 +484,12 @@ func TestUpdate(t *testing.T) {
 	}{strings.Replace(value.Name, "z", "Z", -1)}
 
 	if err = res.Update(row_t); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Pulling it again.
 	if err = res.One(&value); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Verifying
@@ -505,13 +507,13 @@ func TestFunction(t *testing.T) {
 	var total uint64
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	defer sess.Close()
 
 	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	row_s := struct {
@@ -522,11 +524,11 @@ func TestFunction(t *testing.T) {
 	res = artist.Find(db.Cond{"id() NOT IN": []int{0, -1}})
 
 	if err = res.One(&row_s); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if total, err = res.Count(); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if total != 3 {
@@ -536,11 +538,11 @@ func TestFunction(t *testing.T) {
 	res = artist.Find(db.Cond{"id()": db.Func{"NOT IN", []int{0, -1}}})
 
 	if err = res.One(&row_s); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if total, err = res.Count(); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if total != 3 {
@@ -558,13 +560,13 @@ func TestRemove(t *testing.T) {
 	var artist db.Collection
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	defer sess.Close()
 
 	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Getting the artist with id = 1
@@ -572,7 +574,7 @@ func TestRemove(t *testing.T) {
 
 	// Trying to remove the row.
 	if err = res.Remove(); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 }
 
@@ -605,56 +607,56 @@ func TestRawRelations(t *testing.T) {
 	}
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	defer sess.Close()
 
 	// Artist collection.
 	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if err = artist.Truncate(); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Publication collection.
 	if publication, err = sess.Collection("publication"); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if err = publication.Truncate(); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Review collection.
 	if review, err = sess.Collection("review"); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if err = review.Truncate(); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Adding some artists.
 	var miyazakiId interface{}
 	miyazaki := artist_t{Name: `Hayao Miyazaki`}
 	if miyazakiId, err = artist.Append(miyazaki); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 	miyazaki.Id = miyazakiId.(int64)
 
 	var asimovId interface{}
 	asimov := artist_t{Name: `Isaac Asimov`}
 	if asimovId, err = artist.Append(asimov); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	var marquezId interface{}
 	marquez := artist_t{Name: `Gabriel García Márquez`}
 	if marquezId, err = artist.Append(marquez); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Adding some publications.
@@ -699,7 +701,7 @@ func TestRawRelations(t *testing.T) {
 		AuthorId: asimovId.(int64),
 	})
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	publication.Append(publication_t{
@@ -728,7 +730,7 @@ func TestRawRelations(t *testing.T) {
 		// Exec'ing a raw query.
 		var artistPublication db.Collection
 		if artistPublication, err = sess.Collection(`artist AS a, publication AS p`); err != nil {
-			t.Fatalf(err.Error())
+			t.Fatal(err)
 		}
 
 		res := artistPublication.Find(
@@ -748,7 +750,7 @@ func TestRawRelations(t *testing.T) {
 		all := []artistPublication_t{}
 
 		if err = res.All(&all); err != nil {
-			t.Fatalf(err.Error())
+			t.Fatal(err)
 		}
 
 		if len(all) != 9 {
@@ -773,31 +775,31 @@ func TestDataTypes(t *testing.T) {
 	var exists uint64
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	defer sess.Close()
 
 	// Getting a pointer to the "data_types" collection.
 	if dataTypes, err = sess.Collection("data_types"); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Removing all data.
 	if err = dataTypes.Truncate(); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Appending our test subject.
 	if id, err = dataTypes.Append(testValues); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Defining our set.
 	res = dataTypes.Find(db.Cond{"id": id})
 
 	if exists, err = res.Count(); err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if exists == 0 {
@@ -829,7 +831,7 @@ func BenchmarkAppendRawSQL(b *testing.B) {
 	var sess db.Database
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	defer sess.Close()
@@ -837,13 +839,13 @@ func BenchmarkAppendRawSQL(b *testing.B) {
 	driver := sess.Driver().(*sql.DB)
 
 	if _, err = driver.Exec("TRUNCATE TABLE artist"); err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, err = driver.Exec("INSERT INTO artist (name) VALUES('Hayao Miyazaki')"); err != nil {
-			b.Fatalf(err.Error())
+			b.Fatal(err)
 		}
 	}
 }
@@ -857,7 +859,7 @@ func BenchmarkAppendUpper(b *testing.B) {
 	sess, err := db.Open(Adapter, settings)
 
 	if err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	defer sess.Close()
@@ -872,7 +874,7 @@ func BenchmarkAppendUpper(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, err = artist.Append(item); err != nil {
-			b.Fatalf(err.Error())
+			b.Fatal(err)
 		}
 	}
 }
@@ -887,7 +889,7 @@ func BenchmarkAppendTxRawSQL(b *testing.B) {
 	var tx *sql.Tx
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	defer sess.Close()
@@ -895,22 +897,22 @@ func BenchmarkAppendTxRawSQL(b *testing.B) {
 	driver := sess.Driver().(*sql.DB)
 
 	if tx, err = driver.Begin(); err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	if _, err = tx.Exec("TRUNCATE TABLE artist"); err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, err = tx.Exec("INSERT INTO artist (name) VALUES('Hayao Miyazaki')"); err != nil {
-			b.Fatalf(err.Error())
+			b.Fatal(err)
 		}
 	}
 
 	if err = tx.Commit(); err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 }
 
@@ -920,23 +922,23 @@ func BenchmarkAppendTxUpper(b *testing.B) {
 	var err error
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	defer sess.Close()
 
 	var tx db.Tx
 	if tx, err = sess.Transaction(); err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	var artist db.Collection
 	if artist, err = tx.Collection("artist"); err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	if err = artist.Truncate(); err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	item := struct {
@@ -946,12 +948,12 @@ func BenchmarkAppendTxUpper(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, err = artist.Append(item); err != nil {
-			b.Fatalf(err.Error())
+			b.Fatal(err)
 		}
 	}
 
 	if err = tx.Commit(); err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 }
 
@@ -961,23 +963,23 @@ func BenchmarkAppendTxUpperMap(b *testing.B) {
 	var err error
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	defer sess.Close()
 
 	var tx db.Tx
 	if tx, err = sess.Transaction(); err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	var artist db.Collection
 	if artist, err = tx.Collection("artist"); err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	if err = artist.Truncate(); err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	item := map[string]string{"name": "Hayao Miyazaki"}
@@ -985,12 +987,12 @@ func BenchmarkAppendTxUpperMap(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, err = artist.Append(item); err != nil {
-			b.Fatalf(err.Error())
+			b.Fatal(err)
 		}
 	}
 
 	if err = tx.Commit(); err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 }
 */

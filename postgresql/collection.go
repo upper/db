@@ -24,10 +24,11 @@ package postgresql
 import (
 	"database/sql"
 	"fmt"
-	"menteslibres.net/gosexy/to"
 	"reflect"
 	"strings"
 	"time"
+
+	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"

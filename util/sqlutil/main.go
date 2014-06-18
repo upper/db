@@ -27,10 +27,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"menteslibres.net/gosexy/to"
 	"reflect"
 	"regexp"
 	"strings"
+
+	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 	"upper.io/db/util"
 )

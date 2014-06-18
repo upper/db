@@ -25,9 +25,10 @@ package mongo
 
 import (
 	"fmt"
+	"strings"
+
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
-	"strings"
 	"upper.io/db"
 	"upper.io/db/util"
 )

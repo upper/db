@@ -24,11 +24,12 @@ package sqlite
 import (
 	"database/sql"
 	"fmt"
-	_ "github.com/mattn/go-sqlite3"
 	"os"
 	"reflect"
 	"regexp"
 	"strings"
+
+	_ "github.com/mattn/go-sqlite3"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"

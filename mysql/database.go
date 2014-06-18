@@ -24,11 +24,12 @@ package mysql
 import (
 	"database/sql"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
 	"os"
 	"reflect"
 	"regexp"
 	"strings"
+
+	_ "github.com/go-sql-driver/mysql"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"

@@ -24,11 +24,12 @@ package postgresql
 import (
 	"database/sql"
 	"fmt"
-	_ "github.com/xiam/gopostgresql"
 	"os"
 	"reflect"
 	"regexp"
 	"strings"
+
+	_ "github.com/xiam/gopostgresql"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"

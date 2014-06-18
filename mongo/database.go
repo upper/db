@@ -25,12 +25,13 @@ package mongo
 
 import (
 	"fmt"
-	"labix.org/v2/mgo"
 	"log"
 	"net/url"
 	"os"
 	"strings"
 	"time"
+
+	"labix.org/v2/mgo"
 	"upper.io/db"
 )
 
