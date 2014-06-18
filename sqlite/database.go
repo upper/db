@@ -350,13 +350,13 @@ func (self *Source) tableExists(names ...string) error {
 		}, `table`, name)
 
 		if err != nil {
-			return db.ErrCollectionDoesNotExists
+			return db.ErrCollectionDoesNotExist
 		}
 
 		defer rows.Close()
 
 		if rows.Next() == false {
-			return db.ErrCollectionDoesNotExists
+			return db.ErrCollectionDoesNotExist
 		}
 	}
 

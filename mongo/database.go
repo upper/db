@@ -206,7 +206,7 @@ func (self *Source) Collection(names ...string) (db.Collection, error) {
 	col.DB = self
 
 	if col.Exists() == false {
-		err = db.ErrCollectionDoesNotExists
+		err = db.ErrCollectionDoesNotExist
 	}
 
 	return col, err

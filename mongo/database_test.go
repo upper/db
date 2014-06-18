@@ -167,7 +167,7 @@ func TestAppend(t *testing.T) {
 
 	if err != nil {
 		// We can use the collection even if it does not exists.
-		if err != db.ErrCollectionDoesNotExists {
+		if err != db.ErrCollectionDoesNotExist {
 			t.Fatal(err)
 		}
 	}

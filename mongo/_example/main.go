@@ -37,7 +37,7 @@ func main() {
 	birthdayCollection, err := sess.Collection("birthdays")
 
 	if err != nil {
-		if err != db.ErrCollectionDoesNotExists {
+		if err != db.ErrCollectionDoesNotExist {
 			log.Fatalf("Could not use collection: %q\n", err)
 		}
 	} else {

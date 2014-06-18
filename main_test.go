@@ -395,7 +395,7 @@ func TestSimpleCRUD(t *testing.T) {
 			col, err := sess.Collection(`birthdays`)
 
 			if err != nil {
-				if wrapper == `mongo` && err == db.ErrCollectionDoesNotExists {
+				if wrapper == `mongo` && err == db.ErrCollectionDoesNotExist {
 					// Expected error with mongodb.
 				} else {
 					t.Fatalf(`Could not use collection with wrapper %s: %s`, wrapper, err.Error())
@@ -513,7 +513,7 @@ func TestFibonacci(t *testing.T) {
 			col, err = sess.Collection("fibonacci")
 
 			if err != nil {
-				if wrapper == `mongo` && err == db.ErrCollectionDoesNotExists {
+				if wrapper == `mongo` && err == db.ErrCollectionDoesNotExist {
 					// Expected error with mongodb.
 				} else {
 					t.Fatalf(`Could not use collection with wrapper %s: %s`, wrapper, err.Error())
@@ -697,7 +697,7 @@ func TestEven(t *testing.T) {
 			col, err = sess.Collection("is_even")
 
 			if err != nil {
-				if wrapper == `mongo` && err == db.ErrCollectionDoesNotExists {
+				if wrapper == `mongo` && err == db.ErrCollectionDoesNotExist {
 					// Expected error with mongodb.
 				} else {
 					t.Fatalf(`Could not use collection with wrapper %s: %s`, wrapper, err.Error())

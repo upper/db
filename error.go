@@ -37,7 +37,7 @@ var (
 	ErrNotConnected            = errors.New(`You're currently not connected.`)
 	ErrMissingDatabaseName     = errors.New(`Missing database name.`)
 	ErrMissingCollectionName   = errors.New(`Missing collection name.`)
-	ErrCollectionDoesNotExists = errors.New(`Collection does not exists.`)
+	ErrCollectionDoesNotExist  = errors.New(`Collection does not exists.`)
 	ErrSockerOrHost            = errors.New(`You may connect either to a unix socket or a tcp address, but not both.`)
 	ErrQueryLimitParam         = errors.New(`A query can accept only one db.Limit() parameter.`)
 	ErrQuerySortParam          = errors.New(`A query can accept only one db.Sort{} parameter.`)
@@ -46,4 +46,7 @@ var (
 	ErrUnsupported             = errors.New(`This action is currently unsupported on this database.`)
 	ErrQueryIsPending          = errors.New(`Can't execute this instruction while the result set is still open.`)
 	ErrUnsupportedDestination  = errors.New(`Unsupported destination type.`)
+
+	// Deprecated but kept for backwards compatibility. See: https://github.com/upper/db/issues/18
+	ErrCollectionDoesNotExists = ErrCollectionDoesNotExist
 )
