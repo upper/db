@@ -35,12 +35,13 @@ package sqlite
 
 import (
 	"database/sql"
-	"menteslibres.net/gosexy/to"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 )
 
@@ -114,7 +115,7 @@ func TestTruncate(t *testing.T) {
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// We should close the database when it's no longer in use.
@@ -124,7 +125,7 @@ func TestTruncate(t *testing.T) {
 	collections, err := sess.Collections()
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	for _, name := range collections {
@@ -132,7 +133,7 @@ func TestTruncate(t *testing.T) {
 		// Pointing the collection.
 		col, err := sess.Collection(name)
 		if err != nil {
-			t.Fatalf(err.Error())
+			t.Fatal(err)
 		}
 
 		// Since this is a SQL collection (table), the structure must exists before
@@ -144,7 +145,7 @@ func TestTruncate(t *testing.T) {
 			err = col.Truncate()
 
 			if err != nil {
-				t.Fatalf(err.Error())
+				t.Fatal(err)
 			}
 		}
 
@@ -161,7 +162,7 @@ func TestAppend(t *testing.T) {
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// We should close the database when it's no longer in use.
@@ -171,7 +172,7 @@ func TestAppend(t *testing.T) {
 	artist, err := sess.Collection("artist")
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Appending a map.
@@ -218,7 +219,7 @@ func TestResultCount(t *testing.T) {
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	defer sess.Close()
@@ -232,7 +233,7 @@ func TestResultCount(t *testing.T) {
 	total, err := res.Count()
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if total == 0 {
@@ -251,7 +252,7 @@ func TestResultFetch(t *testing.T) {
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// We should close the database when it's no longer in use.
@@ -260,7 +261,7 @@ func TestResultFetch(t *testing.T) {
 	artist, err := sess.Collection("artist")
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Testing map
@@ -284,7 +285,7 @@ func TestResultFetch(t *testing.T) {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
-			t.Fatalf(err.Error())
+			t.Fatal(err)
 		}
 	}
 
@@ -314,7 +315,7 @@ func TestResultFetch(t *testing.T) {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
-			t.Fatalf(err.Error())
+			t.Fatal(err)
 		}
 	}
 
@@ -344,7 +345,7 @@ func TestResultFetch(t *testing.T) {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
-			t.Fatalf(err.Error())
+			t.Fatal(err)
 		}
 	}
 
@@ -357,7 +358,7 @@ func TestResultFetch(t *testing.T) {
 	err = res.All(&all_rows_m)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	for _, single_row_m := range all_rows_m {
@@ -376,7 +377,7 @@ func TestResultFetch(t *testing.T) {
 	err = res.All(&all_rows_s)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	for _, single_row_s := range all_rows_s {
@@ -395,7 +396,7 @@ func TestResultFetch(t *testing.T) {
 	err = res.All(&all_rows_t)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	for _, single_row_t := range all_rows_t {
@@ -413,7 +414,7 @@ func TestUpdate(t *testing.T) {
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// We should close the database when it's no longer in use.
@@ -423,7 +424,7 @@ func TestUpdate(t *testing.T) {
 	artist, err := sess.Collection("artist")
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Value
@@ -438,7 +439,7 @@ func TestUpdate(t *testing.T) {
 	err = res.One(&value)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Updating with a map
@@ -449,13 +450,13 @@ func TestUpdate(t *testing.T) {
 	err = res.Update(row_m)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	err = res.One(&value)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if value.Name != row_m["name"] {
@@ -470,13 +471,13 @@ func TestUpdate(t *testing.T) {
 	err = res.Update(row_s)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	err = res.One(&value)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if value.Name != row_s.Name {
@@ -491,13 +492,13 @@ func TestUpdate(t *testing.T) {
 	err = res.Update(row_t)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	err = res.One(&value)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if value.Name != row_t.Value1 {
@@ -515,7 +516,7 @@ func TestFunction(t *testing.T) {
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// We should close the database when it's no longer in use.
@@ -525,7 +526,7 @@ func TestFunction(t *testing.T) {
 	artist, err := sess.Collection("artist")
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	row_s := struct {
@@ -557,7 +558,7 @@ func TestRemove(t *testing.T) {
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// We should close the database when it's no longer in use.
@@ -567,7 +568,7 @@ func TestRemove(t *testing.T) {
 	artist, err := sess.Collection("artist")
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Getting the artist with id = 1
@@ -577,7 +578,7 @@ func TestRemove(t *testing.T) {
 	err = res.Remove()
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 }
 
@@ -591,7 +592,7 @@ func TestDataTypes(t *testing.T) {
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// We should close the database when it's no longer in use.
@@ -605,7 +606,7 @@ func TestDataTypes(t *testing.T) {
 	id, err := dataTypes.Append(testValues)
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	// Trying to get the same subject we added.
@@ -614,7 +615,7 @@ func TestDataTypes(t *testing.T) {
 	exists, err := res.Count()
 
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	}
 
 	if exists == 0 {
@@ -641,7 +642,7 @@ func BenchmarkAppendRaw(b *testing.B) {
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	defer sess.Close()
@@ -655,7 +656,7 @@ func BenchmarkAppendRaw(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, err := driver.Exec(`INSERT INTO artist (name) VALUES("Hayao Miyazaki")`)
 		if err != nil {
-			b.Fatalf(err.Error())
+			b.Fatal(err)
 		}
 	}
 }
@@ -668,7 +669,7 @@ func BenchmarkAppendDbItem(b *testing.B) {
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	defer sess.Close()
@@ -680,7 +681,7 @@ func BenchmarkAppendDbItem(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, err = artist.Append(map[string]string{"name": "Leonardo DaVinci"})
 		if err != nil {
-			b.Fatalf(err.Error())
+			b.Fatal(err)
 		}
 	}
 }
@@ -694,7 +695,7 @@ func BenchmarkAppendDbItem_Transaction(b *testing.B) {
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	defer sess.Close()
@@ -704,19 +705,19 @@ func BenchmarkAppendDbItem_Transaction(b *testing.B) {
 
 	err = sess.Begin()
 	if err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	for i := 0; i < b.N; i++ {
 		_, err = artist.Append(map[string]string{"name": "Isaac Asimov"})
 		if err != nil {
-			b.Fatalf(err.Error())
+			b.Fatal(err)
 		}
 	}
 
 	err = sess.End()
 	if err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 }
 
@@ -725,7 +726,7 @@ func BenchmarkAppendStruct(b *testing.B) {
 	sess, err := db.Open(wrapperName, settings)
 
 	if err != nil {
-		b.Fatalf(err.Error())
+		b.Fatal(err)
 	}
 
 	defer sess.Close()
@@ -737,7 +738,7 @@ func BenchmarkAppendStruct(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, err = artist.Append(struct{ Name string }{"John Lennon"})
 		if err != nil {
-			b.Fatalf(err.Error())
+			b.Fatal(err)
 		}
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"time"
+
 	"upper.io/db"         // Imports the main db package.
 	_ "upper.io/db/mysql" // Improts the mysql adapter.
 )

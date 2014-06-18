@@ -26,12 +26,13 @@ package ql
 import (
 	"database/sql"
 	"fmt"
-	_ "github.com/cznic/ql/driver"
 	"log"
 	"os"
 	"reflect"
 	"strings"
 	"time"
+
+	_ "github.com/cznic/ql/driver"
 	"upper.io/db"
 )
 

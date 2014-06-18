@@ -24,11 +24,12 @@
 package util
 
 import (
-	"menteslibres.net/gosexy/to"
 	"reflect"
 	"regexp"
 	"strings"
 	"time"
+
+	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 )
 
