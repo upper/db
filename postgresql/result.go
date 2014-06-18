@@ -170,24 +170,19 @@ func (self *Result) One(dst interface{}) error {
 
 // Fetches the next result from the resultset.
 func (self *Result) Next(dst interface{}) error {
-
-	var err error
-
-	// Current cursor.
-	err = self.setCursor()
-
+	err := self.setCursor()
 	if err != nil {
 		self.Close()
+		return err
 	}
 
-	// Fetching the next result from the cursor.
 	err = self.table.T.FetchRow(dst, self.cursor)
-
 	if err != nil {
 		self.Close()
+		return err
 	}
 
-	return err
+	return nil
 }
 
 // Removes the matching items from the collection.
