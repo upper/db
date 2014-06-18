@@ -159,6 +159,28 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
+func TestSetCursorError(t *testing.T) {
+	sess, err := db.Open(wrapperName, settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+
+	artist, err := sess.Collection("artist")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// trigger Postgres error. "" is not an int.
+	res := artist.Find(db.Cond{"id": ""})
+
+	var row map[string]interface{}
+	err = res.One(&row)
+	if err == db.ErrNoMoreRows || err == nil {
+		t.Fatalf("err = %#v, want PQ error", err)
+	}
+}
+
 // This test appends some data into the "artist" table.
 func TestAppend(t *testing.T) {
 
