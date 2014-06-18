@@ -29,12 +29,12 @@ import (
 	// This hack is not required anymore.
 	// See: https://github.com/mattn/go-sqlite3/issues/40
 	//_ "github.com/xiam/gosqlite3"
-	_ "github.com/mattn/go-sqlite3"
 	"log"
 	"os"
 	"reflect"
 	"regexp"
 	"strings"
+	_ "github.com/mattn/go-sqlite3"
 	"upper.io/db"
 )
 

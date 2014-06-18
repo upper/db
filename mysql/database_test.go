@@ -35,12 +35,13 @@ package mysql
 
 import (
 	"database/sql"
-	"menteslibres.net/gosexy/to"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 )
 

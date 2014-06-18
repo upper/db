@@ -24,14 +24,15 @@
 package mongo
 
 import (
-	"labix.org/v2/mgo"
-	"labix.org/v2/mgo/bson"
-	"menteslibres.net/gosexy/to"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
+	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 )
 

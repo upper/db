@@ -27,6 +27,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+
 	"upper.io/db"
 	"upper.io/db/util/sqlutil"
 )

@@ -25,11 +25,12 @@ package mysql
 
 import (
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
-	"menteslibres.net/gosexy/to"
 	"reflect"
 	"strings"
 	"time"
+
+	_ "github.com/go-sql-driver/mysql"
+	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 	"upper.io/db/util/sqlutil"
 )

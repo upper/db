@@ -35,11 +35,12 @@ package ql
 
 import (
 	"database/sql"
-	"menteslibres.net/gosexy/to"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 )
 
