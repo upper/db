@@ -137,20 +137,20 @@ func (self *Table) compileStatement(cond db.Cond) (string, []interface{}) {
 
 		switch value := value.(type) {
 		case db.Func:
-			value_i := interfaceArgs(value.Args)
-			if value_i == nil {
+			valueI := interfaceArgs(value.Args)
+			if valueI == nil {
 				str = append(str, fmt.Sprintf(`%s %s ()`, chunks[0], value.Name))
 			} else {
-				str = append(str, fmt.Sprintf(`%s %s (?%s)`, chunks[0], value.Name, strings.Repeat(`,?`, len(value_i)-1)))
-				arg = append(arg, value_i...)
+				str = append(str, fmt.Sprintf(`%s %s (?%s)`, chunks[0], value.Name, strings.Repeat(`,?`, len(valueI)-1)))
+				arg = append(arg, valueI...)
 			}
 		default:
-			value_i := interfaceArgs(value)
-			if value_i == nil {
+			valueI := interfaceArgs(value)
+			if valueI == nil {
 				str = append(str, fmt.Sprintf(`%s %s ()`, chunks[0], op))
 			} else {
-				str = append(str, fmt.Sprintf(`%s %s (?%s)`, chunks[0], op, strings.Repeat(`,?`, len(value_i)-1)))
-				arg = append(arg, value_i...)
+				str = append(str, fmt.Sprintf(`%s %s (?%s)`, chunks[0], op, strings.Repeat(`,?`, len(valueI)-1)))
+				arg = append(arg, valueI...)
 			}
 		}
 	}
@@ -272,18 +272,18 @@ func interfaceArgs(value interface{}) (args []interface{}) {
 		return nil
 	}
 
-	value_v := reflect.ValueOf(value)
+	valueV := reflect.ValueOf(value)
 
-	switch value_v.Type().Kind() {
+	switch valueV.Type().Kind() {
 	case reflect.Slice:
 		var i, total int
 
-		total = value_v.Len()
+		total = valueV.Len()
 		if total > 0 {
 			args = make([]interface{}, total)
 
 			for i = 0; i < total; i++ {
-				args[i] = toInternal(value_v.Index(i).Interface())
+				args[i] = toInternal(valueV.Index(i).Interface())
 			}
 
 			return args
