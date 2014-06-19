@@ -36,15 +36,15 @@ type counter struct {
 	Total uint64 `field:"total"`
 }
 
-type Result struct {
-	table       *Table
+type result struct {
+	table       *table
 	queryChunks *sqlutil.QueryChunks
 	// This is the main query cursor. It starts as a nil value.
 	cursor *sql.Rows
 }
 
 // Executes a SELECT statement that can feed Next(), All() or One().
-func (res *Result) setCursor() error {
+func (res *result) setCursor() error {
 	var err error
 	// We need a cursor, if the cursor does not exists yet then we create one.
 	if res.cursor == nil {
@@ -70,23 +70,17 @@ func (res *Result) setCursor() error {
 	return err
 }
 
-// Determines the maximum limit of results to be returned.
-func (res *Result) Limit(n uint) db.Result {
+func (res *result) Limit(n uint) db.Result {
 	res.queryChunks.Limit = fmt.Sprintf(`LIMIT %d`, n)
 	return res
 }
 
-// Determines how many documents will be skipped before starting to grab
-// results.
-func (res *Result) Skip(n uint) db.Result {
+func (res *result) Skip(n uint) db.Result {
 	res.queryChunks.Offset = fmt.Sprintf(`OFFSET %d`, n)
 	return res
 }
 
-// Determines sorting of results according to the provided names. Fields may be
-// prefixed by - (minus) which means descending order, ascending order would be
-// used otherwise.
-func (res *Result) Sort(fields ...string) db.Result {
+func (res *result) Sort(fields ...string) db.Result {
 	sort := make([]string, 0, len(fields))
 
 	for _, field := range fields {
@@ -102,14 +96,12 @@ func (res *Result) Sort(fields ...string) db.Result {
 	return res
 }
 
-// Retrieves only the given fields.
-func (res *Result) Select(fields ...string) db.Result {
+func (res *result) Select(fields ...string) db.Result {
 	res.queryChunks.Fields = fields
 	return res
 }
 
-// Dumps all results into a pointer to an slice of structs or maps.
-func (res *Result) All(dst interface{}) error {
+func (res *result) All(dst interface{}) error {
 	var err error
 
 	if res.cursor != nil {
@@ -131,8 +123,7 @@ func (res *Result) All(dst interface{}) error {
 	return err
 }
 
-// Fetches only one result from the resultset.
-func (res *Result) One(dst interface{}) error {
+func (res *result) One(dst interface{}) error {
 	var err error
 
 	if res.cursor != nil {
@@ -146,8 +137,7 @@ func (res *Result) One(dst interface{}) error {
 	return err
 }
 
-// Fetches the next result from the resultset.
-func (res *Result) Next(dst interface{}) error {
+func (res *result) Next(dst interface{}) error {
 	err := res.setCursor()
 	if err != nil {
 		res.Close()
@@ -163,8 +153,7 @@ func (res *Result) Next(dst interface{}) error {
 	return nil
 }
 
-// Removes the matching items from the collection.
-func (res *Result) Remove() error {
+func (res *result) Remove() error {
 	var err error
 	_, err = res.table.source.doExec(
 		fmt.Sprintf(
@@ -178,9 +167,7 @@ func (res *Result) Remove() error {
 
 }
 
-// Updates matching items from the collection with values of the given map or
-// struct.
-func (res *Result) Update(values interface{}) error {
+func (res *result) Update(values interface{}) error {
 
 	ff, vv, err := res.table.FieldValues(values, toInternal)
 
@@ -212,8 +199,7 @@ func (res *Result) Update(values interface{}) error {
 	return err
 }
 
-// Closes the result set.
-func (res *Result) Close() error {
+func (res *result) Close() error {
 	var err error
 	if res.cursor != nil {
 		err = res.cursor.Close()
@@ -222,8 +208,7 @@ func (res *Result) Close() error {
 	return err
 }
 
-// Counts matching elements.
-func (res *Result) Count() (uint64, error) {
+func (res *result) Count() (uint64, error) {
 
 	rows, err := res.table.source.doQuery(
 		fmt.Sprintf(

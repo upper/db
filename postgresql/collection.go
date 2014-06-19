@@ -35,14 +35,12 @@ import (
 	"upper.io/db/util/sqlutil"
 )
 
-// Represents a PostgreSQL table.
-type Table struct {
-	source *Source
+type table struct {
+	source *source
 	sqlutil.T
 }
 
-func (tbl *Table) Find(terms ...interface{}) db.Result {
-
+func (tbl *table) Find(terms ...interface{}) db.Result {
 	queryChunks := sqlutil.NewQueryChunks()
 
 	// No specific fields given.
@@ -58,17 +56,16 @@ func (tbl *Table) Find(terms ...interface{}) db.Result {
 	}
 
 	// Creating a result handler.
-	result := &Result{
+	res := &result{
 		tbl,
 		queryChunks,
 		nil,
 	}
 
-	return result
+	return res
 }
 
-// Transforms conditions into arguments for sql.Exec/sql.Query
-func (tbl *Table) compileConditions(term interface{}) (string, []interface{}) {
+func (tbl *table) compileConditions(term interface{}) (string, []interface{}) {
 	sql := []string{}
 	args := []interface{}{}
 
@@ -113,8 +110,7 @@ func (tbl *Table) compileConditions(term interface{}) (string, []interface{}) {
 	return "", args
 }
 
-func (tbl *Table) compileStatement(cond db.Cond) (string, []interface{}) {
-
+func (tbl *table) compileStatement(cond db.Cond) (string, []interface{}) {
 	total := len(cond)
 
 	str := make([]string, 0, total)
@@ -165,9 +161,7 @@ func (tbl *Table) compileStatement(cond db.Cond) (string, []interface{}) {
 	return `(` + strings.Join(str, ` AND `) + `)`, arg
 }
 
-// Deletes all the rows within the collection.
-func (tbl *Table) Truncate() error {
-
+func (tbl *table) Truncate() error {
 	_, err := tbl.source.doExec(
 		fmt.Sprintf(`TRUNCATE TABLE "%s"`, tbl.Name()),
 	)
@@ -175,9 +169,7 @@ func (tbl *Table) Truncate() error {
 	return err
 }
 
-// Appends an item (map or struct) into the collection.
-func (tbl *Table) Append(item interface{}) (interface{}, error) {
-
+func (tbl *table) Append(item interface{}) (interface{}, error) {
 	fields, values, err := tbl.FieldValues(item, toInternal)
 
 	// Error ocurred, stop appending.
@@ -217,8 +209,7 @@ func (tbl *Table) Append(item interface{}) (interface{}, error) {
 	return id, nil
 }
 
-// Returns true if the collection exists.
-func (tbl *Table) Exists() bool {
+func (tbl *table) Exists() bool {
 	rows, err := tbl.source.doQuery(
 		fmt.Sprintf(`
 				SELECT table_name

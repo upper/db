@@ -51,7 +51,7 @@ const driverName = `postgresql`
 
 type sqlValues []interface{}
 
-type Source struct {
+type source struct {
 	config      db.Settings
 	session     *sql.DB
 	name        string
@@ -71,7 +71,7 @@ func debugEnabled() bool {
 }
 
 func init() {
-	db.Register(driverName, &Source{})
+	db.Register(driverName, &source{})
 }
 
 func debugLogQuery(s string, q *sqlQuery) {
@@ -116,7 +116,7 @@ func sqlFields(names []string) string {
 	return `("` + strings.Join(names, `", "`) + `")`
 }
 
-func (s *Source) doExec(terms ...interface{}) (sql.Result, error) {
+func (s *source) doExec(terms ...interface{}) (sql.Result, error) {
 	if s.session == nil {
 		return nil, db.ErrNotConnected
 	}
@@ -136,7 +136,7 @@ func (s *Source) doExec(terms ...interface{}) (sql.Result, error) {
 	return s.session.Exec(query, chunks.Args...)
 }
 
-func (s *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
+func (s *source) doQuery(terms ...interface{}) (*sql.Rows, error) {
 	if s.session == nil {
 		return nil, db.ErrNotConnected
 	}
@@ -156,7 +156,7 @@ func (s *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
 	return s.session.Query(query, chunks.Args...)
 }
 
-func (s *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
+func (s *source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
 	if s.session == nil {
 		return nil, db.ErrNotConnected
 	}
@@ -176,25 +176,21 @@ func (s *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
 	return s.session.QueryRow(query, chunks.Args...), nil
 }
 
-// Returns the string name of the database.
-func (s *Source) Name() string {
+func (s *source) Name() string {
 	return s.config.Database
 }
 
-// Stores database settings.
-func (s *Source) Setup(config db.Settings) error {
+func (s *source) Setup(config db.Settings) error {
 	s.config = config
 	s.collections = make(map[string]db.Collection)
 	return s.Open()
 }
 
-// Returns the underlying *sql.DB instance.
-func (s *Source) Driver() interface{} {
+func (s *source) Driver() interface{} {
 	return s.session
 }
 
-// Attempts to connect to a database using the stored settings.
-func (s *Source) Open() error {
+func (s *source) Open() error {
 	var err error
 
 	if s.config.Host == "" {
@@ -232,40 +228,34 @@ func (s *Source) Open() error {
 	return nil
 }
 
-// Closes the current database session.
-func (s *Source) Close() error {
+func (s *source) Close() error {
 	if s.session != nil {
 		return s.session.Close()
 	}
 	return nil
 }
 
-// Changes the active database.
-func (s *Source) Use(database string) error {
+func (s *source) Use(database string) error {
 	s.config.Database = database
 	return s.Open()
 }
 
-// Starts a transaction block.
-func (s *Source) Begin() error {
+func (s *source) Begin() error {
 	_, err := s.session.Exec(`BEGIN`)
 	return err
 }
 
-// Ends a transaction block.
-func (s *Source) End() error {
+func (s *source) End() error {
 	_, err := s.session.Exec(`END`)
 	return err
 }
 
-// Drops the currently active database.
-func (s *Source) Drop() error {
+func (s *source) Drop() error {
 	s.session.Query(fmt.Sprintf(`DROP DATABASE "%s"`, s.config.Database))
 	return nil
 }
 
-// Returns a list of all tables within the currently active database.
-func (s *Source) Collections() ([]string, error) {
+func (s *source) Collections() ([]string, error) {
 	var collections []string
 	var collection string
 
@@ -285,38 +275,37 @@ func (s *Source) Collections() ([]string, error) {
 	return collections, nil
 }
 
-// Returns a collection instance by name.
-func (s *Source) Collection(name string) (db.Collection, error) {
+func (s *source) Collection(name string) (db.Collection, error) {
 
 	if collection, ok := s.collections[name]; ok == true {
 		return collection, nil
 	}
 
-	table := &Table{}
+	tbl := &table{}
 
-	table.source = s
-	table.DB = s
-	table.PrimaryKey = `id`
+	tbl.source = s
+	tbl.DB = s
+	tbl.PrimaryKey = `id`
 
-	table.SetName = name
+	tbl.SetName = name
 
 	// Table exists?
-	if table.Exists() == false {
-		return table, db.ErrCollectionDoesNotExists
+	if tbl.Exists() == false {
+		return tbl, db.ErrCollectionDoesNotExists
 	}
 
 	// Fetching table datatypes and mapping to internal gotypes.
-	rows, err := table.source.doQuery(
+	rows, err := tbl.source.doQuery(
 		`SELECT
 			column_name, data_type
 		FROM information_schema.columns
 		WHERE
 			table_name = ?`,
-		[]string{table.Name()},
+		[]string{tbl.Name()},
 	)
 
 	if err != nil {
-		return table, err
+		return tbl, err
 	}
 
 	columns := []struct {
@@ -324,13 +313,13 @@ func (s *Source) Collection(name string) (db.Collection, error) {
 		DataType   string
 	}{}
 
-	err = table.FetchRows(&columns, rows)
+	err = tbl.FetchRows(&columns, rows)
 
 	if err != nil {
 		return nil, err
 	}
 
-	table.ColumnTypes = make(map[string]reflect.Kind, len(columns))
+	tbl.ColumnTypes = make(map[string]reflect.Kind, len(columns))
 
 	for _, column := range columns {
 
@@ -363,10 +352,10 @@ func (s *Source) Collection(name string) (db.Collection, error) {
 			ctype = reflect.Float64
 		}
 
-		table.ColumnTypes[column.ColumnName] = ctype
+		tbl.ColumnTypes[column.ColumnName] = ctype
 	}
 
-	s.collections[name] = table
+	s.collections[name] = tbl
 
-	return table, nil
+	return tbl, nil
 }
