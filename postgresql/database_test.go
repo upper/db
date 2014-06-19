@@ -790,7 +790,7 @@ func TestRawRelations(t *testing.T) {
 
 }
 
-// Attempts to append some with an invalid query and then rolls back.
+// Attempts to test database transactions.
 func TestTransactionsAndRollback(t *testing.T) {
 	var sess db.Database
 	var err error
