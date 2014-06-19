@@ -217,7 +217,7 @@ func TestAppend(t *testing.T) {
 
 	// Appending a struct.
 	id, err = artist.Append(struct {
-		Name string `field:name`
+		Name string `field:"name"`
 	}{
 		"Flea",
 	})
