@@ -276,7 +276,6 @@ func (s *source) Collections() ([]string, error) {
 }
 
 func (s *source) Collection(name string) (db.Collection, error) {
-
 	if collection, ok := s.collections[name]; ok == true {
 		return collection, nil
 	}

@@ -258,7 +258,6 @@ func toNative(val interface{}) interface{} {
 }
 
 func interfaceArgs(value interface{}) (args []interface{}) {
-
 	if value == nil {
 		return nil
 	}

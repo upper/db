@@ -168,7 +168,6 @@ func (res *result) Remove() error {
 }
 
 func (res *result) Update(values interface{}) error {
-
 	ff, vv, err := res.table.FieldValues(values, toInternal)
 
 	if err != nil {
@@ -209,7 +208,6 @@ func (res *result) Close() error {
 }
 
 func (res *result) Count() (uint64, error) {
-
 	rows, err := res.table.source.doQuery(
 		fmt.Sprintf(
 			`SELECT COUNT(1) AS total FROM "%s" WHERE %s`,
