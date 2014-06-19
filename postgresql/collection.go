@@ -255,9 +255,8 @@ func toInternal(val interface{}) interface{} {
 	case bool:
 		if t == true {
 			return `1`
-		} else {
-			return `0`
 		}
+		return `0`
 	}
 	return to.String(val)
 }
@@ -288,9 +287,8 @@ func interfaceArgs(value interface{}) (args []interface{}) {
 			}
 
 			return args
-		} else {
-			return nil
 		}
+		return nil
 	default:
 		args = []interface{}{toInternal(value)}
 	}
