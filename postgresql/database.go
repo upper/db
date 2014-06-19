@@ -191,10 +191,8 @@ func (s *source) Driver() interface{} {
 }
 
 func (s *source) Open() error {
-	if s.config.Host == "" {
-		if s.config.Socket == "" {
-			s.config.Host = `127.0.0.1`
-		}
+	if s.config.Host == "" && s.config.Socket == "" {
+		s.config.Host = `127.0.0.1`
 	}
 
 	if s.config.Port == 0 {

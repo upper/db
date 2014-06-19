@@ -56,18 +56,16 @@ func (tbl *table) Find(terms ...interface{}) db.Result {
 	}
 
 	// Creating a result handler.
-	res := &result{
+	return &result{
 		tbl,
 		queryChunks,
 		nil,
 	}
-
-	return res
 }
 
 func (tbl *table) compileConditions(term interface{}) (string, []interface{}) {
-	sql := []string{}
-	args := []interface{}{}
+	var sql []string
+	var args []interface{}
 
 	switch t := term.(type) {
 	case []interface{}:
@@ -248,7 +246,7 @@ func toInternal(val interface{}) interface{} {
 	return to.String(val)
 }
 
-// Convers a database representation (after auto-conversion) into a Go value.
+// toNative converts a database representation (after auto-conversion) into a Go value.
 func toNative(val interface{}) interface{} {
 	return val
 }
