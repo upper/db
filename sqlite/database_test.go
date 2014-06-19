@@ -755,6 +755,180 @@ func TestRawRelations(t *testing.T) {
 
 }
 
+// Attempts to test database transactions.
+func TestTransactionsAndRollback(t *testing.T) {
+	var sess db.Database
+	var err error
+
+	type artist_t struct {
+		Id   int64  `db:"id,omitempty"`
+		Name string `db:"name"`
+	}
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	// Simple transaction that should not fail.
+	var tx db.Tx
+	if tx, err = sess.Transaction(); err != nil {
+		t.Fatal(err)
+	}
+
+	var artist db.Collection
+	if artist, err = tx.Collection("artist"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = artist.Truncate(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Simple transaction
+	if _, err = artist.Append(artist_t{1, "First"}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Attempt to use the same transaction should fail.
+	if _, err = tx.Collection("artist"); err == nil {
+		t.Fatalf("Illegal, transaction has already been commited.")
+	}
+
+	// Use another transaction.
+	if tx, err = sess.Transaction(); err != nil {
+		t.Fatal(err)
+	}
+
+	if artist, err = tx.Collection("artist"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Won't fail.
+	if _, err = artist.Append(artist_t{2, "Second"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Won't fail.
+	if _, err = artist.Append(artist_t{3, "Third"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Will fail.
+	if _, err = artist.Append(artist_t{1, "Duplicated"}); err == nil {
+		t.Fatal("Should have failed, as we have already inserted ID 1.")
+	}
+
+	if err = tx.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = tx.Commit(); err == nil {
+		t.Fatalf("Should have failed, as we've already rolled back.")
+	}
+
+	// Let's verify we still have one element.
+	if artist, err = sess.Collection("artist"); err != nil {
+		t.Fatal(err)
+	}
+
+	var count uint64
+	if count, err = artist.Find().Count(); err != nil {
+		t.Fatal(err)
+	}
+
+	if count != 1 {
+		t.Fatalf("Expecting only one element.")
+	}
+
+	// Attempt to add some rows.
+	if tx, err = sess.Transaction(); err != nil {
+		t.Fatal(err)
+	}
+
+	if artist, err = tx.Collection("artist"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Won't fail.
+	if _, err = artist.Append(artist_t{2, "Second"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Won't fail.
+	if _, err = artist.Append(artist_t{3, "Third"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Then rollback for no reason.
+	if err = tx.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = tx.Commit(); err == nil {
+		t.Fatalf("Should have failed, as we've already rolled back.")
+	}
+
+	// Let's verify we still have one element.
+	if artist, err = sess.Collection("artist"); err != nil {
+		t.Fatal(err)
+	}
+
+	if count, err = artist.Find().Count(); err != nil {
+		t.Fatal(err)
+	}
+
+	if count != 1 {
+		t.Fatalf("Expecting only one element.")
+	}
+
+	// Attempt to add some rows.
+	if tx, err = sess.Transaction(); err != nil {
+		t.Fatal(err)
+	}
+
+	if artist, err = tx.Collection("artist"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Won't fail.
+	if _, err = artist.Append(artist_t{2, "Second"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Won't fail.
+	if _, err = artist.Append(artist_t{3, "Third"}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = tx.Rollback(); err == nil {
+		t.Fatalf("Should have failed, as we've already commited.")
+	}
+
+	// Let's verify we have 3 rows.
+	if artist, err = sess.Collection("artist"); err != nil {
+		t.Fatal(err)
+	}
+
+	if count, err = artist.Find().Count(); err != nil {
+		t.Fatal(err)
+	}
+
+	if count != 3 {
+		t.Fatalf("Expecting only one element.")
+	}
+
+}
+
 // Attempts to add many different datatypes to a single row in a collection,
 // then it tries to get the stored datatypes and check if the stored and the
 // original values match.
