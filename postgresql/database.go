@@ -49,7 +49,7 @@ var columnPattern = regexp.MustCompile(`^([a-z]+)\(?([0-9,]+)?\)?\s?([a-z]*)?`)
 
 const driverName = `postgresql`
 
-type sqlValues_t []interface{}
+type sqlValues []interface{}
 
 type Source struct {
 	config      db.Settings
@@ -85,7 +85,7 @@ func sqlCompile(terms []interface{}) *sqlQuery {
 
 	for _, term := range terms {
 		switch t := term.(type) {
-		case sqlValues_t:
+		case sqlValues:
 			args := make([]string, len(t))
 			for i, arg := range t {
 				args[i] = `?`
@@ -114,14 +114,6 @@ func sqlFields(names []string) string {
 		names[i] = strings.Replace(names[i], `"`, `\"`, -1)
 	}
 	return `("` + strings.Join(names, `", "`) + `")`
-}
-
-func sqlValues(values []interface{}) sqlValues_t {
-	ret := make(sqlValues_t, len(values))
-	for i := range values {
-		ret[i] = values[i]
-	}
-	return ret
 }
 
 func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
