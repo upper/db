@@ -116,8 +116,8 @@ func sqlFields(names []string) string {
 	return `("` + strings.Join(names, `", "`) + `")`
 }
 
-func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
-	if self.session == nil {
+func (s *Source) doExec(terms ...interface{}) (sql.Result, error) {
+	if s.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
@@ -133,11 +133,11 @@ func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
 		debugLogQuery(query, chunks)
 	}
 
-	return self.session.Exec(query, chunks.Args...)
+	return s.session.Exec(query, chunks.Args...)
 }
 
-func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
-	if self.session == nil {
+func (s *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
+	if s.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
@@ -153,11 +153,11 @@ func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
 		debugLogQuery(query, chunks)
 	}
 
-	return self.session.Query(query, chunks.Args...)
+	return s.session.Query(query, chunks.Args...)
 }
 
-func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
-	if self.session == nil {
+func (s *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
+	if s.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
@@ -173,57 +173,57 @@ func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
 		debugLogQuery(query, chunks)
 	}
 
-	return self.session.QueryRow(query, chunks.Args...), nil
+	return s.session.QueryRow(query, chunks.Args...), nil
 }
 
 // Returns the string name of the database.
-func (self *Source) Name() string {
-	return self.config.Database
+func (s *Source) Name() string {
+	return s.config.Database
 }
 
 // Stores database settings.
-func (self *Source) Setup(config db.Settings) error {
-	self.config = config
-	self.collections = make(map[string]db.Collection)
-	return self.Open()
+func (s *Source) Setup(config db.Settings) error {
+	s.config = config
+	s.collections = make(map[string]db.Collection)
+	return s.Open()
 }
 
 // Returns the underlying *sql.DB instance.
-func (self *Source) Driver() interface{} {
-	return self.session
+func (s *Source) Driver() interface{} {
+	return s.session
 }
 
 // Attempts to connect to a database using the stored settings.
-func (self *Source) Open() error {
+func (s *Source) Open() error {
 	var err error
 
-	if self.config.Host == "" {
-		if self.config.Socket == "" {
-			self.config.Host = `127.0.0.1`
+	if s.config.Host == "" {
+		if s.config.Socket == "" {
+			s.config.Host = `127.0.0.1`
 		}
 	}
 
-	if self.config.Port == 0 {
-		self.config.Port = 5432
+	if s.config.Port == 0 {
+		s.config.Port = 5432
 	}
 
-	if self.config.Database == "" {
+	if s.config.Database == "" {
 		return db.ErrMissingDatabaseName
 	}
 
-	if self.config.Socket != "" && self.config.Host != "" {
+	if s.config.Socket != "" && s.config.Host != "" {
 		return db.ErrSockerOrHost
 	}
 
 	var conn string
 
-	if self.config.Host != "" {
-		conn = fmt.Sprintf(`user=%s password=%s host=%s port=%d dbname=%s sslmode=%s`, self.config.User, self.config.Password, self.config.Host, self.config.Port, self.config.Database, SSLMode)
-	} else if self.config.Socket != `` {
-		conn = fmt.Sprintf(`user=%s password=%s host=%s dbname=%s sslmode=%s`, self.config.User, self.config.Password, self.config.Socket, self.config.Database, SSLMode)
+	if s.config.Host != "" {
+		conn = fmt.Sprintf(`user=%s password=%s host=%s port=%d dbname=%s sslmode=%s`, s.config.User, s.config.Password, s.config.Host, s.config.Port, s.config.Database, sslMode)
+	} else if s.config.Socket != `` {
+		conn = fmt.Sprintf(`user=%s password=%s host=%s dbname=%s sslmode=%s`, s.config.User, s.config.Password, s.config.Socket, s.config.Database, sslMode)
 	}
 
-	self.session, err = sql.Open(`postgres`, conn)
+	s.session, err = sql.Open(`postgres`, conn)
 
 	if err != nil {
 		return err
@@ -233,43 +233,43 @@ func (self *Source) Open() error {
 }
 
 // Closes the current database session.
-func (self *Source) Close() error {
-	if self.session != nil {
-		return self.session.Close()
+func (s *Source) Close() error {
+	if s.session != nil {
+		return s.session.Close()
 	}
 	return nil
 }
 
 // Changes the active database.
-func (self *Source) Use(database string) error {
-	self.config.Database = database
-	return self.Open()
+func (s *Source) Use(database string) error {
+	s.config.Database = database
+	return s.Open()
 }
 
 // Starts a transaction block.
-func (self *Source) Begin() error {
-	_, err := self.session.Exec(`BEGIN`)
+func (s *Source) Begin() error {
+	_, err := s.session.Exec(`BEGIN`)
 	return err
 }
 
 // Ends a transaction block.
-func (self *Source) End() error {
-	_, err := self.session.Exec(`END`)
+func (s *Source) End() error {
+	_, err := s.session.Exec(`END`)
 	return err
 }
 
 // Drops the currently active database.
-func (self *Source) Drop() error {
-	self.session.Query(fmt.Sprintf(`DROP DATABASE "%s"`, self.config.Database))
+func (s *Source) Drop() error {
+	s.session.Query(fmt.Sprintf(`DROP DATABASE "%s"`, s.config.Database))
 	return nil
 }
 
 // Returns a list of all tables within the currently active database.
-func (self *Source) Collections() ([]string, error) {
+func (s *Source) Collections() ([]string, error) {
 	var collections []string
 	var collection string
 
-	rows, err := self.session.Query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`)
+	rows, err := s.session.Query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`)
 
 	if err != nil {
 		return nil, err
@@ -286,16 +286,16 @@ func (self *Source) Collections() ([]string, error) {
 }
 
 // Returns a collection instance by name.
-func (self *Source) Collection(name string) (db.Collection, error) {
+func (s *Source) Collection(name string) (db.Collection, error) {
 
-	if collection, ok := self.collections[name]; ok == true {
+	if collection, ok := s.collections[name]; ok == true {
 		return collection, nil
 	}
 
 	table := &Table{}
 
-	table.source = self
-	table.DB = self
+	table.source = s
+	table.DB = s
 	table.PrimaryKey = `id`
 
 	table.SetName = name
@@ -366,7 +366,7 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 		table.ColumnTypes[column.ColumnName] = ctype
 	}
 
-	self.collections[name] = table
+	s.collections[name] = table
 
 	return table, nil
 }

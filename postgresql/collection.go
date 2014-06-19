@@ -41,7 +41,7 @@ type Table struct {
 	sqlutil.T
 }
 
-func (self *Table) Find(terms ...interface{}) db.Result {
+func (tbl *Table) Find(terms ...interface{}) db.Result {
 
 	queryChunks := sqlutil.NewQueryChunks()
 
@@ -51,7 +51,7 @@ func (self *Table) Find(terms ...interface{}) db.Result {
 	}
 
 	// Compiling conditions
-	queryChunks.Conditions, queryChunks.Arguments = self.compileConditions(terms)
+	queryChunks.Conditions, queryChunks.Arguments = tbl.compileConditions(terms)
 
 	if queryChunks.Conditions == "" {
 		queryChunks.Conditions = `1 = 1`
@@ -59,7 +59,7 @@ func (self *Table) Find(terms ...interface{}) db.Result {
 
 	// Creating a result handler.
 	result := &Result{
-		self,
+		tbl,
 		queryChunks,
 		nil,
 	}
@@ -68,14 +68,14 @@ func (self *Table) Find(terms ...interface{}) db.Result {
 }
 
 // Transforms conditions into arguments for sql.Exec/sql.Query
-func (self *Table) compileConditions(term interface{}) (string, []interface{}) {
+func (tbl *Table) compileConditions(term interface{}) (string, []interface{}) {
 	sql := []string{}
 	args := []interface{}{}
 
 	switch t := term.(type) {
 	case []interface{}:
 		for i := range t {
-			rsql, rargs := self.compileConditions(t[i])
+			rsql, rargs := tbl.compileConditions(t[i])
 			if rsql != "" {
 				sql = append(sql, rsql)
 				args = append(args, rargs...)
@@ -86,7 +86,7 @@ func (self *Table) compileConditions(term interface{}) (string, []interface{}) {
 		}
 	case db.Or:
 		for i := range t {
-			rsql, rargs := self.compileConditions(t[i])
+			rsql, rargs := tbl.compileConditions(t[i])
 			if rsql != "" {
 				sql = append(sql, rsql)
 				args = append(args, rargs...)
@@ -97,7 +97,7 @@ func (self *Table) compileConditions(term interface{}) (string, []interface{}) {
 		}
 	case db.And:
 		for i := range t {
-			rsql, rargs := self.compileConditions(t[i])
+			rsql, rargs := tbl.compileConditions(t[i])
 			if rsql != "" {
 				sql = append(sql, rsql)
 				args = append(args, rargs...)
@@ -107,13 +107,13 @@ func (self *Table) compileConditions(term interface{}) (string, []interface{}) {
 			return `(` + strings.Join(sql, ` AND `) + `)`, args
 		}
 	case db.Cond:
-		return self.compileStatement(t)
+		return tbl.compileStatement(t)
 	}
 
 	return "", args
 }
 
-func (self *Table) compileStatement(cond db.Cond) (string, []interface{}) {
+func (tbl *Table) compileStatement(cond db.Cond) (string, []interface{}) {
 
 	total := len(cond)
 
@@ -166,19 +166,19 @@ func (self *Table) compileStatement(cond db.Cond) (string, []interface{}) {
 }
 
 // Deletes all the rows within the collection.
-func (t *Table) Truncate() error {
+func (tbl *Table) Truncate() error {
 
-	_, err := t.source.doExec(
-		fmt.Sprintf(`TRUNCATE TABLE "%s"`, t.Name()),
+	_, err := tbl.source.doExec(
+		fmt.Sprintf(`TRUNCATE TABLE "%s"`, tbl.Name()),
 	)
 
 	return err
 }
 
 // Appends an item (map or struct) into the collection.
-func (self *Table) Append(item interface{}) (interface{}, error) {
+func (tbl *Table) Append(item interface{}) (interface{}, error) {
 
-	fields, values, err := self.FieldValues(item, toInternal)
+	fields, values, err := tbl.FieldValues(item, toInternal)
 
 	// Error ocurred, stop appending.
 	if err != nil {
@@ -187,12 +187,12 @@ func (self *Table) Append(item interface{}) (interface{}, error) {
 
 	tail := ""
 
-	if _, ok := self.ColumnTypes[self.PrimaryKey]; ok == true {
-		tail = fmt.Sprintf(`RETURNING %s`, self.PrimaryKey)
+	if _, ok := tbl.ColumnTypes[tbl.PrimaryKey]; ok == true {
+		tail = fmt.Sprintf(`RETURNING %s`, tbl.PrimaryKey)
 	}
 
-	row, err := self.source.doQueryRow(
-		fmt.Sprintf(`INSERT INTO "%s"`, self.Name()),
+	row, err := tbl.source.doQueryRow(
+		fmt.Sprintf(`INSERT INTO "%s"`, tbl.Name()),
 		sqlFields(fields),
 		`VALUES`,
 		sqlValues(values),
@@ -218,15 +218,15 @@ func (self *Table) Append(item interface{}) (interface{}, error) {
 }
 
 // Returns true if the collection exists.
-func (self *Table) Exists() bool {
-	rows, err := self.source.doQuery(
+func (tbl *Table) Exists() bool {
+	rows, err := tbl.source.doQuery(
 		fmt.Sprintf(`
 				SELECT table_name
 					FROM information_schema.tables
 				WHERE table_catalog = '%s' AND table_name = '%s'
 		`,
-			self.source.Name(),
-			self.Name(),
+			tbl.source.Name(),
+			tbl.Name(),
 		),
 	)
 

@@ -44,49 +44,49 @@ type Result struct {
 }
 
 // Executes a SELECT statement that can feed Next(), All() or One().
-func (self *Result) setCursor() error {
+func (res *Result) setCursor() error {
 	var err error
 	// We need a cursor, if the cursor does not exists yet then we create one.
-	if self.cursor == nil {
-		self.cursor, err = self.table.source.doQuery(
+	if res.cursor == nil {
+		res.cursor, err = res.table.source.doQuery(
 			// Mandatory SQL.
 			fmt.Sprintf(
 				`SELECT %s FROM "%s" WHERE %s`,
 				// Fields.
-				strings.Join(self.queryChunks.Fields, `, `),
+				strings.Join(res.queryChunks.Fields, `, `),
 				// Table name
-				self.table.Name(),
+				res.table.Name(),
 				// Conditions
-				self.queryChunks.Conditions,
+				res.queryChunks.Conditions,
 			),
 			// Arguments
-			self.queryChunks.Arguments,
+			res.queryChunks.Arguments,
 			// Optional SQL
-			self.queryChunks.Sort,
-			self.queryChunks.Limit,
-			self.queryChunks.Offset,
+			res.queryChunks.Sort,
+			res.queryChunks.Limit,
+			res.queryChunks.Offset,
 		)
 	}
 	return err
 }
 
 // Determines the maximum limit of results to be returned.
-func (self *Result) Limit(n uint) db.Result {
-	self.queryChunks.Limit = fmt.Sprintf(`LIMIT %d`, n)
-	return self
+func (res *Result) Limit(n uint) db.Result {
+	res.queryChunks.Limit = fmt.Sprintf(`LIMIT %d`, n)
+	return res
 }
 
 // Determines how many documents will be skipped before starting to grab
 // results.
-func (self *Result) Skip(n uint) db.Result {
-	self.queryChunks.Offset = fmt.Sprintf(`OFFSET %d`, n)
-	return self
+func (res *Result) Skip(n uint) db.Result {
+	res.queryChunks.Offset = fmt.Sprintf(`OFFSET %d`, n)
+	return res
 }
 
 // Determines sorting of results according to the provided names. Fields may be
 // prefixed by - (minus) which means descending order, ascending order would be
 // used otherwise.
-func (self *Result) Sort(fields ...string) db.Result {
+func (res *Result) Sort(fields ...string) db.Result {
 	sort := make([]string, 0, len(fields))
 
 	for _, field := range fields {
@@ -97,66 +97,66 @@ func (self *Result) Sort(fields ...string) db.Result {
 		}
 	}
 
-	self.queryChunks.Sort = `ORDER BY ` + strings.Join(sort, `, `)
+	res.queryChunks.Sort = `ORDER BY ` + strings.Join(sort, `, `)
 
-	return self
+	return res
 }
 
 // Retrieves only the given fields.
-func (self *Result) Select(fields ...string) db.Result {
-	self.queryChunks.Fields = fields
-	return self
+func (res *Result) Select(fields ...string) db.Result {
+	res.queryChunks.Fields = fields
+	return res
 }
 
 // Dumps all results into a pointer to an slice of structs or maps.
-func (self *Result) All(dst interface{}) error {
+func (res *Result) All(dst interface{}) error {
 	var err error
 
-	if self.cursor != nil {
+	if res.cursor != nil {
 		return db.ErrQueryIsPending
 	}
 
 	// Current cursor.
-	err = self.setCursor()
+	err = res.setCursor()
 
 	if err != nil {
 		return err
 	}
 
-	defer self.Close()
+	defer res.Close()
 
 	// Fetching all results within the cursor.
-	err = self.table.T.FetchRows(dst, self.cursor)
+	err = res.table.T.FetchRows(dst, res.cursor)
 
 	return err
 }
 
 // Fetches only one result from the resultset.
-func (self *Result) One(dst interface{}) error {
+func (res *Result) One(dst interface{}) error {
 	var err error
 
-	if self.cursor != nil {
+	if res.cursor != nil {
 		return db.ErrQueryIsPending
 	}
 
-	defer self.Close()
+	defer res.Close()
 
-	err = self.Next(dst)
+	err = res.Next(dst)
 
 	return err
 }
 
 // Fetches the next result from the resultset.
-func (self *Result) Next(dst interface{}) error {
-	err := self.setCursor()
+func (res *Result) Next(dst interface{}) error {
+	err := res.setCursor()
 	if err != nil {
-		self.Close()
+		res.Close()
 		return err
 	}
 
-	err = self.table.T.FetchRow(dst, self.cursor)
+	err = res.table.T.FetchRow(dst, res.cursor)
 	if err != nil {
-		self.Close()
+		res.Close()
 		return err
 	}
 
@@ -164,15 +164,15 @@ func (self *Result) Next(dst interface{}) error {
 }
 
 // Removes the matching items from the collection.
-func (self *Result) Remove() error {
+func (res *Result) Remove() error {
 	var err error
-	_, err = self.table.source.doExec(
+	_, err = res.table.source.doExec(
 		fmt.Sprintf(
 			`DELETE FROM "%s" WHERE %s`,
-			self.table.Name(),
-			self.queryChunks.Conditions,
+			res.table.Name(),
+			res.queryChunks.Conditions,
 		),
-		self.queryChunks.Arguments,
+		res.queryChunks.Arguments,
 	)
 	return err
 
@@ -180,9 +180,9 @@ func (self *Result) Remove() error {
 
 // Updates matching items from the collection with values of the given map or
 // struct.
-func (self *Result) Update(values interface{}) error {
+func (res *Result) Update(values interface{}) error {
 
-	ff, vv, err := self.table.FieldValues(values, toInternal)
+	ff, vv, err := res.table.FieldValues(values, toInternal)
 
 	if err != nil {
 		return err
@@ -198,40 +198,40 @@ func (self *Result) Update(values interface{}) error {
 		updateArgs[i] = vv[i]
 	}
 
-	_, err = self.table.source.doExec(
+	_, err = res.table.source.doExec(
 		fmt.Sprintf(
 			`UPDATE "%s" SET %s WHERE %s`,
-			self.table.Name(),
+			res.table.Name(),
 			strings.Join(updateFields, `, `),
-			self.queryChunks.Conditions,
+			res.queryChunks.Conditions,
 		),
 		updateArgs,
-		self.queryChunks.Arguments,
+		res.queryChunks.Arguments,
 	)
 
 	return err
 }
 
 // Closes the result set.
-func (self *Result) Close() error {
+func (res *Result) Close() error {
 	var err error
-	if self.cursor != nil {
-		err = self.cursor.Close()
-		self.cursor = nil
+	if res.cursor != nil {
+		err = res.cursor.Close()
+		res.cursor = nil
 	}
 	return err
 }
 
 // Counts matching elements.
-func (self *Result) Count() (uint64, error) {
+func (res *Result) Count() (uint64, error) {
 
-	rows, err := self.table.source.doQuery(
+	rows, err := res.table.source.doQuery(
 		fmt.Sprintf(
 			`SELECT COUNT(1) AS total FROM "%s" WHERE %s`,
-			self.table.Name(),
-			self.queryChunks.Conditions,
+			res.table.Name(),
+			res.queryChunks.Conditions,
 		),
-		self.queryChunks.Arguments,
+		res.queryChunks.Arguments,
 	)
 
 	if err != nil {
@@ -239,7 +239,7 @@ func (self *Result) Count() (uint64, error) {
 	}
 
 	dst := counter{}
-	self.table.T.FetchRow(&dst, rows)
+	res.table.T.FetchRow(&dst, rows)
 
 	rows.Close()
 
