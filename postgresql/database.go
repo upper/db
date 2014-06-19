@@ -21,6 +21,7 @@
   WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+// Package postgresql provides a PostgreSQL driver for upper.io/db.
 package postgresql
 
 import (
@@ -32,7 +33,7 @@ import (
 	"regexp"
 	"strings"
 
-	_ "github.com/xiam/gopostgresql"
+	_ "github.com/xiam/gopostgresql" // for PostgreSQL driver
 	"upper.io/db"
 )
 

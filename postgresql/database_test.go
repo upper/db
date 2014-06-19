@@ -31,6 +31,7 @@
 	cd ..
 	go test
 */
+
 package postgresql
 
 import (
