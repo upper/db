@@ -324,7 +324,7 @@ func TestResultFetch(t *testing.T) {
 
 	// Testing struct
 	row_s := struct {
-		Id   uint64
+		ID   uint64
 		Name string
 	}{}
 
@@ -339,7 +339,7 @@ func TestResultFetch(t *testing.T) {
 		}
 
 		if err == nil {
-			if row_s.Id == 0 {
+			if row_s.ID == 0 {
 				t.Fatalf("Expecting a not null ID.")
 			}
 			if row_s.Name == "" {
@@ -402,7 +402,7 @@ func TestResultFetch(t *testing.T) {
 	res = artist.Find()
 
 	all_rows_s := []struct {
-		Id   uint64
+		ID   uint64
 		Name string
 	}{}
 	err = res.All(&all_rows_s)
@@ -412,7 +412,7 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	for _, single_row_s := range all_rows_s {
-		if single_row_s.Id == 0 {
+		if single_row_s.ID == 0 {
 			t.Fatalf("Expecting a not null ID.")
 		}
 	}
@@ -460,7 +460,7 @@ func TestUpdate(t *testing.T) {
 
 	// Value
 	value := struct {
-		Id   uint64
+		ID   uint64
 		Name string
 	}{}
 
@@ -555,7 +555,7 @@ func TestFunction(t *testing.T) {
 	}
 
 	row_s := struct {
-		Id   uint64
+		ID   uint64
 		Name string
 	}{}
 
