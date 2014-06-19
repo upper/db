@@ -31,6 +31,7 @@
 	cd ..
 	go test
 */
+
 package postgresql
 
 import (
@@ -116,22 +117,14 @@ func TestOpenFailed(t *testing.T) {
 
 // Truncates all collections.
 func TestTruncate(t *testing.T) {
-
-	var err error
-
-	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
 	// Getting a list of all collections in this database.
 	collections, err := sess.Collections()
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +144,6 @@ func TestTruncate(t *testing.T) {
 		if exists == true {
 			// Truncating the structure, if exists.
 			err = col.Truncate()
-
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -184,23 +176,17 @@ func TestSetCursorError(t *testing.T) {
 
 // This test appends some data into the "artist" table.
 func TestAppend(t *testing.T) {
-
-	var err error
 	var id interface{}
 
 	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
 	// Getting a pointer to the "artist" collection.
 	artist, err := sess.Collection("artist")
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,7 +202,7 @@ func TestAppend(t *testing.T) {
 
 	// Appending a struct.
 	id, err = artist.Append(struct {
-		Name string `field:name`
+		Name string `field:"name"`
 	}{
 		"Flea",
 	})
@@ -241,17 +227,13 @@ func TestAppend(t *testing.T) {
 // This test tries to use an empty filter and count how many elements were
 // added into the artist collection.
 func TestResultCount(t *testing.T) {
-
-	var err error
 	var res db.Result
 
 	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	defer sess.Close()
 
 	// We should close the database when it's no longer in use.
@@ -261,7 +243,6 @@ func TestResultCount(t *testing.T) {
 
 	// Counting all the matching rows.
 	total, err := res.Count()
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,22 +255,16 @@ func TestResultCount(t *testing.T) {
 
 // This test uses and result and tries to fetch items one by one.
 func TestResultFetch(t *testing.T) {
-
-	var err error
 	var res db.Result
 
 	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
 	artist, err := sess.Collection("artist")
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,21 +272,21 @@ func TestResultFetch(t *testing.T) {
 	// Testing map
 	res = artist.Find()
 
-	row_m := map[string]interface{}{}
+	rowM := map[string]interface{}{}
 
 	for {
-		err = res.Next(&row_m)
+		err = res.Next(&rowM)
 
 		if err == db.ErrNoMoreRows {
-			// No more row_ms left.
+			// No more rowMs left.
 			break
 		}
 
 		if err == nil {
-			if to.Int64(row_m["id"]) == 0 {
+			if to.Int64(rowM["id"]) == 0 {
 				t.Fatalf("Expecting a not null ID.")
 			}
-			if to.String(row_m["name"]) == "" {
+			if to.String(rowM["name"]) == "" {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
@@ -322,26 +297,26 @@ func TestResultFetch(t *testing.T) {
 	res.Close()
 
 	// Testing struct
-	row_s := struct {
-		Id   uint64
+	rowS := struct {
+		ID   uint64
 		Name string
 	}{}
 
 	res = artist.Find()
 
 	for {
-		err = res.Next(&row_s)
+		err = res.Next(&rowS)
 
 		if err == db.ErrNoMoreRows {
-			// No more row_s' left.
+			// No more rowS' left.
 			break
 		}
 
 		if err == nil {
-			if row_s.Id == 0 {
+			if rowS.ID == 0 {
 				t.Fatalf("Expecting a not null ID.")
 			}
-			if row_s.Name == "" {
+			if rowS.Name == "" {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
@@ -352,7 +327,7 @@ func TestResultFetch(t *testing.T) {
 	res.Close()
 
 	// Testing tagged struct
-	row_t := struct {
+	rowT := struct {
 		Value1 uint64 `field:"id"`
 		Value2 string `field:"name"`
 	}{}
@@ -360,18 +335,18 @@ func TestResultFetch(t *testing.T) {
 	res = artist.Find()
 
 	for {
-		err = res.Next(&row_t)
+		err = res.Next(&rowT)
 
 		if err == db.ErrNoMoreRows {
-			// No more row_t's left.
+			// No more rowT's left.
 			break
 		}
 
 		if err == nil {
-			if row_t.Value1 == 0 {
+			if rowT.Value1 == 0 {
 				t.Fatalf("Expecting a not null ID.")
 			}
-			if row_t.Value2 == "" {
+			if rowT.Value2 == "" {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
@@ -384,15 +359,14 @@ func TestResultFetch(t *testing.T) {
 	// Testing Result.All() with a slice of maps.
 	res = artist.Find()
 
-	all_rows_m := []map[string]interface{}{}
-	err = res.All(&all_rows_m)
-
+	allRowsM := []map[string]interface{}{}
+	err = res.All(&allRowsM)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, single_row_m := range all_rows_m {
-		if to.Int64(single_row_m["id"]) == 0 {
+	for _, singleRowM := range allRowsM {
+		if to.Int64(singleRowM["id"]) == 0 {
 			t.Fatalf("Expecting a not null ID.")
 		}
 	}
@@ -400,18 +374,17 @@ func TestResultFetch(t *testing.T) {
 	// Testing Result.All() with a slice of structs.
 	res = artist.Find()
 
-	all_rows_s := []struct {
-		Id   uint64
+	allRowsS := []struct {
+		ID   uint64
 		Name string
 	}{}
-	err = res.All(&all_rows_s)
-
+	err = res.All(&allRowsS)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, single_row_s := range all_rows_s {
-		if single_row_s.Id == 0 {
+	for _, singleRowS := range allRowsS {
+		if singleRowS.ID == 0 {
 			t.Fatalf("Expecting a not null ID.")
 		}
 	}
@@ -419,18 +392,17 @@ func TestResultFetch(t *testing.T) {
 	// Testing Result.All() with a slice of tagged structs.
 	res = artist.Find()
 
-	all_rows_t := []struct {
+	allRowsT := []struct {
 		Value1 uint64 `field:"id"`
 		Value2 string `field:"name"`
 	}{}
-	err = res.All(&all_rows_t)
-
+	err = res.All(&allRowsT)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, single_row_t := range all_rows_t {
-		if single_row_t.Value1 == 0 {
+	for _, singleRowT := range allRowsT {
+		if singleRowT.Value1 == 0 {
 			t.Fatalf("Expecting a not null ID.")
 		}
 	}
@@ -438,28 +410,22 @@ func TestResultFetch(t *testing.T) {
 
 // This test tries to update some previously added rows.
 func TestUpdate(t *testing.T) {
-	var err error
-
 	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
 	// Getting a pointer to the "artist" collection.
 	artist, err := sess.Collection("artist")
-
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Value
 	value := struct {
-		Id   uint64
+		ID   uint64
 		Name string
 	}{}
 
@@ -467,65 +433,59 @@ func TestUpdate(t *testing.T) {
 	res := artist.Find(db.Cond{"id !=": 0}).Limit(1)
 
 	// Updating with a map
-	row_m := map[string]interface{}{
+	rowM := map[string]interface{}{
 		"name": strings.ToUpper(value.Name),
 	}
 
-	err = res.Update(row_m)
-
+	err = res.Update(rowM)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	err = res.One(&value)
-
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if value.Name != row_m["name"] {
+	if value.Name != rowM["name"] {
 		t.Fatalf("Expecting a modification.")
 	}
 
 	// Updating with a struct
-	row_s := struct {
+	rowS := struct {
 		Name string
 	}{strings.ToLower(value.Name)}
 
-	err = res.Update(row_s)
-
+	err = res.Update(rowS)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	err = res.One(&value)
-
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if value.Name != row_s.Name {
+	if value.Name != rowS.Name {
 		t.Fatalf("Expecting a modification.")
 	}
 
 	// Updating with a tagged struct
-	row_t := struct {
+	rowT := struct {
 		Value1 string `field:"name"`
 	}{strings.Replace(value.Name, "z", "Z", -1)}
 
-	err = res.Update(row_t)
-
+	err = res.Update(rowT)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	err = res.One(&value)
-
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if value.Name != row_t.Value1 {
+	if value.Name != rowT.Value1 {
 		t.Fatalf("Expecting a modification.")
 	}
 
@@ -538,35 +498,31 @@ func TestFunction(t *testing.T) {
 
 	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
 	// Getting a pointer to the "artist" collection.
 	artist, err := sess.Collection("artist")
-
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	row_s := struct {
-		Id   uint64
+	rowS := struct {
+		ID   uint64
 		Name string
 	}{}
 
 	res = artist.Find(db.Cond{"id NOT IN": []int{0, -1}})
 
-	if err = res.One(&row_s); err != nil {
+	if err = res.One(&rowS); err != nil {
 		t.Fatalf("One: %q", err)
 	}
 
 	res = artist.Find(db.Cond{"id": db.Func{"NOT IN", []int{0, -1}}})
 
-	if err = res.One(&row_s); err != nil {
+	if err = res.One(&rowS); err != nil {
 		t.Fatalf("One: %q", err)
 	}
 
@@ -575,22 +531,14 @@ func TestFunction(t *testing.T) {
 
 // This test tries to remove some previously added rows.
 func TestRemove(t *testing.T) {
-
-	var err error
-
-	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
 	// Getting a pointer to the "artist" collection.
 	artist, err := sess.Collection("artist")
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -600,7 +548,6 @@ func TestRemove(t *testing.T) {
 
 	// Trying to remove the row.
 	err = res.Remove()
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -614,12 +561,9 @@ func TestDataTypes(t *testing.T) {
 
 	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
 	// Getting a pointer to the "data_types" collection.
@@ -628,7 +572,6 @@ func TestDataTypes(t *testing.T) {
 
 	// Appending our test subject.
 	id, err := dataTypes.Append(testValues)
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -637,7 +580,6 @@ func TestDataTypes(t *testing.T) {
 	res = dataTypes.Find(db.Cond{"id": id})
 
 	exists, err := res.Count()
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -664,11 +606,9 @@ func TestDisableDebug(t *testing.T) {
 // Benchmarking raw database/sql.
 func BenchmarkAppendRaw(b *testing.B) {
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		b.Fatal(err)
 	}
-
 	defer sess.Close()
 
 	artist, err := sess.Collection("artist")
@@ -691,11 +631,9 @@ func BenchmarkAppendRaw(b *testing.B) {
 // See: https://github.com/gosexy/db/issues/20#issuecomment-20097801
 func BenchmarkAppendDbItem(b *testing.B) {
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		b.Fatal(err)
 	}
-
 	defer sess.Close()
 
 	artist, err := sess.Collection("artist")
@@ -715,13 +653,11 @@ func BenchmarkAppendDbItem(b *testing.B) {
 // Contributed by wei2912
 // See: https://github.com/gosexy/db/issues/20#issuecomment-20167939
 // Applying the BEGIN and END transaction optimizations.
-func BenchmarkAppendDbItem_Transaction(b *testing.B) {
+func BenchmarkAppendDbItemWithTransaction(b *testing.B) {
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		b.Fatal(err)
 	}
-
 	defer sess.Close()
 
 	artist, err := sess.Collection("artist")
@@ -748,11 +684,9 @@ func BenchmarkAppendDbItem_Transaction(b *testing.B) {
 // Benchmarking Append with a struct.
 func BenchmarkAppendStruct(b *testing.B) {
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		b.Fatal(err)
 	}
-
 	defer sess.Close()
 
 	artist, err := sess.Collection("artist")

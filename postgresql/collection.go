@@ -35,14 +35,12 @@ import (
 	"upper.io/db/util/sqlutil"
 )
 
-// Represents a PostgreSQL table.
-type Table struct {
-	source *Source
+type table struct {
+	source *source
 	sqlutil.T
 }
 
-func (self *Table) Find(terms ...interface{}) db.Result {
-
+func (tbl *table) Find(terms ...interface{}) db.Result {
 	queryChunks := sqlutil.NewQueryChunks()
 
 	// No specific fields given.
@@ -51,31 +49,28 @@ func (self *Table) Find(terms ...interface{}) db.Result {
 	}
 
 	// Compiling conditions
-	queryChunks.Conditions, queryChunks.Arguments = self.compileConditions(terms)
+	queryChunks.Conditions, queryChunks.Arguments = tbl.compileConditions(terms)
 
 	if queryChunks.Conditions == "" {
 		queryChunks.Conditions = `1 = 1`
 	}
 
 	// Creating a result handler.
-	result := &Result{
-		self,
+	return &result{
+		tbl,
 		queryChunks,
 		nil,
 	}
-
-	return result
 }
 
-// Transforms conditions into arguments for sql.Exec/sql.Query
-func (self *Table) compileConditions(term interface{}) (string, []interface{}) {
-	sql := []string{}
-	args := []interface{}{}
+func (tbl *table) compileConditions(term interface{}) (string, []interface{}) {
+	var sql []string
+	var args []interface{}
 
 	switch t := term.(type) {
 	case []interface{}:
 		for i := range t {
-			rsql, rargs := self.compileConditions(t[i])
+			rsql, rargs := tbl.compileConditions(t[i])
 			if rsql != "" {
 				sql = append(sql, rsql)
 				args = append(args, rargs...)
@@ -86,7 +81,7 @@ func (self *Table) compileConditions(term interface{}) (string, []interface{}) {
 		}
 	case db.Or:
 		for i := range t {
-			rsql, rargs := self.compileConditions(t[i])
+			rsql, rargs := tbl.compileConditions(t[i])
 			if rsql != "" {
 				sql = append(sql, rsql)
 				args = append(args, rargs...)
@@ -97,7 +92,7 @@ func (self *Table) compileConditions(term interface{}) (string, []interface{}) {
 		}
 	case db.And:
 		for i := range t {
-			rsql, rargs := self.compileConditions(t[i])
+			rsql, rargs := tbl.compileConditions(t[i])
 			if rsql != "" {
 				sql = append(sql, rsql)
 				args = append(args, rargs...)
@@ -107,14 +102,13 @@ func (self *Table) compileConditions(term interface{}) (string, []interface{}) {
 			return `(` + strings.Join(sql, ` AND `) + `)`, args
 		}
 	case db.Cond:
-		return self.compileStatement(t)
+		return tbl.compileStatement(t)
 	}
 
 	return "", args
 }
 
-func (self *Table) compileStatement(cond db.Cond) (string, []interface{}) {
-
+func (tbl *table) compileStatement(cond db.Cond) (string, []interface{}) {
 	total := len(cond)
 
 	str := make([]string, 0, total)
@@ -137,20 +131,20 @@ func (self *Table) compileStatement(cond db.Cond) (string, []interface{}) {
 
 		switch value := value.(type) {
 		case db.Func:
-			value_i := interfaceArgs(value.Args)
-			if value_i == nil {
+			valueI := interfaceArgs(value.Args)
+			if valueI == nil {
 				str = append(str, fmt.Sprintf(`%s %s ()`, chunks[0], value.Name))
 			} else {
-				str = append(str, fmt.Sprintf(`%s %s (?%s)`, chunks[0], value.Name, strings.Repeat(`,?`, len(value_i)-1)))
-				arg = append(arg, value_i...)
+				str = append(str, fmt.Sprintf(`%s %s (?%s)`, chunks[0], value.Name, strings.Repeat(`,?`, len(valueI)-1)))
+				arg = append(arg, valueI...)
 			}
 		default:
-			value_i := interfaceArgs(value)
-			if value_i == nil {
+			valueI := interfaceArgs(value)
+			if valueI == nil {
 				str = append(str, fmt.Sprintf(`%s %s ()`, chunks[0], op))
 			} else {
-				str = append(str, fmt.Sprintf(`%s %s (?%s)`, chunks[0], op, strings.Repeat(`,?`, len(value_i)-1)))
-				arg = append(arg, value_i...)
+				str = append(str, fmt.Sprintf(`%s %s (?%s)`, chunks[0], op, strings.Repeat(`,?`, len(valueI)-1)))
+				arg = append(arg, valueI...)
 			}
 		}
 	}
@@ -165,40 +159,33 @@ func (self *Table) compileStatement(cond db.Cond) (string, []interface{}) {
 	return `(` + strings.Join(str, ` AND `) + `)`, arg
 }
 
-// Deletes all the rows within the collection.
-func (t *Table) Truncate() error {
-
-	_, err := t.source.doExec(
-		fmt.Sprintf(`TRUNCATE TABLE "%s"`, t.Name()),
+func (tbl *table) Truncate() error {
+	_, err := tbl.source.doExec(
+		fmt.Sprintf(`TRUNCATE TABLE "%s"`, tbl.Name()),
 	)
 
 	return err
 }
 
-// Appends an item (map or struct) into the collection.
-func (self *Table) Append(item interface{}) (interface{}, error) {
-
-	fields, values, err := self.FieldValues(item, toInternal)
-
-	// Error ocurred, stop appending.
+func (tbl *table) Append(item interface{}) (interface{}, error) {
+	fields, values, err := tbl.FieldValues(item, toInternal)
 	if err != nil {
 		return nil, err
 	}
 
 	tail := ""
 
-	if _, ok := self.ColumnTypes[self.PrimaryKey]; ok == true {
-		tail = fmt.Sprintf(`RETURNING %s`, self.PrimaryKey)
+	if _, ok := tbl.ColumnTypes[tbl.PrimaryKey]; ok == true {
+		tail = fmt.Sprintf(`RETURNING %s`, tbl.PrimaryKey)
 	}
 
-	row, err := self.source.doQueryRow(
-		fmt.Sprintf(`INSERT INTO "%s"`, self.Name()),
+	row, err := tbl.source.doQueryRow(
+		fmt.Sprintf(`INSERT INTO "%s"`, tbl.Name()),
 		sqlFields(fields),
 		`VALUES`,
 		sqlValues(values),
 		tail,
 	)
-
 	if err != nil {
 		return nil, err
 	}
@@ -217,19 +204,17 @@ func (self *Table) Append(item interface{}) (interface{}, error) {
 	return id, nil
 }
 
-// Returns true if the collection exists.
-func (self *Table) Exists() bool {
-	rows, err := self.source.doQuery(
+func (tbl *table) Exists() bool {
+	rows, err := tbl.source.doQuery(
 		fmt.Sprintf(`
 				SELECT table_name
 					FROM information_schema.tables
 				WHERE table_catalog = '%s' AND table_name = '%s'
 		`,
-			self.source.Name(),
-			self.Name(),
+			tbl.source.Name(),
+			tbl.Name(),
 		),
 	)
-
 	if err != nil {
 		return false
 	}
@@ -255,42 +240,39 @@ func toInternal(val interface{}) interface{} {
 	case bool:
 		if t == true {
 			return `1`
-		} else {
-			return `0`
 		}
+		return `0`
 	}
 	return to.String(val)
 }
 
-// Convers a database representation (after auto-conversion) into a Go value.
+// toNative converts a database representation (after auto-conversion) into a Go value.
 func toNative(val interface{}) interface{} {
 	return val
 }
 
 func interfaceArgs(value interface{}) (args []interface{}) {
-
 	if value == nil {
 		return nil
 	}
 
-	value_v := reflect.ValueOf(value)
+	valueV := reflect.ValueOf(value)
 
-	switch value_v.Type().Kind() {
+	switch valueV.Type().Kind() {
 	case reflect.Slice:
 		var i, total int
 
-		total = value_v.Len()
+		total = valueV.Len()
 		if total > 0 {
 			args = make([]interface{}, total)
 
 			for i = 0; i < total; i++ {
-				args[i] = toInternal(value_v.Index(i).Interface())
+				args[i] = toInternal(valueV.Index(i).Interface())
 			}
 
 			return args
-		} else {
-			return nil
 		}
+		return nil
 	default:
 		args = []interface{}{toInternal(value)}
 	}

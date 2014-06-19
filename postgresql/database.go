@@ -21,6 +21,7 @@
   WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+// Package postgresql provides a PostgreSQL driver for upper.io/db.
 package postgresql
 
 import (
@@ -32,7 +33,7 @@ import (
 	"regexp"
 	"strings"
 
-	_ "github.com/xiam/gopostgresql"
+	_ "github.com/xiam/gopostgresql" // for PostgreSQL driver
 	"upper.io/db"
 )
 
@@ -42,15 +43,15 @@ var DateFormat = "2006-01-02 15:04:05"
 // Format for saving times.
 var TimeFormat = "%d:%02d:%02d.%d"
 
-var SSLMode = "disable"
+var sslMode = "disable"
 
 var columnPattern = regexp.MustCompile(`^([a-z]+)\(?([0-9,]+)?\)?\s?([a-z]*)?`)
 
 const driverName = `postgresql`
 
-type sqlValues_t []interface{}
+type sqlValues []interface{}
 
-type Source struct {
+type source struct {
 	config      db.Settings
 	session     *sql.DB
 	name        string
@@ -70,7 +71,7 @@ func debugEnabled() bool {
 }
 
 func init() {
-	db.Register(driverName, &Source{})
+	db.Register(driverName, &source{})
 }
 
 func debugLogQuery(s string, q *sqlQuery) {
@@ -84,7 +85,7 @@ func sqlCompile(terms []interface{}) *sqlQuery {
 
 	for _, term := range terms {
 		switch t := term.(type) {
-		case sqlValues_t:
+		case sqlValues:
 			args := make([]string, len(t))
 			for i, arg := range t {
 				args[i] = `?`
@@ -109,22 +110,14 @@ func sqlCompile(terms []interface{}) *sqlQuery {
 }
 
 func sqlFields(names []string) string {
-	for i, _ := range names {
+	for i := range names {
 		names[i] = strings.Replace(names[i], `"`, `\"`, -1)
 	}
 	return `("` + strings.Join(names, `", "`) + `")`
 }
 
-func sqlValues(values []interface{}) sqlValues_t {
-	ret := make(sqlValues_t, len(values))
-	for i, _ := range values {
-		ret[i] = values[i]
-	}
-	return ret
-}
-
-func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
-	if self.session == nil {
+func (s *source) doExec(terms ...interface{}) (sql.Result, error) {
+	if s.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
@@ -140,11 +133,11 @@ func (self *Source) doExec(terms ...interface{}) (sql.Result, error) {
 		debugLogQuery(query, chunks)
 	}
 
-	return self.session.Exec(query, chunks.Args...)
+	return s.session.Exec(query, chunks.Args...)
 }
 
-func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
-	if self.session == nil {
+func (s *source) doQuery(terms ...interface{}) (*sql.Rows, error) {
+	if s.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
@@ -160,11 +153,11 @@ func (self *Source) doQuery(terms ...interface{}) (*sql.Rows, error) {
 		debugLogQuery(query, chunks)
 	}
 
-	return self.session.Query(query, chunks.Args...)
+	return s.session.Query(query, chunks.Args...)
 }
 
-func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
-	if self.session == nil {
+func (s *source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
+	if s.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
@@ -180,108 +173,91 @@ func (self *Source) doQueryRow(terms ...interface{}) (*sql.Row, error) {
 		debugLogQuery(query, chunks)
 	}
 
-	return self.session.QueryRow(query, chunks.Args...), nil
+	return s.session.QueryRow(query, chunks.Args...), nil
 }
 
-// Returns the string name of the database.
-func (self *Source) Name() string {
-	return self.config.Database
+func (s *source) Name() string {
+	return s.config.Database
 }
 
-// Stores database settings.
-func (self *Source) Setup(config db.Settings) error {
-	self.config = config
-	self.collections = make(map[string]db.Collection)
-	return self.Open()
+func (s *source) Setup(config db.Settings) error {
+	s.config = config
+	s.collections = make(map[string]db.Collection)
+	return s.Open()
 }
 
-// Returns the underlying *sql.DB instance.
-func (self *Source) Driver() interface{} {
-	return self.session
+func (s *source) Driver() interface{} {
+	return s.session
 }
 
-// Attempts to connect to a database using the stored settings.
-func (self *Source) Open() error {
-	var err error
-
-	if self.config.Host == "" {
-		if self.config.Socket == "" {
-			self.config.Host = `127.0.0.1`
-		}
+func (s *source) Open() error {
+	if s.config.Host == "" && s.config.Socket == "" {
+		s.config.Host = `127.0.0.1`
 	}
 
-	if self.config.Port == 0 {
-		self.config.Port = 5432
+	if s.config.Port == 0 {
+		s.config.Port = 5432
 	}
 
-	if self.config.Database == "" {
+	if s.config.Database == "" {
 		return db.ErrMissingDatabaseName
 	}
 
-	if self.config.Socket != "" && self.config.Host != "" {
+	if s.config.Socket != "" && s.config.Host != "" {
 		return db.ErrSockerOrHost
 	}
 
 	var conn string
-
-	if self.config.Host != "" {
-		conn = fmt.Sprintf(`user=%s password=%s host=%s port=%d dbname=%s sslmode=%s`, self.config.User, self.config.Password, self.config.Host, self.config.Port, self.config.Database, SSLMode)
-	} else if self.config.Socket != `` {
-		conn = fmt.Sprintf(`user=%s password=%s host=%s dbname=%s sslmode=%s`, self.config.User, self.config.Password, self.config.Socket, self.config.Database, SSLMode)
+	if s.config.Host != "" {
+		conn = fmt.Sprintf(`user=%s password=%s host=%s port=%d dbname=%s sslmode=%s`, s.config.User, s.config.Password, s.config.Host, s.config.Port, s.config.Database, sslMode)
+	} else if s.config.Socket != `` {
+		conn = fmt.Sprintf(`user=%s password=%s host=%s dbname=%s sslmode=%s`, s.config.User, s.config.Password, s.config.Socket, s.config.Database, sslMode)
 	}
 
-	self.session, err = sql.Open(`postgres`, conn)
-
+	sess, err := sql.Open(`postgres`, conn)
 	if err != nil {
 		return err
 	}
+	s.session = sess
 
 	return nil
 }
 
-// Closes the current database session.
-func (self *Source) Close() error {
-	if self.session != nil {
-		return self.session.Close()
+func (s *source) Close() error {
+	if s.session != nil {
+		return s.session.Close()
 	}
 	return nil
 }
 
-// Changes the active database.
-func (self *Source) Use(database string) error {
-	self.config.Database = database
-	return self.Open()
+func (s *source) Use(database string) error {
+	s.config.Database = database
+	return s.Open()
 }
 
-// Starts a transaction block.
-func (self *Source) Begin() error {
-	_, err := self.session.Exec(`BEGIN`)
+func (s *source) Begin() error {
+	_, err := s.session.Exec(`BEGIN`)
 	return err
 }
 
-// Ends a transaction block.
-func (self *Source) End() error {
-	_, err := self.session.Exec(`END`)
+func (s *source) End() error {
+	_, err := s.session.Exec(`END`)
 	return err
 }
 
-// Drops the currently active database.
-func (self *Source) Drop() error {
-	self.session.Query(fmt.Sprintf(`DROP DATABASE "%s"`, self.config.Database))
+func (s *source) Drop() error {
+	s.session.Query(fmt.Sprintf(`DROP DATABASE "%s"`, s.config.Database))
 	return nil
 }
 
-// Returns a list of all tables within the currently active database.
-func (self *Source) Collections() ([]string, error) {
+func (s *source) Collections() ([]string, error) {
 	var collections []string
 	var collection string
 
-	rows, err := self.session.Query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`)
-
+	rows, err := s.session.Query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`)
 	if err != nil {
 		return nil, err
 	}
-
 	defer rows.Close()
 
 	for rows.Next() {
@@ -292,38 +268,35 @@ func (self *Source) Collections() ([]string, error) {
 	return collections, nil
 }
 
-// Returns a collection instance by name.
-func (self *Source) Collection(name string) (db.Collection, error) {
-
-	if collection, ok := self.collections[name]; ok == true {
+func (s *source) Collection(name string) (db.Collection, error) {
+	if collection, ok := s.collections[name]; ok == true {
 		return collection, nil
 	}
 
-	table := &Table{}
+	tbl := &table{}
 
-	table.source = self
-	table.DB = self
-	table.PrimaryKey = `id`
+	tbl.source = s
+	tbl.DB = s
+	tbl.PrimaryKey = `id`
 
-	table.SetName = name
+	tbl.SetName = name
 
 	// Table exists?
-	if table.Exists() == false {
-		return table, db.ErrCollectionDoesNotExists
+	if tbl.Exists() == false {
+		return tbl, db.ErrCollectionDoesNotExists
 	}
 
 	// Fetching table datatypes and mapping to internal gotypes.
-	rows, err := table.source.doQuery(
+	rows, err := tbl.source.doQuery(
 		`SELECT
 			column_name, data_type
 		FROM information_schema.columns
 		WHERE
 			table_name = ?`,
-		[]string{table.Name()},
+		[]string{tbl.Name()},
 	)
-
 	if err != nil {
-		return table, err
+		return tbl, err
 	}
 
 	columns := []struct {
@@ -331,16 +304,14 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 		DataType   string
 	}{}
 
-	err = table.FetchRows(&columns, rows)
-
+	err = tbl.FetchRows(&columns, rows)
 	if err != nil {
 		return nil, err
 	}
 
-	table.ColumnTypes = make(map[string]reflect.Kind, len(columns))
+	tbl.ColumnTypes = make(map[string]reflect.Kind, len(columns))
 
 	for _, column := range columns {
-
 		column.ColumnName = strings.ToLower(column.ColumnName)
 		column.DataType = strings.ToLower(column.DataType)
 
@@ -370,10 +341,10 @@ func (self *Source) Collection(name string) (db.Collection, error) {
 			ctype = reflect.Float64
 		}
 
-		table.ColumnTypes[column.ColumnName] = ctype
+		tbl.ColumnTypes[column.ColumnName] = ctype
 	}
 
-	self.collections[name] = table
+	s.collections[name] = tbl
 
-	return table, nil
+	return tbl, nil
 }
