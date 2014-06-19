@@ -191,8 +191,6 @@ func (s *source) Driver() interface{} {
 }
 
 func (s *source) Open() error {
-	var err error
-
 	if s.config.Host == "" {
 		if s.config.Socket == "" {
 			s.config.Host = `127.0.0.1`
@@ -212,18 +210,17 @@ func (s *source) Open() error {
 	}
 
 	var conn string
-
 	if s.config.Host != "" {
 		conn = fmt.Sprintf(`user=%s password=%s host=%s port=%d dbname=%s sslmode=%s`, s.config.User, s.config.Password, s.config.Host, s.config.Port, s.config.Database, sslMode)
 	} else if s.config.Socket != `` {
 		conn = fmt.Sprintf(`user=%s password=%s host=%s dbname=%s sslmode=%s`, s.config.User, s.config.Password, s.config.Socket, s.config.Database, sslMode)
 	}
 
-	s.session, err = sql.Open(`postgres`, conn)
-
+	sess, err := sql.Open(`postgres`, conn)
 	if err != nil {
 		return err
 	}
+	s.session = sess
 
 	return nil
 }
@@ -260,11 +257,9 @@ func (s *source) Collections() ([]string, error) {
 	var collection string
 
 	rows, err := s.session.Query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`)
-
 	if err != nil {
 		return nil, err
 	}
-
 	defer rows.Close()
 
 	for rows.Next() {
@@ -302,7 +297,6 @@ func (s *source) Collection(name string) (db.Collection, error) {
 			table_name = ?`,
 		[]string{tbl.Name()},
 	)
-
 	if err != nil {
 		return tbl, err
 	}
@@ -313,7 +307,6 @@ func (s *source) Collection(name string) (db.Collection, error) {
 	}{}
 
 	err = tbl.FetchRows(&columns, rows)
-
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +314,6 @@ func (s *source) Collection(name string) (db.Collection, error) {
 	tbl.ColumnTypes = make(map[string]reflect.Kind, len(columns))
 
 	for _, column := range columns {
-
 		column.ColumnName = strings.ToLower(column.ColumnName)
 		column.DataType = strings.ToLower(column.DataType)
 

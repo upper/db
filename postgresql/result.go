@@ -45,29 +45,35 @@ type result struct {
 
 // Executes a SELECT statement that can feed Next(), All() or One().
 func (res *result) setCursor() error {
-	var err error
-	// We need a cursor, if the cursor does not exists yet then we create one.
-	if res.cursor == nil {
-		res.cursor, err = res.table.source.doQuery(
-			// Mandatory SQL.
-			fmt.Sprintf(
-				`SELECT %s FROM "%s" WHERE %s`,
-				// Fields.
-				strings.Join(res.queryChunks.Fields, `, `),
-				// Table name
-				res.table.Name(),
-				// Conditions
-				res.queryChunks.Conditions,
-			),
-			// Arguments
-			res.queryChunks.Arguments,
-			// Optional SQL
-			res.queryChunks.Sort,
-			res.queryChunks.Limit,
-			res.queryChunks.Offset,
-		)
+	if res.cursor != nil {
+		return nil
 	}
-	return err
+
+	cursor, err := res.table.source.doQuery(
+		// Mandatory SQL.
+		fmt.Sprintf(
+			`SELECT %s FROM "%s" WHERE %s`,
+			// Fields.
+			strings.Join(res.queryChunks.Fields, `, `),
+			// Table name
+			res.table.Name(),
+			// Conditions
+			res.queryChunks.Conditions,
+		),
+		// Arguments
+		res.queryChunks.Arguments,
+		// Optional SQL
+		res.queryChunks.Sort,
+		res.queryChunks.Limit,
+		res.queryChunks.Offset,
+	)
+	if err != nil {
+		return err
+	}
+
+	res.cursor = cursor
+
+	return nil
 }
 
 func (res *result) Limit(n uint) db.Result {
@@ -102,19 +108,14 @@ func (res *result) Select(fields ...string) db.Result {
 }
 
 func (res *result) All(dst interface{}) error {
-	var err error
-
 	if res.cursor != nil {
 		return db.ErrQueryIsPending
 	}
 
-	// Current cursor.
-	err = res.setCursor()
-
+	err := res.setCursor()
 	if err != nil {
 		return err
 	}
-
 	defer res.Close()
 
 	// Fetching all results within the cursor.
@@ -124,15 +125,12 @@ func (res *result) All(dst interface{}) error {
 }
 
 func (res *result) One(dst interface{}) error {
-	var err error
-
 	if res.cursor != nil {
 		return db.ErrQueryIsPending
 	}
 
+	err := res.Next(dst)
 	defer res.Close()
-
-	err = res.Next(dst)
 
 	return err
 }
@@ -154,8 +152,7 @@ func (res *result) Next(dst interface{}) error {
 }
 
 func (res *result) Remove() error {
-	var err error
-	_, err = res.table.source.doExec(
+	_, err := res.table.source.doExec(
 		fmt.Sprintf(
 			`DELETE FROM "%s" WHERE %s`,
 			res.table.Name(),
@@ -169,7 +166,6 @@ func (res *result) Remove() error {
 
 func (res *result) Update(values interface{}) error {
 	ff, vv, err := res.table.FieldValues(values, toInternal)
-
 	if err != nil {
 		return err
 	}
@@ -199,11 +195,12 @@ func (res *result) Update(values interface{}) error {
 }
 
 func (res *result) Close() error {
-	var err error
-	if res.cursor != nil {
-		err = res.cursor.Close()
-		res.cursor = nil
+	if res.cursor == nil {
+		return nil
 	}
+
+	err := res.cursor.Close()
+	res.cursor = nil
 	return err
 }
 
@@ -216,7 +213,6 @@ func (res *result) Count() (uint64, error) {
 		),
 		res.queryChunks.Arguments,
 	)
-
 	if err != nil {
 		return 0, err
 	}

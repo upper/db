@@ -171,8 +171,6 @@ func (tbl *table) Truncate() error {
 
 func (tbl *table) Append(item interface{}) (interface{}, error) {
 	fields, values, err := tbl.FieldValues(item, toInternal)
-
-	// Error ocurred, stop appending.
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +188,6 @@ func (tbl *table) Append(item interface{}) (interface{}, error) {
 		sqlValues(values),
 		tail,
 	)
-
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +217,6 @@ func (tbl *table) Exists() bool {
 			tbl.Name(),
 		),
 	)
-
 	if err != nil {
 		return false
 	}

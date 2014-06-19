@@ -117,22 +117,14 @@ func TestOpenFailed(t *testing.T) {
 
 // Truncates all collections.
 func TestTruncate(t *testing.T) {
-
-	var err error
-
-	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
 	// Getting a list of all collections in this database.
 	collections, err := sess.Collections()
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +144,6 @@ func TestTruncate(t *testing.T) {
 		if exists == true {
 			// Truncating the structure, if exists.
 			err = col.Truncate()
-
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -185,23 +176,17 @@ func TestSetCursorError(t *testing.T) {
 
 // This test appends some data into the "artist" table.
 func TestAppend(t *testing.T) {
-
-	var err error
 	var id interface{}
 
 	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
 	// Getting a pointer to the "artist" collection.
 	artist, err := sess.Collection("artist")
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -242,17 +227,13 @@ func TestAppend(t *testing.T) {
 // This test tries to use an empty filter and count how many elements were
 // added into the artist collection.
 func TestResultCount(t *testing.T) {
-
-	var err error
 	var res db.Result
 
 	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	defer sess.Close()
 
 	// We should close the database when it's no longer in use.
@@ -262,7 +243,6 @@ func TestResultCount(t *testing.T) {
 
 	// Counting all the matching rows.
 	total, err := res.Count()
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -275,22 +255,16 @@ func TestResultCount(t *testing.T) {
 
 // This test uses and result and tries to fetch items one by one.
 func TestResultFetch(t *testing.T) {
-
-	var err error
 	var res db.Result
 
 	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
 	artist, err := sess.Collection("artist")
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -387,7 +361,6 @@ func TestResultFetch(t *testing.T) {
 
 	allRowsM := []map[string]interface{}{}
 	err = res.All(&allRowsM)
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -406,7 +379,6 @@ func TestResultFetch(t *testing.T) {
 		Name string
 	}{}
 	err = res.All(&allRowsS)
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -425,7 +397,6 @@ func TestResultFetch(t *testing.T) {
 		Value2 string `field:"name"`
 	}{}
 	err = res.All(&allRowsT)
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -439,21 +410,15 @@ func TestResultFetch(t *testing.T) {
 
 // This test tries to update some previously added rows.
 func TestUpdate(t *testing.T) {
-	var err error
-
 	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
 	// Getting a pointer to the "artist" collection.
 	artist, err := sess.Collection("artist")
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -473,13 +438,11 @@ func TestUpdate(t *testing.T) {
 	}
 
 	err = res.Update(rowM)
-
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	err = res.One(&value)
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -494,13 +457,11 @@ func TestUpdate(t *testing.T) {
 	}{strings.ToLower(value.Name)}
 
 	err = res.Update(rowS)
-
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	err = res.One(&value)
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -515,13 +476,11 @@ func TestUpdate(t *testing.T) {
 	}{strings.Replace(value.Name, "z", "Z", -1)}
 
 	err = res.Update(rowT)
-
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	err = res.One(&value)
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -539,17 +498,13 @@ func TestFunction(t *testing.T) {
 
 	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
 	// Getting a pointer to the "artist" collection.
 	artist, err := sess.Collection("artist")
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -576,22 +531,14 @@ func TestFunction(t *testing.T) {
 
 // This test tries to remove some previously added rows.
 func TestRemove(t *testing.T) {
-
-	var err error
-
-	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
 	// Getting a pointer to the "artist" collection.
 	artist, err := sess.Collection("artist")
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -601,7 +548,6 @@ func TestRemove(t *testing.T) {
 
 	// Trying to remove the row.
 	err = res.Remove()
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -615,12 +561,9 @@ func TestDataTypes(t *testing.T) {
 
 	// Opening database.
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
 	// Getting a pointer to the "data_types" collection.
@@ -629,7 +572,6 @@ func TestDataTypes(t *testing.T) {
 
 	// Appending our test subject.
 	id, err := dataTypes.Append(testValues)
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -638,7 +580,6 @@ func TestDataTypes(t *testing.T) {
 	res = dataTypes.Find(db.Cond{"id": id})
 
 	exists, err := res.Count()
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -665,11 +606,9 @@ func TestDisableDebug(t *testing.T) {
 // Benchmarking raw database/sql.
 func BenchmarkAppendRaw(b *testing.B) {
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		b.Fatal(err)
 	}
-
 	defer sess.Close()
 
 	artist, err := sess.Collection("artist")
@@ -692,11 +631,9 @@ func BenchmarkAppendRaw(b *testing.B) {
 // See: https://github.com/gosexy/db/issues/20#issuecomment-20097801
 func BenchmarkAppendDbItem(b *testing.B) {
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		b.Fatal(err)
 	}
-
 	defer sess.Close()
 
 	artist, err := sess.Collection("artist")
@@ -718,11 +655,9 @@ func BenchmarkAppendDbItem(b *testing.B) {
 // Applying the BEGIN and END transaction optimizations.
 func BenchmarkAppendDbItemWithTransaction(b *testing.B) {
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		b.Fatal(err)
 	}
-
 	defer sess.Close()
 
 	artist, err := sess.Collection("artist")
@@ -749,11 +684,9 @@ func BenchmarkAppendDbItemWithTransaction(b *testing.B) {
 // Benchmarking Append with a struct.
 func BenchmarkAppendStruct(b *testing.B) {
 	sess, err := db.Open(wrapperName, settings)
-
 	if err != nil {
 		b.Fatal(err)
 	}
-
 	defer sess.Close()
 
 	artist, err := sess.Collection("artist")
