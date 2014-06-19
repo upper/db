@@ -223,15 +223,20 @@ func (self *Source) Open() error {
 	}
 
 	var conn string
-
-	if self.config.Host != "" {
-		conn = fmt.Sprintf(`user=%s password=%s host=%s port=%d dbname=%s sslmode=%s`, self.config.User, self.config.Password, self.config.Host, self.config.Port, self.config.Database, SSLMode)
-	} else if self.config.Socket != `` {
-		conn = fmt.Sprintf(`user=%s password=%s host=%s dbname=%s sslmode=%s`, self.config.User, self.config.Password, self.config.Socket, self.config.Database, SSLMode)
+	if user := self.config.User; user != "" {
+		conn += fmt.Sprintf(`user=%s `, user)
 	}
+	if pass := self.config.Password; pass != "" {
+		conn += fmt.Sprintf(`password=%s `, pass)
+	}
+	if self.config.Host != "" {
+		conn += fmt.Sprintf(`host=%s port=%d `, self.config.Host, self.config.Port)
+	} else {
+		conn += fmt.Sprintf(`host=%s `, self.config.Socket)
+	}
+	conn += fmt.Sprintf(`dbname=%s sslmode=%s`, self.config.Database, SSLMode)
 
 	self.session, err = sql.Open(`postgres`, conn)
-
 	if err != nil {
 		return err
 	}
