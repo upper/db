@@ -43,7 +43,7 @@ var DateFormat = "2006-01-02 15:04:05"
 // Format for saving times.
 var TimeFormat = "%d:%02d:%02d.%d"
 
-var SSLMode = "disable"
+var sslMode = "disable"
 
 var columnPattern = regexp.MustCompile(`^([a-z]+)\(?([0-9,]+)?\)?\s?([a-z]*)?`)
 
@@ -110,7 +110,7 @@ func sqlCompile(terms []interface{}) *sqlQuery {
 }
 
 func sqlFields(names []string) string {
-	for i, _ := range names {
+	for i := range names {
 		names[i] = strings.Replace(names[i], `"`, `\"`, -1)
 	}
 	return `("` + strings.Join(names, `", "`) + `")`
@@ -118,7 +118,7 @@ func sqlFields(names []string) string {
 
 func sqlValues(values []interface{}) sqlValues_t {
 	ret := make(sqlValues_t, len(values))
-	for i, _ := range values {
+	for i := range values {
 		ret[i] = values[i]
 	}
 	return ret
