@@ -309,49 +309,57 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) interfa
 
 			field := item_t.Field(i)
 
-			if field.PkgPath != "" {
+			if field.PkgPath != `` {
 				// Field is unexported.
 				continue
 			}
 
-			// Field options.
-			fieldName, fieldOptions := util.ParseTag(field.Tag.Get("db"))
+			if field.Anonymous {
+				// It's an anonymous field. Let's skip it unless it has an explicit
+				// `db` tag.
+				if field.Tag.Get(`db`) == `` {
+					continue
+				}
+			}
 
-			// Deprecated "field" tag.
-			if deprecatedField := field.Tag.Get("field"); deprecatedField != "" {
+			// Field options.
+			fieldName, fieldOptions := util.ParseTag(field.Tag.Get(`db`))
+
+			// Deprecated `field` tag.
+			if deprecatedField := field.Tag.Get(`field`); deprecatedField != `` {
 				fieldName = deprecatedField
 			}
 
-			// Deprecated "omitempty" tag.
-			if deprecatedOmitEmpty := field.Tag.Get("omitempty"); deprecatedOmitEmpty != "" {
-				fieldOptions["omitempty"] = true
+			// Deprecated `omitempty` tag.
+			if deprecatedOmitEmpty := field.Tag.Get(`omitempty`); deprecatedOmitEmpty != `` {
+				fieldOptions[`omitempty`] = true
 			}
 
-			// Deprecated "inline" tag.
-			if deprecatedInline := field.Tag.Get("inline"); deprecatedInline != "" {
-				fieldOptions["inline"] = true
+			// Deprecated `inline` tag.
+			if deprecatedInline := field.Tag.Get(`inline`); deprecatedInline != `` {
+				fieldOptions[`inline`] = true
 			}
 
 			// Processing field name.
-			if fieldName == "-" {
+			if fieldName == `-` {
 				continue
 			}
 
-			if fieldName == "" {
+			if fieldName == `` {
 				fieldName = self.ColumnLike(field.Name)
 			}
 
 			// Processing tag options.
 			value := item_v.Field(i).Interface()
 
-			if fieldOptions["omitempty"] == true {
+			if fieldOptions[`omitempty`] == true {
 				zero := reflect.Zero(reflect.TypeOf(value)).Interface()
 				if value == zero {
 					continue
 				}
 			}
 
-			if fieldOptions["inline"] == true {
+			if fieldOptions[`inline`] == true {
 				infields, invalues, inerr := self.FieldValues(value, convertFn)
 				if inerr != nil {
 					return nil, nil, inerr
