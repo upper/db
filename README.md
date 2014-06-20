@@ -1,23 +1,29 @@
 # upper.io/db
 
-`upper.io/db` is a [Go][2] package that allows developers to store and retrive
-data to and from different kinds of databases through the use of adapters that
-wrap well supported database drivers.
+`upper.io/db` is a [Go][2] package that allows developers to communicate with
+different databases through the use of *adapters* that wrap well-supported
+database drivers.
+
+See the project page, recipes and user documentation at [upper.io/db][1].
+
+[![Build Status](https://travis-ci.org/upper/db.png)](https://travis-ci.org/upper/db)
+
+## Is this an ORM?
 
 `upper.io/db` is not an ORM, but you may not need one at all:
 
 ```go
 // This code works the same for all supported databases.
 var people []Person
-res = col.Find(db.Cond{"name": "Max"}).Skip(1).Limit(2).Sort("-input")
+res = col.Find(db.Cond{"name": "Max"}).Limit(10).Sort("-last_name")
 err = res.All(&people)
 ```
 
-See the project page, recipes and user documentation at [upper.io/db][1].
-
-[![Build Status](https://travis-ci.org/upper/db.png)](https://travis-ci.org/upper/db)
-
 ## Supported databases
+
+`upper.io/db` attempts to provide full compatiblity for [CRUD][2] operations
+across adapters. Some other operations (such *transactions*) are supported only
+on specific database adapters, such as MySQL, PostgreSQL and SQLite.
 
 * [MongoDB](https://upper.io/db/mongo) via [mgo](http://godoc.org/labix.org/v2/mgo)
 * [MySQL](https://upper.io/db/mysql) via [mysql](https://github.com/go-sql-driver/mysql)
@@ -50,3 +56,4 @@ See the project page, recipes and user documentation at [upper.io/db][1].
 
 [1]: https://upper.io/db
 [2]: http://golang.org
+[3]: http://en.wikipedia.org/wiki/Create,_read,_update_and_delete
