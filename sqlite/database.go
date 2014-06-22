@@ -394,7 +394,7 @@ func (self *source) Collection(names ...string) (db.Collection, error) {
 				return nil, err
 			}
 
-			col.Columns = make([]string, len(columns_t))
+			col.Columns = make([]string, 0, len(columns_t))
 
 			for _, column := range columns_t {
 				col.Columns = append(col.Columns, strings.ToLower(column.Name))
