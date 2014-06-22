@@ -59,7 +59,7 @@ func (self *Debug) Print() {
 	}
 
 	if len(self.Args) > 0 {
-		s = append(s, fmt.Sprintf(`ARG: %s`, self.Args))
+		s = append(s, fmt.Sprintf(`ARG: %v`, self.Args))
 	}
 
 	if self.Err != nil {
