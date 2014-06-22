@@ -725,20 +725,18 @@ func TestRawRelations(t *testing.T) {
 	})
 
 	/*
-		// TODO: Not supported by QL.
-
 		// Exec'ing a raw query.
 		var artistPublication db.Collection
-		if artistPublication, err = sess.Collection(`artist AS a, publication AS p`); err != nil {
+		if artistPublication, err = sess.Collection(`artist`, `publication`); err != nil {
 			t.Fatal(err)
 		}
 
 		res := artistPublication.Find(
-			db.Raw{`a.id() = p.author_id`},
+			db.Raw{`artist.id() == publisher.author_id`},
 		).Select(
-			"p.id() as id",
-			"p.title as publication_title",
-			"a.name AS artist_name",
+			"publisher.id() as id",
+			"publisher.title as publication_title",
+			"artist.name AS artist_name",
 		)
 
 		type artistPublication_t struct {
@@ -759,6 +757,55 @@ func TestRawRelations(t *testing.T) {
 	*/
 
 }
+
+/*
+func TestRawQuery(t *testing.T) {
+	var sess db.Database
+	var rows *sql.Rows
+	var err error
+	var drv *sql.DB
+
+	type publication_t struct {
+		Id       int64  `db:"id,omitempty"`
+		Title    string `db:"title"`
+		AuthorId int64  `db:"author_id"`
+	}
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	drv = sess.Driver().(*sql.DB)
+
+	rows, err = drv.Query(`
+		SELECT
+			p.id,
+			p.title AS publication_title,
+			a.name AS artist_name
+		FROM
+			artist AS a,
+			publication AS p
+		WHERE
+			a.id == p.author_id
+	`)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var all []publication_t
+
+	if err = sqlutil.FetchRows(rows, &all); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(all) != 9 {
+		t.Fatalf("Expecting some rows.")
+	}
+}
+*/
 
 // Attempts to test database transactions.
 // QL: Something is not working with QL's transactions.
