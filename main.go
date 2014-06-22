@@ -19,9 +19,12 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// The upper.io/db package allows developers to communicate with different
-// databases through the use of adapters that wrap well-supported database
-// drivers.
+// The `upper.io/db` package for Go provides a single interface for interacting
+// with different data sources through the use of adapters that wrap well-known
+// database drivers.
+//
+// As of today, `upper.io/db` fully supports MySQL, PostgreSQL and SQLite (CRUD
+// + Transactions) and provides partial support for MongoDB and QL (CRUD only).
 //
 // Usage:
 //
@@ -31,9 +34,18 @@
 //		// PostgreSQL adapter.
 // 		"upper.io/db/postgresql"
 // 	)
+//
+// `upper.io/db` is not an ORM and thus does not impose any hard restrictions
+// on data structures:
+//
+//	// This code works the same for all supported databases.
+//	var people []Person
+//	res = col.Find(db.Cond{"name": "Max"}).Limit(2).Sort("-input")
+//	err = res.All(&people)
 package db
 
-// The `db.Cond{}` expression is used to define conditions in a statement.
+// The `db.Cond{}` expression is used to define conditions used as arguments to
+// `db.Collection.Find()` and `db.Result.Where()`.
 //
 // Examples:
 //
@@ -211,10 +223,10 @@ type Database interface {
 	Transaction() (Tx, error)
 }
 
-// The `db.Tx` interface provides the same methods that the `db.Interface`
-// does, plus some other that help the user deal with database transactions. In
-// order to get a proper `db.Tx` interface the `db.Database.Transaction()`
-// method must be called on an already opened database session.
+// The `db.Tx` interface provides the same methods that the `db.Database` does,
+// plus some other that help the user deal with database transactions. In order
+// to get a proper `db.Tx` interface the `db.Database.Transaction()` method
+// must be called on an already opened database session.
 //
 // Example:
 //	...
