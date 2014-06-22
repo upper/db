@@ -1,25 +1,23 @@
-/*
-  Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
-
-  Permission is hereby granted, free of charge, to any person obtaining
-  a copy of this software and associated documentation files (the
-  "Software"), to deal in the Software without restriction, including
-  without limitation the rights to use, copy, modify, merge, publish,
-  distribute, sublicense, and/or sell copies of the Software, and to
-  permit persons to whom the Software is furnished to do so, subject to
-  the following conditions:
-
-  The above copyright notice and this permission notice shall be
-  included in all copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+//
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package sqlutil
 
@@ -41,8 +39,7 @@ var (
 )
 
 type T struct {
-	PrimaryKey  string
-	ColumnTypes map[string]reflect.Kind
+	Columns []string
 }
 
 type Debug struct {
@@ -72,16 +69,16 @@ func (self *Debug) Print() {
 	log.Printf("\n\t%s\n\n", strings.Join(s, "\n\t"))
 }
 
-func (self *T) ColumnLike(s string) string {
-	for col, _ := range self.ColumnTypes {
-		if util.CompareColumnToField(s, col) == true {
-			return col
+func (self *T) columnLike(s string) string {
+	for _, name := range self.Columns {
+		if util.NormalizeColumn(s) == util.NormalizeColumn(name) {
+			return name
 		}
 	}
 	return s
 }
 
-func (self *T) fetchResult(item_t reflect.Type, rows *sql.Rows, columns []string) (reflect.Value, error) {
+func fetchResult(item_t reflect.Type, rows *sql.Rows, columns []string) (reflect.Value, error) {
 	var item reflect.Value
 	var err error
 
@@ -121,13 +118,8 @@ func (self *T) fetchResult(item_t reflect.Type, rows *sql.Rows, columns []string
 
 			var cv reflect.Value
 
-			if _, ok := self.ColumnTypes[column]; ok == true {
-				v, _ := to.Convert(svalue, self.ColumnTypes[column])
-				cv = reflect.ValueOf(v)
-			} else {
-				v, _ := to.Convert(svalue, reflect.String)
-				cv = reflect.ValueOf(v)
-			}
+			v, _ := to.Convert(svalue, reflect.String)
+			cv = reflect.ValueOf(v)
 
 			switch item_t.Kind() {
 			// Destination is a map.
@@ -165,7 +157,6 @@ func (self *T) fetchResult(item_t reflect.Type, rows *sql.Rows, columns []string
 							destf.Set(cv)
 						}
 					}
-
 				}
 			}
 		}
@@ -175,7 +166,7 @@ func (self *T) fetchResult(item_t reflect.Type, rows *sql.Rows, columns []string
 }
 
 // Returns (lowercased) columns names.
-func GetRowColumns(rows *sql.Rows) ([]string, error) {
+func getRowColumns(rows *sql.Rows) ([]string, error) {
 	// Column names.
 	columns, err := rows.Columns()
 
@@ -191,10 +182,7 @@ func GetRowColumns(rows *sql.Rows) ([]string, error) {
 	return columns, nil
 }
 
-/*
-	Copies *sql.Rows into the slice of maps or structs given by the pointer dst.
-*/
-func (self *T) FetchRow(dst interface{}, rows *sql.Rows) error {
+func FetchRow(rows *sql.Rows, dst interface{}) error {
 
 	dstv := reflect.ValueOf(dst)
 
@@ -204,7 +192,7 @@ func (self *T) FetchRow(dst interface{}, rows *sql.Rows) error {
 
 	item_v := dstv.Elem()
 
-	columns, err := GetRowColumns(rows)
+	columns, err := getRowColumns(rows)
 
 	if err != nil {
 		return err
@@ -221,7 +209,7 @@ func (self *T) FetchRow(dst interface{}, rows *sql.Rows) error {
 		return db.ErrNoMoreRows
 	}
 
-	item, err := self.fetchResult(item_v.Type(), rows, columns)
+	item, err := fetchResult(item_v.Type(), rows, columns)
 
 	if err != nil {
 		return err
@@ -232,10 +220,7 @@ func (self *T) FetchRow(dst interface{}, rows *sql.Rows) error {
 	return nil
 }
 
-/*
-	Copies *sql.Rows into the slice of maps or structs given by the pointer dst.
-*/
-func (self *T) FetchRows(dst interface{}, rows *sql.Rows) error {
+func FetchRows(rows *sql.Rows, dst interface{}) error {
 
 	// Destination.
 	dstv := reflect.ValueOf(dst)
@@ -252,7 +237,7 @@ func (self *T) FetchRows(dst interface{}, rows *sql.Rows) error {
 		return db.ErrExpectingSliceMapStruct
 	}
 
-	columns, err := GetRowColumns(rows)
+	columns, err := getRowColumns(rows)
 
 	if err != nil {
 		return err
@@ -265,7 +250,7 @@ func (self *T) FetchRows(dst interface{}, rows *sql.Rows) error {
 
 	for rows.Next() {
 
-		item, err := self.fetchResult(item_t, rows, columns)
+		item, err := fetchResult(item_t, rows, columns)
 
 		if err != nil {
 			return err
@@ -346,7 +331,7 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) interfa
 			}
 
 			if fieldName == `` {
-				fieldName = self.ColumnLike(field.Name)
+				fieldName = self.columnLike(field.Name)
 			}
 
 			// Processing tag options.
@@ -380,7 +365,7 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) interfa
 
 		for i, key_v := range mkeys {
 			valv := item_v.MapIndex(key_v)
-			fields[i] = self.ColumnLike(to.String(key_v.Interface()))
+			fields[i] = self.columnLike(to.String(key_v.Interface()))
 			values[i] = convertFn(valv.Interface())
 		}
 

@@ -1,25 +1,23 @@
-/*
-  Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
-
-  Permission is hereby granted, free of charge, to any person obtaining
-  a copy of this software and associated documentation files (the
-  "Software"), to deal in the Software without restriction, including
-  without limitation the rights to use, copy, modify, merge, publish,
-  distribute, sublicense, and/or sell copies of the Software, and to
-  permit persons to whom the Software is furnished to do so, subject to
-  the following conditions:
-
-  The above copyright notice and this permission notice shall be
-  included in all copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+//
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package util
 
@@ -30,24 +28,20 @@ import (
 	"time"
 
 	"menteslibres.net/gosexy/to"
-	"upper.io/db"
 )
 
-var extRelationPattern = regexp.MustCompile(`\{(.+)\}`)
-var columnCompareExclude = regexp.MustCompile(`[^a-zA-Z0-9]`)
+var reColumnCompareExclude = regexp.MustCompile(`[^a-zA-Z0-9]`)
 
-var durationType = reflect.TypeOf(time.Duration(0))
-var timeType = reflect.TypeOf(time.Time{})
-
-type C struct {
-	DB db.Database
-}
+var (
+	durationType = reflect.TypeOf(time.Duration(0))
+	timeType     = reflect.TypeOf(time.Time{})
+)
 
 type tagOptions map[string]bool
 
 func parseTagOptions(s string) tagOptions {
 	opts := make(tagOptions)
-	chunks := strings.Split(s, ",")
+	chunks := strings.Split(s, `,`)
 	for _, chunk := range chunks {
 		opts[strings.TrimSpace(chunk)] = true
 	}
@@ -56,21 +50,15 @@ func parseTagOptions(s string) tagOptions {
 
 // Based on http://golang.org/src/pkg/encoding/json/tags.go
 func ParseTag(tag string) (string, tagOptions) {
-	if i := strings.Index(tag, ","); i != -1 {
+	if i := strings.Index(tag, `,`); i != -1 {
 		return tag[:i], parseTagOptions(tag[i+1:])
 	}
-	return tag, parseTagOptions("")
+	return tag, parseTagOptions(``)
 }
 
-func columnCompare(s string) string {
-	return strings.ToLower(columnCompareExclude.ReplaceAllString(s, ""))
-}
-
-/*
-	Returns the most appropriate struct field index for a given column name.
-
-	If no column matches returns nil.
-*/
+// Returns the most appropriate struct field index for a given column name.
+//
+// If no column matches returns nil.
 func GetStructFieldIndex(t reflect.Type, columnName string) []int {
 
 	n := t.NumField()
@@ -108,7 +96,7 @@ func GetStructFieldIndex(t reflect.Type, columnName string) []int {
 		}
 
 		if fieldName == "" {
-			if columnCompare(field.Name) == columnCompare(columnName) {
+			if NormalizeColumn(field.Name) == NormalizeColumn(columnName) {
 				return []int{i}
 			}
 		}
@@ -125,40 +113,6 @@ func GetStructFieldIndex(t reflect.Type, columnName string) []int {
 	}
 
 	// No match.
-	return nil
-}
-
-/*
-	Returns true if a table column looks like a struct field.
-*/
-func CompareColumnToField(s, c string) bool {
-	return columnCompare(s) == columnCompare(c)
-}
-
-func ValidateSliceDestination(dst interface{}) error {
-
-	var dstv reflect.Value
-	var itemv reflect.Value
-	var itemk reflect.Kind
-
-	// Checking input
-	dstv = reflect.ValueOf(dst)
-
-	if dstv.IsNil() || dstv.Kind() != reflect.Ptr {
-		return db.ErrExpectingPointer
-	}
-
-	if dstv.Elem().Kind() != reflect.Slice {
-		return db.ErrExpectingSlicePointer
-	}
-
-	itemv = dstv.Elem()
-	itemk = itemv.Type().Elem().Kind()
-
-	if itemk != reflect.Struct && itemk != reflect.Map {
-		return db.ErrExpectingSliceMapStruct
-	}
-
 	return nil
 }
 
@@ -193,4 +147,8 @@ func StringToKind(src string, dstk reflect.Kind) (reflect.Value, error) {
 	}
 
 	return srcv, nil
+}
+
+func NormalizeColumn(s string) string {
+	return strings.ToLower(reColumnCompareExclude.ReplaceAllString(s, ""))
 }
