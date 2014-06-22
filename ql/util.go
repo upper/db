@@ -1,44 +1,55 @@
-/*
-  Copyright (c) 2014 José Carlos Nieto, https://menteslibres.net/xiam
-
-  Permission is hereby granted, free of charge, to any person obtaining
-  a copy of this software and associated documentation files (the
-  "Software"), to deal in the Software without restriction, including
-  without limitation the rights to use, copy, modify, merge, publish,
-  distribute, sublicense, and/or sell copies of the Software, and to
-  permit persons to whom the Software is furnished to do so, subject to
-  the following conditions:
-
-  The above copyright notice and this permission notice shall be
-  included in all copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+//
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package ql
 
 import (
 	"database/sql"
 	"reflect"
+	"strings"
 
 	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 	"upper.io/db/util"
-	"upper.io/db/util/sqlutil"
 )
 
-// Wrapper for sqlutil.T
-type t struct {
-	*sqlutil.T
+// Returns (lowercased) columns names.
+func getRowColumns(rows *sql.Rows) ([]string, error) {
+	// Column names.
+	columns, err := rows.Columns()
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Column names to lower case.
+	for i, _ := range columns {
+		columns[i] = strings.ToLower(columns[i])
+	}
+
+	return columns, nil
 }
 
-func (self *t) qlFetchRow(dst interface{}, rows *sql.Rows) error {
+func (self *Table) fetchRow(rows *sql.Rows, dst interface{}) error {
+	var err error
 
 	dstv := reflect.ValueOf(dst)
 
@@ -47,12 +58,6 @@ func (self *t) qlFetchRow(dst interface{}, rows *sql.Rows) error {
 	}
 
 	item_v := dstv.Elem()
-
-	columns, err := sqlutil.GetRowColumns(rows)
-
-	if err != nil {
-		return err
-	}
 
 	next := rows.Next()
 
@@ -63,7 +68,13 @@ func (self *t) qlFetchRow(dst interface{}, rows *sql.Rows) error {
 		return db.ErrNoMoreRows
 	}
 
-	item, err := self.qlFetchResult(item_v.Type(), rows, columns)
+	var columns []string
+
+	if columns, err = getRowColumns(rows); err != nil {
+		return err
+	}
+
+	item, err := self.fetchResult(item_v.Type(), rows, columns)
 
 	if err != nil {
 		return err
@@ -74,7 +85,7 @@ func (self *t) qlFetchRow(dst interface{}, rows *sql.Rows) error {
 	return nil
 }
 
-func (self *t) qlFetchResult(item_t reflect.Type, rows *sql.Rows, columns []string) (item reflect.Value, err error) {
+func (self *Table) fetchResult(item_t reflect.Type, rows *sql.Rows, columns []string) (item reflect.Value, err error) {
 	expecting := len(columns)
 
 	scanArgs := make([]interface{}, expecting)
@@ -114,8 +125,8 @@ func (self *t) qlFetchResult(item_t reflect.Type, rows *sql.Rows, columns []stri
 
 				var val_v reflect.Value
 
-				if _, ok := self.ColumnTypes[columnName]; ok == true {
-					v, _ := to.Convert(val_s, self.ColumnTypes[columnName])
+				if _, ok := self.columnTypes[columnName]; ok == true {
+					v, _ := to.Convert(val_s, self.columnTypes[columnName])
 					val_v = reflect.ValueOf(v)
 				} else {
 					v, _ := to.Convert(val_s, reflect.String)
@@ -135,7 +146,8 @@ func (self *t) qlFetchResult(item_t reflect.Type, rows *sql.Rows, columns []stri
 	return item, nil
 }
 
-func (self *t) qlFetchRows(dst interface{}, rows *sql.Rows) error {
+func (self *Table) fetchRows(rows *sql.Rows, dst interface{}) error {
+	var err error
 
 	// Destination.
 	dstv := reflect.ValueOf(dst)
@@ -152,18 +164,18 @@ func (self *t) qlFetchRows(dst interface{}, rows *sql.Rows) error {
 		return db.ErrExpectingSliceMapStruct
 	}
 
-	columns, err := sqlutil.GetRowColumns(rows)
-
-	if err != nil {
-		return err
-	}
-
 	slicev := dstv.Elem()
 	item_t := slicev.Type().Elem()
 
+	var columns []string
+
+	if columns, err = getRowColumns(rows); err != nil {
+		return err
+	}
+
 	for rows.Next() {
 
-		item, err := self.qlFetchResult(item_t, rows, columns)
+		item, err := self.fetchResult(item_t, rows, columns)
 
 		if err != nil {
 			return err

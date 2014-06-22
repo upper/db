@@ -35,8 +35,9 @@ const defaultOperator = `==`
 
 type Table struct {
 	sqlutil.T
-	source *Source
-	names  []string
+	columnTypes map[string]reflect.Kind
+	source      *Source
+	names       []string
 }
 
 func whereValues(term interface{}) (where sqlgen.Where, args []interface{}) {
@@ -180,7 +181,6 @@ func (self *Table) Find(terms ...interface{}) db.Result {
 		table:     self,
 		where:     where,
 		arguments: arguments,
-		t:         &t{&self.T},
 	}
 
 	return result

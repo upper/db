@@ -35,6 +35,7 @@ import (
 	"upper.io/db/util/sqlutil"
 )
 
+// Public adapters name under which this adapter registers itself.
 const Adapter = `ql`
 
 var (
@@ -407,8 +408,6 @@ func (self *Source) Collection(names ...string) (db.Collection, error) {
 		names:  names,
 	}
 
-	col.PrimaryKey = `id`
-
 	columns_t := []columnSchema_t{}
 
 	for _, name := range names {
@@ -438,16 +437,19 @@ func (self *Source) Collection(names ...string) (db.Collection, error) {
 				return nil, err
 			}
 
-			if err = col.FetchRows(&columns_t, rows); err != nil {
+			if err = sqlutil.FetchRows(rows, &columns_t); err != nil {
 				return nil, err
 			}
 
-			col.ColumnTypes = make(map[string]reflect.Kind, len(columns_t))
+			col.Columns = make([]string, len(columns_t))
+			col.columnTypes = make(map[string]reflect.Kind)
 
-			for _, column := range columns_t {
+			for i, column := range columns_t {
 
 				column.ColumnName = strings.ToLower(column.ColumnName)
 				column.DataType = strings.ToLower(column.DataType)
+
+				col.Columns[i] = column.ColumnName
 
 				// Default properties.
 				dtype := column.DataType
@@ -485,7 +487,7 @@ func (self *Source) Collection(names ...string) (db.Collection, error) {
 					ctype = reflect.String
 				}
 
-				col.ColumnTypes[column.ColumnName] = ctype
+				col.columnTypes[column.ColumnName] = ctype
 			}
 
 		}
