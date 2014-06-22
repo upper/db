@@ -28,6 +28,7 @@ import (
 
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
+	"upper.io/db/util/sqlutil"
 )
 
 type counter_t struct {
@@ -148,7 +149,7 @@ func (self *Result) All(dst interface{}) error {
 	defer self.Close()
 
 	// Fetching all results within the cursor.
-	err = self.table.T.FetchRows(dst, self.cursor)
+	err = sqlutil.FetchRows(self.cursor, dst)
 
 	return err
 }
@@ -176,7 +177,7 @@ func (self *Result) Next(dst interface{}) error {
 		return err
 	}
 
-	err = self.table.T.FetchRow(dst, self.cursor)
+	err = sqlutil.FetchRow(self.cursor, dst)
 	if err != nil {
 		self.Close()
 		return err
@@ -251,7 +252,9 @@ func (self *Result) Count() (uint64, error) {
 	defer rows.Close()
 
 	dst := counter_t{}
-	self.table.T.FetchRow(&dst, rows)
+	if err = sqlutil.FetchRow(rows, &dst); err != nil {
+		return 0, err
+	}
 
 	return dst.Total, nil
 }

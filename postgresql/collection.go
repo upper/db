@@ -236,9 +236,9 @@ func (self *Table) Append(item interface{}) (interface{}, error) {
 
 	var extra string
 
-	if _, ok := self.ColumnTypes[self.PrimaryKey]; ok == true {
-		extra = fmt.Sprintf(`RETURNING %s`, self.PrimaryKey)
-	}
+	//if _, ok := self.ColumnTypes[self.PrimaryKey]; ok == true {
+	//	extra = fmt.Sprintf(`RETURNING %s`, self.PrimaryKey)
+	//}
 
 	row, err := self.source.doQueryRow(sqlgen.Statement{
 		Type:    sqlgen.SqlInsert,
