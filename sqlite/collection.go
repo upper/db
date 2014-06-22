@@ -35,9 +35,9 @@ import (
 
 const defaultOperator = `=`
 
-type Table struct {
+type table struct {
 	sqlutil.T
-	source *Source
+	source *source
 	names  []string
 }
 
@@ -106,9 +106,8 @@ func interfaceArgs(value interface{}) (args []interface{}) {
 			}
 
 			return args
-		} else {
-			return nil
 		}
+		return nil
 	default:
 		args = []interface{}{toInternal(value)}
 	}
@@ -175,10 +174,10 @@ func conditionValues(cond db.Cond) (columnValues sqlgen.ColumnValues, args []int
 	return columnValues, args
 }
 
-func (self *Table) Find(terms ...interface{}) db.Result {
+func (self *table) Find(terms ...interface{}) db.Result {
 	where, arguments := whereValues(terms)
 
-	result := &Result{
+	result := &result{
 		table:     self,
 		where:     where,
 		arguments: arguments,
@@ -187,7 +186,7 @@ func (self *Table) Find(terms ...interface{}) db.Result {
 	return result
 }
 
-func (self *Table) tableN(i int) string {
+func (self *table) tableN(i int) string {
 	if len(self.names) > i {
 		chunks := strings.SplitN(self.names[i], " ", 2)
 		if len(chunks) > 0 {
@@ -198,7 +197,7 @@ func (self *Table) tableN(i int) string {
 }
 
 // Deletes all the rows within the collection.
-func (self *Table) Truncate() error {
+func (self *table) Truncate() error {
 
 	_, err := self.source.doExec(sqlgen.Statement{
 		Type:  sqlgen.SqlTruncate,
@@ -213,7 +212,7 @@ func (self *Table) Truncate() error {
 }
 
 // Appends an item (map or struct) into the collection.
-func (self *Table) Append(item interface{}) (interface{}, error) {
+func (self *table) Append(item interface{}) (interface{}, error) {
 
 	cols, vals, err := self.FieldValues(item, toInternal)
 
@@ -251,14 +250,14 @@ func (self *Table) Append(item interface{}) (interface{}, error) {
 }
 
 // Returns true if the collection exists.
-func (self *Table) Exists() bool {
+func (self *table) Exists() bool {
 	if err := self.source.tableExists(self.names...); err != nil {
 		return false
 	}
 	return true
 }
 
-func (self *Table) Name() string {
+func (self *table) Name() string {
 	return strings.Join(self.names, `, `)
 }
 
@@ -274,9 +273,8 @@ func toInternal(val interface{}) interface{} {
 	case bool:
 		if t == true {
 			return `1`
-		} else {
-			return `0`
 		}
+		return `0`
 	}
 	return to.String(val)
 }

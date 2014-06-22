@@ -21,14 +21,14 @@
 
 package sqlite
 
-type Tx struct {
-	*Source
+type tx struct {
+	*source
 }
 
-func (self *Tx) Commit() error {
-	return self.Source.tx.Commit()
+func (self *tx) Commit() error {
+	return self.source.tx.Commit()
 }
 
-func (self *Tx) Rollback() error {
-	return self.Source.tx.Rollback()
+func (self *tx) Rollback() error {
+	return self.source.tx.Rollback()
 }
