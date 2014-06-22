@@ -30,7 +30,6 @@ import (
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"upper.io/db"
-	"upper.io/db/util"
 )
 
 // Mongodb Collection
@@ -38,7 +37,6 @@ type Collection struct {
 	name       string
 	parent     *Source
 	collection *mgo.Collection
-	util.C
 }
 
 type chunks struct {

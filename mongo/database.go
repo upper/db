@@ -203,8 +203,6 @@ func (self *Source) Collection(names ...string) (db.Collection, error) {
 	col.parent = self
 	col.collection = self.database.C(name)
 
-	col.DB = self
-
 	if col.Exists() == false {
 		err = db.ErrCollectionDoesNotExist
 	}
