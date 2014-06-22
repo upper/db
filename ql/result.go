@@ -35,8 +35,8 @@ type counter_t struct {
 	Total uint64 `db:"total"`
 }
 
-type Result struct {
-	table     *Table
+type result struct {
+	table     *table
 	cursor    *sql.Rows // This is the main query cursor. It starts as a nil value.
 	limit     sqlgen.Limit
 	offset    sqlgen.Offset
@@ -47,7 +47,7 @@ type Result struct {
 }
 
 // Executes a SELECT statement that can feed Next(), All() or One().
-func (self *Result) setCursor() error {
+func (self *result) setCursor() error {
 	var err error
 	// We need a cursor, if the cursor does not exists yet then we create one.
 	if self.cursor == nil {
@@ -64,20 +64,20 @@ func (self *Result) setCursor() error {
 }
 
 // Sets conditions for reducing the working set.
-func (self *Result) Where(terms ...interface{}) db.Result {
+func (self *result) Where(terms ...interface{}) db.Result {
 	self.where, self.arguments = whereValues(terms)
 	return self
 }
 
 // Determines the maximum limit of results to be returned.
-func (self *Result) Limit(n uint) db.Result {
+func (self *result) Limit(n uint) db.Result {
 	self.limit = sqlgen.Limit(n)
 	return self
 }
 
 // Determines how many documents will be skipped before starting to grab
 // results.
-func (self *Result) Skip(n uint) db.Result {
+func (self *result) Skip(n uint) db.Result {
 	self.offset = sqlgen.Offset(n)
 	return self
 }
@@ -85,7 +85,7 @@ func (self *Result) Skip(n uint) db.Result {
 // Determines sorting of results according to the provided names. Fields may be
 // prefixed by - (minus) which means descending order, ascending order would be
 // used otherwise.
-func (self *Result) Sort(fields ...string) db.Result {
+func (self *result) Sort(fields ...string) db.Result {
 
 	sortColumns := make(sqlgen.SortColumns, 0, len(fields))
 
@@ -115,7 +115,7 @@ func (self *Result) Sort(fields ...string) db.Result {
 }
 
 // Retrieves only the given fields.
-func (self *Result) Select(fields ...interface{}) db.Result {
+func (self *result) Select(fields ...interface{}) db.Result {
 	self.columns = make(sqlgen.Columns, 0, len(fields))
 
 	l := len(fields)
@@ -132,7 +132,7 @@ func (self *Result) Select(fields ...interface{}) db.Result {
 }
 
 // Dumps all results into a pointer to an slice of structs or maps.
-func (self *Result) All(dst interface{}) error {
+func (self *result) All(dst interface{}) error {
 	var err error
 
 	if self.cursor != nil {
@@ -155,7 +155,7 @@ func (self *Result) All(dst interface{}) error {
 }
 
 // Fetches only one result from the resultset.
-func (self *Result) One(dst interface{}) error {
+func (self *result) One(dst interface{}) error {
 	var err error
 
 	if self.cursor != nil {
@@ -170,7 +170,7 @@ func (self *Result) One(dst interface{}) error {
 }
 
 // Fetches the next result from the resultset.
-func (self *Result) Next(dst interface{}) error {
+func (self *result) Next(dst interface{}) error {
 
 	var err error
 
@@ -192,7 +192,7 @@ func (self *Result) Next(dst interface{}) error {
 }
 
 // Removes the matching items from the collection.
-func (self *Result) Remove() error {
+func (self *result) Remove() error {
 	var err error
 	_, err = self.table.source.doExec(sqlgen.Statement{
 		Type:  sqlgen.SqlDelete,
@@ -205,7 +205,7 @@ func (self *Result) Remove() error {
 
 // Updates matching items from the collection with values of the given map or
 // struct.
-func (self *Result) Update(values interface{}) error {
+func (self *result) Update(values interface{}) error {
 
 	ff, vv, err := self.table.FieldValues(values, toInternal)
 
@@ -230,7 +230,7 @@ func (self *Result) Update(values interface{}) error {
 }
 
 // Closes the result set.
-func (self *Result) Close() error {
+func (self *result) Close() error {
 	var err error
 	if self.cursor != nil {
 		err = self.cursor.Close()
@@ -240,7 +240,7 @@ func (self *Result) Close() error {
 }
 
 // Counts matching elements.
-func (self *Result) Count() (uint64, error) {
+func (self *result) Count() (uint64, error) {
 
 	rows, err := self.table.source.doQuery(sqlgen.Statement{
 		Type:   sqlgen.SqlSelectCount,

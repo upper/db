@@ -41,14 +41,14 @@ func getRowColumns(rows *sql.Rows) ([]string, error) {
 	}
 
 	// Column names to lower case.
-	for i, _ := range columns {
+	for i := range columns {
 		columns[i] = strings.ToLower(columns[i])
 	}
 
 	return columns, nil
 }
 
-func (self *Table) fetchRow(rows *sql.Rows, dst interface{}) error {
+func (self *table) fetchRow(rows *sql.Rows, dst interface{}) error {
 	var err error
 
 	dstv := reflect.ValueOf(dst)
@@ -85,7 +85,7 @@ func (self *Table) fetchRow(rows *sql.Rows, dst interface{}) error {
 	return nil
 }
 
-func (self *Table) fetchResult(item_t reflect.Type, rows *sql.Rows, columns []string) (item reflect.Value, err error) {
+func (self *table) fetchResult(item_t reflect.Type, rows *sql.Rows, columns []string) (item reflect.Value, err error) {
 	expecting := len(columns)
 
 	scanArgs := make([]interface{}, expecting)
@@ -113,7 +113,7 @@ func (self *Table) fetchResult(item_t reflect.Type, rows *sql.Rows, columns []st
 		}
 	case reflect.Map:
 		values := make([]*sql.RawBytes, len(columns))
-		for i, _ := range columns {
+		for i := range columns {
 			scanArgs[i] = &values[i]
 		}
 		err = rows.Scan(scanArgs...)
@@ -146,7 +146,7 @@ func (self *Table) fetchResult(item_t reflect.Type, rows *sql.Rows, columns []st
 	return item, nil
 }
 
-func (self *Table) fetchRows(rows *sql.Rows, dst interface{}) error {
+func (self *table) fetchRows(rows *sql.Rows, dst interface{}) error {
 	var err error
 
 	// Destination.
