@@ -25,7 +25,6 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"reflect"
 	"regexp"
 	"strings"
 
@@ -59,8 +58,7 @@ type Source struct {
 }
 
 type columnSchema_t struct {
-	ColumnName string `db:"column_name"`
-	DataType   string `db:"data_type"`
+	Name string `db:"column_name"`
 }
 
 func debugEnabled() bool {
@@ -381,8 +379,6 @@ func (self *Source) Collection(names ...string) (db.Collection, error) {
 		names:  names,
 	}
 
-	col.PrimaryKey = `id`
-
 	columns_t := []columnSchema_t{}
 
 	for _, name := range names {
@@ -413,46 +409,16 @@ func (self *Source) Collection(names ...string) (db.Collection, error) {
 				return nil, err
 			}
 
-			if err = col.FetchRows(&columns_t, rows); err != nil {
+			if err = sqlutil.FetchRows(rows, &columns_t); err != nil {
 				return nil, err
 			}
 
-			col.ColumnTypes = make(map[string]reflect.Kind, len(columns_t))
+			col.Columns = make([]string, 0, len(columns_t))
 
 			for _, column := range columns_t {
-
-				column.ColumnName = strings.ToLower(column.ColumnName)
-				column.DataType = strings.ToLower(column.DataType)
-
-				results := columnPattern.FindStringSubmatch(column.DataType)
-
-				// Default properties.
-				dextra := ""
-				dtype := `varchar`
-
-				dtype = results[1]
-
-				if len(results) > 3 {
-					dextra = results[3]
-				}
-
-				ctype := reflect.String
-
-				// Guessing datatypes.
-				switch dtype {
-				case `tinyint`, `smallint`, `mediumint`, `int`, `bigint`:
-					if dextra == `unsigned` {
-						ctype = reflect.Uint64
-					} else {
-						ctype = reflect.Int64
-					}
-				case `decimal`, `float`, `double`:
-					ctype = reflect.Float64
-				}
-
-				col.ColumnTypes[column.ColumnName] = ctype
+				column.Name = strings.ToLower(column.Name)
+				col.Columns = append(col.Columns, column.Name)
 			}
-
 		}
 	}
 
