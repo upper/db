@@ -726,7 +726,7 @@ func TestRawRelations(t *testing.T) {
 
 	// Exec'ing a raw query.
 	var artistPublication db.Collection
-	if artistPublication, err = sess.Collection(`artist AS a, publication AS p`); err != nil {
+	if artistPublication, err = sess.Collection(`artist AS a`, `publication AS p`); err != nil {
 		t.Fatal(err)
 	}
 
