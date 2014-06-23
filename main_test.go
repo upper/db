@@ -127,7 +127,7 @@ var setupFn = map[string]func(driver interface{}) error{
 				return err
 			}
 			_, err = sqld.Exec(`CREATE TABLE "birthdays" (
-					"id" serial,
+					"id" serial primary key,
 					"name" CHARACTER VARYING(50),
 					"born" TIMESTAMP
 			)`)
@@ -140,7 +140,7 @@ var setupFn = map[string]func(driver interface{}) error{
 				return err
 			}
 			_, err = sqld.Exec(`CREATE TABLE "fibonacci" (
-					"id" serial,
+					"id" serial primary key,
 					"input" NUMERIC,
 					"output" NUMERIC
 			)`)
@@ -640,9 +640,7 @@ func TestFibonacci(t *testing.T) {
 				}
 			}
 
-			err = res.Remove()
-
-			if err != nil {
+			if err = res.Remove(); err != nil {
 				t.Fatalf(`%s: %s`, wrapper, err.Error())
 			}
 

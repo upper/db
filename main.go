@@ -303,7 +303,8 @@ type Result interface {
 	// Updates all items within the result set. Receives an struct or an interface{}.
 	Update(interface{}) error
 
-	// Counts all the items on the result set.
+	// Returns the number of items that match the set conditions (Limit and
+	// Offset settings are excluded from this query).
 	Count() (uint64, error)
 
 	// Fetches the next result within the result set and dumps it into the given

@@ -241,13 +241,12 @@ func (self *result) Close() error {
 
 // Counting the elements that will be returned.
 func (self *result) Count() (uint64, error) {
+	var count counter_t
 
 	rows, err := self.table.source.doQuery(sqlgen.Statement{
-		Type:   sqlgen.SqlSelectCount,
-		Table:  sqlgen.Table{self.table.Name()},
-		Where:  self.where,
-		Limit:  self.limit,
-		Offset: self.offset,
+		Type:  sqlgen.SqlSelectCount,
+		Table: sqlgen.Table{self.table.Name()},
+		Where: self.where,
 	}, self.arguments...)
 
 	if err != nil {
@@ -255,12 +254,9 @@ func (self *result) Count() (uint64, error) {
 	}
 
 	defer rows.Close()
-
-	dst := counter_t{}
-
-	if err = sqlutil.FetchRow(rows, &dst); err != nil {
+	if err = sqlutil.FetchRow(rows, &count); err != nil {
 		return 0, err
 	}
 
-	return dst.Total, nil
+	return count.Total, nil
 }
