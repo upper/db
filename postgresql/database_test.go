@@ -39,6 +39,7 @@ import (
 
 	"menteslibres.net/gosexy/to"
 	"upper.io/db"
+	"upper.io/db/util/sqlutil"
 )
 
 const (
@@ -788,6 +789,53 @@ func TestRawRelations(t *testing.T) {
 		t.Fatalf("Expecting some rows.")
 	}
 
+}
+
+func TestRawQuery(t *testing.T) {
+	var sess db.Database
+	var rows *sql.Rows
+	var err error
+	var drv *sql.DB
+
+	type publication_t struct {
+		Id       int64  `db:"id,omitempty"`
+		Title    string `db:"title"`
+		AuthorId int64  `db:"author_id"`
+	}
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	drv = sess.Driver().(*sql.DB)
+
+	rows, err = drv.Query(`
+		SELECT
+			p.id,
+			p.title AS publication_title,
+			a.name AS artist_name
+		FROM
+			artist AS a,
+			publication AS p
+		WHERE
+			a.id = p.author_id
+	`)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var all []publication_t
+
+	if err = sqlutil.FetchRows(rows, &all); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(all) != 9 {
+		t.Fatalf("Expecting some rows.")
+	}
 }
 
 // Attempts to test database transactions.

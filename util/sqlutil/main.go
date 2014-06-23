@@ -182,6 +182,8 @@ func getRowColumns(rows *sql.Rows) ([]string, error) {
 	return columns, nil
 }
 
+// FetchRow() receives a *sql.Rows value and tries to map all the rows into a
+// single struct given by the pointer `dst`.
 func FetchRow(rows *sql.Rows, dst interface{}) error {
 
 	dstv := reflect.ValueOf(dst)
@@ -220,6 +222,8 @@ func FetchRow(rows *sql.Rows, dst interface{}) error {
 	return nil
 }
 
+// FetchRow() receives a *sql.Rows value and tries to map all the rows into a
+// slice of structs given by the pointer `dst`.
 func FetchRows(rows *sql.Rows, dst interface{}) error {
 
 	// Destination.
