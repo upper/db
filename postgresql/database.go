@@ -56,6 +56,7 @@ type source struct {
 	session     *sql.DB
 	collections map[string]db.Collection
 	tx          *sql.Tx
+	primaryKeys map[string]string
 }
 
 type columnSchema_t struct {
@@ -210,7 +211,7 @@ func (self *source) Ping() error {
 }
 
 func (self *source) clone() (*source, error) {
-	src := &source{}
+	src := new(source)
 	src.Setup(self.config)
 
 	if err := src.Open(); err != nil {
@@ -386,6 +387,8 @@ func (self *source) tableExists(names ...string) error {
 
 // Returns a collection instance by name.
 func (self *source) Collection(names ...string) (db.Collection, error) {
+	var rows *sql.Rows
+	var err error
 
 	if len(names) == 0 {
 		return nil, db.ErrMissingCollectionName
@@ -409,7 +412,8 @@ func (self *source) Collection(names ...string) (db.Collection, error) {
 				return nil, err
 			}
 
-			rows, err := self.doQuery(sqlgen.Statement{
+			// Getting columns
+			rows, err = self.doQuery(sqlgen.Statement{
 				Type:  sqlgen.SqlSelect,
 				Table: sqlgen.Table{`information_schema.columns`},
 				Columns: sqlgen.Columns{
@@ -435,9 +439,55 @@ func (self *source) Collection(names ...string) (db.Collection, error) {
 			for _, column := range columns_t {
 				col.Columns = append(col.Columns, strings.ToLower(column.Name))
 			}
-
 		}
 	}
 
 	return col, nil
+}
+
+func (self *source) getPrimaryKey(tableName string) (string, error) {
+	var row *sql.Row
+	var err error
+	var pKey string
+
+	if self.primaryKeys == nil {
+		self.primaryKeys = make(map[string]string)
+	}
+
+	if pKey, ok := self.primaryKeys[tableName]; ok {
+		// Retrieving cached key name.
+		return pKey, nil
+	}
+
+	// Getting primary key. See https://github.com/upper/db/issues/24.
+	row, err = self.doQueryRow(sqlgen.Statement{
+		Type:  sqlgen.SqlSelect,
+		Table: sqlgen.Table{`pg_index, pg_class, pg_attribute`},
+		Columns: sqlgen.Columns{
+			{`pg_attribute.attname`},
+		},
+		Where: sqlgen.Where{
+			sqlgen.ColumnValue{sqlgen.Column{`pg_class.oid`}, `=`, sqlgen.Value{sqlgen.Raw{`?::regclass`}}},
+			sqlgen.ColumnValue{sqlgen.Column{`indrelid`}, `=`, sqlgen.Value{sqlgen.Raw{`pg_class.oid`}}},
+			sqlgen.ColumnValue{sqlgen.Column{`pg_attribute.attrelid`}, `=`, sqlgen.Value{sqlgen.Raw{`pg_class.oid`}}},
+			sqlgen.ColumnValue{sqlgen.Column{`pg_attribute.attnum`}, `=`, sqlgen.Value{sqlgen.Raw{`any(pg_index.indkey)`}}},
+			sqlgen.Raw{`indisprimary`},
+		},
+		Limit: 1,
+	}, tableName)
+
+	if err != nil {
+		return "", err
+	}
+
+	if err = row.Scan(&pKey); err != nil {
+		return "", err
+	}
+
+	// Caching key name.
+	// TODO: There is currently no policy for cache life and no cache-cleaning
+	// methods are provided.
+	self.primaryKeys[tableName] = pKey
+
+	return pKey, nil
 }

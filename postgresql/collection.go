@@ -38,8 +38,9 @@ const defaultOperator = `=`
 
 type table struct {
 	sqlutil.T
-	source *source
-	names  []string
+	source     *source
+	primaryKey string
+	names      []string
 }
 
 func whereValues(term interface{}) (where sqlgen.Where, args []interface{}) {
@@ -214,11 +215,12 @@ func (self *table) Truncate() error {
 
 // Appends an item (map or struct) into the collection.
 func (self *table) Append(item interface{}) (interface{}, error) {
-
-	cols, vals, err := self.FieldValues(item, toInternal)
-
+	var pKey string
 	var columns sqlgen.Columns
 	var values sqlgen.Values
+	var id int64
+
+	cols, vals, err := self.FieldValues(item, toInternal)
 
 	for _, col := range cols {
 		columns = append(columns, sqlgen.Column{col})
@@ -233,36 +235,54 @@ func (self *table) Append(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	var extra string
+	if pKey, err = self.source.getPrimaryKey(self.tableN(0)); err != nil {
+		if err != sql.ErrNoRows {
+			// Can't tell primary key.
+			return nil, err
+		}
+	}
 
-	//if _, ok := self.ColumnTypes[self.PrimaryKey]; ok == true {
-	//	extra = fmt.Sprintf(`RETURNING %s`, self.PrimaryKey)
-	//}
-
-	row, err := self.source.doQueryRow(sqlgen.Statement{
+	stmt := sqlgen.Statement{
 		Type:    sqlgen.SqlInsert,
 		Table:   sqlgen.Table{self.tableN(0)},
 		Columns: columns,
 		Values:  values,
-		Extra:   sqlgen.Extra(extra),
-	}, vals...)
-
-	if err != nil {
-		return nil, err
 	}
 
-	var id int64
-
-	if err = row.Scan(&id); err != nil {
-		if err == sql.ErrNoRows {
-			// Can't tell the row's id. Maybe there isn't any?
-			return nil, nil
+	if pKey == "" {
+		// No primary key found.
+		var res sql.Result
+		if res, err = self.source.doExec(stmt, vals...); err != nil {
+			return nil, err
 		}
-		// Other kind of error.
-		return nil, err
+
+		// Attempt to use LastInsertId() (probably won't work, but the exec()
+		// succeeded, so the error from LastInsertId() is ignored).
+		id, _ = res.LastInsertId()
+
+		return id, nil
+	} else {
+		var row *sql.Row
+
+		// A primary key was found.
+		stmt.Extra = sqlgen.Extra(fmt.Sprintf(`RETURNING %s`, pKey))
+		if row, err = self.source.doQueryRow(stmt, vals...); err != nil {
+			return nil, err
+		}
+
+		// Retrieving key value.
+		if err = row.Scan(&id); err != nil {
+			if err == sql.ErrNoRows {
+				// Can't tell the row's id. Maybe there isn't any?
+				return nil, nil
+			}
+			// Other kind of error.
+			return nil, err
+		}
+		return id, nil
 	}
 
-	return id, nil
+	return nil, nil
 }
 
 // Returns true if the collection exists.
