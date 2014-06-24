@@ -4,11 +4,9 @@
 different databases through the use of *adapters* that wrap well-supported
 database drivers.
 
-See the project page, recipes and user documentation at [upper.io/db][1].
-
 [![Build Status](https://travis-ci.org/upper/db.png)](https://travis-ci.org/upper/db)
 
-## Is this an ORM?
+## Is `upper.io/db` an ORM?
 
 `upper.io/db` is not an ORM in the sense that it does not tell you how to
 design your software or how to validate your data, instead it only focuses on
@@ -35,6 +33,10 @@ on specific database adapters, such as MySQL, PostgreSQL and SQLite.
 * [PostgreSQL](https://upper.io/db/postgresql) via [pq](https://github.com/lib/pq)
 * [QL](https://upper.io/db/ql) via [ql](https://github.com/cznic/ql)
 * [SQLite3](https://upper.io/db/sqlite) via [go-sqlite3](https://github.com/mattn/go-sqlite3)
+
+## User documentation
+
+See the project page, recipes and user documentation at [upper.io/db][1].
 
 ## License
 
