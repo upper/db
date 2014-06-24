@@ -10,7 +10,9 @@ See the project page, recipes and user documentation at [upper.io/db][1].
 
 ## Is this an ORM?
 
-`upper.io/db` is not an ORM, but you may not need one at all:
+`upper.io/db` is not an ORM in the sense that it does not tell you how to
+design your software or how to validate your data, instead it only focuses on
+being a tool that deals with common operations on different databases:
 
 ```go
 // This code works the same for all supported databases.
@@ -18,6 +20,9 @@ var people []Person
 res = col.Find(db.Cond{"name": "Max"}).Limit(10).Sort("-last_name")
 err = res.All(&people)
 ```
+
+In strict sense `upper.io/db` could be considered a really basic non-magical
+ORM that rather stays out of the way.
 
 ## Supported databases
 
