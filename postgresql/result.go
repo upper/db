@@ -248,6 +248,8 @@ func (self *result) Count() (uint64, error) {
 		return 0, err
 	}
 
+	defer rows.Close()
+
 	if err = sqlutil.FetchRow(rows, &count); err != nil {
 		return 0, err
 	}
