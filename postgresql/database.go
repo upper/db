@@ -27,6 +27,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	_ "github.com/xiam/gopostgresql"
 	"upper.io/db"
@@ -70,9 +71,9 @@ func debugEnabled() bool {
 	return false
 }
 
-func debugLog(query string, args []interface{}, err error) {
+func debugLog(query string, args []interface{}, err error, start int64, end int64) {
 	if debugEnabled() == true {
-		d := sqlutil.Debug{query, args, err}
+		d := sqlutil.Debug{query, args, err, start, end}
 		d.Print()
 	}
 }
@@ -116,9 +117,13 @@ func (self *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Resu
 	var query string
 	var res sql.Result
 	var err error
+	var start, end int64
+
+	start = time.Now().UnixNano()
 
 	defer func() {
-		debugLog(query, args, err)
+		end = time.Now().UnixNano()
+		debugLog(query, args, err, start, end)
 	}()
 
 	if self.session == nil {
@@ -145,9 +150,13 @@ func (self *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 	var rows *sql.Rows
 	var query string
 	var err error
+	var start, end int64
+
+	start = time.Now().UnixNano()
 
 	defer func() {
-		debugLog(query, args, err)
+		end = time.Now().UnixNano()
+		debugLog(query, args, err, start, end)
 	}()
 
 	if self.session == nil {
@@ -174,9 +183,13 @@ func (self *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql
 	var query string
 	var row *sql.Row
 	var err error
+	var start, end int64
+
+	start = time.Now().UnixNano()
 
 	defer func() {
-		debugLog(query, args, err)
+		end = time.Now().UnixNano()
+		debugLog(query, args, err, start, end)
 	}()
 
 	if self.session == nil {

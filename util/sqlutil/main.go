@@ -43,9 +43,11 @@ type T struct {
 }
 
 type Debug struct {
-	SQL  string
-	Args []interface{}
-	Err  error
+	SQL   string
+	Args  []interface{}
+	Err   error
+	Start int64
+	End   int64
 }
 
 func (self *Debug) Print() {
@@ -55,16 +57,18 @@ func (self *Debug) Print() {
 	s := make([]string, 0, 3)
 
 	if self.SQL != "" {
-		s = append(s, fmt.Sprintf(`SQL: %s`, self.SQL))
+		s = append(s, fmt.Sprintf(`Q: %s`, self.SQL))
 	}
 
 	if len(self.Args) > 0 {
-		s = append(s, fmt.Sprintf(`ARG: %v`, self.Args))
+		s = append(s, fmt.Sprintf(`A: %v`, self.Args))
 	}
 
 	if self.Err != nil {
-		s = append(s, fmt.Sprintf(`ERR: %q`, self.Err))
+		s = append(s, fmt.Sprintf(`E: %q`, self.Err))
 	}
+
+	s = append(s, fmt.Sprintf(`T: %0.5fs`, float64(self.End-self.Start)/float64(1e9)))
 
 	log.Printf("\n\t%s\n\n", strings.Join(s, "\n\t"))
 }
