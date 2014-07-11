@@ -58,6 +58,7 @@ func (self *Result) setCursor() error {
 			Limit:   self.limit,
 			Offset:  self.offset,
 			Where:   self.where,
+			OrderBy: self.orderBy,
 		}, self.arguments...)
 	}
 	return err
