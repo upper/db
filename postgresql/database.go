@@ -39,7 +39,7 @@ const Adapter = `postgresql`
 
 var (
 	// Format for saving dates.
-	DateFormat = "2006-01-02 15:04:05"
+	DateFormat = "2006-01-02 15:04:05.999999999 MST"
 	// Format for saving times.
 	TimeFormat = "%d:%02d:%02d.%d"
 	SSLMode    = "disable"
