@@ -419,6 +419,30 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
+
+	// ORDER BY function
+	stmt = Statement{
+		Type: SqlSelect,
+		Columns: Columns{
+			{"foo"},
+			{"bar"},
+			{"baz"},
+		},
+		OrderBy: OrderBy{
+			SortColumns{
+				{Column{Raw{"FOO()"}}, SqlSortDesc},
+				{Column{Raw{"BAR()"}}, SqlSortAsc},
+			},
+		},
+		Table: Table{"table_name"},
+	}
+
+	s = trim(stmt.Compile(defaultTemplate))
+	e = `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY FOO() DESC, BAR() ASC`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
 }
 
 func TestSelectFieldsFromWhere(t *testing.T) {
