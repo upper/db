@@ -289,7 +289,7 @@ type Result interface {
 	// Receives fields that define the order in which elements will be returned
 	// in a query, field names may be prefixed with a minus sign (-) indicating
 	// descending order; ascending order would be used by default.
-	Sort(...string) Result
+	Sort(...interface{}) Result
 
 	// Defines specific fields to be fulfilled on results in this result set.
 	Select(...interface{}) Result

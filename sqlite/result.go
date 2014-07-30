@@ -86,27 +86,35 @@ func (self *result) Skip(n uint) db.Result {
 // Determines sorting of results according to the provided names. Fields may be
 // prefixed by - (minus) which means descending order, ascending order would be
 // used otherwise.
-func (self *result) Sort(fields ...string) db.Result {
+func (self *result) Sort(fields ...interface{}) db.Result {
 
 	sortColumns := make(sqlgen.SortColumns, 0, len(fields))
 
-	for _, field := range fields {
+	l := len(fields)
+	for i := 0; i < l; i++ {
 		var sort sqlgen.SortColumn
 
-		if strings.HasPrefix(field, `-`) {
-			// Explicit descending order.
+		switch value := fields[i].(type) {
+		case db.Raw:
 			sort = sqlgen.SortColumn{
-				sqlgen.Column{field[1:]},
-				sqlgen.SqlSortDesc,
-			}
-		} else {
-			// Ascending order.
-			sort = sqlgen.SortColumn{
-				sqlgen.Column{field},
+				sqlgen.Column{sqlgen.Raw{fmt.Sprintf(`%v`, value.Value)}},
 				sqlgen.SqlSortAsc,
 			}
+		case string:
+			if strings.HasPrefix(value, `-`) {
+				// Explicit descending order.
+				sort = sqlgen.SortColumn{
+					sqlgen.Column{value[1:]},
+					sqlgen.SqlSortDesc,
+				}
+			} else {
+				// Ascending order.
+				sort = sqlgen.SortColumn{
+					sqlgen.Column{value},
+					sqlgen.SqlSortAsc,
+				}
+			}
 		}
-
 		sortColumns = append(sortColumns, sort)
 	}
 

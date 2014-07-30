@@ -75,8 +75,12 @@ func (self *Result) Skip(n uint) db.Result {
 // Determines sorting of results according to the provided names. Fields may be
 // prefixed by - (minus) which means descending order, ascending order would be
 // used otherwise.
-func (self *Result) Sort(fields ...string) db.Result {
-	self.queryChunks.Sort = fields
+func (self *Result) Sort(fields ...interface{}) db.Result {
+	ss := make([]string, len(fields))
+	for i, field := range fields {
+		ss[i] = fmt.Sprintf(`%v`, field)
+	}
+	self.queryChunks.Sort = ss
 	return self
 }
 

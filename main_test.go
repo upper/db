@@ -517,6 +517,8 @@ func TestSimpleCRUD(t *testing.T) {
 
 func TestFibonacci(t *testing.T) {
 	var err error
+	var res db.Result
+	var total uint64
 
 	for _, wrapper := range wrappers {
 		if settings[wrapper] == nil {
@@ -551,9 +553,39 @@ func TestFibonacci(t *testing.T) {
 				}
 			}
 
+			// Testing sorting by function.
+			res = col.Find(
+				// 5, 6, 7, 3
+				db.Or{
+					db.And{
+						db.Cond{"input >=": 5},
+						db.Cond{"input <=": 7},
+					},
+					db.Cond{"input": 3},
+				},
+			)
+
+			// Testing sort by function.
+			switch wrapper {
+			case `postgresql`:
+				res = res.Sort(db.Raw{`RANDOM()`})
+			case `sqlite`:
+				res = res.Sort(db.Raw{`RANDOM()`})
+			case `mysql`:
+				res = res.Sort(db.Raw{`RAND()`})
+			}
+
+			total, err = res.Count()
+
+			if err != nil {
+				t.Fatalf(`%s: %s`, wrapper, err.Error())
+			}
+
+			if total != 4 {
+				t.Fatalf("%s: Expecting a count of 4, got %d.", wrapper, total)
+			}
+
 			// Find() with IN/$in
-			var res db.Result
-			var total uint64
 			var whereIn db.Cond
 
 			switch wrapper {
