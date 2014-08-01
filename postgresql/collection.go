@@ -218,21 +218,32 @@ func (self *table) Append(item interface{}) (interface{}, error) {
 	var pKey string
 	var columns sqlgen.Columns
 	var values sqlgen.Values
+	var arguments []interface{}
 	var id int64
 
 	cols, vals, err := self.FieldValues(item, toInternal)
 
-	for _, col := range cols {
-		columns = append(columns, sqlgen.Column{col})
-	}
-
-	for i := 0; i < len(vals); i++ {
-		values = append(values, sqlPlaceholder)
-	}
-
-	// Error ocurred, stop appending.
 	if err != nil {
 		return nil, err
+	}
+
+	columns = make(sqlgen.Columns, 0, len(cols))
+	for i := range cols {
+		columns = append(columns, sqlgen.Column{cols[i]})
+	}
+
+	arguments = make([]interface{}, 0, len(vals))
+	values = make(sqlgen.Values, 0, len(vals))
+	for i := range vals {
+		switch v := vals[i].(type) {
+		case sqlgen.Value:
+			// Adding value.
+			values = append(values, v)
+		default:
+			// Adding both value and placeholder.
+			values = append(values, sqlPlaceholder)
+			arguments = append(arguments, v)
+		}
 	}
 
 	if pKey, err = self.source.getPrimaryKey(self.tableN(0)); err != nil {
@@ -252,7 +263,7 @@ func (self *table) Append(item interface{}) (interface{}, error) {
 	if pKey == "" {
 		// No primary key found.
 		var res sql.Result
-		if res, err = self.source.doExec(stmt, vals...); err != nil {
+		if res, err = self.source.doExec(stmt, arguments...); err != nil {
 			return nil, err
 		}
 
@@ -266,7 +277,7 @@ func (self *table) Append(item interface{}) (interface{}, error) {
 
 		// A primary key was found.
 		stmt.Extra = sqlgen.Extra(fmt.Sprintf(`RETURNING %s`, pKey))
-		if row, err = self.source.doQueryRow(stmt, vals...); err != nil {
+		if row, err = self.source.doQueryRow(stmt, arguments...); err != nil {
 			return nil, err
 		}
 
@@ -306,6 +317,42 @@ func toInternal(val interface{}) interface{} {
 		return t.Format(DateFormat)
 	case time.Duration:
 		return fmt.Sprintf(TimeFormat, int(t/time.Hour), int(t/time.Minute%60), int(t/time.Second%60), t%time.Second/time.Millisecond)
+	case sql.NullBool:
+		if t.Valid {
+			if t.Bool {
+				return toInternal(t.Bool)
+			} else {
+				return false
+			}
+		} else {
+			return sqlgen.Value{sqlgen.Raw{psqlNull}}
+		}
+	case sql.NullFloat64:
+		if t.Valid {
+			if t.Float64 != 0.0 {
+				return toInternal(t.Float64)
+			} else {
+				return float64(0)
+			}
+		} else {
+			return sqlgen.Value{sqlgen.Raw{psqlNull}}
+		}
+	case sql.NullInt64:
+		if t.Valid {
+			if t.Int64 != 0 {
+				return toInternal(t.Int64)
+			} else {
+				return 0
+			}
+		} else {
+			return sqlgen.Value{sqlgen.Raw{psqlNull}}
+		}
+	case sql.NullString:
+		if t.Valid {
+			return toInternal(t.String)
+		} else {
+			return sqlgen.Value{sqlgen.Raw{psqlNull}}
+		}
 	case bool:
 		if t == true {
 			return `1`

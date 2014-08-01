@@ -587,6 +587,100 @@ func TestFunction(t *testing.T) {
 	res.Close()
 }
 
+// Attempts to test nullable fields.
+func TestNullableFields(t *testing.T) {
+	var err error
+	var sess db.Database
+	var col db.Collection
+	var id interface{}
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	type test_t struct {
+		Id              int64           `db:"id,omitempty"`
+		NullStringTest  sql.NullString  `db:"_string"`
+		NullInt64Test   sql.NullInt64   `db:"_int64"`
+		NullFloat64Test sql.NullFloat64 `db:"_float64"`
+		NullBoolTest    sql.NullBool    `db:"_bool"`
+	}
+
+	var test test_t
+
+	if col, err = sess.Collection(`data_types`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = col.Truncate(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Testing insertion of invalid nulls.
+	test = test_t{
+		NullStringTest:  sql.NullString{"", false},
+		NullInt64Test:   sql.NullInt64{0, false},
+		NullFloat64Test: sql.NullFloat64{0.0, false},
+		NullBoolTest:    sql.NullBool{false, false},
+	}
+	if id, err = col.Append(test_t{}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Testing fetching of invalid nulls.
+	if err = col.Find(db.Cond{"id": id}).One(&test); err != nil {
+		t.Fatal(err)
+	}
+
+	if test.NullInt64Test.Valid {
+		t.Fatalf(`Expecting invalid null.`)
+	}
+	if test.NullFloat64Test.Valid {
+		t.Fatalf(`Expecting invalid null.`)
+	}
+	if test.NullBoolTest.Valid {
+		t.Fatalf(`Expecting invalid null.`)
+	}
+
+	// In PostgreSQL, how we can tell if this is an invalid null?
+
+	// if test.NullStringTest.Valid {
+	// 	t.Fatalf(`Expecting invalid null.`)
+	// }
+
+	// Testing insertion of valid nulls.
+	test = test_t{
+		NullStringTest:  sql.NullString{"", true},
+		NullInt64Test:   sql.NullInt64{0, true},
+		NullFloat64Test: sql.NullFloat64{0.0, true},
+		NullBoolTest:    sql.NullBool{false, true},
+	}
+	if id, err = col.Append(test); err != nil {
+		t.Fatal(err)
+	}
+
+	// Testing fetching of valid nulls.
+	if err = col.Find(db.Cond{"id": id}).One(&test); err != nil {
+		t.Fatal(err)
+	}
+
+	if test.NullInt64Test.Valid == false {
+		t.Fatalf(`Expecting valid value.`)
+	}
+	if test.NullFloat64Test.Valid == false {
+		t.Fatalf(`Expecting valid value.`)
+	}
+	if test.NullBoolTest.Valid == false {
+		t.Fatalf(`Expecting valid value.`)
+	}
+	if test.NullStringTest.Valid == false {
+		t.Fatalf(`Expecting valid value.`)
+	}
+
+}
+
 // Attempts to delete previously added rows.
 func TestRemove(t *testing.T) {
 	var err error

@@ -38,6 +38,13 @@ var (
 	reInvisibleChars = regexp.MustCompile(`[\s\r\n\t]+`)
 )
 
+var (
+	nullInt64Type   = reflect.TypeOf(sql.NullInt64{})
+	nullFloat64Type = reflect.TypeOf(sql.NullFloat64{})
+	nullBoolType    = reflect.TypeOf(sql.NullBool{})
+	nullStringType  = reflect.TypeOf(sql.NullString{})
+)
+
 type T struct {
 	Columns []string
 }
@@ -86,6 +93,15 @@ func fetchResult(item_t reflect.Type, rows *sql.Rows, columns []string) (reflect
 	var item reflect.Value
 	var err error
 
+	switch item_t.Kind() {
+	case reflect.Map:
+		item = reflect.MakeMap(item_t)
+	case reflect.Struct:
+		item = reflect.New(item_t)
+	default:
+		return item, db.ErrExpectingMapOrStruct
+	}
+
 	expecting := len(columns)
 
 	// Allocating results.
@@ -96,18 +112,7 @@ func fetchResult(item_t reflect.Type, rows *sql.Rows, columns []string) (reflect
 		scanArgs[i] = &values[i]
 	}
 
-	switch item_t.Kind() {
-	case reflect.Map:
-		item = reflect.MakeMap(item_t)
-	case reflect.Struct:
-		item = reflect.New(item_t)
-	default:
-		return item, db.ErrExpectingMapOrStruct
-	}
-
-	err = rows.Scan(scanArgs...)
-
-	if err != nil {
+	if err = rows.Scan(scanArgs...); err != nil {
 		return item, err
 	}
 
@@ -117,6 +122,7 @@ func fetchResult(item_t reflect.Type, rows *sql.Rows, columns []string) (reflect
 		if value != nil {
 			// Real column name
 			column := columns[i]
+
 			// Value as string.
 			svalue := string(*value)
 
@@ -153,7 +159,32 @@ func fetchResult(item_t reflect.Type, rows *sql.Rows, columns []string) (reflect
 					if destf.IsValid() {
 						if cv.Type() != destf.Type() {
 							if destf.Type().Kind() != reflect.Interface {
-								cv, _ = util.StringToType(svalue, destf.Type())
+								switch destf.Type() {
+								case nullFloat64Type:
+									nullFloat64 := sql.NullFloat64{}
+									if svalue != `` {
+										nullFloat64.Scan(svalue)
+									}
+									cv = reflect.ValueOf(nullFloat64)
+								case nullInt64Type:
+									nullInt64 := sql.NullInt64{}
+									if svalue != `` {
+										nullInt64.Scan(svalue)
+									}
+									cv = reflect.ValueOf(nullInt64)
+								case nullBoolType:
+									nullBool := sql.NullBool{}
+									if svalue != `` {
+										nullBool.Scan(svalue)
+									}
+									cv = reflect.ValueOf(nullBool)
+								case nullStringType:
+									nullString := sql.NullString{}
+									nullString.Scan(svalue)
+									cv = reflect.ValueOf(nullString)
+								default:
+									cv, _ = util.StringToType(svalue, destf.Type())
+								}
 							}
 						}
 						// Copying value.
@@ -162,6 +193,7 @@ func fetchResult(item_t reflect.Type, rows *sql.Rows, columns []string) (reflect
 						}
 					}
 				}
+
 			}
 		}
 	}

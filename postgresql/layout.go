@@ -121,4 +121,6 @@ const (
 	pgsqlDropTableLayout = `
 		DROP TABLE {{.Table}}
 	`
+
+	psqlNull = `NULL`
 )
