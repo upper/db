@@ -121,4 +121,6 @@ const (
 	mysqlDropTableLayout = `
 		DROP TABLE {{.Table}}
 	`
+
+	mysqlNull = `NULL`
 )
