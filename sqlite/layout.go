@@ -121,4 +121,6 @@ const (
 	sqlDropTableLayout = `
 		DROP TABLE {{.Table}}
 	`
+
+	sqlNull = `NULL`
 )
