@@ -297,7 +297,8 @@ type Result interface {
 	// Discards the initial filtering conditions and sets new ones.
 	Where(...interface{}) Result
 
-	// Groups results using a key.
+	// Used to group results that have the same value in the same column or
+	// columns.
 	Group(...interface{}) Result
 
 	// Removes all items within the result set.

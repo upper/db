@@ -85,7 +85,8 @@ func (self *result) Skip(n uint) db.Result {
 	return self
 }
 
-// Used to group results that have the same value in the same column or columns.
+// Used to group results that have the same value in the same column or
+// columns.
 func (self *result) Group(fields ...interface{}) db.Result {
 
 	groupByColumns := make(sqlgen.GroupBy, 0, len(fields))
