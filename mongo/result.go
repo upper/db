@@ -116,6 +116,13 @@ func (self *Result) All(dst interface{}) error {
 	return nil
 }
 
+// Used to group results that have the same value in the same column or
+// columns.
+func (self *Result) Group(fields ...interface{}) db.Result {
+	self.queryChunks.GroupBy = fields
+	return self
+}
+
 // Fetches only one result from the resultset.
 func (self *Result) One(dst interface{}) error {
 	var err error
@@ -186,6 +193,10 @@ func (self *Result) query() (*mgo.Query, error) {
 	var err error
 
 	q := self.c.collection.Find(self.queryChunks.Conditions)
+
+	if self.queryChunks.GroupBy != nil {
+		return nil, db.ErrUnsupported
+	}
 
 	if self.queryChunks.Offset > 0 {
 		q = q.Skip(self.queryChunks.Offset)

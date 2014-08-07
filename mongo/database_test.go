@@ -24,6 +24,7 @@
 package mongo
 
 import (
+	"math/rand"
 	"os"
 	"reflect"
 	"strings"
@@ -264,6 +265,68 @@ func TestResultCount(t *testing.T) {
 	if total == 0 {
 		t.Fatalf("Should not be empty, we've just added some rows!")
 	}
+
+}
+
+func TestGroup(t *testing.T) {
+
+	var err error
+	var sess db.Database
+	var stats db.Collection
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	type stats_t struct {
+		Numeric int `db:"numeric" bson:"numeric"`
+		Value   int `db:"value" bson:"value"`
+	}
+
+	defer sess.Close()
+
+	if stats, err = sess.Collection("stats_test"); err != nil {
+		if err != db.ErrCollectionDoesNotExist {
+			t.Fatal(err)
+		}
+	}
+
+	// Truncating table.
+	if err == nil {
+		if err = stats.Truncate(); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Adding row append.
+	for i := 0; i < 1000; i++ {
+		numeric, value := rand.Intn(10), rand.Intn(100)
+		if _, err = stats.Append(stats_t{numeric, value}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// db.stats_test.group({key: {numeric: true}, initial: {sum: 0}, reduce: function(doc, prev) { prev.sum += 1}});
+
+	// Testing GROUP BY
+	res := stats.Find().Group(bson.M{
+		"key":     bson.M{"numeric": true},
+		"initial": bson.M{"sum": 0},
+		"reduce":  `function(doc, prev) { prev.sum += 1}`,
+	})
+
+	var results []map[string]interface{}
+
+	err = res.All(&results)
+
+	// Currently not supported.
+	if err != db.ErrUnsupported {
+		t.Fatal(err)
+	}
+
+	//if len(results) != 10 {
+	//	t.Fatalf(`Expecting exactly 10 results, this could fail, but it's very unlikely to happen.`)
+	//}
 
 }
 
