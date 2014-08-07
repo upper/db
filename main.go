@@ -297,6 +297,9 @@ type Result interface {
 	// Discards the initial filtering conditions and sets new ones.
 	Where(...interface{}) Result
 
+	// Groups results using a key.
+	Group(...interface{}) Result
+
 	// Removes all items within the result set.
 	Remove() error
 
