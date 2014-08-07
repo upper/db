@@ -140,6 +140,5 @@ var defaultTemplate = &Template{
 	defaultDropDatabaseLayout,
 	defaultDropTableLayout,
 	defaultSelectCountLayout,
-	defaultGroupByColumnLayout,
 	defaultGroupByLayout,
 }
