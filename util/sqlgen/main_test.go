@@ -322,6 +322,53 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 	}
 }
 
+func TestGroupBy(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	// Simple GROUP BY
+	stmt = Statement{
+		Type: SqlSelect,
+		Columns: Columns{
+			{"foo"},
+			{"bar"},
+			{"baz"},
+		},
+		GroupBy: GroupBy{
+			Column{"foo"},
+		},
+		Table: Table{"table_name"},
+	}
+
+	s = trim(stmt.Compile(defaultTemplate))
+	e = `SELECT "foo", "bar", "baz" FROM "table_name" GROUP BY "foo"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+
+	stmt = Statement{
+		Type: SqlSelect,
+		Columns: Columns{
+			{"foo"},
+			{"bar"},
+			{"baz"},
+		},
+		GroupBy: GroupBy{
+			Column{"foo"},
+			Column{"bar"},
+		},
+		Table: Table{"table_name"},
+	}
+
+	s = trim(stmt.Compile(defaultTemplate))
+	e = `SELECT "foo", "bar", "baz" FROM "table_name" GROUP BY "foo", "bar"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
 func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	var s, e string
 	var stmt Statement

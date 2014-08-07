@@ -44,6 +44,8 @@ const (
 
 			{{.Where}}
 
+			{{.GroupBy}}
+
 			{{.OrderBy}}
 
 			{{if .Limit}}
@@ -100,6 +102,14 @@ const (
 	defaultDropTableLayout = `
 		DROP TABLE {{.Table}}
 	`
+
+	defaultGroupByColumnLayout = `{{.Column}}`
+
+	defaultGroupByLayout = `
+		{{if .GroupColumns}}
+			GROUP BY {{.GroupColumns}}
+		{{end}}
+	`
 )
 
 var defaultTemplate = &Template{
@@ -130,4 +140,6 @@ var defaultTemplate = &Template{
 	defaultDropDatabaseLayout,
 	defaultDropTableLayout,
 	defaultSelectCountLayout,
+	defaultGroupByColumnLayout,
+	defaultGroupByLayout,
 }
