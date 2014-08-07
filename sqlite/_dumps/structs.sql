@@ -52,4 +52,12 @@ CREATE TABLE data_types (
  _time text
 );
 
+DROP TABLE IF EXISTS stats_test;
+
+CREATE TABLE stats_test (
+  id integer primary key,
+  numeric integer,
+  value integer
+);
+
 COMMIT;
