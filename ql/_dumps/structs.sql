@@ -43,4 +43,12 @@ CREATE TABLE data_types (
   _time time
 );
 
+DROP TABLE IF EXISTS stats_test;
+
+CREATE TABLE stats_test (
+	id uint,
+	numeric int64,
+	value int64
+);
+
 COMMIT;
