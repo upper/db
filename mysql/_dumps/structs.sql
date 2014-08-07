@@ -50,3 +50,12 @@ CREATE TABLE data_types (
   _date DATETIME NOT NULL,
   _time TIME NOT NULL
 );
+
+DROP TABLE IF EXISTS stats_test;
+
+CREATE TABLE stats_test (
+  id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+	PRIMARY KEY(id),
+	`numeric` INT(10),
+	`value` INT(10)
+);
