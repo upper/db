@@ -65,6 +65,8 @@ const (
 
 			{{.Where}}
 
+			{{.GroupBy}}
+
 			{{.OrderBy}}
 
 			{{if .Limit}}
@@ -120,6 +122,12 @@ const (
 
 	pgsqlDropTableLayout = `
 		DROP TABLE {{.Table}}
+	`
+
+	pgsqlGroupByLayout = `
+		{{if .GroupColumns}}
+			GROUP BY {{.GroupColumns}}
+		{{end}}
 	`
 
 	psqlNull = `NULL`

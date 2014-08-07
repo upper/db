@@ -44,3 +44,11 @@ CREATE TABLE data_types (
   _date timestamp without time zone,
   _time time without time zone
 );
+
+DROP TABLE IF EXISTS stats_test;
+
+CREATE TABLE stats_test (
+  id serial primary key,
+	numeric integer,
+	value integer
+);

@@ -108,6 +108,7 @@ func init() {
 		pgsqlDropDatabaseLayout,
 		pgsqlDropTableLayout,
 		pgsqlSelectCountLayout,
+		pgsqlGroupByLayout,
 	}
 
 	db.Register(Adapter, &source{})

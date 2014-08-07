@@ -31,6 +31,7 @@ package postgresql
 import (
 	"database/sql"
 	"flag"
+	"math/rand"
 	"os"
 	"reflect"
 	"strings"
@@ -678,7 +679,61 @@ func TestNullableFields(t *testing.T) {
 	if test.NullStringTest.Valid == false {
 		t.Fatalf(`Expecting valid value.`)
 	}
+}
 
+func TestGroup(t *testing.T) {
+
+	var err error
+	var sess db.Database
+	var stats db.Collection
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	type stats_t struct {
+		Numeric int `db:"numeric"`
+		Value   int `db:"value"`
+	}
+
+	defer sess.Close()
+
+	if stats, err = sess.Collection("stats_test"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Truncating table.
+	if err = stats.Truncate(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Adding row append.
+	for i := 0; i < 1000; i++ {
+		numeric, value := rand.Intn(10), rand.Intn(100)
+		if _, err = stats.Append(stats_t{numeric, value}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// db.Func{"COUNT", 1},
+	// db.Func{"SUM", `value`},
+
+	// Testing GROUP BY
+	res := stats.Find().Select(
+		`numeric`,
+		db.Raw{`COUNT(1) AS counter`},
+		db.Raw{`SUM(value) AS total`},
+	).Group(`numeric`)
+
+	var results []map[string]interface{}
+
+	if err = res.All(&results); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(results) != 10 {
+		t.Fatalf(`Expecting exactly 10 results, this could fail, but it's very unlikely to happen.`)
+	}
 }
 
 // Attempts to delete previously added rows.
