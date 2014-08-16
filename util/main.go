@@ -67,27 +67,50 @@ func GetStructFieldIndex(t reflect.Type, columnName string) []int {
 
 		field := t.Field(i)
 
-		if field.PkgPath != "" {
+		if field.PkgPath != `` {
 			// Field is unexported.
 			continue
 		}
 
-		// Attempt to use db:"column_name"
-		fieldName, fieldOptions := ParseTag(field.Tag.Get("db"))
+		// Attempt to use db:`column_name`
+		fieldName, fieldOptions := ParseTag(field.Tag.Get(`db`))
 
-		// Deprecated "field" tag.
-		if deprecatedField := field.Tag.Get("field"); deprecatedField != "" {
+		// Deprecated `field` tag.
+		if deprecatedField := field.Tag.Get(`field`); deprecatedField != `` {
 			fieldName = deprecatedField
 		}
 
-		// Deprecated "inline" tag.
-		if deprecatedInline := field.Tag.Get("inline"); deprecatedInline != "" {
-			fieldOptions["inline"] = true
+		// Deprecated `inline` tag.
+		if deprecatedInline := field.Tag.Get(`inline`); deprecatedInline != `` {
+			fieldOptions[`inline`] = true
 		}
 
-		// Matching fieldName
-		if fieldName == "-" {
+		// Skipping field
+		if fieldName == `-` {
 			continue
+		}
+
+		// Trying to match field name.
+
+		// Explicit JSON or BSON options.
+		if fieldName == `` && fieldOptions[`bson`] {
+			// Using name from the BSON tag.
+			fieldName, _ = ParseTag(field.Tag.Get(`bson`))
+		}
+
+		if fieldName == `` && fieldOptions[`bson`] {
+			// Using name from the JSON tag.
+			fieldName, _ = ParseTag(field.Tag.Get(`bson`))
+		}
+
+		// Still don't have a match? try to match againt JSON.
+		if fieldName == `` {
+			fieldName, _ = ParseTag(field.Tag.Get(`json`))
+		}
+
+		// Still don't have a match? try to match againt BSON.
+		if fieldName == `` {
+			fieldName, _ = ParseTag(field.Tag.Get(`bson`))
 		}
 
 		// Attempt to match field name.
@@ -95,23 +118,22 @@ func GetStructFieldIndex(t reflect.Type, columnName string) []int {
 			return []int{i}
 		}
 
-		if fieldName == "" {
+		// Nothing works, trying to match by name.
+		if fieldName == `` {
 			if NormalizeColumn(field.Name) == NormalizeColumn(columnName) {
 				return []int{i}
 			}
 		}
 
 		// Inline option.
-		if fieldOptions["inline"] == true {
+		if fieldOptions[`inline`] == true {
 			index := GetStructFieldIndex(field.Type, columnName)
 			if index != nil {
 				res := append([]int{i}, index...)
 				return res
 			}
 		}
-
 	}
-
 	// No match.
 	return nil
 }

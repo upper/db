@@ -365,11 +365,35 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) interfa
 				fieldOptions[`inline`] = true
 			}
 
-			// Processing field name.
+			// Skipping field
 			if fieldName == `-` {
 				continue
 			}
 
+			// Trying to match field name.
+
+			// Explicit JSON or BSON options.
+			if fieldName == `` && fieldOptions[`bson`] {
+				// Using name from the BSON tag.
+				fieldName, _ = util.ParseTag(field.Tag.Get(`bson`))
+			}
+
+			if fieldName == `` && fieldOptions[`bson`] {
+				// Using name from the JSON tag.
+				fieldName, _ = util.ParseTag(field.Tag.Get(`bson`))
+			}
+
+			// Still don't have a match? try to match againt JSON.
+			if fieldName == `` {
+				fieldName, _ = util.ParseTag(field.Tag.Get(`json`))
+			}
+
+			// Still don't have a match? try to match againt BSON.
+			if fieldName == `` {
+				fieldName, _ = util.ParseTag(field.Tag.Get(`bson`))
+			}
+
+			// Nothing works, trying to match by name.
 			if fieldName == `` {
 				fieldName = self.columnLike(field.Name)
 			}
