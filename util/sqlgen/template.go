@@ -28,4 +28,5 @@ type Template struct {
 	DropDatabaseLayout  string
 	DropTableLayout     string
 	SelectCountLayout   string
+	GroupByLayout       string
 }

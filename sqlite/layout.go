@@ -65,6 +65,8 @@ const (
 
 			{{.Where}}
 
+			{{.GroupBy}}
+
 			{{.OrderBy}}
 
 			{{if .Limit}}
@@ -120,6 +122,12 @@ const (
 
 	sqlDropTableLayout = `
 		DROP TABLE {{.Table}}
+	`
+
+	sqlGroupByLayout = `
+		{{if .GroupColumns}}
+			GROUP BY {{.GroupColumns}}
+		{{end}}
 	`
 
 	sqlNull = `NULL`

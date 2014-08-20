@@ -10,6 +10,7 @@ type Statement struct {
 	Values
 	ColumnValues
 	OrderBy
+	GroupBy
 	Extra
 	Where
 }
@@ -23,6 +24,7 @@ type statement_s struct {
 	Values       string
 	ColumnValues string
 	OrderBy      string
+	GroupBy      string
 	Extra        string
 	Where        string
 }
@@ -38,6 +40,7 @@ func (self *Statement) Compile(layout *Template) string {
 		Values:       self.Values.Compile(layout),
 		ColumnValues: self.ColumnValues.Compile(layout),
 		OrderBy:      self.OrderBy.Compile(layout),
+		GroupBy:      self.GroupBy.Compile(layout),
 		Extra:        string(self.Extra),
 		Where:        self.Where.Compile(layout),
 	}

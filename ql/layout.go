@@ -65,6 +65,8 @@ const (
 
 			{{.Where}}
 
+			{{.GroupBy}}
+
 			{{.OrderBy}}
 
 			{{if .Limit}}
@@ -120,5 +122,11 @@ const (
 
 	qlDropTableLayout = `
 		DROP TABLE {{.Table}}
+	`
+
+	qlGroupByLayout = `
+		{{if .GroupColumns}}
+			GROUP BY {{.GroupColumns}}
+		{{end}}
 	`
 )

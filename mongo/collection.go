@@ -45,6 +45,7 @@ type chunks struct {
 	Offset     int
 	Sort       []string
 	Conditions interface{}
+	GroupBy    []interface{}
 }
 
 func (self *Collection) Find(terms ...interface{}) db.Result {

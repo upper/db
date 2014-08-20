@@ -43,6 +43,7 @@ type Result struct {
 	columns   sqlgen.Columns
 	where     sqlgen.Where
 	orderBy   sqlgen.OrderBy
+	groupBy   sqlgen.GroupBy
 	arguments []interface{}
 }
 
@@ -59,6 +60,7 @@ func (self *Result) setCursor() error {
 			Offset:  self.offset,
 			Where:   self.where,
 			OrderBy: self.orderBy,
+			GroupBy: self.groupBy,
 		}, self.arguments...)
 	}
 	return err
@@ -80,6 +82,26 @@ func (self *Result) Limit(n uint) db.Result {
 // results.
 func (self *Result) Skip(n uint) db.Result {
 	self.offset = sqlgen.Offset(n)
+	return self
+}
+
+// Used to group results that have the same value in the same column or
+// columns.
+func (self *Result) Group(fields ...interface{}) db.Result {
+
+	groupByColumns := make(sqlgen.GroupBy, 0, len(fields))
+
+	l := len(fields)
+	for i := 0; i < l; i++ {
+		switch value := fields[i].(type) {
+		// Maybe other types?
+		default:
+			groupByColumns = append(groupByColumns, sqlgen.Column{value})
+		}
+	}
+
+	self.groupBy = groupByColumns
+
 	return self
 }
 

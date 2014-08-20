@@ -36,7 +36,9 @@ import (
 	_ "upper.io/db/mongo"
 	_ "upper.io/db/mysql"
 	_ "upper.io/db/postgresql"
-	_ "upper.io/db/ql"
+	// Temporary removing QL. It includes a _solaris.go file that produces
+	// compile time errors on < go1.3.
+	//_ "upper.io/db/ql"
 	_ "upper.io/db/sqlite"
 )
 
@@ -45,7 +47,7 @@ var wrappers = []string{
 	`mysql`,
 	`postgresql`,
 	`mongo`,
-	`ql`,
+	//`ql`,
 }
 
 const (
@@ -309,19 +311,23 @@ var setupFn = map[string]func(driver interface{}) error{
 type Birthday struct {
 	Name   string    // `db:"name"`	// Must match by name.
 	Born   time.Time // `db:"born"` // Must match by name.
-	OmitMe bool      `db:"-" bson:"-"`
+	OmitMe bool      `json:"omit_me" db:"-" bson:"-"`
 }
 
 type Fibonacci struct {
 	Input  uint64 `db:"input"`
 	Output uint64 `db:"output"`
-	OmitMe bool   `db:"omit_me,omitempty" bson:"omit_me,omitempty"`
+	// Test for BSON option.
+	OmitMe bool `json:"omitme" db:",bson,omitempty" bson:"omit_me,omitempty"`
 }
 
 type OddEven struct {
-	Input  int  `db:"input"`
-	IsEven bool `db:"is_even" bson:"is_even"` // The "bson" tag is required by mgo.
-	OmitMe bool `db:"-,omitempty" bson:"-,omitempty"`
+	// Test for JSON option.
+	Input int `json:"input"`
+	// Test for JSON option.
+	// The "bson" tag is required by mgo.
+	IsEven bool `json:"is_even" db:",json" bson:"is_even"`
+	OmitMe bool `json:"omit_me" db:"-" bson:"-"`
 }
 
 func even(i int) bool {

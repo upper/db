@@ -106,6 +106,7 @@ func init() {
 		mysqlDropDatabaseLayout,
 		mysqlDropTableLayout,
 		mysqlSelectCountLayout,
+		mysqlGroupByLayout,
 	}
 
 	db.Register(Adapter, &Source{})

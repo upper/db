@@ -105,6 +105,7 @@ func init() {
 		sqlDropDatabaseLayout,
 		sqlDropTableLayout,
 		sqlSelectCountLayout,
+		sqlGroupByLayout,
 	}
 
 	db.Register(Adapter, &source{})

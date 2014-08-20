@@ -108,6 +108,7 @@ func init() {
 		qlDropDatabaseLayout,
 		qlDropTableLayout,
 		qlSelectCountLayout,
+		qlGroupByLayout,
 	}
 
 	db.Register(Adapter, &source{})
