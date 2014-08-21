@@ -24,29 +24,11 @@ package ql
 import (
 	"database/sql"
 	"reflect"
-	"strings"
 
 	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 	"upper.io/db/util"
 )
-
-// Returns (lowercased) columns names.
-func getRowColumns(rows *sql.Rows) ([]string, error) {
-	// Column names.
-	columns, err := rows.Columns()
-
-	if err != nil {
-		return nil, err
-	}
-
-	// Column names to lower case.
-	for i := range columns {
-		columns[i] = strings.ToLower(columns[i])
-	}
-
-	return columns, nil
-}
 
 func (self *table) fetchRow(rows *sql.Rows, dst interface{}) error {
 	var err error
@@ -70,7 +52,7 @@ func (self *table) fetchRow(rows *sql.Rows, dst interface{}) error {
 
 	var columns []string
 
-	if columns, err = getRowColumns(rows); err != nil {
+	if columns, err = rows.Columns(); err != nil {
 		return err
 	}
 
@@ -169,7 +151,7 @@ func (self *table) fetchRows(rows *sql.Rows, dst interface{}) error {
 
 	var columns []string
 
-	if columns, err = getRowColumns(rows); err != nil {
+	if columns, err = rows.Columns(); err != nil {
 		return err
 	}
 

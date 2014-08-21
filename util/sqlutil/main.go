@@ -201,26 +201,11 @@ func fetchResult(item_t reflect.Type, rows *sql.Rows, columns []string) (reflect
 	return item, nil
 }
 
-// Returns (lowercased) columns names.
-func getRowColumns(rows *sql.Rows) ([]string, error) {
-	// Column names.
-	columns, err := rows.Columns()
-
-	if err != nil {
-		return nil, err
-	}
-
-	// Column names to lower case.
-	for i, _ := range columns {
-		columns[i] = strings.ToLower(columns[i])
-	}
-
-	return columns, nil
-}
-
 // FetchRow() receives a *sql.Rows value and tries to map all the rows into a
 // single struct given by the pointer `dst`.
 func FetchRow(rows *sql.Rows, dst interface{}) error {
+	var columns []string
+	var err error
 
 	dstv := reflect.ValueOf(dst)
 
@@ -230,9 +215,7 @@ func FetchRow(rows *sql.Rows, dst interface{}) error {
 
 	item_v := dstv.Elem()
 
-	columns, err := getRowColumns(rows)
-
-	if err != nil {
+	if columns, err = rows.Columns(); err != nil {
 		return err
 	}
 
@@ -261,6 +244,8 @@ func FetchRow(rows *sql.Rows, dst interface{}) error {
 // FetchRow() receives a *sql.Rows value and tries to map all the rows into a
 // slice of structs given by the pointer `dst`.
 func FetchRows(rows *sql.Rows, dst interface{}) error {
+	var columns []string
+	var err error
 
 	// Destination.
 	dstv := reflect.ValueOf(dst)
@@ -277,9 +262,7 @@ func FetchRows(rows *sql.Rows, dst interface{}) error {
 		return db.ErrExpectingSliceMapStruct
 	}
 
-	columns, err := getRowColumns(rows)
-
-	if err != nil {
+	if columns, err = rows.Columns(); err != nil {
 		return err
 	}
 

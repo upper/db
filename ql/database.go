@@ -60,8 +60,8 @@ type source struct {
 }
 
 type columnSchema_t struct {
-	ColumnName string `db:"name"`
-	DataType   string `db:"type"`
+	ColumnName string `db:"Name"`
+	DataType   string `db:"Type"`
 }
 
 func debugEnabled() bool {
@@ -458,7 +458,6 @@ func (self *source) Collection(names ...string) (db.Collection, error) {
 
 			for i, column := range columns_t {
 
-				column.ColumnName = strings.ToLower(column.ColumnName)
 				column.DataType = strings.ToLower(column.DataType)
 
 				col.Columns[i] = column.ColumnName

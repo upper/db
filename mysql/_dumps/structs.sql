@@ -51,13 +51,6 @@ CREATE TABLE data_types (
   _time TIME NOT NULL
 );
 
-DROP TABLE IF EXISTS case_test;
-
-CREATE TABLE CaSe_TesT (
-  id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY(id),
-  Case_Test VARCHAR(60)
-);
-
 DROP TABLE IF EXISTS stats_test;
 
 CREATE TABLE stats_test (

@@ -451,7 +451,7 @@ func (self *source) Collection(names ...string) (db.Collection, error) {
 			col.Columns = make([]string, 0, len(columns_t))
 
 			for _, column := range columns_t {
-				col.Columns = append(col.Columns, strings.ToLower(column.Name))
+				col.Columns = append(col.Columns, column.Name)
 			}
 		}
 	}
@@ -481,14 +481,14 @@ func (self *source) getPrimaryKey(tableName string) (string, error) {
 			{`pg_attribute.attname`},
 		},
 		Where: sqlgen.Where{
-			sqlgen.ColumnValue{sqlgen.Column{`pg_class.oid`}, `=`, sqlgen.Value{sqlgen.Raw{`?::regclass`}}},
+			sqlgen.ColumnValue{sqlgen.Column{`pg_class.oid`}, `=`, sqlgen.Value{sqlgen.Raw{`'"` + tableName + `"'::regclass`}}},
 			sqlgen.ColumnValue{sqlgen.Column{`indrelid`}, `=`, sqlgen.Value{sqlgen.Raw{`pg_class.oid`}}},
 			sqlgen.ColumnValue{sqlgen.Column{`pg_attribute.attrelid`}, `=`, sqlgen.Value{sqlgen.Raw{`pg_class.oid`}}},
 			sqlgen.ColumnValue{sqlgen.Column{`pg_attribute.attnum`}, `=`, sqlgen.Value{sqlgen.Raw{`any(pg_index.indkey)`}}},
 			sqlgen.Raw{`indisprimary`},
 		},
 		Limit: 1,
-	}, tableName)
+	})
 
 	if err != nil {
 		return "", err

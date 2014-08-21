@@ -276,7 +276,7 @@ func (self *table) Append(item interface{}) (interface{}, error) {
 		var row *sql.Row
 
 		// A primary key was found.
-		stmt.Extra = sqlgen.Extra(fmt.Sprintf(`RETURNING %s`, pKey))
+		stmt.Extra = sqlgen.Extra(fmt.Sprintf(`RETURNING "%s"`, pKey))
 		if row, err = self.source.doQueryRow(stmt, arguments...); err != nil {
 			return nil, err
 		}
