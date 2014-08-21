@@ -38,7 +38,7 @@ import (
 	_ "upper.io/db/postgresql"
 	// Temporary removing QL. It includes a _solaris.go file that produces
 	// compile time errors on < go1.3.
-	_ "upper.io/db/ql"
+	// _ "upper.io/db/ql"
 	_ "upper.io/db/sqlite"
 )
 
@@ -47,7 +47,7 @@ var wrappers = []string{
 	`mysql`,
 	`postgresql`,
 	`mongo`,
-	`ql`,
+	// `ql`,
 }
 
 const (
