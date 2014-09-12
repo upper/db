@@ -16,18 +16,33 @@ type columnValue_s struct {
 	Value    string
 }
 
-func (self ColumnValue) Compile(layout *Template) string {
+func (self ColumnValue) Compile(layout *Template) (compiled string) {
+
+	if s, ok := layout.Cache(self); ok {
+		return s
+	}
+
 	data := columnValue_s{
 		self.Column.Compile(layout),
 		self.Operator,
 		self.Value.Compile(layout),
 	}
-	return mustParse(layout.ColumnValue, data)
+
+	compiled = mustParse(layout.ColumnValue, data)
+
+	return
 }
 
 type ColumnValues []ColumnValue
 
-func (self ColumnValues) Compile(layout *Template) string {
+func (self ColumnValues) Compile(layout *Template) (compiled string) {
+
+	/*
+		if s, ok := layout.Cache(self); ok {
+			return s
+		}
+	*/
+
 	l := len(self)
 
 	out := make([]string, l)
@@ -36,5 +51,7 @@ func (self ColumnValues) Compile(layout *Template) string {
 		out[i] = self[i].Compile(layout)
 	}
 
-	return strings.Join(out, layout.IdentifierSeparator)
+	compiled = strings.Join(out, layout.IdentifierSeparator)
+
+	return
 }

@@ -29,4 +29,21 @@ type Template struct {
 	DropTableLayout     string
 	SelectCountLayout   string
 	GroupByLayout       string
+	cache               map[interface{}]string
+}
+
+func (self *Template) SetCache(key interface{}, value string) {
+	if self.cache == nil {
+		self.cache = make(map[interface{}]string)
+	}
+	self.cache[key] = value
+}
+
+func (self *Template) Cache(key interface{}) (string, bool) {
+	if self.cache != nil {
+		if s, ok := self.cache[key]; ok {
+			return s, true
+		}
+	}
+	return "", false
 }

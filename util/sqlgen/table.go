@@ -50,8 +50,13 @@ func quotedTableName(layout *Template, input string) string {
 	return mustParse(layout.TableAliasLayout, table_t{name, alias})
 }
 
-func (self Table) Compile(layout *Template) string {
+func (self Table) Hash() string {
+	return self.Name
+}
 
+func (self Table) Compile(layout *Template) (compiled string) {
+
+	// Splitting tables by a comma
 	parts := reTableSeparator.Split(self.Name, -1)
 
 	l := len(parts)
@@ -60,5 +65,7 @@ func (self Table) Compile(layout *Template) string {
 		parts[i] = quotedTableName(layout, parts[i])
 	}
 
-	return strings.Join(parts, layout.IdentifierSeparator)
+	compiled = strings.Join(parts, layout.IdentifierSeparator)
+
+	return compiled
 }

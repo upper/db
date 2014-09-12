@@ -29,7 +29,7 @@ type statement_s struct {
 	Where        string
 }
 
-func (self *Statement) Compile(layout *Template) string {
+func (self *Statement) Compile(layout *Template) (compiled string) {
 
 	data := statement_s{
 		Table:        self.Table.Compile(layout),
@@ -47,21 +47,24 @@ func (self *Statement) Compile(layout *Template) string {
 
 	switch self.Type {
 	case SqlTruncate:
-		return mustParse(layout.TruncateLayout, data)
+		compiled = mustParse(layout.TruncateLayout, data)
 	case SqlDropTable:
-		return mustParse(layout.DropTableLayout, data)
+		compiled = mustParse(layout.DropTableLayout, data)
 	case SqlDropDatabase:
-		return mustParse(layout.DropDatabaseLayout, data)
+		compiled = mustParse(layout.DropDatabaseLayout, data)
 	case SqlSelectCount:
-		return mustParse(layout.SelectCountLayout, data)
+		compiled = mustParse(layout.SelectCountLayout, data)
 	case SqlSelect:
-		return mustParse(layout.SelectLayout, data)
+		compiled = mustParse(layout.SelectLayout, data)
 	case SqlDelete:
-		return mustParse(layout.DeleteLayout, data)
+		compiled = mustParse(layout.DeleteLayout, data)
 	case SqlUpdate:
-		return mustParse(layout.UpdateLayout, data)
+		compiled = mustParse(layout.UpdateLayout, data)
 	case SqlInsert:
-		return mustParse(layout.InsertLayout, data)
+		compiled = mustParse(layout.InsertLayout, data)
+	default:
+		compiled = ""
 	}
-	return ""
+
+	return compiled
 }

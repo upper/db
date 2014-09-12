@@ -141,4 +141,5 @@ var defaultTemplate = &Template{
 	defaultDropTableLayout,
 	defaultSelectCountLayout,
 	defaultGroupByLayout,
+	nil,
 }

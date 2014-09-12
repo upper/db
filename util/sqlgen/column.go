@@ -14,7 +14,11 @@ type Column struct {
 	Value interface{}
 }
 
-func (self Column) Compile(layout *Template) string {
+func (self Column) Compile(layout *Template) (compiled string) {
+
+	if s, ok := layout.Cache(self); ok {
+		return s
+	}
 
 	switch value := self.Value.(type) {
 	case string:
@@ -44,10 +48,14 @@ func (self Column) Compile(layout *Template) string {
 			alias = mustParse(layout.IdentifierQuote, Raw{alias})
 		}
 
-		return mustParse(layout.ColumnAliasLayout, column_t{name, alias})
+		compiled = mustParse(layout.ColumnAliasLayout, column_t{name, alias})
 	case Raw:
-		return value.String()
+		compiled = value.String()
+	default:
+		compiled = fmt.Sprintf("%v", self.Value)
 	}
 
-	return fmt.Sprintf("%v", self.Value)
+	layout.SetCache(self, compiled)
+
+	return compiled
 }
