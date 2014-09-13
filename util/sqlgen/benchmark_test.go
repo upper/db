@@ -1,6 +1,8 @@
 package sqlgen
 
 import (
+	"fmt"
+	"math/rand"
 	"testing"
 )
 
@@ -47,8 +49,29 @@ func BenchmarkTable(b *testing.B) {
 }
 
 func BenchmarkCompileTable(b *testing.B) {
+	var t string
 	for i := 0; i < b.N; i++ {
-		_ = Table{"foo"}.Compile(defaultTemplate)
+		t = Table{"foo"}.Compile(defaultTemplate)
+		if t != `"foo"` {
+			b.Fatal("Caching failed.")
+		}
+	}
+}
+
+func BenchmarkCompileRandomTable(b *testing.B) {
+	var t string
+	var m, n int
+	var s, e string
+
+	for i := 0; i < b.N; i++ {
+		m, n = rand.Int(), rand.Int()
+		s = fmt.Sprintf(`%s as %s`, m, n)
+		e = fmt.Sprintf(`"%s" AS "%s"`, m, n)
+
+		t = Table{s}.Compile(defaultTemplate)
+		if t != e {
+			b.Fatal()
+		}
 	}
 }
 

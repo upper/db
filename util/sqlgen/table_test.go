@@ -87,3 +87,31 @@ func TestTableMultipleAlias(t *testing.T) {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 }
+
+func TestTableMinimal(t *testing.T) {
+	var s, e string
+	var table Table
+
+	table = Table{"a"}
+
+	s = trim(table.Compile(defaultTemplate))
+	e = `"a"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestTableEmpty(t *testing.T) {
+	var s, e string
+	var table Table
+
+	table = Table{""}
+
+	s = trim(table.Compile(defaultTemplate))
+	e = ``
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}

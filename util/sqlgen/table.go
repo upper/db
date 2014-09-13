@@ -21,12 +21,14 @@ type Table struct {
 }
 
 func quotedTableName(layout *Template, input string) string {
-	input = strings.TrimSpace(input)
+	input = trimString(input)
 
-	chunks := reAliasSeparator.Split(input, 2)
+	// chunks := reAliasSeparator.Split(input, 2)
+	chunks := separateByAS(input)
 
 	if len(chunks) == 1 {
-		chunks = reSpaceSeparator.Split(input, 2)
+		// chunks = reSpaceSeparator.Split(input, 2)
+		chunks = separateBySpace(input)
 	}
 
 	name := chunks[0]
@@ -34,7 +36,8 @@ func quotedTableName(layout *Template, input string) string {
 	nameChunks := strings.SplitN(name, layout.ColumnSeparator, 2)
 
 	for i := range nameChunks {
-		nameChunks[i] = strings.TrimSpace(nameChunks[i])
+		// nameChunks[i] = strings.TrimSpace(nameChunks[i])
+		nameChunks[i] = trimString(nameChunks[i])
 		nameChunks[i] = mustParse(layout.IdentifierQuote, Raw{nameChunks[i]})
 	}
 
@@ -43,7 +46,8 @@ func quotedTableName(layout *Template, input string) string {
 	var alias string
 
 	if len(chunks) > 1 {
-		alias = strings.TrimSpace(chunks[1])
+		// alias = strings.TrimSpace(chunks[1])
+		alias = trimString(chunks[1])
 		alias = mustParse(layout.IdentifierQuote, Raw{alias})
 	}
 
@@ -56,16 +60,29 @@ func (self Table) Hash() string {
 
 func (self Table) Compile(layout *Template) (compiled string) {
 
-	// Splitting tables by a comma
-	parts := reTableSeparator.Split(self.Name, -1)
-
-	l := len(parts)
-
-	for i := 0; i < l; i++ {
-		parts[i] = quotedTableName(layout, parts[i])
+	if self.Name == "" {
+		return
 	}
 
-	compiled = strings.Join(parts, layout.IdentifierSeparator)
+	if layout.isCached(self) {
 
-	return compiled
+		compiled = layout.getCache(self)
+
+	} else {
+
+		// Splitting tables by a comma
+		parts := separateByComma(self.Name)
+
+		l := len(parts)
+
+		for i := 0; i < l; i++ {
+			parts[i] = quotedTableName(layout, parts[i])
+		}
+
+		compiled = strings.Join(parts, layout.IdentifierSeparator)
+
+		layout.setCache(self, compiled)
+	}
+
+	return
 }

@@ -30,6 +30,11 @@ type Template struct {
 	SelectCountLayout   string
 	GroupByLayout       string
 	cache               map[interface{}]string
+	cachedTemplates     map[string]string
+}
+
+type cacheable interface {
+	Hash() string
 }
 
 func (self *Template) SetCache(key interface{}, value string) {
@@ -46,4 +51,28 @@ func (self *Template) Cache(key interface{}) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+func (self *Template) getCache(i cacheable) string {
+	if self.cachedTemplates == nil {
+		return ""
+	}
+	return self.cachedTemplates[i.Hash()]
+}
+
+func (self *Template) setCache(i cacheable, s string) {
+	if self.cachedTemplates == nil {
+		self.cachedTemplates = map[string]string{}
+	}
+	self.cachedTemplates[i.Hash()] = s
+}
+
+func (self *Template) isCached(i cacheable) bool {
+	if self.cachedTemplates == nil {
+		return false
+	}
+	if _, ok := self.cachedTemplates[i.Hash()]; ok {
+		return true
+	}
+	return false
 }

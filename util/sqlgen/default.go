@@ -142,4 +142,5 @@ var defaultTemplate = &Template{
 	defaultSelectCountLayout,
 	defaultGroupByLayout,
 	nil,
+	nil,
 }
