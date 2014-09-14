@@ -30,6 +30,7 @@ import (
 	"time"
 
 	_ "github.com/cznic/ql/driver"
+	"upper.io/cache"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
@@ -109,6 +110,7 @@ func init() {
 		qlDropTableLayout,
 		qlSelectCountLayout,
 		qlGroupByLayout,
+		cache.NewCache(),
 	}
 
 	db.Register(Adapter, &source{})

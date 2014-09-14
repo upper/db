@@ -26,10 +26,12 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	_ "github.com/xiam/gopostgresql"
+	"upper.io/cache"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
@@ -109,6 +111,7 @@ func init() {
 		pgsqlDropTableLayout,
 		pgsqlSelectCountLayout,
 		pgsqlGroupByLayout,
+		cache.NewCache(),
 	}
 
 	db.Register(Adapter, &source{})
@@ -201,7 +204,7 @@ func (self *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql
 
 	l := len(args)
 	for i := 0; i < l; i++ {
-		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
+		query = strings.Replace(query, `?`, `$`+strconv.Itoa(i+1), 1)
 	}
 
 	if self.tx != nil {

@@ -30,6 +30,7 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"upper.io/cache"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
@@ -107,6 +108,7 @@ func init() {
 		mysqlDropTableLayout,
 		mysqlSelectCountLayout,
 		mysqlGroupByLayout,
+		cache.NewCache(),
 	}
 
 	db.Register(Adapter, &Source{})

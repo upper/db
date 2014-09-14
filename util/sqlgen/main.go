@@ -24,14 +24,21 @@ type (
 	Extra  string
 )
 
-func mustParse(text string, data interface{}) string {
+var parsedTemplates = make(map[string]*template.Template)
+
+func mustParse(text string, data interface{}) (compiled string) {
 	var b bytes.Buffer
+	var ok bool
 
-	t := template.Must(template.New("").Parse(text))
-
-	if err := t.Execute(&b, data); err != nil {
-		panic("t.Execute: " + err.Error())
+	if _, ok = parsedTemplates[text]; ok == false {
+		parsedTemplates[text] = template.Must(template.New("").Parse(text))
 	}
 
-	return b.String()
+	if err := parsedTemplates[text].Execute(&b, data); err != nil {
+		panic("There was an error compiling the following template:\n" + text + "\nError was: " + err.Error())
+	}
+
+	compiled = b.String()
+
+	return
 }

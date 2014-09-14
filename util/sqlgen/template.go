@@ -1,5 +1,9 @@
 package sqlgen
 
+import (
+	"upper.io/cache"
+)
+
 type Template struct {
 	ColumnSeparator     string
 	IdentifierSeparator string
@@ -29,4 +33,5 @@ type Template struct {
 	DropTableLayout     string
 	SelectCountLayout   string
 	GroupByLayout       string
+	*cache.Cache
 }

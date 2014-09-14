@@ -1,14 +1,7 @@
 package sqlgen
 
 import (
-	"regexp"
 	"strings"
-)
-
-var (
-	reTableSeparator = regexp.MustCompile(`\s*?,\s*?`)
-	reAliasSeparator = regexp.MustCompile(`(?i:\s+AS\s+)`)
-	reSpaceSeparator = regexp.MustCompile(`\s+`)
 )
 
 type table_t struct {
@@ -21,12 +14,14 @@ type Table struct {
 }
 
 func quotedTableName(layout *Template, input string) string {
-	input = strings.TrimSpace(input)
+	input = trimString(input)
 
-	chunks := reAliasSeparator.Split(input, 2)
+	// chunks := reAliasSeparator.Split(input, 2)
+	chunks := separateByAS(input)
 
 	if len(chunks) == 1 {
-		chunks = reSpaceSeparator.Split(input, 2)
+		// chunks = reSpaceSeparator.Split(input, 2)
+		chunks = separateBySpace(input)
 	}
 
 	name := chunks[0]
@@ -34,7 +29,8 @@ func quotedTableName(layout *Template, input string) string {
 	nameChunks := strings.SplitN(name, layout.ColumnSeparator, 2)
 
 	for i := range nameChunks {
-		nameChunks[i] = strings.TrimSpace(nameChunks[i])
+		// nameChunks[i] = strings.TrimSpace(nameChunks[i])
+		nameChunks[i] = trimString(nameChunks[i])
 		nameChunks[i] = mustParse(layout.IdentifierQuote, Raw{nameChunks[i]})
 	}
 
@@ -43,16 +39,30 @@ func quotedTableName(layout *Template, input string) string {
 	var alias string
 
 	if len(chunks) > 1 {
-		alias = strings.TrimSpace(chunks[1])
+		// alias = strings.TrimSpace(chunks[1])
+		alias = trimString(chunks[1])
 		alias = mustParse(layout.IdentifierQuote, Raw{alias})
 	}
 
 	return mustParse(layout.TableAliasLayout, table_t{name, alias})
 }
 
-func (self Table) Compile(layout *Template) string {
+func (self Table) Hash() string {
+	return `Table(` + self.Name + `)`
+}
 
-	parts := reTableSeparator.Split(self.Name, -1)
+func (self Table) Compile(layout *Template) (compiled string) {
+
+	if self.Name == "" {
+		return
+	}
+
+	if c, ok := layout.Read(self); ok {
+		return c
+	}
+
+	// Splitting tables by a comma
+	parts := separateByComma(self.Name)
 
 	l := len(parts)
 
@@ -60,5 +70,9 @@ func (self Table) Compile(layout *Template) string {
 		parts[i] = quotedTableName(layout, parts[i])
 	}
 
-	return strings.Join(parts, layout.IdentifierSeparator)
+	compiled = strings.Join(parts, layout.IdentifierSeparator)
+
+	layout.Write(self, compiled)
+
+	return
 }

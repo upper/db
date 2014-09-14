@@ -16,18 +16,45 @@ type columnValue_s struct {
 	Value    string
 }
 
-func (self ColumnValue) Compile(layout *Template) string {
+func (self ColumnValue) Hash() string {
+	return `ColumnValue(` + self.Column.Hash() + `;` + self.Operator + `;` + self.Value.Hash() + `)`
+}
+
+func (self ColumnValue) Compile(layout *Template) (compiled string) {
+
+	if c, ok := layout.Read(self); ok {
+		return c
+	}
+
 	data := columnValue_s{
 		self.Column.Compile(layout),
 		self.Operator,
 		self.Value.Compile(layout),
 	}
-	return mustParse(layout.ColumnValue, data)
+
+	compiled = mustParse(layout.ColumnValue, data)
+
+	layout.Write(self, compiled)
+
+	return
 }
 
 type ColumnValues []ColumnValue
 
-func (self ColumnValues) Compile(layout *Template) string {
+func (self ColumnValues) Hash() string {
+	hash := make([]string, 0, len(self))
+	for i := range self {
+		hash = append(hash, self[i].Hash())
+	}
+	return `ColumnValues(` + strings.Join(hash, `,`) + `)`
+}
+
+func (self ColumnValues) Compile(layout *Template) (compiled string) {
+
+	if c, ok := layout.Read(self); ok {
+		return c
+	}
+
 	l := len(self)
 
 	out := make([]string, l)
@@ -36,5 +63,9 @@ func (self ColumnValues) Compile(layout *Template) string {
 		out[i] = self[i].Compile(layout)
 	}
 
-	return strings.Join(out, layout.IdentifierSeparator)
+	compiled = strings.Join(out, layout.IdentifierSeparator)
+
+	layout.Write(self, compiled)
+
+	return
 }
