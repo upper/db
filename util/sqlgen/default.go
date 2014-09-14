@@ -1,5 +1,9 @@
 package sqlgen
 
+import (
+	"upper.io/cache"
+)
+
 const (
 	defaultColumnSeparator     = `.`
 	defaultIdentifierSeparator = `, `
@@ -113,34 +117,33 @@ const (
 )
 
 var defaultTemplate = &Template{
-	defaultColumnSeparator,
-	defaultIdentifierSeparator,
-	defaultIdentifierQuote,
-	defaultValueSeparator,
-	defaultValueQuote,
-	defaultAndKeyword,
-	defaultOrKeyword,
-	defaultNotKeyword,
-	defaultDescKeyword,
-	defaultAscKeyword,
-	defaultDefaultOperator,
-	defaultClauseGroup,
-	defaultClauseOperator,
-	defaultColumnValue,
-	defaultTableAliasLayout,
-	defaultColumnAliasLayout,
-	defaultSortByColumnLayout,
-	defaultWhereLayout,
-	defaultOrderByLayout,
-	defaultInsertLayout,
-	defaultSelectLayout,
-	defaultUpdateLayout,
-	defaultDeleteLayout,
-	defaultTruncateLayout,
-	defaultDropDatabaseLayout,
-	defaultDropTableLayout,
-	defaultSelectCountLayout,
-	defaultGroupByLayout,
-	nil,
-	nil,
+	ColumnSeparator:     defaultColumnSeparator,
+	IdentifierSeparator: defaultIdentifierSeparator,
+	IdentifierQuote:     defaultIdentifierQuote,
+	ValueSeparator:      defaultValueSeparator,
+	ValueQuote:          defaultValueQuote,
+	AndKeyword:          defaultAndKeyword,
+	OrKeyword:           defaultOrKeyword,
+	NotKeyword:          defaultNotKeyword,
+	DescKeyword:         defaultDescKeyword,
+	AscKeyword:          defaultAscKeyword,
+	DefaultOperator:     defaultDefaultOperator,
+	ClauseGroup:         defaultClauseGroup,
+	ClauseOperator:      defaultClauseOperator,
+	ColumnValue:         defaultColumnValue,
+	TableAliasLayout:    defaultTableAliasLayout,
+	ColumnAliasLayout:   defaultColumnAliasLayout,
+	SortByColumnLayout:  defaultSortByColumnLayout,
+	WhereLayout:         defaultWhereLayout,
+	OrderByLayout:       defaultOrderByLayout,
+	InsertLayout:        defaultInsertLayout,
+	SelectLayout:        defaultSelectLayout,
+	UpdateLayout:        defaultUpdateLayout,
+	DeleteLayout:        defaultDeleteLayout,
+	TruncateLayout:      defaultTruncateLayout,
+	DropDatabaseLayout:  defaultDropDatabaseLayout,
+	DropTableLayout:     defaultDropTableLayout,
+	SelectCountLayout:   defaultSelectCountLayout,
+	GroupByLayout:       defaultGroupByLayout,
+	Cache:               cache.NewCache(),
 }

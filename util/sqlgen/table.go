@@ -1,14 +1,7 @@
 package sqlgen
 
 import (
-	"regexp"
 	"strings"
-)
-
-var (
-	reTableSeparator = regexp.MustCompile(`\s*?,\s*?`)
-	reAliasSeparator = regexp.MustCompile(`(?i:\s+AS\s+)`)
-	reSpaceSeparator = regexp.MustCompile(`\s+`)
 )
 
 type table_t struct {
@@ -55,7 +48,7 @@ func quotedTableName(layout *Template, input string) string {
 }
 
 func (self Table) Hash() string {
-	return self.Name
+	return `Table(` + self.Name + `)`
 }
 
 func (self Table) Compile(layout *Template) (compiled string) {
@@ -64,25 +57,22 @@ func (self Table) Compile(layout *Template) (compiled string) {
 		return
 	}
 
-	if layout.isCached(self) {
-
-		compiled = layout.getCache(self)
-
-	} else {
-
-		// Splitting tables by a comma
-		parts := separateByComma(self.Name)
-
-		l := len(parts)
-
-		for i := 0; i < l; i++ {
-			parts[i] = quotedTableName(layout, parts[i])
-		}
-
-		compiled = strings.Join(parts, layout.IdentifierSeparator)
-
-		layout.setCache(self, compiled)
+	if c, ok := layout.Read(self); ok {
+		return c
 	}
+
+	// Splitting tables by a comma
+	parts := separateByComma(self.Name)
+
+	l := len(parts)
+
+	for i := 0; i < l; i++ {
+		parts[i] = quotedTableName(layout, parts[i])
+	}
+
+	compiled = strings.Join(parts, layout.IdentifierSeparator)
+
+	layout.Write(self, compiled)
 
 	return
 }

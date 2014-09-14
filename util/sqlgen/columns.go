@@ -6,7 +6,20 @@ import (
 
 type Columns []Column
 
-func (self Columns) Compile(layout *Template) string {
+func (self Columns) Hash() string {
+	hash := make([]string, 0, len(self))
+	for i := range self {
+		hash = append(hash, self[i].Hash())
+	}
+	return `Columns(` + strings.Join(hash, `,`) + `)`
+}
+
+func (self Columns) Compile(layout *Template) (compiled string) {
+
+	if c, ok := layout.Read(self); ok {
+		return c
+	}
+
 	l := len(self)
 
 	if l > 0 {
@@ -16,7 +29,10 @@ func (self Columns) Compile(layout *Template) string {
 			out[i] = self[i].Compile(layout)
 		}
 
-		return strings.Join(out, layout.IdentifierSeparator)
+		compiled = strings.Join(out, layout.IdentifierSeparator)
 	}
-	return ""
+
+	layout.Write(self, compiled)
+
+	return
 }
