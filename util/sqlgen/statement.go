@@ -1,5 +1,9 @@
 package sqlgen
 
+import (
+	"strconv"
+)
+
 type Statement struct {
 	Type
 	Table
@@ -29,7 +33,29 @@ type statement_s struct {
 	Where        string
 }
 
+func (self Statement) Hash() string {
+	hash := `Statement(` +
+		strconv.Itoa(int(self.Type)) + `;` +
+		self.Table.Hash() + `;` +
+		self.Database.Hash() + `;` +
+		strconv.Itoa(int(self.Limit)) + `;` +
+		strconv.Itoa(int(self.Offset)) + `;` +
+		self.Columns.Hash() + `;` +
+		self.Values.Hash() + `;` +
+		self.ColumnValues.Hash() + `;` +
+		self.OrderBy.Hash() + `;` +
+		self.GroupBy.Hash() + `;` +
+		string(self.Extra) + `;` +
+		self.Where.Hash() +
+		`)`
+	return hash
+}
+
 func (self *Statement) Compile(layout *Template) (compiled string) {
+
+	if c, ok := layout.Read(self); ok {
+		return c
+	}
 
 	data := statement_s{
 		Table:        self.Table.Compile(layout),
@@ -62,9 +88,9 @@ func (self *Statement) Compile(layout *Template) (compiled string) {
 		compiled = mustParse(layout.UpdateLayout, data)
 	case SqlInsert:
 		compiled = mustParse(layout.InsertLayout, data)
-	default:
-		compiled = ""
 	}
+
+	layout.Write(self, compiled)
 
 	return compiled
 }
