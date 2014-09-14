@@ -29,6 +29,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"upper.io/cache"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
@@ -106,6 +107,7 @@ func init() {
 		sqlDropTableLayout,
 		sqlSelectCountLayout,
 		sqlGroupByLayout,
+		cache.NewCache(),
 	}
 
 	db.Register(Adapter, &source{})
