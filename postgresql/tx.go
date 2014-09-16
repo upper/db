@@ -21,14 +21,24 @@
 
 package postgresql
 
+import (
+	"database/sql"
+)
+
 type tx struct {
 	*source
+	sqlTx *sql.Tx
+	done  bool
 }
 
-func (self *tx) Commit() error {
-	return self.source.tx.Commit()
+func (self *tx) Commit() (err error) {
+	err = self.sqlTx.Commit()
+	if err == nil {
+		self.done = true
+	}
+	return err
 }
 
 func (self *tx) Rollback() error {
-	return self.source.tx.Rollback()
+	return self.sqlTx.Rollback()
 }

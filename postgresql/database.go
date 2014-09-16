@@ -56,7 +56,7 @@ var (
 type source struct {
 	config  db.Settings
 	session *sql.DB
-	tx      *sql.Tx
+	tx      *tx
 	schema  *schema.DatabaseSchema
 }
 
@@ -162,7 +162,7 @@ func (self *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Resu
 	}
 
 	if self.tx != nil {
-		res, err = self.tx.Exec(query, args...)
+		res, err = self.tx.sqlTx.Exec(query, args...)
 	} else {
 		res, err = self.session.Exec(query, args...)
 	}
@@ -195,7 +195,7 @@ func (self *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 	}
 
 	if self.tx != nil {
-		rows, err = self.tx.Query(query, args...)
+		rows, err = self.tx.sqlTx.Query(query, args...)
 	} else {
 		rows, err = self.session.Query(query, args...)
 	}
@@ -228,7 +228,7 @@ func (self *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql
 	}
 
 	if self.tx != nil {
-		row = self.tx.QueryRow(query, args...)
+		row = self.tx.sqlTx.QueryRow(query, args...)
 	} else {
 		row = self.session.QueryRow(query, args...)
 	}
@@ -275,9 +275,9 @@ func (self *source) Transaction() (db.Tx, error) {
 		return nil, err
 	}
 
-	tx := &tx{clone}
+	tx := &tx{source: clone, sqlTx: sqlTx}
 
-	clone.tx = sqlTx
+	clone.tx = tx
 
 	return tx, nil
 }
@@ -433,6 +433,11 @@ func (self *source) tableExists(names ...string) error {
 
 	for i := range names {
 
+		if self.schema.HasTable(names[i]) {
+			// We already know this table exists.
+			continue
+		}
+
 		stmt = sqlgen.Statement{
 			Type:  sqlgen.SqlSelect,
 			Table: sqlgen.Table{`information_schema.tables`},
@@ -519,6 +524,12 @@ func (self *source) Collection(names ...string) (db.Collection, error) {
 
 	if len(names) == 0 {
 		return nil, db.ErrMissingCollectionName
+	}
+
+	if self.tx != nil {
+		if self.tx.done {
+			return nil, sql.ErrTxDone
+		}
 	}
 
 	col := &table{
