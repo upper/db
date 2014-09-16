@@ -33,3 +33,10 @@ func (d *DatabaseSchema) Table(name string) *TableSchema {
 	d.AddTable(name)
 	return d.TableInfo[name]
 }
+
+func (d *DatabaseSchema) HasTable(name string) bool {
+	if _, ok := d.TableInfo[name]; ok {
+		return true
+	}
+	return false
+}
