@@ -31,14 +31,14 @@ type tx struct {
 	done  bool
 }
 
-func (self *tx) Commit() (err error) {
-	err = self.sqlTx.Commit()
+func (t *tx) Commit() (err error) {
+	err = t.sqlTx.Commit()
 	if err == nil {
-		self.done = true
+		t.done = true
 	}
 	return err
 }
 
-func (self *tx) Rollback() error {
-	return self.sqlTx.Rollback()
+func (t *tx) Rollback() error {
+	return t.sqlTx.Rollback()
 }

@@ -16,6 +16,7 @@ var settings = db.Settings{
 	Password: `upperio`, // Database password.
 }
 
+// Birthday example struct.
 type Birthday struct {
 	// Maps the "Name" property to the "name" column of the "birthdays" table.
 	Name string `field:"name"`

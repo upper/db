@@ -93,18 +93,18 @@ func interfaceArgs(value interface{}) (args []interface{}) {
 		return nil
 	}
 
-	value_v := reflect.ValueOf(value)
+	v := reflect.ValueOf(value)
 
-	switch value_v.Type().Kind() {
+	switch v.Type().Kind() {
 	case reflect.Slice:
 		var i, total int
 
-		total = value_v.Len()
+		total = v.Len()
 		if total > 0 {
 			args = make([]interface{}, total)
 
 			for i = 0; i < total; i++ {
-				args[i] = toInternal(value_v.Index(i).Interface())
+				args[i] = toInternal(v.Index(i).Interface())
 			}
 
 			return args
@@ -139,34 +139,34 @@ func conditionValues(cond db.Cond) (columnValues sqlgen.ColumnValues, args []int
 		switch value := value.(type) {
 		case db.Func:
 			// Catches functions.
-			value_i := interfaceArgs(value.Args)
+			v := interfaceArgs(value.Args)
 			columnValue.Operator = value.Name
 
-			if value_i == nil {
+			if v == nil {
 				// A function with no arguments.
 				columnValue.Value = sqlgen.Value{sqlgen.Raw{`()`}}
 			} else {
 				// A function with one or more arguments.
-				columnValue.Value = sqlgen.Value{sqlgen.Raw{fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(value_i)-1))}}
+				columnValue.Value = sqlgen.Value{sqlgen.Raw{fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1))}}
 			}
 
-			args = append(args, value_i...)
+			args = append(args, v...)
 		default:
 			// Catches everything else.
-			value_i := interfaceArgs(value)
-			l := len(value_i)
-			if value_i == nil || l == 0 {
+			v := interfaceArgs(value)
+			l := len(v)
+			if v == nil || l == 0 {
 				// Nil value given.
 				columnValue.Value = sqlgen.Value{sqlgen.Raw{`NULL`}}
 			} else {
 				if l > 1 {
 					// Array value given.
-					columnValue.Value = sqlgen.Value{sqlgen.Raw{fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(value_i)-1))}}
+					columnValue.Value = sqlgen.Value{sqlgen.Raw{fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1))}}
 				} else {
 					// Single value given.
 					columnValue.Value = sqlPlaceholder
 				}
-				args = append(args, value_i...)
+				args = append(args, v...)
 			}
 		}
 
@@ -176,11 +176,11 @@ func conditionValues(cond db.Cond) (columnValues sqlgen.ColumnValues, args []int
 	return columnValues, args
 }
 
-func (self *table) Find(terms ...interface{}) db.Result {
+func (t *table) Find(terms ...interface{}) db.Result {
 	where, arguments := whereValues(terms)
 
 	result := &result{
-		table:     self,
+		table:     t,
 		where:     where,
 		arguments: arguments,
 	}
@@ -188,9 +188,9 @@ func (self *table) Find(terms ...interface{}) db.Result {
 	return result
 }
 
-func (self *table) tableN(i int) string {
-	if len(self.names) > i {
-		chunks := strings.SplitN(self.names[i], " ", 2)
+func (t *table) tableN(i int) string {
+	if len(t.names) > i {
+		chunks := strings.SplitN(t.names[i], " ", 2)
 		if len(chunks) > 0 {
 			return chunks[0]
 		}
@@ -199,11 +199,11 @@ func (self *table) tableN(i int) string {
 }
 
 // Deletes all the rows within the collection.
-func (self *table) Truncate() error {
+func (t *table) Truncate() error {
 
-	_, err := self.source.doExec(sqlgen.Statement{
+	_, err := t.source.doExec(sqlgen.Statement{
 		Type:  sqlgen.SqlTruncate,
-		Table: sqlgen.Table{self.tableN(0)},
+		Table: sqlgen.Table{t.tableN(0)},
 	})
 
 	if err != nil {
@@ -214,14 +214,14 @@ func (self *table) Truncate() error {
 }
 
 // Appends an item (map or struct) into the collection.
-func (self *table) Append(item interface{}) (interface{}, error) {
+func (t *table) Append(item interface{}) (interface{}, error) {
 	var pKey string
 	var columns sqlgen.Columns
 	var values sqlgen.Values
 	var arguments []interface{}
 	var id int64
 
-	cols, vals, err := self.FieldValues(item, toInternal)
+	cols, vals, err := t.FieldValues(item, toInternal)
 
 	if err != nil {
 		return nil, err
@@ -246,7 +246,7 @@ func (self *table) Append(item interface{}) (interface{}, error) {
 		}
 	}
 
-	if pKey, err = self.source.getPrimaryKey(self.tableN(0)); err != nil {
+	if pKey, err = t.source.getPrimaryKey(t.tableN(0)); err != nil {
 		if err != sql.ErrNoRows {
 			// Can't tell primary key.
 			return nil, err
@@ -255,7 +255,7 @@ func (self *table) Append(item interface{}) (interface{}, error) {
 
 	stmt := sqlgen.Statement{
 		Type:    sqlgen.SqlInsert,
-		Table:   sqlgen.Table{self.tableN(0)},
+		Table:   sqlgen.Table{t.tableN(0)},
 		Columns: columns,
 		Values:  values,
 	}
@@ -263,7 +263,7 @@ func (self *table) Append(item interface{}) (interface{}, error) {
 	if pKey == "" {
 		// No primary key found.
 		var res sql.Result
-		if res, err = self.source.doExec(stmt, arguments...); err != nil {
+		if res, err = t.source.doExec(stmt, arguments...); err != nil {
 			return nil, err
 		}
 
@@ -272,92 +272,85 @@ func (self *table) Append(item interface{}) (interface{}, error) {
 		id, _ = res.LastInsertId()
 
 		return id, nil
-	} else {
-		var row *sql.Row
-
-		// A primary key was found.
-		stmt.Extra = sqlgen.Extra(fmt.Sprintf(`RETURNING "%s"`, pKey))
-		if row, err = self.source.doQueryRow(stmt, arguments...); err != nil {
-			return nil, err
-		}
-
-		// Retrieving key value.
-		if err = row.Scan(&id); err != nil {
-			if err == sql.ErrNoRows {
-				// Can't tell the row's id. Maybe there isn't any?
-				return nil, nil
-			}
-			// Other kind of error.
-			return nil, err
-		}
-		return id, nil
 	}
 
-	return nil, nil
+	var row *sql.Row
+
+	// A primary key was found.
+	stmt.Extra = sqlgen.Extra(fmt.Sprintf(`RETURNING "%s"`, pKey))
+	if row, err = t.source.doQueryRow(stmt, arguments...); err != nil {
+		return nil, err
+	}
+
+	// Retrieving key value.
+	if err = row.Scan(&id); err != nil {
+		if err == sql.ErrNoRows {
+			// Can't tell the row's id. Maybe there isn't any?
+			return nil, nil
+		}
+		// Other kind of error.
+		return nil, err
+	}
+
+	return id, nil
 }
 
 // Returns true if the collection exists.
-func (self *table) Exists() bool {
-	if err := self.source.tableExists(self.names...); err != nil {
+func (t *table) Exists() bool {
+	if err := t.source.tableExists(t.names...); err != nil {
 		return false
 	}
 	return true
 }
 
-func (self *table) Name() string {
-	return strings.Join(self.names, `, `)
+func (t *table) Name() string {
+	return strings.Join(t.names, `, `)
 }
 
 // Converts a Go value into internal database representation.
 func toInternal(val interface{}) interface{} {
-	switch t := val.(type) {
+	switch v := val.(type) {
 	case []byte:
-		return string(t)
+		return string(v)
 	case time.Time:
-		return t.Format(DateFormat)
+		return v.Format(DateFormat)
 	case time.Duration:
-		return fmt.Sprintf(TimeFormat, int(t/time.Hour), int(t/time.Minute%60), int(t/time.Second%60), t%time.Second/time.Millisecond)
+		return fmt.Sprintf(TimeFormat, int(v/time.Hour), int(v/time.Minute%60), int(v/time.Second%60), v%time.Second/time.Millisecond)
 	case sql.NullBool:
-		if t.Valid {
-			if t.Bool {
-				return toInternal(t.Bool)
-			} else {
-				return false
+		if v.Valid {
+			if v.Bool {
+				return toInternal(v.Bool)
 			}
-		} else {
-			return sqlgen.Value{sqlgen.Raw{psqlNull}}
+			return false
 		}
+		return sqlgen.Value{sqlgen.Raw{psqlNull}}
 	case sql.NullFloat64:
-		if t.Valid {
-			if t.Float64 != 0.0 {
-				return toInternal(t.Float64)
-			} else {
-				return float64(0)
+		if v.Valid {
+			if v.Float64 != 0.0 {
+				return toInternal(v.Float64)
 			}
-		} else {
-			return sqlgen.Value{sqlgen.Raw{psqlNull}}
+			return float64(0)
 		}
+		return sqlgen.Value{sqlgen.Raw{psqlNull}}
 	case sql.NullInt64:
-		if t.Valid {
-			if t.Int64 != 0 {
-				return toInternal(t.Int64)
-			} else {
-				return 0
+		if v.Valid {
+			if v.Int64 != 0 {
+				return toInternal(v.Int64)
 			}
-		} else {
-			return sqlgen.Value{sqlgen.Raw{psqlNull}}
+			return 0
 		}
+		return sqlgen.Value{sqlgen.Raw{psqlNull}}
 	case sql.NullString:
-		if t.Valid {
-			return toInternal(t.String)
-		} else {
-			return sqlgen.Value{sqlgen.Raw{psqlNull}}
+		if v.Valid {
+			return toInternal(v.String)
 		}
+		return sqlgen.Value{sqlgen.Raw{psqlNull}}
 	case bool:
-		if t == true {
+		if v {
 			return `1`
 		}
 		return `0`
 	}
+
 	return to.String(val)
 }

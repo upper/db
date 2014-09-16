@@ -31,7 +31,7 @@ import (
 	"upper.io/db/util/sqlutil"
 )
 
-type counter_t struct {
+type counter struct {
 	Total uint64 `db:"_t"`
 }
 
@@ -48,46 +48,46 @@ type result struct {
 }
 
 // Executes a SELECT statement that can feed Next(), All() or One().
-func (self *result) setCursor() error {
+func (r *result) setCursor() error {
 	var err error
 	// We need a cursor, if the cursor does not exists yet then we create one.
-	if self.cursor == nil {
-		self.cursor, err = self.table.source.doQuery(sqlgen.Statement{
+	if r.cursor == nil {
+		r.cursor, err = r.table.source.doQuery(sqlgen.Statement{
 			Type:    sqlgen.SqlSelect,
-			Table:   sqlgen.Table{self.table.Name()},
-			Columns: self.columns,
-			Limit:   self.limit,
-			Offset:  self.offset,
-			Where:   self.where,
-			OrderBy: self.orderBy,
-			GroupBy: self.groupBy,
-		}, self.arguments...)
+			Table:   sqlgen.Table{r.table.Name()},
+			Columns: r.columns,
+			Limit:   r.limit,
+			Offset:  r.offset,
+			Where:   r.where,
+			OrderBy: r.orderBy,
+			GroupBy: r.groupBy,
+		}, r.arguments...)
 	}
 	return err
 }
 
 // Sets conditions for reducing the working set.
-func (self *result) Where(terms ...interface{}) db.Result {
-	self.where, self.arguments = whereValues(terms)
-	return self
+func (r *result) Where(terms ...interface{}) db.Result {
+	r.where, r.arguments = whereValues(terms)
+	return r
 }
 
 // Determines the maximum limit of results to be returned.
-func (self *result) Limit(n uint) db.Result {
-	self.limit = sqlgen.Limit(n)
-	return self
+func (r *result) Limit(n uint) db.Result {
+	r.limit = sqlgen.Limit(n)
+	return r
 }
 
 // Determines how many documents will be skipped before starting to grab
 // results.
-func (self *result) Skip(n uint) db.Result {
-	self.offset = sqlgen.Offset(n)
-	return self
+func (r *result) Skip(n uint) db.Result {
+	r.offset = sqlgen.Offset(n)
+	return r
 }
 
 // Used to group results that have the same value in the same column or
 // columns.
-func (self *result) Group(fields ...interface{}) db.Result {
+func (r *result) Group(fields ...interface{}) db.Result {
 
 	groupByColumns := make(sqlgen.GroupBy, 0, len(fields))
 
@@ -100,15 +100,15 @@ func (self *result) Group(fields ...interface{}) db.Result {
 		}
 	}
 
-	self.groupBy = groupByColumns
+	r.groupBy = groupByColumns
 
-	return self
+	return r
 }
 
 // Determines sorting of results according to the provided names. Fields may be
 // prefixed by - (minus) which means descending order, ascending order would be
 // used otherwise.
-func (self *result) Sort(fields ...interface{}) db.Result {
+func (r *result) Sort(fields ...interface{}) db.Result {
 
 	sortColumns := make(sqlgen.SortColumns, 0, len(fields))
 
@@ -140,77 +140,77 @@ func (self *result) Sort(fields ...interface{}) db.Result {
 		sortColumns = append(sortColumns, sort)
 	}
 
-	self.orderBy.SortColumns = sortColumns
+	r.orderBy.SortColumns = sortColumns
 
-	return self
+	return r
 }
 
 // Retrieves only the given fields.
-func (self *result) Select(fields ...interface{}) db.Result {
-	self.columns = make(sqlgen.Columns, 0, len(fields))
+func (r *result) Select(fields ...interface{}) db.Result {
+	r.columns = make(sqlgen.Columns, 0, len(fields))
 
 	l := len(fields)
 	for i := 0; i < l; i++ {
 		switch value := fields[i].(type) {
 		case db.Raw:
-			self.columns = append(self.columns, sqlgen.Column{sqlgen.Raw{fmt.Sprintf(`%v`, value.Value)}})
+			r.columns = append(r.columns, sqlgen.Column{sqlgen.Raw{fmt.Sprintf(`%v`, value.Value)}})
 		default:
-			self.columns = append(self.columns, sqlgen.Column{value})
+			r.columns = append(r.columns, sqlgen.Column{value})
 		}
 	}
 
-	return self
+	return r
 }
 
 // Dumps all results into a pointer to an slice of structs or maps.
-func (self *result) All(dst interface{}) error {
+func (r *result) All(dst interface{}) error {
 	var err error
 
-	if self.cursor != nil {
+	if r.cursor != nil {
 		return db.ErrQueryIsPending
 	}
 
 	// Current cursor.
-	err = self.setCursor()
+	err = r.setCursor()
 
 	if err != nil {
 		return err
 	}
 
-	defer self.Close()
+	defer r.Close()
 
 	// Fetching all results within the cursor.
-	err = sqlutil.FetchRows(self.cursor, dst)
+	err = sqlutil.FetchRows(r.cursor, dst)
 
 	return err
 }
 
 // Fetches only one result from the resultset.
-func (self *result) One(dst interface{}) error {
+func (r *result) One(dst interface{}) error {
 	var err error
 
-	if self.cursor != nil {
+	if r.cursor != nil {
 		return db.ErrQueryIsPending
 	}
 
-	defer self.Close()
+	defer r.Close()
 
-	err = self.Next(dst)
+	err = r.Next(dst)
 
 	return err
 }
 
 // Fetches the next result from the resultset.
-func (self *result) Next(dst interface{}) error {
-	err := self.setCursor()
+func (r *result) Next(dst interface{}) error {
+	err := r.setCursor()
 	if err != nil {
-		self.Close()
+		r.Close()
 		return err
 	}
 
-	err = sqlutil.FetchRow(self.cursor, dst)
+	err = sqlutil.FetchRow(r.cursor, dst)
 	if err != nil {
-		self.Close()
+		r.Close()
 		return err
 	}
 
@@ -218,22 +218,22 @@ func (self *result) Next(dst interface{}) error {
 }
 
 // Removes the matching items from the collection.
-func (self *result) Remove() error {
+func (r *result) Remove() error {
 	var err error
-	_, err = self.table.source.doExec(sqlgen.Statement{
+	_, err = r.table.source.doExec(sqlgen.Statement{
 		Type:  sqlgen.SqlDelete,
-		Table: sqlgen.Table{self.table.Name()},
-		Where: self.where,
-	}, self.arguments...)
+		Table: sqlgen.Table{r.table.Name()},
+		Where: r.where,
+	}, r.arguments...)
 	return err
 
 }
 
 // Updates matching items from the collection with values of the given map or
 // struct.
-func (self *result) Update(values interface{}) error {
+func (r *result) Update(values interface{}) error {
 
-	ff, vv, err := self.table.FieldValues(values, toInternal)
+	ff, vv, err := r.table.FieldValues(values, toInternal)
 
 	total := len(ff)
 
@@ -243,37 +243,37 @@ func (self *result) Update(values interface{}) error {
 		cvs = append(cvs, sqlgen.ColumnValue{sqlgen.Column{ff[i]}, "=", sqlPlaceholder})
 	}
 
-	vv = append(vv, self.arguments...)
+	vv = append(vv, r.arguments...)
 
-	_, err = self.table.source.doExec(sqlgen.Statement{
+	_, err = r.table.source.doExec(sqlgen.Statement{
 		Type:         sqlgen.SqlUpdate,
-		Table:        sqlgen.Table{self.table.Name()},
+		Table:        sqlgen.Table{r.table.Name()},
 		ColumnValues: cvs,
-		Where:        self.where,
+		Where:        r.where,
 	}, vv...)
 
 	return err
 }
 
 // Closes the result set.
-func (self *result) Close() error {
+func (r *result) Close() error {
 	var err error
-	if self.cursor != nil {
-		err = self.cursor.Close()
-		self.cursor = nil
+	if r.cursor != nil {
+		err = r.cursor.Close()
+		r.cursor = nil
 	}
 	return err
 }
 
 // Counts the elements within the main conditions of the set.
-func (self *result) Count() (uint64, error) {
-	var count counter_t
+func (r *result) Count() (uint64, error) {
+	var count counter
 
-	rows, err := self.table.source.doQuery(sqlgen.Statement{
+	rows, err := r.table.source.doQuery(sqlgen.Statement{
 		Type:  sqlgen.SqlSelectCount,
-		Table: sqlgen.Table{self.table.Name()},
-		Where: self.where,
-	}, self.arguments...)
+		Table: sqlgen.Table{r.table.Name()},
+		Where: r.where,
+	}, r.arguments...)
 
 	if err != nil {
 		return 0, err

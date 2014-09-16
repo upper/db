@@ -198,11 +198,11 @@ func TestAppend(t *testing.T) {
 	}
 
 	// Attempt to append a map.
-	item_m := map[string]string{
+	itemMap := map[string]string{
 		"name": "Ozzie",
 	}
 
-	if id, err = artist.Append(item_m); err != nil {
+	if id, err = artist.Append(itemMap); err != nil {
 		t.Fatal(err)
 	}
 
@@ -211,13 +211,13 @@ func TestAppend(t *testing.T) {
 	}
 
 	// Attempt to append a struct.
-	item_s := struct {
+	itemStruct := struct {
 		Name string `db:"name"`
 	}{
 		"Flea",
 	}
 
-	if id, err = artist.Append(item_s); err != nil {
+	if id, err = artist.Append(itemStruct); err != nil {
 		t.Fatal(err)
 	}
 
@@ -226,13 +226,13 @@ func TestAppend(t *testing.T) {
 	}
 
 	// Append to append a tagged struct.
-	item_t := struct {
+	itemStruct2 := struct {
 		ArtistName string `db:"name"`
 	}{
 		"Slash",
 	}
 
-	if id, err = artist.Append(item_t); err != nil {
+	if id, err = artist.Append(itemStruct2); err != nil {
 		t.Fatal(err)
 	}
 
@@ -301,22 +301,22 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	// Dumping into a map.
-	row_m := map[string]interface{}{}
+	rowMap := map[string]interface{}{}
 
 	res = artist.Find()
 
 	for {
-		err = res.Next(&row_m)
+		err = res.Next(&rowMap)
 
 		if err == db.ErrNoMoreRows {
 			break
 		}
 
 		if err == nil {
-			if to.Int64(row_m["id"]) == 0 {
+			if to.Int64(rowMap["id"]) == 0 {
 				t.Fatalf("Expecting a not null ID.")
 			}
-			if to.String(row_m["name"]) == "" {
+			if to.String(rowMap["name"]) == "" {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
@@ -327,25 +327,25 @@ func TestResultFetch(t *testing.T) {
 	res.Close()
 
 	// Dumping into an struct with no tags.
-	row_s := struct {
-		Id   uint64
+	rowStruct := struct {
+		ID   uint64
 		Name string
 	}{}
 
 	res = artist.Find()
 
 	for {
-		err = res.Next(&row_s)
+		err = res.Next(&rowStruct)
 
 		if err == db.ErrNoMoreRows {
 			break
 		}
 
 		if err == nil {
-			if row_s.Id == 0 {
+			if rowStruct.ID == 0 {
 				t.Fatalf("Expecting a not null ID.")
 			}
-			if row_s.Name == "" {
+			if rowStruct.Name == "" {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
@@ -356,7 +356,7 @@ func TestResultFetch(t *testing.T) {
 	res.Close()
 
 	// Dumping into a tagged struct.
-	row_t := struct {
+	rowStruct2 := struct {
 		Value1 uint64 `field:"id"`
 		Value2 string `field:"name"`
 	}{}
@@ -364,17 +364,17 @@ func TestResultFetch(t *testing.T) {
 	res = artist.Find()
 
 	for {
-		err = res.Next(&row_t)
+		err = res.Next(&rowStruct2)
 
 		if err == db.ErrNoMoreRows {
 			break
 		}
 
 		if err == nil {
-			if row_t.Value1 == 0 {
+			if rowStruct2.Value1 == 0 {
 				t.Fatalf("Expecting a not null ID.")
 			}
-			if row_t.Value2 == "" {
+			if rowStruct2.Value2 == "" {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
@@ -385,63 +385,63 @@ func TestResultFetch(t *testing.T) {
 	res.Close()
 
 	// Dumping into an slice of maps.
-	all_rows_m := []map[string]interface{}{}
+	allRowsMap := []map[string]interface{}{}
 
 	res = artist.Find()
-	if err = res.All(&all_rows_m); err != nil {
+	if err = res.All(&allRowsMap); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(all_rows_m) != 3 {
+	if len(allRowsMap) != 3 {
 		t.Fatalf("Expecting 3 items.")
 	}
 
-	for _, single_row_m := range all_rows_m {
-		if to.Int64(single_row_m["id"]) == 0 {
+	for _, singleRowMap := range allRowsMap {
+		if to.Int64(singleRowMap["id"]) == 0 {
 			t.Fatalf("Expecting a not null ID.")
 		}
 	}
 
 	// Dumping into an slice of structs.
 
-	all_rows_s := []struct {
-		Id   uint64
+	allRowsStruct := []struct {
+		ID   uint64
 		Name string
 	}{}
 
 	res = artist.Find()
-	if err = res.All(&all_rows_s); err != nil {
+	if err = res.All(&allRowsStruct); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(all_rows_s) != 3 {
+	if len(allRowsStruct) != 3 {
 		t.Fatalf("Expecting 3 items.")
 	}
 
-	for _, single_row_s := range all_rows_s {
-		if single_row_s.Id == 0 {
+	for _, singleRowStruct := range allRowsStruct {
+		if singleRowStruct.ID == 0 {
 			t.Fatalf("Expecting a not null ID.")
 		}
 	}
 
 	// Dumping into an slice of tagged structs.
-	all_rows_t := []struct {
+	allRowsStruct2 := []struct {
 		Value1 uint64 `field:"id"`
 		Value2 string `field:"name"`
 	}{}
 
 	res = artist.Find()
 
-	if err = res.All(&all_rows_t); err != nil {
+	if err = res.All(&allRowsStruct2); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(all_rows_t) != 3 {
+	if len(allRowsStruct2) != 3 {
 		t.Fatalf("Expecting 3 items.")
 	}
 
-	for _, single_row_t := range all_rows_t {
-		if single_row_t.Value1 == 0 {
+	for _, singleRowStruct := range allRowsStruct2 {
+		if singleRowStruct.Value1 == 0 {
 			t.Fatalf("Expecting a not null ID.")
 		}
 	}
@@ -465,7 +465,7 @@ func TestUpdate(t *testing.T) {
 
 	// Defining destination struct
 	value := struct {
-		Id   uint64
+		ID   uint64
 		Name string
 	}{}
 
@@ -477,11 +477,11 @@ func TestUpdate(t *testing.T) {
 	}
 
 	// Updating set with a map
-	row_m := map[string]interface{}{
+	rowMap := map[string]interface{}{
 		"name": strings.ToUpper(value.Name),
 	}
 
-	if err = res.Update(row_m); err != nil {
+	if err = res.Update(rowMap); err != nil {
 		t.Fatal(err)
 	}
 
@@ -491,16 +491,16 @@ func TestUpdate(t *testing.T) {
 	}
 
 	// Verifying.
-	if value.Name != row_m["name"] {
+	if value.Name != rowMap["name"] {
 		t.Fatalf("Expecting a modification.")
 	}
 
 	// Updating set with a struct
-	row_s := struct {
+	rowStruct := struct {
 		Name string
 	}{strings.ToLower(value.Name)}
 
-	if err = res.Update(row_s); err != nil {
+	if err = res.Update(rowStruct); err != nil {
 		t.Fatal(err)
 	}
 
@@ -510,16 +510,16 @@ func TestUpdate(t *testing.T) {
 	}
 
 	// Verifying
-	if value.Name != row_s.Name {
+	if value.Name != rowStruct.Name {
 		t.Fatalf("Expecting a modification.")
 	}
 
 	// Updating set with a tagged struct
-	row_t := struct {
+	rowStruct2 := struct {
 		Value1 string `db:"name"`
 	}{strings.Replace(value.Name, "z", "Z", -1)}
 
-	if err = res.Update(row_t); err != nil {
+	if err = res.Update(rowStruct2); err != nil {
 		t.Fatal(err)
 	}
 
@@ -529,7 +529,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	// Verifying
-	if value.Name != row_t.Value1 {
+	if value.Name != rowStruct2.Value1 {
 		t.Fatalf("Expecting a modification.")
 	}
 }
@@ -552,14 +552,14 @@ func TestFunction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	row_s := struct {
-		Id   uint64
+	rowStruct := struct {
+		ID   uint64
 		Name string
 	}{}
 
 	res = artist.Find(db.Cond{"id NOT IN": []int{0, -1}})
 
-	if err = res.One(&row_s); err != nil {
+	if err = res.One(&rowStruct); err != nil {
 		t.Fatal(err)
 	}
 
@@ -573,7 +573,7 @@ func TestFunction(t *testing.T) {
 
 	res = artist.Find(db.Cond{"id": db.Func{"NOT IN", []int{0, -1}}})
 
-	if err = res.One(&row_s); err != nil {
+	if err = res.One(&rowStruct); err != nil {
 		t.Fatal(err)
 	}
 
@@ -601,15 +601,15 @@ func TestNullableFields(t *testing.T) {
 
 	defer sess.Close()
 
-	type test_t struct {
-		Id              int64           `db:"id,omitempty"`
+	type testType struct {
+		ID              int64           `db:"id,omitempty"`
 		NullStringTest  sql.NullString  `db:"_string"`
 		NullInt64Test   sql.NullInt64   `db:"_int64"`
 		NullFloat64Test sql.NullFloat64 `db:"_float64"`
 		NullBoolTest    sql.NullBool    `db:"_bool"`
 	}
 
-	var test test_t
+	var test testType
 
 	if col, err = sess.Collection(`data_types`); err != nil {
 		t.Fatal(err)
@@ -620,13 +620,13 @@ func TestNullableFields(t *testing.T) {
 	}
 
 	// Testing insertion of invalid nulls.
-	test = test_t{
+	test = testType{
 		NullStringTest:  sql.NullString{"", false},
 		NullInt64Test:   sql.NullInt64{0, false},
 		NullFloat64Test: sql.NullFloat64{0.0, false},
 		NullBoolTest:    sql.NullBool{false, false},
 	}
-	if id, err = col.Append(test_t{}); err != nil {
+	if id, err = col.Append(testType{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -652,7 +652,7 @@ func TestNullableFields(t *testing.T) {
 	// }
 
 	// Testing insertion of valid nulls.
-	test = test_t{
+	test = testType{
 		NullStringTest:  sql.NullString{"", true},
 		NullInt64Test:   sql.NullInt64{0, true},
 		NullFloat64Test: sql.NullFloat64{0.0, true},
@@ -691,7 +691,7 @@ func TestGroup(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	type stats_t struct {
+	type statsType struct {
 		Numeric int `db:"numeric"`
 		Value   int `db:"value"`
 	}
@@ -710,7 +710,7 @@ func TestGroup(t *testing.T) {
 	// Adding row append.
 	for i := 0; i < 1000; i++ {
 		numeric, value := rand.Intn(10), rand.Intn(100)
-		if _, err = stats.Append(stats_t{numeric, value}); err != nil {
+		if _, err = stats.Append(statsType{numeric, value}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -771,20 +771,20 @@ func TestRawRelations(t *testing.T) {
 	var publication db.Collection
 	var review db.Collection
 
-	type artist_t struct {
-		Id   int64  `db:"id,omitempty"`
+	type artistType struct {
+		ID   int64  `db:"id,omitempty"`
 		Name string `db:"name"`
 	}
 
-	type publication_t struct {
-		Id       int64  `db:"id,omitempty"`
+	type publicationType struct {
+		ID       int64  `db:"id,omitempty"`
 		Title    string `db:"title"`
-		AuthorId int64  `db:"author_id"`
+		AuthorID int64  `db:"author_id"`
 	}
 
-	type review_t struct {
-		Id            int64     `db:"id,omitempty"`
-		PublicationId int64     `db:"publication_id"`
+	type reviewType struct {
+		ID            int64     `db:"id,omitempty"`
+		PublicationID int64     `db:"publication_id"`
 		Name          string    `db:"name"`
 		Comments      string    `db:"comments"`
 		Created       time.Time `db:"created"`
@@ -824,85 +824,85 @@ func TestRawRelations(t *testing.T) {
 	}
 
 	// Adding some artists.
-	var miyazakiId interface{}
-	miyazaki := artist_t{Name: `Hayao Miyazaki`}
-	if miyazakiId, err = artist.Append(miyazaki); err != nil {
+	var miyazakiID interface{}
+	miyazaki := artistType{Name: `Hayao Miyazaki`}
+	if miyazakiID, err = artist.Append(miyazaki); err != nil {
 		t.Fatal(err)
 	}
-	miyazaki.Id = miyazakiId.(int64)
+	miyazaki.ID = miyazakiID.(int64)
 
-	var asimovId interface{}
-	asimov := artist_t{Name: `Isaac Asimov`}
-	if asimovId, err = artist.Append(asimov); err != nil {
+	var asimovID interface{}
+	asimov := artistType{Name: `Isaac Asimov`}
+	if asimovID, err = artist.Append(asimov); err != nil {
 		t.Fatal(err)
 	}
 
-	var marquezId interface{}
-	marquez := artist_t{Name: `Gabriel García Márquez`}
-	if marquezId, err = artist.Append(marquez); err != nil {
+	var marquezID interface{}
+	marquez := artistType{Name: `Gabriel García Márquez`}
+	if marquezID, err = artist.Append(marquez); err != nil {
 		t.Fatal(err)
 	}
 
 	// Adding some publications.
-	publication.Append(publication_t{
+	publication.Append(publicationType{
 		Title:    `Tonari no Totoro`,
-		AuthorId: miyazakiId.(int64),
+		AuthorID: miyazakiID.(int64),
 	})
 
-	publication.Append(publication_t{
+	publication.Append(publicationType{
 		Title:    `Howl's Moving Castle`,
-		AuthorId: miyazakiId.(int64),
+		AuthorID: miyazakiID.(int64),
 	})
 
-	publication.Append(publication_t{
+	publication.Append(publicationType{
 		Title:    `Ponyo`,
-		AuthorId: miyazakiId.(int64),
+		AuthorID: miyazakiID.(int64),
 	})
 
-	publication.Append(publication_t{
+	publication.Append(publicationType{
 		Title:    `Memoria de mis Putas Tristes`,
-		AuthorId: marquezId.(int64),
+		AuthorID: marquezID.(int64),
 	})
 
-	publication.Append(publication_t{
+	publication.Append(publicationType{
 		Title:    `El Coronel no tiene quien le escriba`,
-		AuthorId: marquezId.(int64),
+		AuthorID: marquezID.(int64),
 	})
 
-	publication.Append(publication_t{
+	publication.Append(publicationType{
 		Title:    `El Amor en los tiempos del Cólera`,
-		AuthorId: marquezId.(int64),
+		AuthorID: marquezID.(int64),
 	})
 
-	publication.Append(publication_t{
+	publication.Append(publicationType{
 		Title:    `I, Robot`,
-		AuthorId: asimovId.(int64),
+		AuthorID: asimovID.(int64),
 	})
 
-	var foundationId interface{}
-	foundationId, err = publication.Append(publication_t{
+	var foundationID interface{}
+	foundationID, err = publication.Append(publicationType{
 		Title:    `Foundation`,
-		AuthorId: asimovId.(int64),
+		AuthorID: asimovID.(int64),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	publication.Append(publication_t{
+	publication.Append(publicationType{
 		Title:    `The Robots of Dawn`,
-		AuthorId: asimovId.(int64),
+		AuthorID: asimovID.(int64),
 	})
 
 	// Adding reviews for foundation.
-	review.Append(review_t{
-		PublicationId: foundationId.(int64),
+	review.Append(reviewType{
+		PublicationID: foundationID.(int64),
 		Name:          "John Doe",
 		Comments:      "I love The Foundation series.",
 		Created:       time.Now(),
 	})
 
-	review.Append(review_t{
-		PublicationId: foundationId.(int64),
+	review.Append(reviewType{
+		PublicationID: foundationID.(int64),
 		Name:          "Edr Pls",
 		Comments:      "The Foundation series made me fall in love with Isaac Asimov.",
 		Created:       time.Now(),
@@ -922,13 +922,13 @@ func TestRawRelations(t *testing.T) {
 		db.Raw{"a.name AS artist_name"},
 	)
 
-	type artistPublication_t struct {
-		Id               int64  `db:"id"`
+	type artistPublicationType struct {
+		ID               int64  `db:"id"`
 		PublicationTitle string `db:"publication_title"`
 		ArtistName       string `db:"artist_name"`
 	}
 
-	all := []artistPublication_t{}
+	all := []artistPublicationType{}
 
 	if err = res.All(&all); err != nil {
 		t.Fatal(err)
@@ -946,10 +946,10 @@ func TestRawQuery(t *testing.T) {
 	var err error
 	var drv *sql.DB
 
-	type publication_t struct {
-		Id       int64  `db:"id,omitempty"`
+	type publicationType struct {
+		ID       int64  `db:"id,omitempty"`
 		Title    string `db:"title"`
-		AuthorId int64  `db:"author_id"`
+		AuthorID int64  `db:"author_id"`
 	}
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
@@ -976,7 +976,7 @@ func TestRawQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var all []publication_t
+	var all []publicationType
 
 	if err = sqlutil.FetchRows(rows, &all); err != nil {
 		t.Fatal(err)
@@ -992,8 +992,8 @@ func TestTransactionsAndRollback(t *testing.T) {
 	var sess db.Database
 	var err error
 
-	type artist_t struct {
-		Id   int64  `db:"id,omitempty"`
+	type artistType struct {
+		ID   int64  `db:"id,omitempty"`
 		Name string `db:"name"`
 	}
 
@@ -1019,7 +1019,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	}
 
 	// Simple transaction
-	if _, err = artist.Append(artist_t{1, "First"}); err != nil {
+	if _, err = artist.Append(artistType{1, "First"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1042,17 +1042,17 @@ func TestTransactionsAndRollback(t *testing.T) {
 	}
 
 	// Won't fail.
-	if _, err = artist.Append(artist_t{2, "Second"}); err != nil {
+	if _, err = artist.Append(artistType{2, "Second"}); err != nil {
 		t.Fatal(err)
 	}
 
 	// Won't fail.
-	if _, err = artist.Append(artist_t{3, "Third"}); err != nil {
+	if _, err = artist.Append(artistType{3, "Third"}); err != nil {
 		t.Fatal(err)
 	}
 
 	// Will fail.
-	if _, err = artist.Append(artist_t{1, "Duplicated"}); err == nil {
+	if _, err = artist.Append(artistType{1, "Duplicated"}); err == nil {
 		t.Fatal("Should have failed, as we have already inserted ID 1.")
 	}
 
@@ -1088,12 +1088,12 @@ func TestTransactionsAndRollback(t *testing.T) {
 	}
 
 	// Won't fail.
-	if _, err = artist.Append(artist_t{2, "Second"}); err != nil {
+	if _, err = artist.Append(artistType{2, "Second"}); err != nil {
 		t.Fatal(err)
 	}
 
 	// Won't fail.
-	if _, err = artist.Append(artist_t{3, "Third"}); err != nil {
+	if _, err = artist.Append(artistType{3, "Third"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1129,12 +1129,12 @@ func TestTransactionsAndRollback(t *testing.T) {
 	}
 
 	// Won't fail.
-	if _, err = artist.Append(artist_t{2, "Second"}); err != nil {
+	if _, err = artist.Append(artistType{2, "Second"}); err != nil {
 		t.Fatal(err)
 	}
 
 	// Won't fail.
-	if _, err = artist.Append(artist_t{3, "Third"}); err != nil {
+	if _, err = artist.Append(artistType{3, "Third"}); err != nil {
 		t.Fatal(err)
 	}
 
