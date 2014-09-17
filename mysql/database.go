@@ -52,7 +52,7 @@ var (
 	sqlPlaceholder = sqlgen.Value{sqlgen.Raw{`?`}}
 )
 
-type Source struct {
+type source struct {
 	config      db.Settings
 	session     *sql.DB
 	collections map[string]db.Collection
@@ -111,10 +111,10 @@ func init() {
 		cache.NewCache(),
 	}
 
-	db.Register(Adapter, &Source{})
+	db.Register(Adapter, &source{})
 }
 
-func (self *Source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
+func (self *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
 	var query string
 	var res sql.Result
 	var err error
@@ -142,7 +142,7 @@ func (self *Source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Resu
 	return res, err
 }
 
-func (self *Source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Rows, error) {
+func (self *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Rows, error) {
 	var rows *sql.Rows
 	var query string
 	var err error
@@ -170,7 +170,7 @@ func (self *Source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 	return rows, err
 }
 
-func (self *Source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Row, error) {
+func (self *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Row, error) {
 	var query string
 	var row *sql.Row
 	var err error
@@ -199,18 +199,18 @@ func (self *Source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql
 }
 
 // Returns the string name of the database.
-func (self *Source) Name() string {
+func (self *source) Name() string {
 	return self.config.Database
 }
 
 //  Ping verifies a connection to the database is still alive,
 //  establishing a connection if necessary.
-func (self *Source) Ping() error {
+func (self *source) Ping() error {
 	return self.session.Ping()
 }
 
-func (self *Source) clone() (*Source, error) {
-	src := &Source{}
+func (self *source) clone() (*source, error) {
+	src := &source{}
 	src.Setup(self.config)
 
 	if err := src.Open(); err != nil {
@@ -220,13 +220,13 @@ func (self *Source) clone() (*Source, error) {
 	return src, nil
 }
 
-func (self *Source) Clone() (db.Database, error) {
+func (self *source) Clone() (db.Database, error) {
 	return self.clone()
 }
 
-func (self *Source) Transaction() (db.Tx, error) {
+func (self *source) Transaction() (db.Tx, error) {
 	var err error
-	var clone *Source
+	var clone *source
 	var sqlTx *sql.Tx
 
 	if sqlTx, err = self.session.Begin(); err != nil {
@@ -237,7 +237,7 @@ func (self *Source) Transaction() (db.Tx, error) {
 		return nil, err
 	}
 
-	tx := &Tx{clone}
+	tx := &tx{clone}
 
 	clone.tx = sqlTx
 
@@ -245,19 +245,19 @@ func (self *Source) Transaction() (db.Tx, error) {
 }
 
 // Stores database settings.
-func (self *Source) Setup(config db.Settings) error {
+func (self *source) Setup(config db.Settings) error {
 	self.config = config
 	self.collections = make(map[string]db.Collection)
 	return self.Open()
 }
 
 // Returns the underlying *sql.DB instance.
-func (self *Source) Driver() interface{} {
+func (self *source) Driver() interface{} {
 	return self.session
 }
 
 // Attempts to connect to a database using the stored settings.
-func (self *Source) Open() error {
+func (self *source) Open() error {
 	var err error
 
 	if self.config.Host == "" {
@@ -300,7 +300,7 @@ func (self *Source) Open() error {
 }
 
 // Closes the current database session.
-func (self *Source) Close() error {
+func (self *source) Close() error {
 	if self.session != nil {
 		return self.session.Close()
 	}
@@ -308,13 +308,13 @@ func (self *Source) Close() error {
 }
 
 // Changes the active database.
-func (self *Source) Use(database string) error {
+func (self *source) Use(database string) error {
 	self.config.Database = database
 	return self.Open()
 }
 
 // Drops the currently active database.
-func (self *Source) Drop() error {
+func (self *source) Drop() error {
 
 	_, err := self.doQuery(sqlgen.Statement{
 		Type:     sqlgen.SqlDropDatabase,
@@ -325,7 +325,7 @@ func (self *Source) Drop() error {
 }
 
 // Returns a list of all tables within the currently active database.
-func (self *Source) Collections() ([]string, error) {
+func (self *source) Collections() ([]string, error) {
 	var collections []string
 	var collection string
 
@@ -354,7 +354,7 @@ func (self *Source) Collections() ([]string, error) {
 	return collections, nil
 }
 
-func (self *Source) tableExists(names ...string) error {
+func (self *source) tableExists(names ...string) error {
 	for _, name := range names {
 
 		rows, err := self.doQuery(sqlgen.Statement{
@@ -384,13 +384,13 @@ func (self *Source) tableExists(names ...string) error {
 }
 
 // Returns a collection instance by name.
-func (self *Source) Collection(names ...string) (db.Collection, error) {
+func (self *source) Collection(names ...string) (db.Collection, error) {
 
 	if len(names) == 0 {
 		return nil, db.ErrMissingCollectionName
 	}
 
-	col := &Table{
+	col := &table{
 		source: self,
 		names:  names,
 	}
