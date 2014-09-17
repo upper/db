@@ -13,6 +13,7 @@ var settings = db.Settings{
 	Database: `example.db`, // Path to database file.
 }
 
+// Birthday struct example.
 type Birthday struct {
 	// Maps the "Name" property to the "name" column of the "birthdays" table.
 	Name string `field:"name"`
