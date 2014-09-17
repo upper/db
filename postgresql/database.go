@@ -43,9 +43,9 @@ const (
 )
 
 var (
-	// DateFormat defined the format PostgreSQL uses for storing dates.
+	// DateFormat defines the format used for storing dates.
 	DateFormat = "2006-01-02 15:04:05.999999999 MST"
-	// TimeFormat defines the format PostgreSQL uses for storing time values.
+	// TimeFormat defines the format used for storing time values.
 	TimeFormat = "%d:%02d:%02d.%d"
 	// SSLMode defined wheter to enable or disable SSL connections to PostgreSQL
 	// server.
@@ -290,7 +290,6 @@ func (s *source) Transaction() (db.Tx, error) {
 // Stores database settings.
 func (s *source) Setup(config db.Settings) error {
 	s.config = config
-	//s.collections = make(map[string]db.Collection)
 	return s.Open()
 }
 
