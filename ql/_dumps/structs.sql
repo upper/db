@@ -22,6 +22,7 @@ CREATE TABLE review (
   created time
 );
 
+
 DROP TABLE IF EXISTS data_types;
 
 CREATE TABLE data_types (

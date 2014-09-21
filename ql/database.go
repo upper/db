@@ -24,7 +24,6 @@ package ql
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -263,15 +262,14 @@ func (self *source) Ping() error {
 	return self.session.Ping()
 }
 
-func (self *source) clone() (*source, error) {
-	src := &source{}
-	src.Setup(self.config)
+func (self *source) clone() (adapter *source, err error) {
+	adapter = new(source)
 
-	if err := src.Open(); err != nil {
+	if err = adapter.Setup(self.config); err != nil {
 		return nil, err
 	}
 
-	return src, nil
+	return adapter, nil
 }
 
 func (self *source) Clone() (db.Database, error) {
@@ -279,18 +277,15 @@ func (self *source) Clone() (db.Database, error) {
 }
 
 func (self *source) Transaction() (db.Tx, error) {
-	// We still have some issues with QL, transactions and blocking.
 	var err error
 	var clone *source
 	var sqlTx *sql.Tx
 
-	log.Println("self.clone()")
-	if clone, err = self.clone(); err != nil {
+	if sqlTx, err = self.session.Begin(); err != nil {
 		return nil, err
 	}
 
-	log.Println("clone.session.Begin()")
-	if sqlTx, err = clone.session.Begin(); err != nil {
+	if clone, err = self.clone(); err != nil {
 		return nil, err
 	}
 
@@ -298,7 +293,6 @@ func (self *source) Transaction() (db.Tx, error) {
 
 	clone.tx = sqlTx
 
-	log.Println("return")
 	return tx, nil
 }
 
@@ -321,8 +315,6 @@ func (self *source) Open() error {
 	if self.config.Database == "" {
 		return db.ErrMissingDatabaseName
 	}
-
-	fmt.Printf("Attempt to open: %v\n", self.config)
 
 	if self.session, err = sql.Open(`ql`, self.config.Database); err != nil {
 		return err

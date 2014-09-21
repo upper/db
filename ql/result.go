@@ -48,8 +48,7 @@ type result struct {
 }
 
 // Executes a SELECT statement that can feed Next(), All() or One().
-func (self *result) setCursor() error {
-	var err error
+func (self *result) setCursor() (err error) {
 	// We need a cursor, if the cursor does not exists yet then we create one.
 	if self.cursor == nil {
 		self.cursor, err = self.table.source.doQuery(sqlgen.Statement{
@@ -201,25 +200,21 @@ func (self *result) One(dst interface{}) error {
 }
 
 // Fetches the next result from the resultset.
-func (self *result) Next(dst interface{}) error {
-
-	var err error
+func (self *result) Next(dst interface{}) (err error) {
 
 	// Current cursor.
-	err = self.setCursor()
-
-	if err != nil {
+	if err = self.setCursor(); err != nil {
 		self.Close()
+		return err
 	}
 
 	// Fetching the next result from the cursor.
-	err = self.table.fetchRow(self.cursor, dst)
-
-	if err != nil {
+	if err = self.table.fetchRow(self.cursor, dst); err != nil {
 		self.Close()
+		return err
 	}
 
-	return err
+	return
 }
 
 // Removes the matching items from the collection.

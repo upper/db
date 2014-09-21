@@ -29,8 +29,7 @@ package ql
 // go test
 
 import (
-	//"database/sql"
-	"fmt"
+	"database/sql"
 	"os"
 
 	"menteslibres.net/gosexy/to"
@@ -41,6 +40,7 @@ import (
 	"time"
 
 	"upper.io/db"
+	"upper.io/db/util/sqlutil"
 )
 
 const (
@@ -77,8 +77,8 @@ type testValuesStruct struct {
 
 // Declaring some values to insert, we expect the same values to be returned.
 var testValues = testValuesStruct{
-	1, 1, 1, 1, 1,
-	-1, -1, -1, -1, -1,
+	1, 2, 3, 4, 5,
+	-1, -2, -3, -4, -5,
 	1.337, 1.337,
 	true,
 	"Hello world!",
@@ -324,7 +324,7 @@ func TestResultFetch(t *testing.T) {
 	// Dumping into a map.
 	row_m := map[string]interface{}{}
 
-	res = artist.Find().Select("id() as id", "name")
+	res = artist.Find().Select("id() AS id", "name")
 
 	for {
 		err = res.Next(&row_m)
@@ -353,7 +353,7 @@ func TestResultFetch(t *testing.T) {
 		Name string
 	}{}
 
-	res = artist.Find().Select("id() as id", "name")
+	res = artist.Find().Select("id() AS id", "name")
 
 	for {
 		err = res.Next(&row_s)
@@ -382,7 +382,7 @@ func TestResultFetch(t *testing.T) {
 		Value2 string `field:"name"`
 	}{}
 
-	res = artist.Find().Select("id() as id", "name")
+	res = artist.Find().Select("id() AS id", "name")
 
 	for {
 		err = res.Next(&row_t)
@@ -408,7 +408,7 @@ func TestResultFetch(t *testing.T) {
 	// Dumping into an slice of maps.
 	all_rows_m := []map[string]interface{}{}
 
-	res = artist.Find().Select("id() as id", "name")
+	res = artist.Find().Select("id() AS id", "name")
 	if err = res.All(&all_rows_m); err != nil {
 		t.Fatal(err)
 	}
@@ -430,7 +430,7 @@ func TestResultFetch(t *testing.T) {
 		Name string
 	}{}
 
-	res = artist.Find().Select("id() as id", "name")
+	res = artist.Find().Select("id() AS id", "name")
 	if err = res.All(&all_rows_s); err != nil {
 		t.Fatal(err)
 	}
@@ -451,7 +451,7 @@ func TestResultFetch(t *testing.T) {
 		Value2 string `field:"name"`
 	}{}
 
-	res = artist.Find().Select("id() as id", "name")
+	res = artist.Find().Select("id() AS id", "name")
 
 	if err = res.All(&all_rows_t); err != nil {
 		t.Fatal(err)
@@ -782,27 +782,29 @@ func TestRawRelations(t *testing.T) {
 	})
 
 	/*
-		// Exec'ing a raw query.
+		// Won't work this way, see "Record id" part in
+		// http://godoc.org/github.com/cznic/ql
+
 		var artistPublication db.Collection
-		if artistPublication, err = sess.Collection(`artist`, `publication`); err != nil {
+		if artistPublication, err = sess.Collection(`artist AS a`, `publication AS p`); err != nil {
 			t.Fatal(err)
 		}
 
 		res := artistPublication.Find(
-			db.Raw{`artist.id() == publisher.author_id`},
+			db.Raw{`a.id = p.author_id`},
 		).Select(
-			"publisher.id() as id",
-			"publisher.title as publication_title",
-			"artist.name AS artist_name",
+			"p.id AS id",
+			"p.title as publication_title",
+			"a.name AS artist_name",
 		)
 
-		type artistPublication_t struct {
-			Id               int64  `db:"id"`
+		type artistPublicationType struct {
+			ID               int64  `db:"id"`
 			PublicationTitle string `db:"publication_title"`
 			ArtistName       string `db:"artist_name"`
 		}
 
-		all := []artistPublication_t{}
+		all := []artistPublicationType{}
 
 		if err = res.All(&all); err != nil {
 			t.Fatal(err)
@@ -815,7 +817,6 @@ func TestRawRelations(t *testing.T) {
 
 }
 
-/*
 func TestRawQuery(t *testing.T) {
 	var sess db.Database
 	var rows *sql.Rows
@@ -838,12 +839,12 @@ func TestRawQuery(t *testing.T) {
 
 	rows, err = drv.Query(`
 		SELECT
-			p.id,
+			p.id AS id,
 			p.title AS publication_title,
 			a.name AS artist_name
 		FROM
-			artist AS a,
-			publication AS p
+			(SELECT id() AS id, name FROM artist) AS a,
+			(SELECT id() AS id, title, author_id FROM publication) AS p
 		WHERE
 			a.id == p.author_id
 	`)
@@ -862,11 +863,7 @@ func TestRawQuery(t *testing.T) {
 		t.Fatalf("Expecting some rows.")
 	}
 }
-*/
 
-// Attempts to test database transactions.
-// QL: Something is not working with QL's transactions.
-/*
 func TestTransactionsAndRollback(t *testing.T) {
 	var sess db.Database
 	var err error
@@ -898,7 +895,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	}
 
 	// Simple transaction
-	if _, err = artist.Append(artist_t{1, "First"}); err != nil {
+	if _, err = artist.Append(artist_t{Name: "First"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -921,19 +918,19 @@ func TestTransactionsAndRollback(t *testing.T) {
 	}
 
 	// Won't fail.
-	if _, err = artist.Append(artist_t{2, "Second"}); err != nil {
+	if _, err = artist.Append(artist_t{Name: "Second"}); err != nil {
 		t.Fatal(err)
 	}
 
 	// Won't fail.
-	if _, err = artist.Append(artist_t{3, "Third"}); err != nil {
+	if _, err = artist.Append(artist_t{Name: "Third"}); err != nil {
 		t.Fatal(err)
 	}
 
 	// Will fail.
-	if _, err = artist.Append(artist_t{1, "Duplicated"}); err == nil {
-		t.Fatal("Should have failed, as we have already inserted ID 1.")
-	}
+	//if _, err = artist.Append(artist_t{1, "Duplicated"}); err == nil {
+	//	t.Fatal("Should have failed, as we have already inserted ID 1.")
+	//}
 
 	if err = tx.Rollback(); err != nil {
 		t.Fatal(err)
@@ -967,12 +964,12 @@ func TestTransactionsAndRollback(t *testing.T) {
 	}
 
 	// Won't fail.
-	if _, err = artist.Append(artist_t{2, "Second"}); err != nil {
+	if _, err = artist.Append(artist_t{Name: "Second"}); err != nil {
 		t.Fatal(err)
 	}
 
 	// Won't fail.
-	if _, err = artist.Append(artist_t{3, "Third"}); err != nil {
+	if _, err = artist.Append(artist_t{Name: "Third"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1008,12 +1005,12 @@ func TestTransactionsAndRollback(t *testing.T) {
 	}
 
 	// Won't fail.
-	if _, err = artist.Append(artist_t{2, "Second"}); err != nil {
+	if _, err = artist.Append(artist_t{Name: "Second"}); err != nil {
 		t.Fatal(err)
 	}
 
 	// Won't fail.
-	if _, err = artist.Append(artist_t{3, "Third"}); err != nil {
+	if _, err = artist.Append(artist_t{Name: "Third"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1039,11 +1036,8 @@ func TestTransactionsAndRollback(t *testing.T) {
 	}
 
 }
-*/
 
 /*
-// TODO: Not supported by QL.
-
 // Attempts to add many different datatypes to a single row in a collection,
 // then it tries to get the stored datatypes and check if the stored and the
 // original values match.
@@ -1077,7 +1071,7 @@ func TestDataTypes(t *testing.T) {
 	}
 
 	// Defining our set.
-	res = dataTypes.Find(db.Cond{"id": id})
+	res = dataTypes.Find(db.Cond{"id()": id})
 
 	if exists, err = res.Count(); err != nil {
 		t.Fatal(err)
@@ -1101,12 +1095,9 @@ func TestDataTypes(t *testing.T) {
 
 // We are going to benchmark the engine, so this is no longed needed.
 func TestDisableDebug(t *testing.T) {
-	// os.Setenv(db.EnvEnableDebug, "")
+	os.Setenv(db.EnvEnableDebug, "")
 }
 
-/*
-
-// TODO: Unsupported by QL
 // Benchmarking raw database/sql.
 func BenchmarkAppendRawSQL(b *testing.B) {
 	var err error
@@ -1213,38 +1204,22 @@ func BenchmarkAppendTxRawSQL(b *testing.B) {
 		b.Fatal(err)
 	}
 }
-*/
 
 // Benchmarking Append() with transactions.
 func BenchmarkAppendTxUpper(b *testing.B) {
 	var sess db.Database
 	var err error
+	var tx db.Tx
 
-	fmt.Printf("BenchmarkAppendTxUpper\n")
-
-	os.Setenv(db.EnvEnableDebug, "TRUE")
-
-	settings := db.Settings{
-		Database: "new-db",
-	}
-
-	fmt.Printf("Request to open")
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatal(err)
 	}
 
-	//defer sess.Close()
+	defer sess.Close()
 
-	var tx db.Tx
-	fmt.Println("hang3")
 	if tx, err = sess.Transaction(); err != nil {
 		b.Fatal(err)
-		fmt.Println("hang2")
-		return
 	}
-	fmt.Println("hang1")
-
-	return
 
 	var artist db.Collection
 	if artist, err = tx.Collection("artist"); err != nil {
@@ -1271,7 +1246,6 @@ func BenchmarkAppendTxUpper(b *testing.B) {
 	}
 }
 
-/*
 // Benchmarking Append() with map.
 func BenchmarkAppendTxUpperMap(b *testing.B) {
 	var sess db.Database
@@ -1310,4 +1284,3 @@ func BenchmarkAppendTxUpperMap(b *testing.B) {
 		b.Fatal(err)
 	}
 }
-*/
