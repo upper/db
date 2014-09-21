@@ -24,6 +24,7 @@ package ql
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -279,26 +280,26 @@ func (self *source) Clone() (db.Database, error) {
 
 func (self *source) Transaction() (db.Tx, error) {
 	// We still have some issues with QL, transactions and blocking.
-	return nil, db.ErrUnsupported
-	/*
-		var err error
-		var clone *source
-		var sqlTx *sql.Tx
+	var err error
+	var clone *source
+	var sqlTx *sql.Tx
 
-		if clone, err = self.clone(); err != nil {
-			return nil, err
-		}
+	log.Println("self.clone()")
+	if clone, err = self.clone(); err != nil {
+		return nil, err
+	}
 
-		if sqlTx, err = clone.session.Begin(); err != nil {
-			return nil, err
-		}
+	log.Println("clone.session.Begin()")
+	if sqlTx, err = clone.session.Begin(); err != nil {
+		return nil, err
+	}
 
-		tx := &Tx{clone}
+	tx := &tx{clone}
 
-		clone.tx = sqlTx
+	clone.tx = sqlTx
 
-		return tx, nil
-	*/
+	log.Println("return")
+	return tx, nil
 }
 
 // Stores database settings.
@@ -321,9 +322,9 @@ func (self *source) Open() error {
 		return db.ErrMissingDatabaseName
 	}
 
-	self.session, err = sql.Open(`ql`, self.config.Database)
+	fmt.Printf("Attempt to open: %v\n", self.config)
 
-	if err != nil {
+	if self.session, err = sql.Open(`ql`, self.config.Database); err != nil {
 		return err
 	}
 

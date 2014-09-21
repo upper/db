@@ -30,6 +30,7 @@ package ql
 
 import (
 	//"database/sql"
+	"fmt"
 	"os"
 
 	"menteslibres.net/gosexy/to"
@@ -1100,15 +1101,17 @@ func TestDataTypes(t *testing.T) {
 
 // We are going to benchmark the engine, so this is no longed needed.
 func TestDisableDebug(t *testing.T) {
-	os.Setenv(db.EnvEnableDebug, "")
+	// os.Setenv(db.EnvEnableDebug, "")
 }
 
 /*
+
 // TODO: Unsupported by QL
 // Benchmarking raw database/sql.
 func BenchmarkAppendRawSQL(b *testing.B) {
 	var err error
 	var sess db.Database
+	var tx *sql.Tx
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatal(err)
@@ -1118,33 +1121,51 @@ func BenchmarkAppendRawSQL(b *testing.B) {
 
 	driver := sess.Driver().(*sql.DB)
 
-	if _, err = driver.Exec("TRUNCATE TABLE artist"); err != nil {
+	if tx, err = driver.Begin(); err != nil {
+		b.Fatal(err)
+	}
+
+	if _, err = tx.Exec(`TRUNCATE TABLE artist`); err != nil {
+		b.Fatal(err)
+	}
+
+	if err = tx.Commit(); err != nil {
 		b.Fatal(err)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err = driver.Exec("INSERT INTO artist (name) VALUES('Hayao Miyazaki')"); err != nil {
+		if tx, err = driver.Begin(); err != nil {
+			b.Fatal(err)
+		}
+		if _, err = tx.Exec(`INSERT INTO artist (name) VALUES("Hayao Miyazaki")`); err != nil {
+			b.Fatal(err)
+		}
+		if err = tx.Commit(); err != nil {
 			b.Fatal(err)
 		}
 	}
 }
-*/
 
 // Benchmarking Append().
 //
 // Contributed by wei2912
 // See: https://github.com/gosexy/db/issues/20#issuecomment-20097801
 func BenchmarkAppendUpper(b *testing.B) {
-	sess, err := db.Open(Adapter, settings)
+	var sess db.Database
+	var artist db.Collection
+	var err error
 
-	if err != nil {
+	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatal(err)
 	}
 
 	defer sess.Close()
 
-	artist, err := sess.Collection("artist")
+	if artist, err = sess.Collection("artist"); err != nil {
+		b.Fatal(err)
+	}
+
 	artist.Truncate()
 
 	item := struct {
@@ -1158,9 +1179,6 @@ func BenchmarkAppendUpper(b *testing.B) {
 		}
 	}
 }
-
-/*
-// TODO: QL still has some issues here.
 
 // Benchmarking raw database/sql.
 func BenchmarkAppendTxRawSQL(b *testing.B) {
@@ -1180,13 +1198,13 @@ func BenchmarkAppendTxRawSQL(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	if _, err = tx.Exec("TRUNCATE TABLE artist"); err != nil {
+	if _, err = tx.Exec(`TRUNCATE TABLE artist`); err != nil {
 		b.Fatal(err)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err = tx.Exec("INSERT INTO artist (name) VALUES('Hayao Miyazaki')"); err != nil {
+		if _, err = tx.Exec(`INSERT INTO artist (name) VALUES("Hayao Miyazaki")`); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -1195,22 +1213,38 @@ func BenchmarkAppendTxRawSQL(b *testing.B) {
 		b.Fatal(err)
 	}
 }
+*/
 
 // Benchmarking Append() with transactions.
 func BenchmarkAppendTxUpper(b *testing.B) {
 	var sess db.Database
 	var err error
 
+	fmt.Printf("BenchmarkAppendTxUpper\n")
+
+	os.Setenv(db.EnvEnableDebug, "TRUE")
+
+	settings := db.Settings{
+		Database: "new-db",
+	}
+
+	fmt.Printf("Request to open")
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatal(err)
 	}
 
-	defer sess.Close()
+	//defer sess.Close()
 
 	var tx db.Tx
+	fmt.Println("hang3")
 	if tx, err = sess.Transaction(); err != nil {
 		b.Fatal(err)
+		fmt.Println("hang2")
+		return
 	}
+	fmt.Println("hang1")
+
+	return
 
 	var artist db.Collection
 	if artist, err = tx.Collection("artist"); err != nil {
@@ -1237,6 +1271,7 @@ func BenchmarkAppendTxUpper(b *testing.B) {
 	}
 }
 
+/*
 // Benchmarking Append() with map.
 func BenchmarkAppendTxUpperMap(b *testing.B) {
 	var sess db.Database
