@@ -19,9 +19,8 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// The `upper.io/db` package for Go provides a single interface for interacting
-// with different data sources through the use of adapters that wrap well-known
-// database drivers.
+// Package db provides a single interface for interacting with different data
+// sources through the use of adapters that wrap well-known database drivers.
 //
 // As of today, `upper.io/db` fully supports MySQL, PostgreSQL and SQLite (CRUD
 // + Transactions) and provides partial support for MongoDB and QL (CRUD only).
@@ -44,8 +43,8 @@
 //	err = res.All(&people)
 package db
 
-// The `db.Cond{}` expression is used to define conditions used as arguments to
-// `db.Collection.Find()` and `db.Result.Where()`.
+// Cond is a map used to define conditions passed to `db.Collection.Find()` and
+// `db.Result.Where()`.
 //
 // Examples:
 //
@@ -59,7 +58,7 @@ package db
 //	db.Cond { "age $lt": 18 }
 type Cond map[string]interface{}
 
-// The `db.Func{}` expression is used to represent database functions.
+// Func is a struct that represents database functions.
 //
 // Examples:
 //
@@ -79,9 +78,9 @@ type Func struct {
 	Args interface{}
 }
 
-// The `db.And{}` expression is used to join two or more expressions under
-// logical conjunction, it accepts `db.Cond{}`, `db.Or{}`, `db.Raw{}` and other
-// `db.And{}` expressions.
+// And is an array of interfaces that is used to join two or more expressions
+// under logical conjunction, it accepts `db.Cond{}`, `db.Or{}`, `db.Raw{}` and
+// other `db.And{}` values.
 //
 // Examples:
 //
@@ -101,9 +100,9 @@ type Func struct {
 // 	}
 type And []interface{}
 
-// The `db.Or{}` expression is used to glue two or more expressions under
-// logical disjunction, it accepts `db.Cond{}`, `db.And{}`, `db.Raw{}` and
-// other `db.Or{}` expressions.
+// Or is an array of interfaced that is used to join two or more expressions
+// under logical disjunction, it accepts `db.Cond{}`, `db.And{}`, `db.Raw{}`
+// and other `db.Or{}` values.
 //
 // Example:
 //
@@ -114,8 +113,8 @@ type And []interface{}
 // 	}
 type Or []interface{}
 
-// The `db.Raw{}` expression is mean to hold chunks of data to be passed to the
-// database without any filtering.
+// Raw holds chunks of data to be passed to the database without any filtering.
+// Use with care.
 //
 // When using `db.Raw{}`, the developer is responsible of providing a sanitized
 // instruction to the database.
@@ -132,10 +131,10 @@ type Raw struct {
 	Value interface{}
 }
 
-// The `db.Settings{}` struct holds database connection and authentication
-// data. Not all fields must be supplied, is any field is skipped, the database
-// adapter will either try to use database defaults or return an error. Refer
-// to the specific adapter to see which fields are required.
+// Settings holds database connection and authentication data.  Not all fields
+// are mandatory, if any field is skipped, the database adapter will either try
+// to use database defaults or return an error. Refer to the specific adapter
+// to see which fields are required.
 //
 // Example:
 //
@@ -168,9 +167,11 @@ type Settings struct {
 	Charset string
 }
 
-// The `db.Database` interface defines methods that all adapters must provide.
+// Database is an interface that defines methods that must be provided by
+// database adapters.
 type Database interface {
-	// Returns the underlying driver the wrapper uses. As an `interface{}`.
+	// Driver() Returns the underlying driver the wrapper uses. As an
+	// `interface{}`.
 	//
 	// In order to actually use the `interface{}` you must cast it to the known
 	// database driver type.
@@ -179,54 +180,54 @@ type Database interface {
 	//	internalSQLDriver := sess.Driver().(*sql.DB)
 	Driver() interface{}
 
-	// Attempts to stablish a connection with the database server, a previous
-	// call to Setup() is required.
+	// Open() attempts to stablish a connection with the database server, a
+	// previous call to Setup() is required.
 	Open() error
 
-	// Clones the current database session. Returns an error if the clone could
-	// not be carried out.
+	// Clone() duplicates the current database session. Returns an error if the
+	// clone could not be carried out.
 	Clone() (Database, error)
 
-	// Returns error if the database server cannot be reached.
+	// Ping() returns error if the database server cannot be reached.
 	Ping() error
 
-	// Closes the currently active connection to the database.
+	// Close() closes the currently active connection to the database.
 	Close() error
 
-	// Returns a `db.Collection{}` struct by name. Some databases support
-	// collections of more than one source or table, refer to the documentation
-	// of the specific database adapter to see if using multiple sources is
-	// supported.
+	// Collection() returns a `db.Collection{}` struct by name. Some databases
+	// support collections of more than one source or table, refer to the
+	// documentation of the specific database adapter to see if using multiple
+	// sources is supported.
 	Collection(...string) (Collection, error)
 
-	// Returns the names of all non-system sources or tables within the active
-	// database.
+	// Collections() returns the names of all non-system sources or tables within
+	// the active database.
 	Collections() ([]string, error)
 
-	// Attempts to connect to another database using the same connection
+	// Use() attempts to connect to another database using the same connection
 	// settings. Similar to MySQL's `USE` instruction.
 	Use(string) error
 
-	// Drops the active database.
+	// Drop() drops the active database.
 	Drop() error
 
-	// Sets the database connection settings. In order to connect, a call to
-	// `db.Database.Open()` is required.
+	// Setup() sets the database connection settings. In order to connect, a call
+	// to `db.Database.Open()` is required.
 	Setup(Settings) error
 
-	// Returns the name of the active database.
+	// Name() returns the name of the active database.
 	Name() string
 
-	// Starts a transaction block. Some databases do not support transactions,
-	// refer to the documentation of the specific database adapter to see the
-	// current status on transactions.
+	// Transaction() starts a transaction block. Some databases do not support
+	// transactions, refer to the documentation of the specific database adapter
+	// to see the current status on transactions.
 	Transaction() (Tx, error)
 }
 
-// The `db.Tx` interface provides the same methods that the `db.Database` does,
-// plus some other that help the user deal with database transactions. In order
-// to get a proper `db.Tx` interface the `db.Database.Transaction()` method
-// must be called on an already opened database session.
+// Tx is an interface that provides the same methods that the `db.Database`
+// does, plus some other that help the user deal with database transactions. In
+// order to get a proper `db.Tx` interface the `db.Database.Transaction()`
+// method must be called on an already opened database session.
 //
 // Example:
 //	...
@@ -255,7 +256,7 @@ type Tx interface {
 	Commit() error
 }
 
-// The `db.Collection` interface defines methods for handling data sources or
+// Collection is an interface that defines methods for handling data sources or
 // tables.
 type Collection interface {
 
@@ -277,59 +278,64 @@ type Collection interface {
 	Name() string
 }
 
-// The `db.Result` interface defines methods for working with result sets.
+// Result is an interface that defines methods for working with result sets.
 type Result interface {
 
-	// Defines the maximum number of results in this set.
+	// Limit() defines the maximum number of results in this set.
 	Limit(uint) Result
 
-	// Skips over the *n* initial results.
+	// Skip() ignores the first *n* results.
 	Skip(uint) Result
 
-	// Receives fields that define the order in which elements will be returned
-	// in a query, field names may be prefixed with a minus sign (-) indicating
-	// descending order; ascending order would be used by default.
+	// Sort() receives field names that define the order in which elements will
+	// be returned in a query, field names may be prefixed with a minus sign (-)
+	// indicating descending order; ascending order would be used by default.
 	Sort(...interface{}) Result
 
-	// Defines specific fields to be fulfilled on results in this result set.
+	// Select() defines specific fields to be fulfilled on results in this result
+	// set.
 	Select(...interface{}) Result
 
-	// Discards the initial filtering conditions and sets new ones.
+	// Where() discards the initial filtering conditions and sets new ones.
 	Where(...interface{}) Result
 
-	// Used to group results that have the same value in the same column or
-	// columns.
+	// Group() is used to group results that have the same value in the same
+	// column or columns.
 	Group(...interface{}) Result
 
-	// Removes all items within the result set.
+	// Remove() deletes all items within the result set.
 	Remove() error
 
-	// Updates all items within the result set. Receives an struct or an interface{}.
+	// Update() modified all items within the result set. Receives an struct or
+	// an interface{}.
 	Update(interface{}) error
 
-	// Returns the number of items that match the set conditions (Limit and
-	// Offset settings are excluded from this query).
+	// Count() returns the number of items that match the set conditions (Limit
+	// and Offset settings are excluded from this query).
 	Count() (uint64, error)
 
-	// Fetches the next result within the result set and dumps it into the given
-	// pointer to struct or pointer to map. You must manually call Close() after
-	// finishing using Next().
+	// Next() fetches the next result within the result set and dumps it into the
+	// given pointer to struct or pointer to map. You must manually call Close()
+	// after finishing using Next().
 	Next(interface{}) error
 
-	// Fetches the first result within the result set and dumps it into the given
-	// pointer to struct or pointer to map. Then it calls Close() to free the
-	// result set.
+	// One() fetches the first result within the result set and dumps it into the
+	// given pointer to struct or pointer to map. Then it calls Close() to free
+	// the result set.
 	One(interface{}) error
 
-	// Fetches all results within the result set and dumps them into the given
-	// pointer to slice of maps or structs. Then it calls Close() to free the
-	// result set.
+	// All() fetches all results within the result set and dumps them into the
+	// given pointer to slice of maps or structs. Then it calls Close() to free
+	// the result set.
 	All(interface{}) error
 
-	// Closes the result set.
+	// Close() closes the result set.
 	Close() error
 }
 
+// EnvEnableDebug may be used by adapters to determine if the user has enabled
+// debugging.
+//
 // If the user sets the `UPPERIO_DB_DEBUG` environment variable to a
 // non-empty value, all generated statements will be printed at runtime to
 // the standard logger.
@@ -339,4 +345,4 @@ type Result interface {
 //	UPPERIO_DB_DEBUG=1 go test
 //
 //	UPPERIO_DB_DEBUG=1 ./go-program
-var EnvEnableDebug = `UPPERIO_DB_DEBUG`
+const EnvEnableDebug = `UPPERIO_DB_DEBUG`
