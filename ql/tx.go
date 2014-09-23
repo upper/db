@@ -25,10 +25,10 @@ type tx struct {
 	*source
 }
 
-func (self *tx) Commit() error {
-	return self.source.tx.Commit()
+func (t *tx) Commit() error {
+	return t.source.tx.Commit()
 }
 
-func (self *tx) Rollback() error {
-	return self.source.tx.Rollback()
+func (t *tx) Rollback() error {
+	return t.source.tx.Rollback()
 }

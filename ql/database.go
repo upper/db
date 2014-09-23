@@ -28,7 +28,7 @@ import (
 	"reflect"
 	"strings"
 	"time"
-
+	// Importing QL driver
 	_ "github.com/cznic/ql/driver"
 	"upper.io/cache"
 	"upper.io/db"
@@ -36,13 +36,13 @@ import (
 	"upper.io/db/util/sqlutil"
 )
 
-// Public adapters name under which this adapter registers itself.
+// Public adapters name under which this adapter registers its.
 const Adapter = `ql`
 
 var (
-	// Format for saving dates.
+	// DateFormat defines the format used for storing dates.
 	DateFormat = "2006-01-02 15:04:05.000"
-	// Format for saving times.
+	// TimeFormat defines the format used for storing time values.
 	TimeFormat = "%d:%02d:%02d.%03d"
 	timeType   = reflect.TypeOf(time.Time{}).Kind()
 )
@@ -60,7 +60,7 @@ type source struct {
 	tx          *sql.Tx
 }
 
-type columnSchema_t struct {
+type columnSchemaT struct {
 	ColumnName string `db:"Name"`
 	DataType   string `db:"Type"`
 }
@@ -116,7 +116,7 @@ func init() {
 	db.Register(Adapter, &source{})
 }
 
-func (self *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
+func (s *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
 	var query string
 	var res sql.Result
 	var err error
@@ -129,7 +129,7 @@ func (self *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Resu
 		debugLog(query, args, err, start, end)
 	}()
 
-	if self.session == nil {
+	if s.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
@@ -140,12 +140,12 @@ func (self *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Resu
 		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
 	}
 
-	if self.tx != nil {
-		res, err = self.tx.Exec(query, args...)
+	if s.tx != nil {
+		res, err = s.tx.Exec(query, args...)
 	} else {
 		var tx *sql.Tx
 
-		if tx, err = self.session.Begin(); err != nil {
+		if tx, err = s.session.Begin(); err != nil {
 			return nil, err
 		}
 
@@ -161,7 +161,7 @@ func (self *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Resu
 	return res, err
 }
 
-func (self *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Rows, error) {
+func (s *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Rows, error) {
 	var rows *sql.Rows
 	var query string
 	var err error
@@ -174,7 +174,7 @@ func (self *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 		debugLog(query, args, err, start, end)
 	}()
 
-	if self.session == nil {
+	if s.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
@@ -185,12 +185,12 @@ func (self *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
 	}
 
-	if self.tx != nil {
-		rows, err = self.tx.Query(query, args...)
+	if s.tx != nil {
+		rows, err = s.tx.Query(query, args...)
 	} else {
 		var tx *sql.Tx
 
-		if tx, err = self.session.Begin(); err != nil {
+		if tx, err = s.session.Begin(); err != nil {
 			return nil, err
 		}
 
@@ -206,7 +206,7 @@ func (self *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 	return rows, err
 }
 
-func (self *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Row, error) {
+func (s *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Row, error) {
 	var query string
 	var row *sql.Row
 	var err error
@@ -219,7 +219,7 @@ func (self *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql
 		debugLog(query, args, err, start, end)
 	}()
 
-	if self.session == nil {
+	if s.session == nil {
 		return nil, db.ErrNotConnected
 	}
 
@@ -230,12 +230,12 @@ func (self *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql
 		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
 	}
 
-	if self.tx != nil {
-		row = self.tx.QueryRow(query, args...)
+	if s.tx != nil {
+		row = s.tx.QueryRow(query, args...)
 	} else {
 		var tx *sql.Tx
 
-		if tx, err = self.session.Begin(); err != nil {
+		if tx, err = s.session.Begin(); err != nil {
 			return nil, err
 		}
 
@@ -252,40 +252,40 @@ func (self *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql
 }
 
 // Returns the string name of the database.
-func (self *source) Name() string {
-	return self.config.Database
+func (s *source) Name() string {
+	return s.config.Database
 }
 
 //  Ping verifies a connection to the database is still alive,
 //  establishing a connection if necessary.
-func (self *source) Ping() error {
-	return self.session.Ping()
+func (s *source) Ping() error {
+	return s.session.Ping()
 }
 
-func (self *source) clone() (adapter *source, err error) {
+func (s *source) clone() (adapter *source, err error) {
 	adapter = new(source)
 
-	if err = adapter.Setup(self.config); err != nil {
+	if err = adapter.Setup(s.config); err != nil {
 		return nil, err
 	}
 
 	return adapter, nil
 }
 
-func (self *source) Clone() (db.Database, error) {
-	return self.clone()
+func (s *source) Clone() (db.Database, error) {
+	return s.clone()
 }
 
-func (self *source) Transaction() (db.Tx, error) {
+func (s *source) Transaction() (db.Tx, error) {
 	var err error
 	var clone *source
 	var sqlTx *sql.Tx
 
-	if sqlTx, err = self.session.Begin(); err != nil {
+	if sqlTx, err = s.session.Begin(); err != nil {
 		return nil, err
 	}
 
-	if clone, err = self.clone(); err != nil {
+	if clone, err = s.clone(); err != nil {
 		return nil, err
 	}
 
@@ -297,26 +297,26 @@ func (self *source) Transaction() (db.Tx, error) {
 }
 
 // Stores database settings.
-func (self *source) Setup(config db.Settings) error {
-	self.config = config
-	self.collections = make(map[string]db.Collection)
-	return self.Open()
+func (s *source) Setup(config db.Settings) error {
+	s.config = config
+	s.collections = make(map[string]db.Collection)
+	return s.Open()
 }
 
 // Returns the underlying *sql.DB instance.
-func (self *source) Driver() interface{} {
-	return self.session
+func (s *source) Driver() interface{} {
+	return s.session
 }
 
 // Attempts to connect to a database using the stored settings.
-func (self *source) Open() error {
+func (s *source) Open() error {
 	var err error
 
-	if self.config.Database == "" {
+	if s.config.Database == "" {
 		return db.ErrMissingDatabaseName
 	}
 
-	if self.session, err = sql.Open(`ql`, self.config.Database); err != nil {
+	if s.session, err = sql.Open(`ql`, s.config.Database); err != nil {
 		return err
 	}
 
@@ -324,36 +324,36 @@ func (self *source) Open() error {
 }
 
 // Closes the current database session.
-func (self *source) Close() error {
-	if self.session != nil {
-		return self.session.Close()
+func (s *source) Close() error {
+	if s.session != nil {
+		return s.session.Close()
 	}
 	return nil
 }
 
 // Changes the active database.
-func (self *source) Use(database string) error {
-	self.config.Database = database
-	return self.Open()
+func (s *source) Use(database string) error {
+	s.config.Database = database
+	return s.Open()
 }
 
 // Drops the currently active database.
-func (self *source) Drop() error {
+func (s *source) Drop() error {
 
-	_, err := self.doQuery(sqlgen.Statement{
+	_, err := s.doQuery(sqlgen.Statement{
 		Type:     sqlgen.SqlDropDatabase,
-		Database: sqlgen.Database{self.config.Database},
+		Database: sqlgen.Database{s.config.Database},
 	})
 
 	return err
 }
 
 // Returns a list of all tables within the currently active database.
-func (self *source) Collections() ([]string, error) {
+func (s *source) Collections() ([]string, error) {
 	var collections []string
 	var collection string
 
-	rows, err := self.doQuery(sqlgen.Statement{
+	rows, err := s.doQuery(sqlgen.Statement{
 		Type:  sqlgen.SqlSelect,
 		Table: sqlgen.Table{`__Table`},
 		Columns: sqlgen.Columns{
@@ -375,10 +375,10 @@ func (self *source) Collections() ([]string, error) {
 	return collections, nil
 }
 
-func (self *source) tableExists(names ...string) error {
+func (s *source) tableExists(names ...string) error {
 	for _, name := range names {
 
-		rows, err := self.doQuery(sqlgen.Statement{
+		rows, err := s.doQuery(sqlgen.Statement{
 			Type:  sqlgen.SqlSelect,
 			Table: sqlgen.Table{`__Table`},
 			Columns: sqlgen.Columns{
@@ -404,18 +404,18 @@ func (self *source) tableExists(names ...string) error {
 }
 
 // Returns a collection instance by name.
-func (self *source) Collection(names ...string) (db.Collection, error) {
+func (s *source) Collection(names ...string) (db.Collection, error) {
 
 	if len(names) == 0 {
 		return nil, db.ErrMissingCollectionName
 	}
 
 	col := &table{
-		source: self,
+		source: s,
 		names:  names,
 	}
 
-	columns_t := []columnSchema_t{}
+	columnsT := []columnSchemaT{}
 
 	for _, name := range names {
 		chunks := strings.SplitN(name, " ", 2)
@@ -424,11 +424,11 @@ func (self *source) Collection(names ...string) (db.Collection, error) {
 
 			name = chunks[0]
 
-			if err := self.tableExists(name); err != nil {
+			if err := s.tableExists(name); err != nil {
 				return nil, err
 			}
 
-			rows, err := self.doQuery(sqlgen.Statement{
+			rows, err := s.doQuery(sqlgen.Statement{
 				Type:  sqlgen.SqlSelect,
 				Table: sqlgen.Table{`__Column`},
 				Columns: sqlgen.Columns{
@@ -444,14 +444,14 @@ func (self *source) Collection(names ...string) (db.Collection, error) {
 				return nil, err
 			}
 
-			if err = sqlutil.FetchRows(rows, &columns_t); err != nil {
+			if err = sqlutil.FetchRows(rows, &columnsT); err != nil {
 				return nil, err
 			}
 
-			col.Columns = make([]string, len(columns_t))
+			col.Columns = make([]string, len(columnsT))
 			col.columnTypes = make(map[string]reflect.Kind)
 
-			for i, column := range columns_t {
+			for i, column := range columnsT {
 
 				column.DataType = strings.ToLower(column.DataType)
 

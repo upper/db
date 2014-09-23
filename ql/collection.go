@@ -90,24 +90,23 @@ func interfaceArgs(value interface{}) (args []interface{}) {
 		return nil
 	}
 
-	value_v := reflect.ValueOf(value)
+	v := reflect.ValueOf(value)
 
-	switch value_v.Type().Kind() {
+	switch v.Type().Kind() {
 	case reflect.Slice:
 		var i, total int
 
-		total = value_v.Len()
+		total = v.Len()
 		if total > 0 {
 			args = make([]interface{}, total)
 
 			for i = 0; i < total; i++ {
-				args[i] = value_v.Index(i).Interface()
+				args[i] = v.Index(i).Interface()
 			}
 
 			return args
-		} else {
-			return nil
 		}
+		return nil
 	default:
 		args = []interface{}{value}
 	}
@@ -137,34 +136,34 @@ func conditionValues(cond db.Cond) (columnValues sqlgen.ColumnValues, args []int
 		switch value := value.(type) {
 		case db.Func:
 			// Catches functions.
-			value_i := interfaceArgs(value.Args)
+			v := interfaceArgs(value.Args)
 			columnValue.Operator = value.Name
 
-			if value_i == nil {
+			if v == nil {
 				// A function with no arguments.
 				columnValue.Value = sqlgen.Value{sqlgen.Raw{`()`}}
 			} else {
 				// A function with one or more arguments.
-				columnValue.Value = sqlgen.Value{sqlgen.Raw{fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(value_i)-1))}}
+				columnValue.Value = sqlgen.Value{sqlgen.Raw{fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1))}}
 			}
 
-			args = append(args, value_i...)
+			args = append(args, v...)
 		default:
 			// Catches everything else.
-			value_i := interfaceArgs(value)
-			l := len(value_i)
-			if value_i == nil || l == 0 {
+			v := interfaceArgs(value)
+			l := len(v)
+			if v == nil || l == 0 {
 				// Nil value given.
 				columnValue.Value = sqlgen.Value{sqlgen.Raw{`NULL`}}
 			} else {
 				if l > 1 {
 					// Array value given.
-					columnValue.Value = sqlgen.Value{sqlgen.Raw{fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(value_i)-1))}}
+					columnValue.Value = sqlgen.Value{sqlgen.Raw{fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1))}}
 				} else {
 					// Single value given.
 					columnValue.Value = sqlPlaceholder
 				}
-				args = append(args, value_i...)
+				args = append(args, v...)
 			}
 		}
 
@@ -174,11 +173,11 @@ func conditionValues(cond db.Cond) (columnValues sqlgen.ColumnValues, args []int
 	return columnValues, args
 }
 
-func (self *table) Find(terms ...interface{}) db.Result {
+func (t *table) Find(terms ...interface{}) db.Result {
 	where, arguments := whereValues(terms)
 
 	result := &result{
-		table:     self,
+		table:     t,
 		where:     where,
 		arguments: arguments,
 	}
@@ -186,9 +185,9 @@ func (self *table) Find(terms ...interface{}) db.Result {
 	return result
 }
 
-func (self *table) tableN(i int) string {
-	if len(self.names) > i {
-		chunks := strings.SplitN(self.names[i], " ", 2)
+func (t *table) tableN(i int) string {
+	if len(t.names) > i {
+		chunks := strings.SplitN(t.names[i], " ", 2)
 		if len(chunks) > 0 {
 			return chunks[0]
 		}
@@ -197,11 +196,11 @@ func (self *table) tableN(i int) string {
 }
 
 // Deletes all the rows within the collection.
-func (self *table) Truncate() error {
+func (t *table) Truncate() error {
 
-	_, err := self.source.doExec(sqlgen.Statement{
+	_, err := t.source.doExec(sqlgen.Statement{
 		Type:  sqlgen.SqlTruncate,
-		Table: sqlgen.Table{self.tableN(0)},
+		Table: sqlgen.Table{t.tableN(0)},
 	})
 
 	if err != nil {
@@ -212,9 +211,9 @@ func (self *table) Truncate() error {
 }
 
 // Appends an item (map or struct) into the collection.
-func (self *table) Append(item interface{}) (interface{}, error) {
+func (t *table) Append(item interface{}) (interface{}, error) {
 
-	cols, vals, err := self.FieldValues(item, toInternal)
+	cols, vals, err := t.FieldValues(item, toInternal)
 
 	var columns sqlgen.Columns
 	var values sqlgen.Values
@@ -232,9 +231,9 @@ func (self *table) Append(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	res, err := self.source.doExec(sqlgen.Statement{
+	res, err := t.source.doExec(sqlgen.Statement{
 		Type:    sqlgen.SqlInsert,
-		Table:   sqlgen.Table{self.tableN(0)},
+		Table:   sqlgen.Table{t.tableN(0)},
 		Columns: columns,
 		Values:  values,
 	}, vals...)
@@ -250,15 +249,15 @@ func (self *table) Append(item interface{}) (interface{}, error) {
 }
 
 // Returns true if the collection exists.
-func (self *table) Exists() bool {
-	if err := self.source.tableExists(self.names...); err != nil {
+func (t *table) Exists() bool {
+	if err := t.source.tableExists(t.names...); err != nil {
 		return false
 	}
 	return true
 }
 
-func (self *table) Name() string {
-	return strings.Join(self.names, `, `)
+func (t *table) Name() string {
+	return strings.Join(t.names, `, `)
 }
 
 func toInternal(v interface{}) interface{} {

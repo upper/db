@@ -30,7 +30,7 @@ import (
 	"upper.io/db/util"
 )
 
-func (self *table) fetchRow(rows *sql.Rows, dst interface{}) error {
+func (t *table) fetchRow(rows *sql.Rows, dst interface{}) error {
 	var err error
 
 	dstv := reflect.ValueOf(dst)
@@ -39,7 +39,7 @@ func (self *table) fetchRow(rows *sql.Rows, dst interface{}) error {
 		return db.ErrExpectingPointer
 	}
 
-	item_v := dstv.Elem()
+	itemV := dstv.Elem()
 
 	next := rows.Next()
 
@@ -56,32 +56,32 @@ func (self *table) fetchRow(rows *sql.Rows, dst interface{}) error {
 		return err
 	}
 
-	item, err := self.fetchResult(item_v.Type(), rows, columns)
+	item, err := t.fetchResult(itemV.Type(), rows, columns)
 
 	if err != nil {
 		return err
 	}
 
-	item_v.Set(reflect.Indirect(item))
+	itemV.Set(reflect.Indirect(item))
 
 	return nil
 }
 
-func (self *table) fetchResult(item_t reflect.Type, rows *sql.Rows, columns []string) (item reflect.Value, err error) {
+func (t *table) fetchResult(itemT reflect.Type, rows *sql.Rows, columns []string) (item reflect.Value, err error) {
 	expecting := len(columns)
 
 	scanArgs := make([]interface{}, expecting)
 
-	switch item_t.Kind() {
+	switch itemT.Kind() {
 	case reflect.Struct:
 		// Creating new value of the expected type.
-		item = reflect.New(item_t)
+		item = reflect.New(itemT)
 		// Pairing each column with its index.
 		for i, columnName := range columns {
-			index := util.GetStructFieldIndex(item_t, columnName)
+			index := util.GetStructFieldIndex(itemT, columnName)
 			if len(index) > 0 {
-				dest_f := item.Elem().FieldByIndex(index)
-				scanArgs[i] = dest_f.Addr().Interface()
+				destF := item.Elem().FieldByIndex(index)
+				scanArgs[i] = destF.Addr().Interface()
 			} else {
 				var placeholder sql.RawBytes
 				scanArgs[i] = &placeholder
@@ -101,22 +101,22 @@ func (self *table) fetchResult(item_t reflect.Type, rows *sql.Rows, columns []st
 		err = rows.Scan(scanArgs...)
 
 		if err == nil {
-			item = reflect.MakeMap(item_t)
+			item = reflect.MakeMap(itemT)
 			for i, columnName := range columns {
-				val_s := string(*values[i])
+				valS := string(*values[i])
 
-				var val_v reflect.Value
+				var vv reflect.Value
 
-				if _, ok := self.columnTypes[columnName]; ok == true {
-					v, _ := to.Convert(val_s, self.columnTypes[columnName])
-					val_v = reflect.ValueOf(v)
+				if _, ok := t.columnTypes[columnName]; ok == true {
+					v, _ := to.Convert(valS, t.columnTypes[columnName])
+					vv = reflect.ValueOf(v)
 				} else {
-					v, _ := to.Convert(val_s, reflect.String)
-					val_v = reflect.ValueOf(v)
+					v, _ := to.Convert(valS, reflect.String)
+					vv = reflect.ValueOf(v)
 				}
 
-				key_v := reflect.ValueOf(columnName)
-				item.SetMapIndex(key_v, val_v)
+				vk := reflect.ValueOf(columnName)
+				item.SetMapIndex(vk, vv)
 			}
 		}
 
@@ -128,7 +128,7 @@ func (self *table) fetchResult(item_t reflect.Type, rows *sql.Rows, columns []st
 	return item, nil
 }
 
-func (self *table) fetchRows(rows *sql.Rows, dst interface{}) error {
+func (t *table) fetchRows(rows *sql.Rows, dst interface{}) error {
 	var err error
 
 	// Destination.
@@ -147,7 +147,7 @@ func (self *table) fetchRows(rows *sql.Rows, dst interface{}) error {
 	}
 
 	slicev := dstv.Elem()
-	item_t := slicev.Type().Elem()
+	itemT := slicev.Type().Elem()
 
 	var columns []string
 
@@ -157,7 +157,7 @@ func (self *table) fetchRows(rows *sql.Rows, dst interface{}) error {
 
 	for rows.Next() {
 
-		item, err := self.fetchResult(item_t, rows, columns)
+		item, err := t.fetchResult(itemT, rows, columns)
 
 		if err != nil {
 			return err
