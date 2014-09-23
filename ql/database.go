@@ -32,6 +32,7 @@ import (
 	_ "github.com/cznic/ql/driver"
 	"upper.io/cache"
 	"upper.io/db"
+	"upper.io/db/util/schema"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
 )
@@ -54,15 +55,14 @@ var (
 )
 
 type source struct {
-	config      db.Settings
-	session     *sql.DB
-	collections map[string]db.Collection
-	tx          *sql.Tx
+	config  db.Settings
+	session *sql.DB
+	tx      *tx
+	schema  *schema.DatabaseSchema
 }
 
 type columnSchemaT struct {
-	ColumnName string `db:"Name"`
-	DataType   string `db:"Type"`
+	Name string `db:"Name"`
 }
 
 func debugEnabled() bool {
@@ -116,6 +116,28 @@ func init() {
 	db.Register(Adapter, &source{})
 }
 
+func (s *source) populateSchema() (err error) {
+	var collections []string
+
+	s.schema = schema.NewDatabaseSchema()
+
+	s.schema.Name = s.config.Database
+
+	// The Collections() call will populate schema if its nil.
+	if collections, err = s.Collections(); err != nil {
+		return err
+	}
+
+	for i := range collections {
+		// Populate each collection.
+		if _, err = s.Collection(collections[i]); err != nil {
+			return err
+		}
+	}
+
+	return err
+}
+
 func (s *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
 	var query string
 	var res sql.Result
@@ -141,7 +163,7 @@ func (s *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result,
 	}
 
 	if s.tx != nil {
-		res, err = s.tx.Exec(query, args...)
+		res, err = s.tx.sqlTx.Exec(query, args...)
 	} else {
 		var tx *sql.Tx
 
@@ -186,7 +208,7 @@ func (s *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Rows,
 	}
 
 	if s.tx != nil {
-		rows, err = s.tx.Query(query, args...)
+		rows, err = s.tx.sqlTx.Query(query, args...)
 	} else {
 		var tx *sql.Tx
 
@@ -231,7 +253,7 @@ func (s *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 	}
 
 	if s.tx != nil {
-		row = s.tx.QueryRow(query, args...)
+		row = s.tx.sqlTx.QueryRow(query, args...)
 	} else {
 		var tx *sql.Tx
 
@@ -281,17 +303,17 @@ func (s *source) Transaction() (db.Tx, error) {
 	var clone *source
 	var sqlTx *sql.Tx
 
-	if sqlTx, err = s.session.Begin(); err != nil {
-		return nil, err
-	}
-
 	if clone, err = s.clone(); err != nil {
 		return nil, err
 	}
 
-	tx := &tx{clone}
+	if sqlTx, err = s.session.Begin(); err != nil {
+		return nil, err
+	}
 
-	clone.tx = sqlTx
+	tx := &tx{source: clone, sqlTx: sqlTx}
+
+	clone.tx = tx
 
 	return tx, nil
 }
@@ -299,7 +321,6 @@ func (s *source) Transaction() (db.Tx, error) {
 // Stores database settings.
 func (s *source) Setup(config db.Settings) error {
 	s.config = config
-	s.collections = make(map[string]db.Collection)
 	return s.Open()
 }
 
@@ -317,6 +338,10 @@ func (s *source) Open() error {
 	}
 
 	if s.session, err = sql.Open(`ql`, s.config.Database); err != nil {
+		return err
+	}
+
+	if err = s.populateSchema(); err != nil {
 		return err
 	}
 
@@ -349,36 +374,68 @@ func (s *source) Drop() error {
 }
 
 // Returns a list of all tables within the currently active database.
-func (s *source) Collections() ([]string, error) {
-	var collections []string
-	var collection string
+func (s *source) Collections() (collections []string, err error) {
 
-	rows, err := s.doQuery(sqlgen.Statement{
+	tablesInSchema := len(s.schema.Tables)
+
+	// Is schema already populated?
+	if tablesInSchema > 0 {
+		// Pulling table names from schema.
+		return s.schema.Tables, nil
+	}
+
+	// Schema is empty.
+
+	// Querying table names.
+	stmt := sqlgen.Statement{
 		Type:  sqlgen.SqlSelect,
 		Table: sqlgen.Table{`__Table`},
 		Columns: sqlgen.Columns{
 			{`Name`},
 		},
-	})
+	}
 
-	if err != nil {
+	// Executing statement.
+	var rows *sql.Rows
+	if rows, err = s.doQuery(stmt); err != nil {
 		return nil, err
 	}
 
 	defer rows.Close()
 
+	collections = []string{}
+
+	var name string
+
 	for rows.Next() {
-		rows.Scan(&collection)
-		collections = append(collections, collection)
+		// Getting table name.
+		if err = rows.Scan(&name); err != nil {
+			return nil, err
+		}
+
+		// Adding table entry to schema.
+		s.schema.AddTable(name)
+
+		// Adding table to collections array.
+		collections = append(collections, name)
 	}
 
 	return collections, nil
 }
 
 func (s *source) tableExists(names ...string) error {
-	for _, name := range names {
+	var stmt sqlgen.Statement
+	var err error
+	var rows *sql.Rows
 
-		rows, err := s.doQuery(sqlgen.Statement{
+	for i := range names {
+
+		if s.schema.HasTable(names[i]) {
+			// We already know this table exists.
+			continue
+		}
+
+		stmt = sqlgen.Statement{
 			Type:  sqlgen.SqlSelect,
 			Table: sqlgen.Table{`__Table`},
 			Columns: sqlgen.Columns{
@@ -387,9 +444,9 @@ func (s *source) tableExists(names ...string) error {
 			Where: sqlgen.Where{
 				sqlgen.ColumnValue{sqlgen.Column{`Name`}, `==`, sqlPlaceholder},
 			},
-		}, name)
+		}
 
-		if err != nil {
+		if rows, err = s.doQuery(stmt, names[i]); err != nil {
 			return db.ErrCollectionDoesNotExist
 		}
 
@@ -403,11 +460,61 @@ func (s *source) tableExists(names ...string) error {
 	return nil
 }
 
+func (s *source) tableColumns(tableName string) ([]string, error) {
+
+	// Making sure this table is allocated.
+	tableSchema := s.schema.Table(tableName)
+
+	if len(tableSchema.Columns) > 0 {
+		return tableSchema.Columns, nil
+	}
+
+	stmt := sqlgen.Statement{
+		Type:  sqlgen.SqlSelect,
+		Table: sqlgen.Table{`__Column`},
+		Columns: sqlgen.Columns{
+			{`Name`},
+			{`Type`},
+		},
+		Where: sqlgen.Where{
+			sqlgen.ColumnValue{sqlgen.Column{`TableName`}, `==`, sqlPlaceholder},
+		},
+	}
+
+	var rows *sql.Rows
+	var err error
+
+	if rows, err = s.doQuery(stmt, tableName); err != nil {
+		return nil, err
+	}
+
+	tableFields := []columnSchemaT{}
+
+	if err = sqlutil.FetchRows(rows, &tableFields); err != nil {
+		return nil, err
+	}
+
+	s.schema.TableInfo[tableName].Columns = make([]string, 0, len(tableFields))
+
+	for i := range tableFields {
+		s.schema.TableInfo[tableName].Columns = append(s.schema.TableInfo[tableName].Columns, tableFields[i].Name)
+	}
+
+	return s.schema.TableInfo[tableName].Columns, nil
+}
+
 // Returns a collection instance by name.
 func (s *source) Collection(names ...string) (db.Collection, error) {
+	var err error
 
 	if len(names) == 0 {
 		return nil, db.ErrMissingCollectionName
+	}
+
+	if s.tx != nil {
+		if s.tx.done {
+			return nil, sql.ErrTxDone
+		}
 	}
 
 	col := &table{
@@ -415,87 +522,21 @@ func (s *source) Collection(names ...string) (db.Collection, error) {
 		names:  names,
 	}
 
-	columnsT := []columnSchemaT{}
-
 	for _, name := range names {
-		chunks := strings.SplitN(name, " ", 2)
+		chunks := strings.SplitN(name, ` `, 2)
 
-		if len(chunks) > 0 {
+		if len(chunks) == 0 {
+			return nil, db.ErrMissingCollectionName
+		}
 
-			name = chunks[0]
+		tableName := chunks[0]
 
-			if err := s.tableExists(name); err != nil {
-				return nil, err
-			}
+		if err := s.tableExists(tableName); err != nil {
+			return nil, err
+		}
 
-			rows, err := s.doQuery(sqlgen.Statement{
-				Type:  sqlgen.SqlSelect,
-				Table: sqlgen.Table{`__Column`},
-				Columns: sqlgen.Columns{
-					{`Name`},
-					{`Type`},
-				},
-				Where: sqlgen.Where{
-					sqlgen.ColumnValue{sqlgen.Column{`TableName`}, `==`, sqlPlaceholder},
-				},
-			}, name)
-
-			if err != nil {
-				return nil, err
-			}
-
-			if err = sqlutil.FetchRows(rows, &columnsT); err != nil {
-				return nil, err
-			}
-
-			col.Columns = make([]string, len(columnsT))
-			col.columnTypes = make(map[string]reflect.Kind)
-
-			for i, column := range columnsT {
-
-				column.DataType = strings.ToLower(column.DataType)
-
-				col.Columns[i] = column.ColumnName
-
-				// Default properties.
-				dtype := column.DataType
-				ctype := reflect.String
-
-				// Guessing datatypes.
-				switch dtype {
-				case `int`:
-					ctype = reflect.Int
-				case `int8`:
-					ctype = reflect.Int8
-				case `int16`:
-					ctype = reflect.Int16
-				case `int32`, `rune`:
-					ctype = reflect.Int32
-				case `int64`:
-					ctype = reflect.Int64
-				case `uint`:
-					ctype = reflect.Uint
-				case `uint8`:
-					ctype = reflect.Uint8
-				case `uint16`:
-					ctype = reflect.Uint16
-				case `uint32`:
-					ctype = reflect.Uint32
-				case `uint64`:
-					ctype = reflect.Uint64
-				case `float64`:
-					ctype = reflect.Float64
-				case `float32`:
-					ctype = reflect.Float32
-				case `time`:
-					ctype = timeType
-				default:
-					ctype = reflect.String
-				}
-
-				col.columnTypes[column.ColumnName] = ctype
-			}
-
+		if col.Columns, err = s.tableColumns(tableName); err != nil {
+			return nil, err
 		}
 	}
 

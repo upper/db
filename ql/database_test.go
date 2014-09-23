@@ -143,6 +143,7 @@ func TestTruncate(t *testing.T) {
 			}
 		}
 	}
+
 }
 
 // Attempts to append some data into the "artist" table.

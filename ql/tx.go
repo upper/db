@@ -21,14 +21,24 @@
 
 package ql
 
+import (
+	"database/sql"
+)
+
 type tx struct {
 	*source
+	sqlTx *sql.Tx
+	done  bool
 }
 
-func (t *tx) Commit() error {
-	return t.source.tx.Commit()
+func (t *tx) Commit() (err error) {
+	err = t.sqlTx.Commit()
+	if err == nil {
+		t.done = true
+	}
+	return err
 }
 
 func (t *tx) Rollback() error {
-	return t.source.tx.Rollback()
+	return t.sqlTx.Rollback()
 }
