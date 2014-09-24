@@ -48,17 +48,18 @@ func parseTagOptions(s string) tagOptions {
 	return opts
 }
 
-// Based on http://golang.org/src/pkg/encoding/json/tags.go
+// ParseTag splits a struct tag into comma separated chunks. The first chunk is
+// returned as a string value, remaining chunks are considered enabled options.
 func ParseTag(tag string) (string, tagOptions) {
+	// Based on http://golang.org/src/pkg/encoding/json/tags.go
 	if i := strings.Index(tag, `,`); i != -1 {
 		return tag[:i], parseTagOptions(tag[i+1:])
 	}
 	return tag, parseTagOptions(``)
 }
 
-// Returns the most appropriate struct field index for a given column name.
-//
-// If no column matches returns nil.
+// GetStructFieldIndex returns the struct field index for a given column name
+// or nil, if no column matches.
 func GetStructFieldIndex(t reflect.Type, columnName string) []int {
 
 	n := t.NumField()
@@ -138,6 +139,7 @@ func GetStructFieldIndex(t reflect.Type, columnName string) []int {
 	return nil
 }
 
+// StringToType converts a string value into another type.
 func StringToType(src string, dstt reflect.Type) (reflect.Value, error) {
 	var srcv reflect.Value
 	switch dstt {
@@ -152,6 +154,7 @@ func StringToType(src string, dstt reflect.Type) (reflect.Value, error) {
 	return srcv, nil
 }
 
+// StringToType converts a string into a kind.
 func StringToKind(src string, dstk reflect.Kind) (reflect.Value, error) {
 	var srcv reflect.Value
 
@@ -171,6 +174,7 @@ func StringToKind(src string, dstk reflect.Kind) (reflect.Value, error) {
 	return srcv, nil
 }
 
+// NormalizeColumn prepares a column for comparison against another column.
 func NormalizeColumn(s string) string {
 	return strings.ToLower(reColumnCompareExclude.ReplaceAllString(s, ""))
 }

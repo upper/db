@@ -23,13 +23,9 @@ package sqlutil
 
 import (
 	"database/sql"
-	"fmt"
-	"log"
+	"menteslibres.net/gosexy/to"
 	"reflect"
 	"regexp"
-	"strings"
-
-	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 	"upper.io/db/util"
 )
@@ -45,43 +41,14 @@ var (
 	nullStringType  = reflect.TypeOf(sql.NullString{})
 )
 
+// T type is commonly used by adapters to map database/sql values to Go values
+// using FieldValues()
 type T struct {
 	Columns []string
 }
 
-type Debug struct {
-	SQL   string
-	Args  []interface{}
-	Err   error
-	Start int64
-	End   int64
-}
-
-func (self *Debug) Print() {
-	self.SQL = reInvisibleChars.ReplaceAllString(self.SQL, ` `)
-	self.SQL = strings.TrimSpace(self.SQL)
-
-	s := make([]string, 0, 3)
-
-	if self.SQL != "" {
-		s = append(s, fmt.Sprintf(`Q: %s`, self.SQL))
-	}
-
-	if len(self.Args) > 0 {
-		s = append(s, fmt.Sprintf(`A: %v`, self.Args))
-	}
-
-	if self.Err != nil {
-		s = append(s, fmt.Sprintf(`E: %q`, self.Err))
-	}
-
-	s = append(s, fmt.Sprintf(`T: %0.5fs`, float64(self.End-self.Start)/float64(1e9)))
-
-	log.Printf("\n\t%s\n\n", strings.Join(s, "\n\t"))
-}
-
-func (self *T) columnLike(s string) string {
-	for _, name := range self.Columns {
+func (t *T) columnLike(s string) string {
+	for _, name := range t.Columns {
 		if util.NormalizeColumn(s) == util.NormalizeColumn(name) {
 			return name
 		}
@@ -89,233 +56,35 @@ func (self *T) columnLike(s string) string {
 	return s
 }
 
-func fetchResult(item_t reflect.Type, rows *sql.Rows, columns []string) (reflect.Value, error) {
-	var item reflect.Value
-	var err error
-
-	switch item_t.Kind() {
-	case reflect.Map:
-		item = reflect.MakeMap(item_t)
-	case reflect.Struct:
-		item = reflect.New(item_t)
-	default:
-		return item, db.ErrExpectingMapOrStruct
-	}
-
-	expecting := len(columns)
-
-	// Allocating results.
-	values := make([]*sql.RawBytes, expecting)
-	scanArgs := make([]interface{}, expecting)
-
-	for i := range columns {
-		scanArgs[i] = &values[i]
-	}
-
-	if err = rows.Scan(scanArgs...); err != nil {
-		return item, err
-	}
-
-	// Range over row values.
-	for i, value := range values {
-
-		if value != nil {
-			// Real column name
-			column := columns[i]
-
-			// Value as string.
-			svalue := string(*value)
-
-			var cv reflect.Value
-
-			v, _ := to.Convert(svalue, reflect.String)
-			cv = reflect.ValueOf(v)
-
-			switch item_t.Kind() {
-			// Destination is a map.
-			case reflect.Map:
-				if cv.Type() != item_t.Elem() {
-					if item_t.Elem().Kind() == reflect.Interface {
-						cv, _ = util.StringToType(svalue, cv.Type())
-					} else {
-						cv, _ = util.StringToType(svalue, item_t.Elem())
-					}
-				}
-				if cv.IsValid() {
-					item.SetMapIndex(reflect.ValueOf(column), cv)
-				}
-			// Destionation is a struct.
-			case reflect.Struct:
-
-				index := util.GetStructFieldIndex(item_t, column)
-
-				if index == nil {
-					continue
-				} else {
-
-					// Destination field.
-					destf := item.Elem().FieldByIndex(index)
-
-					if destf.IsValid() {
-						if cv.Type() != destf.Type() {
-							if destf.Type().Kind() != reflect.Interface {
-								switch destf.Type() {
-								case nullFloat64Type:
-									nullFloat64 := sql.NullFloat64{}
-									if svalue != `` {
-										nullFloat64.Scan(svalue)
-									}
-									cv = reflect.ValueOf(nullFloat64)
-								case nullInt64Type:
-									nullInt64 := sql.NullInt64{}
-									if svalue != `` {
-										nullInt64.Scan(svalue)
-									}
-									cv = reflect.ValueOf(nullInt64)
-								case nullBoolType:
-									nullBool := sql.NullBool{}
-									if svalue != `` {
-										nullBool.Scan(svalue)
-									}
-									cv = reflect.ValueOf(nullBool)
-								case nullStringType:
-									nullString := sql.NullString{}
-									nullString.Scan(svalue)
-									cv = reflect.ValueOf(nullString)
-								default:
-									cv, _ = util.StringToType(svalue, destf.Type())
-								}
-							}
-						}
-						// Copying value.
-						if cv.IsValid() {
-							destf.Set(cv)
-						}
-					}
-				}
-
-			}
-		}
-	}
-
-	return item, nil
-}
-
-// FetchRow() receives a *sql.Rows value and tries to map all the rows into a
-// single struct given by the pointer `dst`.
-func FetchRow(rows *sql.Rows, dst interface{}) error {
-	var columns []string
-	var err error
-
-	dstv := reflect.ValueOf(dst)
-
-	if dstv.IsNil() || dstv.Kind() != reflect.Ptr {
-		return db.ErrExpectingPointer
-	}
-
-	item_v := dstv.Elem()
-
-	if columns, err = rows.Columns(); err != nil {
-		return err
-	}
-
-	reset(dst)
-
-	next := rows.Next()
-
-	if next == false {
-		if err = rows.Err(); err != nil {
-			return err
-		}
-		return db.ErrNoMoreRows
-	}
-
-	item, err := fetchResult(item_v.Type(), rows, columns)
-
-	if err != nil {
-		return err
-	}
-
-	item_v.Set(reflect.Indirect(item))
-
-	return nil
-}
-
-// FetchRow() receives a *sql.Rows value and tries to map all the rows into a
-// slice of structs given by the pointer `dst`.
-func FetchRows(rows *sql.Rows, dst interface{}) error {
-	var columns []string
-	var err error
-
-	// Destination.
-	dstv := reflect.ValueOf(dst)
-
-	if dstv.IsNil() || dstv.Kind() != reflect.Ptr {
-		return db.ErrExpectingPointer
-	}
-
-	if dstv.Elem().Kind() != reflect.Slice {
-		return db.ErrExpectingSlicePointer
-	}
-
-	if dstv.Kind() != reflect.Ptr || dstv.Elem().Kind() != reflect.Slice || dstv.IsNil() {
-		return db.ErrExpectingSliceMapStruct
-	}
-
-	if columns, err = rows.Columns(); err != nil {
-		return err
-	}
-
-	slicev := dstv.Elem()
-	item_t := slicev.Type().Elem()
-
-	reset(dst)
-
-	for rows.Next() {
-
-		item, err := fetchResult(item_t, rows, columns)
-
-		if err != nil {
-			return err
-		}
-
-		slicev = reflect.Append(slicev, reflect.Indirect(item))
-	}
-
-	rows.Close()
-
-	dstv.Elem().Set(slicev)
-
-	return nil
-}
-
-func (self *T) FieldValues(item interface{}, convertFn func(interface{}) interface{}) ([]string, []interface{}, error) {
+// FieldValues accepts a map or a struct and splits them into an array of
+// columns and values.
+func (t *T) FieldValues(item interface{}, convertFn func(interface{}) interface{}) ([]string, []interface{}, error) {
 
 	fields := []string{}
 	values := []interface{}{}
 
-	item_v := reflect.ValueOf(item)
-	item_t := item_v.Type()
+	itemV := reflect.ValueOf(item)
+	itemT := itemV.Type()
 
-	if item_t.Kind() == reflect.Ptr {
+	if itemT.Kind() == reflect.Ptr {
 		// Single derefence. Just in case user passed a pointer to struct instead of a struct.
-		item = item_v.Elem().Interface()
-		item_v = reflect.ValueOf(item)
-		item_t = item_v.Type()
+		item = itemV.Elem().Interface()
+		itemV = reflect.ValueOf(item)
+		itemT = itemV.Type()
 	}
 
-	switch item_t.Kind() {
+	switch itemT.Kind() {
 
 	case reflect.Struct:
 
-		nfields := item_v.NumField()
+		nfields := itemV.NumField()
 
 		values = make([]interface{}, 0, nfields)
 		fields = make([]string, 0, nfields)
 
 		for i := 0; i < nfields; i++ {
 
-			field := item_t.Field(i)
+			field := itemT.Field(i)
 
 			if field.PkgPath != `` {
 				// Field is unexported.
@@ -378,11 +147,11 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) interfa
 
 			// Nothing works, trying to match by name.
 			if fieldName == `` {
-				fieldName = self.columnLike(field.Name)
+				fieldName = t.columnLike(field.Name)
 			}
 
 			// Processing tag options.
-			value := item_v.Field(i).Interface()
+			value := itemV.Field(i).Interface()
 
 			if fieldOptions[`omitempty`] == true {
 				zero := reflect.Zero(reflect.TypeOf(value)).Interface()
@@ -392,7 +161,7 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) interfa
 			}
 
 			if fieldOptions[`inline`] == true {
-				infields, invalues, inerr := self.FieldValues(value, convertFn)
+				infields, invalues, inerr := t.FieldValues(value, convertFn)
 				if inerr != nil {
 					return nil, nil, inerr
 				}
@@ -405,14 +174,14 @@ func (self *T) FieldValues(item interface{}, convertFn func(interface{}) interfa
 
 		}
 	case reflect.Map:
-		nfields := item_v.Len()
+		nfields := itemV.Len()
 		values = make([]interface{}, nfields)
 		fields = make([]string, nfields)
-		mkeys := item_v.MapKeys()
+		mkeys := itemV.MapKeys()
 
-		for i, key_v := range mkeys {
-			valv := item_v.MapIndex(key_v)
-			fields[i] = self.columnLike(to.String(key_v.Interface()))
+		for i, keyV := range mkeys {
+			valv := itemV.MapIndex(keyV)
+			fields[i] = t.columnLike(to.String(keyV.Interface()))
 			values[i] = convertFn(valv.Interface())
 		}
 

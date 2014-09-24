@@ -19,8 +19,7 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// The schema package provides basic information about common relation database
-// schemas.
+// Package schema provides basic information on relational database schemas.
 package schema
 
 // DatabaseSchema represents a collection of tables.
@@ -38,7 +37,7 @@ type TableSchema struct {
 	Columns    []string
 }
 
-// NewDatabaseSchema() creates and returns a database schema.
+// NewDatabaseSchema creates and returns a database schema.
 func NewDatabaseSchema() *DatabaseSchema {
 	schema := new(DatabaseSchema)
 	schema.Tables = []string{}
@@ -46,8 +45,8 @@ func NewDatabaseSchema() *DatabaseSchema {
 	return schema
 }
 
-// AddTable() add a table into the database schema. If the table does not
-// exists it is created before being added.
+// AddTable adds a table into the database schema. If the table does not exists
+// it is created before being added.
 func (d *DatabaseSchema) AddTable(name string) {
 	if _, ok := d.TableInfo[name]; !ok {
 		table := new(TableSchema)
@@ -57,13 +56,14 @@ func (d *DatabaseSchema) AddTable(name string) {
 	}
 }
 
-// Table() retrives a table from the schema.
+// Table retrives a table from the schema.
 func (d *DatabaseSchema) Table(name string) *TableSchema {
 	d.AddTable(name)
 	return d.TableInfo[name]
 }
 
-// HasTable() returns true if the given table is already within the schema.
+// HasTable returns true if the given table is already defined within the
+// schema.
 func (d *DatabaseSchema) HasTable(name string) bool {
 	if _, ok := d.TableInfo[name]; ok {
 		return true
