@@ -391,15 +391,15 @@ type OddEven struct {
 
 // Struct that relies on explicit mapping.
 type mapE struct {
-	Id       uint          `db:"ID,omitempty" bson:"-"`
-	MongoId  bson.ObjectId `db:"-" bson:"_id,omitempty"`
+	ID       uint          `db:"ID,omitempty" bson:"-"`
+	MongoID  bson.ObjectId `db:"-" bson:"_id,omitempty"`
 	CaseTest string        `db:"Case_Test" bson:"Case_Test"`
 }
 
 // Struct that will fallback to default mapping.
 type mapN struct {
-	Id       uint          `db:",omitempty"`
-	MongoId  bson.ObjectId `db:"-" bson:"_id,omitempty"`
+	ID       uint          `db:",omitempty"`
+	MongoID  bson.ObjectId `db:"-" bson:"_id,omitempty"`
 	Casetest string
 }
 
@@ -1004,11 +1004,11 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 			}
 
 			if wrapper == `mongo` {
-				if testE.MongoId.Valid() == false {
+				if testE.MongoID.Valid() == false {
 					t.Fatalf("Expecting an ID.")
 				}
 			} else {
-				if testE.Id == 0 {
+				if testE.ID == 0 {
 					t.Fatalf("Expecting an ID.")
 				}
 			}
@@ -1038,11 +1038,11 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 			}
 
 			if wrapper == `mongo` {
-				if testN.MongoId.Valid() == false {
+				if testN.MongoID.Valid() == false {
 					t.Fatalf("Expecting an ID.")
 				}
 			} else {
-				if testN.Id == 0 {
+				if testN.ID == 0 {
 					t.Fatalf("Expecting an ID.")
 				}
 			}

@@ -29,10 +29,8 @@ import (
 // This map holds a copy of all registered adapters.
 var wrappers = make(map[string]Database)
 
-// The db.Register() function is provided for database adapters. Using
-// db.Register() an adapter can make itself available by the provided name.
-// The adapter name must not be an empty string and the driver must not be nil,
-// otherwise db.Register() will panic.
+// Register associates an adapter's name with a type. Panics if the adapter
+// name is empty or the adapter is nil.
 func Register(name string, adapter Database) {
 
 	if name == `` {
@@ -46,15 +44,15 @@ func Register(name string, adapter Database) {
 	wrappers[name] = adapter
 }
 
-// Configures a database sessions using the given adapter and the given
-// settings.
-func Open(name string, settings Settings) (Database, error) {
+// Open configures a database session using the given adapter's name and the
+// provided settings.
+func Open(adapter string, settings Settings) (Database, error) {
 
-	driver, ok := wrappers[name]
+	driver, ok := wrappers[adapter]
 	if ok == false {
 		// Using panic instead of returning error because attemping to use an
 		// nonexistent adapter will never result in a successful connection.
-		panic(fmt.Sprintf(`Open: Unknown adapter %s. (see: https://upper.io/db#database-adapters)`, name))
+		panic(fmt.Sprintf(`Open: Unknown adapter %s. (see: https://upper.io/db#database-adapters)`, adapter))
 	}
 
 	// Creating a new connection everytime Open() is called.
