@@ -35,6 +35,7 @@ var reColumnCompareExclude = regexp.MustCompile(`[^a-zA-Z0-9]`)
 var (
 	durationType = reflect.TypeOf(time.Duration(0))
 	timeType     = reflect.TypeOf(time.Time{})
+	ptimeType    = reflect.TypeOf(&time.Time{})
 )
 
 type tagOptions map[string]bool
@@ -148,6 +149,9 @@ func StringToType(src string, dstt reflect.Type) (reflect.Value, error) {
 	case timeType:
 		// Destination is time.Time
 		srcv = reflect.ValueOf(to.Time(src))
+	case ptimeType:
+		p := to.Time(src)
+		srcv = reflect.ValueOf(&p)
 	default:
 		return StringToKind(src, dstt.Kind())
 	}

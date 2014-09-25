@@ -277,6 +277,11 @@ func toInternal(val interface{}) interface{} {
 	switch t := val.(type) {
 	case []byte:
 		return string(t)
+	case *time.Time:
+		if t == nil || t.IsZero() {
+			return nil
+		}
+		return t.Format(DateFormat)
 	case time.Time:
 		return t.Format(DateFormat)
 	case time.Duration:
