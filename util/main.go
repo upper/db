@@ -141,17 +141,23 @@ func GetStructFieldIndex(t reflect.Type, columnName string) []int {
 }
 
 // StringToType converts a string value into another type.
-func StringToType(src string, dstt reflect.Type) (reflect.Value, error) {
-	var srcv reflect.Value
+func StringToType(src string, dstt reflect.Type) (srcv reflect.Value, err error) {
+
+	// Is destination a pointer?
+	if dstt.Kind() == reflect.Ptr {
+		if src == "" {
+			return
+		}
+	}
+
 	switch dstt {
 	case durationType:
 		srcv = reflect.ValueOf(to.Duration(src))
 	case timeType:
-		// Destination is time.Time
 		srcv = reflect.ValueOf(to.Time(src))
 	case ptimeType:
-		p := to.Time(src)
-		srcv = reflect.ValueOf(&p)
+		t := to.Time(src)
+		srcv = reflect.ValueOf(&t)
 	default:
 		return StringToKind(src, dstt.Kind())
 	}

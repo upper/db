@@ -42,6 +42,8 @@ CREATE TABLE data_types (
   _bool boolean,
   _string text,
   _date timestamp without time zone,
+  _nildate timestamp without time zone null,
+  _ptrdate timestamp without time zone,
   _time time without time zone
 );
 
@@ -49,6 +51,6 @@ DROP TABLE IF EXISTS stats_test;
 
 CREATE TABLE stats_test (
   id serial primary key,
-	numeric integer,
-	value integer
+  numeric integer,
+  value integer
 );

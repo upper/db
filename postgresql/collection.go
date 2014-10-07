@@ -312,7 +312,15 @@ func toInternal(val interface{}) interface{} {
 	switch v := val.(type) {
 	case []byte:
 		return string(v)
+	case *time.Time:
+		if v == nil || v.IsZero() {
+			return sqlgen.Value{sqlgen.Raw{psqlNull}}
+		}
+		return v.Format(DateFormat)
 	case time.Time:
+		if v.IsZero() {
+			return sqlgen.Value{sqlgen.Raw{psqlNull}}
+		}
 		return v.Format(DateFormat)
 	case time.Duration:
 		return fmt.Sprintf(TimeFormat, int(v/time.Hour), int(v/time.Minute%60), int(v/time.Second%60), v%time.Second/time.Millisecond)

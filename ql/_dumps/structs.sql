@@ -41,6 +41,8 @@ CREATE TABLE data_types (
   _bool bool,
   _string string,
   _date time,
+  _nildate time,
+  _ptrdate time,
   _time time
 );
 

@@ -77,22 +77,29 @@ type testValuesStruct struct {
 	Bool   bool   `field:"_bool"`
 	String string `field:"_string"`
 
-	Date time.Time     `field:"_date"`
-	Time time.Duration `field:"_time"`
+	Date  time.Time     `field:"_date"`
+	DateN *time.Time    `field:"_nildate"`
+	DateP *time.Time    `field:"_ptrdate"`
+	Time  time.Duration `field:"_time"`
 }
 
-// Declaring some values to insert, we expect the same values to be returned.
-var testValues = testValuesStruct{
-	1, 1, 1, 1, 1,
-	-1, -1, -1, -1, -1,
-	1.337, 1.337,
-	true,
-	"Hello world!",
-	time.Date(2012, 7, 28, 1, 2, 3, 0, time.Local),
-	time.Second * time.Duration(7331),
-}
+var testValues testValuesStruct
 
 func init() {
+	t := time.Date(2012, 7, 28, 1, 2, 3, 0, time.Local)
+
+	testValues = testValuesStruct{
+		1, 1, 1, 1, 1,
+		-1, -1, -1, -1, -1,
+		1.337, 1.337,
+		true,
+		"Hello world!",
+		t,
+		nil,
+		&t,
+		time.Second * time.Duration(7331),
+	}
+
 	flag.Parse()
 	settings.Host = *host
 }

@@ -48,6 +48,8 @@ CREATE TABLE data_types (
  _bool integer,
  _string text,
  _date text,
+ _nildate text,
+ _ptrdate text,
  _bytea text,
  _time text
 );

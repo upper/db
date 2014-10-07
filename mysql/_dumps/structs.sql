@@ -48,6 +48,8 @@ CREATE TABLE data_types (
   _bool TINYINT(1),
   _string text,
   _date DATETIME NOT NULL,
+  _nildate DATETIME NULL,
+  _ptrdate DATETIME NULL,
   _time TIME NOT NULL
 );
 

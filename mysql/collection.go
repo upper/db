@@ -279,10 +279,13 @@ func toInternal(val interface{}) interface{} {
 		return string(t)
 	case *time.Time:
 		if t == nil || t.IsZero() {
-			return nil
+			return sqlgen.Value{sqlgen.Raw{mysqlNull}}
 		}
 		return t.Format(DateFormat)
 	case time.Time:
+		if t.IsZero() {
+			return sqlgen.Value{sqlgen.Raw{mysqlNull}}
+		}
 		return t.Format(DateFormat)
 	case time.Duration:
 		return fmt.Sprintf(TimeFormat, int(t/time.Hour), int(t/time.Minute%60), int(t/time.Second%60), t%time.Second/time.Millisecond)
