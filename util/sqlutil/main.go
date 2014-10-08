@@ -56,6 +56,19 @@ func (t *T) columnLike(s string) string {
 	return s
 }
 
+func marshal(v interface{}) (interface{}, error) {
+	m, isM := v.(db.Marshaler)
+
+	if isM {
+		var err error
+		if v, err = m.MarshalDB(); err != nil {
+			return nil, err
+		}
+	}
+
+	return v, nil
+}
+
 // FieldValues accepts a map or a struct and splits them into an array of
 // columns and values.
 func (t *T) FieldValues(item interface{}, convertFn func(interface{}) interface{}) ([]string, []interface{}, error) {
@@ -169,9 +182,14 @@ func (t *T) FieldValues(item interface{}, convertFn func(interface{}) interface{
 				values = append(values, invalues...)
 			} else {
 				fields = append(fields, fieldName)
-				values = append(values, convertFn(value))
-			}
+				v, err := marshal(convertFn(value))
 
+				if err != nil {
+					return nil, nil, err
+				}
+
+				values = append(values, v)
+			}
 		}
 	case reflect.Map:
 		nfields := itemV.Len()
@@ -182,9 +200,15 @@ func (t *T) FieldValues(item interface{}, convertFn func(interface{}) interface{
 		for i, keyV := range mkeys {
 			valv := itemV.MapIndex(keyV)
 			fields[i] = t.columnLike(to.String(keyV.Interface()))
-			values[i] = convertFn(valv.Interface())
-		}
 
+			v, err := marshal(convertFn(valv.Interface()))
+
+			if err != nil {
+				return nil, nil, err
+			}
+
+			values[i] = v
+		}
 	default:
 		return nil, nil, db.ErrExpectingMapOrStruct
 	}

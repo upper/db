@@ -44,6 +44,8 @@ var (
 	ErrUnsupported             = errors.New(`This action is currently unsupported on this database.`)
 	ErrQueryIsPending          = errors.New(`Can't execute this instruction while the result set is still open.`)
 	ErrUnsupportedDestination  = errors.New(`Unsupported destination type.`)
+	ErrUnsupportedType         = errors.New(`This type does not support marshaling.`)
+	ErrUnsupportedValue        = errors.New(`This value does not support unmarshaling.`)
 )
 
 // Deprecated but kept for backwards compatibility. See: https://github.com/upper/db/issues/18

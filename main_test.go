@@ -27,6 +27,7 @@ import (
 	"flag"
 	"log"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -134,7 +135,8 @@ var setupFn = map[string]func(driver interface{}) error{
 			_, err = sqld.Exec(`CREATE TABLE "birthdays" (
 					"id" serial primary key,
 					"name" CHARACTER VARYING(50),
-					"born" TIMESTAMP
+					"born" TIMESTAMP,
+					"born_ut" INT
 			)`)
 			if err != nil {
 				return err
@@ -192,7 +194,8 @@ var setupFn = map[string]func(driver interface{}) error{
 			_, err = sqld.Exec(`CREATE TABLE birthdays (
 				id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY(id),
 				name VARCHAR(50),
-				born DATE
+				born DATE,
+				born_ut BIGINT(20) SIGNED
 			) CHARSET=utf8`)
 			if err != nil {
 				return err
@@ -250,7 +253,8 @@ var setupFn = map[string]func(driver interface{}) error{
 			_, err = sqld.Exec(`CREATE TABLE "birthdays" (
 				"id" INTEGER PRIMARY KEY,
 				"name" VARCHAR(50) DEFAULT NULL,
-				"born" VARCHAR(12) DEFAULT NULL
+				"born" VARCHAR(12) DEFAULT NULL,
+				"born_ut" INTEGER
 			)`)
 			if err != nil {
 				return err
@@ -313,7 +317,8 @@ var setupFn = map[string]func(driver interface{}) error{
 
 			_, err = tx.Exec(`CREATE TABLE birthdays (
 				name string,
-				born time
+				born time,
+				born_ut int
 			)`)
 			if err != nil {
 				return err
@@ -367,20 +372,21 @@ var setupFn = map[string]func(driver interface{}) error{
 	},
 }
 
-type Birthday struct {
+type birthday struct {
 	Name   string    // `db:"name"`	// Must match by name.
-	Born   time.Time // `db:"born"` // Must match by name.
+	Born   time.Time // `db:"born"		// Must match by name.
+	BornUT *timeType `db:"born_ut"`
 	OmitMe bool      `json:"omit_me" db:"-" bson:"-"`
 }
 
-type Fibonacci struct {
+type fibonacci struct {
 	Input  uint64 `db:"input"`
 	Output uint64 `db:"output"`
 	// Test for BSON option.
 	OmitMe bool `json:"omitme" db:",bson,omitempty" bson:"omit_me,omitempty"`
 }
 
-type OddEven struct {
+type oddEven struct {
 	// Test for JSON option.
 	Input int `json:"input"`
 	// Test for JSON option.
@@ -401,6 +407,35 @@ type mapN struct {
 	ID       uint          `db:",omitempty"`
 	MongoID  bson.ObjectId `db:"-" bson:"_id,omitempty"`
 	Casetest string
+}
+
+// Struct for testing marshalling.
+type timeType struct {
+	// Time is handled internally as time.Time but saved as an (integer) unix
+	// timestamp.
+	value time.Time
+}
+
+// time.Time -> unix timestamp
+func (u *timeType) MarshalDB() (interface{}, error) {
+	return u.value.Unix(), nil
+}
+
+// unix timestamp -> time.Time
+func (u *timeType) UnmarshalDB(v interface{}) error {
+	var i int
+
+	switch t := v.(type) {
+	case string:
+		i, _ = strconv.Atoi(t)
+	default:
+		return db.ErrUnsupportedValue
+	}
+
+	t := time.Unix(int64(i), 0)
+	*u = timeType{t}
+
+	return nil
 }
 
 func even(i int) bool {
@@ -471,12 +506,13 @@ func TestSetup(t *testing.T) {
 func TestSimpleCRUD(t *testing.T) {
 	var err error
 
-	var controlItem Birthday
+	var controlItem birthday
 
 	for _, wrapper := range wrappers {
 		if settings[wrapper] == nil {
 			t.Fatalf(`No such settings entry for wrapper %s.`, wrapper)
 		} else {
+
 			var sess db.Database
 
 			sess, err = db.Open(wrapper, *settings[wrapper])
@@ -486,9 +522,12 @@ func TestSimpleCRUD(t *testing.T) {
 
 			defer sess.Close()
 
-			controlItem = Birthday{
-				Name: "Hayao Miyazaki",
-				Born: time.Date(1941, time.January, 5, 0, 0, 0, 0, time.Local),
+			born := time.Date(1941, time.January, 5, 0, 0, 0, 0, time.Local)
+
+			controlItem = birthday{
+				Name:   "Hayao Miyazaki",
+				Born:   born,
+				BornUT: &timeType{born},
 			}
 
 			col, err := sess.Collection(`birthdays`)
@@ -524,19 +563,25 @@ func TestSimpleCRUD(t *testing.T) {
 				t.Fatalf("%s: Expecting one row.", wrapper)
 			}
 
-			var testItem Birthday
+			// No support for Marshaler and Unmarshaler is implemeted for QL and
+			// MongoDB.
+			if wrapper == `ql` || wrapper == `mongo` {
+				continue
+			}
+
+			var testItem birthday
 			err = res.One(&testItem)
 			if err != nil {
 				t.Fatalf("%s One(): %s", wrapper, err)
 			}
 
 			if reflect.DeepEqual(testItem, controlItem) == false {
-				t.Errorf("%s: testItem: %v\n", wrapper, testItem)
-				t.Errorf("%s: controlItem: %v\n", wrapper, controlItem)
+				t.Errorf("%s: testItem: %v (ts: %v)\n", wrapper, testItem, testItem.BornUT.value.Unix())
+				t.Errorf("%s: controlItem: %v (ts: %v)\n", wrapper, controlItem, controlItem.BornUT.value.Unix())
 				t.Fatalf("%s: Structs are different", wrapper)
 			}
 
-			var testItems []Birthday
+			var testItems []birthday
 			err = res.All(&testItems)
 			if err != nil {
 				t.Fatalf("%s All(): %s", wrapper, err)
@@ -624,7 +669,7 @@ func TestFibonacci(t *testing.T) {
 			// Adding some items.
 			var i uint64
 			for i = 0; i < 10; i++ {
-				item := Fibonacci{Input: i, Output: fib(i)}
+				item := fibonacci{Input: i, Output: fib(i)}
 				_, err = col.Append(item)
 				if err != nil {
 					t.Fatalf(`Could not append item with wrapper %s: %q`, wrapper, err)
@@ -688,7 +733,7 @@ func TestFibonacci(t *testing.T) {
 			res = res.Skip(1).Limit(2)
 
 			for {
-				var item Fibonacci
+				var item fibonacci
 				err = res.Next(&item)
 				if err == nil {
 					switch item.Input {
@@ -731,7 +776,7 @@ func TestFibonacci(t *testing.T) {
 			res = res.Skip(1).Limit(2)
 
 			for {
-				var item Fibonacci
+				var item fibonacci
 				err = res.Next(&item)
 				if err == nil {
 					switch item.Input {
@@ -770,7 +815,7 @@ func TestFibonacci(t *testing.T) {
 				t.Fatalf(`%s: Unexpected count %d.`, wrapper, total)
 			}
 
-			var items []Fibonacci
+			var items []fibonacci
 			err = res.All(&items)
 
 			if err != nil {
@@ -836,7 +881,7 @@ func TestEven(t *testing.T) {
 			// Adding some items.
 			var i int
 			for i = 1; i < 100; i++ {
-				item := OddEven{Input: i, IsEven: even(i)}
+				item := oddEven{Input: i, IsEven: even(i)}
 				_, err = col.Append(item)
 				if err != nil {
 					t.Fatalf(`Could not append item with wrapper %s: %q`, wrapper, err)
@@ -847,7 +892,7 @@ func TestEven(t *testing.T) {
 			res := col.Find(db.Cond{"is_even": true})
 
 			for {
-				var item OddEven
+				var item oddEven
 				err = res.Next(&item)
 				if err != nil {
 					if err == db.ErrNoMoreRows {
@@ -888,7 +933,7 @@ func TestEven(t *testing.T) {
 			for {
 				// Testing inline tag.
 				var item struct {
-					OddEven `db:",inline" bson:",inline"`
+					oddEven `db:",inline" bson:",inline"`
 				}
 				err = res.Next(&item)
 				if err != nil {

@@ -346,3 +346,15 @@ type Result interface {
 //
 //	UPPERIO_DB_DEBUG=1 ./go-program
 const EnvEnableDebug = `UPPERIO_DB_DEBUG`
+
+// Marshaler is the interface implemented by structs that can marshal
+// themselves into data suitable for storage.
+type Marshaler interface {
+	MarshalDB() (interface{}, error)
+}
+
+// Unmarshaler is the interface implemented by structs that can transform
+// themselves from storage data into a valid value.
+type Unmarshaler interface {
+	UnmarshalDB(interface{}) error
+}

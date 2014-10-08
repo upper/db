@@ -310,6 +310,8 @@ func (t *table) Name() string {
 // Converts a Go value into internal database representation.
 func toInternal(val interface{}) interface{} {
 	switch v := val.(type) {
+	case db.Marshaler:
+		return v
 	case []byte:
 		return string(v)
 	case *time.Time:

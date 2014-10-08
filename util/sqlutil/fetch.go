@@ -185,7 +185,9 @@ func fetchResult(itemT reflect.Type, rows *sql.Rows, columns []string) (reflect.
 					destf := item.Elem().FieldByIndex(index)
 
 					if destf.IsValid() {
+
 						if cv.Type() != destf.Type() {
+
 							if destf.Type().Kind() != reflect.Interface {
 								switch destf.Type() {
 								case nullFloat64Type:
@@ -211,14 +213,27 @@ func fetchResult(itemT reflect.Type, rows *sql.Rows, columns []string) (reflect.
 									nullString.Scan(svalue)
 									cv = reflect.ValueOf(nullString)
 								default:
-									cv, _ = util.StringToType(svalue, destf.Type())
+									desti := destf.Interface()
+
+									switch desti.(type) {
+									case db.Unmarshaler:
+										u := reflect.New(destf.Type().Elem()).Interface().(db.Unmarshaler)
+										u.UnmarshalDB(svalue)
+										cv = reflect.ValueOf(u)
+									default:
+										cv, _ = util.StringToType(svalue, destf.Type())
+									}
+
 								}
 							}
+
 						}
+
 						// Copying value.
 						if cv.IsValid() {
 							destf.Set(cv)
 						}
+
 					}
 				}
 
