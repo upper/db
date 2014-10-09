@@ -147,16 +147,32 @@ func (r *result) Sort(fields ...interface{}) db.Result {
 
 // Retrieves only the given fields.
 func (r *result) Select(fields ...interface{}) db.Result {
+
 	r.columns = make(sqlgen.Columns, 0, len(fields))
 
 	l := len(fields)
 	for i := 0; i < l; i++ {
+		var col sqlgen.Column
 		switch value := fields[i].(type) {
+		case db.Func:
+			v := interfaceArgs(value.Args)
+			var s string
+			if len(v) == 0 {
+				s = fmt.Sprintf(`%s()`, value.Name)
+			} else {
+				ss := make([]string, 0, len(v))
+				for j := range v {
+					ss = append(ss, fmt.Sprintf(`%v`, v[j]))
+				}
+				s = fmt.Sprintf(`%s(%s)`, value.Name, strings.Join(ss, `, `))
+			}
+			col = sqlgen.Column{sqlgen.Raw{s}}
 		case db.Raw:
-			r.columns = append(r.columns, sqlgen.Column{sqlgen.Raw{fmt.Sprintf(`%v`, value.Value)}})
+			col = sqlgen.Column{sqlgen.Raw{fmt.Sprintf(`%v`, value.Value)}}
 		default:
-			r.columns = append(r.columns, sqlgen.Column{value})
+			col = sqlgen.Column{value}
 		}
+		r.columns = append(r.columns, col)
 	}
 
 	return r

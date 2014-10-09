@@ -572,6 +572,7 @@ func TestFunction(t *testing.T) {
 	var sess db.Database
 	var artist db.Collection
 	var total uint64
+	var rowMap map[string]interface{}
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatal(err)
@@ -602,9 +603,44 @@ func TestFunction(t *testing.T) {
 		t.Fatalf("Expecting 3 items.")
 	}
 
+	// Testing conditions
 	res = artist.Find(db.Cond{"id()": db.Func{"NOT IN", []int{0, -1}}})
 
 	if err = res.One(&rowStruct); err != nil {
+		t.Fatal(err)
+	}
+
+	if total, err = res.Count(); err != nil {
+		t.Fatal(err)
+	}
+
+	if total != 3 {
+		t.Fatalf("Expecting 3 items.")
+	}
+
+	// Testing DISTINCT (function)
+	res = artist.Find().Select(
+		db.Func{`DISTINCT`, `name`},
+	)
+
+	if err = res.One(&rowMap); err != nil {
+		t.Fatal(err)
+	}
+
+	if total, err = res.Count(); err != nil {
+		t.Fatal(err)
+	}
+
+	if total != 3 {
+		t.Fatalf("Expecting 3 items.")
+	}
+
+	// Testing DISTINCT (raw)
+	res = artist.Find().Select(
+		db.Raw{`DISTINCT(name)`},
+	)
+
+	if err = res.One(&rowMap); err != nil {
 		t.Fatal(err)
 	}
 
