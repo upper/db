@@ -74,6 +74,9 @@ const (
 			{{end}}
 
 			{{if .Offset}}
+				{{if not .Limit}}
+					LIMIT -1 
+				{{end}}
 				OFFSET {{.Offset}}
 			{{end}}
 	`
@@ -100,6 +103,9 @@ const (
 			{{end}}
 
 			{{if .Offset}}
+				{{if not .Limit}}
+					LIMIT -1 
+				{{end}}
 				OFFSET {{.Offset}}
 			{{end}}
 	`
