@@ -131,42 +131,6 @@ type Raw struct {
 	Value interface{}
 }
 
-// Settings holds database connection and authentication data.  Not all fields
-// are mandatory, if any field is skipped, the database adapter will either try
-// to use database defaults or return an error. Refer to the specific adapter
-// to see which fields are required.
-//
-// Example:
-//
-// 	db.Settings{
-// 		Host: "127.0.0.1",
-// 		Database: "tests",
-// 		User: "john",
-// 		Password: "doe",
-// 	}
-type Settings struct {
-	// Database server hostname or IP. This field is ignored if using unix
-	// sockets or if the database does not require a connection to any host
-	// (SQLite, QL).
-	Host string
-	// Database server port. This field is ignored if using unix sockets or if
-	// the database does not require a connection to any host (SQLite, QL). If
-	// not provided, the default database port is tried.
-	Port int
-	// Name of the database. You can also use a filename if the database supports
-	// opening a raw file (SQLite, QL).
-	Database string
-	// Username for authentication, if required.
-	User string
-	// Password for authentication, if required.
-	Password string
-	// A path to a UNIX socket file. Leave blank if you rather use host and port.
-	Socket string
-	// Database charset. You can leave this field blank to use the default
-	// database charset.
-	Charset string
-}
-
 // Database is an interface that defines methods that must be provided by
 // database adapters.
 type Database interface {
@@ -213,7 +177,7 @@ type Database interface {
 
 	// Setup() sets the database connection settings. In order to connect, a call
 	// to `db.Database.Open()` is required.
-	Setup(Settings) error
+	Setup(ConnectionURL) error
 
 	// Name() returns the name of the active database.
 	Name() string
@@ -331,6 +295,13 @@ type Result interface {
 
 	// Close() closes the result set.
 	Close() error
+}
+
+// ConnectionURL is the interface that defines methods for connection strings.
+type ConnectionURL interface {
+	// String returns the connection string that is going to be passed to the
+	// adapter.
+	String() string
 }
 
 // EnvEnableDebug may be used by adapters to determine if the user has enabled

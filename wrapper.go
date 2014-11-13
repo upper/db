@@ -46,12 +46,13 @@ func Register(name string, adapter Database) {
 
 // Open configures a database session using the given adapter's name and the
 // provided settings.
-func Open(adapter string, settings Settings) (Database, error) {
+func Open(adapter string, conn ConnectionURL) (Database, error) {
 
 	driver, ok := wrappers[adapter]
+
 	if ok == false {
 		// Using panic instead of returning error because attemping to use an
-		// nonexistent adapter will never result in a successful connection.
+		// adapter that does not exists will never result in success.
 		panic(fmt.Sprintf(`Open: Unknown adapter %s. (see: https://upper.io/db#database-adapters)`, adapter))
 	}
 
@@ -60,7 +61,7 @@ func Open(adapter string, settings Settings) (Database, error) {
 	newAdapter := reflect.New(driverType).Interface().(Database)
 
 	// Setting up the connection.
-	if err := newAdapter.Setup(settings); err != nil {
+	if err := newAdapter.Setup(conn); err != nil {
 		return nil, err
 	}
 
