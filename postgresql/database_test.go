@@ -49,7 +49,7 @@ const (
 	password = "upperio"
 )
 
-var settings = db.Settings{
+var settings = ConnectionURL{
 	Database: database,
 	User:     username,
 	Password: password,
@@ -176,6 +176,46 @@ func TestOpenWithWrongData(t *testing.T) {
 	if _, err = db.Open(Adapter, wrongSettings); err == nil {
 		t.Fatalf("Expecting an error.")
 	}
+}
+
+// Old settings must be compatible.
+func TestOldSettings(t *testing.T) {
+	var err error
+	var sess db.Database
+
+	oldSettings := db.Settings{
+		Database: database,
+		User:     username,
+		Password: password,
+		Host:     settings.Host,
+	}
+
+	// Opening database.
+	if sess, err = db.Open(Adapter, oldSettings); err != nil {
+		t.Fatal(err)
+	}
+
+	// Closing database.
+	sess.Close()
+}
+
+// Test USE
+func TestUse(t *testing.T) {
+	var err error
+	var sess db.Database
+
+	// Opening database, no error expected.
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	// Connecting to another database, error expected.
+	if err = sess.Use("Another database"); err == nil {
+		t.Fatal("This database does not exists!")
+	}
+
+	// Closing connection.
+	sess.Close()
 }
 
 // Attempts to get all collections and truncate each one of them.

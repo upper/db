@@ -61,7 +61,9 @@ const (
 				*
 			{{end}}
 
-			FROM {{.Table}}
+			{{if .Table}}
+				FROM {{.Table}}
+			{{end}}
 
 			{{.Where}}
 

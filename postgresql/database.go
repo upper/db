@@ -28,6 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	// Importing PostgreSQL driver.
 	_ "github.com/xiam/gopostgresql"
 	"upper.io/cache"
@@ -48,7 +49,7 @@ var (
 	// TimeFormat defines the format used for storing time values.
 	TimeFormat = "%d:%02d:%02d.%d"
 	// SSLMode defined wheter to enable or disable SSL connections to PostgreSQL
-	// server.
+	// server (deprecated).
 	SSLMode = false
 )
 
@@ -59,7 +60,7 @@ var (
 )
 
 type source struct {
-	config  db.Settings
+	connURL db.ConnectionURL
 	session *sql.DB
 	tx      *tx
 	schema  *schema.DatabaseSchema
@@ -125,7 +126,23 @@ func (s *source) populateSchema() (err error) {
 
 	s.schema = schema.NewDatabaseSchema()
 
-	s.schema.Name = s.config.Database
+	// Get database name.
+	stmt := sqlgen.Statement{
+		Type: sqlgen.SqlSelect,
+		Columns: sqlgen.Columns{
+			{sqlgen.Raw{`CURRENT_DATABASE()`}},
+		},
+	}
+
+	var row *sql.Row
+
+	if row, err = s.doQueryRow(stmt); err != nil {
+		return err
+	}
+
+	if err = row.Scan(&s.schema.Name); err != nil {
+		return err
+	}
 
 	// The Collections() call will populate schema if its nil.
 	if collections, err = s.Collections(); err != nil {
@@ -243,7 +260,7 @@ func (s *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 
 // Returns the string name of the database.
 func (s *source) Name() string {
-	return s.config.Database
+	return s.schema.Name
 }
 
 //  Ping verifies a connection to the database is still alive,
@@ -254,7 +271,7 @@ func (s *source) Ping() error {
 
 func (s *source) clone() (*source, error) {
 	src := new(source)
-	src.Setup(s.config)
+	src.Setup(s.connURL)
 
 	if err := src.Open(); err != nil {
 		return nil, err
@@ -288,8 +305,8 @@ func (s *source) Transaction() (db.Tx, error) {
 }
 
 // Stores database settings.
-func (s *source) Setup(config db.Settings) error {
-	s.config = config
+func (s *source) Setup(connURL db.ConnectionURL) error {
+	s.connURL = connURL
 	return s.Open()
 }
 
@@ -302,46 +319,42 @@ func (s *source) Driver() interface{} {
 func (s *source) Open() error {
 	var err error
 
-	if s.config.Host == "" {
-		if s.config.Socket == "" {
-			s.config.Host = `127.0.0.1`
+	// Before db.ConnectionURL we used a unified db.Settings struct. This
+	// condition checks for that type and provides backwards compatibility.
+	if settings, ok := s.connURL.(db.Settings); ok {
+
+		// User is providing a db.Settings struct, let's translate it into a
+		// ConnectionURL{}.
+		conn := ConnectionURL{
+			User:     settings.User,
+			Password: settings.Password,
+			Host:     settings.Host,
+			Port:     settings.Port,
+			Database: settings.Database,
+			Options: map[string]string{
+				"sslmode": "disable",
+			},
 		}
+
+		// User did not provide a host.
+		if conn.Host == "" {
+			if settings.Socket != "" {
+				conn.Host = settings.Socket
+			} else {
+				conn.Host = `localhost`
+			}
+		}
+
+		// Testing for SSLMode (deprecated)
+		if SSLMode {
+			conn.Options["sslmode"] = "verify-full"
+		}
+
+		// Replace original s.connURL
+		s.connURL = conn
 	}
 
-	if s.config.Port == 0 {
-		s.config.Port = 5432
-	}
-
-	if s.config.Database == "" {
-		return db.ErrMissingDatabaseName
-	}
-
-	if s.config.Socket != "" && s.config.Host != "" {
-		return db.ErrSockerOrHost
-	}
-
-	var conn string
-	if user := s.config.User; user != "" {
-		conn += fmt.Sprintf(`user=%s `, user)
-	}
-	if pass := s.config.Password; pass != "" {
-		conn += fmt.Sprintf(`password=%s `, pass)
-	}
-	if s.config.Host != "" {
-		conn += fmt.Sprintf(`host=%s port=%d `, s.config.Host, s.config.Port)
-	} else {
-		conn += fmt.Sprintf(`host=%s `, s.config.Socket)
-	}
-
-	sslModeString := `disable`
-
-	if SSLMode {
-		sslModeString = `enable`
-	}
-
-	conn += fmt.Sprintf(`dbname=%s sslmode=%s`, s.config.Database, sslModeString)
-
-	if s.session, err = sql.Open(`postgres`, conn); err != nil {
+	if s.session, err = sql.Open(`postgres`, s.connURL.String()); err != nil {
 		return err
 	}
 
@@ -361,8 +374,17 @@ func (s *source) Close() error {
 }
 
 // Changes the active database.
-func (s *source) Use(database string) error {
-	s.config.Database = database
+func (s *source) Use(database string) (err error) {
+	var conn ConnectionURL
+
+	if conn, err = ParseURL(s.connURL.String()); err != nil {
+		return err
+	}
+
+	conn.Database = database
+
+	s.connURL = conn
+
 	return s.Open()
 }
 
@@ -371,7 +393,7 @@ func (s *source) Drop() error {
 
 	_, err := s.doQuery(sqlgen.Statement{
 		Type:     sqlgen.SqlDropDatabase,
-		Database: sqlgen.Database{s.config.Database},
+		Database: sqlgen.Database{s.schema.Name},
 	})
 
 	return err
@@ -461,7 +483,7 @@ func (s *source) tableExists(names ...string) error {
 			},
 		}
 
-		if rows, err = s.doQuery(stmt, s.config.Database, names[i]); err != nil {
+		if rows, err = s.doQuery(stmt, s.schema.Name, names[i]); err != nil {
 			return db.ErrCollectionDoesNotExist
 		}
 
@@ -510,7 +532,7 @@ func (s *source) tableColumns(tableName string) ([]string, error) {
 	var rows *sql.Rows
 	var err error
 
-	if rows, err = s.doQuery(stmt, s.config.Database, tableName); err != nil {
+	if rows, err = s.doQuery(stmt, s.schema.Name, tableName); err != nil {
 		return nil, err
 	}
 
