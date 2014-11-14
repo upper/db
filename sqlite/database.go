@@ -55,7 +55,7 @@ var (
 )
 
 type source struct {
-	config  db.Settings
+	connURL db.ConnectionURL
 	session *sql.DB
 	tx      *tx
 	schema  *schema.DatabaseSchema
@@ -121,7 +121,13 @@ func (s *source) populateSchema() (err error) {
 
 	s.schema = schema.NewDatabaseSchema()
 
-	s.schema.Name = s.config.Database
+	var conn ConnectionURL
+
+	if conn, err = ParseURL(s.connURL.String()); err != nil {
+		return err
+	}
+
+	s.schema.Name = conn.Database
 
 	// The Collections() call will populate schema if its nil.
 	if collections, err = s.Collections(); err != nil {
@@ -249,7 +255,7 @@ func (s *source) doRawQuery(query string, args ...interface{}) (*sql.Rows, error
 
 // Returns the string name of the database.
 func (s *source) Name() string {
-	return s.config.Database
+	return s.schema.Name
 }
 
 //  Ping verifies a connection to the database is still alive,
@@ -260,7 +266,7 @@ func (s *source) Ping() error {
 
 func (s *source) clone() (*source, error) {
 	src := &source{}
-	src.Setup(s.config)
+	src.Setup(s.connURL)
 
 	if err := src.Open(); err != nil {
 		return nil, err
@@ -294,8 +300,8 @@ func (s *source) Transaction() (db.Tx, error) {
 }
 
 // Stores database settings.
-func (s *source) Setup(config db.Settings) error {
-	s.config = config
+func (s *source) Setup(conn db.ConnectionURL) error {
+	s.connURL = conn
 	return s.Open()
 }
 
@@ -308,11 +314,22 @@ func (s *source) Driver() interface{} {
 func (s *source) Open() error {
 	var err error
 
-	if s.config.Database == `` {
-		return db.ErrMissingDatabaseName
+	// Before db.ConnectionURL we used a unified db.Settings struct. This
+	// condition checks for that type and provides backwards compatibility.
+	if settings, ok := s.connURL.(db.Settings); ok {
+		// User is providing a db.Settings struct, let's translate it into a
+		// ConnectionURL{}.
+		conn := ConnectionURL{
+			Database: settings.Database,
+			Options: map[string]string{
+				"cache": "shared",
+			},
+		}
+
+		s.connURL = conn
 	}
 
-	if s.session, err = sql.Open(`sqlite3`, fmt.Sprintf(`file:%s?cache=shared`, s.config.Database)); err != nil {
+	if s.session, err = sql.Open(`sqlite3`, s.connURL.String()); err != nil {
 		return err
 	}
 
@@ -332,20 +349,23 @@ func (s *source) Close() error {
 }
 
 // Changes the active database.
-func (s *source) Use(database string) error {
-	s.config.Database = database
+func (s *source) Use(database string) (err error) {
+	var conn ConnectionURL
+
+	if conn, err = ParseURL(s.connURL.String()); err != nil {
+		return err
+	}
+
+	conn.Database = database
+
+	s.connURL = conn
+
 	return s.Open()
 }
 
 // Drops the currently active database.
 func (s *source) Drop() error {
-
-	_, err := s.doQuery(sqlgen.Statement{
-		Type:     sqlgen.SqlDropDatabase,
-		Database: sqlgen.Database{s.config.Database},
-	})
-
-	return err
+	return db.ErrUnsupported
 }
 
 // Collections() Returns a list of non-system tables/collections contained
