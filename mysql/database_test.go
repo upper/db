@@ -49,7 +49,7 @@ const (
 	password = "upperio"
 )
 
-var settings = db.Settings{
+var settings = ConnectionURL{
 	Database: database,
 	User:     username,
 	Password: password,
@@ -119,6 +119,102 @@ func TestOpenFailed(t *testing.T) {
 		// Must fail.
 		t.Fatalf("Expecting an error.")
 	}
+}
+
+// Attempts to open an empty datasource.
+func TestOpenWithWrongData(t *testing.T) {
+	var err error
+	var rightSettings, wrongSettings db.Settings
+
+	// Attempt to open with safe settings.
+	rightSettings = db.Settings{
+		Database: database,
+		Host:     *host,
+		User:     username,
+		Password: password,
+	}
+
+	// Attempt to open an empty database.
+	if _, err = db.Open(Adapter, rightSettings); err != nil {
+		// Must fail.
+		t.Fatal(err)
+	}
+
+	// Attempt to open with wrong password.
+	wrongSettings = db.Settings{
+		Database: database,
+		Host:     *host,
+		User:     username,
+		Password: "fail",
+	}
+
+	if _, err = db.Open(Adapter, wrongSettings); err == nil {
+		t.Fatalf("Expecting an error.")
+	}
+
+	// Attempt to open with wrong database.
+	wrongSettings = db.Settings{
+		Database: "fail",
+		Host:     *host,
+		User:     username,
+		Password: password,
+	}
+
+	if _, err = db.Open(Adapter, wrongSettings); err == nil {
+		t.Fatalf("Expecting an error.")
+	}
+
+	// Attempt to open with wrong username.
+	wrongSettings = db.Settings{
+		Database: database,
+		Host:     *host,
+		User:     "fail",
+		Password: password,
+	}
+
+	if _, err = db.Open(Adapter, wrongSettings); err == nil {
+		t.Fatalf("Expecting an error.")
+	}
+}
+
+// Old settings must be compatible.
+func TestOldSettings(t *testing.T) {
+	var err error
+	var sess db.Database
+
+	oldSettings := db.Settings{
+		Database: database,
+		User:     username,
+		Password: password,
+		Host:     settings.Host,
+	}
+
+	// Opening database.
+	if sess, err = db.Open(Adapter, oldSettings); err != nil {
+		t.Fatal(err)
+	}
+
+	// Closing database.
+	sess.Close()
+}
+
+// Test USE
+func TestUse(t *testing.T) {
+	var err error
+	var sess db.Database
+
+	// Opening database, no error expected.
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	// Connecting to another database, error expected.
+	if err = sess.Use("Another database"); err == nil {
+		t.Fatal("This database does not exists!")
+	}
+
+	// Closing connection.
+	sess.Close()
 }
 
 // Attempts to get all collections and truncate each one of them.

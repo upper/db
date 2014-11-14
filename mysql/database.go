@@ -23,7 +23,6 @@ package mysql
 
 import (
 	"database/sql"
-	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -55,7 +54,7 @@ var (
 )
 
 type source struct {
-	config  db.Settings
+	connURL db.ConnectionURL
 	session *sql.DB
 	tx      *tx
 	schema  *schema.DatabaseSchema
@@ -121,7 +120,23 @@ func (s *source) populateSchema() (err error) {
 
 	s.schema = schema.NewDatabaseSchema()
 
-	s.schema.Name = s.config.Database
+	// Get database name.
+	stmt := sqlgen.Statement{
+		Type: sqlgen.SqlSelect,
+		Columns: sqlgen.Columns{
+			{sqlgen.Raw{`DATABASE()`}},
+		},
+	}
+
+	var row *sql.Row
+
+	if row, err = s.doQueryRow(stmt); err != nil {
+		return err
+	}
+
+	if err = row.Scan(&s.schema.Name); err != nil {
+		return err
+	}
 
 	// The Collections() call will populate schema if its nil.
 	if collections, err = s.Collections(); err != nil {
@@ -224,7 +239,7 @@ func (s *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 
 // Returns the string name of the database.
 func (s *source) Name() string {
-	return s.config.Database
+	return s.schema.Name
 }
 
 //  Ping verifies a connection to the database is still alive,
@@ -235,7 +250,7 @@ func (s *source) Ping() error {
 
 func (s *source) clone() (*source, error) {
 	src := &source{}
-	src.Setup(s.config)
+	src.Setup(s.connURL)
 
 	if err := src.Open(); err != nil {
 		return nil, err
@@ -269,8 +284,8 @@ func (s *source) Transaction() (db.Tx, error) {
 }
 
 // Stores database settings.
-func (s *source) Setup(config db.Settings) error {
-	s.config = config
+func (s *source) Setup(connURL db.ConnectionURL) error {
+	s.connURL = connURL
 	return s.Open()
 }
 
@@ -283,37 +298,46 @@ func (s *source) Driver() interface{} {
 func (s *source) Open() error {
 	var err error
 
-	if s.config.Host == "" {
-		if s.config.Socket == "" {
-			s.config.Host = `127.0.0.1`
+	// Before db.ConnectionURL we used a unified db.Settings struct. This
+	// condition checks for that type and provides backwards compatibility.
+	if settings, ok := s.connURL.(db.Settings); ok {
+
+		// User is providing a db.Settings struct, let's translate it into a
+		// ConnectionURL{}.
+		conn := ConnectionURL{
+			User:     settings.User,
+			Password: settings.Password,
+			Database: settings.Database,
+			Options: map[string]string{
+				"charset": settings.Charset,
+			},
 		}
+
+		// Connection charset, UTF-8 by default.
+		if conn.Options["charset"] == "" {
+			conn.Options["charset"] = "utf8"
+		}
+
+		if settings.Host != "" {
+			// Explicit host.
+			conn.Host = settings.Host
+			conn.Port = settings.Port
+		} else if settings.Socket != "" {
+			// UNIX socket.
+			conn.Socket = settings.Socket
+		} else {
+			conn.Host = "127.0.0.1"
+		}
+
+		if conn.Port == 0 {
+			conn.Port = 3306
+		}
+
+		// Replace original s.connURL
+		s.connURL = conn
 	}
 
-	if s.config.Port == 0 {
-		s.config.Port = 3306
-	}
-
-	if s.config.Database == "" {
-		return db.ErrMissingDatabaseName
-	}
-
-	if s.config.Socket != "" && s.config.Host != "" {
-		return db.ErrSockerOrHost
-	}
-
-	if s.config.Charset == "" {
-		s.config.Charset = `utf8`
-	}
-
-	var conn string
-
-	if s.config.Host != "" {
-		conn = fmt.Sprintf(`%s:%s@tcp(%s:%d)/%s?charset=%s`, s.config.User, s.config.Password, s.config.Host, s.config.Port, s.config.Database, s.config.Charset)
-	} else if s.config.Socket != `` {
-		conn = fmt.Sprintf(`%s:%s@unix(%s)/%s?charset=%s`, s.config.User, s.config.Password, s.config.Socket, s.config.Database, s.config.Charset)
-	}
-
-	if s.session, err = sql.Open(`mysql`, conn); err != nil {
+	if s.session, err = sql.Open(`mysql`, s.connURL.String()); err != nil {
 		return err
 	}
 
@@ -333,8 +357,17 @@ func (s *source) Close() error {
 }
 
 // Changes the active database.
-func (s *source) Use(database string) error {
-	s.config.Database = database
+func (s *source) Use(database string) (err error) {
+	var conn ConnectionURL
+
+	if conn, err = ParseURL(s.connURL.String()); err != nil {
+		return err
+	}
+
+	conn.Database = database
+
+	s.connURL = conn
+
 	return s.Open()
 }
 
@@ -343,7 +376,7 @@ func (s *source) Drop() error {
 
 	_, err := s.doQuery(sqlgen.Statement{
 		Type:     sqlgen.SqlDropDatabase,
-		Database: sqlgen.Database{s.config.Database},
+		Database: sqlgen.Database{s.schema.Name},
 	})
 
 	return err
@@ -380,7 +413,7 @@ func (s *source) Collections() (collections []string, err error) {
 
 	// Executing statement.
 	var rows *sql.Rows
-	if rows, err = s.doQuery(stmt, s.config.Database); err != nil {
+	if rows, err = s.doQuery(stmt, s.schema.Name); err != nil {
 		return nil, err
 	}
 
@@ -430,7 +463,7 @@ func (s *source) tableExists(names ...string) error {
 			},
 		}
 
-		if rows, err = s.doQuery(stmt, s.config.Database, names[i]); err != nil {
+		if rows, err = s.doQuery(stmt, s.schema.Name, names[i]); err != nil {
 			return db.ErrCollectionDoesNotExist
 		}
 
@@ -469,7 +502,7 @@ func (s *source) tableColumns(tableName string) ([]string, error) {
 	var rows *sql.Rows
 	var err error
 
-	if rows, err = s.doQuery(stmt, s.config.Database, tableName); err != nil {
+	if rows, err = s.doQuery(stmt, s.schema.Name, tableName); err != nil {
 		return nil, err
 	}
 
