@@ -55,7 +55,7 @@ var (
 )
 
 type source struct {
-	config  db.Settings
+	connURL db.ConnectionURL
 	session *sql.DB
 	tx      *tx
 	schema  *schema.DatabaseSchema
@@ -121,7 +121,13 @@ func (s *source) populateSchema() (err error) {
 
 	s.schema = schema.NewDatabaseSchema()
 
-	s.schema.Name = s.config.Database
+	var conn ConnectionURL
+
+	if conn, err = ParseURL(s.connURL.String()); err != nil {
+		return err
+	}
+
+	s.schema.Name = conn.Database
 
 	// The Collections() call will populate schema if its nil.
 	if collections, err = s.Collections(); err != nil {
@@ -275,7 +281,7 @@ func (s *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 
 // Returns the string name of the database.
 func (s *source) Name() string {
-	return s.config.Database
+	return s.schema.Name
 }
 
 //  Ping verifies a connection to the database is still alive,
@@ -287,7 +293,7 @@ func (s *source) Ping() error {
 func (s *source) clone() (adapter *source, err error) {
 	adapter = new(source)
 
-	if err = adapter.Setup(s.config); err != nil {
+	if err = adapter.Setup(s.connURL); err != nil {
 		return nil, err
 	}
 
@@ -319,8 +325,8 @@ func (s *source) Transaction() (db.Tx, error) {
 }
 
 // Stores database settings.
-func (s *source) Setup(config db.Settings) error {
-	s.config = config
+func (s *source) Setup(conn db.ConnectionURL) error {
+	s.connURL = conn
 	return s.Open()
 }
 
@@ -333,11 +339,20 @@ func (s *source) Driver() interface{} {
 func (s *source) Open() error {
 	var err error
 
-	if s.config.Database == "" {
-		return db.ErrMissingDatabaseName
+	// Before db.ConnectionURL we used a unified db.Settings struct. This
+	// condition checks for that type and provides backwards compatibility.
+	if settings, ok := s.connURL.(db.Settings); ok {
+
+		// User is providing a db.Settings struct, let's translate it into a
+		// ConnectionURL{}.
+		conn := ConnectionURL{
+			Database: settings.Database,
+		}
+
+		s.connURL = conn
 	}
 
-	if s.session, err = sql.Open(`ql`, s.config.Database); err != nil {
+	if s.session, err = sql.Open(`ql`, s.connURL.String()); err != nil {
 		return err
 	}
 
@@ -357,20 +372,23 @@ func (s *source) Close() error {
 }
 
 // Changes the active database.
-func (s *source) Use(database string) error {
-	s.config.Database = database
+func (s *source) Use(database string) (err error) {
+	var conn ConnectionURL
+
+	if conn, err = ParseURL(s.connURL.String()); err != nil {
+		return err
+	}
+
+	conn.Database = database
+
+	s.connURL = conn
+
 	return s.Open()
 }
 
 // Drops the currently active database.
 func (s *source) Drop() error {
-
-	_, err := s.doQuery(sqlgen.Statement{
-		Type:     sqlgen.SqlDropDatabase,
-		Database: sqlgen.Database{s.config.Database},
-	})
-
-	return err
+	return db.ErrUnsupported
 }
 
 // Returns a list of all tables within the currently active database.
