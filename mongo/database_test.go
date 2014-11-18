@@ -1,29 +1,29 @@
-/*
-  Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+//
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-  Permission is hereby granted, free of charge, to any person obtaining
-  a copy of this software and associated documentation files (the
-  "Software"), to deal in the Software without restriction, including
-  without limitation the rights to use, copy, modify, merge, publish,
-  distribute, sublicense, and/or sell copies of the Software, and to
-  permit persons to whom the Software is furnished to do so, subject to
-  the following conditions:
-
-  The above copyright notice and this permission notice shall be
-  included in all copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
 // Tests for the mongodb adapter.
 package mongo
 
 import (
+	"flag"
 	"math/rand"
 	"os"
 	"reflect"
@@ -39,17 +39,19 @@ import (
 
 // Wrapper settings.
 const (
-	host   = "testserver.local"
-	dbname = "upperio_tests"
+	database = "upperio_tests"
+	username = "upperio"
+	password = "upperio"
 )
 
 // Global settings for tests.
-var settings = db.Settings{
-	Host:     host,
-	Database: dbname,
-	User:     "upperio",
-	Password: "upperio",
+var settings = ConnectionURL{
+	Database: database,
+	User:     username,
+	Password: password,
 }
+
+var host = flag.String("host", "testserver.local", "Testing server address.")
 
 // Structure for testing conversions and datatypes.
 type testValuesStruct struct {
@@ -93,6 +95,9 @@ func init() {
 		&t,
 		time.Second * time.Duration(7331),
 	}
+
+	flag.Parse()
+	settings.Address = db.ParseAddress(*host)
 }
 
 // Enabling outputting some information to stdout, useful for development.
@@ -110,6 +115,102 @@ func TestOpenFailed(t *testing.T) {
 	}
 }
 */
+
+// Attempts to open an empty datasource.
+func TestOpenWithWrongData(t *testing.T) {
+	var err error
+	var rightSettings, wrongSettings db.Settings
+
+	// Attempt to open with safe settings.
+	rightSettings = db.Settings{
+		Database: database,
+		Host:     *host,
+		User:     username,
+		Password: password,
+	}
+
+	// Attempt to open an empty database.
+	if _, err = db.Open(Adapter, rightSettings); err != nil {
+		// Must fail.
+		t.Fatal(err)
+	}
+
+	// Attempt to open with wrong password.
+	wrongSettings = db.Settings{
+		Database: database,
+		Host:     *host,
+		User:     username,
+		Password: "fail",
+	}
+
+	if _, err = db.Open(Adapter, wrongSettings); err == nil {
+		t.Fatalf("Expecting an error.")
+	}
+
+	// Attempt to open with wrong database.
+	wrongSettings = db.Settings{
+		Database: "fail",
+		Host:     *host,
+		User:     username,
+		Password: password,
+	}
+
+	if _, err = db.Open(Adapter, wrongSettings); err == nil {
+		t.Fatalf("Expecting an error.")
+	}
+
+	// Attempt to open with wrong username.
+	wrongSettings = db.Settings{
+		Database: database,
+		Host:     *host,
+		User:     "fail",
+		Password: password,
+	}
+
+	if _, err = db.Open(Adapter, wrongSettings); err == nil {
+		t.Fatalf("Expecting an error.")
+	}
+}
+
+// Old settings must be compatible.
+func TestOldSettings(t *testing.T) {
+	var err error
+	var sess db.Database
+
+	oldSettings := db.Settings{
+		Database: database,
+		User:     username,
+		Password: password,
+		Host:     settings.Address.String(),
+	}
+
+	// Opening database.
+	if sess, err = db.Open(Adapter, oldSettings); err != nil {
+		t.Fatal(err)
+	}
+
+	// Closing database.
+	sess.Close()
+}
+
+// Test USE
+func TestUse(t *testing.T) {
+	var err error
+	var sess db.Database
+
+	// Opening database, no error expected.
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	// Connecting to another database, error expected.
+	if err = sess.Use("."); err == nil {
+		t.Fatal("This is not a database")
+	}
+
+	// Closing connection.
+	sess.Close()
+}
 
 // Truncates all collections.
 func TestTruncate(t *testing.T) {
@@ -768,7 +869,7 @@ func BenchmarkAppendRaw(b *testing.B) {
 
 	driver := sess.Driver().(*mgo.Session)
 
-	mgodb := driver.DB(dbname)
+	mgodb := driver.DB(database)
 	col := mgodb.C("artist")
 
 	b.ResetTimer()
