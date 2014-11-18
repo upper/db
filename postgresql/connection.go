@@ -79,6 +79,7 @@ func (vs values) Isset(k string) bool {
 
 const connectionScheme = `postgres`
 
+// ConnectionURL implements a PostgreSQL connection struct.
 type ConnectionURL struct {
 	User     string
 	Password string
@@ -138,6 +139,7 @@ func (c ConnectionURL) String() (s string) {
 	return strings.Join(u, " ")
 }
 
+// ParseURL parses s into a ConnectionURL struct.
 func ParseURL(s string) (u ConnectionURL, err error) {
 	o := make(values)
 

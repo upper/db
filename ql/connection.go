@@ -30,6 +30,7 @@ import (
 
 const connectionScheme = `file`
 
+// ConnectionURL implements a QL connection struct.
 type ConnectionURL struct {
 	Database string
 	Options  map[string]string
@@ -67,6 +68,7 @@ func (c ConnectionURL) String() (s string) {
 	return u.String()
 }
 
+// ParseURL parses s into a ConnectionURL struct.
 func ParseURL(s string) (conn ConnectionURL, err error) {
 	var u *url.URL
 

@@ -48,6 +48,7 @@ type config struct {
 	params map[string]string
 }
 
+// ConnectionURL implements a MySQL connection struct.
 type ConnectionURL struct {
 	User     string
 	Password string
@@ -113,6 +114,7 @@ func (c ConnectionURL) String() (s string) {
 	return s
 }
 
+// ParseURL parses s into a ConnectionURL struct.
 func ParseURL(s string) (conn ConnectionURL, err error) {
 	var cfg *config
 
