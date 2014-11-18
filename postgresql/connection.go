@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"upper.io/db"
 )
 
 // scanner implements a tokenizer for libpq-style option strings.
@@ -80,8 +81,7 @@ const connectionScheme = `postgres`
 type ConnectionURL struct {
 	User     string
 	Password string
-	Host     string
-	Port     int
+	Address  db.Address
 	Database string
 	Options  map[string]string
 }
@@ -102,12 +102,14 @@ func (c ConnectionURL) String() (s string) {
 		u = append(u, "password="+escaper.Replace(c.Password))
 	}
 
-	if c.Host != "" {
-		u = append(u, "host="+escaper.Replace(c.Host))
-	}
+	if c.Address != nil {
+		if h, err := c.Address.Host(); err == nil {
+			u = append(u, "host="+escaper.Replace(h))
+		}
 
-	if c.Port != 0 {
-		u = append(u, "port="+escaper.Replace(strconv.Itoa(c.Port)))
+		if p, err := c.Address.Port(); err == nil {
+			u = append(u, "port="+strconv.Itoa(int(p)))
+		}
 	}
 
 	if c.Database != "" {
@@ -151,9 +153,17 @@ func ParseURL(s string) (u ConnectionURL, err error) {
 
 	u.User = o.Get("user")
 	u.Password = o.Get("password")
-	u.Host = o.Get("host")
+
+	h := o.Get("host")
+	p, _ := strconv.Atoi(o.Get("port"))
+
+	if p > 0 {
+		u.Address = db.HostPort(h, uint(p))
+	} else {
+		u.Address = db.Host(h)
+	}
+
 	u.Database = o.Get("dbname")
-	u.Port, _ = strconv.Atoi(o.Get("port"))
 
 	u.Options = map[string]string{
 		"sslmode": o.Get("sslmode"),

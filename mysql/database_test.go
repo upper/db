@@ -101,7 +101,7 @@ func init() {
 	}
 
 	flag.Parse()
-	settings.Host = *host
+	settings.Address = db.ParseAddress(*host)
 }
 
 // Loggin some information to stdout (like the SQL query and its
@@ -186,7 +186,7 @@ func TestOldSettings(t *testing.T) {
 		Database: database,
 		User:     username,
 		Password: password,
-		Host:     settings.Host,
+		Host:     *host,
 	}
 
 	// Opening database.

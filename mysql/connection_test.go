@@ -23,6 +23,7 @@ package mysql
 
 import (
 	"testing"
+	"upper.io/db"
 )
 
 func TestConnectionURL(t *testing.T) {
@@ -63,16 +64,14 @@ func TestConnectionURL(t *testing.T) {
 	}
 
 	// Setting host.
-	c.Host = "1.2.3.4"
-	c.Socket = ""
+	c.Address = db.HostPort("1.2.3.4", 3306)
 
 	if c.String() != `user:pass@tcp(1.2.3.4:3306)/mydbname?charset=utf8` {
 		t.Fatal(`Test failed, got:`, c.String())
 	}
 
 	// Setting socket.
-	c.Host = ""
-	c.Socket = "/path/to/socket"
+	c.Address = db.Socket("/path/to/socket")
 
 	if c.String() != `user:pass@unix(/path/to/socket)/mydbname?charset=utf8` {
 		t.Fatal(`Test failed, got:`, c.String())
@@ -99,11 +98,11 @@ func TestParseConnectionURL(t *testing.T) {
 		t.Fatal("Expecting password.")
 	}
 
-	if u.Host != "" {
+	if _, err := u.Address.Host(); err == nil {
 		t.Fatal("Expecting no host.")
 	}
 
-	if u.Socket != "/path/to/socket" {
+	if f, err := u.Address.Path(); f != "/path/to/socket" || err != nil {
 		t.Fatal("Expecting socket.")
 	}
 
@@ -129,15 +128,15 @@ func TestParseConnectionURL(t *testing.T) {
 		t.Fatal("Expecting password.")
 	}
 
-	if u.Host != "1.2.3.4" {
+	if h, err := u.Address.Host(); h != "1.2.3.4" || err != nil {
 		t.Fatal("Expecting host.")
 	}
 
-	if u.Port != 5678 {
-		t.Fatal("Expecting host.")
+	if p, err := u.Address.Port(); p != 5678 || err != nil {
+		t.Fatal("Expecting port.")
 	}
 
-	if u.Socket != "" {
+	if _, err := u.Address.Path(); err == nil {
 		t.Fatal("Expecting no socket.")
 	}
 

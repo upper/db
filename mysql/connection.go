@@ -24,8 +24,8 @@ package mysql
 import (
 	"errors"
 	"net/url"
-	"strconv"
 	"strings"
+	"upper.io/db"
 )
 
 const defaultPort = 3306
@@ -51,9 +51,7 @@ type ConnectionURL struct {
 	User     string
 	Password string
 	Database string
-	Host     string
-	Port     int
-	Socket   string
+	Address  db.Address
 	Options  map[string]string
 }
 
@@ -74,13 +72,16 @@ func (c ConnectionURL) String() (s string) {
 	}
 
 	// Adding protocol and address
-	if c.Host != "" {
-		if c.Port == 0 {
-			c.Port = 3306
+	if c.Address != nil {
+		if f, err := c.Address.Path(); err == nil {
+			s = s + "unix(" + f + ")"
+		} else {
+			if _, err := c.Address.Port(); err != nil {
+				s = s + "tcp(" + c.Address.String() + ":3306)"
+			} else {
+				s = s + "tcp(" + c.Address.String() + ")"
+			}
 		}
-		s = s + "tcp(" + c.Host + ":" + strconv.Itoa(c.Port) + ")"
-	} else if c.Socket != "" {
-		s = s + "unix(" + c.Socket + ")"
 	}
 
 	// Adding database
@@ -122,16 +123,9 @@ func ParseURL(s string) (conn ConnectionURL, err error) {
 	conn.Password = cfg.passwd
 
 	if cfg.net == "unix" {
-		conn.Socket = cfg.addr
+		conn.Address = db.Socket(cfg.addr)
 	} else if cfg.net == "tcp" {
-		s := strings.Split(cfg.addr, ":")
-
-		conn.Host = s[0]
-		conn.Port, _ = strconv.Atoi(s[1])
-
-		if conn.Port == 0 {
-			conn.Port = defaultPort
-		}
+		conn.Address = db.ParseAddress(cfg.addr)
 	}
 
 	conn.Database = cfg.dbname

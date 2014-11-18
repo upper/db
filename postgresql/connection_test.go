@@ -23,6 +23,7 @@ package postgresql
 
 import (
 	"testing"
+	"upper.io/db"
 )
 
 func TestConnectionURL(t *testing.T) {
@@ -35,7 +36,7 @@ func TestConnectionURL(t *testing.T) {
 	}
 
 	// Adding a host.
-	c.Host = "localhost"
+	c.Address = db.Host("localhost")
 
 	if c.String() != "host=localhost sslmode=disable" {
 		t.Fatal(`Test failed, got:`, c.String())
@@ -56,7 +57,7 @@ func TestConnectionURL(t *testing.T) {
 	}
 
 	// Adding a port.
-	c.Port = 1234
+	c.Address = db.HostPort("localhost", 1234)
 
 	if c.String() != `user=Anakin password=Some\ Sort\ of\ \'\ Password host=localhost port=1234 sslmode=disable` {
 		t.Fatal(`Test failed, got:`, c.String())
@@ -99,7 +100,7 @@ func TestParseConnectionURL(t *testing.T) {
 		t.Fatal("Failed to parse password.")
 	}
 
-	if u.Host != "localhost" {
+	if u.Address.String() != "localhost" {
 		t.Fatal("Failed to parse hostname.")
 	}
 
@@ -135,7 +136,7 @@ func TestParseConnectionURL(t *testing.T) {
 		t.Fatal("Failed to parse password.")
 	}
 
-	if u.Host != "localhost" {
+	if u.Address.String() != "localhost" {
 		t.Fatal("Failed to parse hostname.")
 	}
 

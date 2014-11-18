@@ -328,21 +328,11 @@ func (s *source) Open() error {
 		conn := ConnectionURL{
 			User:     settings.User,
 			Password: settings.Password,
-			Host:     settings.Host,
-			Port:     settings.Port,
+			Address:  db.HostPort(settings.Host, uint(settings.Port)),
 			Database: settings.Database,
 			Options: map[string]string{
 				"sslmode": "disable",
 			},
-		}
-
-		// User did not provide a host.
-		if conn.Host == "" {
-			if settings.Socket != "" {
-				conn.Host = settings.Socket
-			} else {
-				conn.Host = `localhost`
-			}
 		}
 
 		// Testing for SSLMode (deprecated)

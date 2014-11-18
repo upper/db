@@ -318,19 +318,16 @@ func (s *source) Open() error {
 			conn.Options["charset"] = "utf8"
 		}
 
-		if settings.Host != "" {
-			// Explicit host.
-			conn.Host = settings.Host
-			conn.Port = settings.Port
-		} else if settings.Socket != "" {
-			// UNIX socket.
-			conn.Socket = settings.Socket
+		if settings.Socket != "" {
+			conn.Address = db.Socket(settings.Socket)
 		} else {
-			conn.Host = "127.0.0.1"
-		}
-
-		if conn.Port == 0 {
-			conn.Port = 3306
+			if settings.Host == "" {
+				settings.Host = "127.0.0.1"
+			}
+			if settings.Port == 0 {
+				settings.Port = defaultPort
+			}
+			conn.Address = db.HostPort(settings.Host, uint(settings.Port))
 		}
 
 		// Replace original s.connURL
