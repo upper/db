@@ -23,10 +23,11 @@ package postgresql
 
 import (
 	"fmt"
-	"github.com/xiam/gopostgresql"
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/xiam/gopostgresql"
 	"upper.io/db"
 )
 

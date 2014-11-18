@@ -23,8 +23,9 @@ package sqlutil
 
 import (
 	"database/sql"
-	"menteslibres.net/gosexy/to"
 	"reflect"
+
+	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 	"upper.io/db/util"
 )

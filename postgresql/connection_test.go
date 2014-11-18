@@ -23,6 +23,7 @@ package postgresql
 
 import (
 	"testing"
+
 	"upper.io/db"
 )
 

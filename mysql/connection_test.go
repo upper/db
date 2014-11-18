@@ -23,6 +23,7 @@ package mysql
 
 import (
 	"testing"
+
 	"upper.io/db"
 )
 
