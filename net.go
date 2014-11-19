@@ -33,7 +33,6 @@ type Address interface {
 	Host() (string, error)
 	Port() (uint, error)
 	Path() (string, error)
-	Cluster() ([]Address, error)
 }
 
 // socket is a UNIX address.
@@ -45,22 +44,6 @@ type socket struct {
 type host struct {
 	name string
 	port uint
-}
-
-// cluster is an array of hosts or sockets.
-type cluster struct {
-	address []Address
-}
-
-// ParseCluster parses s into a cluster structure.
-func ParseCluster(s string) (c cluster) {
-	var hosts []string
-	hosts = strings.Split(s, ",")
-	l := len(hosts)
-	for i := 0; i < l; i++ {
-		c.address = append(c.address, ParseAddress(hosts[i]))
-	}
-	return
 }
 
 // ParseAddress parses s into a host or socket structures.
@@ -95,11 +78,6 @@ func HostPort(name string, port uint) host {
 	return host{name: name}
 }
 
-// Cluster converts the given Address structures into a cluster structure.
-func Cluster(addresses ...Address) cluster {
-	return cluster{address: addresses}
-}
-
 // String returns the string representation of the host struct.
 func (h host) String() string {
 	if h.port > 0 {
@@ -129,11 +107,6 @@ func (h host) Path() (string, error) {
 	return "", ErrUndefined
 }
 
-// Cluster returns an array with a single host struct.
-func (h host) Cluster() ([]Address, error) {
-	return []Address{h}, nil
-}
-
 // String() returns the string representation of the socket struct.
 func (s socket) String() string {
 	return s.path
@@ -152,40 +125,4 @@ func (s socket) Port() (uint, error) {
 // Path returns the file path of the socket struct.
 func (s socket) Path() (string, error) {
 	return s.path, nil
-}
-
-// Cluster returns an array with a single socket struct.
-func (s socket) Cluster() ([]Address, error) {
-	return []Address{s}, nil
-}
-
-// String returns the string representation of the cluster struct.
-func (c cluster) String() string {
-	l := len(c.address)
-
-	addresses := make([]string, 0, l)
-	for i := 0; i < l; i++ {
-		addresses = append(addresses, c.address[i].String())
-	}
-	return strings.Join(addresses, ",")
-}
-
-// Host is undefined in a cluster struct.
-func (c cluster) Host() (string, error) {
-	return "", ErrUndefined
-}
-
-// Port is undefined in a cluster struct.
-func (c cluster) Port() (uint, error) {
-	return 0, ErrUndefined
-}
-
-// Path is undefined in a cluster struct.
-func (c cluster) Path() (string, error) {
-	return "", ErrUndefined
-}
-
-// Cluster returns the array of addresses in a cluster struct.
-func (c cluster) Cluster() ([]Address, error) {
-	return c.address, nil
 }

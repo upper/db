@@ -68,7 +68,7 @@ func TestConnectionURL(t *testing.T) {
 	}
 
 	// Setting cluster.
-	c.Address = db.Cluster(db.Host("localhost"), db.Host("1.2.3.4"), db.HostPort("example.org", 1234))
+	c.Address = Cluster(db.Host("localhost"), db.Host("1.2.3.4"), db.HostPort("example.org", 1234))
 
 	if c.String() != "mongodb://user:pass@localhost,1.2.3.4,example.org:1234/myfilename?cache=foobar&mode=ro" {
 		t.Fatal(`Test failed, got:`, c.String())
