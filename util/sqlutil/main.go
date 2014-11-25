@@ -60,6 +60,13 @@ func (t *T) columnLike(s string) string {
 func marshal(v interface{}) (interface{}, error) {
 	m, isM := v.(db.Marshaler)
 
+	if !isM {
+		refV := reflect.ValueOf(v)
+		if refV.CanAddr() {
+			m, isM = refV.Addr().Interface().(db.Marshaler)
+		}
+	}
+
 	if isM {
 		var err error
 		if v, err = m.MarshalDB(); err != nil {

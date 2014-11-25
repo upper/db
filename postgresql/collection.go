@@ -362,5 +362,15 @@ func toInternal(val interface{}) interface{} {
 		return `0`
 	}
 
+	// support struct field
+	refv := reflect.ValueOf(val)
+	if refv.Kind() == reflect.Struct {
+		v2 := reflect.New(refv.Type())
+		v2.Elem().Set(refv)
+		if m, ok := v2.Interface().(db.Marshaler); ok {
+			return m
+		}
+	}
+
 	return to.String(val)
 }
