@@ -219,7 +219,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 	var columns sqlgen.Columns
 	var values sqlgen.Values
 	var arguments []interface{}
-	var id int64
+	var id interface{}
 
 	cols, vals, err := t.FieldValues(item, toInternal)
 
@@ -360,6 +360,16 @@ func toInternal(val interface{}) interface{} {
 			return `1`
 		}
 		return `0`
+	}
+
+	// support struct field
+	refv := reflect.ValueOf(val)
+	if refv.Kind() == reflect.Struct {
+		v2 := reflect.New(refv.Type())
+		v2.Elem().Set(refv)
+		if m, ok := v2.Interface().(db.Marshaler); ok {
+			return m
+		}
 	}
 
 	return to.String(val)

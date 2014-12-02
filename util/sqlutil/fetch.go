@@ -214,11 +214,24 @@ func fetchResult(itemT reflect.Type, rows *sql.Rows, columns []string) (reflect.
 									nullString.Scan(svalue)
 									cv = reflect.ValueOf(nullString)
 								default:
-									desti := destf.Interface()
+									var desti interface{}
+
+									// support struct field, no matter pointer of struct or struct
+									if destf.CanAddr() && destf.Kind() != reflect.Ptr {
+										desti = destf.Addr().Interface()
+									} else {
+										desti = destf.Interface()
+									}
 
 									switch desti.(type) {
 									case db.Unmarshaler:
-										u := reflect.New(destf.Type().Elem()).Interface().(db.Unmarshaler)
+										var u db.Unmarshaler
+										if destf.Kind() == reflect.Struct {
+											u = reflect.New(destf.Type()).Interface().(db.Unmarshaler)
+										} else if destf.Kind() == reflect.Ptr || destf.Kind() == reflect.Interface {
+											u = reflect.New(destf.Type().Elem()).Interface().(db.Unmarshaler)
+										}
+
 										u.UnmarshalDB(svalue)
 										cv = reflect.ValueOf(u)
 									default:
@@ -232,9 +245,12 @@ func fetchResult(itemT reflect.Type, rows *sql.Rows, columns []string) (reflect.
 
 						// Copying value.
 						if cv.IsValid() {
-							destf.Set(cv)
+							if destf.Kind() == reflect.Struct {
+								destf.Set(cv.Elem())
+							} else {
+								destf.Set(cv)
+							}
 						}
-
 					}
 				}
 
