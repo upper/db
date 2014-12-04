@@ -118,6 +118,49 @@ func FetchRows(rows *sql.Rows, dst interface{}) error {
 	return nil
 }
 
+// indirect function taken from encoding/json/decode.go
+//
+// Copyright 2010 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+func indirect(v reflect.Value, decodingNull bool) (db.Unmarshaler, reflect.Value) {
+	// If v is a named type and is addressable,
+	// start with its address, so that if the type has pointer methods,
+	// we find them.
+	if v.Kind() != reflect.Ptr && v.Type().Name() != "" && v.CanAddr() {
+		v = v.Addr()
+	}
+	for {
+		// Load value from interface, but only if the result will be
+		// usefully addressable.
+		if v.Kind() == reflect.Interface && !v.IsNil() {
+			e := v.Elem()
+			if e.Kind() == reflect.Ptr && !e.IsNil() && (!decodingNull || e.Elem().Kind() == reflect.Ptr) {
+				v = e
+				continue
+			}
+		}
+
+		if v.Kind() != reflect.Ptr {
+			break
+		}
+
+		if v.Elem().Kind() != reflect.Ptr && decodingNull && v.CanSet() {
+			break
+		}
+		if v.IsNil() {
+			v.Set(reflect.New(v.Type().Elem()))
+		}
+		if v.Type().NumMethod() > 0 {
+			if u, ok := v.Interface().(db.Unmarshaler); ok {
+				return u, reflect.Value{}
+			}
+		}
+		v = v.Elem()
+	}
+	return nil, v
+}
+
 func fetchResult(itemT reflect.Type, rows *sql.Rows, columns []string) (reflect.Value, error) {
 	var item reflect.Value
 	var err error
@@ -190,6 +233,7 @@ func fetchResult(itemT reflect.Type, rows *sql.Rows, columns []string) (reflect.
 						if cv.Type() != destf.Type() {
 
 							if destf.Type().Kind() != reflect.Interface {
+
 								switch destf.Type() {
 								case nullFloat64Type:
 									nullFloat64 := sql.NullFloat64{}
@@ -214,14 +258,24 @@ func fetchResult(itemT reflect.Type, rows *sql.Rows, columns []string) (reflect.
 									nullString.Scan(svalue)
 									cv = reflect.ValueOf(nullString)
 								default:
-									desti := destf.Interface()
+									var decodingNull bool
 
-									switch desti.(type) {
-									case db.Unmarshaler:
-										u := reflect.New(destf.Type().Elem()).Interface().(db.Unmarshaler)
+									if svalue == "" {
+										decodingNull = true
+									}
+
+									u, _ := indirect(destf, decodingNull)
+
+									if u != nil {
 										u.UnmarshalDB(svalue)
-										cv = reflect.ValueOf(u)
-									default:
+
+										if destf.Kind() == reflect.Interface || destf.Kind() == reflect.Ptr {
+											cv = reflect.ValueOf(u)
+										} else {
+											cv = reflect.ValueOf(u).Elem()
+										}
+
+									} else {
 										cv, _ = util.StringToType(svalue, destf.Type())
 									}
 
