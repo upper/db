@@ -219,7 +219,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 	var columns sqlgen.Columns
 	var values sqlgen.Values
 	var arguments []interface{}
-	var id int64
+	var id interface{}
 
 	cols, vals, err := t.FieldValues(item, toInternal)
 
