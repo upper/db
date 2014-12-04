@@ -32,7 +32,7 @@ type DatabaseSchema struct {
 
 // TableSchema represents a single table.
 type TableSchema struct {
-	PrimaryKey string
+	PrimaryKey []string
 	Alias      string
 	Columns    []string
 }
@@ -50,6 +50,7 @@ func NewDatabaseSchema() *DatabaseSchema {
 func (d *DatabaseSchema) AddTable(name string) {
 	if _, ok := d.TableInfo[name]; !ok {
 		table := new(TableSchema)
+		table.PrimaryKey = []string{}
 		table.Columns = []string{}
 		d.TableInfo[name] = table
 		d.Tables = append(d.Tables, name)
