@@ -581,11 +581,11 @@ func (s *source) Collection(names ...string) (db.Collection, error) {
 	return col, nil
 }
 
-func (s *source) getPrimaryKey(tableName string) (string, error) {
+func (s *source) getPrimaryKey(tableName string) ([]string, error) {
 
 	tableSchema := s.schema.Table(tableName)
 
-	if tableSchema.PrimaryKey != "" {
+	if len(tableSchema.PrimaryKey) != 0 {
 		return tableSchema.PrimaryKey, nil
 	}
 
@@ -603,18 +603,31 @@ func (s *source) getPrimaryKey(tableName string) (string, error) {
 			sqlgen.ColumnValue{sqlgen.Column{`pg_attribute.attnum`}, `=`, sqlgen.Value{sqlgen.Raw{`any(pg_index.indkey)`}}},
 			sqlgen.Raw{`indisprimary`},
 		},
-		Limit: 1,
+		OrderBy: sqlgen.OrderBy{
+			sqlgen.SortColumns{
+				{
+					sqlgen.Column{`attname`},
+					sqlgen.SqlSortAsc,
+				},
+			},
+		},
 	}
 
-	var row *sql.Row
+	var rows *sql.Rows
 	var err error
 
-	if row, err = s.doQueryRow(stmt); err != nil {
-		return "", err
+	if rows, err = s.doQuery(stmt); err != nil {
+		return nil, err
 	}
 
-	if err = row.Scan(&tableSchema.PrimaryKey); err != nil {
-		return "", err
+	tableSchema.PrimaryKey = make([]string, 0, 1)
+
+	for rows.Next() {
+		var key string
+		if err = rows.Scan(&key); err != nil {
+			return nil, err
+		}
+		tableSchema.PrimaryKey = append(tableSchema.PrimaryKey, key)
 	}
 
 	return tableSchema.PrimaryKey, nil

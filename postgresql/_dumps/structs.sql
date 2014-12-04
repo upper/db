@@ -54,3 +54,12 @@ CREATE TABLE stats_test (
   numeric integer,
   value integer
 );
+
+DROP TABLE IF EXISTS non_numeric_keys;
+
+CREATE TABLE non_numeric_keys (
+  code varchar(255) default '',
+  user_id varchar(255) default '',
+  some_val varchar(255) default '',
+  primary key (code, user_id)
+);

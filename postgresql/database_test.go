@@ -30,10 +30,12 @@ package postgresql
 
 import (
 	"database/sql"
+	"errors"
 	"flag"
 	"math/rand"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -81,6 +83,21 @@ type testValuesStruct struct {
 	DateN *time.Time    `field:"_nildate"`
 	DateP *time.Time    `field:"_ptrdate"`
 	Time  time.Duration `field:"_time"`
+}
+
+type ItemWithNonNumericKey struct {
+	Code    string `db:"code"`
+	UserID  string `db:"user_id"`
+	SomeVal string `db:"some_val"`
+}
+
+func (item *ItemWithNonNumericKey) SetID(keys ...interface{}) error {
+	if len(keys) == 2 {
+		item.Code = string(keys[0].([]byte))
+		item.UserID = string(keys[1].([]byte))
+		return nil
+	}
+	return errors.New(`Expecting exactly two keys.`)
 }
 
 var testValues testValuesStruct
@@ -1297,6 +1314,46 @@ func TestTransactionsAndRollback(t *testing.T) {
 
 	if count != 3 {
 		t.Fatalf("Expecting only one element.")
+	}
+
+}
+
+func TestNonNumericKey(t *testing.T) {
+	var err error
+	var id interface{}
+	var sess db.Database
+	var nonNumericKeys db.Collection
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	if nonNumericKeys, err = sess.Collection("non_numeric_keys"); err != nil {
+		t.Fatal(err)
+	}
+
+	n := rand.Intn(100000)
+
+	item := &ItemWithNonNumericKey{
+		"ABCDEF",
+		strconv.Itoa(n),
+		"Some value",
+	}
+
+	if id, err = nonNumericKeys.Append(item); err != nil {
+		t.Fatal(err)
+	}
+
+	ids := id.([]interface{})
+
+	if string(ids[0].([]byte)) != item.Code {
+		t.Fatal(`Keys must match.`)
+	}
+
+	if string(ids[1].([]byte)) != item.UserID {
+		t.Fatal(`Keys must match.`)
 	}
 
 }

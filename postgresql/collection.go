@@ -25,6 +25,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -215,11 +216,12 @@ func (t *table) Truncate() error {
 
 // Appends an item (map or struct) into the collection.
 func (t *table) Append(item interface{}) (interface{}, error) {
-	var pKey string
+
+	var pKey []string
 	var columns sqlgen.Columns
 	var values sqlgen.Values
 	var arguments []interface{}
-	var id int64
+	var id []interface{}
 
 	cols, vals, err := t.FieldValues(item, toInternal)
 
@@ -260,7 +262,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		Values:  values,
 	}
 
-	if pKey == "" {
+	if len(pKey) == 0 {
 		// No primary key found.
 		var res sql.Result
 		if res, err = t.source.doExec(stmt, arguments...); err != nil {
@@ -269,21 +271,27 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 		// Attempt to use LastInsertId() (probably won't work, but the exec()
 		// succeeded, so the error from LastInsertId() is ignored).
-		id, _ = res.LastInsertId()
+		lastId, _ := res.LastInsertId()
 
-		return id, nil
+		return lastId, nil
 	}
 
 	var row *sql.Row
 
 	// A primary key was found.
-	stmt.Extra = sqlgen.Extra(fmt.Sprintf(`RETURNING "%s"`, pKey))
+	stmt.Extra = sqlgen.Extra(fmt.Sprintf(`RETURNING "%s"`, strings.Join(pKey, `", "`)))
 	if row, err = t.source.doQueryRow(stmt, arguments...); err != nil {
 		return nil, err
 	}
 
+	id = make([]interface{}, len(pKey))
+	args := make([]interface{}, len(pKey))
+	for i := 0; i < len(pKey); i++ {
+		args[i] = &id[i]
+	}
+
 	// Retrieving key value.
-	if err = row.Scan(&id); err != nil {
+	if err = row.Scan(args...); err != nil {
 		if err == sql.ErrNoRows {
 			// Can't tell the row's id. Maybe there isn't any?
 			return nil, nil
@@ -292,6 +300,21 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
+	// Does the item satisfy the db.ID interface?
+	if idsetter, ok := item.(db.ID); ok {
+		if err := idsetter.SetID(id...); err != nil {
+			return nil, err
+		}
+	}
+
+	// Backwards compatibility (int64).
+	if len(id) == 1 {
+		if numericId, err := strconv.Atoi(string(id[0].([]byte))); err == nil {
+			return int64(numericId), nil
+		}
+	}
+
+	// Return interface key.
 	return id, nil
 }
 
