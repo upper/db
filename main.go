@@ -333,7 +333,7 @@ type Unmarshaler interface {
 // IDSetter is the interface implemented by structs that can set their own ID
 // after calling Append().
 type IDSetter interface {
-	SetID(...interface{}) error
+	SetID(map[string]interface{}) error
 }
 
 // Constrainer is the interface implemented by structs that can delimit

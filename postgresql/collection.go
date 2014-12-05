@@ -229,7 +229,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 	var columns sqlgen.Columns
 	var values sqlgen.Values
 	var arguments []interface{}
-	var id []interface{}
+	//var id []interface{}
 
 	cols, vals, err := t.FieldValues(item, toInternal)
 
@@ -284,46 +284,39 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		return lastId, nil
 	}
 
-	var row *sql.Row
+	var rows *sql.Rows
 
 	// A primary key was found.
 	stmt.Extra = sqlgen.Extra(fmt.Sprintf(`RETURNING "%s"`, strings.Join(pKey, `", "`)))
-	if row, err = t.source.doQueryRow(stmt, arguments...); err != nil {
+	if rows, err = t.source.doQuery(stmt, arguments...); err != nil {
 		return nil, err
 	}
 
-	id = make([]interface{}, len(pKey))
-	args := make([]interface{}, len(pKey))
-	for i := 0; i < len(pKey); i++ {
-		args[i] = &id[i]
-	}
+	defer rows.Close()
 
-	// Retrieving key value.
-	if err = row.Scan(args...); err != nil {
-		if err == sql.ErrNoRows {
-			// Can't tell the row's id. Maybe there isn't any?
-			return nil, nil
-		}
-		// Other kind of error.
-		return nil, err
-	}
+	var keyMap map[string]interface{}
+	err = sqlutil.FetchRow(rows, &keyMap)
 
-	// Does the item satisfy the db.ID interface?
+	// Does the item satisfy the db.IDSetter interface?
 	if setter, ok := item.(db.IDSetter); ok {
-		if err := setter.SetID(id...); err != nil {
+		if err := setter.SetID(keyMap); err != nil {
 			return nil, err
 		}
+		return nil, nil
 	}
 
 	// Backwards compatibility (int64).
-	if len(id) == 1 {
-		if numericId, err := strconv.Atoi(string(id[0].([]byte))); err == nil {
+	if len(keyMap) == 1 {
+		if numericId, err := strconv.Atoi(keyMap[pKey[0]].(string)); err == nil {
 			return int64(numericId), nil
 		}
 	}
 
-	// Return interface key.
-	return id, nil
+	if len(keyMap) == 0 {
+		return nil, nil
+	}
+
+	return keyMap, nil
 }
 
 // Returns true if the collection exists.
