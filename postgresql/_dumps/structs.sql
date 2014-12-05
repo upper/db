@@ -55,9 +55,9 @@ CREATE TABLE stats_test (
   value integer
 );
 
-DROP TABLE IF EXISTS non_numeric_keys;
+DROP TABLE IF EXISTS composite_keys;
 
-CREATE TABLE non_numeric_keys (
+CREATE TABLE composite_keys (
   code varchar(255) default '',
   user_id varchar(255) default '',
   some_val varchar(255) default '',

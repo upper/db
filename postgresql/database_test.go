@@ -1326,11 +1326,12 @@ func TestTransactionsAndRollback(t *testing.T) {
 
 }
 
-func TestNonNumericKey(t *testing.T) {
+// Attempts to test composite keys.
+func TestCompositeKeys(t *testing.T) {
 	var err error
 	var id interface{}
 	var sess db.Database
-	var nonNumericKeys db.Collection
+	var compositeKeys db.Collection
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatal(err)
@@ -1338,7 +1339,7 @@ func TestNonNumericKey(t *testing.T) {
 
 	defer sess.Close()
 
-	if nonNumericKeys, err = sess.Collection("non_numeric_keys"); err != nil {
+	if compositeKeys, err = sess.Collection("composite_keys"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1350,7 +1351,7 @@ func TestNonNumericKey(t *testing.T) {
 		"Some value",
 	}
 
-	if id, err = nonNumericKeys.Append(&item); err != nil {
+	if id, err = compositeKeys.Append(&item); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1365,7 +1366,7 @@ func TestNonNumericKey(t *testing.T) {
 	}
 
 	// Using constraint interface.
-	res := nonNumericKeys.Find(ItemWithKey{Code: item.Code, UserID: item.UserID})
+	res := compositeKeys.Find(ItemWithKey{Code: item.Code, UserID: item.UserID})
 
 	var item2 ItemWithKey
 
