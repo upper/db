@@ -255,7 +255,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 	// Does the item satisfy the db.ID interface?
 	if setter, ok := item.(db.IDSetter); ok {
-		if err := setter.SetID([]interface{}{id}...); err != nil {
+		if err := setter.SetID(map[string]interface{}{"id": id}); err != nil {
 			return nil, err
 		}
 	}

@@ -92,9 +92,9 @@ func (item ItemWithKey) Constraint() db.Cond {
 	return cond
 }
 
-func (item *ItemWithKey) SetID(keys ...interface{}) error {
+func (item *ItemWithKey) SetID(keys map[string]interface{}) error {
 	if len(keys) == 1 {
-		item.ID = keys[0].(bson.ObjectId)
+		item.ID = keys["_id"].(bson.ObjectId)
 		return nil
 	}
 	return errors.New(`Expecting exactly two keys.`)

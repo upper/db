@@ -221,7 +221,7 @@ func (self *Collection) Append(item interface{}) (interface{}, error) {
 
 	// Does the item satisfy the db.ID interface?
 	if setter, ok := item.(db.IDSetter); ok {
-		if err := setter.SetID([]interface{}{id}...); err != nil {
+		if err := setter.SetID(map[string]interface{}{"_id": id}); err != nil {
 			return nil, err
 		}
 	}
