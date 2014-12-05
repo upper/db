@@ -1,6 +1,7 @@
 package sqlgen
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -10,7 +11,7 @@ type table_t struct {
 }
 
 type Table struct {
-	Name string
+	Name interface{}
 }
 
 func quotedTableName(layout *Template, input string) string {
@@ -48,29 +49,40 @@ func quotedTableName(layout *Template, input string) string {
 }
 
 func (self Table) Hash() string {
-	return `Table(` + self.Name + `)`
+	switch t := self.Name.(type) {
+	case cc:
+		return `Table(` + t.Hash() + `)`
+	case string:
+		return `Table(` + t + `)`
+	}
+	return fmt.Sprintf(`Table(%v)`, self.Name)
 }
 
 func (self Table) Compile(layout *Template) (compiled string) {
-
-	if self.Name == "" {
-		return
-	}
 
 	if c, ok := layout.Read(self); ok {
 		return c
 	}
 
-	// Splitting tables by a comma
-	parts := separateByComma(self.Name)
+	switch value := self.Name.(type) {
+	case string:
+		if self.Name == "" {
+			return
+		}
 
-	l := len(parts)
+		// Splitting tables by a comma
+		parts := separateByComma(value)
 
-	for i := 0; i < l; i++ {
-		parts[i] = quotedTableName(layout, parts[i])
+		l := len(parts)
+
+		for i := 0; i < l; i++ {
+			parts[i] = quotedTableName(layout, parts[i])
+		}
+
+		compiled = strings.Join(parts, layout.IdentifierSeparator)
+	case Raw:
+		compiled = value.String()
 	}
-
-	compiled = strings.Join(parts, layout.IdentifierSeparator)
 
 	layout.Write(self, compiled)
 
