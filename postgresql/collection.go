@@ -83,7 +83,7 @@ func whereValues(term interface{}) (where sqlgen.Where, args []interface{}) {
 		for _, kk := range k {
 			where = append(where, kk)
 		}
-	case db.Constraint:
+	case db.Constrainer:
 		k, v := conditionValues(t.Constraint())
 		args = append(args, v...)
 		for _, kk := range k {
@@ -309,8 +309,8 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 	}
 
 	// Does the item satisfy the db.ID interface?
-	if idsetter, ok := item.(db.ID); ok {
-		if err := idsetter.SetID(id...); err != nil {
+	if setter, ok := item.(db.IDSetter); ok {
+		if err := setter.SetID(id...); err != nil {
 			return nil, err
 		}
 	}

@@ -330,14 +330,14 @@ type Unmarshaler interface {
 	UnmarshalDB(interface{}) error
 }
 
-// ID is the interface implemented by structs that can set their own ID after
-// calling Append().
-type ID interface {
+// IDSetter is the interface implemented by structs that can set their own ID
+// after calling Append().
+type IDSetter interface {
 	SetID(...interface{}) error
 }
 
-// Constraint is the interface implemented by structs that can delimit
+// Constrainer is the interface implemented by structs that can delimit
 // themselves.
-type Constraint interface {
+type Constrainer interface {
 	Constraint() Cond
 }
