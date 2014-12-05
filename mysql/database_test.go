@@ -1302,7 +1302,6 @@ func TestTransactionsAndRollback(t *testing.T) {
 // Attempts to test composite keys.
 func TestCompositeKeys(t *testing.T) {
 	var err error
-	var id interface{}
 	var sess db.Database
 	var compositeKeys db.Collection
 
@@ -1324,28 +1323,19 @@ func TestCompositeKeys(t *testing.T) {
 		"Some value",
 	}
 
-	if id, err = compositeKeys.Append(&item); err != nil {
+	if _, err = compositeKeys.Append(&item); err != nil {
 		t.Fatal(err)
 	}
 
-	ids := id.([]interface{})
-
-	if ids[0].(string) != item.Code {
-		t.Fatal(`Keys must match.`)
-	}
-
-	if ids[1].(string) != item.UserID {
-		t.Fatal(`Keys must match.`)
-	}
-
 	// Using constraint interface.
-	res := compositeKeys.Find(ItemWithKey{Code: item.Code, UserID: item.UserID})
 
 	var item2 ItemWithKey
 
 	if item2.SomeVal == item.SomeVal {
 		t.Fatal(`Values must be different before query.`)
 	}
+
+	res := compositeKeys.Find(item)
 
 	if err := res.One(&item2); err != nil {
 		t.Fatal(err)
