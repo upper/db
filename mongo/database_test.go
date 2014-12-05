@@ -23,6 +23,7 @@
 package mongo
 
 import (
+	"errors"
 	"flag"
 	"math/rand"
 	"os"
@@ -77,6 +78,26 @@ type testValuesStruct struct {
 	DateN *time.Time    `bson:"_nildate"`
 	DateP *time.Time    `bson:"_ptrdate"`
 	Time  time.Duration `bson:"_time"`
+}
+
+type ItemWithKey struct {
+	ID      bson.ObjectId `bson:"-"`
+	SomeVal string        `bson:"some_val"`
+}
+
+func (item ItemWithKey) Constraint() db.Cond {
+	cond := db.Cond{
+		"_id": item.ID,
+	}
+	return cond
+}
+
+func (item *ItemWithKey) SetID(keys ...interface{}) error {
+	if len(keys) == 1 {
+		item.ID = keys[0].(bson.ObjectId)
+		return nil
+	}
+	return errors.New(`Expecting exactly two keys.`)
 }
 
 var testValues testValuesStruct
@@ -797,6 +818,67 @@ func TestRemove(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+// MongoDB: Does not support schemas so it can't has composite keys. We're
+// testing db.Constrainer and db.IDSetter interface.
+func TestSetterAndConstrainer(t *testing.T) {
+	var err error
+	var id interface{}
+	var sess db.Database
+	var compositeKeys db.Collection
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	if compositeKeys, err = sess.Collection("composite_keys"); err != nil {
+		if err != db.ErrCollectionDoesNotExist {
+			t.Fatal(err)
+		}
+	}
+
+	//n := rand.Intn(100000)
+
+	item := ItemWithKey{
+		// 		"ABCDEF",
+		// 		strconv.Itoa(n),
+		SomeVal: "Some value",
+	}
+
+	if id, err = compositeKeys.Append(&item); err != nil {
+		t.Fatal(err)
+	}
+
+	//	ids := id.([]interface{})
+
+	// 	if ids[0].(string) != item.Code {
+	// 		t.Fatal(`Keys must match.`)
+	// 	}
+	//
+	// 	if ids[1].(string) != item.UserID {
+	// 		t.Fatal(`Keys must match.`)
+	// 	}
+
+	// Using constraint interface.
+	res := compositeKeys.Find(ItemWithKey{ID: id.(bson.ObjectId)})
+
+	var item2 ItemWithKey
+
+	if item2.SomeVal == item.SomeVal {
+		t.Fatal(`Values must be different before query.`)
+	}
+
+	if err := res.One(&item2); err != nil {
+		t.Fatal(err)
+	}
+
+	if item2.SomeVal != item.SomeVal {
+		t.Fatal(`Values must be equal after query.`)
+	}
+
 }
 
 // This test tries to add many different datatypes to a single row in a

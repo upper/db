@@ -148,6 +148,10 @@ func (self *Collection) compileConditions(term interface{}) interface{} {
 		return condition
 	case db.Cond:
 		return compileStatement(t)
+	case db.Constrainer:
+		return compileStatement(t.Constraint())
+		//default:
+		// panic(fmt.Sprintf(db.ErrUnknownConditionType.Error(), reflect.TypeOf(t)))
 	}
 	return nil
 }
@@ -213,6 +217,13 @@ func (self *Collection) Append(item interface{}) (interface{}, error) {
 	// Now append data the user wants to append.
 	if err = self.collection.Update(bson.M{"_id": id}, item); err != nil {
 		return nil, err
+	}
+
+	// Does the item satisfy the db.ID interface?
+	if setter, ok := item.(db.IDSetter); ok {
+		if err := setter.SetID([]interface{}{id}...); err != nil {
+			return nil, err
+		}
 	}
 
 	return id, nil
