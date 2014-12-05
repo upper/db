@@ -558,11 +558,13 @@ func (s *source) getPrimaryKey(tableName string) ([]string, error) {
 		}
 	}
 
-	tableSchema.PrimaryKey = make([]string, maxValue)
+	if maxValue > 0 {
+		tableSchema.PrimaryKey = make([]string, maxValue)
 
-	for i := range s.columns[tableName] {
-		if s.columns[tableName][i].PK > 0 {
-			tableSchema.PrimaryKey[s.columns[tableName][i].PK-1] = s.columns[tableName][i].Name
+		for i := range s.columns[tableName] {
+			if s.columns[tableName][i].PK > 0 {
+				tableSchema.PrimaryKey[s.columns[tableName][i].PK-1] = s.columns[tableName][i].Name
+			}
 		}
 	}
 
