@@ -99,10 +99,10 @@ func (item ItemWithKey) Constraint() db.Cond {
 	return cond
 }
 
-func (item *ItemWithKey) SetID(keys ...interface{}) error {
+func (item *ItemWithKey) SetID(keys map[string]interface{}) error {
 	if len(keys) == 2 {
-		item.Code = keys[0].(string)
-		item.UserID = keys[1].(string)
+		item.Code = keys["code"].(string)
+		item.UserID = keys["user_id"].(string)
 		return nil
 	}
 	return errors.New(`Expecting exactly two keys.`)
