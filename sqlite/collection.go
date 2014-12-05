@@ -228,7 +228,6 @@ func (c *table) Append(item interface{}) (interface{}, error) {
 	var columns sqlgen.Columns
 	var values sqlgen.Values
 	var arguments []interface{}
-	var id []interface{}
 
 	cols, vals, err := c.FieldValues(item, toInternal)
 
@@ -275,38 +274,42 @@ func (c *table) Append(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	if len(pKey) == 1 {
-		lastID, _ := res.LastInsertId()
-		id = []interface{}{lastID}
-	} else {
-		// There is no "RETURNING" in SQLite, so we have to return the values that
-		// were given for constructing the composite key.
-		id = make([]interface{}, len(pKey))
+	// Backwards compatibility.
+	if len(pKey) <= 1 {
+		// Attempt to use LastInsertId() (probably won't work, but the exec()
+		// succeeded, so the error from LastInsertId() is ignored).
+		lastId, _ := res.LastInsertId()
+		return lastId, nil
+	}
 
-		for i := range cols {
-			for j := 0; j < len(pKey); j++ {
-				if pKey[j] == cols[i] {
-					id[j] = vals[i]
-				}
+	// There is no "RETURNING" in MySQL, so we have to return the values that
+	// were given for constructing the composite key.
+	keyMap := make(map[string]interface{})
+
+	for i := range cols {
+		for j := 0; j < len(pKey); j++ {
+			if pKey[j] == cols[i] {
+				keyMap[pKey[j]] = vals[i]
 			}
 		}
 	}
 
-	// Does the item satisfy the db.ID interface?
+	// Does the item satisfy the db.IDSetter interface?
 	if setter, ok := item.(db.IDSetter); ok {
-		if err := setter.SetID(id...); err != nil {
+		if err := setter.SetID(keyMap); err != nil {
 			return nil, err
 		}
+		return nil, nil
 	}
 
 	// Backwards compatibility (int64).
-	if len(id) == 1 {
-		if numericID, ok := id[0].(int64); ok {
-			return numericID, nil
+	if len(keyMap) == 1 {
+		if numericId, ok := keyMap[pKey[0]].(int64); ok {
+			return numericId, nil
 		}
 	}
 
-	return id, nil
+	return keyMap, nil
 }
 
 // Returns true if the collection exists.
