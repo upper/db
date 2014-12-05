@@ -34,6 +34,7 @@ import (
 
 	"menteslibres.net/gosexy/to"
 	//"reflect"
+	"errors"
 	"math/rand"
 	"strings"
 	"testing"
@@ -75,6 +76,26 @@ type testValuesStruct struct {
 	DateN *time.Time    `field:"_nildate"`
 	DateP *time.Time    `field:"_ptrdate"`
 	Time  time.Duration `field:"_time"`
+}
+
+type ItemWithKey struct {
+	ID      int64  `db:",omitempty"`
+	SomeVal string `db:"some_val"`
+}
+
+func (item ItemWithKey) Constraint() db.Cond {
+	cond := db.Cond{
+		"id()": item.ID,
+	}
+	return cond
+}
+
+func (item *ItemWithKey) SetID(keys ...interface{}) error {
+	if len(keys) == 1 {
+		item.ID = keys[0].(int64)
+		return nil
+	}
+	return errors.New(`Expecting exactly two keys.`)
 }
 
 var testValues testValuesStruct
@@ -1116,6 +1137,66 @@ func TestTransactionsAndRollback(t *testing.T) {
 
 	if count != 3 {
 		t.Fatalf("Expecting only one element.")
+	}
+
+}
+
+// QL: Does not support composite keys, so we're testing db.Constrainer and
+// db.IDSetter interface.
+func TestCompositeKeys(t *testing.T) {
+	var err error
+	var id interface{}
+	var sess db.Database
+	var compositeKeys db.Collection
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	if compositeKeys, err = sess.Collection("composite_keys"); err != nil {
+		t.Fatal(err)
+	}
+
+	//n := rand.Intn(100000)
+
+	item := ItemWithKey{
+		// 		"ABCDEF",
+		// 		strconv.Itoa(n),
+		0,
+		"Some value",
+	}
+
+	if id, err = compositeKeys.Append(&item); err != nil {
+		t.Fatal(err)
+	}
+
+	//	ids := id.([]interface{})
+
+	// 	if ids[0].(string) != item.Code {
+	// 		t.Fatal(`Keys must match.`)
+	// 	}
+	//
+	// 	if ids[1].(string) != item.UserID {
+	// 		t.Fatal(`Keys must match.`)
+	// 	}
+
+	// Using constraint interface.
+	res := compositeKeys.Find(ItemWithKey{ID: id.(int64)})
+
+	var item2 ItemWithKey
+
+	if item2.SomeVal == item.SomeVal {
+		t.Fatal(`Values must be different before query.`)
+	}
+
+	if err := res.One(&item2); err != nil {
+		t.Fatal(err)
+	}
+
+	if item2.SomeVal != item.SomeVal {
+		t.Fatal(`Values must be equal after query.`)
 	}
 
 }

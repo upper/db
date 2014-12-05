@@ -54,4 +54,14 @@ CREATE TABLE stats_test (
 	value int64
 );
 
+DROP TABLE IF EXISTS composite_keys;
+
+-- Composite keys are currently not supported in QL.
+CREATE TABLE composite_keys (
+-- code string,
+-- user_id string,
+  some_val string,
+-- primary key (code, user_id)
+);
+
 COMMIT;
