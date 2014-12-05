@@ -83,6 +83,14 @@ func whereValues(term interface{}) (where sqlgen.Where, args []interface{}) {
 		for _, kk := range k {
 			where = append(where, kk)
 		}
+	case db.Constraint:
+		k, v := conditionValues(t.Constraint())
+		args = append(args, v...)
+		for _, kk := range k {
+			where = append(where, kk)
+		}
+	default:
+		panic(fmt.Sprintf(db.ErrUnknownConditionType.Error(), reflect.TypeOf(t)))
 	}
 
 	return where, args

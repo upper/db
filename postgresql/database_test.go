@@ -85,13 +85,21 @@ type testValuesStruct struct {
 	Time  time.Duration `field:"_time"`
 }
 
-type ItemWithNonNumericKey struct {
+type ItemWithKey struct {
 	Code    string `db:"code"`
 	UserID  string `db:"user_id"`
 	SomeVal string `db:"some_val"`
 }
 
-func (item *ItemWithNonNumericKey) SetID(keys ...interface{}) error {
+func (item ItemWithKey) Constraint() db.Cond {
+	cond := db.Cond{
+		"code":    item.Code,
+		"user_id": item.UserID,
+	}
+	return cond
+}
+
+func (item *ItemWithKey) SetID(keys ...interface{}) error {
 	if len(keys) == 2 {
 		item.Code = string(keys[0].([]byte))
 		item.UserID = string(keys[1].([]byte))
@@ -1336,13 +1344,13 @@ func TestNonNumericKey(t *testing.T) {
 
 	n := rand.Intn(100000)
 
-	item := &ItemWithNonNumericKey{
+	item := ItemWithKey{
 		"ABCDEF",
 		strconv.Itoa(n),
 		"Some value",
 	}
 
-	if id, err = nonNumericKeys.Append(item); err != nil {
+	if id, err = nonNumericKeys.Append(&item); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1354,6 +1362,23 @@ func TestNonNumericKey(t *testing.T) {
 
 	if string(ids[1].([]byte)) != item.UserID {
 		t.Fatal(`Keys must match.`)
+	}
+
+	// Using constraint interface.
+	res := nonNumericKeys.Find(ItemWithKey{Code: item.Code, UserID: item.UserID})
+
+	var item2 ItemWithKey
+
+	if item2.SomeVal == item.SomeVal {
+		t.Fatal(`Values must be different before query.`)
+	}
+
+	if err := res.One(&item2); err != nil {
+		t.Fatal(err)
+	}
+
+	if item2.SomeVal != item.SomeVal {
+		t.Fatal(`Values must be equal after query.`)
 	}
 
 }
