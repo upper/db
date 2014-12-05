@@ -30,9 +30,11 @@ package sqlite
 
 import (
 	"database/sql"
+	"errors"
 	"math/rand"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -74,6 +76,29 @@ type testValuesStruct struct {
 	DateN *time.Time    `field:"_nildate"`
 	DateP *time.Time    `field:"_ptrdate"`
 	Time  time.Duration `field:"_time"`
+}
+
+type ItemWithKey struct {
+	Code    string `db:"code"`
+	UserID  string `db:"user_id"`
+	SomeVal string `db:"some_val"`
+}
+
+func (item ItemWithKey) Constraint() db.Cond {
+	cond := db.Cond{
+		"code":    item.Code,
+		"user_id": item.UserID,
+	}
+	return cond
+}
+
+func (item *ItemWithKey) SetID(keys ...interface{}) error {
+	if len(keys) == 2 {
+		item.Code = keys[0].(string)
+		item.UserID = keys[1].(string)
+		return nil
+	}
+	return errors.New(`Expecting exactly two keys.`)
 }
 
 var testValues testValuesStruct
@@ -1204,6 +1229,64 @@ func TestTransactionsAndRollback(t *testing.T) {
 
 	if count != 3 {
 		t.Fatalf("Expecting only one element.")
+	}
+
+}
+
+// Attempts to test composite keys.
+func TestCompositeKeys(t *testing.T) {
+	var err error
+	var id interface{}
+	var sess db.Database
+	var compositeKeys db.Collection
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	if compositeKeys, err = sess.Collection("composite_keys"); err != nil {
+		t.Fatal(err)
+	}
+
+	n := rand.Intn(100000)
+
+	item := ItemWithKey{
+		"ABCDEF",
+		strconv.Itoa(n),
+		"Some value",
+	}
+
+	if id, err = compositeKeys.Append(&item); err != nil {
+		t.Fatal(err)
+	}
+
+	ids := id.([]interface{})
+
+	if ids[0].(string) != item.Code {
+		t.Fatal(`Keys must match.`)
+	}
+
+	if ids[1].(string) != item.UserID {
+		t.Fatal(`Keys must match.`)
+	}
+
+	// Using constraint interface.
+	res := compositeKeys.Find(ItemWithKey{Code: item.Code, UserID: item.UserID})
+
+	var item2 ItemWithKey
+
+	if item2.SomeVal == item.SomeVal {
+		t.Fatal(`Values must be different before query.`)
+	}
+
+	if err := res.One(&item2); err != nil {
+		t.Fatal(err)
+	}
+
+	if item2.SomeVal != item.SomeVal {
+		t.Fatal(`Values must be equal after query.`)
 	}
 
 }

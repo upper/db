@@ -59,10 +59,15 @@ type source struct {
 	session *sql.DB
 	tx      *tx
 	schema  *schema.DatabaseSchema
+	// columns property was introduced so we could query PRAGMA data only once
+	// and retrieve all the column information we'd need, such as name and if it
+	// is a primary key.
+	columns []columnSchemaT
 }
 
 type columnSchemaT struct {
 	Name string `db:"name"`
+	PK   int    `db:"pk"`
 }
 
 func debugEnabled() bool {
@@ -477,16 +482,16 @@ func (s *source) tableColumns(tableName string) ([]string, error) {
 
 	rows, err := s.doRawQuery(q)
 
-	tableFields := []columnSchemaT{}
+	s.columns = []columnSchemaT{}
 
-	if err = sqlutil.FetchRows(rows, &tableFields); err != nil {
+	if err = sqlutil.FetchRows(rows, &s.columns); err != nil {
 		return nil, err
 	}
 
-	s.schema.TableInfo[tableName].Columns = make([]string, 0, len(tableFields))
+	s.schema.TableInfo[tableName].Columns = make([]string, 0, len(s.columns))
 
-	for i := range tableFields {
-		s.schema.TableInfo[tableName].Columns = append(s.schema.TableInfo[tableName].Columns, tableFields[i].Name)
+	for i := range s.columns {
+		s.schema.TableInfo[tableName].Columns = append(s.schema.TableInfo[tableName].Columns, s.columns[i].Name)
 	}
 
 	return s.schema.TableInfo[tableName].Columns, nil
@@ -530,4 +535,30 @@ func (s *source) Collection(names ...string) (db.Collection, error) {
 	}
 
 	return col, nil
+}
+
+// getPrimaryKey returns the names of the columns that define the primary key
+// of the table.
+func (s *source) getPrimaryKey(tableName string) ([]string, error) {
+	tableSchema := s.schema.Table(tableName)
+
+	s.tableColumns(tableName)
+
+	maxValue := -1
+
+	for i := range s.columns {
+		if s.columns[i].PK > 0 && s.columns[i].PK > maxValue {
+			maxValue = s.columns[i].PK
+		}
+	}
+
+	tableSchema.PrimaryKey = make([]string, maxValue)
+
+	for i := range s.columns {
+		if s.columns[i].PK > 0 {
+			tableSchema.PrimaryKey[s.columns[i].PK-1] = s.columns[i].Name
+		}
+	}
+
+	return tableSchema.PrimaryKey, nil
 }

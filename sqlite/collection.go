@@ -82,6 +82,14 @@ func whereValues(term interface{}) (where sqlgen.Where, args []interface{}) {
 		for _, kk := range k {
 			where = append(where, kk)
 		}
+	case db.Constrainer:
+		k, v := conditionValues(t.Constraint())
+		args = append(args, v...)
+		for _, kk := range k {
+			where = append(where, kk)
+		}
+	default:
+		panic(fmt.Sprintf(db.ErrUnknownConditionType.Error(), reflect.TypeOf(t)))
 	}
 
 	return where, args
@@ -215,9 +223,12 @@ func (c *table) Truncate() error {
 
 // Appends an item (map or struct) into the collection.
 func (c *table) Append(item interface{}) (interface{}, error) {
-	var arguments []interface{}
+
+	var pKey []string
 	var columns sqlgen.Columns
 	var values sqlgen.Values
+	var arguments []interface{}
+	var id []interface{}
 
 	cols, vals, err := c.FieldValues(item, toInternal)
 
@@ -245,19 +256,55 @@ func (c *table) Append(item interface{}) (interface{}, error) {
 		}
 	}
 
-	row, err := c.source.doExec(sqlgen.Statement{
+	if pKey, err = c.source.getPrimaryKey(c.tableN(0)); err != nil {
+		if err != sql.ErrNoRows {
+			// Can't tell primary key.
+			return nil, err
+		}
+	}
+
+	stmt := sqlgen.Statement{
 		Type:    sqlgen.SqlInsert,
 		Table:   sqlgen.Table{c.tableN(0)},
 		Columns: columns,
 		Values:  values,
-	}, arguments...)
+	}
 
-	if err != nil {
+	var res sql.Result
+	if res, err = c.source.doExec(stmt, arguments...); err != nil {
 		return nil, err
 	}
 
-	var id int64
-	id, _ = row.LastInsertId()
+	if len(pKey) == 1 {
+		lastID, _ := res.LastInsertId()
+		id = []interface{}{lastID}
+	} else {
+		// There is no "RETURNING" in SQLite, so we have to return the values that
+		// were given for constructing the composite key.
+		id = make([]interface{}, len(pKey))
+
+		for i := range cols {
+			for j := 0; j < len(pKey); j++ {
+				if pKey[j] == cols[i] {
+					id[j] = vals[i]
+				}
+			}
+		}
+	}
+
+	// Does the item satisfy the db.ID interface?
+	if setter, ok := item.(db.IDSetter); ok {
+		if err := setter.SetID(id...); err != nil {
+			return nil, err
+		}
+	}
+
+	// Backwards compatibility (int64).
+	if len(id) == 1 {
+		if numericID, ok := id[0].(int64); ok {
+			return numericID, nil
+		}
+	}
 
 	return id, nil
 }
