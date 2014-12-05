@@ -312,10 +312,6 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		}
 	}
 
-	if len(keyMap) == 0 {
-		return nil, nil
-	}
-
 	return keyMap, nil
 }
 
