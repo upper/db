@@ -60,3 +60,12 @@ CREATE TABLE stats_test (
 	`numeric` INT(10),
 	`value` INT(10)
 );
+
+DROP TABLE IF EXISTS composite_keys;
+
+CREATE TABLE composite_keys (
+  code VARCHAR(255) default '',
+  user_id VARCHAR(255) default '',
+  some_val VARCHAR(255) default '',
+  primary key (code, user_id)
+);

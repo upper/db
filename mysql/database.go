@@ -557,3 +557,60 @@ func (s *source) Collection(names ...string) (db.Collection, error) {
 
 	return col, nil
 }
+
+// getPrimaryKey returns the names of the columns that define the primary key
+// of the table.
+func (s *source) getPrimaryKey(tableName string) ([]string, error) {
+
+	tableSchema := s.schema.Table(tableName)
+
+	if len(tableSchema.PrimaryKey) != 0 {
+		return tableSchema.PrimaryKey, nil
+	}
+
+	stmt := sqlgen.Statement{
+		Type: sqlgen.SqlSelect,
+		Table: sqlgen.Table{
+			sqlgen.Raw{`
+				information_schema.table_constraints AS t
+				JOIN information_schema.key_column_usage k
+				USING(constraint_name, table_schema, table_name)
+			`},
+		},
+		Columns: sqlgen.Columns{
+			{`k.column_name`},
+		},
+		Where: sqlgen.Where{
+			sqlgen.ColumnValue{sqlgen.Column{`t.constraint_type`}, `=`, sqlgen.Value{`primary key`}},
+			sqlgen.ColumnValue{sqlgen.Column{`t.table_schema`}, `=`, sqlPlaceholder},
+			sqlgen.ColumnValue{sqlgen.Column{`t.table_name`}, `=`, sqlPlaceholder},
+		},
+		OrderBy: sqlgen.OrderBy{
+			sqlgen.SortColumns{
+				{
+					sqlgen.Column{`k.ordinal_position`},
+					sqlgen.SqlSortAsc,
+				},
+			},
+		},
+	}
+
+	var rows *sql.Rows
+	var err error
+
+	if rows, err = s.doQuery(stmt, s.schema.Name, tableName); err != nil {
+		return nil, err
+	}
+
+	tableSchema.PrimaryKey = make([]string, 0, 1)
+
+	for rows.Next() {
+		var key string
+		if err = rows.Scan(&key); err != nil {
+			return nil, err
+		}
+		tableSchema.PrimaryKey = append(tableSchema.PrimaryKey, key)
+	}
+
+	return tableSchema.PrimaryKey, nil
+}
