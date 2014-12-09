@@ -5,11 +5,12 @@ import (
 	"strings"
 )
 
-type table_t struct {
+type tableT struct {
 	Name  string
 	Alias string
 }
 
+// Table struct represents a SQL table.
 type Table struct {
 	Name interface{}
 }
@@ -45,28 +46,30 @@ func quotedTableName(layout *Template, input string) string {
 		alias = mustParse(layout.IdentifierQuote, Raw{alias})
 	}
 
-	return mustParse(layout.TableAliasLayout, table_t{name, alias})
+	return mustParse(layout.TableAliasLayout, tableT{name, alias})
 }
 
-func (self Table) Hash() string {
-	switch t := self.Name.(type) {
+// Hash returns a string hash of the table value.
+func (t Table) Hash() string {
+	switch t := t.Name.(type) {
 	case cc:
 		return `Table(` + t.Hash() + `)`
 	case string:
 		return `Table(` + t + `)`
 	}
-	return fmt.Sprintf(`Table(%v)`, self.Name)
+	return fmt.Sprintf(`Table(%v)`, t.Name)
 }
 
-func (self Table) Compile(layout *Template) (compiled string) {
+// Compile transforms a table struct into a SQL chunk.
+func (t Table) Compile(layout *Template) (compiled string) {
 
-	if c, ok := layout.Read(self); ok {
+	if c, ok := layout.Read(t); ok {
 		return c
 	}
 
-	switch value := self.Name.(type) {
+	switch value := t.Name.(type) {
 	case string:
-		if self.Name == "" {
+		if t.Name == "" {
 			return
 		}
 
@@ -84,7 +87,7 @@ func (self Table) Compile(layout *Template) (compiled string) {
 		compiled = value.String()
 	}
 
-	layout.Write(self, compiled)
+	layout.Write(t, compiled)
 
 	return
 }
