@@ -35,13 +35,13 @@ type Address interface {
 	Path() (string, error)
 }
 
-// socket is a UNIX address.
-type socket struct {
+// SocketAddr is a UNIX address.
+type SocketAddr struct {
 	path string
 }
 
-// host is the name or IP of a server coupled with an optional port number.
-type host struct {
+// HostAddr is the name or IP of a server coupled with an optional port number.
+type HostAddr struct {
 	name string
 	port uint
 }
@@ -50,36 +50,36 @@ type host struct {
 func ParseAddress(s string) Address {
 	if strings.HasPrefix(s, "/") {
 		// Let's suppose this is a UNIX socket.
-		return socket{path: s}
+		return SocketAddr{path: s}
 	}
 	hp := strings.Split(s, ":")
 	if len(hp) > 1 {
 		p, _ := strconv.Atoi(hp[1])
-		return host{name: hp[0], port: uint(p)}
+		return HostAddr{name: hp[0], port: uint(p)}
 	}
-	return host{name: hp[0]}
+	return HostAddr{name: hp[0]}
 }
 
 // Host converts the given name into a host structure.
-func Host(name string) host {
-	return host{name: name}
+func Host(name string) HostAddr {
+	return HostAddr{name: name}
 }
 
 // Socket converts the given name into a socket structure.
-func Socket(path string) socket {
-	return socket{path}
+func Socket(path string) SocketAddr {
+	return SocketAddr{path}
 }
 
 // HostPort converts the given name and port into a host structure.
-func HostPort(name string, port uint) host {
+func HostPort(name string, port uint) HostAddr {
 	if port > 0 {
-		return host{name: name, port: port}
+		return HostAddr{name: name, port: port}
 	}
-	return host{name: name}
+	return HostAddr{name: name}
 }
 
 // String returns the string representation of the host struct.
-func (h host) String() string {
+func (h HostAddr) String() string {
 	if h.port > 0 {
 		return fmt.Sprintf("%s:%d", h.name, h.port)
 	}
@@ -87,7 +87,7 @@ func (h host) String() string {
 }
 
 // Host returns the hostname/ip part of the host struct.
-func (h host) Host() (string, error) {
+func (h HostAddr) Host() (string, error) {
 	if h.name != "" {
 		return h.name, nil
 	}
@@ -95,7 +95,7 @@ func (h host) Host() (string, error) {
 }
 
 // Port returns the port number of the host struct.
-func (h host) Port() (uint, error) {
+func (h HostAddr) Port() (uint, error) {
 	if h.port > 0 {
 		return h.port, nil
 	}
@@ -103,26 +103,26 @@ func (h host) Port() (uint, error) {
 }
 
 // Path is undefined in a host struct.
-func (h host) Path() (string, error) {
+func (h HostAddr) Path() (string, error) {
 	return "", ErrUndefined
 }
 
 // String() returns the string representation of the socket struct.
-func (s socket) String() string {
+func (s SocketAddr) String() string {
 	return s.path
 }
 
 // Host is undefined in a socket struct.
-func (s socket) Host() (string, error) {
+func (s SocketAddr) Host() (string, error) {
 	return "", ErrUndefined
 }
 
 // Port is undefined in a socket struct.
-func (s socket) Port() (uint, error) {
+func (s SocketAddr) Port() (uint, error) {
 	return 0, ErrUndefined
 }
 
 // Path returns the file path of the socket struct.
-func (s socket) Path() (string, error) {
+func (s SocketAddr) Path() (string, error) {
 	return s.path, nil
 }
