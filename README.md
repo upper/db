@@ -1,10 +1,16 @@
 # upper.io/db
 
+<img src="https://upper.io/images/icon.svg" width="128" />
+
+[![Build Status](https://travis-ci.org/upper/db.png)](https://travis-ci.org/upper/db)
+
+## The `db` package
+
+![Upper.io](https://upper.io/db/res/general.png)
+
 `upper.io/db` is a [Go][2] package that allows developers to communicate with
 different databases through the use of *adapters* that wrap well-supported
 database drivers.
-
-[![Build Status](https://travis-ci.org/upper/db.png)](https://travis-ci.org/upper/db)
 
 ## Is `upper.io/db` an ORM?
 
@@ -15,7 +21,9 @@ being a tool that deals with common operations on different databases:
 ```go
 // This code works the same for all supported databases.
 var people []Person
+
 res = col.Find(db.Cond{"name": "Max"}).Limit(10).Sort("-last_name")
+
 err = res.All(&people)
 ```
 
@@ -23,6 +31,8 @@ In strict sense `upper.io/db` could be considered a really basic non-magical
 ORM that rather stays out of the way.
 
 ## Supported databases
+
+![Adapters](https://upper.io/db/res/adapters.png)
 
 `upper.io/db` attempts to provide full compatiblity for [CRUD][2] operations
 across adapters. Some other operations (such *transactions*) are supported only
