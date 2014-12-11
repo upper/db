@@ -279,9 +279,9 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 		// Attempt to use LastInsertId() (probably won't work, but the exec()
 		// succeeded, so the error from LastInsertId() is ignored).
-		lastId, _ := res.LastInsertId()
+		lastID, _ := res.LastInsertId()
 
-		return lastId, nil
+		return lastID, nil
 	}
 
 	var rows *sql.Rows

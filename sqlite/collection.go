@@ -315,8 +315,8 @@ func (c *table) Append(item interface{}) (interface{}, error) {
 
 	// Backwards compatibility (int64).
 	if len(keyMap) == 1 {
-		if numericId, ok := keyMap[pKey[0]].(int64); ok {
-			return numericId, nil
+		if numericID, ok := keyMap[pKey[0]].(int64); ok {
+			return numericID, nil
 		}
 	}
 
