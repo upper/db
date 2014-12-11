@@ -80,19 +80,29 @@ type testValuesStruct struct {
 	Time  time.Duration `bson:"_time"`
 }
 
-type ItemWithKey struct {
+type artistWithObjectIdKey struct {
+	id   bson.ObjectId
+	Name string `db:"name"`
+}
+
+func (artist *artistWithObjectIdKey) SetID(id bson.ObjectId) error {
+	artist.id = id
+	return nil
+}
+
+type itemWithKey struct {
 	ID      bson.ObjectId `bson:"-"`
 	SomeVal string        `bson:"some_val"`
 }
 
-func (item ItemWithKey) Constraint() db.Cond {
+func (item itemWithKey) Constraint() db.Cond {
 	cond := db.Cond{
 		"_id": item.ID,
 	}
 	return cond
 }
 
-func (item *ItemWithKey) SetID(keys map[string]interface{}) error {
+func (item *itemWithKey) SetID(keys map[string]interface{}) error {
 	if len(keys) == 1 {
 		item.ID = keys["_id"].(bson.ObjectId)
 		return nil
@@ -361,6 +371,30 @@ func TestAppend(t *testing.T) {
 
 	if id.(bson.ObjectId).Valid() != true {
 		t.Fatalf("Expecting a valid bson.ObjectId.")
+	}
+
+	// Attempt to append and update a private key
+	itemStruct3 := artistWithObjectIdKey{
+		Name: "Janus",
+	}
+
+	if _, err = artist.Append(&itemStruct3); err != nil {
+		t.Fatal(err)
+	}
+
+	if itemStruct3.id.Valid() == false {
+		t.Fatalf("Expecting an ID.")
+	}
+
+	var total uint64
+
+	// Counting elements, must be exactly 4 elements.
+	if total, err = artist.Find().Count(); err != nil {
+		t.Fatal(err)
+	}
+
+	if total != 4 {
+		t.Fatalf("Expecting exactly 4 rows.")
 	}
 
 }
@@ -842,7 +876,7 @@ func TestSetterAndConstrainer(t *testing.T) {
 
 	//n := rand.Intn(100000)
 
-	item := ItemWithKey{
+	item := itemWithKey{
 		// 		"ABCDEF",
 		// 		strconv.Itoa(n),
 		SomeVal: "Some value",
@@ -863,9 +897,9 @@ func TestSetterAndConstrainer(t *testing.T) {
 	// 	}
 
 	// Using constraint interface.
-	res := compositeKeys.Find(ItemWithKey{ID: id.(bson.ObjectId)})
+	res := compositeKeys.Find(itemWithKey{ID: id.(bson.ObjectId)})
 
-	var item2 ItemWithKey
+	var item2 itemWithKey
 
 	if item2.SomeVal == item.SomeVal {
 		t.Fatal(`Values must be different before query.`)

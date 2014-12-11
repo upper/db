@@ -34,7 +34,7 @@ import (
 
 	"menteslibres.net/gosexy/to"
 	//"reflect"
-	"errors"
+	//"errors"
 	"math/rand"
 	"strings"
 	"testing"
@@ -78,25 +78,27 @@ type testValuesStruct struct {
 	Time  time.Duration `field:"_time"`
 }
 
-type ItemWithKey struct {
+type itemWithKey struct {
 	ID      int64  `db:",omitempty"`
 	SomeVal string `db:"some_val"`
 }
 
-func (item ItemWithKey) Constraint() db.Cond {
+func (item itemWithKey) Constraint() db.Cond {
 	cond := db.Cond{
 		"id()": item.ID,
 	}
 	return cond
 }
 
-func (item *ItemWithKey) SetID(keys map[string]interface{}) error {
+/*
+func (item *itemWithKey) SetID(keys map[string]interface{}) error {
 	if len(keys) == 1 {
 		item.ID = keys["id"].(int64)
 		return nil
 	}
 	return errors.New(`Expecting exactly two keys.`)
 }
+*/
 
 var testValues testValuesStruct
 
@@ -1161,7 +1163,7 @@ func TestCompositeKeys(t *testing.T) {
 
 	//n := rand.Intn(100000)
 
-	item := ItemWithKey{
+	item := itemWithKey{
 		// 		"ABCDEF",
 		// 		strconv.Itoa(n),
 		0,
@@ -1183,9 +1185,9 @@ func TestCompositeKeys(t *testing.T) {
 	// 	}
 
 	// Using constraint interface.
-	res := compositeKeys.Find(ItemWithKey{ID: id.(int64)})
+	res := compositeKeys.Find(itemWithKey{ID: id.(int64)})
 
-	var item2 ItemWithKey
+	var item2 itemWithKey
 
 	if item2.SomeVal == item.SomeVal {
 		t.Fatal(`Values must be different before query.`)

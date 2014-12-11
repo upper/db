@@ -274,15 +274,26 @@ func (c *table) Append(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	// Backwards compatibility.
+	// We have a single key.
 	if len(pKey) <= 1 {
-		// Attempt to use LastInsertId() (probably won't work, but the exec()
-		// succeeded, so the error from LastInsertId() is ignored).
-		lastId, _ := res.LastInsertId()
-		return lastId, nil
+		// Attempt to use LastInsertId() to get our ID.
+		id, _ := res.LastInsertId()
+		if id > 0 {
+			if setter, ok := item.(db.Int64IDSetter); ok {
+				if err := setter.SetID(id); err != nil {
+					return nil, err
+				}
+			}
+			if setter, ok := item.(db.Uint64IDSetter); ok {
+				if err := setter.SetID(uint64(id)); err != nil {
+					return nil, err
+				}
+			}
+		}
+		return id, nil
 	}
 
-	// There is no "RETURNING" in MySQL, so we have to return the values that
+	// There is no "RETURNING" in SQLite, so we have to return the values that
 	// were given for constructing the composite key.
 	keyMap := make(map[string]interface{})
 

@@ -85,13 +85,23 @@ type testValuesStruct struct {
 	Time  time.Duration `field:"_time"`
 }
 
-type ItemWithKey struct {
+type artistWithInt64Key struct {
+	id   int64
+	Name string `db:"name"`
+}
+
+func (artist *artistWithInt64Key) SetID(id int64) error {
+	artist.id = id
+	return nil
+}
+
+type itemWithKey struct {
 	Code    string `db:"code"`
 	UserID  string `db:"user_id"`
 	SomeVal string `db:"some_val"`
 }
 
-func (item ItemWithKey) Constraint() db.Cond {
+func (item itemWithKey) Constraint() db.Cond {
 	cond := db.Cond{
 		"code":    item.Code,
 		"user_id": item.UserID,
@@ -99,7 +109,7 @@ func (item ItemWithKey) Constraint() db.Cond {
 	return cond
 }
 
-func (item *ItemWithKey) SetID(keys map[string]interface{}) error {
+func (item *itemWithKey) SetID(keys map[string]interface{}) error {
 	if len(keys) == 2 {
 		item.Code = keys["code"].(string)
 		item.UserID = keys["user_id"].(string)
@@ -330,7 +340,7 @@ func TestAppend(t *testing.T) {
 		t.Fatalf("Expecting an ID.")
 	}
 
-	// Append to append a tagged struct.
+	// Attempt to append a tagged struct.
 	itemStruct2 := struct {
 		ArtistName string `db:"name"`
 	}{
@@ -345,13 +355,26 @@ func TestAppend(t *testing.T) {
 		t.Fatalf("Expecting an ID.")
 	}
 
-	// Counting elements, must be exactly 3 elements.
+	// Attempt to append and update a private key
+	itemStruct3 := artistWithInt64Key{
+		Name: "Janus",
+	}
+
+	if _, err = artist.Append(&itemStruct3); err != nil {
+		t.Fatal(err)
+	}
+
+	if itemStruct3.id == 0 {
+		t.Fatalf("Expecting an ID.")
+	}
+
+	// Counting elements, must be exactly 4 elements.
 	if total, err = artist.Find().Count(); err != nil {
 		t.Fatal(err)
 	}
 
-	if total != 3 {
-		t.Fatalf("Expecting exactly 3 rows.")
+	if total != 4 {
+		t.Fatalf("Expecting exactly 4 rows.")
 	}
 
 }
@@ -642,8 +665,8 @@ func TestResultFetch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(allRowsMap) != 3 {
-		t.Fatalf("Expecting 3 items.")
+	if len(allRowsMap) != 4 {
+		t.Fatalf("Expecting 4 items.")
 	}
 
 	for _, singleRowMap := range allRowsMap {
@@ -664,8 +687,8 @@ func TestResultFetch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(allRowsStruct) != 3 {
-		t.Fatalf("Expecting 3 items.")
+	if len(allRowsStruct) != 4 {
+		t.Fatalf("Expecting 4 items.")
 	}
 
 	for _, singleRowStruct := range allRowsStruct {
@@ -686,8 +709,8 @@ func TestResultFetch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(allRowsStruct2) != 3 {
-		t.Fatalf("Expecting 3 items.")
+	if len(allRowsStruct2) != 4 {
+		t.Fatalf("Expecting 4 items.")
 	}
 
 	for _, singleRowStruct2 := range allRowsStruct2 {
@@ -818,8 +841,8 @@ func TestFunction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if total != 3 {
-		t.Fatalf("Expecting 3 items.")
+	if total != 4 {
+		t.Fatalf("Expecting 4 items.")
 	}
 
 	// Testing conditions
@@ -833,8 +856,8 @@ func TestFunction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if total != 3 {
-		t.Fatalf("Expecting 3 items.")
+	if total != 4 {
+		t.Fatalf("Expecting 4 items.")
 	}
 
 	// Testing DISTINCT (function)
@@ -850,8 +873,8 @@ func TestFunction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if total != 3 {
-		t.Fatalf("Expecting 3 items.")
+	if total != 4 {
+		t.Fatalf("Expecting 4 items.")
 	}
 
 	// Testing DISTINCT (raw)
@@ -867,8 +890,8 @@ func TestFunction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if total != 3 {
-		t.Fatalf("Expecting 3 items.")
+	if total != 4 {
+		t.Fatalf("Expecting 4 items.")
 	}
 
 	res.Close()
@@ -1294,7 +1317,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	}
 
 	if count != 3 {
-		t.Fatalf("Expecting only one element.")
+		t.Fatalf("Expecting 3 elements.")
 	}
 
 }
@@ -1317,7 +1340,7 @@ func TestCompositeKeys(t *testing.T) {
 
 	n := rand.Intn(100000)
 
-	item := ItemWithKey{
+	item := itemWithKey{
 		"ABCDEF",
 		strconv.Itoa(n),
 		"Some value",
@@ -1329,7 +1352,7 @@ func TestCompositeKeys(t *testing.T) {
 
 	// Using constraint interface.
 
-	var item2 ItemWithKey
+	var item2 itemWithKey
 
 	if item2.SomeVal == item.SomeVal {
 		t.Fatal(`Values must be different before query.`)

@@ -25,7 +25,6 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
@@ -270,9 +269,10 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		Values:  values,
 	}
 
+	// No primary keys defined.
 	if len(pKey) == 0 {
-		// No primary key found.
 		var res sql.Result
+
 		if res, err = t.source.doExec(stmt, arguments...); err != nil {
 			return nil, err
 		}
@@ -305,13 +305,33 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		return nil, nil
 	}
 
-	// Backwards compatibility (int64).
+	// The IDSetter interface does not match, we'll be looking for another
+	// interface match.
 	if len(keyMap) == 1 {
-		if numericId, err := strconv.Atoi(keyMap[pKey[0]].(string)); err == nil {
-			return int64(numericId), nil
+
+		id := keyMap[pKey[0]]
+
+		// Matches db.Int64IDSetter
+		if setter, ok := item.(db.Int64IDSetter); ok {
+			if err = setter.SetID(to.Int64(id)); err != nil {
+				return nil, err
+			}
+			return nil, nil
 		}
+
+		// Matches db.Uint64IDSetter
+		if setter, ok := item.(db.Uint64IDSetter); ok {
+			if err = setter.SetID(to.Uint64(id)); err != nil {
+				return nil, err
+			}
+			return nil, nil
+		}
+
+		// No interface matched, falling back to old behaviour.
+		return to.Int64(id), nil
 	}
 
+	// More than one key, no interface matched, let's return a map.
 	return keyMap, nil
 }
 

@@ -341,3 +341,13 @@ type IDSetter interface {
 type Constrainer interface {
 	Constraint() Cond
 }
+
+// Int64IDSetter implements a common pattern for setting int64 IDs.
+type Int64IDSetter interface {
+	SetID(int64) error
+}
+
+// Uint64IDSetter implements a common pattern for setting uint64 IDs.
+type Uint64IDSetter interface {
+	SetID(uint64) error
+}
