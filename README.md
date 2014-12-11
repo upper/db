@@ -1,6 +1,8 @@
 # upper.io/db
 
-<img src="https://upper.io/images/icon.svg" width="128" />
+<center>
+<img src="https://upper.io/images/icon.svg" width="256" />
+</center>
 
 [![Build Status](https://travis-ci.org/upper/db.png)](https://travis-ci.org/upper/db)
 
