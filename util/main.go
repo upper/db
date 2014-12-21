@@ -164,7 +164,7 @@ func StringToType(src string, dstt reflect.Type) (srcv reflect.Value, err error)
 	return srcv, nil
 }
 
-// StringToType converts a string into a kind.
+// StringToKind converts a string into a kind.
 func StringToKind(src string, dstk reflect.Kind) (reflect.Value, error) {
 	var srcv reflect.Value
 
