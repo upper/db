@@ -35,7 +35,7 @@ var (
 	ErrNotConnected            = errors.New(`You're currently not connected.`)
 	ErrMissingDatabaseName     = errors.New(`Missing database name.`)
 	ErrMissingCollectionName   = errors.New(`Missing collection name.`)
-	ErrCollectionDoesNotExist  = errors.New(`Collection does not exists.`)
+	ErrCollectionDoesNotExist  = errors.New(`Collection does not exist.`)
 	ErrSockerOrHost            = errors.New(`You may connect either to a unix socket or a tcp address, but not both.`)
 	ErrQueryLimitParam         = errors.New(`A query can accept only one db.Limit() parameter.`)
 	ErrQuerySortParam          = errors.New(`A query can accept only one db.Sort{} parameter.`)
