@@ -43,9 +43,13 @@ func (c ConnectionURL) String() (s string) {
 		return ""
 	}
 
-	// Does the database have an existing name?
+	// Did the user provided a full database path?
 	if strings.HasPrefix(c.Database, "/") == false {
 		c.Database, _ = filepath.Abs(c.Database)
+		if runtime.GOOS == "windows" {
+			// Closes https://github.com/upper/db/issues/60
+			c.Database = "/" + strings.Replace(c.Database, `\`, `/`, -1)
+		}
 	}
 
 	// Do we have any options?
