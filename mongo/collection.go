@@ -323,7 +323,9 @@ func getId(item interface{}) bson.ObjectId {
 
 				if parts[0] == "_id" {
 					fieldName = field.Name
+					fieldCacheMutex.RLock()
 					fieldCache[t] = fieldName
+					fieldCacheMutex.RUnlock()
 					break
 				}
 			}
