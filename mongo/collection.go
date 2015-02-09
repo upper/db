@@ -277,9 +277,9 @@ func toNative(val interface{}) interface{} {
 
 // Fetches object _id or generates a new one if object doesn't have one or the one it has is invalid
 func getId(item interface{}) bson.ObjectId {
-	i := reflect.TypeOf(item)
+	v := reflect.ValueOf(item)
 
-	switch i.Kind() {
+	switch v.Kind() {
 	case reflect.Map:
 		if inItem, ok := item.(map[string]interface{}); ok {
 			if id, ok := inItem["_id"]; ok {
@@ -290,8 +290,9 @@ func getId(item interface{}) bson.ObjectId {
 			}
 		}
 	case reflect.Struct:
-		for n := 0; n < i.NumField(); n++ {
-			field := i.Field(n)
+		t := v.Type()
+		for n := 0; n < t.NumField(); n++ {
+			field := t.Field(n)
 			if field.PkgPath != "" {
 				continue // Private field
 			}
@@ -308,8 +309,7 @@ func getId(item interface{}) bson.ObjectId {
 			parts := strings.Split(tag, ",")
 
 			if parts[0] == "_id" {
-				vi := reflect.ValueOf(item)
-				if bsonId, ok := vi.FieldByName(field.Name).Interface().(bson.ObjectId); ok {
+				if bsonId, ok := v.FieldByName(field.Name).Interface().(bson.ObjectId); ok {
 					return bsonId
 				}
 			}
