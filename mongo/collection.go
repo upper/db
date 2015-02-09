@@ -25,6 +25,8 @@ import (
 	"fmt"
 	"strings"
 
+	"reflect"
+
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db"
@@ -203,10 +205,10 @@ func (self *Collection) Truncate() error {
 // Appends an item (map or struct) into the collection.
 func (self *Collection) Append(item interface{}) (interface{}, error) {
 	var err error
-	var id bson.ObjectId
 
-	id = bson.NewObjectId()
+	id := getId(item)
 
+	// this breaks MongoDb older than 2.6
 	if _, err = self.collection.Upsert(bson.M{"_id": id}, item); err != nil {
 		return nil, err
 	}
@@ -272,4 +274,48 @@ func toNative(val interface{}) interface{} {
 
 	return val
 
+}
+
+// Fetches object _id or generates a new one if object doesn't have one or the one it has is invalid
+func getId(item interface{}) bson.ObjectId {
+	i := reflect.TypeOf(item)
+
+	switch i.Kind() {
+	case reflect.Map:
+		if inItem, ok := item.(map[string]interface{}); ok {
+			if id, ok := inItem["_id"]; ok {
+				bsonId, ok := id.(bson.ObjectId)
+				if ok {
+					return bsonId
+				}
+			}
+		}
+	case reflect.Struct:
+		for n := 0; n < i.NumField(); n++ {
+			field := i.Field(n)
+			if field.PkgPath != "" {
+				continue // Private field
+			}
+
+			tag := field.Tag.Get("bson")
+			if tag == "" {
+				tag = field.Tag.Get("db")
+			}
+
+			if tag == "" {
+				continue
+			}
+
+			parts := strings.Split(tag, ",")
+
+			if parts[0] == "_id" {
+				vi := reflect.ValueOf(item)
+				if bsonId, ok := vi.FieldByName(field.Name).Interface().(bson.ObjectId); ok {
+					return bsonId
+				}
+			}
+		}
+	}
+
+	return bson.NewObjectId()
 }
