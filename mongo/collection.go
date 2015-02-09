@@ -226,21 +226,6 @@ func (self *Collection) Append(item interface{}) (interface{}, error) {
 	}
 
 	return id, nil
-
-	/*
-		var id bson.ObjectId
-		var err error
-
-		id = bson.NewObjectId()
-
-		_, err = self.collection.Upsert(bson.M{"_id": id}, item);
-
-		if err != nil {
-			return nil, err
-		}
-
-		return id, nil
-	*/
 }
 
 // Returns true if the collection exists.
