@@ -24,6 +24,7 @@ package mongo
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"reflect"
 
@@ -275,6 +276,12 @@ func toNative(val interface{}) interface{} {
 
 }
 
+var (
+	// fieldCache should be a struct if we're going to cache more than just _id field here
+	fieldCache      = make(map[reflect.Type]string, 0)
+	fieldCacheMutex sync.RWMutex
+)
+
 // Fetches object _id or generates a new one if object doesn't have one or the one it has is invalid
 func getId(item interface{}) bson.ObjectId {
 	v := reflect.ValueOf(item)
@@ -291,27 +298,39 @@ func getId(item interface{}) bson.ObjectId {
 		}
 	case reflect.Struct:
 		t := v.Type()
-		for n := 0; n < t.NumField(); n++ {
-			field := t.Field(n)
-			if field.PkgPath != "" {
-				continue // Private field
-			}
 
-			tag := field.Tag.Get("bson")
-			if tag == "" {
-				tag = field.Tag.Get("db")
-			}
+		fieldCacheMutex.RLock()
+		fieldName, found := fieldCache[t]
+		fieldCacheMutex.RUnlock()
 
-			if tag == "" {
-				continue
-			}
-
-			parts := strings.Split(tag, ",")
-
-			if parts[0] == "_id" {
-				if bsonId, ok := v.FieldByName(field.Name).Interface().(bson.ObjectId); ok {
-					return bsonId
+		if !found {
+			for n := 0; n < t.NumField(); n++ {
+				field := t.Field(n)
+				if field.PkgPath != "" {
+					continue // Private field
 				}
+
+				tag := field.Tag.Get("bson")
+				if tag == "" {
+					tag = field.Tag.Get("db")
+				}
+
+				if tag == "" {
+					continue
+				}
+
+				parts := strings.Split(tag, ",")
+
+				if parts[0] == "_id" {
+					fieldName = field.Name
+					fieldCache[t] = fieldName
+					break
+				}
+			}
+		}
+		if fieldName != "" {
+			if bsonId, ok := v.FieldByName(fieldName).Interface().(bson.ObjectId); ok {
+				return bsonId
 			}
 		}
 	}
