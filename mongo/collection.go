@@ -207,7 +207,6 @@ func (self *Collection) Append(item interface{}) (interface{}, error) {
 	var err error
 
 	id := getId(item)
-
 	// this breaks MongoDb older than 2.6
 	if _, err = self.collection.Upsert(bson.M{"_id": id}, item); err != nil {
 		return nil, err
