@@ -209,12 +209,7 @@ func (self *Collection) Append(item interface{}) (interface{}, error) {
 
 	id := getId(item)
 
-	buildInfo, err := self.collection.Database.Session.BuildInfo()
-	if err != nil {
-		return nil, err
-	}
-
-	if buildInfo.VersionAtLeast(2, 6, 0, 0) {
+	if self.parent.VersionAtLeast(2, 6, 0, 0) {
 		// this breaks MongoDb older than 2.6
 		if _, err = self.collection.Upsert(bson.M{"_id": id}, item); err != nil {
 			return nil, err

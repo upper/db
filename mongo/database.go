@@ -41,6 +41,7 @@ type Source struct {
 	connURL  db.ConnectionURL
 	session  *mgo.Session
 	database *mgo.Database
+	version  []int
 }
 
 func debugEnabled() bool {
@@ -75,6 +76,7 @@ func (s *Source) Clone() (db.Database, error) {
 		connURL:  s.connURL,
 		session:  s.session.Copy(),
 		database: s.database,
+		version:  s.version,
 	}
 	return clone, nil
 }
@@ -200,4 +202,29 @@ func (s *Source) Collection(names ...string) (db.Collection, error) {
 	}
 
 	return col, err
+}
+
+func (s *Source) VersionAtLeast(version ...int) bool {
+	// only fetch this once - it makes a db call
+	if len(s.version) == 0 {
+		buildInfo, err := s.database.Session.BuildInfo()
+		if err != nil {
+			return false
+		}
+		s.version = buildInfo.VersionArray
+	}
+
+	for i := range version {
+		if i == len(s.version) {
+			return false
+		}
+		if s.version[i] < version[i] {
+			return false
+		}
+
+		if s.version[i] > version[i] {
+			return true
+		}
+	}
+	return true
 }
