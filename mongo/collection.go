@@ -208,9 +208,27 @@ func (self *Collection) Append(item interface{}) (interface{}, error) {
 	var err error
 
 	id := getId(item)
-	// this breaks MongoDb older than 2.6
-	if _, err = self.collection.Upsert(bson.M{"_id": id}, item); err != nil {
+
+	buildInfo, err := self.collection.Database.Session.BuildInfo()
+	if err != nil {
 		return nil, err
+	}
+
+	if buildInfo.VersionAtLeast(2, 6, 0, 0) {
+		// this breaks MongoDb older than 2.6
+		if _, err = self.collection.Upsert(bson.M{"_id": id}, item); err != nil {
+			return nil, err
+		}
+	} else {
+		// Allocating a new ID.
+		if err = self.collection.Insert(bson.M{"_id": id}); err != nil {
+			return nil, err
+		}
+
+		// Now append data the user wants to append.
+		if err = self.collection.Update(bson.M{"_id": id}, item); err != nil {
+			return nil, err
+		}
 	}
 
 	// Does the item satisfy the db.ID interface?
