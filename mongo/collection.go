@@ -292,9 +292,9 @@ func toNative(val interface{}) interface{} {
 }
 
 var (
-	// fieldCache should be a struct if we're going to cache more than just _id field here
-	fieldCache      = make(map[reflect.Type]string, 0)
-	fieldCacheMutex sync.RWMutex
+	// idCache should be a struct if we're going to cache more than just _id field here
+	idCache      = make(map[reflect.Type]string, 0)
+	idCacheMutex sync.RWMutex
 )
 
 // Fetches object _id or generates a new one if object doesn't have one or the one it has is invalid
@@ -314,9 +314,9 @@ func getId(item interface{}) bson.ObjectId {
 	case reflect.Struct:
 		t := v.Type()
 
-		fieldCacheMutex.RLock()
-		fieldName, found := fieldCache[t]
-		fieldCacheMutex.RUnlock()
+		idCacheMutex.RLock()
+		fieldName, found := idCache[t]
+		idCacheMutex.RUnlock()
 
 		if !found {
 			for n := 0; n < t.NumField(); n++ {
@@ -338,9 +338,9 @@ func getId(item interface{}) bson.ObjectId {
 
 				if parts[0] == "_id" {
 					fieldName = field.Name
-					fieldCacheMutex.RLock()
-					fieldCache[t] = fieldName
-					fieldCacheMutex.RUnlock()
+					idCacheMutex.RLock()
+					idCache[t] = fieldName
+					idCacheMutex.RUnlock()
 					break
 				}
 			}
