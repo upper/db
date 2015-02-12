@@ -347,7 +347,9 @@ func getId(item interface{}) bson.ObjectId {
 		}
 		if fieldName != "" {
 			if bsonId, ok := v.FieldByName(fieldName).Interface().(bson.ObjectId); ok {
-				return bsonId
+				if bsonId.Valid() {
+					return bsonId
+				}
 			}
 		}
 	}
