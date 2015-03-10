@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+// Copyright (c) 2012-2015 José Carlos Nieto, https://menteslibres.net/xiam
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -26,8 +26,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	"menteslibres.net/gosexy/to"
 )
 
 var reColumnCompareExclude = regexp.MustCompile(`[^a-zA-Z0-9]`)
@@ -77,16 +75,6 @@ func GetStructFieldIndex(t reflect.Type, columnName string) []int {
 		// Attempt to use db:`column_name`
 		fieldName, fieldOptions := ParseTag(field.Tag.Get(`db`))
 
-		// Deprecated `field` tag.
-		if deprecatedField := field.Tag.Get(`field`); deprecatedField != `` {
-			fieldName = deprecatedField
-		}
-
-		// Deprecated `inline` tag.
-		if deprecatedInline := field.Tag.Get(`inline`); deprecatedInline != `` {
-			fieldOptions[`inline`] = true
-		}
-
 		// Skipping field
 		if fieldName == `-` {
 			continue
@@ -94,25 +82,9 @@ func GetStructFieldIndex(t reflect.Type, columnName string) []int {
 
 		// Trying to match field name.
 
-		// Explicit JSON or BSON options.
-		if fieldName == `` && fieldOptions[`bson`] {
-			// Using name from the BSON tag.
-			fieldName, _ = ParseTag(field.Tag.Get(`bson`))
-		}
-
-		if fieldName == `` && fieldOptions[`bson`] {
-			// Using name from the JSON tag.
-			fieldName, _ = ParseTag(field.Tag.Get(`bson`))
-		}
-
 		// Still don't have a match? try to match againt JSON.
 		if fieldName == `` {
 			fieldName, _ = ParseTag(field.Tag.Get(`json`))
-		}
-
-		// Still don't have a match? try to match againt BSON.
-		if fieldName == `` {
-			fieldName, _ = ParseTag(field.Tag.Get(`bson`))
 		}
 
 		// Attempt to match field name.
@@ -138,50 +110,6 @@ func GetStructFieldIndex(t reflect.Type, columnName string) []int {
 	}
 	// No match.
 	return nil
-}
-
-// StringToType converts a string value into another type.
-func StringToType(src string, dstt reflect.Type) (srcv reflect.Value, err error) {
-
-	// Is destination a pointer?
-	if dstt.Kind() == reflect.Ptr {
-		if src == "" {
-			return
-		}
-	}
-
-	switch dstt {
-	case durationType:
-		srcv = reflect.ValueOf(to.Duration(src))
-	case timeType:
-		srcv = reflect.ValueOf(to.Time(src))
-	case ptimeType:
-		t := to.Time(src)
-		srcv = reflect.ValueOf(&t)
-	default:
-		return StringToKind(src, dstt.Kind())
-	}
-	return srcv, nil
-}
-
-// StringToKind converts a string into a kind.
-func StringToKind(src string, dstk reflect.Kind) (reflect.Value, error) {
-	var srcv reflect.Value
-
-	// Destination type.
-	switch dstk {
-	case reflect.Interface:
-		// Destination is interface, nuff said.
-		srcv = reflect.ValueOf(src)
-	default:
-		cv, err := to.Convert(src, dstk)
-		if err != nil {
-			return srcv, nil
-		}
-		srcv = reflect.ValueOf(cv)
-	}
-
-	return srcv, nil
 }
 
 // NormalizeColumn prepares a column for comparison against another column.

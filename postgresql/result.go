@@ -22,10 +22,10 @@
 package postgresql
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 
+	"github.com/jmoiron/sqlx"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
@@ -37,7 +37,7 @@ type counter struct {
 
 type result struct {
 	table     *table
-	cursor    *sql.Rows // This is the main query cursor. It starts as a nil value.
+	cursor    *sqlx.Rows // This is the main query cursor. It starts as a nil value.
 	limit     sqlgen.Limit
 	offset    sqlgen.Offset
 	columns   sqlgen.Columns
@@ -224,8 +224,7 @@ func (r *result) Next(dst interface{}) error {
 		return err
 	}
 
-	err = sqlutil.FetchRow(r.cursor, dst)
-	if err != nil {
+	if err := sqlutil.FetchRow(r.cursor, dst); err != nil {
 		r.Close()
 		return err
 	}
@@ -249,7 +248,10 @@ func (r *result) Remove() error {
 // struct.
 func (r *result) Update(values interface{}) error {
 
-	ff, vv, err := r.table.FieldValues(values, toInternal)
+	ff, vv, err := r.table.FieldValues(values)
+	if err != nil {
+		return err
+	}
 
 	total := len(ff)
 
@@ -285,7 +287,7 @@ func (r *result) Close() error {
 func (r *result) Count() (uint64, error) {
 	var count counter
 
-	rows, err := r.table.source.doQuery(sqlgen.Statement{
+	row, err := r.table.source.doQueryRow(sqlgen.Statement{
 		Type:  sqlgen.SqlSelectCount,
 		Table: sqlgen.Table{r.table.Name()},
 		Where: r.where,
@@ -295,9 +297,8 @@ func (r *result) Count() (uint64, error) {
 		return 0, err
 	}
 
-	defer rows.Close()
-
-	if err = sqlutil.FetchRow(rows, &count); err != nil {
+	err = row.Scan(&count.Total)
+	if err != nil {
 		return 0, err
 	}
 

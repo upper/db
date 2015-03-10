@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+// Copyright (c) 2012-2015 José Carlos Nieto, https://menteslibres.net/xiam
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -28,7 +28,6 @@ import (
 )
 
 func TestConnectionURL(t *testing.T) {
-
 	c := ConnectionURL{}
 
 	// Default connection string is empty.
@@ -79,7 +78,6 @@ func TestConnectionURL(t *testing.T) {
 	if c.String() != `user=Anakin password=Some\ Sort\ of\ \'\ Password host=localhost port=1234 dbname=MyDatabase sslmode=verify-full` {
 		t.Fatal(`Test failed, got:`, c.String())
 	}
-
 }
 
 func TestParseConnectionURL(t *testing.T) {
@@ -158,5 +156,4 @@ func TestParseConnectionURL(t *testing.T) {
 	if u.Options["sslmode"] != "verify-full" {
 		t.Fatal("Failed to parse SSLMode.")
 	}
-
 }

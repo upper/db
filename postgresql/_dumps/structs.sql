@@ -41,10 +41,10 @@ CREATE TABLE data_types (
   _float64 numeric(10,6),
   _bool boolean,
   _string text,
-  _date timestamp without time zone,
+  _date timestamp with time zone,
   _nildate timestamp without time zone null,
   _ptrdate timestamp without time zone,
-  _time time without time zone
+  _time bigint
 );
 
 DROP TABLE IF EXISTS stats_test;

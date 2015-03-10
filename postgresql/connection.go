@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+// Copyright (c) 2012-2015 José Carlos Nieto, https://menteslibres.net/xiam
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -27,7 +27,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/xiam/gopostgresql"
+	"github.com/lib/pq"
 	"upper.io/db"
 )
 
@@ -91,7 +91,6 @@ type ConnectionURL struct {
 var escaper = strings.NewReplacer(` `, `\ `, `'`, `\'`, `\`, `\\`)
 
 func (c ConnectionURL) String() (s string) {
-
 	u := make([]string, 0, 6)
 
 	// TODO: This surely needs some sort of escaping.
@@ -127,7 +126,7 @@ func (c ConnectionURL) String() (s string) {
 		c.Options = map[string]string{}
 	}
 
-	// If not present, SSL mode is asumed disabled.
+	// If not present, SSL mode is assumed disabled.
 	if sslMode, ok := c.Options["sslmode"]; !ok || sslMode == "" {
 		c.Options["sslmode"] = "disable"
 	}
