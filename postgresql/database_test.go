@@ -77,6 +77,7 @@ type testValuesStruct struct {
 	Date  time.Time  `db:"_date"`
 	DateN *time.Time `db:"_nildate"`
 	DateP *time.Time `db:"_ptrdate"`
+	DateD *time.Time `db:"_defaultdate,omitempty"`
 	Time  int64      `db:"_time"`
 }
 
@@ -134,6 +135,7 @@ func init() {
 		t,
 		nil,
 		&tnz,
+		nil,
 		int64(time.Second * time.Duration(7331)),
 	}
 
@@ -1505,6 +1507,8 @@ func TestCompositeKeys(t *testing.T) {
 // then it tries to get the stored datatypes and check if the stored and the
 // original values match.
 func TestDataTypes(t *testing.T) {
+	// os.Setenv(db.EnvEnableDebug, "TRUE")
+
 	var res db.Result
 	var sess db.Database
 	var dataTypes db.Collection
@@ -1551,6 +1555,12 @@ func TestDataTypes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	if item.DateD == nil {
+		t.Fatal("Expecting default date to have been set on append")
+	}
+	// Copy the default date
+	testValues.DateD = item.DateD
 
 	// The original value and the test subject must match.
 	if reflect.DeepEqual(item, testValues) == false {

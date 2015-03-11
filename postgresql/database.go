@@ -530,7 +530,7 @@ func (s *source) tableColumns(tableName string) ([]string, error) {
 		return nil, err
 	}
 
-	defer rows.Close() // TODO: necessary? or leave it up to FetchRows?
+	defer rows.Close()
 
 	tableFields := []columnSchemaT{}
 

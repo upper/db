@@ -22,19 +22,11 @@
 package util
 
 import (
-	"reflect"
 	"regexp"
 	"strings"
-	"time"
 )
 
 var reColumnCompareExclude = regexp.MustCompile(`[^a-zA-Z0-9]`)
-
-var (
-	durationType = reflect.TypeOf(time.Duration(0))
-	timeType     = reflect.TypeOf(time.Time{})
-	ptimeType    = reflect.TypeOf(&time.Time{})
-)
 
 type tagOptions map[string]bool
 
@@ -55,61 +47,6 @@ func ParseTag(tag string) (string, tagOptions) {
 		return tag[:i], parseTagOptions(tag[i+1:])
 	}
 	return tag, parseTagOptions(``)
-}
-
-// GetStructFieldIndex returns the struct field index for a given column name
-// or nil, if no column matches.
-func GetStructFieldIndex(t reflect.Type, columnName string) []int {
-
-	n := t.NumField()
-
-	for i := 0; i < n; i++ {
-
-		field := t.Field(i)
-
-		if field.PkgPath != `` {
-			// Field is unexported.
-			continue
-		}
-
-		// Attempt to use db:`column_name`
-		fieldName, fieldOptions := ParseTag(field.Tag.Get(`db`))
-
-		// Skipping field
-		if fieldName == `-` {
-			continue
-		}
-
-		// Trying to match field name.
-
-		// Still don't have a match? try to match againt JSON.
-		if fieldName == `` {
-			fieldName, _ = ParseTag(field.Tag.Get(`json`))
-		}
-
-		// Attempt to match field name.
-		if fieldName == columnName {
-			return []int{i}
-		}
-
-		// Nothing works, trying to match by name.
-		if fieldName == `` {
-			if NormalizeColumn(field.Name) == NormalizeColumn(columnName) {
-				return []int{i}
-			}
-		}
-
-		// Inline option.
-		if fieldOptions[`inline`] == true {
-			index := GetStructFieldIndex(field.Type, columnName)
-			if index != nil {
-				res := append([]int{i}, index...)
-				return res
-			}
-		}
-	}
-	// No match.
-	return nil
 }
 
 // NormalizeColumn prepares a column for comparison against another column.

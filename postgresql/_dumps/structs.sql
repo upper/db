@@ -44,6 +44,7 @@ CREATE TABLE data_types (
   _date timestamp with time zone,
   _nildate timestamp without time zone null,
   _ptrdate timestamp without time zone,
+  _defaultdate timestamp without time zone DEFAULT now(),
   _time bigint
 );
 
