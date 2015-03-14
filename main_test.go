@@ -24,8 +24,8 @@ package db_test
 import (
 	"database/sql"
 	"errors"
-	"flag"
 	"log"
+	"os"
 	"reflect"
 	"strconv"
 	"testing"
@@ -35,24 +35,24 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db"
 	_ "upper.io/db/mongo"
-	_ "upper.io/db/mysql"
+	//_ "upper.io/db/mysql"	// Disabled temporarily.
 	_ "upper.io/db/postgresql"
 	// Temporary removing QL. It includes a _solaris.go file that produces
 	// compile time errors on < go1.3.
 	// _ "upper.io/db/ql"
-	_ "upper.io/db/sqlite"
+	//_ "upper.io/db/sqlite" // Disabled temporarily.
 )
 
 var wrappers = []string{
-	`sqlite`,
-	`mysql`,
+	//`sqlite`,
+	//`mysql`,
 	`postgresql`,
 	`mongo`,
 	// `ql`,
 }
 
 const (
-	TestAllWrappers = `all`
+	testAllWrappers = `all`
 )
 
 var (
@@ -63,13 +63,19 @@ var settings map[string]*db.Settings
 
 func init() {
 
-	// Getting host from the environment.
-	host := flag.String("host", "testserver.local", "Testing server address.")
-	wrapper := flag.String("wrapper", "all", "Wrappers to test.")
+	// Getting settings from the environment.
 
-	flag.Parse()
+	var host string
+	if host = os.Getenv("TEST_HOST"); host == "" {
+		host = "localhost"
+	}
 
-	log.Printf("Running tests against host %s.\n", *host)
+	var wrapper string
+	if wrapper = os.Getenv("TEST_WRAPPER"); wrapper == "" {
+		wrapper = testAllWrappers
+	}
+
+	log.Printf("Running tests against host %s.\n", host)
 
 	settings = map[string]*db.Settings{
 		`sqlite`: &db.Settings{
@@ -77,19 +83,19 @@ func init() {
 		},
 		`mongo`: &db.Settings{
 			Database: `upperio_tests`,
-			Host:     *host,
+			Host:     host,
 			User:     `upperio`,
 			Password: `upperio`,
 		},
 		`mysql`: &db.Settings{
 			Database: `upperio_tests`,
-			Host:     *host,
+			Host:     host,
 			User:     `upperio`,
 			Password: `upperio`,
 		},
 		`postgresql`: &db.Settings{
 			Database: `upperio_tests`,
-			Host:     *host,
+			Host:     host,
 			User:     `upperio`,
 			Password: `upperio`,
 		},
@@ -98,9 +104,9 @@ func init() {
 		},
 	}
 
-	if *wrapper != TestAllWrappers {
-		wrappers = []string{*wrapper}
-		log.Printf("Testing wrapper %s.", *wrapper)
+	if wrapper != testAllWrappers {
+		wrappers = []string{wrapper}
+		log.Printf("Testing wrapper %s.", wrapper)
 	}
 
 }
@@ -1010,8 +1016,6 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 			}
 
 			defer sess.Close()
-
-			col, err = sess.Collection("Case_Test")
 
 			if col, err = sess.Collection("CaSe_TesT"); err != nil {
 				if wrapper == `mongo` && err == db.ErrCollectionDoesNotExist {
