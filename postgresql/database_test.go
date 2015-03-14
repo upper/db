@@ -24,7 +24,7 @@ package postgresql
 import (
 	"database/sql"
 	"errors"
-	"flag"
+	"fmt"
 	"os"
 	"reflect"
 	"strconv"
@@ -52,7 +52,7 @@ var settings = ConnectionURL{
 	Password: password,
 }
 
-var host = flag.String("host", "localhost", "Testing server address.")
+var host string
 
 // Structure for testing conversions and datatypes.
 type testValuesStruct struct {
@@ -122,8 +122,13 @@ func (item *itemWithKey) SetID(keys map[string]interface{}) error {
 var testValues testValuesStruct
 
 func init() {
-	loc, _ := time.LoadLocation("Canada/Eastern")
-	t := time.Date(2012, 7, 28, 1, 2, 3, 0, loc)                     // timestamp with time zone
+	loc, err := time.LoadLocation("Canada/Eastern")
+
+	if err != nil {
+		panic(err.Error())
+	}
+
+	t := time.Date(2011, 7, 28, 1, 2, 3, 0, loc)                     // timestamp with time zone
 	tnz := time.Date(2012, 7, 28, 1, 2, 3, 0, time.FixedZone("", 0)) // timestamp without time zone
 
 	testValues = testValuesStruct{
@@ -139,8 +144,11 @@ func init() {
 		int64(time.Second * time.Duration(7331)),
 	}
 
-	flag.Parse()
-	settings.Address = db.ParseAddress(*host)
+	if host = os.Getenv("TEST_HOST"); host == "" {
+		host = "localhost"
+	}
+
+	settings.Address = db.ParseAddress(host)
 }
 
 // Logging some information to stdout (like the SQL query and its
@@ -168,7 +176,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	// Attempt to open with safe settings.
 	rightSettings = db.Settings{
 		Database: database,
-		Host:     *host,
+		Host:     host,
 		User:     username,
 		Password: password,
 	}
@@ -182,7 +190,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	// Attempt to open with wrong password.
 	wrongSettings = db.Settings{
 		Database: database,
-		Host:     *host,
+		Host:     host,
 		User:     username,
 		Password: "fail",
 	}
@@ -194,7 +202,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	// Attempt to open with wrong database.
 	wrongSettings = db.Settings{
 		Database: "fail",
-		Host:     *host,
+		Host:     host,
 		User:     username,
 		Password: password,
 	}
@@ -206,7 +214,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	// Attempt to open with wrong username.
 	wrongSettings = db.Settings{
 		Database: database,
-		Host:     *host,
+		Host:     host,
 		User:     "fail",
 		Password: password,
 	}
@@ -225,7 +233,7 @@ func TestOldSettings(t *testing.T) {
 		Database: database,
 		User:     username,
 		Password: password,
-		Host:     *host,
+		Host:     host,
 	}
 
 	// Opening database.
@@ -1551,19 +1559,21 @@ func TestDataTypes(t *testing.T) {
 	// Trying to dump the subject into an empty structure of the same type.
 	var item testValuesStruct
 
-	err = res.One(&item)
-	if err != nil {
+	if err = res.One(&item); err != nil {
 		t.Fatal(err)
 	}
 
 	if item.DateD == nil {
 		t.Fatal("Expecting default date to have been set on append")
 	}
-	// Copy the default date
+
+	// Copy the default date (this value is set by the database)
 	testValues.DateD = item.DateD
 
 	// The original value and the test subject must match.
 	if reflect.DeepEqual(item, testValues) == false {
+		fmt.Printf("item1: %v\n", item)
+		fmt.Printf("test2: %v\n", testValues)
 		t.Fatalf("Struct is different.")
 	}
 }

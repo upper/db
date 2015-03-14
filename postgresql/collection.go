@@ -28,7 +28,6 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
-	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
@@ -162,7 +161,7 @@ func conditionValues(cond db.Cond) (columnValues sqlgen.ColumnValues, args []int
 			l := len(v)
 			if v == nil || l == 0 {
 				// Nil value given.
-				columnValue.Value = sqlgen.Value{sqlgen.Raw{`NULL`}}
+				columnValue.Value = sqlgen.Value{sqlgen.Raw{psqlNull}}
 			} else {
 				if l > 1 {
 					// Array value given.
@@ -238,6 +237,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 	arguments = make([]interface{}, 0, len(vals))
 	values = make(sqlgen.Values, 0, len(vals))
+
 	for i := range vals {
 		switch v := vals[i].(type) {
 		case sqlgen.Value:
@@ -304,15 +304,13 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		return nil, nil
 	}
 
-	// The IDSetter interface does not match, we'll be looking for another
-	// interface match.
+	// The IDSetter interface does not match, look for another interface match.
 	if len(keyMap) == 1 {
-
 		id := keyMap[pKey[0]]
 
 		// Matches db.Int64IDSetter
 		if setter, ok := item.(db.Int64IDSetter); ok {
-			if err = setter.SetID(to.Int64(id)); err != nil {
+			if err = setter.SetID(id.(int64)); err != nil {
 				return nil, err
 			}
 			return nil, nil
@@ -320,14 +318,14 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 		// Matches db.Uint64IDSetter
 		if setter, ok := item.(db.Uint64IDSetter); ok {
-			if err = setter.SetID(to.Uint64(id)); err != nil {
+			if err = setter.SetID(uint64(id.(int64))); err != nil {
 				return nil, err
 			}
 			return nil, nil
 		}
 
 		// No interface matched, falling back to old behaviour.
-		return to.Int64(id), nil
+		return id.(int64), nil
 	}
 
 	// More than one key, no interface matched, let's return a map.

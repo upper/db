@@ -92,6 +92,7 @@ func (r *result) Group(fields ...interface{}) db.Result {
 	groupByColumns := make(sqlgen.GroupBy, 0, len(fields))
 
 	l := len(fields)
+
 	for i := 0; i < l; i++ {
 		switch value := fields[i].(type) {
 		// Maybe other types?
@@ -217,14 +218,14 @@ func (r *result) One(dst interface{}) error {
 }
 
 // Fetches the next result from the resultset.
-func (r *result) Next(dst interface{}) error {
-	err := r.setCursor()
-	if err != nil {
+func (r *result) Next(dst interface{}) (err error) {
+
+	if err = r.setCursor(); err != nil {
 		r.Close()
 		return err
 	}
 
-	if err := sqlutil.FetchRow(r.cursor, dst); err != nil {
+	if err = sqlutil.FetchRow(r.cursor, dst); err != nil {
 		r.Close()
 		return err
 	}
@@ -235,11 +236,13 @@ func (r *result) Next(dst interface{}) error {
 // Removes the matching items from the collection.
 func (r *result) Remove() error {
 	var err error
+
 	_, err = r.table.source.doExec(sqlgen.Statement{
 		Type:  sqlgen.SqlDelete,
 		Table: sqlgen.Table{r.table.Name()},
 		Where: r.where,
 	}, r.arguments...)
+
 	return err
 
 }
@@ -274,8 +277,7 @@ func (r *result) Update(values interface{}) error {
 }
 
 // Closes the result set.
-func (r *result) Close() error {
-	var err error
+func (r *result) Close() (err error) {
 	if r.cursor != nil {
 		err = r.cursor.Close()
 		r.cursor = nil
