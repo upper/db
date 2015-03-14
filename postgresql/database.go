@@ -31,7 +31,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
-	_ "github.com/lib/pq"
+	_ "github.com/lib/pq" // PostgreSQL driver.
 	"upper.io/cache"
 	"upper.io/db"
 	"upper.io/db/util/schema"
@@ -121,13 +121,12 @@ func (s *source) Open() error {
 }
 
 // Return a struct tag mapper
-func (a *source) mapper() *reflectx.Mapper {
+func (s *source) mapper() *reflectx.Mapper {
 	m := reflectx.NewMapperTagFunc("db", strings.ToLower, func(value string) string {
 		if strings.Contains(value, ",") {
 			return strings.Split(value, ",")[0]
-		} else {
-			return value
 		}
+		return value
 	})
 	return m
 }
