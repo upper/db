@@ -46,10 +46,17 @@ const (
 	password = "upperio"
 )
 
+const (
+	testTimeZone = "Canada/Eastern"
+)
+
 var settings = ConnectionURL{
 	Database: database,
 	User:     username,
 	Password: password,
+	Options: map[string]string{
+		"timezone": testTimeZone,
+	},
 }
 
 var host string
@@ -122,7 +129,7 @@ func (item *itemWithKey) SetID(keys map[string]interface{}) error {
 var testValues testValuesStruct
 
 func init() {
-	loc, err := time.LoadLocation("Canada/Eastern")
+	loc, err := time.LoadLocation(testTimeZone)
 
 	if err != nil {
 		panic(err.Error())
