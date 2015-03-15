@@ -167,8 +167,15 @@ func ParseURL(s string) (u ConnectionURL, err error) {
 
 	u.Database = o.Get("dbname")
 
-	u.Options = map[string]string{
-		"sslmode": o.Get("sslmode"),
+	u.Options = make(map[string]string)
+
+	for k := range o {
+		switch k {
+		case "user", "password", "host", "port", "dbname":
+			// Skip
+		default:
+			u.Options[k] = o[k]
+		}
 	}
 
 	return u, err

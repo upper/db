@@ -156,4 +156,22 @@ func TestParseConnectionURL(t *testing.T) {
 	if u.Options["sslmode"] != "verify-full" {
 		t.Fatal("Failed to parse SSLMode.")
 	}
+
+	s = "user=anakin password=skywalker host=localhost dbname=jedis sslmode=verify-full timezone=UTC"
+
+	if u, err = ParseURL(s); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(u.Options) != 2 {
+		t.Fatal("Expecting exactly two options.")
+	}
+
+	if u.Options["sslmode"] != "verify-full" {
+		t.Fatal("Failed to parse SSLMode.")
+	}
+
+	if u.Options["timezone"] != "UTC" {
+		t.Fatal("Failed to parse timezone.")
+	}
 }
