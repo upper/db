@@ -170,7 +170,7 @@ var setupFn = map[string]func(driver interface{}) error{
 			}
 			_, err = sqld.Exec(`CREATE TABLE "is_even" (
 					"input" NUMERIC,
-					"is_even" INT
+					"is_even" BOOL
 			)`)
 			if err != nil {
 				return err
@@ -181,8 +181,8 @@ var setupFn = map[string]func(driver interface{}) error{
 				return err
 			}
 			_, err = sqld.Exec(`CREATE TABLE "CaSe_TesT" (
-					"ID" SERIAL PRIMARY KEY,
-					"Case_Test" VARCHAR(60)
+					"id" SERIAL PRIMARY KEY,
+					"case_test" VARCHAR(60)
 			)`)
 			if err != nil {
 				return err
@@ -406,16 +406,16 @@ type oddEven struct {
 
 // Struct that relies on explicit mapping.
 type mapE struct {
-	ID       uint          `db:"ID,omitempty" bson:"-"`
+	ID       uint          `db:"id,omitempty" bson:"-"`
 	MongoID  bson.ObjectId `db:"-" bson:"_id,omitempty"`
-	CaseTest string        `db:"Case_Test" bson:"Case_Test"`
+	CaseTest string        `db:"case_test" bson:"Case_Test"`
 }
 
 // Struct that will fallback to default mapping.
 type mapN struct {
-	ID       uint          `db:",omitempty"`
-	MongoID  bson.ObjectId `db:"-" bson:"_id,omitempty"`
-	Casetest string
+	ID        uint          `db:"id,omitempty"`
+	MongoID   bson.ObjectId `db:"-" bson:"_id,omitempty"`
+	Case_TEST string
 }
 
 // Struct for testing marshalling.
@@ -1048,7 +1048,7 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			res = col.Find(db.Cond{"Case_Test": "Hello!"})
+			res = col.Find(db.Cond{"case_test": "Hello!"})
 
 			if wrapper == `ql` {
 				res = res.Select(`id() as ID`, `Case_Test`)
@@ -1070,7 +1070,7 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 
 			// Testing default mapping.
 			testN = mapN{
-				Casetest: "World!",
+				Case_TEST: "World!",
 			}
 
 			if _, err = col.Append(testN); err != nil {
@@ -1081,7 +1081,7 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 				// We don't have this kind of control with mongodb.
 				res = col.Find(db.Cond{"casetest": "World!"})
 			} else {
-				res = col.Find(db.Cond{"Case_Test": "World!"})
+				res = col.Find(db.Cond{"case_test": "World!"})
 			}
 
 			if wrapper == `ql` {
