@@ -977,26 +977,6 @@ func TestEven(t *testing.T) {
 					t.Fatalf("Expecting no data with wrapper %s. Got: %v\n", wrapper, item)
 				}
 			}
-
-			// Testing (deprecated) "field" tag.
-			for {
-				// Testing named inputs (using tags).
-				var item struct {
-					Value uint `field:"input"`
-				}
-				err = res.Next(&item)
-				if err != nil {
-					if err == db.ErrNoMoreRows {
-						break
-					} else {
-						t.Fatalf(`%s: %v`, wrapper, err)
-					}
-				}
-				if item.Value%2 == 0 {
-					t.Fatalf("Expecting no data with wrapper %s. Got: %v\n", wrapper, item)
-				}
-			}
-
 		}
 	}
 
