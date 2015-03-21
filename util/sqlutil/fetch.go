@@ -22,7 +22,6 @@
 package sqlutil
 
 import (
-	"database/sql"
 	"errors"
 	"reflect"
 
@@ -214,19 +213,9 @@ func fieldsByTraversal(v reflect.Value, traversals [][]int, values []interface{}
 
 		// Provides compatibility with db.Unmarshaler
 		if u, ok := values[i].(db.Unmarshaler); ok {
-			values[i] = valueUnmarshaler{u}
+			values[i] = scanner{u}
 		}
 
 	}
 	return nil
 }
-
-type valueUnmarshaler struct {
-	v db.Unmarshaler
-}
-
-func (u valueUnmarshaler) Scan(v interface{}) error {
-	return u.v.UnmarshalDB(v)
-}
-
-var _ sql.Scanner = valueUnmarshaler{}
