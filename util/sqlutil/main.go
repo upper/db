@@ -25,6 +25,9 @@ import (
 	"database/sql"
 	"reflect"
 	"regexp"
+	"strings"
+
+	"github.com/jmoiron/sqlx/reflectx"
 
 	"menteslibres.net/gosexy/to"
 
@@ -59,9 +62,8 @@ func (t *T) columnLike(s string) string {
 }
 
 func marshal(v interface{}) (interface{}, error) {
-	m, isM := v.(db.Marshaler)
 
-	if isM {
+	if m, isMarshaler := v.(db.Marshaler); isMarshaler {
 		var err error
 		if v, err = m.MarshalDB(); err != nil {
 			return nil, err
@@ -193,4 +195,18 @@ func reset(data interface{}) error {
 	z := reflect.Zero(t)
 	v.Set(z)
 	return nil
+}
+
+// NewMapper creates a reflectx.Mapper
+func NewMapper() *reflectx.Mapper {
+	mapFunc := strings.ToLower
+
+	tagFunc := func(value string) string {
+		if strings.Contains(value, ",") {
+			return strings.Split(value, ",")[0]
+		}
+		return value
+	}
+
+	return reflectx.NewMapperTagFunc("db", mapFunc, tagFunc)
 }

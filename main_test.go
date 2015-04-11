@@ -27,16 +27,16 @@ import (
 	"log"
 	"os"
 	"reflect"
-	"strconv"
 	"testing"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db"
 	_ "upper.io/db/mongo"
 	//_ "upper.io/db/mysql"	// Disabled temporarily.
-	_ "upper.io/db/postgresql"
+	"upper.io/db/postgresql"
 	// Temporary removing QL. It includes a _solaris.go file that produces
 	// compile time errors on < go1.3.
 	// _ "upper.io/db/ql"
@@ -47,7 +47,7 @@ var wrappers = []string{
 	//`sqlite`,
 	//`mysql`,
 	`postgresql`,
-	`mongo`,
+	//`mongo`,
 	// `ql`,
 }
 
@@ -59,7 +59,7 @@ var (
 	errDriverErr = errors.New(`Driver error`)
 )
 
-var settings map[string]*db.Settings
+var settings map[string]db.ConnectionURL
 
 func init() {
 
@@ -77,7 +77,7 @@ func init() {
 
 	log.Printf("Running tests against host %s.\n", host)
 
-	settings = map[string]*db.Settings{
+	settings = map[string]db.ConnectionURL{
 		`sqlite`: &db.Settings{
 			Database: `upperio_tests.db`,
 		},
@@ -93,11 +93,14 @@ func init() {
 			User:     `upperio`,
 			Password: `upperio`,
 		},
-		`postgresql`: &db.Settings{
+		`postgresql`: &postgresql.ConnectionURL{
 			Database: `upperio_tests`,
-			Host:     host,
+			Address:  db.Host(host),
 			User:     `upperio`,
 			Password: `upperio`,
+			Options: map[string]string{
+				"timezone": "UTC",
+			},
 		},
 		`ql`: &db.Settings{
 			Database: `file://upperio_test.ql`,
@@ -131,7 +134,7 @@ var setupFn = map[string]func(driver interface{}) error{
 		return errDriverErr
 	},
 	`postgresql`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sql.DB); ok == true {
+		if sqld, ok := driver.(*sqlx.DB); ok == true {
 			var err error
 
 			_, err = sqld.Exec(`DROP TABLE IF EXISTS birthdays`)
@@ -141,7 +144,7 @@ var setupFn = map[string]func(driver interface{}) error{
 			_, err = sqld.Exec(`CREATE TABLE "birthdays" (
 					"id" serial primary key,
 					"name" CHARACTER VARYING(50),
-					"born" TIMESTAMP,
+					"born" TIMESTAMP WITH TIME ZONE,
 					"born_ut" INT
 			)`)
 			if err != nil {
@@ -167,7 +170,7 @@ var setupFn = map[string]func(driver interface{}) error{
 			}
 			_, err = sqld.Exec(`CREATE TABLE "is_even" (
 					"input" NUMERIC,
-					"is_even" INT
+					"is_even" BOOL
 			)`)
 			if err != nil {
 				return err
@@ -178,8 +181,8 @@ var setupFn = map[string]func(driver interface{}) error{
 				return err
 			}
 			_, err = sqld.Exec(`CREATE TABLE "CaSe_TesT" (
-					"ID" SERIAL PRIMARY KEY,
-					"Case_Test" VARCHAR(60)
+					"id" SERIAL PRIMARY KEY,
+					"case_test" VARCHAR(60)
 			)`)
 			if err != nil {
 				return err
@@ -190,7 +193,7 @@ var setupFn = map[string]func(driver interface{}) error{
 		return errDriverErr
 	},
 	`mysql`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sql.DB); ok == true {
+		if sqld, ok := driver.(*sqlx.DB); ok == true {
 			var err error
 
 			_, err = sqld.Exec(`DROP TABLE IF EXISTS birthdays`)
@@ -249,7 +252,7 @@ var setupFn = map[string]func(driver interface{}) error{
 		return errDriverErr
 	},
 	`sqlite`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sql.DB); ok == true {
+		if sqld, ok := driver.(*sqlx.DB); ok == true {
 			var err error
 
 			_, err = sqld.Exec(`DROP TABLE IF EXISTS "birthdays"`)
@@ -308,7 +311,7 @@ var setupFn = map[string]func(driver interface{}) error{
 		return errDriverErr
 	},
 	`ql`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sql.DB); ok == true {
+		if sqld, ok := driver.(*sqlx.DB); ok == true {
 			var err error
 			var tx *sql.Tx
 
@@ -381,7 +384,7 @@ var setupFn = map[string]func(driver interface{}) error{
 type birthday struct {
 	Name   string    // `db:"name"`	// Must match by name.
 	Born   time.Time // `db:"born"		// Must match by name.
-	BornUT *timeType `db:"born_ut"`
+	BornUT timeType  `db:"born_ut"`
 	OmitMe bool      `json:"omit_me" db:"-" bson:"-"`
 }
 
@@ -403,16 +406,16 @@ type oddEven struct {
 
 // Struct that relies on explicit mapping.
 type mapE struct {
-	ID       uint          `db:"ID,omitempty" bson:"-"`
+	ID       uint          `db:"id,omitempty" bson:"-"`
 	MongoID  bson.ObjectId `db:"-" bson:"_id,omitempty"`
-	CaseTest string        `db:"Case_Test" bson:"Case_Test"`
+	CaseTest string        `db:"case_test" bson:"Case_Test"`
 }
 
 // Struct that will fallback to default mapping.
 type mapN struct {
-	ID       uint          `db:",omitempty"`
-	MongoID  bson.ObjectId `db:"-" bson:"_id,omitempty"`
-	Casetest string
+	ID        uint          `db:"id,omitempty"`
+	MongoID   bson.ObjectId `db:"-" bson:"_id,omitempty"`
+	Case_TEST string
 }
 
 // Struct for testing marshalling.
@@ -423,26 +426,29 @@ type timeType struct {
 }
 
 // time.Time -> unix timestamp
-func (u *timeType) MarshalDB() (interface{}, error) {
+func (u timeType) MarshalDB() (interface{}, error) {
 	return u.value.Unix(), nil
 }
 
 // unix timestamp -> time.Time
 func (u *timeType) UnmarshalDB(v interface{}) error {
-	var i int
+	var unixTime int64
 
 	switch t := v.(type) {
-	case string:
-		i, _ = strconv.Atoi(t)
+	case int64:
+		unixTime = t
 	default:
 		return db.ErrUnsupportedValue
 	}
 
-	t := time.Unix(int64(i), 0)
+	t := time.Unix(unixTime, 0).In(time.UTC)
 	*u = timeType{t}
 
 	return nil
 }
+
+var _ db.Marshaler = timeType{}
+var _ db.Unmarshaler = &timeType{}
 
 func even(i int) bool {
 	if i%2 == 0 {
@@ -467,7 +473,7 @@ func TestOpen(t *testing.T) {
 			t.Fatalf(`No such settings entry for wrapper %s.`, wrapper)
 		} else {
 			var sess db.Database
-			sess, err = db.Open(wrapper, *settings[wrapper])
+			sess, err = db.Open(wrapper, settings[wrapper])
 			if err != nil {
 				t.Fatalf(`Test for wrapper %s failed: %q`, wrapper, err)
 			}
@@ -487,7 +493,7 @@ func TestSetup(t *testing.T) {
 		} else {
 			var sess db.Database
 
-			sess, err = db.Open(wrapper, *settings[wrapper])
+			sess, err = db.Open(wrapper, settings[wrapper])
 			if err != nil {
 				t.Fatalf(`Test for wrapper %s failed: %q`, wrapper, err)
 			}
@@ -521,19 +527,19 @@ func TestSimpleCRUD(t *testing.T) {
 
 			var sess db.Database
 
-			sess, err = db.Open(wrapper, *settings[wrapper])
+			sess, err = db.Open(wrapper, settings[wrapper])
 			if err != nil {
 				t.Fatalf(`Test for wrapper %s failed: %q`, wrapper, err)
 			}
 
 			defer sess.Close()
 
-			born := time.Date(1941, time.January, 5, 0, 0, 0, 0, time.Local)
+			born := time.Date(1941, time.January, 5, 0, 0, 0, 0, time.UTC)
 
 			controlItem = birthday{
 				Name:   "Hayao Miyazaki",
 				Born:   born,
-				BornUT: &timeType{born},
+				BornUT: timeType{born},
 			}
 
 			col, err := sess.Collection(`birthdays`)
@@ -582,8 +588,8 @@ func TestSimpleCRUD(t *testing.T) {
 			}
 
 			if reflect.DeepEqual(testItem, controlItem) == false {
-				t.Errorf("%s: testItem: %v (ts: %v)\n", wrapper, testItem, testItem.BornUT.value.Unix())
-				t.Errorf("%s: controlItem: %v (ts: %v)\n", wrapper, controlItem, controlItem.BornUT.value.Unix())
+				t.Errorf("%s: testItem (retrieved): %v (ts: %v)\n", wrapper, testItem, testItem.BornUT.value.Unix())
+				t.Errorf("%s: controlItem (inserted): %v (ts: %v)\n", wrapper, controlItem, controlItem.BornUT.value.Unix())
 				t.Fatalf("%s: Structs are different", wrapper)
 			}
 
@@ -655,7 +661,7 @@ func TestFibonacci(t *testing.T) {
 		} else {
 			var sess db.Database
 
-			sess, err = db.Open(wrapper, *settings[wrapper])
+			sess, err = db.Open(wrapper, settings[wrapper])
 			if err != nil {
 				t.Fatalf(`Test for wrapper %s failed: %q`, wrapper, err)
 			}
@@ -867,7 +873,7 @@ func TestEven(t *testing.T) {
 		} else {
 			var sess db.Database
 
-			sess, err = db.Open(wrapper, *settings[wrapper])
+			sess, err = db.Open(wrapper, settings[wrapper])
 			if err != nil {
 				t.Fatalf(`Test for wrapper %s failed: %q`, wrapper, err)
 			}
@@ -971,26 +977,6 @@ func TestEven(t *testing.T) {
 					t.Fatalf("Expecting no data with wrapper %s. Got: %v\n", wrapper, item)
 				}
 			}
-
-			// Testing (deprecated) "field" tag.
-			for {
-				// Testing named inputs (using tags).
-				var item struct {
-					Value uint `field:"input"`
-				}
-				err = res.Next(&item)
-				if err != nil {
-					if err == db.ErrNoMoreRows {
-						break
-					} else {
-						t.Fatalf(`%s: %v`, wrapper, err)
-					}
-				}
-				if item.Value%2 == 0 {
-					t.Fatalf("Expecting no data with wrapper %s. Got: %v\n", wrapper, item)
-				}
-			}
-
 		}
 	}
 
@@ -1011,7 +997,7 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 			t.Fatalf(`No such settings entry for wrapper %s.`, wrapper)
 		} else {
 
-			if sess, err = db.Open(wrapper, *settings[wrapper]); err != nil {
+			if sess, err = db.Open(wrapper, settings[wrapper]); err != nil {
 				t.Fatalf(`Test for wrapper %s failed: %q`, wrapper, err)
 			}
 
@@ -1042,7 +1028,7 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			res = col.Find(db.Cond{"Case_Test": "Hello!"})
+			res = col.Find(db.Cond{"case_test": "Hello!"})
 
 			if wrapper == `ql` {
 				res = res.Select(`id() as ID`, `Case_Test`)
@@ -1064,7 +1050,7 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 
 			// Testing default mapping.
 			testN = mapN{
-				Casetest: "World!",
+				Case_TEST: "World!",
 			}
 
 			if _, err = col.Append(testN); err != nil {
@@ -1075,7 +1061,7 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 				// We don't have this kind of control with mongodb.
 				res = col.Find(db.Cond{"casetest": "World!"})
 			} else {
-				res = col.Find(db.Cond{"Case_Test": "World!"})
+				res = col.Find(db.Cond{"case_test": "World!"})
 			}
 
 			if wrapper == `ql` {

@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/jmoiron/sqlx/reflectx"
 	_ "github.com/lib/pq" // PostgreSQL driver.
 	"upper.io/cache"
 	"upper.io/db"
@@ -111,24 +110,13 @@ func (s *source) Open() error {
 		return err
 	}
 
-	s.session.Mapper = s.mapper()
+	s.session.Mapper = sqlutil.NewMapper()
 
 	if err = s.populateSchema(); err != nil {
 		return err
 	}
 
 	return nil
-}
-
-// Return a struct tag mapper
-func (s *source) mapper() *reflectx.Mapper {
-	m := reflectx.NewMapperTagFunc("db", strings.ToLower, func(value string) string {
-		if strings.Contains(value, ",") {
-			return strings.Split(value, ",")[0]
-		}
-		return value
-	})
-	return m
 }
 
 func (s *source) Clone() (db.Database, error) {

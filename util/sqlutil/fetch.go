@@ -80,6 +80,8 @@ func FetchRow(rows *sqlx.Rows, dst interface{}) error {
 func FetchRows(rows *sqlx.Rows, dst interface{}) error {
 	var err error
 
+	defer rows.Close()
+
 	// Destination.
 	dstv := reflect.ValueOf(dst)
 
@@ -116,8 +118,6 @@ func FetchRows(rows *sqlx.Rows, dst interface{}) error {
 			slicev = reflect.Append(slicev, reflect.Indirect(item))
 		}
 	}
-
-	rows.Close() // TODO: should this be defer rows.Close higher up?
 
 	dstv.Elem().Set(slicev)
 
@@ -191,21 +191,31 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 
 func fieldsByTraversal(v reflect.Value, traversals [][]int, values []interface{}, ptrs bool) error {
 	v = reflect.Indirect(v)
+
 	if v.Kind() != reflect.Struct {
 		return errors.New("argument not a struct")
 	}
 
 	for i, traversal := range traversals {
+
 		if len(traversal) == 0 {
 			values[i] = new(interface{})
 			continue
 		}
+
 		f := reflectx.FieldByIndexes(v, traversal)
+
 		if ptrs {
 			values[i] = f.Addr().Interface()
 		} else {
 			values[i] = f.Interface()
 		}
+
+		// Provides compatibility with db.Unmarshaler
+		if u, ok := values[i].(db.Unmarshaler); ok {
+			values[i] = scanner{u}
+		}
+
 	}
 	return nil
 }
