@@ -47,10 +47,11 @@ CREATE TABLE data_types (
   _float64 DECIMAL(10,6),
   _bool TINYINT(1),
   _string text,
-  _date DATETIME NOT NULL,
+  _date TIMESTAMP NULL,
   _nildate DATETIME NULL,
   _ptrdate DATETIME NULL,
-  _time TIME NOT NULL
+  _defaultdate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  _time BIGINT UNSIGNED NOT NULL
 );
 
 DROP TABLE IF EXISTS stats_test;

@@ -22,10 +22,10 @@
 package mysql
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 
+	"github.com/jmoiron/sqlx"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
@@ -37,7 +37,7 @@ type counter struct {
 
 type result struct {
 	table     *table
-	cursor    *sql.Rows // This is the main query cursor. It starts as a nil value.
+	cursor    *sqlx.Rows // This is the main query cursor. It starts as a nil value.
 	limit     sqlgen.Limit
 	offset    sqlgen.Offset
 	columns   sqlgen.Columns
@@ -254,7 +254,7 @@ func (r *result) Remove() error {
 // struct.
 func (r *result) Update(values interface{}) error {
 
-	ff, vv, err := r.table.FieldValues(values, toInternal)
+	ff, vv, err := r.table.FieldValues(values)
 
 	total := len(ff)
 

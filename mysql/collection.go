@@ -26,9 +26,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"time"
 
-	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
@@ -95,7 +93,6 @@ func whereValues(term interface{}) (where sqlgen.Where, args []interface{}) {
 }
 
 func interfaceArgs(value interface{}) (args []interface{}) {
-
 	if value == nil {
 		return nil
 	}
@@ -111,21 +108,20 @@ func interfaceArgs(value interface{}) (args []interface{}) {
 			args = make([]interface{}, total)
 
 			for i = 0; i < total; i++ {
-				args[i] = toInternal(v.Index(i).Interface())
+				args[i] = v.Index(i).Interface()
 			}
 
 			return args
 		}
 		return nil
 	default:
-		args = []interface{}{toInternal(value)}
+		args = []interface{}{value}
 	}
 
 	return args
 }
 
 func conditionValues(cond db.Cond) (columnValues sqlgen.ColumnValues, args []interface{}) {
-
 	args = []interface{}{}
 
 	for column, value := range cond {
@@ -228,7 +224,7 @@ func (c *table) Append(item interface{}) (interface{}, error) {
 	var values sqlgen.Values
 	var arguments []interface{}
 
-	cols, vals, err := c.FieldValues(item, toInternal)
+	cols, vals, err := c.FieldValues(item)
 
 	if err != nil {
 		return nil, err
@@ -331,62 +327,4 @@ func (c *table) Exists() bool {
 
 func (c *table) Name() string {
 	return strings.Join(c.names, `, `)
-}
-
-// Converts a Go value into internal database representation.
-func toInternal(val interface{}) interface{} {
-	switch t := val.(type) {
-	case db.Marshaler:
-		return t
-	case []byte:
-		return string(t)
-	case *time.Time:
-		if t == nil || t.IsZero() {
-			return sqlgen.Value{sqlgen.Raw{mysqlNull}}
-		}
-		return t.Format(DateFormat)
-	case time.Time:
-		if t.IsZero() {
-			return sqlgen.Value{sqlgen.Raw{mysqlNull}}
-		}
-		return t.Format(DateFormat)
-	case time.Duration:
-		return fmt.Sprintf(TimeFormat, int(t/time.Hour), int(t/time.Minute%60), int(t/time.Second%60), t%time.Second/time.Millisecond)
-	case sql.NullBool:
-		if t.Valid {
-			if t.Bool {
-				return toInternal(t.Bool)
-			}
-			return false
-		}
-		return sqlgen.Value{sqlgen.Raw{mysqlNull}}
-	case sql.NullFloat64:
-		if t.Valid {
-			if t.Float64 != 0.0 {
-				return toInternal(t.Float64)
-			}
-			return float64(0)
-		}
-		return sqlgen.Value{sqlgen.Raw{mysqlNull}}
-	case sql.NullInt64:
-		if t.Valid {
-			if t.Int64 != 0 {
-				return toInternal(t.Int64)
-			}
-			return 0
-		}
-		return sqlgen.Value{sqlgen.Raw{mysqlNull}}
-	case sql.NullString:
-		if t.Valid {
-			return toInternal(t.String)
-		}
-		return sqlgen.Value{sqlgen.Raw{mysqlNull}}
-	case bool:
-		if t == true {
-			return `1`
-		}
-		return `0`
-	}
-
-	return to.String(val)
 }
