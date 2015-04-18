@@ -141,7 +141,7 @@ var setupFn = map[string]func(driver interface{}) error{
 		if sqld, ok := driver.(*sqlx.DB); ok == true {
 			var err error
 
-			_, err = sqld.Exec(`DROP TABLE IF EXISTS birthdays`)
+			_, err = sqld.Exec(`DROP TABLE IF EXISTS "birthdays"`)
 			if err != nil {
 				return err
 			}
@@ -200,11 +200,11 @@ var setupFn = map[string]func(driver interface{}) error{
 		if sqld, ok := driver.(*sqlx.DB); ok == true {
 			var err error
 
-			_, err = sqld.Exec(`DROP TABLE IF EXISTS birthdays`)
+			_, err = sqld.Exec(`DROP TABLE IF EXISTS ` + "`" + `birthdays` + "`" + ``)
 			if err != nil {
 				return err
 			}
-			_, err = sqld.Exec(`CREATE TABLE birthdays (
+			_, err = sqld.Exec(`CREATE TABLE ` + "`" + `birthdays` + "`" + ` (
 				id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY(id),
 				name VARCHAR(50),
 				born DATE,
@@ -214,11 +214,11 @@ var setupFn = map[string]func(driver interface{}) error{
 				return err
 			}
 
-			_, err = sqld.Exec(`DROP TABLE IF EXISTS fibonacci`)
+			_, err = sqld.Exec(`DROP TABLE IF EXISTS ` + "`" + `fibonacci` + "`" + ``)
 			if err != nil {
 				return err
 			}
-			_, err = sqld.Exec(`CREATE TABLE fibonacci (
+			_, err = sqld.Exec(`CREATE TABLE ` + "`" + `fibonacci` + "`" + ` (
 				id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY(id),
 				input BIGINT(20) UNSIGNED NOT NULL,
 				output BIGINT(20) UNSIGNED NOT NULL
@@ -227,11 +227,11 @@ var setupFn = map[string]func(driver interface{}) error{
 				return err
 			}
 
-			_, err = sqld.Exec(`DROP TABLE IF EXISTS is_even`)
+			_, err = sqld.Exec(`DROP TABLE IF EXISTS ` + "`" + `is_even` + "`" + ``)
 			if err != nil {
 				return err
 			}
-			_, err = sqld.Exec(`CREATE TABLE is_even (
+			_, err = sqld.Exec(`CREATE TABLE ` + "`" + `is_even` + "`" + ` (
 				input BIGINT(20) UNSIGNED NOT NULL,
 				is_even TINYINT(1)
 			) CHARSET=utf8`)
@@ -239,11 +239,11 @@ var setupFn = map[string]func(driver interface{}) error{
 				return err
 			}
 
-			_, err = sqld.Exec(`DROP TABLE IF EXISTS CaSe_TesT`)
+			_, err = sqld.Exec(`DROP TABLE IF EXISTS ` + "`" + `CaSe_TesT` + "`" + ``)
 			if err != nil {
 				return err
 			}
-			_, err = sqld.Exec(`CREATE TABLE CaSe_TesT (
+			_, err = sqld.Exec(`CREATE TABLE ` + "`" + `CaSe_TesT` + "`" + ` (
 				id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY(id),
 				case_test VARCHAR(60)
 			) CHARSET=utf8`)
