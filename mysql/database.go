@@ -149,6 +149,8 @@ func (s *source) Open() error {
 		return err
 	}
 
+	s.session.Mapper = sqlutil.NewMapper()
+
 	if err = s.populateSchema(); err != nil {
 		return err
 	}

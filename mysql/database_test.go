@@ -24,7 +24,6 @@ package mysql
 import (
 	"database/sql"
 	"errors"
-	"flag"
 	"fmt"
 	"math/rand"
 	"os"
@@ -62,7 +61,7 @@ var settings = ConnectionURL{
 	},
 }
 
-var host = flag.String("host", "testserver.local", "Testing server address.")
+var host string
 
 // Structure for testing conversions and datatypes.
 type testValuesStruct struct {
@@ -87,7 +86,7 @@ type testValuesStruct struct {
 	Date  time.Time  `db:"_date"`
 	DateN *time.Time `db:"_nildate"`
 	DateP *time.Time `db:"_ptrdate"`
-	DateD *time.Time `db:"_defaultdate"`
+	DateD *time.Time `db:"_defaultdate,omitempty"`
 	Time  int64      `db:"_time"`
 }
 
@@ -149,8 +148,11 @@ func init() {
 		int64(time.Second * 7331),
 	}
 
-	flag.Parse()
-	settings.Address = db.ParseAddress(*host)
+	if host = os.Getenv("TEST_HOST"); host == "" {
+		host = "localhost"
+	}
+
+	settings.Address = db.ParseAddress(host)
 }
 
 // Loggin some information to stdout (like the SQL query and its
@@ -178,7 +180,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	// Attempt to open with safe settings.
 	rightSettings = db.Settings{
 		Database: database,
-		Host:     *host,
+		Host:     host,
 		User:     username,
 		Password: password,
 	}
@@ -192,7 +194,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	// Attempt to open with wrong password.
 	wrongSettings = db.Settings{
 		Database: database,
-		Host:     *host,
+		Host:     host,
 		User:     username,
 		Password: "fail",
 	}
@@ -204,7 +206,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	// Attempt to open with wrong database.
 	wrongSettings = db.Settings{
 		Database: "fail",
-		Host:     *host,
+		Host:     host,
 		User:     username,
 		Password: password,
 	}
@@ -216,7 +218,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	// Attempt to open with wrong username.
 	wrongSettings = db.Settings{
 		Database: database,
-		Host:     *host,
+		Host:     host,
 		User:     "fail",
 		Password: password,
 	}
@@ -235,7 +237,7 @@ func TestOldSettings(t *testing.T) {
 		Database: database,
 		User:     username,
 		Password: password,
-		Host:     *host,
+		Host:     host,
 	}
 
 	// Opening database.

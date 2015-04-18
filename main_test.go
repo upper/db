@@ -35,7 +35,8 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db"
 	_ "upper.io/db/mongo"
-	//_ "upper.io/db/mysql"	// Disabled temporarily.
+
+	"upper.io/db/mysql"
 	"upper.io/db/postgresql"
 	// Temporary removing QL. It includes a _solaris.go file that produces
 	// compile time errors on < go1.3.
@@ -45,7 +46,7 @@ import (
 
 var wrappers = []string{
 	//`sqlite`,
-	//`mysql`,
+	`mysql`,
 	`postgresql`,
 	//`mongo`,
 	// `ql`,
@@ -87,11 +88,14 @@ func init() {
 			User:     `upperio`,
 			Password: `upperio`,
 		},
-		`mysql`: &db.Settings{
+		`mysql`: &mysql.ConnectionURL{
 			Database: `upperio_tests`,
-			Host:     host,
+			Address:  db.Host(host),
 			User:     `upperio`,
 			Password: `upperio`,
+			Options: map[string]string{
+				"parseTime": "true",
+			},
 		},
 		`postgresql`: &postgresql.ConnectionURL{
 			Database: `upperio_tests`,
@@ -240,8 +244,8 @@ var setupFn = map[string]func(driver interface{}) error{
 				return err
 			}
 			_, err = sqld.Exec(`CREATE TABLE CaSe_TesT (
-				ID BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY(ID),
-				Case_Test VARCHAR(60)
+				id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY(id),
+				case_test VARCHAR(60)
 			) CHARSET=utf8`)
 			if err != nil {
 				return err
