@@ -41,4 +41,4 @@ before_script:
 
 script:
   - go version
-  - go test
+  - UPPERIO_DB_DEBUG=1 go test
