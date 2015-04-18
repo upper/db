@@ -120,7 +120,7 @@ func init() {
 
 var setupFn = map[string]func(driver interface{}) error{
 	`mongo`: func(driver interface{}) error {
-		if mgod, ok := driver.(*mgo.Session); ok == true {
+		if mgod, ok := driver.(*mgo.Session); ok {
 			var col *mgo.Collection
 			col = mgod.DB("upperio_tests").C("birthdays")
 			col.DropCollection()
@@ -138,7 +138,7 @@ var setupFn = map[string]func(driver interface{}) error{
 		return errDriverErr
 	},
 	`postgresql`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sqlx.DB); ok == true {
+		if sqld, ok := driver.(*sqlx.DB); ok {
 			var err error
 
 			_, err = sqld.Exec(`DROP TABLE IF EXISTS "birthdays"`)
@@ -197,7 +197,7 @@ var setupFn = map[string]func(driver interface{}) error{
 		return errDriverErr
 	},
 	`mysql`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sqlx.DB); ok == true {
+		if sqld, ok := driver.(*sqlx.DB); ok {
 			var err error
 
 			_, err = sqld.Exec(`DROP TABLE IF EXISTS ` + "`" + `birthdays` + "`" + ``)
@@ -256,7 +256,7 @@ var setupFn = map[string]func(driver interface{}) error{
 		return errDriverErr
 	},
 	`sqlite`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sqlx.DB); ok == true {
+		if sqld, ok := driver.(*sqlx.DB); ok {
 			var err error
 
 			_, err = sqld.Exec(`DROP TABLE IF EXISTS "birthdays"`)
@@ -315,7 +315,7 @@ var setupFn = map[string]func(driver interface{}) error{
 		return errDriverErr
 	},
 	`ql`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sqlx.DB); ok == true {
+		if sqld, ok := driver.(*sqlx.DB); ok {
 			var err error
 			var tx *sql.Tx
 
@@ -473,6 +473,8 @@ func fib(i uint64) uint64 {
 func TestOpen(t *testing.T) {
 	var err error
 	for _, wrapper := range wrappers {
+		t.Logf("Testing wrapper: %q", wrapper)
+
 		if settings[wrapper] == nil {
 			t.Fatalf(`No such settings entry for wrapper %s.`, wrapper)
 		} else {
@@ -492,6 +494,8 @@ func TestOpen(t *testing.T) {
 func TestSetup(t *testing.T) {
 	var err error
 	for _, wrapper := range wrappers {
+		t.Logf("Testing wrapper: %q", wrapper)
+
 		if settings[wrapper] == nil {
 			t.Fatalf(`No such settings entry for wrapper %s.`, wrapper)
 		} else {
@@ -528,6 +532,8 @@ func TestSimpleCRUD(t *testing.T) {
 		if settings[wrapper] == nil {
 			t.Fatalf(`No such settings entry for wrapper %s.`, wrapper)
 		} else {
+
+			t.Logf("Testing wrapper: %q", wrapper)
 
 			var sess db.Database
 
@@ -660,9 +666,12 @@ func TestFibonacci(t *testing.T) {
 	var total uint64
 
 	for _, wrapper := range wrappers {
+		t.Logf("Testing wrapper: %q", wrapper)
+
 		if settings[wrapper] == nil {
 			t.Fatalf(`No such settings entry for wrapper %s.`, wrapper)
 		} else {
+
 			var sess db.Database
 
 			sess, err = db.Open(wrapper, settings[wrapper])
@@ -872,6 +881,8 @@ func TestEven(t *testing.T) {
 	var err error
 
 	for _, wrapper := range wrappers {
+		t.Logf("Testing wrapper: %q", wrapper)
+
 		if settings[wrapper] == nil {
 			t.Fatalf(`No such settings entry for wrapper %s.`, wrapper)
 		} else {
@@ -996,6 +1007,7 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 	var testN mapN
 
 	for _, wrapper := range wrappers {
+		t.Logf("Testing wrapper: %q", wrapper)
 
 		if settings[wrapper] == nil {
 			t.Fatalf(`No such settings entry for wrapper %s.`, wrapper)
