@@ -24,6 +24,7 @@ package db_test
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"reflect"
@@ -194,7 +195,7 @@ var setupFn = map[string]func(driver interface{}) error{
 
 			return nil
 		}
-		return errDriverErr
+		return fmt.Errorf("Expecting *sqlx.DB got %T (%#v).", driver, driver)
 	},
 	`mysql`: func(driver interface{}) error {
 		if sqld, ok := driver.(*sqlx.DB); ok {
@@ -253,7 +254,7 @@ var setupFn = map[string]func(driver interface{}) error{
 
 			return nil
 		}
-		return errDriverErr
+		return fmt.Errorf("Expecting *sqlx.DB got %T (%#v).", driver, driver)
 	},
 	`sqlite`: func(driver interface{}) error {
 		if sqld, ok := driver.(*sqlx.DB); ok {
