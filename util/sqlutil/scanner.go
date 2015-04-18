@@ -19,37 +19,19 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package util
+package sqlutil
 
 import (
-	"regexp"
-	"strings"
+	"database/sql"
+	"upper.io/db"
 )
 
-var reColumnCompareExclude = regexp.MustCompile(`[^a-zA-Z0-9]`)
-
-type tagOptions map[string]bool
-
-func parseTagOptions(s string) tagOptions {
-	opts := make(tagOptions)
-	chunks := strings.Split(s, `,`)
-	for _, chunk := range chunks {
-		opts[strings.TrimSpace(chunk)] = true
-	}
-	return opts
+type scanner struct {
+	v db.Unmarshaler
 }
 
-// ParseTag splits a struct tag into comma separated chunks. The first chunk is
-// returned as a string value, remaining chunks are considered enabled options.
-func ParseTag(tag string) (string, tagOptions) {
-	// Based on http://golang.org/src/pkg/encoding/json/tags.go
-	if i := strings.Index(tag, `,`); i != -1 {
-		return tag[:i], parseTagOptions(tag[i+1:])
-	}
-	return tag, parseTagOptions(``)
+func (u scanner) Scan(v interface{}) error {
+	return u.v.UnmarshalDB(v)
 }
 
-// NormalizeColumn prepares a column for comparison against another column.
-func NormalizeColumn(s string) string {
-	return strings.ToLower(reColumnCompareExclude.ReplaceAllString(s, ""))
-}
+var _ sql.Scanner = scanner{}

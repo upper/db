@@ -41,96 +41,96 @@ const (
 	pgsqlSortByColumnLayout  = `{{.Column}} {{.Sort}}`
 
 	pgsqlOrderByLayout = `
-		{{if .SortColumns}}
-			ORDER BY {{.SortColumns}}
-		{{end}}
-	`
+    {{if .SortColumns}}
+      ORDER BY {{.SortColumns}}
+    {{end}}
+  `
 
 	pgsqlWhereLayout = `
-		{{if .Conds}}
-			WHERE {{.Conds}}
-		{{end}}
-	`
+    {{if .Conds}}
+      WHERE {{.Conds}}
+    {{end}}
+  `
 
 	pgsqlSelectLayout = `
-		SELECT
+    SELECT
 
-			{{if .Columns}}
-				{{.Columns}}
-			{{else}}
-				*
-			{{end}}
+      {{if .Columns}}
+        {{.Columns}}
+      {{else}}
+        *
+      {{end}}
 
-			{{if .Table}}
-				FROM {{.Table}}
-			{{end}}
+      {{if .Table}}
+        FROM {{.Table}}
+      {{end}}
 
-			{{.Where}}
+      {{.Where}}
 
-			{{.GroupBy}}
+      {{.GroupBy}}
 
-			{{.OrderBy}}
+      {{.OrderBy}}
 
-			{{if .Limit}}
-				LIMIT {{.Limit}}
-			{{end}}
+      {{if .Limit}}
+        LIMIT {{.Limit}}
+      {{end}}
 
-			{{if .Offset}}
-				OFFSET {{.Offset}}
-			{{end}}
-	`
+      {{if .Offset}}
+        OFFSET {{.Offset}}
+      {{end}}
+  `
 	pgsqlDeleteLayout = `
-		DELETE
-			FROM {{.Table}}
-			{{.Where}}
-	`
+    DELETE
+      FROM {{.Table}}
+      {{.Where}}
+  `
 	pgsqlUpdateLayout = `
-		UPDATE
-			{{.Table}}
-		SET {{.ColumnValues}}
-			{{ .Where }}
-	`
+    UPDATE
+      {{.Table}}
+    SET {{.ColumnValues}}
+      {{ .Where }}
+  `
 
 	pgsqlSelectCountLayout = `
-		SELECT
-			COUNT(1) AS _t
-		FROM {{.Table}}
-			{{.Where}}
+    SELECT
+      COUNT(1) AS _t
+    FROM {{.Table}}
+      {{.Where}}
 
-			{{if .Limit}}
-				LIMIT {{.Limit}}
-			{{end}}
+      {{if .Limit}}
+        LIMIT {{.Limit}}
+      {{end}}
 
-			{{if .Offset}}
-				OFFSET {{.Offset}}
-			{{end}}
-	`
+      {{if .Offset}}
+        OFFSET {{.Offset}}
+      {{end}}
+  `
 
 	pgsqlInsertLayout = `
-		INSERT INTO {{.Table}}
-			({{.Columns}})
-		VALUES
-			({{.Values}})
-		{{.Extra}}
-	`
+    INSERT INTO {{.Table}}
+      ({{.Columns}})
+    VALUES
+      ({{.Values}})
+    {{.Extra}}
+  `
 
 	pgsqlTruncateLayout = `
-		TRUNCATE TABLE {{.Table}} RESTART IDENTITY
-	`
+    TRUNCATE TABLE {{.Table}} RESTART IDENTITY
+  `
 
 	pgsqlDropDatabaseLayout = `
-		DROP DATABASE {{.Database}}
-	`
+    DROP DATABASE {{.Database}}
+  `
 
 	pgsqlDropTableLayout = `
-		DROP TABLE {{.Table}}
-	`
+    DROP TABLE {{.Table}}
+  `
 
 	pgsqlGroupByLayout = `
-		{{if .GroupColumns}}
-			GROUP BY {{.GroupColumns}}
-		{{end}}
-	`
+    {{if .GroupColumns}}
+      GROUP BY {{.GroupColumns}}
+    {{end}}
+  `
 
 	psqlNull = `NULL`
 )

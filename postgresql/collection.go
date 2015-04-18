@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+// Copyright (c) 2012-2015 José Carlos Nieto, https://menteslibres.net/xiam
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -26,9 +26,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"time"
 
-	"menteslibres.net/gosexy/to"
+	"github.com/jmoiron/sqlx"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
@@ -44,7 +43,6 @@ type table struct {
 }
 
 func whereValues(term interface{}) (where sqlgen.Where, args []interface{}) {
-
 	args = []interface{}{}
 
 	switch t := term.(type) {
@@ -96,7 +94,6 @@ func whereValues(term interface{}) (where sqlgen.Where, args []interface{}) {
 }
 
 func interfaceArgs(value interface{}) (args []interface{}) {
-
 	if value == nil {
 		return nil
 	}
@@ -112,21 +109,20 @@ func interfaceArgs(value interface{}) (args []interface{}) {
 			args = make([]interface{}, total)
 
 			for i = 0; i < total; i++ {
-				args[i] = toInternal(v.Index(i).Interface())
+				args[i] = v.Index(i).Interface()
 			}
 
 			return args
 		}
 		return nil
 	default:
-		args = []interface{}{toInternal(value)}
+		args = []interface{}{value}
 	}
 
 	return args
 }
 
 func conditionValues(cond db.Cond) (columnValues sqlgen.ColumnValues, args []interface{}) {
-
 	args = []interface{}{}
 
 	for column, value := range cond {
@@ -165,7 +161,7 @@ func conditionValues(cond db.Cond) (columnValues sqlgen.ColumnValues, args []int
 			l := len(v)
 			if v == nil || l == 0 {
 				// Nil value given.
-				columnValue.Value = sqlgen.Value{sqlgen.Raw{`NULL`}}
+				columnValue.Value = sqlgen.Value{sqlgen.Raw{psqlNull}}
 			} else {
 				if l > 1 {
 					// Array value given.
@@ -208,7 +204,6 @@ func (t *table) tableN(i int) string {
 
 // Deletes all the rows within the collection.
 func (t *table) Truncate() error {
-
 	_, err := t.source.doExec(sqlgen.Statement{
 		Type:  sqlgen.SqlTruncate,
 		Table: sqlgen.Table{t.tableN(0)},
@@ -224,25 +219,25 @@ func (t *table) Truncate() error {
 // Appends an item (map or struct) into the collection.
 func (t *table) Append(item interface{}) (interface{}, error) {
 
-	var pKey []string
-	var columns sqlgen.Columns
-	var values sqlgen.Values
-	var arguments []interface{}
-	//var id []interface{}
-
-	cols, vals, err := t.FieldValues(item, toInternal)
+	cols, vals, err := t.FieldValues(item)
 
 	if err != nil {
 		return nil, err
 	}
+
+	var columns sqlgen.Columns
 
 	columns = make(sqlgen.Columns, 0, len(cols))
 	for i := range cols {
 		columns = append(columns, sqlgen.Column{cols[i]})
 	}
 
+	var values sqlgen.Values
+	var arguments []interface{}
+
 	arguments = make([]interface{}, 0, len(vals))
 	values = make(sqlgen.Values, 0, len(vals))
+
 	for i := range vals {
 		switch v := vals[i].(type) {
 		case sqlgen.Value:
@@ -254,6 +249,8 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 			arguments = append(arguments, v)
 		}
 	}
+
+	var pKey []string
 
 	if pKey, err = t.source.getPrimaryKey(t.tableN(0)); err != nil {
 		if err != sql.ErrNoRows {
@@ -284,7 +281,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		return lastID, nil
 	}
 
-	var rows *sql.Rows
+	var rows *sqlx.Rows
 
 	// A primary key was found.
 	stmt.Extra = sqlgen.Extra(fmt.Sprintf(`RETURNING "%s"`, strings.Join(pKey, `", "`)))
@@ -294,8 +291,10 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 	defer rows.Close()
 
-	var keyMap map[string]interface{}
-	err = sqlutil.FetchRow(rows, &keyMap)
+	keyMap := map[string]interface{}{}
+	if err := sqlutil.FetchRow(rows, &keyMap); err != nil {
+		return nil, err
+	}
 
 	// Does the item satisfy the db.IDSetter interface?
 	if setter, ok := item.(db.IDSetter); ok {
@@ -305,15 +304,13 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		return nil, nil
 	}
 
-	// The IDSetter interface does not match, we'll be looking for another
-	// interface match.
+	// The IDSetter interface does not match, look for another interface match.
 	if len(keyMap) == 1 {
-
 		id := keyMap[pKey[0]]
 
 		// Matches db.Int64IDSetter
 		if setter, ok := item.(db.Int64IDSetter); ok {
-			if err = setter.SetID(to.Int64(id)); err != nil {
+			if err = setter.SetID(id.(int64)); err != nil {
 				return nil, err
 			}
 			return nil, nil
@@ -321,14 +318,14 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 		// Matches db.Uint64IDSetter
 		if setter, ok := item.(db.Uint64IDSetter); ok {
-			if err = setter.SetID(to.Uint64(id)); err != nil {
+			if err = setter.SetID(uint64(id.(int64))); err != nil {
 				return nil, err
 			}
 			return nil, nil
 		}
 
 		// No interface matched, falling back to old behaviour.
-		return to.Int64(id), nil
+		return id.(int64), nil
 	}
 
 	// More than one key, no interface matched, let's return a map.
@@ -345,62 +342,4 @@ func (t *table) Exists() bool {
 
 func (t *table) Name() string {
 	return strings.Join(t.names, `, `)
-}
-
-// Converts a Go value into internal database representation.
-func toInternal(val interface{}) interface{} {
-	switch v := val.(type) {
-	case db.Marshaler:
-		return v
-	case []byte:
-		return string(v)
-	case *time.Time:
-		if v == nil || v.IsZero() {
-			return sqlgen.Value{sqlgen.Raw{psqlNull}}
-		}
-		return v.Format(DateFormat)
-	case time.Time:
-		if v.IsZero() {
-			return sqlgen.Value{sqlgen.Raw{psqlNull}}
-		}
-		return v.Format(DateFormat)
-	case time.Duration:
-		return fmt.Sprintf(TimeFormat, int(v/time.Hour), int(v/time.Minute%60), int(v/time.Second%60), v%time.Second/time.Millisecond)
-	case sql.NullBool:
-		if v.Valid {
-			if v.Bool {
-				return toInternal(v.Bool)
-			}
-			return false
-		}
-		return sqlgen.Value{sqlgen.Raw{psqlNull}}
-	case sql.NullFloat64:
-		if v.Valid {
-			if v.Float64 != 0.0 {
-				return toInternal(v.Float64)
-			}
-			return float64(0)
-		}
-		return sqlgen.Value{sqlgen.Raw{psqlNull}}
-	case sql.NullInt64:
-		if v.Valid {
-			if v.Int64 != 0 {
-				return toInternal(v.Int64)
-			}
-			return 0
-		}
-		return sqlgen.Value{sqlgen.Raw{psqlNull}}
-	case sql.NullString:
-		if v.Valid {
-			return toInternal(v.String)
-		}
-		return sqlgen.Value{sqlgen.Raw{psqlNull}}
-	case bool:
-		if v {
-			return `1`
-		}
-		return `0`
-	}
-
-	return to.String(val)
 }

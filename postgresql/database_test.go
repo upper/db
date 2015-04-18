@@ -21,18 +21,10 @@
 
 package postgresql
 
-// In order to execute these tests you must initialize the database first:
-//
-// cd _dumps
-// make
-// cd ..
-// go test
-
 import (
 	"database/sql"
 	"errors"
-	"flag"
-	"math/rand"
+	"fmt"
 	"os"
 	"reflect"
 	"strconv"
@@ -40,7 +32,9 @@ import (
 	"testing"
 	"time"
 
-	"menteslibres.net/gosexy/to"
+	"math/rand"
+
+	"github.com/jmoiron/sqlx"
 	"upper.io/db"
 	"upper.io/db/util/sqlutil"
 )
@@ -51,38 +45,51 @@ const (
 	password = "upperio"
 )
 
+const (
+	testTimeZone = "Canada/Eastern"
+)
+
 var settings = ConnectionURL{
 	Database: database,
 	User:     username,
 	Password: password,
+	Options: map[string]string{
+		"timezone": testTimeZone,
+	},
 }
 
-var host = flag.String("host", "testserver.local", "Testing server address.")
+var host string
 
 // Structure for testing conversions and datatypes.
 type testValuesStruct struct {
-	Uint   uint   `field:"_uint"`
-	Uint8  uint8  `field:"_uint8"`
-	Uint16 uint16 `field:"_uint16"`
-	Uint32 uint32 `field:"_uint32"`
-	Uint64 uint64 `field:"_uint64"`
+	Uint   uint   `db:"_uint"`
+	Uint8  uint8  `db:"_uint8"`
+	Uint16 uint16 `db:"_uint16"`
+	Uint32 uint32 `db:"_uint32"`
+	Uint64 uint64 `db:"_uint64"`
 
-	Int   int   `field:"_int"`
-	Int8  int8  `field:"_int8"`
-	Int16 int16 `field:"_int16"`
-	Int32 int32 `field:"_int32"`
-	Int64 int64 `field:"_int64"`
+	Int   int   `db:"_int"`
+	Int8  int8  `db:"_int8"`
+	Int16 int16 `db:"_int16"`
+	Int32 int32 `db:"_int32"`
+	Int64 int64 `db:"_int64"`
 
-	Float32 float32 `field:"_float32"`
-	Float64 float64 `field:"_float64"`
+	Float32 float32 `db:"_float32"`
+	Float64 float64 `db:"_float64"`
 
-	Bool   bool   `field:"_bool"`
-	String string `field:"_string"`
+	Bool   bool   `db:"_bool"`
+	String string `db:"_string"`
 
-	Date  time.Time     `field:"_date"`
-	DateN *time.Time    `field:"_nildate"`
-	DateP *time.Time    `field:"_ptrdate"`
-	Time  time.Duration `field:"_time"`
+	Date  time.Time  `db:"_date"`
+	DateN *time.Time `db:"_nildate"`
+	DateP *time.Time `db:"_ptrdate"`
+	DateD *time.Time `db:"_defaultdate,omitempty"`
+	Time  int64      `db:"_time"`
+}
+
+type artistType struct {
+	ID   int64  `db:"id,omitempty"`
+	Name string `db:"name"`
 }
 
 type artistWithInt64Key struct {
@@ -111,8 +118,8 @@ func (item itemWithKey) Constraint() db.Cond {
 
 func (item *itemWithKey) SetID(keys map[string]interface{}) error {
 	if len(keys) == 2 {
-		item.Code = keys["code"].(string)
-		item.UserID = keys["user_id"].(string)
+		item.Code = string(keys["code"].([]byte))
+		item.UserID = string(keys["user_id"].([]byte))
 		return nil
 	}
 	return errors.New(`Expecting exactly two keys.`)
@@ -121,8 +128,14 @@ func (item *itemWithKey) SetID(keys map[string]interface{}) error {
 var testValues testValuesStruct
 
 func init() {
+	loc, err := time.LoadLocation(testTimeZone)
 
-	t := time.Date(2012, 7, 28, 1, 2, 3, 0, time.Local)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	t := time.Date(2011, 7, 28, 1, 2, 3, 0, loc)                     // timestamp with time zone
+	tnz := time.Date(2012, 7, 28, 1, 2, 3, 0, time.FixedZone("", 0)) // timestamp without time zone
 
 	testValues = testValuesStruct{
 		1, 1, 1, 1, 1,
@@ -132,18 +145,22 @@ func init() {
 		"Hello world!",
 		t,
 		nil,
-		&t,
-		time.Second * time.Duration(7331),
+		&tnz,
+		nil,
+		int64(time.Second * time.Duration(7331)),
 	}
 
-	flag.Parse()
-	settings.Address = db.ParseAddress(*host)
+	if host = os.Getenv("TEST_HOST"); host == "" {
+		host = "localhost"
+	}
+
+	settings.Address = db.ParseAddress(host)
 }
 
-// Loggin some information to stdout (like the SQL query and its
+// Logging some information to stdout (like the SQL query and its
 // arguments), useful for development.
 func TestEnableDebug(t *testing.T) {
-	os.Setenv(db.EnvEnableDebug, "TRUE")
+	// os.Setenv(db.EnvEnableDebug, "TRUE")
 }
 
 // Attempts to open an empty datasource.
@@ -165,7 +182,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	// Attempt to open with safe settings.
 	rightSettings = db.Settings{
 		Database: database,
-		Host:     *host,
+		Host:     host,
 		User:     username,
 		Password: password,
 	}
@@ -179,7 +196,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	// Attempt to open with wrong password.
 	wrongSettings = db.Settings{
 		Database: database,
-		Host:     *host,
+		Host:     host,
 		User:     username,
 		Password: "fail",
 	}
@@ -191,7 +208,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	// Attempt to open with wrong database.
 	wrongSettings = db.Settings{
 		Database: "fail",
-		Host:     *host,
+		Host:     host,
 		User:     username,
 		Password: password,
 	}
@@ -203,7 +220,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	// Attempt to open with wrong username.
 	wrongSettings = db.Settings{
 		Database: database,
-		Host:     *host,
+		Host:     host,
 		User:     "fail",
 		Password: password,
 	}
@@ -222,7 +239,7 @@ func TestOldSettings(t *testing.T) {
 		Database: database,
 		User:     username,
 		Password: password,
-		Host:     *host,
+		Host:     host,
 	}
 
 	// Opening database.
@@ -234,7 +251,7 @@ func TestOldSettings(t *testing.T) {
 	sess.Close()
 }
 
-// Test USE
+// Test Use
 func TestUse(t *testing.T) {
 	var err error
 	var sess db.Database
@@ -246,7 +263,7 @@ func TestUse(t *testing.T) {
 
 	// Connecting to another database, error expected.
 	if err = sess.Use("Another database"); err == nil {
-		t.Fatal("This database does not exists!")
+		t.Fatal("This database should not exist!")
 	}
 
 	// Closing connection.
@@ -346,7 +363,7 @@ func TestAppend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if to.Int64(id) == 0 {
+	if pk, ok := id.(int64); !ok || pk == 0 {
 		t.Fatalf("Expecting an ID.")
 	}
 
@@ -361,7 +378,7 @@ func TestAppend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if to.Int64(id) == 0 {
+	if pk, ok := id.(int64); !ok || pk == 0 {
 		t.Fatalf("Expecting an ID.")
 	}
 
@@ -376,7 +393,7 @@ func TestAppend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if to.Int64(id) == 0 {
+	if pk, ok := id.(int64); !ok || pk == 0 {
 		t.Fatalf("Expecting an ID.")
 	}
 
@@ -466,10 +483,10 @@ func TestResultFetch(t *testing.T) {
 		}
 
 		if err == nil {
-			if to.Int64(rowMap["id"]) == 0 {
+			if id, ok := rowMap["id"].(int64); !ok || id == 0 {
 				t.Fatalf("Expecting a not null ID.")
 			}
-			if to.String(rowMap["name"]) == "" {
+			if name, ok := rowMap["name"].([]byte); !ok || len(name) == 0 {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
@@ -510,8 +527,8 @@ func TestResultFetch(t *testing.T) {
 
 	// Dumping into a tagged struct.
 	rowStruct2 := struct {
-		Value1 uint64 `field:"id"`
-		Value2 string `field:"name"`
+		Value1 uint64 `db:"id"`
+		Value2 string `db:"name"`
 	}{}
 
 	res = artist.Find()
@@ -550,13 +567,12 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	for _, singleRowMap := range allRowsMap {
-		if to.Int64(singleRowMap["id"]) == 0 {
+		if pk, ok := singleRowMap["id"].(int64); !ok || pk == 0 {
 			t.Fatalf("Expecting a not null ID.")
 		}
 	}
 
-	// Dumping into an slice of structs.
-
+	// Dumping into a slice of structs.
 	allRowsStruct := []struct {
 		ID   uint64
 		Name string
@@ -577,10 +593,10 @@ func TestResultFetch(t *testing.T) {
 		}
 	}
 
-	// Dumping into an slice of tagged structs.
+	// Dumping into a slice of tagged structs.
 	allRowsStruct2 := []struct {
-		Value1 uint64 `field:"id"`
-		Value2 string `field:"name"`
+		Value1 uint64 `db:"id"`
+		Value2 string `db:"name"`
 	}{}
 
 	res = artist.Find()
@@ -597,6 +613,100 @@ func TestResultFetch(t *testing.T) {
 		if singleRowStruct.Value1 == 0 {
 			t.Fatalf("Expecting a not null ID.")
 		}
+	}
+}
+
+func TestResultFetchOne(t *testing.T) {
+	var err error
+	var sess db.Database
+	var artist db.Collection
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	if artist, err = sess.Collection("artist"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Fetching one struct
+	var someArtist artistType
+	err = artist.Find().Limit(1).One(&someArtist)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if someArtist.Name == "" {
+		t.Fatal("Expecting an artist object with a name.")
+	}
+	if someArtist.ID <= 0 {
+		t.Fatal("Expecting an artist to have an ID.")
+	}
+
+	// Fetching one object
+	var someArtistObj *artistType
+	err = artist.Find().Limit(1).One(&someArtistObj)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if someArtistObj.Name == "" {
+		t.Fatal("Expecting an artist object with a name.")
+	}
+	if someArtistObj.ID <= 0 {
+		t.Fatal("Expecting an artist object to have an ID.")
+	}
+}
+
+func TestResultFetchAll(t *testing.T) {
+	var err error
+	var sess db.Database
+	var artist db.Collection
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	if artist, err = sess.Collection("artist"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Fetching all artists into struct
+	artists := []artistType{}
+	err = artist.Find().All(&artists)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(artists) == 0 {
+		t.Fatal("Expecting some artists.")
+	}
+	if artists[0].Name == "" {
+		t.Fatal("Expecting the first artist to have a name.")
+	}
+	if artists[0].ID <= 0 {
+		t.Fatal("Expecting the first artist to have an ID.")
+	}
+
+	// Fetching all artists into struct objects
+	artistObjs := []*artistType{}
+	err = artist.Find().All(&artistObjs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(artistObjs) == 0 {
+		t.Fatal("Expecting some artist objects.")
+	}
+	if artistObjs[0].Name == "" {
+		t.Fatal("Expecting the first artist object to have a name.")
+	}
+	if artistObjs[0].ID <= 0 {
+		t.Fatal("Expecting the first artist object to have an ID.")
 	}
 }
 
@@ -670,7 +780,7 @@ func TestUpdate(t *testing.T) {
 	// Updating set with a tagged struct
 	rowStruct2 := struct {
 		Value1 string `db:"name"`
-	}{strings.Replace(value.Name, "z", "Z", -1)}
+	}{"john"}
 
 	if err = res.Update(rowStruct2); err != nil {
 		t.Fatal(err)
@@ -683,6 +793,25 @@ func TestUpdate(t *testing.T) {
 
 	// Verifying
 	if value.Name != rowStruct2.Value1 {
+		t.Fatalf("Expecting a modification.")
+	}
+
+	// Updating set with a tagged object
+	rowStruct3 := &struct {
+		Value1 string `db:"name"`
+	}{"anderson"}
+
+	if err = res.Update(rowStruct3); err != nil {
+		t.Fatal(err)
+	}
+
+	// Pulling it again.
+	if err = res.One(&value); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verifying
+	if value.Name != rowStruct3.Value1 {
 		t.Fatalf("Expecting a modification.")
 	}
 }
@@ -837,7 +966,7 @@ func TestNullableFields(t *testing.T) {
 	// In PostgreSQL, how we can tell if this is an invalid null?
 
 	// if test.NullStringTest.Valid {
-	// 	t.Fatalf(`Expecting invalid null.`)
+	//  t.Fatalf(`Expecting invalid null.`)
 	// }
 
 	// Testing insertion of valid nulls.
@@ -959,11 +1088,6 @@ func TestRawRelations(t *testing.T) {
 	var artist db.Collection
 	var publication db.Collection
 	var review db.Collection
-
-	type artistType struct {
-		ID   int64  `db:"id,omitempty"`
-		Name string `db:"name"`
-	}
 
 	type publicationType struct {
 		ID       int64  `db:"id,omitempty"`
@@ -1131,9 +1255,9 @@ func TestRawRelations(t *testing.T) {
 
 func TestRawQuery(t *testing.T) {
 	var sess db.Database
-	var rows *sql.Rows
+	var rows *sqlx.Rows
 	var err error
-	var drv *sql.DB
+	var drv *sqlx.DB
 
 	type publicationType struct {
 		ID       int64  `db:"id,omitempty"`
@@ -1147,19 +1271,19 @@ func TestRawQuery(t *testing.T) {
 
 	defer sess.Close()
 
-	drv = sess.Driver().(*sql.DB)
+	drv = sess.Driver().(*sqlx.DB)
 
-	rows, err = drv.Query(`
-		SELECT
-			p.id,
-			p.title AS publication_title,
-			a.name AS artist_name
-		FROM
-			artist AS a,
-			publication AS p
-		WHERE
-			a.id = p.author_id
-	`)
+	rows, err = drv.Queryx(`
+    SELECT
+      p.id,
+      p.title AS publication_title,
+      a.name AS artist_name
+    FROM
+      artist AS a,
+      publication AS p
+    WHERE
+      a.id = p.author_id
+  `)
 
 	if err != nil {
 		t.Fatal(err)
@@ -1180,11 +1304,6 @@ func TestRawQuery(t *testing.T) {
 func TestTransactionsAndRollback(t *testing.T) {
 	var sess db.Database
 	var err error
-
-	type artistType struct {
-		ID   int64  `db:"id,omitempty"`
-		Name string `db:"name"`
-	}
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatal(err)
@@ -1402,6 +1521,8 @@ func TestCompositeKeys(t *testing.T) {
 // then it tries to get the stored datatypes and check if the stored and the
 // original values match.
 func TestDataTypes(t *testing.T) {
+	// os.Setenv(db.EnvEnableDebug, "TRUE")
+
 	var res db.Result
 	var sess db.Database
 	var dataTypes db.Collection
@@ -1444,10 +1565,21 @@ func TestDataTypes(t *testing.T) {
 	// Trying to dump the subject into an empty structure of the same type.
 	var item testValuesStruct
 
-	res.One(&item)
+	if err = res.One(&item); err != nil {
+		t.Fatal(err)
+	}
+
+	if item.DateD == nil {
+		t.Fatal("Expecting default date to have been set on append")
+	}
+
+	// Copy the default date (this value is set by the database)
+	testValues.DateD = item.DateD
 
 	// The original value and the test subject must match.
 	if reflect.DeepEqual(item, testValues) == false {
+		fmt.Printf("item1: %v\n", item)
+		fmt.Printf("test2: %v\n", testValues)
 		t.Fatalf("Struct is different.")
 	}
 }

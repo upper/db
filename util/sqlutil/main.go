@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+// Copyright (c) 2012-2015 José Carlos Nieto, https://menteslibres.net/xiam
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -25,8 +25,12 @@ import (
 	"database/sql"
 	"reflect"
 	"regexp"
+	"strings"
+
+	"github.com/jmoiron/sqlx/reflectx"
 
 	"menteslibres.net/gosexy/to"
+
 	"upper.io/db"
 	"upper.io/db/util"
 )
@@ -58,9 +62,8 @@ func (t *T) columnLike(s string) string {
 }
 
 func marshal(v interface{}) (interface{}, error) {
-	m, isM := v.(db.Marshaler)
 
-	if isM {
+	if m, isMarshaler := v.(db.Marshaler); isMarshaler {
 		var err error
 		if v, err = m.MarshalDB(); err != nil {
 			return nil, err
@@ -70,10 +73,7 @@ func marshal(v interface{}) (interface{}, error) {
 	return v, nil
 }
 
-// FieldValues accepts a map or a struct and splits them into an array of
-// columns and values.
-func (t *T) FieldValues(item interface{}, convertFn func(interface{}) interface{}) ([]string, []interface{}, error) {
-
+func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
 	fields := []string{}
 	values := []interface{}{}
 
@@ -90,7 +90,6 @@ func (t *T) FieldValues(item interface{}, convertFn func(interface{}) interface{
 	switch itemT.Kind() {
 
 	case reflect.Struct:
-
 		nfields := itemV.NumField()
 
 		values = make([]interface{}, 0, nfields)
@@ -105,6 +104,9 @@ func (t *T) FieldValues(item interface{}, convertFn func(interface{}) interface{
 				continue
 			}
 
+			// TODO: can we get the placeholder used above somewhere...?
+			// from the sqlx part..?
+
 			if field.Anonymous {
 				// It's an anonymous field. Let's skip it unless it has an explicit
 				// `db` tag.
@@ -116,21 +118,6 @@ func (t *T) FieldValues(item interface{}, convertFn func(interface{}) interface{
 			// Field options.
 			fieldName, fieldOptions := util.ParseTag(field.Tag.Get(`db`))
 
-			// Deprecated `field` tag.
-			if deprecatedField := field.Tag.Get(`field`); deprecatedField != `` {
-				fieldName = deprecatedField
-			}
-
-			// Deprecated `omitempty` tag.
-			if deprecatedOmitEmpty := field.Tag.Get(`omitempty`); deprecatedOmitEmpty != `` {
-				fieldOptions[`omitempty`] = true
-			}
-
-			// Deprecated `inline` tag.
-			if deprecatedInline := field.Tag.Get(`inline`); deprecatedInline != `` {
-				fieldOptions[`inline`] = true
-			}
-
 			// Skipping field
 			if fieldName == `-` {
 				continue
@@ -138,25 +125,9 @@ func (t *T) FieldValues(item interface{}, convertFn func(interface{}) interface{
 
 			// Trying to match field name.
 
-			// Explicit JSON or BSON options.
-			if fieldName == `` && fieldOptions[`bson`] {
-				// Using name from the BSON tag.
-				fieldName, _ = util.ParseTag(field.Tag.Get(`bson`))
-			}
-
-			if fieldName == `` && fieldOptions[`bson`] {
-				// Using name from the JSON tag.
-				fieldName, _ = util.ParseTag(field.Tag.Get(`bson`))
-			}
-
 			// Still don't have a match? try to match againt JSON.
 			if fieldName == `` {
 				fieldName, _ = util.ParseTag(field.Tag.Get(`json`))
-			}
-
-			// Still don't have a match? try to match againt BSON.
-			if fieldName == `` {
-				fieldName, _ = util.ParseTag(field.Tag.Get(`bson`))
 			}
 
 			// Nothing works, trying to match by name.
@@ -175,7 +146,7 @@ func (t *T) FieldValues(item interface{}, convertFn func(interface{}) interface{
 			}
 
 			if fieldOptions[`inline`] == true {
-				infields, invalues, inerr := t.FieldValues(value, convertFn)
+				infields, invalues, inerr := t.FieldValues(value)
 				if inerr != nil {
 					return nil, nil, inerr
 				}
@@ -183,7 +154,7 @@ func (t *T) FieldValues(item interface{}, convertFn func(interface{}) interface{
 				values = append(values, invalues...)
 			} else {
 				fields = append(fields, fieldName)
-				v, err := marshal(convertFn(value))
+				v, err := marshal(value)
 
 				if err != nil {
 					return nil, nil, err
@@ -192,6 +163,7 @@ func (t *T) FieldValues(item interface{}, convertFn func(interface{}) interface{
 				values = append(values, v)
 			}
 		}
+
 	case reflect.Map:
 		nfields := itemV.Len()
 		values = make([]interface{}, nfields)
@@ -202,8 +174,7 @@ func (t *T) FieldValues(item interface{}, convertFn func(interface{}) interface{
 			valv := itemV.MapIndex(keyV)
 			fields[i] = t.columnLike(to.String(keyV.Interface()))
 
-			v, err := marshal(convertFn(valv.Interface()))
-
+			v, err := marshal(valv.Interface())
 			if err != nil {
 				return nil, nil, err
 			}
@@ -224,4 +195,18 @@ func reset(data interface{}) error {
 	z := reflect.Zero(t)
 	v.Set(z)
 	return nil
+}
+
+// NewMapper creates a reflectx.Mapper
+func NewMapper() *reflectx.Mapper {
+	mapFunc := strings.ToLower
+
+	tagFunc := func(value string) string {
+		if strings.Contains(value, ",") {
+			return strings.Split(value, ",")[0]
+		}
+		return value
+	}
+
+	return reflectx.NewMapperTagFunc("db", mapFunc, tagFunc)
 }
