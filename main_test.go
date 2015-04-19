@@ -42,11 +42,11 @@ import (
 	// Temporary removing QL. It includes a _solaris.go file that produces
 	// compile time errors on < go1.3.
 	// _ "upper.io/db/ql"
-	//_ "upper.io/db/sqlite" // Disabled temporarily.
+	"upper.io/db/sqlite"
 )
 
 var wrappers = []string{
-	//`sqlite`,
+	`sqlite`,
 	`mysql`,
 	`postgresql`,
 	//`mongo`,
@@ -80,7 +80,7 @@ func init() {
 	log.Printf("Running tests against host %s.\n", host)
 
 	settings = map[string]db.ConnectionURL{
-		`sqlite`: &db.Settings{
+		`sqlite`: &sqlite.ConnectionURL{
 			Database: `upperio_tests.db`,
 		},
 		`mongo`: &db.Settings{
@@ -267,7 +267,7 @@ var setupFn = map[string]func(driver interface{}) error{
 			_, err = sqld.Exec(`CREATE TABLE "birthdays" (
 				"id" INTEGER PRIMARY KEY,
 				"name" VARCHAR(50) DEFAULT NULL,
-				"born" VARCHAR(12) DEFAULT NULL,
+				"born" DATETIME DEFAULT NULL,
 				"born_ut" INTEGER
 			)`)
 			if err != nil {
@@ -304,8 +304,8 @@ var setupFn = map[string]func(driver interface{}) error{
 				return err
 			}
 			_, err = sqld.Exec(`CREATE TABLE "CaSe_TesT" (
-				"ID" INTEGER PRIMARY KEY,
-				"Case_Test" VARCHAR
+				"id" INTEGER PRIMARY KEY,
+				"case_test" VARCHAR
 			)`)
 			if err != nil {
 				return err
@@ -598,8 +598,12 @@ func TestSimpleCRUD(t *testing.T) {
 				t.Fatalf("%s One(): %s", wrapper, err)
 			}
 
+			if wrapper == `sqlite` {
+				// SQLite does not save time zone info, so you have to do this by hand.
+				testItem.Born = testItem.Born.In(time.UTC)
+			}
+
 			if reflect.DeepEqual(testItem, controlItem) == false {
-				t.Errorf("%s: testItem (retrieved): %v (ts: %v)\n", wrapper, testItem, testItem.BornUT.value.Unix())
 				t.Errorf("%s: controlItem (inserted): %v (ts: %v)\n", wrapper, controlItem, controlItem.BornUT.value.Unix())
 				t.Fatalf("%s: Structs are different", wrapper)
 			}
@@ -615,6 +619,10 @@ func TestSimpleCRUD(t *testing.T) {
 			}
 
 			for _, testItem = range testItems {
+				if wrapper == `sqlite` {
+					// SQLite does not save time zone info, so you have to do this by hand.
+					testItem.Born = testItem.Born.In(time.UTC)
+				}
 				if reflect.DeepEqual(testItem, controlItem) == false {
 					t.Errorf("%s: testItem: %v\n", wrapper, testItem)
 					t.Errorf("%s: controlItem: %v\n", wrapper, controlItem)
@@ -629,7 +637,15 @@ func TestSimpleCRUD(t *testing.T) {
 				t.Fatalf(`Could not update with wrapper %s: %q`, wrapper, err)
 			}
 
-			res.One(&testItem)
+			err = res.One(&testItem)
+			if err != nil {
+				t.Fatalf("%s One(): %s", wrapper, err)
+			}
+
+			if wrapper == `sqlite` {
+				// SQLite does not save time zone info, so you have to do this by hand.
+				testItem.Born = testItem.Born.In(time.UTC)
+			}
 
 			if reflect.DeepEqual(testItem, controlItem) == false {
 				t.Fatalf("Struct is different with wrapper %s.", wrapper)
