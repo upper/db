@@ -27,7 +27,9 @@ import (
 	"os"
 	"strings"
 	"time"
+
 	// Importing SQLite3 driver.
+	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"upper.io/cache"
 	"upper.io/db"
@@ -41,13 +43,6 @@ const (
 	Adapter = `sqlite`
 )
 
-var (
-	// DateFormat defines the format used for storing dates.
-	DateFormat = "2006-01-02 15:04:05"
-	// TimeFormat defines the format used for storing time values.
-	TimeFormat = "%d:%02d:%02d.%d"
-)
-
 var template *sqlgen.Template
 
 var (
@@ -56,7 +51,7 @@ var (
 
 type source struct {
 	connURL db.ConnectionURL
-	session *sql.DB
+	session *sqlx.DB
 	tx      *tx
 	schema  *schema.DatabaseSchema
 	// columns property was introduced so we could query PRAGMA data only once
@@ -177,8 +172,8 @@ func (s *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result,
 	return res, err
 }
 
-func (s *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Rows, error) {
-	var rows *sql.Rows
+func (s *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Rows, error) {
+	var rows *sqlx.Rows
 	var query string
 	var err error
 	var start, end int64
@@ -197,17 +192,17 @@ func (s *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Rows,
 	query = stmt.Compile(template)
 
 	if s.tx != nil {
-		rows, err = s.tx.sqlTx.Query(query, args...)
+		rows, err = s.tx.sqlTx.Queryx(query, args...)
 	} else {
-		rows, err = s.session.Query(query, args...)
+		rows, err = s.session.Queryx(query, args...)
 	}
 
 	return rows, err
 }
 
-func (s *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Row, error) {
+func (s *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Row, error) {
 	var query string
-	var row *sql.Row
+	var row *sqlx.Row
 	var err error
 	var start, end int64
 
@@ -225,16 +220,16 @@ func (s *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 	query = stmt.Compile(template)
 
 	if s.tx != nil {
-		row = s.tx.sqlTx.QueryRow(query, args...)
+		row = s.tx.sqlTx.QueryRowx(query, args...)
 	} else {
-		row = s.session.QueryRow(query, args...)
+		row = s.session.QueryRowx(query, args...)
 	}
 
 	return row, err
 }
 
-func (s *source) doRawQuery(query string, args ...interface{}) (*sql.Rows, error) {
-	var rows *sql.Rows
+func (s *source) doRawQuery(query string, args ...interface{}) (*sqlx.Rows, error) {
+	var rows *sqlx.Rows
 	var err error
 	var start, end int64
 
@@ -250,9 +245,9 @@ func (s *source) doRawQuery(query string, args ...interface{}) (*sql.Rows, error
 	}
 
 	if s.tx != nil {
-		rows, err = s.tx.sqlTx.Query(query, args...)
+		rows, err = s.tx.sqlTx.Queryx(query, args...)
 	} else {
-		rows, err = s.session.Query(query, args...)
+		rows, err = s.session.Queryx(query, args...)
 	}
 
 	return rows, err
@@ -287,9 +282,9 @@ func (s *source) Clone() (db.Database, error) {
 func (s *source) Transaction() (db.Tx, error) {
 	var err error
 	var clone *source
-	var sqlTx *sql.Tx
+	var sqlTx *sqlx.Tx
 
-	if sqlTx, err = s.session.Begin(); err != nil {
+	if sqlTx, err = s.session.Beginx(); err != nil {
 		return nil, err
 	}
 
@@ -310,7 +305,7 @@ func (s *source) Setup(conn db.ConnectionURL) error {
 	return s.Open()
 }
 
-// Returns the underlying *sql.DB instance.
+// Returns the underlying *sqlx.DB instance.
 func (s *source) Driver() interface{} {
 	return s.session
 }
@@ -334,9 +329,11 @@ func (s *source) Open() error {
 		s.connURL = conn
 	}
 
-	if s.session, err = sql.Open(`sqlite3`, s.connURL.String()); err != nil {
+	if s.session, err = sqlx.Open(`sqlite3`, s.connURL.String()); err != nil {
 		return err
 	}
+
+	s.session.Mapper = sqlutil.NewMapper()
 
 	if err = s.populateSchema(); err != nil {
 		return err
@@ -404,7 +401,7 @@ func (s *source) Collections() (collections []string, err error) {
 	}
 
 	// Executing statement.
-	var rows *sql.Rows
+	var rows *sqlx.Rows
 	if rows, err = s.doQuery(stmt); err != nil {
 		return nil, err
 	}
@@ -434,7 +431,7 @@ func (s *source) Collections() (collections []string, err error) {
 func (s *source) tableExists(names ...string) error {
 	var stmt sqlgen.Statement
 	var err error
-	var rows *sql.Rows
+	var rows *sqlx.Rows
 
 	for i := range names {
 
