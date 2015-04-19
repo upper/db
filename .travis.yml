@@ -2,9 +2,9 @@ language: go
 
 go:
 #  - 1.1 // Unsupported, QL fails to compile on go < 1.2.
-  - 1.2
-  - 1.2.1
-  - 1.2.2
+#  - 1.2 // Unsupported on travis because it fails to fetch some resources via HTTPs.
+#  - 1.2.1
+#  - 1.2.2
   - 1.3
   - 1.3.1
   - 1.3.2
