@@ -19,7 +19,10 @@ install:
   - sudo apt-get install bzr
   # - go get github.com/cznic/ql/ql # ql command line util.
   # - go install github.com/cznic/ql/ql # ql command line util.
-  - go get -t -d
+  - go get -d
+  - go get github.com/jmoiron/sqlx
+  - go get gopkg.in/mgo.v2
+  - go get gopkg.in/mgo.v2/bson
   # - go get upper.io/db/mongo
   # - go get upper.io/db/mysql
   # - go get upper.io/db/postgresql
