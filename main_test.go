@@ -35,7 +35,7 @@ import (
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db"
-	_ "upper.io/db/mongo"
+	"upper.io/db/mongo"
 
 	"upper.io/db/mysql"
 	"upper.io/db/postgresql"
@@ -47,7 +47,7 @@ var wrappers = []string{
 	sqlite.Adapter,
 	mysql.Adapter,
 	postgresql.Adapter,
-	//`mongo`,
+	mongo.Adapter,
 	ql.Adapter,
 }
 
@@ -81,9 +81,9 @@ func init() {
 		`sqlite`: &sqlite.ConnectionURL{
 			Database: `upperio_tests.db`,
 		},
-		`mongo`: &db.Settings{
+		`mongo`: &mongo.ConnectionURL{
 			Database: `upperio_tests`,
-			Host:     host,
+			Address:  db.Host(host),
 			User:     `upperio`,
 			Password: `upperio`,
 		},
@@ -1036,7 +1036,7 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 
 			if col, err = sess.Collection("CaSe_TesT"); err != nil {
 				if wrapper == `mongo` && err == db.ErrCollectionDoesNotExist {
-					// Nothing, it's expected.
+					// Nothing, this is expected.
 				} else {
 					t.Fatal(err)
 				}
@@ -1044,7 +1044,7 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 
 			if err = col.Truncate(); err != nil {
 				if wrapper == `mongo` {
-					// Nothing, it's expected.
+					// Nothing, this is expected.
 				} else {
 					t.Fatal(err)
 				}
@@ -1089,8 +1089,7 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 			}
 
 			if wrapper == `mongo` {
-				// We don't have this kind of control with mongodb.
-				res = col.Find(db.Cond{"casetest": "World!"})
+				res = col.Find(db.Cond{"case_test": "World!"})
 			} else {
 				res = col.Find(db.Cond{"case_test": "World!"})
 			}
