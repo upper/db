@@ -22,10 +22,10 @@
 package ql
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 
+	"github.com/jmoiron/sqlx"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
@@ -37,7 +37,7 @@ type counter struct {
 
 type result struct {
 	table     *table
-	cursor    *sql.Rows // This is the main query cursor. It starts as a nil value.
+	cursor    *sqlx.Rows // This is the main query cursor. It starts as a nil value.
 	limit     sqlgen.Limit
 	offset    sqlgen.Offset
 	columns   sqlgen.Columns
@@ -48,7 +48,8 @@ type result struct {
 }
 
 // Executes a SELECT statement that can feed Next(), All() or One().
-func (r *result) setCursor() (err error) {
+func (r *result) setCursor() error {
+	var err error
 	// We need a cursor, if the cursor does not exists yet then we create one.
 	if r.cursor == nil {
 		r.cursor, err = r.table.source.doQuery(sqlgen.Statement{
@@ -91,6 +92,7 @@ func (r *result) Group(fields ...interface{}) db.Result {
 	groupByColumns := make(sqlgen.GroupBy, 0, len(fields))
 
 	l := len(fields)
+
 	for i := 0; i < l; i++ {
 		switch value := fields[i].(type) {
 		// Maybe other types?
@@ -195,7 +197,7 @@ func (r *result) All(dst interface{}) error {
 	defer r.Close()
 
 	// Fetching all results within the cursor.
-	err = r.table.fetchRows(r.cursor, dst)
+	err = sqlutil.FetchRows(r.cursor, dst)
 
 	return err
 }
@@ -218,29 +220,29 @@ func (r *result) One(dst interface{}) error {
 // Fetches the next result from the resultset.
 func (r *result) Next(dst interface{}) (err error) {
 
-	// Current cursor.
 	if err = r.setCursor(); err != nil {
 		r.Close()
 		return err
 	}
 
-	// Fetching the next result from the cursor.
-	if err = r.table.fetchRow(r.cursor, dst); err != nil {
+	if err = sqlutil.FetchRow(r.cursor, dst); err != nil {
 		r.Close()
 		return err
 	}
 
-	return
+	return nil
 }
 
 // Removes the matching items from the collection.
 func (r *result) Remove() error {
 	var err error
+
 	_, err = r.table.source.doExec(sqlgen.Statement{
 		Type:  sqlgen.SqlDelete,
 		Table: sqlgen.Table{r.table.Name()},
 		Where: r.where,
 	}, r.arguments...)
+
 	return err
 
 }
@@ -249,7 +251,10 @@ func (r *result) Remove() error {
 // struct.
 func (r *result) Update(values interface{}) error {
 
-	ff, vv, err := r.table.FieldValues(values, toInternal)
+	ff, vv, err := r.table.FieldValues(values)
+	if err != nil {
+		return err
+	}
 
 	total := len(ff)
 
@@ -272,8 +277,7 @@ func (r *result) Update(values interface{}) error {
 }
 
 // Closes the result set.
-func (r *result) Close() error {
-	var err error
+func (r *result) Close() (err error) {
 	if r.cursor != nil {
 		err = r.cursor.Close()
 		r.cursor = nil
@@ -281,11 +285,11 @@ func (r *result) Close() error {
 	return err
 }
 
-// Counts matching elements.
+// Counts the elements within the main conditions of the set.
 func (r *result) Count() (uint64, error) {
 	var count counter
 
-	rows, err := r.table.source.doQuery(sqlgen.Statement{
+	row, err := r.table.source.doQueryRow(sqlgen.Statement{
 		Type:  sqlgen.SqlSelectCount,
 		Table: sqlgen.Table{r.table.Name()},
 		Where: r.where,
@@ -295,8 +299,8 @@ func (r *result) Count() (uint64, error) {
 		return 0, err
 	}
 
-	defer rows.Close()
-	if err = sqlutil.FetchRow(rows, &count); err != nil {
+	err = row.Scan(&count.Total)
+	if err != nil {
 		return 0, err
 	}
 

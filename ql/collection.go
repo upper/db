@@ -221,7 +221,7 @@ func (t *table) Truncate() error {
 // Appends an item (map or struct) into the collection.
 func (t *table) Append(item interface{}) (interface{}, error) {
 
-	cols, vals, err := t.FieldValues(item, toInternal)
+	cols, vals, err := t.FieldValues(item)
 
 	var columns sqlgen.Columns
 	var values sqlgen.Values
@@ -273,8 +273,4 @@ func (t *table) Exists() bool {
 
 func (t *table) Name() string {
 	return strings.Join(t.names, `, `)
-}
-
-func toInternal(v interface{}) interface{} {
-	return v
 }
