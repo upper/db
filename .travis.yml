@@ -2,9 +2,9 @@ language: go
 
 go:
 #  - 1.1 // Unsupported, QL fails to compile on go < 1.2.
-  - 1.2
-  - 1.2.1
-  - 1.2.2
+#  - 1.2 // Unsupported on travis because it fails to fetch some resources via HTTPs.
+#  - 1.2.1
+#  - 1.2.2
   - 1.3
   - 1.3.1
   - 1.3.2
@@ -13,14 +13,14 @@ go:
   - 1.4.1
   - 1.4.2
 
-env:
-  - GOARCH=amd64
-  - TEST_HOST=127.0.0.1
+env: GOARCH=amd64 TEST_HOST=127.0.0.1
 
 install:
   - sudo apt-get install bzr
   # - go get github.com/cznic/ql/ql # ql command line util.
   # - go install github.com/cznic/ql/ql # ql command line util.
+  - mkdir ../../../upper.io
+  - ln -s $PWD ../../../upper.io/db
   - go get -t -d
   # - go get upper.io/db/mongo
   # - go get upper.io/db/mysql
@@ -32,6 +32,7 @@ services:
   - mongodb
 
 before_script:
+  - mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql
   - cat mysql/_dumps/setup.sql | mysql -uroot
   - cat mysql/_dumps/structs.sql | mysql -uupperio -pupperio upperio_tests
   - cat postgresql/_dumps/setup.sql | psql -U postgres
@@ -40,5 +41,4 @@ before_script:
   # - cat ql/_dumps/structs.sql | $GOPATH/bin/ql -db ql/_dumps/test.db
 
 script:
-  - go version
-  - go test
+  - UPPERIO_DB_DEBUG=1 go test -test.v=1

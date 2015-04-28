@@ -22,12 +22,12 @@
 package mysql
 
 import (
-	"database/sql"
+	"github.com/jmoiron/sqlx"
 )
 
 type tx struct {
 	*source
-	sqlTx *sql.Tx
+	sqlTx *sqlx.Tx
 	done  bool
 }
 

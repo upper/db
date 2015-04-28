@@ -24,6 +24,7 @@ package db_test
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"reflect"
@@ -35,17 +36,18 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db"
 	_ "upper.io/db/mongo"
-	//_ "upper.io/db/mysql"	// Disabled temporarily.
+
+	"upper.io/db/mysql"
 	"upper.io/db/postgresql"
 	// Temporary removing QL. It includes a _solaris.go file that produces
 	// compile time errors on < go1.3.
 	// _ "upper.io/db/ql"
-	//_ "upper.io/db/sqlite" // Disabled temporarily.
+	"upper.io/db/sqlite"
 )
 
 var wrappers = []string{
-	//`sqlite`,
-	//`mysql`,
+	`sqlite`,
+	`mysql`,
 	`postgresql`,
 	//`mongo`,
 	// `ql`,
@@ -78,7 +80,7 @@ func init() {
 	log.Printf("Running tests against host %s.\n", host)
 
 	settings = map[string]db.ConnectionURL{
-		`sqlite`: &db.Settings{
+		`sqlite`: &sqlite.ConnectionURL{
 			Database: `upperio_tests.db`,
 		},
 		`mongo`: &db.Settings{
@@ -87,11 +89,14 @@ func init() {
 			User:     `upperio`,
 			Password: `upperio`,
 		},
-		`mysql`: &db.Settings{
+		`mysql`: &mysql.ConnectionURL{
 			Database: `upperio_tests`,
-			Host:     host,
+			Address:  db.Host(host),
 			User:     `upperio`,
 			Password: `upperio`,
+			Options: map[string]string{
+				"parseTime": "true",
+			},
 		},
 		`postgresql`: &postgresql.ConnectionURL{
 			Database: `upperio_tests`,
@@ -116,7 +121,7 @@ func init() {
 
 var setupFn = map[string]func(driver interface{}) error{
 	`mongo`: func(driver interface{}) error {
-		if mgod, ok := driver.(*mgo.Session); ok == true {
+		if mgod, ok := driver.(*mgo.Session); ok {
 			var col *mgo.Collection
 			col = mgod.DB("upperio_tests").C("birthdays")
 			col.DropCollection()
@@ -134,10 +139,10 @@ var setupFn = map[string]func(driver interface{}) error{
 		return errDriverErr
 	},
 	`postgresql`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sqlx.DB); ok == true {
+		if sqld, ok := driver.(*sqlx.DB); ok {
 			var err error
 
-			_, err = sqld.Exec(`DROP TABLE IF EXISTS birthdays`)
+			_, err = sqld.Exec(`DROP TABLE IF EXISTS "birthdays"`)
 			if err != nil {
 				return err
 			}
@@ -190,17 +195,17 @@ var setupFn = map[string]func(driver interface{}) error{
 
 			return nil
 		}
-		return errDriverErr
+		return fmt.Errorf("Expecting *sqlx.DB got %T (%#v).", driver, driver)
 	},
 	`mysql`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sqlx.DB); ok == true {
+		if sqld, ok := driver.(*sqlx.DB); ok {
 			var err error
 
-			_, err = sqld.Exec(`DROP TABLE IF EXISTS birthdays`)
+			_, err = sqld.Exec(`DROP TABLE IF EXISTS ` + "`" + `birthdays` + "`" + ``)
 			if err != nil {
 				return err
 			}
-			_, err = sqld.Exec(`CREATE TABLE birthdays (
+			_, err = sqld.Exec(`CREATE TABLE ` + "`" + `birthdays` + "`" + ` (
 				id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY(id),
 				name VARCHAR(50),
 				born DATE,
@@ -210,11 +215,11 @@ var setupFn = map[string]func(driver interface{}) error{
 				return err
 			}
 
-			_, err = sqld.Exec(`DROP TABLE IF EXISTS fibonacci`)
+			_, err = sqld.Exec(`DROP TABLE IF EXISTS ` + "`" + `fibonacci` + "`" + ``)
 			if err != nil {
 				return err
 			}
-			_, err = sqld.Exec(`CREATE TABLE fibonacci (
+			_, err = sqld.Exec(`CREATE TABLE ` + "`" + `fibonacci` + "`" + ` (
 				id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY(id),
 				input BIGINT(20) UNSIGNED NOT NULL,
 				output BIGINT(20) UNSIGNED NOT NULL
@@ -223,11 +228,11 @@ var setupFn = map[string]func(driver interface{}) error{
 				return err
 			}
 
-			_, err = sqld.Exec(`DROP TABLE IF EXISTS is_even`)
+			_, err = sqld.Exec(`DROP TABLE IF EXISTS ` + "`" + `is_even` + "`" + ``)
 			if err != nil {
 				return err
 			}
-			_, err = sqld.Exec(`CREATE TABLE is_even (
+			_, err = sqld.Exec(`CREATE TABLE ` + "`" + `is_even` + "`" + ` (
 				input BIGINT(20) UNSIGNED NOT NULL,
 				is_even TINYINT(1)
 			) CHARSET=utf8`)
@@ -235,13 +240,13 @@ var setupFn = map[string]func(driver interface{}) error{
 				return err
 			}
 
-			_, err = sqld.Exec(`DROP TABLE IF EXISTS CaSe_TesT`)
+			_, err = sqld.Exec(`DROP TABLE IF EXISTS ` + "`" + `CaSe_TesT` + "`" + ``)
 			if err != nil {
 				return err
 			}
-			_, err = sqld.Exec(`CREATE TABLE CaSe_TesT (
-				ID BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY(ID),
-				Case_Test VARCHAR(60)
+			_, err = sqld.Exec(`CREATE TABLE ` + "`" + `CaSe_TesT` + "`" + ` (
+				id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY(id),
+				case_test VARCHAR(60)
 			) CHARSET=utf8`)
 			if err != nil {
 				return err
@@ -249,10 +254,10 @@ var setupFn = map[string]func(driver interface{}) error{
 
 			return nil
 		}
-		return errDriverErr
+		return fmt.Errorf("Expecting *sqlx.DB got %T (%#v).", driver, driver)
 	},
 	`sqlite`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sqlx.DB); ok == true {
+		if sqld, ok := driver.(*sqlx.DB); ok {
 			var err error
 
 			_, err = sqld.Exec(`DROP TABLE IF EXISTS "birthdays"`)
@@ -262,7 +267,7 @@ var setupFn = map[string]func(driver interface{}) error{
 			_, err = sqld.Exec(`CREATE TABLE "birthdays" (
 				"id" INTEGER PRIMARY KEY,
 				"name" VARCHAR(50) DEFAULT NULL,
-				"born" VARCHAR(12) DEFAULT NULL,
+				"born" DATETIME DEFAULT NULL,
 				"born_ut" INTEGER
 			)`)
 			if err != nil {
@@ -299,8 +304,8 @@ var setupFn = map[string]func(driver interface{}) error{
 				return err
 			}
 			_, err = sqld.Exec(`CREATE TABLE "CaSe_TesT" (
-				"ID" INTEGER PRIMARY KEY,
-				"Case_Test" VARCHAR
+				"id" INTEGER PRIMARY KEY,
+				"case_test" VARCHAR
 			)`)
 			if err != nil {
 				return err
@@ -311,7 +316,7 @@ var setupFn = map[string]func(driver interface{}) error{
 		return errDriverErr
 	},
 	`ql`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sqlx.DB); ok == true {
+		if sqld, ok := driver.(*sqlx.DB); ok {
 			var err error
 			var tx *sql.Tx
 
@@ -469,6 +474,8 @@ func fib(i uint64) uint64 {
 func TestOpen(t *testing.T) {
 	var err error
 	for _, wrapper := range wrappers {
+		t.Logf("Testing wrapper: %q", wrapper)
+
 		if settings[wrapper] == nil {
 			t.Fatalf(`No such settings entry for wrapper %s.`, wrapper)
 		} else {
@@ -488,6 +495,8 @@ func TestOpen(t *testing.T) {
 func TestSetup(t *testing.T) {
 	var err error
 	for _, wrapper := range wrappers {
+		t.Logf("Testing wrapper: %q", wrapper)
+
 		if settings[wrapper] == nil {
 			t.Fatalf(`No such settings entry for wrapper %s.`, wrapper)
 		} else {
@@ -524,6 +533,8 @@ func TestSimpleCRUD(t *testing.T) {
 		if settings[wrapper] == nil {
 			t.Fatalf(`No such settings entry for wrapper %s.`, wrapper)
 		} else {
+
+			t.Logf("Testing wrapper: %q", wrapper)
 
 			var sess db.Database
 
@@ -587,8 +598,12 @@ func TestSimpleCRUD(t *testing.T) {
 				t.Fatalf("%s One(): %s", wrapper, err)
 			}
 
+			if wrapper == `sqlite` {
+				// SQLite does not save time zone info, so you have to do this by hand.
+				testItem.Born = testItem.Born.In(time.UTC)
+			}
+
 			if reflect.DeepEqual(testItem, controlItem) == false {
-				t.Errorf("%s: testItem (retrieved): %v (ts: %v)\n", wrapper, testItem, testItem.BornUT.value.Unix())
 				t.Errorf("%s: controlItem (inserted): %v (ts: %v)\n", wrapper, controlItem, controlItem.BornUT.value.Unix())
 				t.Fatalf("%s: Structs are different", wrapper)
 			}
@@ -604,6 +619,10 @@ func TestSimpleCRUD(t *testing.T) {
 			}
 
 			for _, testItem = range testItems {
+				if wrapper == `sqlite` {
+					// SQLite does not save time zone info, so you have to do this by hand.
+					testItem.Born = testItem.Born.In(time.UTC)
+				}
 				if reflect.DeepEqual(testItem, controlItem) == false {
 					t.Errorf("%s: testItem: %v\n", wrapper, testItem)
 					t.Errorf("%s: controlItem: %v\n", wrapper, controlItem)
@@ -618,7 +637,15 @@ func TestSimpleCRUD(t *testing.T) {
 				t.Fatalf(`Could not update with wrapper %s: %q`, wrapper, err)
 			}
 
-			res.One(&testItem)
+			err = res.One(&testItem)
+			if err != nil {
+				t.Fatalf("%s One(): %s", wrapper, err)
+			}
+
+			if wrapper == `sqlite` {
+				// SQLite does not save time zone info, so you have to do this by hand.
+				testItem.Born = testItem.Born.In(time.UTC)
+			}
 
 			if reflect.DeepEqual(testItem, controlItem) == false {
 				t.Fatalf("Struct is different with wrapper %s.", wrapper)
@@ -656,9 +683,12 @@ func TestFibonacci(t *testing.T) {
 	var total uint64
 
 	for _, wrapper := range wrappers {
+		t.Logf("Testing wrapper: %q", wrapper)
+
 		if settings[wrapper] == nil {
 			t.Fatalf(`No such settings entry for wrapper %s.`, wrapper)
 		} else {
+
 			var sess db.Database
 
 			sess, err = db.Open(wrapper, settings[wrapper])
@@ -868,6 +898,8 @@ func TestEven(t *testing.T) {
 	var err error
 
 	for _, wrapper := range wrappers {
+		t.Logf("Testing wrapper: %q", wrapper)
+
 		if settings[wrapper] == nil {
 			t.Fatalf(`No such settings entry for wrapper %s.`, wrapper)
 		} else {
@@ -992,6 +1024,7 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 	var testN mapN
 
 	for _, wrapper := range wrappers {
+		t.Logf("Testing wrapper: %q", wrapper)
 
 		if settings[wrapper] == nil {
 			t.Fatalf(`No such settings entry for wrapper %s.`, wrapper)

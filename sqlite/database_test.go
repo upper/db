@@ -31,6 +31,7 @@ package sqlite
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"math/rand"
 	"os"
 	"reflect"
@@ -39,6 +40,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 	"upper.io/db/util/sqlutil"
@@ -48,34 +50,39 @@ const (
 	database = `_dumps/gotest.sqlite3.db`
 )
 
+const (
+	testTimeZone = "Canada/Eastern"
+)
+
 var settings = ConnectionURL{
 	Database: database,
 }
 
 // Structure for testing conversions and datatypes.
 type testValuesStruct struct {
-	Uint   uint   `field:"_uint"`
-	Uint8  uint8  `field:"_uint8"`
-	Uint16 uint16 `field:"_uint16"`
-	Uint32 uint32 `field:"_uint32"`
-	Uint64 uint64 `field:"_uint64"`
+	Uint   uint   `db:"_uint"`
+	Uint8  uint8  `db:"_uint8"`
+	Uint16 uint16 `db:"_uint16"`
+	Uint32 uint32 `db:"_uint32"`
+	Uint64 uint64 `db:"_uint64"`
 
-	Int   int   `field:"_int"`
-	Int8  int8  `field:"_int8"`
-	Int16 int16 `field:"_int16"`
-	Int32 int32 `field:"_int32"`
-	Int64 int64 `field:"_int64"`
+	Int   int   `db:"_int"`
+	Int8  int8  `db:"_int8"`
+	Int16 int16 `db:"_int16"`
+	Int32 int32 `db:"_int32"`
+	Int64 int64 `db:"_int64"`
 
-	Float32 float32 `field:"_float32"`
-	Float64 float64 `field:"_float64"`
+	Float32 float32 `db:"_float32"`
+	Float64 float64 `db:"_float64"`
 
-	Bool   bool   `field:"_bool"`
-	String string `field:"_string"`
+	Bool   bool   `db:"_bool"`
+	String string `db:"_string"`
 
-	Date  time.Time     `field:"_date"`
-	DateN *time.Time    `field:"_nildate"`
-	DateP *time.Time    `field:"_ptrdate"`
-	Time  time.Duration `field:"_time"`
+	Date  time.Time  `db:"_date"`
+	DateN *time.Time `db:"_nildate"`
+	DateP *time.Time `db:"_ptrdate"`
+	DateD *time.Time `db:"_defaultdate,omitempty"`
+	Time  int64      `db:"_time"`
 }
 
 type artistWithInt64Key struct {
@@ -114,7 +121,14 @@ func (item *itemWithKey) SetID(keys map[string]interface{}) error {
 var testValues testValuesStruct
 
 func init() {
-	t := time.Date(2012, 7, 28, 1, 2, 3, 0, time.Local)
+	loc, err := time.LoadLocation(testTimeZone)
+
+	if err != nil {
+		panic(err.Error())
+	}
+
+	t := time.Date(2011, 7, 28, 1, 2, 3, 0, loc)
+	tnz := time.Date(2012, 7, 28, 1, 2, 3, 0, time.Local)
 
 	testValues = testValuesStruct{
 		1, 1, 1, 1, 1,
@@ -124,8 +138,9 @@ func init() {
 		"Hello world!",
 		t,
 		nil,
-		&t,
-		time.Second * time.Duration(7331),
+		&tnz,
+		nil,
+		int64(time.Second * time.Duration(7331)),
 	}
 }
 
@@ -564,8 +579,8 @@ func TestResultFetch(t *testing.T) {
 
 	// Dumping into a tagged struct.
 	rowStruct2 := struct {
-		Value1 uint64 `field:"id"`
-		Value2 string `field:"name"`
+		Value1 uint64 `db:"id"`
+		Value2 string `db:"name"`
 	}{}
 
 	res = artist.Find()
@@ -633,8 +648,8 @@ func TestResultFetch(t *testing.T) {
 
 	// Dumping into an slice of tagged structs.
 	allRowsStruct2 := []struct {
-		Value1 uint64 `field:"id"`
-		Value2 string `field:"name"`
+		Value1 uint64 `db:"id"`
+		Value2 string `db:"name"`
 	}{}
 
 	res = artist.Find()
@@ -1036,9 +1051,9 @@ func TestRawRelations(t *testing.T) {
 
 func TestRawQuery(t *testing.T) {
 	var sess db.Database
-	var rows *sql.Rows
+	var rows *sqlx.Rows
 	var err error
-	var drv *sql.DB
+	var drv *sqlx.DB
 
 	type publicationType struct {
 		ID       int64  `db:"id,omitempty"`
@@ -1052,9 +1067,9 @@ func TestRawQuery(t *testing.T) {
 
 	defer sess.Close()
 
-	drv = sess.Driver().(*sql.DB)
+	drv = sess.Driver().(*sqlx.DB)
 
-	rows, err = drv.Query(`
+	rows, err = drv.Queryx(`
 		SELECT
 			p.id,
 			p.title AS publication_title,
@@ -1349,10 +1364,24 @@ func TestDataTypes(t *testing.T) {
 	// Trying to dump the subject into an empty structure of the same type.
 	var item testValuesStruct
 
-	res.One(&item)
+	if err = res.One(&item); err != nil {
+		t.Fatal(err)
+	}
+
+	if item.DateD == nil {
+		t.Fatal("Expecting default date to have been set on append")
+	}
+
+	// Copy the default date (this value is set by the database)
+	testValues.DateD = item.DateD
+
+	loc, _ := time.LoadLocation(testTimeZone)
+	item.Date = item.Date.In(loc)
 
 	// The original value and the test subject must match.
 	if reflect.DeepEqual(item, testValues) == false {
+		fmt.Printf("item1: %v\n", item)
+		fmt.Printf("test2: %v\n", testValues)
 		t.Fatalf("Struct is different.")
 	}
 }
