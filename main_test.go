@@ -39,18 +39,16 @@ import (
 
 	"upper.io/db/mysql"
 	"upper.io/db/postgresql"
-	// Temporary removing QL. It includes a _solaris.go file that produces
-	// compile time errors on < go1.3.
-	// _ "upper.io/db/ql"
+	"upper.io/db/ql"
 	"upper.io/db/sqlite"
 )
 
 var wrappers = []string{
-	`sqlite`,
-	`mysql`,
-	`postgresql`,
+	sqlite.Adapter,
+	mysql.Adapter,
+	postgresql.Adapter,
 	//`mongo`,
-	// `ql`,
+	ql.Adapter,
 }
 
 const (
@@ -107,8 +105,8 @@ func init() {
 				"timezone": "UTC",
 			},
 		},
-		`ql`: &db.Settings{
-			Database: `file://upperio_test.ql`,
+		`ql`: &ql.ConnectionURL{
+			Database: `upperio_test.ql`,
 		},
 	}
 
@@ -370,7 +368,7 @@ var setupFn = map[string]func(driver interface{}) error{
 			}
 
 			_, err = tx.Exec(`CREATE TABLE CaSe_TesT (
-				Case_Test string
+				case_test string
 			)`)
 			if err != nil {
 				return err
@@ -387,8 +385,8 @@ var setupFn = map[string]func(driver interface{}) error{
 }
 
 type birthday struct {
-	Name   string    // `db:"name"`	// Must match by name.
-	Born   time.Time // `db:"born"		// Must match by name.
+	Name   string    // Must match by name.
+	Born   time.Time // Must match by name.
 	BornUT timeType  `db:"born_ut"`
 	OmitMe bool      `json:"omit_me" db:"-" bson:"-"`
 }
@@ -413,7 +411,7 @@ type oddEven struct {
 type mapE struct {
 	ID       uint          `db:"id,omitempty" bson:"-"`
 	MongoID  bson.ObjectId `db:"-" bson:"_id,omitempty"`
-	CaseTest string        `db:"case_test" bson:"Case_Test"`
+	CaseTest string        `db:"case_test" bson:"case_test"`
 }
 
 // Struct that will fallback to default mapping.
@@ -1064,7 +1062,7 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 			res = col.Find(db.Cond{"case_test": "Hello!"})
 
 			if wrapper == `ql` {
-				res = res.Select(`id() as ID`, `Case_Test`)
+				res = res.Select(`id() as id`, `case_test`)
 			}
 
 			if err = res.One(&testE); err != nil {
@@ -1098,7 +1096,7 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 			}
 
 			if wrapper == `ql` {
-				res = res.Select(`id() as ID`, `Case_Test`)
+				res = res.Select(`id() as id`, `case_test`)
 			}
 
 			if err = res.One(&testN); err != nil {

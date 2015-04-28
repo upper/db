@@ -25,11 +25,11 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"reflect"
 	"strings"
 	"time"
-	// Importing QL driver
-	_ "github.com/cznic/ql/driver"
+
+	_ "github.com/cznic/ql/driver" // QL driver
+	"github.com/jmoiron/sqlx"
 	"upper.io/cache"
 	"upper.io/db"
 	"upper.io/db/util/schema"
@@ -37,26 +37,20 @@ import (
 	"upper.io/db/util/sqlutil"
 )
 
-// Public adapters name under which this adapter registers its.
-const Adapter = `ql`
-
-var (
-	// DateFormat defines the format used for storing dates.
-	DateFormat = "2006-01-02 15:04:05.000"
-	// TimeFormat defines the format used for storing time values.
-	TimeFormat = "%d:%02d:%02d.%03d"
-	timeType   = reflect.TypeOf(time.Time{}).Kind()
+const (
+	// Adapter is the public name of the adapter.
+	Adapter = `ql`
 )
 
-var template *sqlgen.Template
-
 var (
+	template *sqlgen.Template
+
 	sqlPlaceholder = sqlgen.Value{sqlgen.Raw{`?`}}
 )
 
 type source struct {
 	connURL db.ConnectionURL
-	session *sql.DB
+	session *sqlx.DB
 	tx      *tx
 	schema  *schema.DatabaseSchema
 }
@@ -171,9 +165,9 @@ func (s *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result,
 	if s.tx != nil {
 		res, err = s.tx.sqlTx.Exec(query, args...)
 	} else {
-		var tx *sql.Tx
+		var tx *sqlx.Tx
 
-		if tx, err = s.session.Begin(); err != nil {
+		if tx, err = s.session.Beginx(); err != nil {
 			return nil, err
 		}
 
@@ -189,8 +183,8 @@ func (s *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result,
 	return res, err
 }
 
-func (s *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Rows, error) {
-	var rows *sql.Rows
+func (s *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Rows, error) {
+	var rows *sqlx.Rows
 	var query string
 	var err error
 	var start, end int64
@@ -214,15 +208,15 @@ func (s *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Rows,
 	}
 
 	if s.tx != nil {
-		rows, err = s.tx.sqlTx.Query(query, args...)
+		rows, err = s.tx.sqlTx.Queryx(query, args...)
 	} else {
-		var tx *sql.Tx
+		var tx *sqlx.Tx
 
-		if tx, err = s.session.Begin(); err != nil {
+		if tx, err = s.session.Beginx(); err != nil {
 			return nil, err
 		}
 
-		if rows, err = tx.Query(query, args...); err != nil {
+		if rows, err = tx.Queryx(query, args...); err != nil {
 			return nil, err
 		}
 
@@ -234,9 +228,9 @@ func (s *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Rows,
 	return rows, err
 }
 
-func (s *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Row, error) {
+func (s *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Row, error) {
 	var query string
-	var row *sql.Row
+	var row *sqlx.Row
 	var err error
 	var start, end int64
 
@@ -259,15 +253,15 @@ func (s *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 	}
 
 	if s.tx != nil {
-		row = s.tx.sqlTx.QueryRow(query, args...)
+		row = s.tx.sqlTx.QueryRowx(query, args...)
 	} else {
-		var tx *sql.Tx
+		var tx *sqlx.Tx
 
-		if tx, err = s.session.Begin(); err != nil {
+		if tx, err = s.session.Beginx(); err != nil {
 			return nil, err
 		}
 
-		if row = tx.QueryRow(query, args...); err != nil {
+		if row = tx.QueryRowx(query, args...); err != nil {
 			return nil, err
 		}
 
@@ -307,13 +301,13 @@ func (s *source) Clone() (db.Database, error) {
 func (s *source) Transaction() (db.Tx, error) {
 	var err error
 	var clone *source
-	var sqlTx *sql.Tx
+	var sqlTx *sqlx.Tx
 
 	if clone, err = s.clone(); err != nil {
 		return nil, err
 	}
 
-	if sqlTx, err = s.session.Begin(); err != nil {
+	if sqlTx, err = s.session.Beginx(); err != nil {
 		return nil, err
 	}
 
@@ -330,7 +324,7 @@ func (s *source) Setup(conn db.ConnectionURL) error {
 	return s.Open()
 }
 
-// Returns the underlying *sql.DB instance.
+// Returns the underlying *sqlx.DB instance.
 func (s *source) Driver() interface{} {
 	return s.session
 }
@@ -352,9 +346,11 @@ func (s *source) Open() error {
 		s.connURL = conn
 	}
 
-	if s.session, err = sql.Open(`ql`, s.connURL.String()); err != nil {
+	if s.session, err = sqlx.Open(`ql`, s.connURL.String()); err != nil {
 		return err
 	}
+
+	s.session.Mapper = sqlutil.NewMapper()
 
 	if err = s.populateSchema(); err != nil {
 		return err
@@ -414,7 +410,7 @@ func (s *source) Collections() (collections []string, err error) {
 	}
 
 	// Executing statement.
-	var rows *sql.Rows
+	var rows *sqlx.Rows
 	if rows, err = s.doQuery(stmt); err != nil {
 		return nil, err
 	}
@@ -444,7 +440,7 @@ func (s *source) Collections() (collections []string, err error) {
 func (s *source) tableExists(names ...string) error {
 	var stmt sqlgen.Statement
 	var err error
-	var rows *sql.Rows
+	var rows *sqlx.Rows
 
 	for i := range names {
 
@@ -499,7 +495,7 @@ func (s *source) tableColumns(tableName string) ([]string, error) {
 		},
 	}
 
-	var rows *sql.Rows
+	var rows *sqlx.Rows
 	var err error
 
 	if rows, err = s.doQuery(stmt, tableName); err != nil {
