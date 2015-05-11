@@ -93,5 +93,5 @@ func groupCondition(layout *Template, terms []cc, joinKeyword string) string {
 		return mustParse(layout.ClauseGroup, strings.Join(chunks, joinKeyword))
 	}
 
-	return ""
+	return "true"
 }
