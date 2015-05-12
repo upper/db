@@ -166,6 +166,7 @@ func (s *source) Collection(names ...string) (db.Collection, error) {
 		source: s,
 		names:  names,
 	}
+	col.T.Mapper = s.session.Mapper
 
 	for _, name := range names {
 		chunks := strings.SplitN(name, ` `, 2)
