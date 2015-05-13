@@ -187,9 +187,17 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 		for f, v := range wrappedValues {
 			switch t := v.(type) {
 			case *StringArray:
-				f.Set(reflect.ValueOf(*t))
+				if t != nil {
+					f.Set(reflect.ValueOf(*t))
+				}
+			case *Int64Array:
+				if t != nil {
+					f.Set(reflect.ValueOf(*t))
+				}
 			case *JsonbType:
-				f.Set(reflect.ValueOf((*t).V))
+				if t != nil && t.V != nil {
+					f.Set(reflect.ValueOf((*t).V))
+				}
 			default:
 			}
 		}

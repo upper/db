@@ -1737,6 +1737,30 @@ func TestOptionTypes(t *testing.T) {
 		t.Fatalf("Expecting first element of Tags stringarray to be 'love'")
 	}
 
+	type optionType2 struct {
+		ID       int64                   `db:"id,omitempty"`
+		Name     string                  `db:"name"`
+		Tags     []string                `db:"tags,stringarray"`
+		Settings *map[string]interface{} `db:"settings,jsonb"`
+	}
+
+	item3 := optionType2{
+		Name: "JS", Tags: []string{"hi", "bye"}, Settings: nil,
+	}
+
+	id, err = optionTypes.Append(item3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pk, ok := id.(int64); !ok || pk == 0 {
+		t.Fatalf("Expecting an ID.")
+	}
+
+	var item3Chk optionType2
+	if err := optionTypes.Find(db.Cond{"id": id}).One(&item3Chk); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // We are going to benchmark the engine, so this is no longed needed.
