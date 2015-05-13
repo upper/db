@@ -29,7 +29,6 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx/reflectx"
-	"github.com/pressly/reeler/lib/sqltyp"
 	"upper.io/db"
 )
 
@@ -45,11 +44,6 @@ var (
 	nullStringType  = reflect.TypeOf(sql.NullString{})
 )
 
-// NormalizeColumn prepares a column for comparison against another column.
-func NormalizeColumn(s string) string {
-	return strings.ToLower(reColumnCompareExclude.ReplaceAllString(s, ""))
-}
-
 // T type is commonly used by adapters to map database/sql values to Go values
 // using FieldValues()
 type T struct {
@@ -59,21 +53,11 @@ type T struct {
 
 func (t *T) columnLike(s string) string {
 	for _, name := range t.Columns {
-		if NormalizeColumn(s) == NormalizeColumn(name) {
+		if normalizeColumn(s) == normalizeColumn(name) {
 			return name
 		}
 	}
 	return s
-}
-
-func marshal(v interface{}) (interface{}, error) {
-	if m, isMarshaler := v.(db.Marshaler); isMarshaler {
-		var err error
-		if v, err = m.MarshalDB(); err != nil {
-			return nil, err
-		}
-	}
-	return v, nil
 }
 
 func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
@@ -94,7 +78,7 @@ func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
 
 	case reflect.Struct:
 
-		fieldMap := t.Mapper.TypeMap(itemT).FieldMap()
+		fieldMap := t.Mapper.TypeMap(itemT).Names
 		nfields := len(fieldMap)
 
 		values = make([]interface{}, 0, nfields)
@@ -107,9 +91,9 @@ func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
 
 			var value interface{}
 			if _, ok := fi.Options["stringarray"]; ok {
-				value = sqltyp.StringArray(fld.Interface().([]string))
-			} else if _, ok := fi.Options["json"]; ok {
-				value = JsonType{fld.Interface()}
+				value = StringArray(fld.Interface().([]string))
+			} else if _, ok := fi.Options["jsonb"]; ok {
+				value = JsonbType{fld.Interface()}
 			} else {
 				value = fld.Interface()
 			}
@@ -147,11 +131,22 @@ func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
 
 			values[i] = v
 		}
+
 	default:
 		return nil, nil, db.ErrExpectingMapOrStruct
 	}
 
 	return fields, values, nil
+}
+
+func marshal(v interface{}) (interface{}, error) {
+	if m, isMarshaler := v.(db.Marshaler); isMarshaler {
+		var err error
+		if v, err = m.MarshalDB(); err != nil {
+			return nil, err
+		}
+	}
+	return v, nil
 }
 
 func reset(data interface{}) error {
@@ -161,6 +156,11 @@ func reset(data interface{}) error {
 	z := reflect.Zero(t)
 	v.Set(z)
 	return nil
+}
+
+// normalizeColumn prepares a column for comparison against another column.
+func normalizeColumn(s string) string {
+	return strings.ToLower(reColumnCompareExclude.ReplaceAllString(s, ""))
 }
 
 // NewMapper creates a reflectx.Mapper

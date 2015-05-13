@@ -24,8 +24,6 @@ package sqlutil
 import (
 	"reflect"
 
-	"github.com/pressly/reeler/lib/sqltyp"
-
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
 	"upper.io/db"
@@ -152,7 +150,7 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 
 		values := make([]interface{}, len(columns))
 		typeMap := rows.Mapper.TypeMap(itemT)
-		fieldMap := typeMap.FieldMap()
+		fieldMap := typeMap.Names
 		wrappedValues := map[reflect.Value]interface{}{}
 
 		for i, k := range columns {
@@ -165,10 +163,10 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 			f := reflectx.FieldByIndexes(item, fi.Index)
 
 			if _, ok := fi.Options["stringarray"]; ok {
-				values[i] = &sqltyp.StringArray{}
+				values[i] = &StringArray{}
 				wrappedValues[f] = values[i]
-			} else if _, ok := fi.Options["json"]; ok {
-				values[i] = &JsonType{}
+			} else if _, ok := fi.Options["jsonb"]; ok {
+				values[i] = &JsonbType{}
 				wrappedValues[f] = values[i]
 			} else {
 				values[i] = f.Addr().Interface()
@@ -184,11 +182,10 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 		}
 
 		for f, v := range wrappedValues {
-			// log.Println("**", f, v)
 			switch t := v.(type) {
-			case *sqltyp.StringArray:
+			case *StringArray:
 				f.Set(reflect.ValueOf(*t))
-			case *JsonType:
+			case *JsonbType:
 				f.Set(reflect.ValueOf((*t).V))
 			default:
 			}

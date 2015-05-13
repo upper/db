@@ -26,6 +26,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"upper.io/db"
 )
@@ -42,17 +43,17 @@ var _ sql.Scanner = scanner{}
 
 //------
 
-type JsonType struct {
+type JsonbType struct {
 	V interface{}
 }
 
-func (j *JsonType) Scan(src interface{}) error {
+func (j *JsonbType) Scan(src interface{}) error {
 	b, ok := src.([]byte)
 	if !ok {
 		return errors.New("Scan source was not []bytes")
 	}
 
-	v := JsonType{}
+	v := JsonbType{}
 	if err := json.Unmarshal(b, &v.V); err != nil {
 		return err
 	}
@@ -60,10 +61,70 @@ func (j *JsonType) Scan(src interface{}) error {
 	return nil
 }
 
-func (j JsonType) Value() (driver.Value, error) {
+func (j JsonbType) Value() (driver.Value, error) {
 	b, err := json.Marshal(j.V)
 	if err != nil {
 		return nil, err
 	}
 	return b, nil
+}
+
+//------
+
+type StringArray []string
+
+func (a *StringArray) Scan(src interface{}) error {
+	if src == nil {
+		*a = StringArray{}
+		return nil
+	}
+	b, ok := src.([]byte)
+	if !ok {
+		return errors.New("Scan source was not []bytes")
+	}
+	s := string(b)[1 : len(b)-1]
+	results := strings.Split(s, ",")
+	*a = StringArray(results)
+	return nil
+}
+
+// Value implements the driver.Valuer interface.
+func (a StringArray) Value() (driver.Value, error) {
+	if a == nil {
+		return nil, nil
+	}
+
+	if n := len(a); n > 0 {
+		// There will be at least two curly brackets, 2*N bytes of quotes,
+		// and N-1 bytes of delimiters.
+		b := make([]byte, 1, 1+3*n)
+		b[0] = '{'
+
+		b = appendArrayQuotedString(b, a[0])
+		for i := 1; i < n; i++ {
+			b = append(b, ',')
+			b = appendArrayQuotedString(b, a[i])
+		}
+
+		return append(b, '}'), nil
+	}
+
+	return []byte{'{', '}'}, nil
+}
+
+func appendArrayQuotedString(b []byte, v string) []byte {
+	b = append(b, '"')
+	for {
+		i := strings.IndexAny(v, `"\`)
+		if i < 0 {
+			b = append(b, v...)
+			break
+		}
+		if i > 0 {
+			b = append(b, v[:i]...)
+		}
+		b = append(b, '\\', v[i])
+		v = v[i+1:]
+	}
+	return append(b, '"')
 }

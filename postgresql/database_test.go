@@ -25,7 +25,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"reflect"
 	"strconv"
@@ -1671,11 +1670,13 @@ func TestOptionTypes(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// TODO: lets do some benchmarking on these auto-wrapped option types..
+
 	type optionType struct {
 		ID       int64                  `db:"id,omitempty"`
 		Name     string                 `db:"name"`
 		Tags     []string               `db:"tags,stringarray"`
-		Settings map[string]interface{} `db:"settings,json"`
+		Settings map[string]interface{} `db:"settings,jsonb"`
 	}
 
 	item1 := optionType{
@@ -1685,7 +1686,6 @@ func TestOptionTypes(t *testing.T) {
 	}
 
 	id, err := optionTypes.Append(item1)
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1694,25 +1694,49 @@ func TestOptionTypes(t *testing.T) {
 		t.Fatalf("Expecting an ID.")
 	}
 
-	// TODO: test this with pointer types, etc........
-	// and then... lets do some benchmarking on this ...
-
 	var item1Chk optionType
 	if err := optionTypes.Find(db.Cond{"id": id}).One(&item1Chk); err != nil {
 		t.Fatal(err)
 	}
 
-	log.Println("===>", item1Chk)
-
 	if item1Chk.Settings["a"].(float64) != 1 { // float64 because of json..
 		t.Fatalf("Expecting Settings['a'] of jsonb value to be 1")
 	}
 
-	// NOTE: sqltyp.StringArray is boched.. it's including the "," which it shouldn't
-	// no matter... we dont care for this here anyways...
-	if item1Chk.Tags[0] != "toronto," {
+	if item1Chk.Tags[0] != "toronto" {
 		t.Fatalf("Expecting first element of Tags stringarray to be 'toronto'")
 	}
+
+	item2 := &optionType{
+		Name:     "Golang",
+		Tags:     []string{"love", "it"},
+		Settings: map[string]interface{}{"go": 1, "lang": 2},
+	}
+
+	id, err = optionTypes.Append(item2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pk, ok := id.(int64); !ok || pk == 0 {
+		t.Fatalf("Expecting an ID.")
+	}
+
+	var item2Chk optionType
+	if err := optionTypes.Find(db.Cond{"id": id}).One(&item2Chk); err != nil {
+		t.Fatal(err)
+	}
+
+	if item2Chk.Settings["go"].(float64) != 1 { // float64 because of json..
+		t.Fatalf("Expecting Settings['go'] of jsonb value to be 1")
+	}
+
+	// NOTE: sqltyp.StringArray is boched.. it's including the "," which it shouldn't
+	// no matter... we dont care for this here anyways...
+	if item2Chk.Tags[0] != "love" {
+		t.Fatalf("Expecting first element of Tags stringarray to be 'love'")
+	}
+
 }
 
 // We are going to benchmark the engine, so this is no longed needed.
