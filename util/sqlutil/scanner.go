@@ -26,6 +26,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 
 	"upper.io/db"
@@ -127,4 +128,55 @@ func appendArrayQuotedString(b []byte, v string) []byte {
 		v = v[i+1:]
 	}
 	return append(b, '"')
+}
+
+//------
+
+type Int64Array []int64
+
+func (a *Int64Array) Scan(src interface{}) error {
+	if src == nil {
+		return nil
+	}
+	b, ok := src.([]byte)
+	if !ok {
+		return errors.New("Scan source was not []bytes")
+	}
+
+	s := string(b)[1 : len(b)-1]
+	parts := strings.Split(s, ",")
+	results := make([]int64, 0)
+	for _, n := range parts {
+		i, err := strconv.ParseInt(n, 10, 64)
+		if err != nil {
+			return err
+		}
+		results = append(results, i)
+	}
+	*a = Int64Array(results)
+	return nil
+}
+
+// Value implements the driver.Valuer interface.
+func (a Int64Array) Value() (driver.Value, error) {
+	if a == nil {
+		return nil, nil
+	}
+
+	if n := len(a); n > 0 {
+		// There will be at least two curly brackets, N bytes of values,
+		// and N-1 bytes of delimiters.
+		b := make([]byte, 1, 1+2*n)
+		b[0] = '{'
+
+		b = strconv.AppendInt(b, a[0], 10)
+		for i := 1; i < n; i++ {
+			b = append(b, ',')
+			b = strconv.AppendInt(b, a[i], 10)
+		}
+
+		return append(b, '}'), nil
+	}
+
+	return []byte{'{', '}'}, nil
 }

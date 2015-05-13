@@ -92,6 +92,9 @@ func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
 			var value interface{}
 			if _, ok := fi.Options["stringarray"]; ok {
 				value = StringArray(fld.Interface().([]string))
+			} else if _, ok := fi.Options["int64array"]; ok {
+				value = Int64Array(fld.Interface().([]int64))
+
 			} else if _, ok := fi.Options["jsonb"]; ok {
 				value = JsonbType{fld.Interface()}
 			} else {

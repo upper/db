@@ -165,6 +165,9 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 			if _, ok := fi.Options["stringarray"]; ok {
 				values[i] = &StringArray{}
 				wrappedValues[f] = values[i]
+			} else if _, ok := fi.Options["int64array"]; ok {
+				values[i] = &Int64Array{}
+				wrappedValues[f] = values[i]
 			} else if _, ok := fi.Options["jsonb"]; ok {
 				values[i] = &JsonbType{}
 				wrappedValues[f] = values[i]
