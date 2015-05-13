@@ -23,6 +23,10 @@ package sqlutil
 
 import (
 	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
+
 	"upper.io/db"
 )
 
@@ -35,3 +39,31 @@ func (u scanner) Scan(v interface{}) error {
 }
 
 var _ sql.Scanner = scanner{}
+
+//------
+
+type JsonType struct {
+	V interface{}
+}
+
+func (j *JsonType) Scan(src interface{}) error {
+	b, ok := src.([]byte)
+	if !ok {
+		return errors.New("Scan source was not []bytes")
+	}
+
+	v := JsonType{}
+	if err := json.Unmarshal(b, &v.V); err != nil {
+		return err
+	}
+	*j = v
+	return nil
+}
+
+func (j JsonType) Value() (driver.Value, error) {
+	b, err := json.Marshal(j.V)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}

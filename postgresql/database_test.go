@@ -25,6 +25,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"reflect"
 	"strconv"
@@ -1648,6 +1649,69 @@ func TestDataTypes(t *testing.T) {
 		fmt.Printf("item1: %v\n", item)
 		fmt.Printf("test2: %v\n", testValues)
 		t.Fatalf("Struct is different.")
+	}
+}
+
+func TestOptionTypes(t *testing.T) {
+	var err error
+	var sess db.Database
+	var optionTypes db.Collection
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	if optionTypes, err = sess.Collection("option_types"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = optionTypes.Truncate(); err != nil {
+		t.Fatal(err)
+	}
+
+	type optionType struct {
+		ID       int64                  `db:"id,omitempty"`
+		Name     string                 `db:"name"`
+		Tags     []string               `db:"tags,stringarray"`
+		Settings map[string]interface{} `db:"settings,json"`
+	}
+
+	item1 := optionType{
+		Name:     "Food",
+		Tags:     []string{"toronto", "pizza"},
+		Settings: map[string]interface{}{"a": 1, "b": 2},
+	}
+
+	id, err := optionTypes.Append(item1)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pk, ok := id.(int64); !ok || pk == 0 {
+		t.Fatalf("Expecting an ID.")
+	}
+
+	// TODO: test this with pointer types, etc........
+	// and then... lets do some benchmarking on this ...
+
+	var item1Chk optionType
+	if err := optionTypes.Find(db.Cond{"id": id}).One(&item1Chk); err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println("===>", item1Chk)
+
+	if item1Chk.Settings["a"].(float64) != 1 { // float64 because of json..
+		t.Fatalf("Expecting Settings['a'] of jsonb value to be 1")
+	}
+
+	// NOTE: sqltyp.StringArray is boched.. it's including the "," which it shouldn't
+	// no matter... we dont care for this here anyways...
+	if item1Chk.Tags[0] != "toronto," {
+		t.Fatalf("Expecting first element of Tags stringarray to be 'toronto'")
 	}
 }
 

@@ -22,8 +22,9 @@
 package sqlutil
 
 import (
-	"errors"
 	"reflect"
+
+	"github.com/pressly/reeler/lib/sqltyp"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
@@ -150,14 +151,47 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 	case reflect.Struct:
 
 		values := make([]interface{}, len(columns))
-		fields := rows.Mapper.TraversalsByName(itemT, columns)
+		typeMap := rows.Mapper.TypeMap(itemT)
+		fieldMap := typeMap.FieldMap()
+		wrappedValues := map[reflect.Value]interface{}{}
 
-		if err = fieldsByTraversal(item, fields, values, true); err != nil {
-			return item, err
+		for i, k := range columns {
+			fi, ok := fieldMap[k]
+			if !ok {
+				values[i] = new(interface{})
+				continue
+			}
+
+			f := reflectx.FieldByIndexes(item, fi.Index)
+
+			if _, ok := fi.Options["stringarray"]; ok {
+				values[i] = &sqltyp.StringArray{}
+				wrappedValues[f] = values[i]
+			} else if _, ok := fi.Options["json"]; ok {
+				values[i] = &JsonType{}
+				wrappedValues[f] = values[i]
+			} else {
+				values[i] = f.Addr().Interface()
+			}
+
+			if u, ok := values[i].(db.Unmarshaler); ok {
+				values[i] = scanner{u}
+			}
 		}
 
 		if err = rows.Scan(values...); err != nil {
 			return item, err
+		}
+
+		for f, v := range wrappedValues {
+			// log.Println("**", f, v)
+			switch t := v.(type) {
+			case *sqltyp.StringArray:
+				f.Set(reflect.ValueOf(*t))
+			case *JsonType:
+				f.Set(reflect.ValueOf((*t).V))
+			default:
+			}
 		}
 
 	case reflect.Map:
@@ -187,35 +221,4 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 	}
 
 	return item, nil
-}
-
-func fieldsByTraversal(v reflect.Value, traversals [][]int, values []interface{}, ptrs bool) error {
-	v = reflect.Indirect(v)
-
-	if v.Kind() != reflect.Struct {
-		return errors.New("argument not a struct")
-	}
-
-	for i, traversal := range traversals {
-
-		if len(traversal) == 0 {
-			values[i] = new(interface{})
-			continue
-		}
-
-		f := reflectx.FieldByIndexes(v, traversal)
-
-		if ptrs {
-			values[i] = f.Addr().Interface()
-		} else {
-			values[i] = f.Interface()
-		}
-
-		// Provides compatibility with db.Unmarshaler
-		if u, ok := values[i].(db.Unmarshaler); ok {
-			values[i] = scanner{u}
-		}
-
-	}
-	return nil
 }

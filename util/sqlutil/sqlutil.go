@@ -23,14 +23,13 @@ package sqlutil
 
 import (
 	"database/sql"
+	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
 
 	"github.com/jmoiron/sqlx/reflectx"
-
-	"menteslibres.net/gosexy/to"
-
+	"github.com/pressly/reeler/lib/sqltyp"
 	"upper.io/db"
 )
 
@@ -102,7 +101,18 @@ func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
 		fields = make([]string, 0, nfields)
 
 		for _, fi := range fieldMap {
-			value := reflectx.FieldByIndexesReadOnly(itemV, fi.Index).Interface()
+			// log.Println("=>", fi.Name, fi.Options)
+
+			fld := reflectx.FieldByIndexesReadOnly(itemV, fi.Index)
+
+			var value interface{}
+			if _, ok := fi.Options["stringarray"]; ok {
+				value = sqltyp.StringArray(fld.Interface().([]string))
+			} else if _, ok := fi.Options["json"]; ok {
+				value = JsonType{fld.Interface()}
+			} else {
+				value = fld.Interface()
+			}
 
 			if _, ok := fi.Options["omitempty"]; ok {
 				if value == fi.Zero.Interface() {
@@ -128,7 +138,7 @@ func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
 
 		for i, keyV := range mkeys {
 			valv := itemV.MapIndex(keyV)
-			fields[i] = t.columnLike(to.String(keyV.Interface()))
+			fields[i] = t.columnLike(fmt.Sprintf("%v", keyV.Interface()))
 
 			v, err := marshal(valv.Interface())
 			if err != nil {
