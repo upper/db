@@ -84,6 +84,9 @@ func (a *StringArray) Scan(src interface{}) error {
 		return errors.New("Scan source was not []bytes")
 	}
 	s := string(b)[1 : len(b)-1]
+	if s == "" {
+		return nil
+	}
 	results := strings.Split(s, ",")
 	*a = StringArray(results)
 	return nil
