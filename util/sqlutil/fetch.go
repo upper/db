@@ -22,6 +22,7 @@
 package sqlutil
 
 import (
+	"encoding/json"
 	"reflect"
 
 	"github.com/jmoiron/sqlx"
@@ -151,7 +152,7 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 		values := make([]interface{}, len(columns))
 		typeMap := rows.Mapper.TypeMap(itemT)
 		fieldMap := typeMap.Names
-		wrappedValues := map[reflect.Value]interface{}{}
+		wrappedValues := map[reflect.Value][]interface{}{}
 
 		for i, k := range columns {
 			fi, ok := fieldMap[k]
@@ -160,17 +161,18 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 				continue
 			}
 
-			f := reflectx.FieldByIndexes(item, fi.Index)
+			f := reflectx.FieldByIndexesReadOnly(item, fi.Index)
 
+			// TODO: refactor into a nice pattern
 			if _, ok := fi.Options["stringarray"]; ok {
-				values[i] = &StringArray{}
-				wrappedValues[f] = values[i]
+				values[i] = &[]byte{}
+				wrappedValues[f] = []interface{}{"stringarray", values[i]}
 			} else if _, ok := fi.Options["int64array"]; ok {
-				values[i] = &Int64Array{}
-				wrappedValues[f] = values[i]
+				values[i] = &[]byte{}
+				wrappedValues[f] = []interface{}{"int64array", values[i]}
 			} else if _, ok := fi.Options["jsonb"]; ok {
-				values[i] = &JsonbType{}
-				wrappedValues[f] = values[i]
+				values[i] = &[]byte{}
+				wrappedValues[f] = []interface{}{"jsonb", values[i]}
 			} else {
 				values[i] = f.Addr().Interface()
 			}
@@ -180,25 +182,66 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 			}
 		}
 
+		// Scanner - for reads
+		// Valuer  - for writes
+
+		// OptionTypes
+		// - before/after scan
+		// - before/after valuer..
+
 		if err = rows.Scan(values...); err != nil {
 			return item, err
 		}
 
+		// TODO: move this stuff out of here.. find a nice pattern
 		for f, v := range wrappedValues {
-			switch t := v.(type) {
-			case *StringArray:
-				if t != nil {
-					f.Set(reflect.ValueOf(*t))
+			opt := v[0].(string)
+			b := v[1].(*[]byte)
+
+			switch opt {
+			case "stringarray":
+				v := StringArray{}
+				err := v.Scan(*b)
+				if err != nil {
+					return item, err
 				}
-			case *Int64Array:
-				if t != nil {
-					f.Set(reflect.ValueOf(*t))
+				f.Set(reflect.ValueOf(v))
+			case "int64array":
+				v := Int64Array{}
+				err := v.Scan(*b)
+				if err != nil {
+					return item, err
 				}
-			case *JsonbType:
-				if t != nil && t.V != nil {
-					f.Set(reflect.ValueOf((*t).V))
+				f.Set(reflect.ValueOf(v))
+			case "jsonb":
+				if len(*b) == 0 {
+					continue
 				}
-			default:
+
+				var vv reflect.Value
+				t := reflect.PtrTo(f.Type())
+
+				switch t.Kind() {
+				case reflect.Map:
+					vv = reflect.MakeMap(t)
+				case reflect.Slice:
+					vv = reflect.MakeSlice(t, 0, 0)
+				default:
+					vv = reflect.New(t)
+				}
+
+				err := json.Unmarshal(*b, vv.Interface())
+				if err != nil {
+					return item, err
+				}
+
+				vv = vv.Elem().Elem()
+
+				if !vv.IsValid() || (vv.Kind() == reflect.Ptr && vv.IsNil()) {
+					continue
+				}
+
+				f.Set(vv)
 			}
 		}
 

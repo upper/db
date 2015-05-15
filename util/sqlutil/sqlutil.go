@@ -88,6 +88,9 @@ func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
 			// log.Println("=>", fi.Name, fi.Options)
 
 			fld := reflectx.FieldByIndexesReadOnly(itemV, fi.Index)
+			if fld.Kind() == reflect.Ptr && fld.IsNil() {
+				continue
+			}
 
 			var value interface{}
 			if _, ok := fi.Options["stringarray"]; ok {

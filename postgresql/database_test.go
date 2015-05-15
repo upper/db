@@ -1672,6 +1672,10 @@ func TestOptionTypes(t *testing.T) {
 
 	// TODO: lets do some benchmarking on these auto-wrapped option types..
 
+	// TODO: add nullable jsonb field mapped to a []string
+
+	// A struct with wrapped option types defined in the struct tags
+	// for postgres string array and jsonb types
 	type optionType struct {
 		ID       int64                  `db:"id,omitempty"`
 		Name     string                 `db:"name"`
@@ -1679,6 +1683,7 @@ func TestOptionTypes(t *testing.T) {
 		Settings map[string]interface{} `db:"settings,jsonb"`
 	}
 
+	// Item 1
 	item1 := optionType{
 		Name:     "Food",
 		Tags:     []string{"toronto", "pizza"},
@@ -1707,10 +1712,72 @@ func TestOptionTypes(t *testing.T) {
 		t.Fatalf("Expecting first element of Tags stringarray to be 'toronto'")
 	}
 
-	item2 := &optionType{
+	// Item 1 B
+	item1b := &optionType{
 		Name:     "Golang",
 		Tags:     []string{"love", "it"},
 		Settings: map[string]interface{}{"go": 1, "lang": 2},
+	}
+
+	id, err = optionTypes.Append(item1b)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pk, ok := id.(int64); !ok || pk == 0 {
+		t.Fatalf("Expecting an ID.")
+	}
+
+	var item1bChk optionType
+	if err := optionTypes.Find(db.Cond{"id": id}).One(&item1bChk); err != nil {
+		t.Fatal(err)
+	}
+
+	if item1bChk.Settings["go"].(float64) != 1 { // float64 because of json..
+		t.Fatalf("Expecting Settings['go'] of jsonb value to be 1")
+	}
+
+	if item1bChk.Tags[0] != "love" {
+		t.Fatalf("Expecting first element of Tags stringarray to be 'love'")
+	}
+
+	// Item 1 C
+	item1c := &optionType{
+		Name: "Sup", Tags: []string{}, Settings: map[string]interface{}{},
+	}
+
+	id, err = optionTypes.Append(item1c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pk, ok := id.(int64); !ok || pk == 0 {
+		t.Fatalf("Expecting an ID.")
+	}
+
+	var item1cChk optionType
+	if err := optionTypes.Find(db.Cond{"id": id}).One(&item1cChk); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(item1cChk.Tags) != 0 {
+		t.Fatalf("Expecting tags array to be empty but is %v", item1cChk.Tags)
+	}
+
+	if len(item1cChk.Settings) != 0 {
+		t.Fatalf("Expecting Settings map to be empty")
+	}
+
+	// An option type to pointer jsonb field
+	type optionType2 struct {
+		ID       int64                   `db:"id,omitempty"`
+		Name     string                  `db:"name"`
+		Tags     []string                `db:"tags,stringarray"`
+		Settings *map[string]interface{} `db:"settings,jsonb"`
+	}
+
+	item2 := optionType2{
+		Name: "JS", Tags: []string{"hi", "bye"}, Settings: nil,
 	}
 
 	id, err = optionTypes.Append(item2)
@@ -1722,30 +1789,56 @@ func TestOptionTypes(t *testing.T) {
 		t.Fatalf("Expecting an ID.")
 	}
 
-	var item2Chk optionType
-	if err := optionTypes.Find(db.Cond{"id": id}).One(&item2Chk); err != nil {
+	var item2Chk optionType2
+	res := optionTypes.Find(db.Cond{"id": id})
+	if err := res.One(&item2Chk); err != nil {
 		t.Fatal(err)
 	}
 
-	if item2Chk.Settings["go"].(float64) != 1 { // float64 because of json..
-		t.Fatalf("Expecting Settings['go'] of jsonb value to be 1")
+	if item2Chk.ID != id.(int64) {
+		t.Fatalf("Expecting id to match")
 	}
 
-	// NOTE: sqltyp.StringArray is boched.. it's including the "," which it shouldn't
-	// no matter... we dont care for this here anyways...
-	if item2Chk.Tags[0] != "love" {
-		t.Fatalf("Expecting first element of Tags stringarray to be 'love'")
+	if item2Chk.Name != item2.Name {
+		t.Fatalf("Expecting Name to match")
 	}
 
-	type optionType2 struct {
-		ID       int64                   `db:"id,omitempty"`
-		Name     string                  `db:"name"`
-		Tags     []string                `db:"tags,stringarray"`
-		Settings *map[string]interface{} `db:"settings,jsonb"`
+	if item2Chk.Tags[0] != item2.Tags[0] || len(item2Chk.Tags) != len(item2.Tags) {
+		t.Fatalf("Expecting tags to match")
 	}
 
-	item3 := optionType2{
-		Name: "JS", Tags: []string{"hi", "bye"}, Settings: nil,
+	// Update the value
+	m := map[string]interface{}{}
+	m["lang"] = "javascript"
+	m["num"] = 31337
+	item2.Settings = &m
+	err = res.Update(item2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := res.One(&item2Chk); err != nil {
+		t.Fatal(err)
+	}
+
+	if (*item2Chk.Settings)["num"].(float64) != 31337 { // float64 because of json..
+		t.Fatalf("Expecting Settings['num'] of jsonb value to be 31337")
+	}
+
+	if (*item2Chk.Settings)["lang"] != "javascript" {
+		t.Fatalf("Expecting Settings['lang'] of jsonb value to be 'javascript'")
+	}
+
+	// An option type to pointer string array field
+	type optionType3 struct {
+		ID       int64                  `db:"id,omitempty"`
+		Name     string                 `db:"name"`
+		Tags     *[]string              `db:"tags,stringarray"`
+		Settings map[string]interface{} `db:"settings,jsonb"`
+	}
+
+	item3 := optionType3{
+		Name: "Julia", Tags: nil, Settings: map[string]interface{}{"girl": true, "lang": true},
 	}
 
 	id, err = optionTypes.Append(item3)
@@ -1760,6 +1853,76 @@ func TestOptionTypes(t *testing.T) {
 	var item3Chk optionType2
 	if err := optionTypes.Find(db.Cond{"id": id}).One(&item3Chk); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestOptionTypeJsonbStruct(t *testing.T) {
+	var err error
+	var sess db.Database
+	var optionTypes db.Collection
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	if optionTypes, err = sess.Collection("option_types"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = optionTypes.Truncate(); err != nil {
+		t.Fatal(err)
+	}
+
+	// A struct with wrapped option types defined in the struct tags
+	// for postgres string array and jsonb types
+	type Settings struct {
+		Name string `json:"name"`
+		Num  int64  `json:"num"`
+	}
+
+	type OptionType struct {
+		ID       int64    `db:"id,omitempty"`
+		Name     string   `db:"name"`
+		Tags     []string `db:"tags,stringarray"`
+		Settings Settings `db:"settings,jsonb"`
+	}
+
+	item1 := &OptionType{
+		Name:     "Hi",
+		Tags:     []string{"aah", "ok"},
+		Settings: Settings{Name: "a", Num: 123},
+	}
+
+	id, err := optionTypes.Append(item1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pk, ok := id.(int64); !ok || pk == 0 {
+		t.Fatalf("Expecting an ID.")
+	}
+
+	var item1Chk OptionType
+	if err := optionTypes.Find(db.Cond{"id": id}).One(&item1Chk); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(item1Chk.Tags) != 2 {
+		t.Fatalf("Expecting 2 tags")
+	}
+
+	if item1Chk.Tags[0] != "aah" {
+		t.Fatalf("Expecting first tag to be 0")
+	}
+
+	if item1Chk.Settings.Name != "a" {
+		t.Fatalf("Expecting Name to be 'a'")
+	}
+
+	if item1Chk.Settings.Num != 123 {
+		t.Fatalf("Expecting Num to be 123")
 	}
 }
 

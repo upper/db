@@ -83,6 +83,9 @@ func (a *StringArray) Scan(src interface{}) error {
 	if !ok {
 		return errors.New("Scan source was not []bytes")
 	}
+	if len(b) == 0 {
+		return nil
+	}
 	s := string(b)[1 : len(b)-1]
 	if s == "" {
 		return nil
