@@ -5,45 +5,63 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"unicode"
 )
 
-func TestUtilIsSpace(t *testing.T) {
-	if isSpace(' ') == false {
+const (
+	blankSymbol         = ' '
+	stringWithCommas    = "Hello,,World!,Enjoy"
+	stringWithSpaces    = " Hello  World! Enjoy"
+	stringWithASKeyword = "table.Name AS myTableAlias"
+)
+
+var (
+	bytesWithLeadingBlanks  = []byte("               Hello world!             ")
+	stringWithLeadingBlanks = string(bytesWithLeadingBlanks)
+)
+
+func TestUtilIsBlankSymbol(t *testing.T) {
+	if isBlankSymbol(' ') == false {
 		t.Fail()
 	}
-	if isSpace('\n') == false {
+	if isBlankSymbol('\n') == false {
 		t.Fail()
 	}
-	if isSpace('\t') == false {
+	if isBlankSymbol('\t') == false {
 		t.Fail()
 	}
-	if isSpace('\r') == false {
+	if isBlankSymbol('\r') == false {
 		t.Fail()
 	}
-	if isSpace('x') == true {
+	if isBlankSymbol('x') == true {
 		t.Fail()
 	}
 }
 
-func TestUtilTrimByte(t *testing.T) {
+func TestUtilTrimBytes(t *testing.T) {
 	var trimmed []byte
 
-	trimmed = trimByte([]byte("  \t\nHello World!     \n"))
+	trimmed = trimBytes([]byte("  \t\nHello World!     \n"))
 	if string(trimmed) != "Hello World!" {
 		t.Fatalf("Got: %s\n", string(trimmed))
 	}
 
-	trimmed = trimByte([]byte("Nope"))
+	trimmed = trimBytes([]byte("Nope"))
 	if string(trimmed) != "Nope" {
 		t.Fatalf("Got: %s\n", string(trimmed))
 	}
 
-	trimmed = trimByte([]byte(""))
+	trimmed = trimBytes([]byte(""))
 	if string(trimmed) != "" {
 		t.Fatalf("Got: %s\n", string(trimmed))
 	}
 
-	trimmed = trimByte(nil)
+	trimmed = trimBytes([]byte(" "))
+	if string(trimmed) != "" {
+		t.Fatalf("Got: %s\n", string(trimmed))
+	}
+
+	trimmed = trimBytes(nil)
 	if string(trimmed) != "" {
 		t.Fatalf("Got: %s\n", string(trimmed))
 	}
@@ -191,81 +209,76 @@ func TestUtilSeparateByAS(t *testing.T) {
 	}
 }
 
-func BenchmarkUtilIsSpace(b *testing.B) {
+func BenchmarkUtilIsBlankSymbol(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = isSpace(' ')
+		_ = isBlankSymbol(blankSymbol)
 	}
 }
 
-func BenchmarkUtilTrimByte(b *testing.B) {
-	s := []byte("               Hello world!             ")
+func BenchmarkUtilStdlibIsBlankSymbol(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = trimByte(s)
+		_ = unicode.IsSpace(blankSymbol)
+	}
+}
+
+func BenchmarkUtilTrimBytes(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = trimBytes(bytesWithLeadingBlanks)
+	}
+}
+func BenchmarkUtilStdlibBytesTrimSpace(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = bytes.TrimSpace(bytesWithLeadingBlanks)
 	}
 }
 
 func BenchmarkUtilTrimString(b *testing.B) {
-	s := "               Hello world!             "
 	for i := 0; i < b.N; i++ {
-		_ = trimString(s)
+		_ = trimString(stringWithLeadingBlanks)
 	}
 }
 
-func BenchmarkUtilStdBytesTrimSpace(b *testing.B) {
-	s := []byte("               Hello world!             ")
+func BenchmarkUtilStdlibStringsTrimSpace(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = bytes.TrimSpace(s)
-	}
-}
-
-func BenchmarkUtilStdStringsTrimSpace(b *testing.B) {
-	s := "               Hello world!             "
-	for i := 0; i < b.N; i++ {
-		_ = strings.TrimSpace(s)
+		_ = strings.TrimSpace(stringWithLeadingBlanks)
 	}
 }
 
 func BenchmarkUtilSeparateByComma(b *testing.B) {
-	s := "Hello,,World!,Enjoy"
 	for i := 0; i < b.N; i++ {
-		_ = separateByComma(s)
+		_ = separateByComma(stringWithCommas)
+	}
+}
+
+func BenchmarkUtilRegExpSeparateByComma(b *testing.B) {
+	sep := regexp.MustCompile(`\s*?,\s*?`)
+	for i := 0; i < b.N; i++ {
+		_ = sep.Split(stringWithCommas, -1)
 	}
 }
 
 func BenchmarkUtilSeparateBySpace(b *testing.B) {
-	s := " Hello  World! Enjoy"
 	for i := 0; i < b.N; i++ {
-		_ = separateBySpace(s)
+		_ = separateBySpace(stringWithSpaces)
+	}
+}
+
+func BenchmarkUtilRegExpSeparateBySpace(b *testing.B) {
+	sep := regexp.MustCompile(`\s+`)
+	for i := 0; i < b.N; i++ {
+		_ = sep.Split(stringWithSpaces, -1)
 	}
 }
 
 func BenchmarkUtilSeparateByAS(b *testing.B) {
-	s := "table.Name AS myTableAlias"
 	for i := 0; i < b.N; i++ {
-		_ = separateByAS(s)
+		_ = separateByAS(stringWithASKeyword)
 	}
 }
 
-func BenchmarkUtilSeparateByCommaRegExp(b *testing.B) {
-	sep := regexp.MustCompile(`\s*?,\s*?`)
-	s := "Hello,,World!,Enjoy"
-	for i := 0; i < b.N; i++ {
-		_ = sep.Split(s, -1)
-	}
-}
-
-func BenchmarkUtilSeparateBySpaceRegExp(b *testing.B) {
-	sep := regexp.MustCompile(`\s+`)
-	s := " Hello  World! Enjoy"
-	for i := 0; i < b.N; i++ {
-		_ = sep.Split(s, -1)
-	}
-}
-
-func BenchmarkUtilSeparateByASRegExp(b *testing.B) {
+func BenchmarkUtilRegExpSeparateByAS(b *testing.B) {
 	sep := regexp.MustCompile(`(?i:\s+AS\s+)`)
-	s := "table.Name AS myTableAlias"
 	for i := 0; i < b.N; i++ {
-		_ = sep.Split(s, -1)
+		_ = sep.Split(stringWithASKeyword, -1)
 	}
 }
