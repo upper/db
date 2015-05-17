@@ -1,14 +1,27 @@
 package sqlgen
 
-type GroupBy Columns
+import (
+	"fmt"
+)
+
+type GroupBy struct {
+	Columns *Columns
+	hash    string
+}
 
 type groupByT struct {
 	GroupColumns string
 }
 
 func (g *GroupBy) Hash() string {
-	c := Columns(*g)
-	return `GroupBy(` + c.Hash() + `)`
+	if g.hash == "" {
+		g.hash = fmt.Sprintf(`GroupBy(%s)`, g.Columns.Hash())
+	}
+	return g.hash
+}
+
+func NewGroupBy(columns ...Column) *GroupBy {
+	return &GroupBy{Columns: NewColumns(columns...)}
 }
 
 func (g *GroupBy) Compile(layout *Template) (compiled string) {
@@ -17,11 +30,9 @@ func (g *GroupBy) Compile(layout *Template) (compiled string) {
 		return c
 	}
 
-	if len(g.Columns) > 0 {
-		c := Columns(*g)
-
+	if g.Columns != nil {
 		data := groupByT{
-			GroupColumns: c.Compile(layout),
+			GroupColumns: g.Columns.Compile(layout),
 		}
 
 		compiled = mustParse(layout.GroupByLayout, data)

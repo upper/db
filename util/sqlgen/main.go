@@ -24,13 +24,15 @@ type (
 	Extra  string
 )
 
-var parsedTemplates = make(map[string]*template.Template)
+var (
+	parsedTemplates = make(map[string]*template.Template)
+)
 
-func mustParse(text string, data interface{}) (compiled string) {
+func mustParse(text string, data interface{}) string {
 	var b bytes.Buffer
 	var ok bool
 
-	if _, ok = parsedTemplates[text]; ok == false {
+	if _, ok = parsedTemplates[text]; !ok {
 		parsedTemplates[text] = template.Must(template.New("").Parse(text))
 	}
 
@@ -38,7 +40,5 @@ func mustParse(text string, data interface{}) (compiled string) {
 		panic("There was an error compiling the following template:\n" + text + "\nError was: " + err.Error())
 	}
 
-	compiled = b.String()
-
-	return
+	return b.String()
 }

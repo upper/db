@@ -96,22 +96,6 @@ func BenchmarkCompileOrderBy(b *testing.B) {
 	}
 }
 
-func BenchmarkGroupBy(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_ = GroupBy{
-			Columns: []Column{Column{Name: "foo"}},
-		}
-	}
-}
-
-func BenchmarkCompileGroupBy(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_ = (&GroupBy{
-			Columns: []Column{Column{Name: "foo"}},
-		}).Compile(defaultTemplate)
-	}
-}
-
 func BenchmarkWhere(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = Where{

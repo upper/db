@@ -14,7 +14,7 @@ type Statement struct {
 	Values
 	ColumnValues
 	OrderBy
-	GroupBy
+	GroupBy cc
 	Extra
 	Where
 }

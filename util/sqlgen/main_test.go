@@ -1,8 +1,21 @@
 package sqlgen
 
 import (
+	"regexp"
+	"strings"
 	"testing"
 )
+
+var (
+	reInvisible = regexp.MustCompile(`[\t\n\r]`)
+	reSpace     = regexp.MustCompile(`\s+`)
+)
+
+func trim(a string) string {
+	a = reInvisible.ReplaceAllString(strings.TrimSpace(a), " ")
+	a = reSpace.ReplaceAllString(strings.TrimSpace(a), " ")
+	return a
+}
 
 func TestTruncateTable(t *testing.T) {
 	var s, e string
@@ -322,7 +335,7 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 	}
 }
 
-func TestGroupBy(t *testing.T) {
+func TestStatementGroupBy(t *testing.T) {
 	var s, e string
 	var stmt Statement
 
@@ -334,11 +347,9 @@ func TestGroupBy(t *testing.T) {
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		GroupBy: GroupBy{
-			Columns: []Column{
-				Column{Name: "foo"},
-			},
-		},
+		GroupBy: NewGroupBy(
+			Column{Name: "foo"},
+		),
 		Table: Table{"table_name"},
 	}
 
@@ -356,12 +367,10 @@ func TestGroupBy(t *testing.T) {
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		GroupBy: GroupBy{
-			Columns: []Column{
-				Column{Name: "foo"},
-				Column{Name: "bar"},
-			},
-		},
+		GroupBy: NewGroupBy(
+			Column{Name: "foo"},
+			Column{Name: "bar"},
+		),
 		Table: Table{"table_name"},
 	}
 
