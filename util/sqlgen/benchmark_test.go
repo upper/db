@@ -18,18 +18,6 @@ func BenchmarkCompileColumnNoCache(b *testing.B) {
 	}
 }
 
-func BenchmarkColumns(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_ = Columns{{Name: "a"}, {Name: "b"}, {Name: "c"}}
-	}
-}
-
-func BenchmarkCompileColumnsNoCache(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_ = Columns{{Name: "a"}, {Name: "b"}, {Name: "c"}}.Compile(defaultTemplate)
-	}
-}
-
 func BenchmarkValue(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = Value{"a"}
@@ -51,18 +39,6 @@ func BenchmarkValues(b *testing.B) {
 func BenchmarkCompileValues(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = Values{{"a"}, {"b"}, {"c"}, {1}, {2}, {3}}.Compile(defaultTemplate)
-	}
-}
-
-func BenchmarkDatabase(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_ = Database{"TestDatabase"}
-	}
-}
-
-func BenchmarkCompileDatabase(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_ = Database{"TestDatabase"}.Compile(defaultTemplate)
 	}
 }
 
@@ -123,16 +99,16 @@ func BenchmarkCompileOrderBy(b *testing.B) {
 func BenchmarkGroupBy(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = GroupBy{
-			Column{Name: "foo"},
+			Columns: []Column{Column{Name: "foo"}},
 		}
 	}
 }
 
 func BenchmarkCompileGroupBy(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = GroupBy{
-			Column{Name: "foo"},
-		}.Compile(defaultTemplate)
+		_ = (&GroupBy{
+			Columns: []Column{Column{Name: "foo"}},
+		}).Compile(defaultTemplate)
 	}
 }
 

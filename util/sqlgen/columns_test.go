@@ -7,13 +7,13 @@ import (
 func TestColumns(t *testing.T) {
 	var s, e string
 
-	columns := Columns{
-		{Name: "id"},
-		{Name: "customer"},
-		{Name: "service_id"},
-		{Name: "role.name"},
-		{Name: "role.id"},
-	}
+	columns := NewColumns(
+		Column{Name: "id"},
+		Column{Name: "customer"},
+		Column{Name: "service_id"},
+		Column{Name: "role.name"},
+		Column{Name: "role.id"},
+	)
 
 	s = columns.Compile(defaultTemplate)
 	e = `"id", "customer", "service_id", "role"."name", "role"."id"`
@@ -21,5 +21,53 @@ func TestColumns(t *testing.T) {
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
+}
 
+func BenchmarkNewColumns(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = NewColumns(
+			Column{Name: "a"},
+			Column{Name: "b"},
+			Column{Name: "c"},
+		)
+	}
+}
+
+func BenchmarkColumnsHash(b *testing.B) {
+	c := NewColumns(
+		Column{Name: "id"},
+		Column{Name: "customer"},
+		Column{Name: "service_id"},
+		Column{Name: "role.name"},
+		Column{Name: "role.id"},
+	)
+	for i := 0; i < b.N; i++ {
+		c.Hash()
+	}
+}
+
+func BenchmarkColumnsCompile(b *testing.B) {
+	c := NewColumns(
+		Column{Name: "id"},
+		Column{Name: "customer"},
+		Column{Name: "service_id"},
+		Column{Name: "role.name"},
+		Column{Name: "role.id"},
+	)
+	for i := 0; i < b.N; i++ {
+		c.Compile(defaultTemplate)
+	}
+}
+
+func BenchmarkColumnsCompileNoCache(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		c := NewColumns(
+			Column{Name: "id"},
+			Column{Name: "customer"},
+			Column{Name: "service_id"},
+			Column{Name: "role.name"},
+			Column{Name: "role.id"},
+		)
+		c.Compile(defaultTemplate)
+	}
 }

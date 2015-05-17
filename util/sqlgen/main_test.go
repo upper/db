@@ -44,7 +44,7 @@ func TestDropDatabase(t *testing.T) {
 
 	stmt = Statement{
 		Type:     SqlDropDatabase,
-		Database: Database{"table_name"},
+		Database: Database{Name: "table_name"},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -203,9 +203,9 @@ func TestSelectArtistNameFrom(t *testing.T) {
 	stmt = Statement{
 		Type:  SqlSelect,
 		Table: Table{"artist"},
-		Columns: Columns{
-			{Name: "artist.name"},
-		},
+		Columns: NewColumns(
+			Column{Name: "artist.name"},
+		),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -223,10 +223,10 @@ func TestSelectRawFrom(t *testing.T) {
 	stmt = Statement{
 		Type:  SqlSelect,
 		Table: Table{`artist`},
-		Columns: Columns{
-			{Name: `artist.name`},
-			{Name: Raw{Value: `CONCAT(artist.name, " ", artist.last_name)`}},
-		},
+		Columns: NewColumns(
+			Column{Name: `artist.name`},
+			Column{Name: Raw{Value: `CONCAT(artist.name, " ", artist.last_name)`}},
+		),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -243,11 +243,11 @@ func TestSelectFieldsFrom(t *testing.T) {
 
 	stmt = Statement{
 		Type: SqlSelect,
-		Columns: Columns{
-			{Name: "foo"},
-			{Name: "bar"},
-			{Name: "baz"},
-		},
+		Columns: NewColumns(
+			Column{Name: "foo"},
+			Column{Name: "bar"},
+			Column{Name: "baz"},
+		),
 		Table: Table{"table_name"},
 	}
 
@@ -266,11 +266,11 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 	// LIMIT only.
 	stmt = Statement{
 		Type: SqlSelect,
-		Columns: Columns{
-			{Name: "foo"},
-			{Name: "bar"},
-			{Name: "baz"},
-		},
+		Columns: NewColumns(
+			Column{Name: "foo"},
+			Column{Name: "bar"},
+			Column{Name: "baz"},
+		),
 		Limit: 42,
 		Table: Table{"table_name"},
 	}
@@ -285,11 +285,11 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 	// OFFSET only.
 	stmt = Statement{
 		Type: SqlSelect,
-		Columns: Columns{
-			{Name: "foo"},
-			{Name: "bar"},
-			{Name: "baz"},
-		},
+		Columns: NewColumns(
+			Column{Name: "foo"},
+			Column{Name: "bar"},
+			Column{Name: "baz"},
+		),
 		Offset: 17,
 		Table:  Table{"table_name"},
 	}
@@ -304,11 +304,11 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 	// LIMIT AND OFFSET.
 	stmt = Statement{
 		Type: SqlSelect,
-		Columns: Columns{
-			{Name: "foo"},
-			{Name: "bar"},
-			{Name: "baz"},
-		},
+		Columns: NewColumns(
+			Column{Name: "foo"},
+			Column{Name: "bar"},
+			Column{Name: "baz"},
+		),
 		Limit:  42,
 		Offset: 17,
 		Table:  Table{"table_name"},
@@ -329,13 +329,15 @@ func TestGroupBy(t *testing.T) {
 	// Simple GROUP BY
 	stmt = Statement{
 		Type: SqlSelect,
-		Columns: Columns{
-			{Name: "foo"},
-			{Name: "bar"},
-			{Name: "baz"},
-		},
-		GroupBy: GroupBy{
+		Columns: NewColumns(
 			Column{Name: "foo"},
+			Column{Name: "bar"},
+			Column{Name: "baz"},
+		),
+		GroupBy: GroupBy{
+			Columns: []Column{
+				Column{Name: "foo"},
+			},
 		},
 		Table: Table{"table_name"},
 	}
@@ -349,14 +351,16 @@ func TestGroupBy(t *testing.T) {
 
 	stmt = Statement{
 		Type: SqlSelect,
-		Columns: Columns{
-			{Name: "foo"},
-			{Name: "bar"},
-			{Name: "baz"},
-		},
-		GroupBy: GroupBy{
+		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
+			Column{Name: "baz"},
+		),
+		GroupBy: GroupBy{
+			Columns: []Column{
+				Column{Name: "foo"},
+				Column{Name: "bar"},
+			},
 		},
 		Table: Table{"table_name"},
 	}
@@ -376,11 +380,11 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	// Simple ORDER BY
 	stmt = Statement{
 		Type: SqlSelect,
-		Columns: Columns{
-			{Name: "foo"},
-			{Name: "bar"},
-			{Name: "baz"},
-		},
+		Columns: NewColumns(
+			Column{Name: "foo"},
+			Column{Name: "bar"},
+			Column{Name: "baz"},
+		),
 		OrderBy: OrderBy{
 			SortColumns: SortColumns{
 				SortColumn{Column: Column{Name: "foo"}},
@@ -399,11 +403,11 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	// ORDER BY field ASC
 	stmt = Statement{
 		Type: SqlSelect,
-		Columns: Columns{
-			{Name: "foo"},
-			{Name: "bar"},
-			{Name: "baz"},
-		},
+		Columns: NewColumns(
+			Column{Name: "foo"},
+			Column{Name: "bar"},
+			Column{Name: "baz"},
+		),
 		OrderBy: OrderBy{
 			SortColumns{
 				SortColumn{Column{Name: "foo"}, SqlSortAsc},
@@ -422,11 +426,11 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	// ORDER BY field DESC
 	stmt = Statement{
 		Type: SqlSelect,
-		Columns: Columns{
-			{Name: "foo"},
-			{Name: "bar"},
-			{Name: "baz"},
-		},
+		Columns: NewColumns(
+			Column{Name: "foo"},
+			Column{Name: "bar"},
+			Column{Name: "baz"},
+		),
 		OrderBy: OrderBy{
 			SortColumns{
 				{Column{Name: "foo"}, SqlSortDesc},
@@ -445,11 +449,11 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	// ORDER BY many fields
 	stmt = Statement{
 		Type: SqlSelect,
-		Columns: Columns{
-			{Name: "foo"},
-			{Name: "bar"},
-			{Name: "baz"},
-		},
+		Columns: NewColumns(
+			Column{Name: "foo"},
+			Column{Name: "bar"},
+			Column{Name: "baz"},
+		),
 		OrderBy: OrderBy{
 			SortColumns{
 				{Column{Name: "foo"}, SqlSortDesc},
@@ -470,11 +474,11 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	// ORDER BY function
 	stmt = Statement{
 		Type: SqlSelect,
-		Columns: Columns{
-			{Name: "foo"},
-			{Name: "bar"},
-			{Name: "baz"},
-		},
+		Columns: NewColumns(
+			Column{Name: "foo"},
+			Column{Name: "bar"},
+			Column{Name: "baz"},
+		),
 		OrderBy: OrderBy{
 			SortColumns{
 				{Column{Name: Raw{Value: "FOO()"}}, SqlSortDesc},
@@ -498,11 +502,11 @@ func TestSelectFieldsFromWhere(t *testing.T) {
 
 	stmt = Statement{
 		Type: SqlSelect,
-		Columns: Columns{
-			{Name: "foo"},
-			{Name: "bar"},
-			{Name: "baz"},
-		},
+		Columns: NewColumns(
+			Column{Name: "foo"},
+			Column{Name: "bar"},
+			Column{Name: "baz"},
+		),
 		Table: Table{"table_name"},
 		Where: Where{
 			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: Value{99}},
@@ -523,11 +527,11 @@ func TestSelectFieldsFromWhereLimitOffset(t *testing.T) {
 
 	stmt = Statement{
 		Type: SqlSelect,
-		Columns: Columns{
-			{Name: "foo"},
-			{Name: "bar"},
-			{Name: "baz"},
-		},
+		Columns: NewColumns(
+			Column{Name: "foo"},
+			Column{Name: "bar"},
+			Column{Name: "baz"},
+		),
 		Table: Table{"table_name"},
 		Where: Where{
 			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: Value{99}},
@@ -613,11 +617,11 @@ func TestInsert(t *testing.T) {
 	stmt = Statement{
 		Type:  SqlInsert,
 		Table: Table{"table_name"},
-		Columns: Columns{
+		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
-		},
+		),
 		Values: Values{
 			Value{"1"},
 			Value{2},
@@ -641,11 +645,11 @@ func TestInsertExtra(t *testing.T) {
 		Type:  SqlInsert,
 		Table: Table{"table_name"},
 		Extra: "RETURNING id",
-		Columns: Columns{
+		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
-		},
+		),
 		Values: Values{
 			Value{"1"},
 			Value{2},

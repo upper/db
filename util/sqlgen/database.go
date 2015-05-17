@@ -5,21 +5,25 @@ import (
 )
 
 type Database struct {
-	Value string
+	Name string
+	hash string
 }
 
-func (self Database) Hash() string {
-	return `Database(` + self.Value + `)`
+func (d *Database) Hash() string {
+	if d.hash == "" {
+		d.hash = fmt.Sprintf(`sqlgen.Database{Name:%q}`, d.Name)
+	}
+	return d.hash
 }
 
-func (self Database) Compile(layout *Template) (compiled string) {
-	if c, ok := layout.Read(self); ok {
+func (d *Database) Compile(layout *Template) (compiled string) {
+	if c, ok := layout.Read(d); ok {
 		return c
 	}
 
-	compiled = mustParse(layout.IdentifierQuote, Raw{Value: fmt.Sprintf(`%v`, self.Value)})
+	compiled = mustParse(layout.IdentifierQuote, Raw{Value: d.Name})
 
-	layout.Write(self, compiled)
+	layout.Write(d, compiled)
 
 	return
 }

@@ -10,7 +10,7 @@ type Statement struct {
 	Database
 	Limit
 	Offset
-	Columns
+	Columns cc
 	Values
 	ColumnValues
 	OrderBy
