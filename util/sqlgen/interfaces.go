@@ -5,7 +5,7 @@ import (
 )
 
 type cc interface {
-	cache.Cacheable
+	cache.Hashable
 	compilable
 }
 

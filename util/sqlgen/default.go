@@ -7,7 +7,7 @@ import (
 const (
 	defaultColumnSeparator     = `.`
 	defaultIdentifierSeparator = `, `
-	defaultIdentifierQuote     = `"{{.Raw}}"`
+	defaultIdentifierQuote     = `"{{.Value}}"`
 	defaultValueSeparator      = `, `
 	defaultValueQuote          = `'{{.}}'`
 	defaultAndKeyword          = `AND`

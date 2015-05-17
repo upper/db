@@ -33,7 +33,7 @@ func quotedTableName(layout *Template, input string) string {
 	for i := range nameChunks {
 		// nameChunks[i] = strings.TrimSpace(nameChunks[i])
 		nameChunks[i] = trimString(nameChunks[i])
-		nameChunks[i] = mustParse(layout.IdentifierQuote, Raw{nameChunks[i]})
+		nameChunks[i] = mustParse(layout.IdentifierQuote, Raw{Value: nameChunks[i]})
 	}
 
 	name = strings.Join(nameChunks, layout.ColumnSeparator)
@@ -43,7 +43,7 @@ func quotedTableName(layout *Template, input string) string {
 	if len(chunks) > 1 {
 		// alias = strings.TrimSpace(chunks[1])
 		alias = trimString(chunks[1])
-		alias = mustParse(layout.IdentifierQuote, Raw{alias})
+		alias = mustParse(layout.IdentifierQuote, Raw{Value: alias})
 	}
 
 	return mustParse(layout.TableAliasLayout, tableT{name, alias})

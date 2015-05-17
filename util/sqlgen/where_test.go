@@ -9,9 +9,9 @@ func TestWhereAnd(t *testing.T) {
 	var and And
 
 	and = And{
-		ColumnValue{Column{"id"}, ">", Value{Raw{"8"}}},
-		ColumnValue{Column{"id"}, "<", Value{Raw{"99"}}},
-		ColumnValue{Column{"name"}, "=", Value{"John"}},
+		&ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: Value{&Raw{Value: "8"}}},
+		&ColumnValue{Column: Column{Name: "id"}, Operator: "<", Value: Value{&Raw{Value: "99"}}},
+		&ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: Value{"John"}},
 	}
 
 	s = and.Compile(defaultTemplate)
@@ -27,8 +27,8 @@ func TestWhereOr(t *testing.T) {
 	var or Or
 
 	or = Or{
-		ColumnValue{Column{"id"}, "=", Value{Raw{"8"}}},
-		ColumnValue{Column{"id"}, "=", Value{Raw{"99"}}},
+		&ColumnValue{Column: Column{Name: "id"}, Operator: "=", Value: Value{&Raw{Value: "8"}}},
+		&ColumnValue{Column: Column{Name: "id"}, Operator: "=", Value: Value{&Raw{Value: "99"}}},
 	}
 
 	s = or.Compile(defaultTemplate)
@@ -44,12 +44,12 @@ func TestWhereAndOr(t *testing.T) {
 	var and And
 
 	and = And{
-		ColumnValue{Column{"id"}, ">", Value{Raw{"8"}}},
-		ColumnValue{Column{"id"}, "<", Value{Raw{"99"}}},
-		ColumnValue{Column{"name"}, "=", Value{"John"}},
+		&ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: Value{&Raw{Value: "8"}}},
+		&ColumnValue{Column: Column{Name: "id"}, Operator: "<", Value: Value{&Raw{Value: "99"}}},
+		&ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: Value{"John"}},
 		Or{
-			ColumnValue{Column{"last_name"}, "=", Value{"Smith"}},
-			ColumnValue{Column{"last_name"}, "=", Value{"Reyes"}},
+			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: Value{"Smith"}},
+			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: Value{"Reyes"}},
 		},
 	}
 
@@ -67,18 +67,18 @@ func TestWhereAndRawOrAnd(t *testing.T) {
 
 	where = Where{
 		And{
-			ColumnValue{Column{"id"}, ">", Value{Raw{"8"}}},
-			ColumnValue{Column{"id"}, "<", Value{Raw{"99"}}},
+			&ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: Value{&Raw{Value: "8"}}},
+			&ColumnValue{Column: Column{Name: "id"}, Operator: "<", Value: Value{&Raw{Value: "99"}}},
 		},
-		ColumnValue{Column{"name"}, "=", Value{"John"}},
-		Raw{"city_id = 728"},
+		&ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: Value{"John"}},
+		&Raw{Value: "city_id = 728"},
 		Or{
-			ColumnValue{Column{"last_name"}, "=", Value{"Smith"}},
-			ColumnValue{Column{"last_name"}, "=", Value{"Reyes"}},
+			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: Value{"Smith"}},
+			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: Value{"Reyes"}},
 		},
 		And{
-			ColumnValue{Column{"age"}, ">", Value{Raw{"18"}}},
-			ColumnValue{Column{"age"}, "<", Value{Raw{"41"}}},
+			&ColumnValue{Column: Column{Name: "age"}, Operator: ">", Value: Value{&Raw{Value: "18"}}},
+			&ColumnValue{Column: Column{Name: "age"}, Operator: "<", Value: Value{&Raw{Value: "41"}}},
 		},
 	}
 

@@ -1,13 +1,27 @@
 package sqlgen
 
 import (
+	"fmt"
 	"testing"
 )
+
+func TestColumnHash(t *testing.T) {
+	var s, e string
+
+	column := Column{Name: "role.name"}
+
+	s = column.Hash()
+	e = fmt.Sprintf(`sqlgen.Column{Name:"%s"}`, column.Name)
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
 
 func TestColumnString(t *testing.T) {
 	var s, e string
 
-	column := Column{"role.name"}
+	column := Column{Name: "role.name"}
 
 	s = column.Compile(defaultTemplate)
 	e = `"role"."name"`
@@ -20,7 +34,7 @@ func TestColumnString(t *testing.T) {
 func TestColumnAs(t *testing.T) {
 	var s, e string
 
-	column := Column{"role.name as foo"}
+	column := Column{Name: "role.name as foo"}
 
 	s = column.Compile(defaultTemplate)
 	e = `"role"."name" AS "foo"`
@@ -33,7 +47,7 @@ func TestColumnAs(t *testing.T) {
 func TestColumnImplicitAs(t *testing.T) {
 	var s, e string
 
-	column := Column{"role.name foo"}
+	column := Column{Name: "role.name foo"}
 
 	s = column.Compile(defaultTemplate)
 	e = `"role"."name" AS "foo"`
@@ -46,12 +60,47 @@ func TestColumnImplicitAs(t *testing.T) {
 func TestColumnRaw(t *testing.T) {
 	var s, e string
 
-	column := Column{Raw{"role.name As foo"}}
+	column := Column{Name: Raw{Value: "role.name As foo"}}
 
 	s = column.Compile(defaultTemplate)
 	e = `role.name As foo`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func BenchmarkColumnHash(b *testing.B) {
+	c := Column{Name: "name"}
+	for i := 0; i < b.N; i++ {
+		c.Hash()
+	}
+}
+
+func BenchmarkColumnCompile(b *testing.B) {
+	c := Column{Name: "name"}
+	for i := 0; i < b.N; i++ {
+		c.Compile(defaultTemplate)
+	}
+}
+
+func BenchmarkColumnWithDotCompile(b *testing.B) {
+	c := Column{Name: "role.name"}
+	for i := 0; i < b.N; i++ {
+		c.Compile(defaultTemplate)
+	}
+}
+
+func BenchmarkColumnWithImplicitAsKeywordCompile(b *testing.B) {
+	c := Column{Name: "role.name foo"}
+	for i := 0; i < b.N; i++ {
+		c.Compile(defaultTemplate)
+	}
+}
+
+func BenchmarkColumnWithAsKeywordCompile(b *testing.B) {
+	c := Column{Name: "role.name AS foo"}
+	for i := 0; i < b.N; i++ {
+		c.Compile(defaultTemplate)
 	}
 }

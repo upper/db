@@ -8,25 +8,25 @@ import (
 
 func BenchmarkColumn(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = Column{"a"}
+		_ = Column{Name: "a"}
 	}
 }
 
-func BenchmarkCompileColumn(b *testing.B) {
+func BenchmarkCompileColumnNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = Column{Value: "a"}.Compile(defaultTemplate)
+		_ = (&Column{Name: "a"}).Compile(defaultTemplate)
 	}
 }
 
 func BenchmarkColumns(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = Columns{{"a"}, {"b"}, {"c"}}
+		_ = Columns{{Name: "a"}, {Name: "b"}, {Name: "c"}}
 	}
 }
 
-func BenchmarkCompileColumns(b *testing.B) {
+func BenchmarkCompileColumnsNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = Columns{{"a"}, {"b"}, {"c"}}.Compile(defaultTemplate)
+		_ = Columns{{Name: "a"}, {Name: "b"}, {Name: "c"}}.Compile(defaultTemplate)
 	}
 }
 
@@ -36,7 +36,7 @@ func BenchmarkValue(b *testing.B) {
 	}
 }
 
-func BenchmarkCompileValue(b *testing.B) {
+func BenchmarkCompileValueNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = Value{"a"}.Compile(defaultTemplate)
 	}
@@ -68,31 +68,35 @@ func BenchmarkCompileDatabase(b *testing.B) {
 
 func BenchmarkValueRaw(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = Value{Raw{"a"}}
+		_ = Value{Raw{Value: "a"}}
 	}
 }
 
 func BenchmarkColumnValue(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = ColumnValue{Column{"a"}, "=", Value{Raw{"7"}}}
+		_ = ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: Value{Raw{Value: "7"}}}
 	}
 }
 
 func BenchmarkCompileColumnValue(b *testing.B) {
+	cv := ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: Value{Raw{Value: "7"}}}
 	for i := 0; i < b.N; i++ {
-		_ = ColumnValue{Column{"a"}, "=", Value{Raw{"7"}}}.Compile(defaultTemplate)
+		cv.Compile(defaultTemplate)
 	}
 }
 
 func BenchmarkColumnValues(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = ColumnValues{{Column{"a"}, "=", Value{Raw{"7"}}}}
+		_ = NewColumnValues(
+			ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: Value{Raw{Value: "7"}}},
+		)
 	}
 }
 
 func BenchmarkCompileColumnValues(b *testing.B) {
+	cv := NewColumnValues(ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: Value{Raw{Value: "7"}}})
 	for i := 0; i < b.N; i++ {
-		_ = ColumnValues{{Column{"a"}, "=", Value{Raw{"7"}}}}.Compile(defaultTemplate)
+		cv.Compile(defaultTemplate)
 	}
 }
 
@@ -100,7 +104,7 @@ func BenchmarkOrderBy(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = OrderBy{
 			SortColumns: SortColumns{
-				SortColumn{Column: Column{"foo"}},
+				SortColumn{Column: Column{Name: "foo"}},
 			},
 		}
 	}
@@ -110,7 +114,7 @@ func BenchmarkCompileOrderBy(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = OrderBy{
 			SortColumns: SortColumns{
-				SortColumn{Column: Column{"foo"}},
+				SortColumn{Column: Column{Name: "foo"}},
 			},
 		}.Compile(defaultTemplate)
 	}
@@ -119,7 +123,7 @@ func BenchmarkCompileOrderBy(b *testing.B) {
 func BenchmarkGroupBy(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = GroupBy{
-			Column{"foo"},
+			Column{Name: "foo"},
 		}
 	}
 }
@@ -127,7 +131,7 @@ func BenchmarkGroupBy(b *testing.B) {
 func BenchmarkCompileGroupBy(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = GroupBy{
-			Column{"foo"},
+			Column{Name: "foo"},
 		}.Compile(defaultTemplate)
 	}
 }
@@ -135,7 +139,7 @@ func BenchmarkCompileGroupBy(b *testing.B) {
 func BenchmarkWhere(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = Where{
-			ColumnValue{Column{"baz"}, "=", Value{99}},
+			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: Value{99}},
 		}
 	}
 }
@@ -143,7 +147,7 @@ func BenchmarkWhere(b *testing.B) {
 func BenchmarkCompileWhere(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = Where{
-			ColumnValue{Column{"baz"}, "=", Value{99}},
+			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: Value{99}},
 		}.Compile(defaultTemplate)
 	}
 }
@@ -189,7 +193,7 @@ func BenchmarkCompileSelect(b *testing.B) {
 			Type:  SqlSelectCount,
 			Table: Table{"table_name"},
 			Where: Where{
-				ColumnValue{Column{"a"}, "=", Value{Raw{"7"}}},
+				&ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: Value{Raw{Value: "7"}}},
 			},
 		}
 		_ = stmt.Compile(defaultTemplate)

@@ -1,6 +1,7 @@
 package sqlgen
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -8,64 +9,78 @@ type ColumnValue struct {
 	Column
 	Operator string
 	Value
+	hash string
 }
 
-type columnValue_s struct {
+type columnValueT struct {
 	Column   string
 	Operator string
 	Value    string
 }
 
-func (self ColumnValue) Hash() string {
-	return `ColumnValue(` + self.Column.Hash() + `;` + self.Operator + `;` + self.Value.Hash() + `)`
+func (c *ColumnValue) Hash() string {
+	if c.hash == "" {
+		c.hash = fmt.Sprintf(`sqlgen.ColumnValue{Name:%q, Operator:%q, Value:%q}`, c.Column.Hash(), c.Operator, c.Value.Hash())
+	}
+	return c.hash
 }
 
-func (self ColumnValue) Compile(layout *Template) (compiled string) {
+func (c *ColumnValue) Compile(layout *Template) (compiled string) {
 
-	if c, ok := layout.Read(self); ok {
-		return c
+	if z, ok := layout.Read(c); ok {
+		return z
 	}
 
-	data := columnValue_s{
-		self.Column.Compile(layout),
-		self.Operator,
-		self.Value.Compile(layout),
+	data := columnValueT{
+		c.Column.Compile(layout),
+		c.Operator,
+		c.Value.Compile(layout),
 	}
 
 	compiled = mustParse(layout.ColumnValue, data)
 
-	layout.Write(self, compiled)
+	layout.Write(c, compiled)
 
 	return
 }
 
-type ColumnValues []ColumnValue
-
-func (self ColumnValues) Hash() string {
-	hash := make([]string, 0, len(self))
-	for i := range self {
-		hash = append(hash, self[i].Hash())
-	}
-	return `ColumnValues(` + strings.Join(hash, `,`) + `)`
+type ColumnValues struct {
+	ColumnValues []ColumnValue
+	hash         string
 }
 
-func (self ColumnValues) Compile(layout *Template) (compiled string) {
+func NewColumnValues(values ...ColumnValue) *ColumnValues {
+	return &ColumnValues{ColumnValues: values}
+}
 
-	if c, ok := layout.Read(self); ok {
-		return c
+func (c *ColumnValues) Hash() string {
+	if c.hash == "" {
+		s := make([]string, len(c.ColumnValues))
+		for i := range c.ColumnValues {
+			s[i] = c.ColumnValues[i].Hash()
+		}
+		c.hash = fmt.Sprintf("sqlgen.ColumnValues{ColumnValues:{%s}}", strings.Join(s, ", "))
+	}
+	return c.hash
+}
+
+func (c *ColumnValues) Compile(layout *Template) (compiled string) {
+
+	if z, ok := layout.Read(c); ok {
+		return z
 	}
 
-	l := len(self)
+	l := len(c.ColumnValues)
 
 	out := make([]string, l)
 
-	for i := 0; i < l; i++ {
-		out[i] = self[i].Compile(layout)
+	for i := range c.ColumnValues {
+		out[i] = c.ColumnValues[i].Compile(layout)
 	}
 
 	compiled = strings.Join(out, layout.IdentifierSeparator)
 
-	layout.Write(self, compiled)
+	layout.Write(c, compiled)
 
 	return
 }

@@ -17,7 +17,7 @@ func (self Database) Compile(layout *Template) (compiled string) {
 		return c
 	}
 
-	compiled = mustParse(layout.IdentifierQuote, Raw{fmt.Sprintf(`%v`, self.Value)})
+	compiled = mustParse(layout.IdentifierQuote, Raw{Value: fmt.Sprintf(`%v`, self.Value)})
 
 	layout.Write(self, compiled)
 

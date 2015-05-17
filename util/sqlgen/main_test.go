@@ -97,7 +97,7 @@ func TestSelectCountWhere(t *testing.T) {
 		Type:  SqlSelectCount,
 		Table: Table{"table_name"},
 		Where: Where{
-			ColumnValue{Column{"a"}, "=", Value{Raw{"7"}}},
+			&ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: Value{Raw{Value: "7"}}},
 		},
 	}
 
@@ -151,7 +151,7 @@ func TestSelectStarFromRawWhere(t *testing.T) {
 		Type:  SqlSelect,
 		Table: Table{"table.name AS foo"},
 		Where: Where{
-			Raw{"foo.id = bar.foo_id"},
+			&Raw{Value: "foo.id = bar.foo_id"},
 		},
 	}
 
@@ -166,8 +166,8 @@ func TestSelectStarFromRawWhere(t *testing.T) {
 		Type:  SqlSelect,
 		Table: Table{"table.name AS foo"},
 		Where: Where{
-			Raw{"foo.id = bar.foo_id"},
-			Raw{"baz.id = exp.baz_id"},
+			&Raw{Value: "foo.id = bar.foo_id"},
+			&Raw{Value: "baz.id = exp.baz_id"},
 		},
 	}
 
@@ -204,7 +204,7 @@ func TestSelectArtistNameFrom(t *testing.T) {
 		Type:  SqlSelect,
 		Table: Table{"artist"},
 		Columns: Columns{
-			{"artist.name"},
+			{Name: "artist.name"},
 		},
 	}
 
@@ -224,8 +224,8 @@ func TestSelectRawFrom(t *testing.T) {
 		Type:  SqlSelect,
 		Table: Table{`artist`},
 		Columns: Columns{
-			{`artist.name`},
-			{Raw{`CONCAT(artist.name, " ", artist.last_name)`}},
+			{Name: `artist.name`},
+			{Name: Raw{Value: `CONCAT(artist.name, " ", artist.last_name)`}},
 		},
 	}
 
@@ -244,9 +244,9 @@ func TestSelectFieldsFrom(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			{"foo"},
-			{"bar"},
-			{"baz"},
+			{Name: "foo"},
+			{Name: "bar"},
+			{Name: "baz"},
 		},
 		Table: Table{"table_name"},
 	}
@@ -267,9 +267,9 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			{"foo"},
-			{"bar"},
-			{"baz"},
+			{Name: "foo"},
+			{Name: "bar"},
+			{Name: "baz"},
 		},
 		Limit: 42,
 		Table: Table{"table_name"},
@@ -286,9 +286,9 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			{"foo"},
-			{"bar"},
-			{"baz"},
+			{Name: "foo"},
+			{Name: "bar"},
+			{Name: "baz"},
 		},
 		Offset: 17,
 		Table:  Table{"table_name"},
@@ -305,9 +305,9 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			{"foo"},
-			{"bar"},
-			{"baz"},
+			{Name: "foo"},
+			{Name: "bar"},
+			{Name: "baz"},
 		},
 		Limit:  42,
 		Offset: 17,
@@ -330,12 +330,12 @@ func TestGroupBy(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			{"foo"},
-			{"bar"},
-			{"baz"},
+			{Name: "foo"},
+			{Name: "bar"},
+			{Name: "baz"},
 		},
 		GroupBy: GroupBy{
-			Column{"foo"},
+			Column{Name: "foo"},
 		},
 		Table: Table{"table_name"},
 	}
@@ -350,13 +350,13 @@ func TestGroupBy(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			{"foo"},
-			{"bar"},
-			{"baz"},
+			{Name: "foo"},
+			{Name: "bar"},
+			{Name: "baz"},
 		},
 		GroupBy: GroupBy{
-			Column{"foo"},
-			Column{"bar"},
+			Column{Name: "foo"},
+			Column{Name: "bar"},
 		},
 		Table: Table{"table_name"},
 	}
@@ -377,13 +377,13 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			{"foo"},
-			{"bar"},
-			{"baz"},
+			{Name: "foo"},
+			{Name: "bar"},
+			{Name: "baz"},
 		},
 		OrderBy: OrderBy{
 			SortColumns: SortColumns{
-				SortColumn{Column: Column{"foo"}},
+				SortColumn{Column: Column{Name: "foo"}},
 			},
 		},
 		Table: Table{"table_name"},
@@ -400,13 +400,13 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			{"foo"},
-			{"bar"},
-			{"baz"},
+			{Name: "foo"},
+			{Name: "bar"},
+			{Name: "baz"},
 		},
 		OrderBy: OrderBy{
 			SortColumns{
-				SortColumn{Column{"foo"}, SqlSortAsc},
+				SortColumn{Column{Name: "foo"}, SqlSortAsc},
 			},
 		},
 		Table: Table{"table_name"},
@@ -423,13 +423,13 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			{"foo"},
-			{"bar"},
-			{"baz"},
+			{Name: "foo"},
+			{Name: "bar"},
+			{Name: "baz"},
 		},
 		OrderBy: OrderBy{
 			SortColumns{
-				{Column{"foo"}, SqlSortDesc},
+				{Column{Name: "foo"}, SqlSortDesc},
 			},
 		},
 		Table: Table{"table_name"},
@@ -446,15 +446,15 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			{"foo"},
-			{"bar"},
-			{"baz"},
+			{Name: "foo"},
+			{Name: "bar"},
+			{Name: "baz"},
 		},
 		OrderBy: OrderBy{
 			SortColumns{
-				{Column{"foo"}, SqlSortDesc},
-				{Column{"bar"}, SqlSortAsc},
-				{Column{"baz"}, SqlSortDesc},
+				{Column{Name: "foo"}, SqlSortDesc},
+				{Column{Name: "bar"}, SqlSortAsc},
+				{Column{Name: "baz"}, SqlSortDesc},
 			},
 		},
 		Table: Table{"table_name"},
@@ -471,14 +471,14 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			{"foo"},
-			{"bar"},
-			{"baz"},
+			{Name: "foo"},
+			{Name: "bar"},
+			{Name: "baz"},
 		},
 		OrderBy: OrderBy{
 			SortColumns{
-				{Column{Raw{"FOO()"}}, SqlSortDesc},
-				{Column{Raw{"BAR()"}}, SqlSortAsc},
+				{Column{Name: Raw{Value: "FOO()"}}, SqlSortDesc},
+				{Column{Name: Raw{Value: "BAR()"}}, SqlSortAsc},
 			},
 		},
 		Table: Table{"table_name"},
@@ -499,13 +499,13 @@ func TestSelectFieldsFromWhere(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			{"foo"},
-			{"bar"},
-			{"baz"},
+			{Name: "foo"},
+			{Name: "bar"},
+			{Name: "baz"},
 		},
 		Table: Table{"table_name"},
 		Where: Where{
-			ColumnValue{Column{"baz"}, "=", Value{99}},
+			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: Value{99}},
 		},
 	}
 
@@ -524,13 +524,13 @@ func TestSelectFieldsFromWhereLimitOffset(t *testing.T) {
 	stmt = Statement{
 		Type: SqlSelect,
 		Columns: Columns{
-			{"foo"},
-			{"bar"},
-			{"baz"},
+			{Name: "foo"},
+			{Name: "bar"},
+			{Name: "baz"},
 		},
 		Table: Table{"table_name"},
 		Where: Where{
-			ColumnValue{Column{"baz"}, "=", Value{99}},
+			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: Value{99}},
 		},
 		Limit:  10,
 		Offset: 23,
@@ -552,7 +552,7 @@ func TestDelete(t *testing.T) {
 		Type:  SqlDelete,
 		Table: Table{"table_name"},
 		Where: Where{
-			ColumnValue{Column{"baz"}, "=", Value{99}},
+			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: Value{99}},
 		},
 	}
 
@@ -571,11 +571,11 @@ func TestUpdate(t *testing.T) {
 	stmt = Statement{
 		Type:  SqlUpdate,
 		Table: Table{"table_name"},
-		ColumnValues: ColumnValues{
-			{Column{"foo"}, "=", Value{76}},
-		},
+		ColumnValues: *NewColumnValues(
+			ColumnValue{Column: Column{Name: "foo"}, Operator: "=", Value: Value{76}},
+		),
 		Where: Where{
-			ColumnValue{Column{"baz"}, "=", Value{99}},
+			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: Value{99}},
 		},
 	}
 
@@ -589,12 +589,12 @@ func TestUpdate(t *testing.T) {
 	stmt = Statement{
 		Type:  SqlUpdate,
 		Table: Table{"table_name"},
-		ColumnValues: ColumnValues{
-			{Column{"foo"}, "=", Value{76}},
-			{Column{"bar"}, "=", Value{Raw{"88"}}},
-		},
+		ColumnValues: *NewColumnValues(
+			ColumnValue{Column: Column{Name: "foo"}, Operator: "=", Value: Value{76}},
+			ColumnValue{Column: Column{Name: "bar"}, Operator: "=", Value: Value{Raw{Value: "88"}}},
+		),
 		Where: Where{
-			ColumnValue{Column{"baz"}, "=", Value{99}},
+			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: Value{99}},
 		},
 	}
 
@@ -614,14 +614,14 @@ func TestInsert(t *testing.T) {
 		Type:  SqlInsert,
 		Table: Table{"table_name"},
 		Columns: Columns{
-			Column{"foo"},
-			Column{"bar"},
-			Column{"baz"},
+			Column{Name: "foo"},
+			Column{Name: "bar"},
+			Column{Name: "baz"},
 		},
 		Values: Values{
 			Value{"1"},
 			Value{2},
-			Value{Raw{"3"}},
+			Value{Raw{Value: "3"}},
 		},
 	}
 
@@ -642,14 +642,14 @@ func TestInsertExtra(t *testing.T) {
 		Table: Table{"table_name"},
 		Extra: "RETURNING id",
 		Columns: Columns{
-			Column{"foo"},
-			Column{"bar"},
-			Column{"baz"},
+			Column{Name: "foo"},
+			Column{Name: "bar"},
+			Column{Name: "baz"},
 		},
 		Values: Values{
 			Value{"1"},
 			Value{2},
-			Value{Raw{"3"}},
+			Value{Raw{Value: "3"}},
 		},
 	}
 

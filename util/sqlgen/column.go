@@ -5,41 +5,50 @@ import (
 	"strings"
 )
 
-type column_t struct {
+type columnT struct {
 	Name  string
 	Alias string
 }
 
 type Column struct {
-	Value interface{}
+	Name interface{}
+	hash string
 }
 
-func (self Column) Hash() string {
-	switch t := self.Value.(type) {
-	case cc:
-		return `Column(` + t.Hash() + `)`
-	case string:
-		return `Column(` + t + `)`
+func (c *Column) Hash() string {
+	if c.hash == "" {
+		var s string
+
+		switch t := c.Name.(type) {
+		case cc:
+			s = t.Hash()
+		case fmt.Stringer:
+			s = t.String()
+		case string:
+			s = t
+		default:
+			s = fmt.Sprintf("%v", c.Name)
+		}
+
+		c.hash = fmt.Sprintf(`sqlgen.Column{Name:%q}`, s)
 	}
-	return fmt.Sprintf(`Column(%v)`, self.Value)
+
+	return c.hash
 }
 
-func (self Column) Compile(layout *Template) (compiled string) {
+func (c *Column) Compile(layout *Template) (compiled string) {
 
-	if c, ok := layout.Read(self); ok {
-		return c
+	if z, ok := layout.Read(c); ok {
+		return z
 	}
 
-	switch value := self.Value.(type) {
+	switch value := c.Name.(type) {
 	case string:
-		// input := strings.TrimSpace(value)
 		input := trimString(value)
 
-		//chunks := reAliasSeparator.Split(input, 2)
 		chunks := separateByAS(input)
 
 		if len(chunks) == 1 {
-			//chunks = reSpaceSeparator.Split(input, 2)
 			chunks = separateBySpace(input)
 		}
 
@@ -48,9 +57,8 @@ func (self Column) Compile(layout *Template) (compiled string) {
 		nameChunks := strings.SplitN(name, layout.ColumnSeparator, 2)
 
 		for i := range nameChunks {
-			// nameChunks[i] = strings.TrimSpace(nameChunks[i])
 			nameChunks[i] = trimString(nameChunks[i])
-			nameChunks[i] = mustParse(layout.IdentifierQuote, Raw{nameChunks[i]})
+			nameChunks[i] = mustParse(layout.IdentifierQuote, Raw{Value: nameChunks[i]})
 		}
 
 		name = strings.Join(nameChunks, layout.ColumnSeparator)
@@ -58,19 +66,18 @@ func (self Column) Compile(layout *Template) (compiled string) {
 		var alias string
 
 		if len(chunks) > 1 {
-			// alias = strings.TrimSpace(chunks[1])
 			alias = trimString(chunks[1])
-			alias = mustParse(layout.IdentifierQuote, Raw{alias})
+			alias = mustParse(layout.IdentifierQuote, Raw{Value: alias})
 		}
 
-		compiled = mustParse(layout.ColumnAliasLayout, column_t{name, alias})
+		compiled = mustParse(layout.ColumnAliasLayout, columnT{name, alias})
 	case Raw:
 		compiled = value.String()
 	default:
-		compiled = fmt.Sprintf("%v", self.Value)
+		compiled = fmt.Sprintf("%v", c.Name)
 	}
 
-	layout.Write(self, compiled)
+	layout.Write(c, compiled)
 
 	return
 }

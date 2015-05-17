@@ -30,9 +30,9 @@ func (self Value) Compile(layout *Template) (compiled string) {
 	}
 
 	if raw, ok := self.Val.(Raw); ok {
-		compiled = raw.Raw
+		compiled = raw.Value
 	} else {
-		compiled = mustParse(layout.ValueQuote, Raw{fmt.Sprintf(`%v`, self.Val)})
+		compiled = mustParse(layout.ValueQuote, &Raw{Value: fmt.Sprintf(`%v`, self.Val)})
 	}
 
 	layout.Write(self, compiled)
