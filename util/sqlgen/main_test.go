@@ -57,7 +57,7 @@ func TestDropDatabase(t *testing.T) {
 
 	stmt = Statement{
 		Type:     SqlDropDatabase,
-		Database: Database{Name: "table_name"},
+		Database: &Database{Name: "table_name"},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -394,11 +394,11 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		OrderBy: OrderBy{
-			SortColumns: SortColumns{
+		OrderBy: NewOrderBy(
+			NewSortColumns(
 				SortColumn{Column: Column{Name: "foo"}},
-			},
-		},
+			),
+		),
 		Table: Table{"table_name"},
 	}
 
@@ -417,11 +417,11 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		OrderBy: OrderBy{
-			SortColumns{
-				SortColumn{Column{Name: "foo"}, SqlSortAsc},
-			},
-		},
+		OrderBy: NewOrderBy(
+			NewSortColumns(
+				SortColumn{Column: Column{Name: "foo"}, Order: SqlOrderAsc},
+			),
+		),
 		Table: Table{"table_name"},
 	}
 
@@ -440,11 +440,11 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		OrderBy: OrderBy{
-			SortColumns{
-				{Column{Name: "foo"}, SqlSortDesc},
-			},
-		},
+		OrderBy: NewOrderBy(
+			NewSortColumns(
+				SortColumn{Column: Column{Name: "foo"}, Order: SqlOrderDesc},
+			),
+		),
 		Table: Table{"table_name"},
 	}
 
@@ -463,13 +463,13 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		OrderBy: OrderBy{
-			SortColumns{
-				{Column{Name: "foo"}, SqlSortDesc},
-				{Column{Name: "bar"}, SqlSortAsc},
-				{Column{Name: "baz"}, SqlSortDesc},
-			},
-		},
+		OrderBy: NewOrderBy(
+			NewSortColumns(
+				SortColumn{Column: Column{Name: "foo"}, Order: SqlOrderDesc},
+				SortColumn{Column: Column{Name: "bar"}, Order: SqlOrderAsc},
+				SortColumn{Column: Column{Name: "baz"}, Order: SqlOrderDesc},
+			),
+		),
 		Table: Table{"table_name"},
 	}
 
@@ -488,12 +488,12 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		OrderBy: OrderBy{
-			SortColumns{
-				{Column{Name: Raw{Value: "FOO()"}}, SqlSortDesc},
-				{Column{Name: Raw{Value: "BAR()"}}, SqlSortAsc},
-			},
-		},
+		OrderBy: NewOrderBy(
+			NewSortColumns(
+				SortColumn{Column: Column{Name: Raw{Value: "FOO()"}}, Order: SqlOrderDesc},
+				SortColumn{Column: Column{Name: Raw{Value: "BAR()"}}, Order: SqlOrderAsc},
+			),
+		),
 		Table: Table{"table_name"},
 	}
 
@@ -584,7 +584,7 @@ func TestUpdate(t *testing.T) {
 	stmt = Statement{
 		Type:  SqlUpdate,
 		Table: Table{"table_name"},
-		ColumnValues: *NewColumnValues(
+		ColumnValues: NewColumnValues(
 			ColumnValue{Column: Column{Name: "foo"}, Operator: "=", Value: Value{76}},
 		),
 		Where: Where{
@@ -602,7 +602,7 @@ func TestUpdate(t *testing.T) {
 	stmt = Statement{
 		Type:  SqlUpdate,
 		Table: Table{"table_name"},
-		ColumnValues: *NewColumnValues(
+		ColumnValues: NewColumnValues(
 			ColumnValue{Column: Column{Name: "foo"}, Operator: "=", Value: Value{76}},
 			ColumnValue{Column: Column{Name: "bar"}, Operator: "=", Value: Value{Raw{Value: "88"}}},
 		),

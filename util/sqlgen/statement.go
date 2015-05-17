@@ -2,24 +2,26 @@ package sqlgen
 
 import (
 	"strconv"
+	"strings"
+	"upper.io/cache"
 )
 
 type Statement struct {
 	Type
 	Table
-	Database
+	Database cc
 	Limit
 	Offset
 	Columns cc
 	Values
-	ColumnValues
-	OrderBy
-	GroupBy cc
+	ColumnValues cc
+	OrderBy      cc
+	GroupBy      cc
 	Extra
 	Where
 }
 
-type statement_s struct {
+type statementT struct {
 	Table    string
 	Database string
 	Limit
@@ -33,22 +35,38 @@ type statement_s struct {
 	Where        string
 }
 
+func (layout *Template) compile(c cc) string {
+	if c != nil {
+		return c.Compile(layout)
+	}
+	return ""
+}
+
+func getHash(h cache.Hashable) string {
+	if h != nil {
+		return h.Hash()
+	}
+	return ""
+}
+
 func (self Statement) Hash() string {
-	hash := `Statement(` +
-		strconv.Itoa(int(self.Type)) + `;` +
-		self.Table.Hash() + `;` +
-		self.Database.Hash() + `;` +
-		strconv.Itoa(int(self.Limit)) + `;` +
-		strconv.Itoa(int(self.Offset)) + `;` +
-		self.Columns.Hash() + `;` +
-		self.Values.Hash() + `;` +
-		self.ColumnValues.Hash() + `;` +
-		self.OrderBy.Hash() + `;` +
-		self.GroupBy.Hash() + `;` +
-		string(self.Extra) + `;` +
-		self.Where.Hash() +
-		`)`
-	return hash
+
+	parts := strings.Join([]string{
+		strconv.Itoa(int(self.Type)),
+		self.Table.Hash(),
+		getHash(self.Database),
+		strconv.Itoa(int(self.Limit)),
+		strconv.Itoa(int(self.Offset)),
+		self.Columns.Hash(),
+		self.Values.Hash(),
+		getHash(self.ColumnValues),
+		self.OrderBy.Hash(),
+		getHash(self.GroupBy),
+		string(self.Extra),
+		self.Where.Hash(),
+	}, ";")
+
+	return `Statement(` + parts + `)`
 }
 
 func (self *Statement) Compile(layout *Template) (compiled string) {
@@ -57,18 +75,18 @@ func (self *Statement) Compile(layout *Template) (compiled string) {
 		return c
 	}
 
-	data := statement_s{
-		Table:        self.Table.Compile(layout),
-		Database:     self.Database.Compile(layout),
+	data := statementT{
+		Table:        layout.compile(self.Table),
+		Database:     layout.compile(self.Database),
 		Limit:        self.Limit,
 		Offset:       self.Offset,
-		Columns:      self.Columns.Compile(layout),
-		Values:       self.Values.Compile(layout),
-		ColumnValues: self.ColumnValues.Compile(layout),
-		OrderBy:      self.OrderBy.Compile(layout),
-		GroupBy:      self.GroupBy.Compile(layout),
+		Columns:      layout.compile(self.Columns),
+		Values:       layout.compile(self.Values),
+		ColumnValues: layout.compile(self.ColumnValues),
+		OrderBy:      layout.compile(self.OrderBy),
+		GroupBy:      layout.compile(self.GroupBy),
 		Extra:        string(self.Extra),
-		Where:        self.Where.Compile(layout),
+		Where:        layout.compile(self.Where),
 	}
 
 	switch self.Type {

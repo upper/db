@@ -76,26 +76,6 @@ func BenchmarkCompileColumnValues(b *testing.B) {
 	}
 }
 
-func BenchmarkOrderBy(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_ = OrderBy{
-			SortColumns: SortColumns{
-				SortColumn{Column: Column{Name: "foo"}},
-			},
-		}
-	}
-}
-
-func BenchmarkCompileOrderBy(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_ = OrderBy{
-			SortColumns: SortColumns{
-				SortColumn{Column: Column{Name: "foo"}},
-			},
-		}.Compile(defaultTemplate)
-	}
-}
-
 func BenchmarkWhere(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = Where{

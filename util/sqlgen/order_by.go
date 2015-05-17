@@ -1,112 +1,146 @@
 package sqlgen
 
 import (
+	"fmt"
 	"strings"
+)
+
+type Order uint8
+
+const (
+	SqlOrderNone = Order(iota)
+	SqlOrderAsc
+	SqlOrderDesc
 )
 
 type SortColumn struct {
 	Column
-	Sort
+	Order
+	hash string
 }
 
-type sortColumn_s struct {
+type sortColumnT struct {
 	Column string
-	Sort   string
+	Order  string
 }
 
-type SortColumns []SortColumn
-
-func (self SortColumn) Hash() string {
-	return `SortColumn(` + self.Column.Hash() + `;` + self.Sort.Hash() + `)`
+type SortColumns struct {
+	Columns []SortColumn
+	hash    string
 }
 
-func (self SortColumns) Hash() string {
-	hash := make([]string, 0, len(self))
-	for i := range self {
-		hash = append(hash, self[i].Hash())
+type OrderBy struct {
+	SortColumns *SortColumns
+	hash        string
+}
+
+type orderByT struct {
+	SortColumns string
+}
+
+func NewSortColumns(values ...SortColumn) *SortColumns {
+	return &SortColumns{Columns: values}
+}
+
+func NewOrderBy(sc *SortColumns) *OrderBy {
+	return &OrderBy{SortColumns: sc}
+}
+
+func (s *SortColumn) Hash() string {
+	if s.hash == "" {
+		s.hash = fmt.Sprintf(`SortColumn{Column:%s, Order:%s}`, s.Column.Hash(), s.Order.Hash())
 	}
-	return `SortColumns(` + strings.Join(hash, `,`) + `)`
+	return s.hash
 }
 
-func (self SortColumns) Compile(layout *Template) string {
-	l := len(self)
-	s := make([]string, 0, l)
-	for i := 0; i < l; i++ {
-		s = append(s, self[i].Compile(layout))
-	}
-	return strings.Join(s, layout.IdentifierSeparator)
-}
+func (s *SortColumn) Compile(layout *Template) (compiled string) {
 
-func (self SortColumn) Compile(layout *Template) (compiled string) {
-
-	if c, ok := layout.Read(self); ok {
+	if c, ok := layout.Read(s); ok {
 		return c
 	}
 
-	data := sortColumn_s{
-		Column: self.Column.Compile(layout),
-		Sort:   self.Sort.Compile(layout),
+	data := sortColumnT{
+		Column: s.Column.Compile(layout),
+		Order:  s.Order.Compile(layout),
 	}
 
 	compiled = mustParse(layout.SortByColumnLayout, data)
 
-	layout.Write(self, compiled)
+	layout.Write(s, compiled)
+
 	return
 }
 
-type OrderBy struct {
-	SortColumns
+func (s *SortColumns) Hash() string {
+	if s.hash == "" {
+		h := make([]string, len(s.Columns))
+		for i := range s.Columns {
+			h[i] = s.Columns[i].Hash()
+		}
+		s.hash = fmt.Sprintf(`SortColumns(%s)`, strings.Join(h, `, `))
+	}
+	return s.hash
 }
 
-type orderBy_s struct {
-	SortColumns string
-}
+func (s *SortColumns) Compile(layout *Template) (compiled string) {
 
-func (self OrderBy) Hash() string {
-	return `OrderBy(` + self.SortColumns.Hash() + `)`
-}
-
-func (self OrderBy) Compile(layout *Template) (compiled string) {
-
-	if c, ok := layout.Read(self); ok {
-		return c
+	if z, ok := layout.Read(s); ok {
+		return z
 	}
 
-	if len(self.SortColumns) > 0 {
-		data := orderBy_s{
-			SortColumns: self.SortColumns.Compile(layout),
+	z := make([]string, len(s.Columns))
+
+	for i := range s.Columns {
+		z[i] = s.Columns[i].Compile(layout)
+	}
+
+	compiled = strings.Join(z, layout.IdentifierSeparator)
+
+	layout.Write(s, compiled)
+
+	return
+}
+
+func (s *OrderBy) Hash() string {
+	if s.hash == "" {
+		s.hash = `OrderBy(` + s.SortColumns.Hash() + `)`
+	}
+	return s.hash
+}
+
+func (s *OrderBy) Compile(layout *Template) (compiled string) {
+
+	if z, ok := layout.Read(s); ok {
+		return z
+	}
+
+	if s.SortColumns != nil {
+		data := orderByT{
+			SortColumns: s.SortColumns.Compile(layout),
 		}
 		compiled = mustParse(layout.OrderByLayout, data)
 	}
 
-	layout.Write(self, compiled)
+	layout.Write(s, compiled)
 
 	return
 }
 
-type Sort uint8
-
-const (
-	SqlSortNone = iota
-	SqlSortAsc
-	SqlSortDesc
-)
-
-func (self Sort) Hash() string {
-	switch self {
-	case SqlSortAsc:
-		return `Sort(1)`
-	case SqlSortDesc:
-		return `Sort(2)`
+func (s Order) Hash() string {
+	switch s {
+	case SqlOrderAsc:
+		return `Order{ASC}`
+	case SqlOrderDesc:
+		return `Order{DESC}`
 	}
-	return `Sort(0)`
+	return `Order{DEFAULT}`
 }
 
-func (self Sort) Compile(layout *Template) string {
-	switch self {
-	case SqlSortAsc:
+func (s Order) Compile(layout *Template) string {
+	switch s {
+	case SqlOrderAsc:
 		return layout.AscKeyword
-	case SqlSortDesc:
+	case SqlOrderDesc:
 		return layout.DescKeyword
 	}
 	return ""

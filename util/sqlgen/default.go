@@ -21,7 +21,7 @@ const (
 	defaultColumnValue         = `{{.Column}} {{.Operator}} {{.Value}}`
 	defaultTableAliasLayout    = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
 	defaultColumnAliasLayout   = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
-	defaultSortByColumnLayout  = `{{.Column}} {{.Sort}}`
+	defaultSortByColumnLayout  = `{{.Column}} {{.Order}}`
 
 	defaultOrderByLayout = `
 		{{if .SortColumns}}
