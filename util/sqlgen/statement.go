@@ -18,7 +18,7 @@ type Statement struct {
 	OrderBy      cc
 	GroupBy      cc
 	Extra
-	Where
+	Where cc
 }
 
 type statementT struct {

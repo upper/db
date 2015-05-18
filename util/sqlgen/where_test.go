@@ -6,13 +6,12 @@ import (
 
 func TestWhereAnd(t *testing.T) {
 	var s, e string
-	var and And
 
-	and = And{
+	and := NewAnd(
 		&ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: NewValue(&Raw{Value: "8"})},
 		&ColumnValue{Column: Column{Name: "id"}, Operator: "<", Value: NewValue(&Raw{Value: "99"})},
 		&ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: NewValue("John")},
-	}
+	)
 
 	s = and.Compile(defaultTemplate)
 	e = `("id" > 8 AND "id" < 99 AND "name" = 'John')`
@@ -24,12 +23,11 @@ func TestWhereAnd(t *testing.T) {
 
 func TestWhereOr(t *testing.T) {
 	var s, e string
-	var or Or
 
-	or = Or{
+	or := NewOr(
 		&ColumnValue{Column: Column{Name: "id"}, Operator: "=", Value: NewValue(&Raw{Value: "8"})},
 		&ColumnValue{Column: Column{Name: "id"}, Operator: "=", Value: NewValue(&Raw{Value: "99"})},
-	}
+	)
 
 	s = or.Compile(defaultTemplate)
 	e = `("id" = 8 OR "id" = 99)`
@@ -41,17 +39,16 @@ func TestWhereOr(t *testing.T) {
 
 func TestWhereAndOr(t *testing.T) {
 	var s, e string
-	var and And
 
-	and = And{
+	and := NewAnd(
 		&ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: NewValue(&Raw{Value: "8"})},
 		&ColumnValue{Column: Column{Name: "id"}, Operator: "<", Value: NewValue(&Raw{Value: "99"})},
 		&ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: NewValue("John")},
-		Or{
+		NewOr(
 			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: NewValue("Smith")},
 			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: NewValue("Reyes")},
-		},
-	}
+		),
+	)
 
 	s = and.Compile(defaultTemplate)
 	e = `("id" > 8 AND "id" < 99 AND "name" = 'John' AND ("last_name" = 'Smith' OR "last_name" = 'Reyes'))`
@@ -63,29 +60,54 @@ func TestWhereAndOr(t *testing.T) {
 
 func TestWhereAndRawOrAnd(t *testing.T) {
 	var s, e string
-	var where Where
 
-	where = Where{
-		And{
+	where := NewWhere(
+		NewAnd(
 			&ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: NewValue(&Raw{Value: "8"})},
 			&ColumnValue{Column: Column{Name: "id"}, Operator: "<", Value: NewValue(&Raw{Value: "99"})},
-		},
+		),
 		&ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: NewValue("John")},
 		&Raw{Value: "city_id = 728"},
-		Or{
+		NewOr(
 			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: NewValue("Smith")},
 			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: NewValue("Reyes")},
-		},
-		And{
+		),
+		NewAnd(
 			&ColumnValue{Column: Column{Name: "age"}, Operator: ">", Value: NewValue(&Raw{Value: "18"})},
 			&ColumnValue{Column: Column{Name: "age"}, Operator: "<", Value: NewValue(&Raw{Value: "41"})},
-		},
-	}
+		),
+	)
 
 	s = trim(where.Compile(defaultTemplate))
 	e = `WHERE (("id" > 8 AND "id" < 99) AND "name" = 'John' AND city_id = 728 AND ("last_name" = 'Smith' OR "last_name" = 'Reyes') AND ("age" > 18 AND "age" < 41))`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func BenchmarkWhere(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = NewWhere(
+			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
+		)
+	}
+}
+
+func BenchmarkCompileWhere(b *testing.B) {
+	w := NewWhere(
+		&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
+	)
+	for i := 0; i < b.N; i++ {
+		w.Compile(defaultTemplate)
+	}
+}
+
+func BenchmarkCompileWhereNoCache(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		w := NewWhere(
+			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
+		)
+		w.Compile(defaultTemplate)
 	}
 }

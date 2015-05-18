@@ -17,7 +17,7 @@ func TestValue(t *testing.T) {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 
-	val = NewValue(Raw{Value: "NOW()"})
+	val = NewValue(&Raw{Value: "NOW()"})
 
 	s = val.Compile(defaultTemplate)
 	e = `NOW()`
@@ -32,8 +32,8 @@ func TestValues(t *testing.T) {
 	var val Values
 
 	val = Values{
-		Value{V: Raw{Value: "1"}},
-		Value{V: Raw{Value: "2"}},
+		Value{V: &Raw{Value: "1"}},
+		Value{V: &Raw{Value: "2"}},
 		Value{V: "3"},
 	}
 

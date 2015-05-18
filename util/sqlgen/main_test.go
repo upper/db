@@ -109,9 +109,9 @@ func TestSelectCountWhere(t *testing.T) {
 	stmt = Statement{
 		Type:  SqlSelectCount,
 		Table: NewTable("table_name"),
-		Where: Where{
-			&ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: NewValue(Raw{Value: "7"})},
-		},
+		Where: NewWhere(
+			&ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: NewValue(NewRaw("7"))},
+		),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -163,9 +163,9 @@ func TestSelectStarFromRawWhere(t *testing.T) {
 	stmt = Statement{
 		Type:  SqlSelect,
 		Table: NewTable("table.name AS foo"),
-		Where: Where{
+		Where: NewWhere(
 			&Raw{Value: "foo.id = bar.foo_id"},
-		},
+		),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -178,10 +178,10 @@ func TestSelectStarFromRawWhere(t *testing.T) {
 	stmt = Statement{
 		Type:  SqlSelect,
 		Table: NewTable("table.name AS foo"),
-		Where: Where{
+		Where: NewWhere(
 			&Raw{Value: "foo.id = bar.foo_id"},
 			&Raw{Value: "baz.id = exp.baz_id"},
-		},
+		),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -517,9 +517,9 @@ func TestSelectFieldsFromWhere(t *testing.T) {
 			Column{Name: "baz"},
 		),
 		Table: NewTable("table_name"),
-		Where: Where{
+		Where: NewWhere(
 			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
-		},
+		),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -542,9 +542,9 @@ func TestSelectFieldsFromWhereLimitOffset(t *testing.T) {
 			Column{Name: "baz"},
 		),
 		Table: NewTable("table_name"),
-		Where: Where{
+		Where: NewWhere(
 			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
-		},
+		),
 		Limit:  10,
 		Offset: 23,
 	}
@@ -564,9 +564,9 @@ func TestDelete(t *testing.T) {
 	stmt = Statement{
 		Type:  SqlDelete,
 		Table: NewTable("table_name"),
-		Where: Where{
+		Where: NewWhere(
 			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
-		},
+		),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -587,9 +587,9 @@ func TestUpdate(t *testing.T) {
 		ColumnValues: NewColumnValues(
 			ColumnValue{Column: Column{Name: "foo"}, Operator: "=", Value: NewValue(76)},
 		),
-		Where: Where{
+		Where: NewWhere(
 			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
-		},
+		),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -606,9 +606,9 @@ func TestUpdate(t *testing.T) {
 			ColumnValue{Column: Column{Name: "foo"}, Operator: "=", Value: NewValue(76)},
 			ColumnValue{Column: Column{Name: "bar"}, Operator: "=", Value: NewValue(Raw{Value: "88"})},
 		),
-		Where: Where{
+		Where: NewWhere(
 			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
-		},
+		),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))

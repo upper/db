@@ -48,7 +48,7 @@ func TestColumnValue(t *testing.T) {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 
-	cv = ColumnValue{Column: Column{Name: "date"}, Operator: "=", Value: NewValue(Raw{Value: "NOW()"})}
+	cv = ColumnValue{Column: Column{Name: "date"}, Operator: "=", Value: NewValue(NewRaw("NOW()"))}
 
 	s = cv.Compile(defaultTemplate)
 	e = `"date" = NOW()`
@@ -63,10 +63,10 @@ func TestColumnValues(t *testing.T) {
 
 	cvs := NewColumnValues(
 		ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: NewValue(8)},
-		ColumnValue{Column: Column{Name: "other.id"}, Operator: "<", Value: NewValue(Raw{Value: "100"})},
+		ColumnValue{Column: Column{Name: "other.id"}, Operator: "<", Value: NewValue(&Raw{Value: "100"})},
 		ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: NewValue("Haruki Murakami")},
-		ColumnValue{Column: Column{Name: "created"}, Operator: ">=", Value: NewValue(Raw{Value: "NOW()"})},
-		ColumnValue{Column: Column{Name: "modified"}, Operator: "<=", Value: NewValue(Raw{Value: "NOW()"})},
+		ColumnValue{Column: Column{Name: "created"}, Operator: ">=", Value: NewValue(&Raw{Value: "NOW()"})},
+		ColumnValue{Column: Column{Name: "modified"}, Operator: "<=", Value: NewValue(&Raw{Value: "NOW()"})},
 	)
 
 	s = cvs.Compile(defaultTemplate)

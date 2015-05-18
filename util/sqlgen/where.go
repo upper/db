@@ -1,73 +1,87 @@
 package sqlgen
 
 import (
+	"fmt"
 	"strings"
 )
 
-type (
-	Or    []cc
-	And   []cc
-	Where []cc
-)
+type Or Where
+
+type And Where
+
+type Where struct {
+	Conditions []cc
+	hash       string
+}
 
 type conds struct {
 	Conds string
 }
 
-func (self Or) Hash() string {
-	hash := make([]string, 0, len(self))
-	for i := range self {
-		hash = append(hash, self[i].Hash())
-	}
-	return `Or(` + strings.Join(hash, `,`) + `)`
+func NewWhere(conditions ...cc) *Where {
+	return &Where{Conditions: conditions}
 }
 
-func (self Or) Compile(layout *Template) (compiled string) {
-	if c, ok := layout.Read(self); ok {
-		return c
+func NewOr(conditions ...cc) *Or {
+	return &Or{Conditions: conditions}
+}
+
+func NewAnd(conditions ...cc) *And {
+	return &And{Conditions: conditions}
+}
+
+func (w *Where) Hash() string {
+	if w.hash == "" {
+		hash := make([]string, len(w.Conditions))
+		for i := range w.Conditions {
+			hash[i] = w.Conditions[i].Hash()
+		}
+		w.hash = fmt.Sprintf(`Where{%s}`, strings.Join(hash, `, `))
+	}
+	return w.hash
+}
+
+func (self *Or) Hash() string {
+	w := Where(*self)
+	return `Or(` + w.Hash() + `)`
+}
+
+func (self *And) Hash() string {
+	w := Where(*self)
+	return `Or(` + w.Hash() + `)`
+}
+
+func (self *Or) Compile(layout *Template) (compiled string) {
+
+	if z, ok := layout.Read(self); ok {
+		return z
 	}
 
-	compiled = groupCondition(layout, self, mustParse(layout.ClauseOperator, layout.OrKeyword))
+	compiled = groupCondition(layout, self.Conditions, mustParse(layout.ClauseOperator, layout.OrKeyword))
 
 	layout.Write(self, compiled)
 
 	return
 }
 
-func (self And) Hash() string {
-	hash := make([]string, 0, len(self))
-	for i := range self {
-		hash = append(hash, self[i].Hash())
-	}
-	return `And(` + strings.Join(hash, `,`) + `)`
-}
-
-func (self And) Compile(layout *Template) (compiled string) {
+func (self *And) Compile(layout *Template) (compiled string) {
 	if c, ok := layout.Read(self); ok {
 		return c
 	}
 
-	compiled = groupCondition(layout, self, mustParse(layout.ClauseOperator, layout.AndKeyword))
+	compiled = groupCondition(layout, self.Conditions, mustParse(layout.ClauseOperator, layout.AndKeyword))
 
 	layout.Write(self, compiled)
 
 	return
 }
 
-func (self Where) Hash() string {
-	hash := make([]string, 0, len(self))
-	for i := range self {
-		hash = append(hash, self[i].Hash())
-	}
-	return `Where(` + strings.Join(hash, `,`) + `)`
-}
-
-func (self Where) Compile(layout *Template) (compiled string) {
+func (self *Where) Compile(layout *Template) (compiled string) {
 	if c, ok := layout.Read(self); ok {
 		return c
 	}
 
-	grouped := groupCondition(layout, self, mustParse(layout.ClauseOperator, layout.AndKeyword))
+	grouped := groupCondition(layout, self.Conditions, mustParse(layout.ClauseOperator, layout.AndKeyword))
 
 	if grouped != "" {
 		compiled = mustParse(layout.WhereLayout, conds{grouped})

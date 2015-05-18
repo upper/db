@@ -14,6 +14,10 @@ type Raw struct {
 	hash  string
 }
 
+func NewRaw(v string) *Raw {
+	return &Raw{Value: v}
+}
+
 func (r *Raw) Hash() string {
 	if r.hash == "" {
 		r.hash = `sqlgen.Raw{Value:"` + r.Value + `"}`

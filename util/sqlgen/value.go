@@ -19,13 +19,17 @@ func NewValue(v interface{}) *Value {
 }
 
 func (self *Value) Hash() string {
-	switch t := self.V.(type) {
-	case cc:
-		return `Value(` + t.Hash() + `)`
-	case string:
-		return `Value(` + t + `)`
+	if self.hash == "" {
+		switch t := self.V.(type) {
+		case cc:
+			self.hash = `Value(` + t.Hash() + `)`
+		case string:
+			self.hash = `Value(` + t + `)`
+		default:
+			self.hash = fmt.Sprintf(`Value(%v)`, self.V)
+		}
 	}
-	return fmt.Sprintf(`Value(%v)`, self.V)
+	return self.hash
 }
 
 func (self *Value) Compile(layout *Template) (compiled string) {
@@ -35,9 +39,11 @@ func (self *Value) Compile(layout *Template) (compiled string) {
 	}
 
 	if raw, ok := self.V.(Raw); ok {
-		compiled = raw.Value
+		compiled = raw.Compile(layout)
+	} else if raw, ok := self.V.(cc); ok {
+		compiled = raw.Compile(layout)
 	} else {
-		compiled = mustParse(layout.ValueQuote, &Raw{Value: fmt.Sprintf(`%v`, self.V)})
+		compiled = mustParse(layout.ValueQuote, NewRaw(fmt.Sprintf(`%v`, self.V)))
 	}
 
 	layout.Write(self, compiled)
