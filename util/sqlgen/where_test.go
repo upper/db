@@ -9,9 +9,9 @@ func TestWhereAnd(t *testing.T) {
 	var and And
 
 	and = And{
-		&ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: Value{&Raw{Value: "8"}}},
-		&ColumnValue{Column: Column{Name: "id"}, Operator: "<", Value: Value{&Raw{Value: "99"}}},
-		&ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: Value{"John"}},
+		&ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: NewValue(&Raw{Value: "8"})},
+		&ColumnValue{Column: Column{Name: "id"}, Operator: "<", Value: NewValue(&Raw{Value: "99"})},
+		&ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: NewValue("John")},
 	}
 
 	s = and.Compile(defaultTemplate)
@@ -27,8 +27,8 @@ func TestWhereOr(t *testing.T) {
 	var or Or
 
 	or = Or{
-		&ColumnValue{Column: Column{Name: "id"}, Operator: "=", Value: Value{&Raw{Value: "8"}}},
-		&ColumnValue{Column: Column{Name: "id"}, Operator: "=", Value: Value{&Raw{Value: "99"}}},
+		&ColumnValue{Column: Column{Name: "id"}, Operator: "=", Value: NewValue(&Raw{Value: "8"})},
+		&ColumnValue{Column: Column{Name: "id"}, Operator: "=", Value: NewValue(&Raw{Value: "99"})},
 	}
 
 	s = or.Compile(defaultTemplate)
@@ -44,12 +44,12 @@ func TestWhereAndOr(t *testing.T) {
 	var and And
 
 	and = And{
-		&ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: Value{&Raw{Value: "8"}}},
-		&ColumnValue{Column: Column{Name: "id"}, Operator: "<", Value: Value{&Raw{Value: "99"}}},
-		&ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: Value{"John"}},
+		&ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: NewValue(&Raw{Value: "8"})},
+		&ColumnValue{Column: Column{Name: "id"}, Operator: "<", Value: NewValue(&Raw{Value: "99"})},
+		&ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: NewValue("John")},
 		Or{
-			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: Value{"Smith"}},
-			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: Value{"Reyes"}},
+			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: NewValue("Smith")},
+			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: NewValue("Reyes")},
 		},
 	}
 
@@ -67,18 +67,18 @@ func TestWhereAndRawOrAnd(t *testing.T) {
 
 	where = Where{
 		And{
-			&ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: Value{&Raw{Value: "8"}}},
-			&ColumnValue{Column: Column{Name: "id"}, Operator: "<", Value: Value{&Raw{Value: "99"}}},
+			&ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: NewValue(&Raw{Value: "8"})},
+			&ColumnValue{Column: Column{Name: "id"}, Operator: "<", Value: NewValue(&Raw{Value: "99"})},
 		},
-		&ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: Value{"John"}},
+		&ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: NewValue("John")},
 		&Raw{Value: "city_id = 728"},
 		Or{
-			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: Value{"Smith"}},
-			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: Value{"Reyes"}},
+			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: NewValue("Smith")},
+			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: NewValue("Reyes")},
 		},
 		And{
-			&ColumnValue{Column: Column{Name: "age"}, Operator: ">", Value: Value{&Raw{Value: "18"}}},
-			&ColumnValue{Column: Column{Name: "age"}, Operator: "<", Value: Value{&Raw{Value: "41"}}},
+			&ColumnValue{Column: Column{Name: "age"}, Operator: ">", Value: NewValue(&Raw{Value: "18"})},
+			&ColumnValue{Column: Column{Name: "age"}, Operator: "<", Value: NewValue(&Raw{Value: "41"})},
 		},
 	}
 

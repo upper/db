@@ -10,29 +10,34 @@ import (
 type Values []Value
 
 type Value struct {
-	Val interface{}
+	V    interface{}
+	hash string
 }
 
-func (self Value) Hash() string {
-	switch t := self.Val.(type) {
+func NewValue(v interface{}) *Value {
+	return &Value{V: v}
+}
+
+func (self *Value) Hash() string {
+	switch t := self.V.(type) {
 	case cc:
 		return `Value(` + t.Hash() + `)`
 	case string:
 		return `Value(` + t + `)`
 	}
-	return fmt.Sprintf(`Value(%v)`, self.Val)
+	return fmt.Sprintf(`Value(%v)`, self.V)
 }
 
-func (self Value) Compile(layout *Template) (compiled string) {
+func (self *Value) Compile(layout *Template) (compiled string) {
 
-	if c, ok := layout.Read(self); ok {
-		return c
+	if z, ok := layout.Read(self); ok {
+		return z
 	}
 
-	if raw, ok := self.Val.(Raw); ok {
+	if raw, ok := self.V.(Raw); ok {
 		compiled = raw.Value
 	} else {
-		compiled = mustParse(layout.ValueQuote, &Raw{Value: fmt.Sprintf(`%v`, self.Val)})
+		compiled = mustParse(layout.ValueQuote, &Raw{Value: fmt.Sprintf(`%v`, self.V)})
 	}
 
 	layout.Write(self, compiled)
@@ -40,14 +45,14 @@ func (self Value) Compile(layout *Template) (compiled string) {
 	return
 }
 
-func (self Value) Scan(src interface{}) error {
-	log.Println("Scan(", src, ") on", self.Val)
+func (self *Value) Scan(src interface{}) error {
+	log.Println("Scan(", src, ") on", self.V)
 	return nil
 }
 
-func (self Value) Value() (driver.Value, error) {
-	log.Println("Value() on", self.Val)
-	return self.Val, nil
+func (self *Value) Value() (driver.Value, error) {
+	log.Println("Value() on", self.V)
+	return self.V, nil
 }
 
 func (self Values) Hash() string {

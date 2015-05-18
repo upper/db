@@ -6,9 +6,9 @@ import (
 
 func TestValue(t *testing.T) {
 	var s, e string
-	var val Value
+	var val *Value
 
-	val = Value{1}
+	val = NewValue(1)
 
 	s = val.Compile(defaultTemplate)
 	e = `'1'`
@@ -17,7 +17,7 @@ func TestValue(t *testing.T) {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 
-	val = Value{Raw{Value: "NOW()"}}
+	val = NewValue(Raw{Value: "NOW()"})
 
 	s = val.Compile(defaultTemplate)
 	e = `NOW()`
@@ -32,9 +32,9 @@ func TestValues(t *testing.T) {
 	var val Values
 
 	val = Values{
-		Value{Raw{Value: "1"}},
-		Value{Raw{Value: "2"}},
-		Value{"3"},
+		Value{V: Raw{Value: "1"}},
+		Value{V: Raw{Value: "2"}},
+		Value{V: "3"},
 	}
 
 	s = val.Compile(defaultTemplate)
@@ -42,5 +42,32 @@ func TestValues(t *testing.T) {
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func BenchmarkValue(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = NewValue("a")
+	}
+}
+
+func BenchmarkValueHash(b *testing.B) {
+	v := NewValue("a")
+	for i := 0; i < b.N; i++ {
+		_ = v.Hash()
+	}
+}
+
+func BenchmarkValueCompile(b *testing.B) {
+	v := NewValue("a")
+	for i := 0; i < b.N; i++ {
+		_ = v.Compile(defaultTemplate)
+	}
+}
+
+func BenchmarkValueCompileNoCache(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		v := NewValue("a")
+		_ = v.Compile(defaultTemplate)
 	}
 }

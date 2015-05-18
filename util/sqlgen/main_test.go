@@ -23,7 +23,7 @@ func TestTruncateTable(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlTruncate,
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -40,7 +40,7 @@ func TestDropTable(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlDropTable,
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -74,7 +74,7 @@ func TestSelectCount(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlSelectCount,
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -91,7 +91,7 @@ func TestSelectCountRelation(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlSelectCount,
-		Table: Table{"information_schema.tables"},
+		Table: NewTable("information_schema.tables"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -108,9 +108,9 @@ func TestSelectCountWhere(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlSelectCount,
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 		Where: Where{
-			&ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: Value{Raw{Value: "7"}}},
+			&ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: NewValue(Raw{Value: "7"})},
 		},
 	}
 
@@ -128,7 +128,7 @@ func TestSelectStarFrom(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlSelect,
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -145,7 +145,7 @@ func TestSelectStarFromAlias(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlSelect,
-		Table: Table{"table.name AS foo"},
+		Table: NewTable("table.name AS foo"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -162,7 +162,7 @@ func TestSelectStarFromRawWhere(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlSelect,
-		Table: Table{"table.name AS foo"},
+		Table: NewTable("table.name AS foo"),
 		Where: Where{
 			&Raw{Value: "foo.id = bar.foo_id"},
 		},
@@ -177,7 +177,7 @@ func TestSelectStarFromRawWhere(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlSelect,
-		Table: Table{"table.name AS foo"},
+		Table: NewTable("table.name AS foo"),
 		Where: Where{
 			&Raw{Value: "foo.id = bar.foo_id"},
 			&Raw{Value: "baz.id = exp.baz_id"},
@@ -198,7 +198,7 @@ func TestSelectStarFromMany(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlSelect,
-		Table: Table{"first.table AS foo, second.table as BAR, third.table aS baz"},
+		Table: NewTable("first.table AS foo, second.table as BAR, third.table aS baz"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -215,7 +215,7 @@ func TestSelectArtistNameFrom(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlSelect,
-		Table: Table{"artist"},
+		Table: NewTable("artist"),
 		Columns: NewColumns(
 			Column{Name: "artist.name"},
 		),
@@ -235,7 +235,7 @@ func TestSelectRawFrom(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlSelect,
-		Table: Table{`artist`},
+		Table: NewTable(`artist`),
 		Columns: NewColumns(
 			Column{Name: `artist.name`},
 			Column{Name: Raw{Value: `CONCAT(artist.name, " ", artist.last_name)`}},
@@ -261,7 +261,7 @@ func TestSelectFieldsFrom(t *testing.T) {
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -285,7 +285,7 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 			Column{Name: "baz"},
 		),
 		Limit: 42,
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -304,7 +304,7 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 			Column{Name: "baz"},
 		),
 		Offset: 17,
-		Table:  Table{"table_name"},
+		Table:  NewTable("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -324,7 +324,7 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 		),
 		Limit:  42,
 		Offset: 17,
-		Table:  Table{"table_name"},
+		Table:  NewTable("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -350,7 +350,7 @@ func TestStatementGroupBy(t *testing.T) {
 		GroupBy: NewGroupBy(
 			Column{Name: "foo"},
 		),
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -371,7 +371,7 @@ func TestStatementGroupBy(t *testing.T) {
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 		),
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -399,7 +399,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 				SortColumn{Column: Column{Name: "foo"}},
 			),
 		),
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -422,7 +422,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 				SortColumn{Column: Column{Name: "foo"}, Order: SqlOrderAsc},
 			),
 		),
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -445,7 +445,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 				SortColumn{Column: Column{Name: "foo"}, Order: SqlOrderDesc},
 			),
 		),
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -470,7 +470,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 				SortColumn{Column: Column{Name: "baz"}, Order: SqlOrderDesc},
 			),
 		),
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -494,7 +494,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 				SortColumn{Column: Column{Name: Raw{Value: "BAR()"}}, Order: SqlOrderAsc},
 			),
 		),
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -516,9 +516,9 @@ func TestSelectFieldsFromWhere(t *testing.T) {
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 		Where: Where{
-			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: Value{99}},
+			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
 		},
 	}
 
@@ -541,9 +541,9 @@ func TestSelectFieldsFromWhereLimitOffset(t *testing.T) {
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 		Where: Where{
-			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: Value{99}},
+			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
 		},
 		Limit:  10,
 		Offset: 23,
@@ -563,9 +563,9 @@ func TestDelete(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlDelete,
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 		Where: Where{
-			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: Value{99}},
+			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
 		},
 	}
 
@@ -583,12 +583,12 @@ func TestUpdate(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlUpdate,
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 		ColumnValues: NewColumnValues(
-			ColumnValue{Column: Column{Name: "foo"}, Operator: "=", Value: Value{76}},
+			ColumnValue{Column: Column{Name: "foo"}, Operator: "=", Value: NewValue(76)},
 		),
 		Where: Where{
-			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: Value{99}},
+			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
 		},
 	}
 
@@ -601,13 +601,13 @@ func TestUpdate(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlUpdate,
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 		ColumnValues: NewColumnValues(
-			ColumnValue{Column: Column{Name: "foo"}, Operator: "=", Value: Value{76}},
-			ColumnValue{Column: Column{Name: "bar"}, Operator: "=", Value: Value{Raw{Value: "88"}}},
+			ColumnValue{Column: Column{Name: "foo"}, Operator: "=", Value: NewValue(76)},
+			ColumnValue{Column: Column{Name: "bar"}, Operator: "=", Value: NewValue(Raw{Value: "88"})},
 		),
 		Where: Where{
-			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: Value{99}},
+			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
 		},
 	}
 
@@ -625,16 +625,16 @@ func TestInsert(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlInsert,
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
 		Values: Values{
-			Value{"1"},
-			Value{2},
-			Value{Raw{Value: "3"}},
+			Value{V: "1"},
+			Value{V: 2},
+			Value{V: Raw{Value: "3"}},
 		},
 	}
 
@@ -652,7 +652,7 @@ func TestInsertExtra(t *testing.T) {
 
 	stmt = Statement{
 		Type:  SqlInsert,
-		Table: Table{"table_name"},
+		Table: NewTable("table_name"),
 		Extra: "RETURNING id",
 		Columns: NewColumns(
 			Column{Name: "foo"},
@@ -660,9 +660,9 @@ func TestInsertExtra(t *testing.T) {
 			Column{Name: "baz"},
 		),
 		Values: Values{
-			Value{"1"},
-			Value{2},
-			Value{Raw{Value: "3"}},
+			Value{V: "1"},
+			Value{V: 2},
+			Value{V: Raw{Value: "3"}},
 		},
 	}
 

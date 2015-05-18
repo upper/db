@@ -13,6 +13,7 @@ type tableT struct {
 // Table struct represents a SQL table.
 type Table struct {
 	Name interface{}
+	hash string
 }
 
 func quotedTableName(layout *Template, input string) string {
@@ -49,22 +50,37 @@ func quotedTableName(layout *Template, input string) string {
 	return mustParse(layout.TableAliasLayout, tableT{name, alias})
 }
 
+func NewTable(name string) *Table {
+	return &Table{Name: name}
+}
+
 // Hash returns a string hash of the table value.
-func (t Table) Hash() string {
-	switch t := t.Name.(type) {
-	case cc:
-		return `Table(` + t.Hash() + `)`
-	case string:
-		return `Table(` + t + `)`
+func (t *Table) Hash() string {
+	if t.hash == "" {
+		var s string
+
+		switch v := t.Name.(type) {
+		case cc:
+			s = v.Hash()
+		case fmt.Stringer:
+			s = v.String()
+		case string:
+			s = v
+		default:
+			s = fmt.Sprintf("%v", t.Name)
+		}
+
+		t.hash = fmt.Sprintf(`Table{Name:%q}`, s)
 	}
-	return fmt.Sprintf(`Table(%v)`, t.Name)
+
+	return t.hash
 }
 
 // Compile transforms a table struct into a SQL chunk.
-func (t Table) Compile(layout *Template) (compiled string) {
+func (t *Table) Compile(layout *Template) (compiled string) {
 
-	if c, ok := layout.Read(t); ok {
-		return c
+	if z, ok := layout.Read(t); ok {
+		return z
 	}
 
 	switch value := t.Name.(type) {

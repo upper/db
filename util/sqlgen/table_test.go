@@ -6,9 +6,8 @@ import (
 
 func TestTableSimple(t *testing.T) {
 	var s, e string
-	var table Table
 
-	table = Table{"artist"}
+	table := NewTable("artist")
 
 	s = trim(table.Compile(defaultTemplate))
 	e = `"artist"`
@@ -20,9 +19,8 @@ func TestTableSimple(t *testing.T) {
 
 func TestTableCompound(t *testing.T) {
 	var s, e string
-	var table Table
 
-	table = Table{"artist.foo"}
+	table := NewTable("artist.foo")
 
 	s = trim(table.Compile(defaultTemplate))
 	e = `"artist"."foo"`
@@ -34,9 +32,8 @@ func TestTableCompound(t *testing.T) {
 
 func TestTableCompoundAlias(t *testing.T) {
 	var s, e string
-	var table Table
 
-	table = Table{"artist.foo AS baz"}
+	table := NewTable("artist.foo AS baz")
 
 	s = trim(table.Compile(defaultTemplate))
 	e = `"artist"."foo" AS "baz"`
@@ -48,9 +45,8 @@ func TestTableCompoundAlias(t *testing.T) {
 
 func TestTableImplicitAlias(t *testing.T) {
 	var s, e string
-	var table Table
 
-	table = Table{"artist.foo baz"}
+	table := NewTable("artist.foo baz")
 
 	s = trim(table.Compile(defaultTemplate))
 	e = `"artist"."foo" AS "baz"`
@@ -62,9 +58,8 @@ func TestTableImplicitAlias(t *testing.T) {
 
 func TestTableMultiple(t *testing.T) {
 	var s, e string
-	var table Table
 
-	table = Table{"artist.foo, artist.bar, artist.baz"}
+	table := NewTable("artist.foo, artist.bar, artist.baz")
 
 	s = trim(table.Compile(defaultTemplate))
 	e = `"artist"."foo", "artist"."bar", "artist"."baz"`
@@ -76,9 +71,8 @@ func TestTableMultiple(t *testing.T) {
 
 func TestTableMultipleAlias(t *testing.T) {
 	var s, e string
-	var table Table
 
-	table = Table{"artist.foo AS foo, artist.bar as bar, artist.baz As baz"}
+	table := NewTable("artist.foo AS foo, artist.bar as bar, artist.baz As baz")
 
 	s = trim(table.Compile(defaultTemplate))
 	e = `"artist"."foo" AS "foo", "artist"."bar" AS "bar", "artist"."baz" AS "baz"`
@@ -90,9 +84,8 @@ func TestTableMultipleAlias(t *testing.T) {
 
 func TestTableMinimal(t *testing.T) {
 	var s, e string
-	var table Table
 
-	table = Table{"a"}
+	table := NewTable("a")
 
 	s = trim(table.Compile(defaultTemplate))
 	e = `"a"`
@@ -104,14 +97,34 @@ func TestTableMinimal(t *testing.T) {
 
 func TestTableEmpty(t *testing.T) {
 	var s, e string
-	var table Table
 
-	table = Table{""}
+	table := NewTable("")
 
 	s = trim(table.Compile(defaultTemplate))
 	e = ``
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func BenchmarkTableHash(b *testing.B) {
+	t := NewTable("name")
+	for i := 0; i < b.N; i++ {
+		t.Hash()
+	}
+}
+
+func BenchmarkTableCompile(b *testing.B) {
+	t := NewTable("name")
+	for i := 0; i < b.N; i++ {
+		t.Compile(defaultTemplate)
+	}
+}
+
+func BenchmarkTableCompileNoCache(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		t := NewTable("name")
+		t.Compile(defaultTemplate)
 	}
 }

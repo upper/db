@@ -8,8 +8,8 @@ import (
 type ColumnValue struct {
 	Column
 	Operator string
-	Value
-	hash string
+	Value    cc
+	hash     string
 }
 
 type columnValueT struct {

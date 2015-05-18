@@ -8,12 +8,12 @@ import (
 
 type Statement struct {
 	Type
-	Table
+	Table    cc
 	Database cc
 	Limit
 	Offset
-	Columns cc
-	Values
+	Columns      cc
+	Values       cc
 	ColumnValues cc
 	OrderBy      cc
 	GroupBy      cc
@@ -42,7 +42,7 @@ func (layout *Template) compile(c cc) string {
 	return ""
 }
 
-func getHash(h cache.Hashable) string {
+func (self Statement) hash(h cache.Hashable) string {
 	if h != nil {
 		return h.Hash()
 	}
@@ -53,17 +53,17 @@ func (self Statement) Hash() string {
 
 	parts := strings.Join([]string{
 		strconv.Itoa(int(self.Type)),
-		self.Table.Hash(),
-		getHash(self.Database),
+		self.hash(self.Table),
+		self.hash(self.Database),
 		strconv.Itoa(int(self.Limit)),
 		strconv.Itoa(int(self.Offset)),
-		self.Columns.Hash(),
-		self.Values.Hash(),
-		getHash(self.ColumnValues),
-		self.OrderBy.Hash(),
-		getHash(self.GroupBy),
+		self.hash(self.Columns),
+		self.hash(self.Values),
+		self.hash(self.ColumnValues),
+		self.hash(self.OrderBy),
+		self.hash(self.GroupBy),
 		string(self.Extra),
-		self.Where.Hash(),
+		self.hash(self.Where),
 	}, ";")
 
 	return `Statement(` + parts + `)`
