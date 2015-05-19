@@ -100,8 +100,8 @@ type Func struct {
 // 	}
 type And []interface{}
 
-func (a *And) And(exp interface{}) {
-	*a = append(*a, exp)
+func (a And) And(exp interface{}) And {
+	return append(a, exp)
 }
 
 // Or is an array of interfaced that is used to join two or more expressions
@@ -117,8 +117,8 @@ func (a *And) And(exp interface{}) {
 // 	}
 type Or []interface{}
 
-func (o *Or) Or(exp interface{}) {
-	*o = append(*o, exp)
+func (o Or) Or(exp interface{}) Or {
+	return append(o, exp)
 }
 
 // Raw holds chunks of data to be passed to the database without any filtering.
