@@ -674,16 +674,83 @@ func TestInsertExtra(t *testing.T) {
 	}
 }
 
-func BenchmarkCompileSelect(b *testing.B) {
-	var stmt Statement
+func BenchmarkStatementSimpleQuery(b *testing.B) {
+	stmt := Statement{
+		Type:  SqlSelectCount,
+		Table: NewTable("table_name"),
+		Where: NewWhere(
+			&ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: NewValue(Raw{Value: "7"})},
+		),
+	}
 
 	for i := 0; i < b.N; i++ {
-		stmt = Statement{
+		_ = stmt.Compile(defaultTemplate)
+	}
+}
+
+func BenchmarkStatementSimpleQueryHash(b *testing.B) {
+	stmt := Statement{
+		Type:  SqlSelectCount,
+		Table: NewTable("table_name"),
+		Where: NewWhere(
+			&ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: NewValue(Raw{Value: "7"})},
+		),
+	}
+
+	for i := 0; i < b.N; i++ {
+		_ = stmt.Hash()
+	}
+}
+
+func BenchmarkStatementSimpleQueryNoCache(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		stmt := Statement{
 			Type:  SqlSelectCount,
 			Table: NewTable("table_name"),
 			Where: NewWhere(
 				&ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: NewValue(Raw{Value: "7"})},
 			),
+		}
+		_ = stmt.Compile(defaultTemplate)
+	}
+}
+
+func BenchmarkStatementComplexQuery(b *testing.B) {
+	stmt := Statement{
+		Type:  SqlInsert,
+		Table: NewTable("table_name"),
+		Columns: NewColumns(
+			Column{Name: "foo"},
+			Column{Name: "bar"},
+			Column{Name: "baz"},
+		),
+		Values: Values{
+			Value{V: "1"},
+			Value{V: 2},
+			Value{V: Raw{Value: "3"}},
+		},
+	}
+
+	for i := 0; i < b.N; i++ {
+		_ = stmt.Compile(defaultTemplate)
+	}
+}
+
+func BenchmarkStatementComplexQueryNoCache(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		stmt := Statement{
+			Type:  SqlInsert,
+			Table: NewTable("table_name"),
+			Columns: NewColumns(
+				Column{Name: "foo"},
+				Column{Name: "bar"},
+				Column{Name: "baz"},
+			),
+			Values: Values{
+				Value{V: "1"},
+				Value{V: 2},
+				Value{V: Raw{Value: "3"}},
+			},
 		}
 		_ = stmt.Compile(defaultTemplate)
 	}

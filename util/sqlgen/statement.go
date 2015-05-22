@@ -19,6 +19,7 @@ type Statement struct {
 	GroupBy      cc
 	Extra
 	Where cc
+	hash  string
 }
 
 type statementT struct {
@@ -35,61 +36,63 @@ type statementT struct {
 	Where        string
 }
 
-func (layout *Template) compile(c cc) string {
+func (layout *Template) doCompile(c cc) string {
 	if c != nil {
 		return c.Compile(layout)
 	}
 	return ""
 }
 
-func (self Statement) hash(h cache.Hashable) string {
+func (s Statement) getHash(h cache.Hashable) string {
 	if h != nil {
 		return h.Hash()
 	}
 	return ""
 }
 
-func (self Statement) Hash() string {
+func (s *Statement) Hash() string {
+	if s.hash == "" {
+		parts := strings.Join([]string{
+			strconv.Itoa(int(s.Type)),
+			s.getHash(s.Table),
+			s.getHash(s.Database),
+			strconv.Itoa(int(s.Limit)),
+			strconv.Itoa(int(s.Offset)),
+			s.getHash(s.Columns),
+			s.getHash(s.Values),
+			s.getHash(s.ColumnValues),
+			s.getHash(s.OrderBy),
+			s.getHash(s.GroupBy),
+			string(s.Extra),
+			s.getHash(s.Where),
+		}, ";")
 
-	parts := strings.Join([]string{
-		strconv.Itoa(int(self.Type)),
-		self.hash(self.Table),
-		self.hash(self.Database),
-		strconv.Itoa(int(self.Limit)),
-		strconv.Itoa(int(self.Offset)),
-		self.hash(self.Columns),
-		self.hash(self.Values),
-		self.hash(self.ColumnValues),
-		self.hash(self.OrderBy),
-		self.hash(self.GroupBy),
-		string(self.Extra),
-		self.hash(self.Where),
-	}, ";")
-
-	return `Statement(` + parts + `)`
+		s.hash = `Statement(` + parts + `)`
+	}
+	return s.hash
 }
 
-func (self *Statement) Compile(layout *Template) (compiled string) {
+func (s *Statement) Compile(layout *Template) (compiled string) {
 
-	if c, ok := layout.Read(self); ok {
-		return c
+	if z, ok := layout.Read(s); ok {
+		return z
 	}
 
 	data := statementT{
-		Table:        layout.compile(self.Table),
-		Database:     layout.compile(self.Database),
-		Limit:        self.Limit,
-		Offset:       self.Offset,
-		Columns:      layout.compile(self.Columns),
-		Values:       layout.compile(self.Values),
-		ColumnValues: layout.compile(self.ColumnValues),
-		OrderBy:      layout.compile(self.OrderBy),
-		GroupBy:      layout.compile(self.GroupBy),
-		Extra:        string(self.Extra),
-		Where:        layout.compile(self.Where),
+		Table:        layout.doCompile(s.Table),
+		Database:     layout.doCompile(s.Database),
+		Limit:        s.Limit,
+		Offset:       s.Offset,
+		Columns:      layout.doCompile(s.Columns),
+		Values:       layout.doCompile(s.Values),
+		ColumnValues: layout.doCompile(s.ColumnValues),
+		OrderBy:      layout.doCompile(s.OrderBy),
+		GroupBy:      layout.doCompile(s.GroupBy),
+		Extra:        string(s.Extra),
+		Where:        layout.doCompile(s.Where),
 	}
 
-	switch self.Type {
+	switch s.Type {
 	case SqlTruncate:
 		compiled = mustParse(layout.TruncateLayout, data)
 	case SqlDropTable:
@@ -106,9 +109,11 @@ func (self *Statement) Compile(layout *Template) (compiled string) {
 		compiled = mustParse(layout.UpdateLayout, data)
 	case SqlInsert:
 		compiled = mustParse(layout.InsertLayout, data)
+	default:
+		panic("Unknown template type.")
 	}
 
-	layout.Write(self, compiled)
+	layout.Write(s, compiled)
 
 	return compiled
 }
