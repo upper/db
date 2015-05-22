@@ -70,6 +70,12 @@ func TestColumnRaw(t *testing.T) {
 	}
 }
 
+func BenchmarkNewColumn(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = NewColumn("a")
+	}
+}
+
 func BenchmarkColumnHash(b *testing.B) {
 	c := Column{Name: "name"}
 	for i := 0; i < b.N; i++ {
@@ -80,6 +86,13 @@ func BenchmarkColumnHash(b *testing.B) {
 func BenchmarkColumnCompile(b *testing.B) {
 	c := Column{Name: "name"}
 	for i := 0; i < b.N; i++ {
+		c.Compile(defaultTemplate)
+	}
+}
+
+func BenchmarkColumnCompileNoCache(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		c := Column{Name: "name"}
 		c.Compile(defaultTemplate)
 	}
 }

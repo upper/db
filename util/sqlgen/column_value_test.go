@@ -77,6 +77,12 @@ func TestColumnValues(t *testing.T) {
 	}
 }
 
+func BenchmarkNewColumnValue(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: NewValue(Raw{Value: "7"})}
+	}
+}
+
 func BenchmarkColumnValueHash(b *testing.B) {
 	cv := ColumnValue{Column: Column{Name: "id"}, Operator: "=", Value: NewValue(1)}
 	for i := 0; i < b.N; i++ {
@@ -88,6 +94,25 @@ func BenchmarkColumnValueCompile(b *testing.B) {
 	cv := ColumnValue{Column: Column{Name: "id"}, Operator: "=", Value: NewValue(1)}
 	for i := 0; i < b.N; i++ {
 		cv.Compile(defaultTemplate)
+	}
+}
+
+func BenchmarkColumnValueCompileNoCache(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		cv := ColumnValue{Column: Column{Name: "id"}, Operator: "=", Value: NewValue(1)}
+		cv.Compile(defaultTemplate)
+	}
+}
+
+func BenchmarkNewColumnValues(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = NewColumnValues(
+			ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: NewValue(8)},
+			ColumnValue{Column: Column{Name: "other.id"}, Operator: "<", Value: NewValue(Raw{Value: "100"})},
+			ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: NewValue("Haruki Murakami")},
+			ColumnValue{Column: Column{Name: "created"}, Operator: ">=", Value: NewValue(Raw{Value: "NOW()"})},
+			ColumnValue{Column: Column{Name: "modified"}, Operator: "<=", Value: NewValue(Raw{Value: "NOW()"})},
+		)
 	}
 }
 
@@ -113,6 +138,19 @@ func BenchmarkColumnValuesCompile(b *testing.B) {
 		ColumnValue{Column: Column{Name: "modified"}, Operator: "<=", Value: NewValue(Raw{Value: "NOW()"})},
 	)
 	for i := 0; i < b.N; i++ {
+		cvs.Compile(defaultTemplate)
+	}
+}
+
+func BenchmarkColumnValuesCompileNoCache(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		cvs := NewColumnValues(
+			ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: NewValue(8)},
+			ColumnValue{Column: Column{Name: "other.id"}, Operator: "<", Value: NewValue(Raw{Value: "100"})},
+			ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: NewValue("Haruki Murakami")},
+			ColumnValue{Column: Column{Name: "created"}, Operator: ">=", Value: NewValue(Raw{Value: "NOW()"})},
+			ColumnValue{Column: Column{Name: "modified"}, Operator: "<=", Value: NewValue(Raw{Value: "NOW()"})},
+		)
 		cvs.Compile(defaultTemplate)
 	}
 }

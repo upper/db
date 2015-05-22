@@ -108,6 +108,12 @@ func TestTableEmpty(t *testing.T) {
 	}
 }
 
+func BenchmarkNewTable(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = NewTable("foo")
+	}
+}
+
 func BenchmarkTableHash(b *testing.B) {
 	t := NewTable("name")
 	for i := 0; i < b.N; i++ {

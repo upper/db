@@ -15,6 +15,10 @@ type Column struct {
 	hash string
 }
 
+func NewColumn(name string) *Column {
+	return &Column{Name: name}
+}
+
 func (c *Column) Hash() string {
 	if c.hash == "" {
 		var s string
