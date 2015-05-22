@@ -22,7 +22,7 @@ func TestOrderBy(t *testing.T) {
 func TestOrderByDesc(t *testing.T) {
 	o := NewOrderBy(
 		NewSortColumns(
-			SortColumn{Column: Column{Name: "foo"}, Order: SqlOrderDesc},
+			SortColumn{Column: Column{Name: "foo"}, Order: Descendent},
 		),
 	)
 
@@ -78,7 +78,7 @@ func BenchmarkCompileOrderByCompileNoCache(b *testing.B) {
 }
 
 func BenchmarkCompileOrderCompile(b *testing.B) {
-	o := SqlOrderDesc
+	o := Descendent
 	for i := 0; i < b.N; i++ {
 		o.Compile(defaultTemplate)
 	}
@@ -86,7 +86,7 @@ func BenchmarkCompileOrderCompile(b *testing.B) {
 
 func BenchmarkCompileOrderCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		o := SqlOrderDesc
+		o := Descendent
 		o.Compile(defaultTemplate)
 	}
 }

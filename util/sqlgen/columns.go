@@ -28,7 +28,7 @@ func NewColumns(columns ...Column) *Columns {
 	return &Columns{Columns: columns}
 }
 
-// Compile transforms the Columns into its equivalent SQL representation.
+// Compile transforms the Columns into an equivalent SQL representation.
 func (c *Columns) Compile(layout *Template) (compiled string) {
 
 	if z, ok := layout.Read(c); ok {

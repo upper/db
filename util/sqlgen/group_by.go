@@ -27,7 +27,7 @@ func NewGroupBy(columns ...Column) *GroupBy {
 	return &GroupBy{Columns: NewColumns(columns...)}
 }
 
-// Compile transforms the GroupBy into its equivalent SQL representation.
+// Compile transforms the GroupBy into an equivalent SQL representation.
 func (g *GroupBy) Compile(layout *Template) (compiled string) {
 
 	if c, ok := layout.Read(g); ok {

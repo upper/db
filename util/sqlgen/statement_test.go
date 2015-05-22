@@ -419,7 +419,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 		),
 		OrderBy: NewOrderBy(
 			NewSortColumns(
-				SortColumn{Column: Column{Name: "foo"}, Order: SqlOrderAsc},
+				SortColumn{Column: Column{Name: "foo"}, Order: Ascendent},
 			),
 		),
 		Table: NewTable("table_name"),
@@ -442,7 +442,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 		),
 		OrderBy: NewOrderBy(
 			NewSortColumns(
-				SortColumn{Column: Column{Name: "foo"}, Order: SqlOrderDesc},
+				SortColumn{Column: Column{Name: "foo"}, Order: Descendent},
 			),
 		),
 		Table: NewTable("table_name"),
@@ -465,9 +465,9 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 		),
 		OrderBy: NewOrderBy(
 			NewSortColumns(
-				SortColumn{Column: Column{Name: "foo"}, Order: SqlOrderDesc},
-				SortColumn{Column: Column{Name: "bar"}, Order: SqlOrderAsc},
-				SortColumn{Column: Column{Name: "baz"}, Order: SqlOrderDesc},
+				SortColumn{Column: Column{Name: "foo"}, Order: Descendent},
+				SortColumn{Column: Column{Name: "bar"}, Order: Ascendent},
+				SortColumn{Column: Column{Name: "baz"}, Order: Descendent},
 			),
 		),
 		Table: NewTable("table_name"),
@@ -490,8 +490,8 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 		),
 		OrderBy: NewOrderBy(
 			NewSortColumns(
-				SortColumn{Column: Column{Name: Raw{Value: "FOO()"}}, Order: SqlOrderDesc},
-				SortColumn{Column: Column{Name: Raw{Value: "BAR()"}}, Order: SqlOrderAsc},
+				SortColumn{Column: Column{Name: Raw{Value: "FOO()"}}, Order: Descendent},
+				SortColumn{Column: Column{Name: Raw{Value: "BAR()"}}, Order: Ascendent},
 			),
 		),
 		Table: NewTable("table_name"),

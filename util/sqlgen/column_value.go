@@ -27,7 +27,7 @@ func (c *ColumnValue) Hash() string {
 	return c.hash
 }
 
-// Compile transforms the ColumnValue into its equivalent SQL representation.
+// Compile transforms the ColumnValue into an equivalent SQL representation.
 func (c *ColumnValue) Compile(layout *Template) (compiled string) {
 
 	if z, ok := layout.Read(c); ok {

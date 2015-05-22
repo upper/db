@@ -5,14 +5,17 @@ import (
 	"strings"
 )
 
+// Order represents the order in which SQL results are sorted.
 type Order uint8
 
+// Possible values for Order
 const (
-	SqlOrderNone = Order(iota)
-	SqlOrderAsc
-	SqlOrderDesc
+	DefaultOrder = Order(iota)
+	Ascendent
+	Descendent
 )
 
+// SortColumn represents the column-order relation in an ORDER BY clause.
 type SortColumn struct {
 	Column
 	Order
@@ -24,11 +27,13 @@ type sortColumnT struct {
 	Order  string
 }
 
+// SortColumns represents the columns in an ORDER BY clause.
 type SortColumns struct {
 	Columns []SortColumn
 	hash    string
 }
 
+// OrderBy represents an ORDER BY clause.
 type OrderBy struct {
 	SortColumns *SortColumns
 	hash        string
@@ -38,14 +43,17 @@ type orderByT struct {
 	SortColumns string
 }
 
+// NewSortColumns creates and returns an array of column-order relations.
 func NewSortColumns(values ...SortColumn) *SortColumns {
 	return &SortColumns{Columns: values}
 }
 
+// NewOrderBy creates an returns an OrderBy using the given SortColumns.
 func NewOrderBy(sc *SortColumns) *OrderBy {
 	return &OrderBy{SortColumns: sc}
 }
 
+// Hash returns a unique identifier.
 func (s *SortColumn) Hash() string {
 	if s.hash == "" {
 		s.hash = fmt.Sprintf(`SortColumn{Column:%s, Order:%s}`, s.Column.Hash(), s.Order.Hash())
@@ -53,6 +61,7 @@ func (s *SortColumn) Hash() string {
 	return s.hash
 }
 
+// Compile transforms the SortColumn into an equivalent SQL representation.
 func (s *SortColumn) Compile(layout *Template) (compiled string) {
 
 	if c, ok := layout.Read(s); ok {
@@ -71,6 +80,7 @@ func (s *SortColumn) Compile(layout *Template) (compiled string) {
 	return
 }
 
+// Hash returns a unique identifier.
 func (s *SortColumns) Hash() string {
 	if s.hash == "" {
 		h := make([]string, len(s.Columns))
@@ -82,6 +92,7 @@ func (s *SortColumns) Hash() string {
 	return s.hash
 }
 
+// Compile transforms the SortColumns into an equivalent SQL representation.
 func (s *SortColumns) Compile(layout *Template) (compiled string) {
 
 	if z, ok := layout.Read(s); ok {
@@ -101,6 +112,7 @@ func (s *SortColumns) Compile(layout *Template) (compiled string) {
 	return
 }
 
+// Hash returns a unique identifier.
 func (s *OrderBy) Hash() string {
 	if s.hash == "" {
 		s.hash = `OrderBy(` + s.SortColumns.Hash() + `)`
@@ -108,6 +120,7 @@ func (s *OrderBy) Hash() string {
 	return s.hash
 }
 
+// Compile transforms the SortColumn into an equivalent SQL representation.
 func (s *OrderBy) Compile(layout *Template) (compiled string) {
 
 	if z, ok := layout.Read(s); ok {
@@ -126,21 +139,23 @@ func (s *OrderBy) Compile(layout *Template) (compiled string) {
 	return
 }
 
+// Hash returns a unique identifier.
 func (s Order) Hash() string {
 	switch s {
-	case SqlOrderAsc:
+	case Ascendent:
 		return `Order{ASC}`
-	case SqlOrderDesc:
+	case Descendent:
 		return `Order{DESC}`
 	}
 	return `Order{DEFAULT}`
 }
 
+// Compile transforms the SortColumn into an equivalent SQL representation.
 func (s Order) Compile(layout *Template) string {
 	switch s {
-	case SqlOrderAsc:
+	case Ascendent:
 		return layout.AscKeyword
-	case SqlOrderDesc:
+	case Descendent:
 		return layout.DescKeyword
 	}
 	return ""

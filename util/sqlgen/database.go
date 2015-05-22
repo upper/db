@@ -18,7 +18,7 @@ func (d *Database) Hash() string {
 	return d.hash
 }
 
-// Compile transforms the Database into its equivalent SQL representation.
+// Compile transforms the Database into an equivalent SQL representation.
 func (d *Database) Compile(layout *Template) (compiled string) {
 	if c, ok := layout.Read(d); ok {
 		return c
