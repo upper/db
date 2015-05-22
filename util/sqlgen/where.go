@@ -41,53 +41,53 @@ func (w *Where) Hash() string {
 	return w.hash
 }
 
-func (self *Or) Hash() string {
-	w := Where(*self)
+func (o *Or) Hash() string {
+	w := Where(*o)
 	return `Or(` + w.Hash() + `)`
 }
 
-func (self *And) Hash() string {
-	w := Where(*self)
+func (a *And) Hash() string {
+	w := Where(*a)
 	return `Or(` + w.Hash() + `)`
 }
 
-func (self *Or) Compile(layout *Template) (compiled string) {
+func (o *Or) Compile(layout *Template) (compiled string) {
 
-	if z, ok := layout.Read(self); ok {
+	if z, ok := layout.Read(o); ok {
 		return z
 	}
 
-	compiled = groupCondition(layout, self.Conditions, mustParse(layout.ClauseOperator, layout.OrKeyword))
+	compiled = groupCondition(layout, o.Conditions, mustParse(layout.ClauseOperator, layout.OrKeyword))
 
-	layout.Write(self, compiled)
-
-	return
-}
-
-func (self *And) Compile(layout *Template) (compiled string) {
-	if c, ok := layout.Read(self); ok {
-		return c
-	}
-
-	compiled = groupCondition(layout, self.Conditions, mustParse(layout.ClauseOperator, layout.AndKeyword))
-
-	layout.Write(self, compiled)
+	layout.Write(o, compiled)
 
 	return
 }
 
-func (self *Where) Compile(layout *Template) (compiled string) {
-	if c, ok := layout.Read(self); ok {
+func (a *And) Compile(layout *Template) (compiled string) {
+	if c, ok := layout.Read(a); ok {
 		return c
 	}
 
-	grouped := groupCondition(layout, self.Conditions, mustParse(layout.ClauseOperator, layout.AndKeyword))
+	compiled = groupCondition(layout, a.Conditions, mustParse(layout.ClauseOperator, layout.AndKeyword))
+
+	layout.Write(a, compiled)
+
+	return
+}
+
+func (w *Where) Compile(layout *Template) (compiled string) {
+	if c, ok := layout.Read(w); ok {
+		return c
+	}
+
+	grouped := groupCondition(layout, w.Conditions, mustParse(layout.ClauseOperator, layout.AndKeyword))
 
 	if grouped != "" {
 		compiled = mustParse(layout.WhereLayout, conds{grouped})
 	}
 
-	layout.Write(self, compiled)
+	layout.Write(w, compiled)
 
 	return
 }
