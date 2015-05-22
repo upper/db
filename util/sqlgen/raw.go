@@ -22,7 +22,7 @@ func RawValue(v string) *Raw {
 // Hash returns a unique identifier.
 func (r *Raw) Hash() string {
 	if r.hash == "" {
-		r.hash = `sqlgen.Raw{Value:"` + r.Value + `"}`
+		r.hash = `Raw{Value:"` + r.Value + `"}`
 	}
 	return r.hash
 }

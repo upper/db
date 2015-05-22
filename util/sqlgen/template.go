@@ -3,6 +3,7 @@ package sqlgen
 import (
 	"bytes"
 	"text/template"
+
 	"upper.io/cache"
 )
 

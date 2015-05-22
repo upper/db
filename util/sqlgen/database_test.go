@@ -11,7 +11,7 @@ func TestDatabaseHash(t *testing.T) {
 	column := Database{Name: "users"}
 
 	s = column.Hash()
-	e = fmt.Sprintf(`sqlgen.Database{Name:"%s"}`, column.Name)
+	e = fmt.Sprintf(`Database{Name:"%s"}`, column.Name)
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)

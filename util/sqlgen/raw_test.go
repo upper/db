@@ -37,7 +37,7 @@ func TestRawHash(t *testing.T) {
 	raw := &Raw{Value: "foo"}
 
 	s = raw.Hash()
-	e = fmt.Sprintf(`sqlgen.Raw{Value:"%s"}`, raw)
+	e = fmt.Sprintf(`Raw{Value:"%s"}`, raw)
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)

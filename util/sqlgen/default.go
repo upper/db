@@ -143,7 +143,7 @@ var defaultTemplate = &Template{
 	TruncateLayout:      defaultTruncateLayout,
 	DropDatabaseLayout:  defaultDropDatabaseLayout,
 	DropTableLayout:     defaultDropTableLayout,
-	CountLayout:   defaultCountLayout,
+	CountLayout:         defaultCountLayout,
 	GroupByLayout:       defaultGroupByLayout,
 	Cache:               cache.NewCache(),
 }

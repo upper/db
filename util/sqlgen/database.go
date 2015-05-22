@@ -13,7 +13,7 @@ type Database struct {
 // Hash returns a unique identifier.
 func (d *Database) Hash() string {
 	if d.hash == "" {
-		d.hash = fmt.Sprintf(`sqlgen.Database{Name:%q}`, d.Name)
+		d.hash = fmt.Sprintf(`Database{Name:%q}`, d.Name)
 	}
 	return d.hash
 }

@@ -3,6 +3,7 @@ package sqlgen
 import (
 	"strconv"
 	"strings"
+
 	"upper.io/cache"
 )
 
