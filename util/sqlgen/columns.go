@@ -5,26 +5,30 @@ import (
 	"strings"
 )
 
+// Columns represents an array of Column.
 type Columns struct {
 	Columns []Column
 	hash    string
 }
 
+// Hash returns a unique identifier.
 func (c *Columns) Hash() string {
 	if c.hash == "" {
 		s := make([]string, len(c.Columns))
 		for i := range c.Columns {
 			s[i] = c.Columns[i].Hash()
 		}
-		c.hash = fmt.Sprintf("sqlgen.Columns{Columns:{%s}}", strings.Join(s, ", "))
+		c.hash = fmt.Sprintf("Columns{Columns:{%s}}", strings.Join(s, ", "))
 	}
 	return c.hash
 }
 
+// NewColumns creates and returns an array of Column.
 func NewColumns(columns ...Column) *Columns {
 	return &Columns{Columns: columns}
 }
 
+// Compile transforms the Columns into its equivalent SQL representation.
 func (c *Columns) Compile(layout *Template) (compiled string) {
 
 	if z, ok := layout.Read(c); ok {

@@ -11,7 +11,7 @@ func TestColumnHash(t *testing.T) {
 	column := Column{Name: "role.name"}
 
 	s = column.Hash()
-	e = fmt.Sprintf(`sqlgen.Column{Name:"%s"}`, column.Name)
+	e = fmt.Sprintf(`Column{Name:"%s"}`, column.Name)
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -70,9 +70,9 @@ func TestColumnRaw(t *testing.T) {
 	}
 }
 
-func BenchmarkNewColumn(b *testing.B) {
+func BenchmarkColumnWithName(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = NewColumn("a")
+		_ = ColumnWithName("a")
 	}
 }
 

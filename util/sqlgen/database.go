@@ -4,11 +4,13 @@ import (
 	"fmt"
 )
 
+// Database represents a SQL database.
 type Database struct {
 	Name string
 	hash string
 }
 
+// Hash returns a unique identifier.
 func (d *Database) Hash() string {
 	if d.hash == "" {
 		d.hash = fmt.Sprintf(`sqlgen.Database{Name:%q}`, d.Name)
@@ -16,6 +18,7 @@ func (d *Database) Hash() string {
 	return d.hash
 }
 
+// Compile transforms the Database into its equivalent SQL representation.
 func (d *Database) Compile(layout *Template) (compiled string) {
 	if c, ok := layout.Read(d); ok {
 		return c

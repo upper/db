@@ -10,15 +10,18 @@ type columnT struct {
 	Alias string
 }
 
+// Column represents a SQL column.
 type Column struct {
 	Name interface{}
 	hash string
 }
 
-func NewColumn(name string) *Column {
+// ColumnWithName creates and returns a Column with the given name.
+func ColumnWithName(name string) *Column {
 	return &Column{Name: name}
 }
 
+// Hash returns a unique identifier.
 func (c *Column) Hash() string {
 	if c.hash == "" {
 		var s string
@@ -34,12 +37,13 @@ func (c *Column) Hash() string {
 			s = fmt.Sprintf("%v", c.Name)
 		}
 
-		c.hash = fmt.Sprintf(`sqlgen.Column{Name:%q}`, s)
+		c.hash = fmt.Sprintf(`Column{Name:%q}`, s)
 	}
 
 	return c.hash
 }
 
+// Compile transforms the ColumnValue into its equivalent SQL representation.
 func (c *Column) Compile(layout *Template) (compiled string) {
 
 	if z, ok := layout.Read(c); ok {

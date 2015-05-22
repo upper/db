@@ -11,7 +11,7 @@ func TestColumnValueHash(t *testing.T) {
 	c := ColumnValue{Column: Column{Name: "id"}, Operator: "=", Value: NewValue(1)}
 
 	s = c.Hash()
-	e = fmt.Sprintf(`sqlgen.ColumnValue{Name:%q, Operator:%q, Value:%q}`, c.Column.Hash(), c.Operator, c.Value.Hash())
+	e = fmt.Sprintf(`ColumnValue{Name:%q, Operator:%q, Value:%q}`, c.Column.Hash(), c.Operator, c.Value.Hash())
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -28,7 +28,7 @@ func TestColumnValuesHash(t *testing.T) {
 
 	s = c.Hash()
 
-	e = fmt.Sprintf(`sqlgen.ColumnValues{ColumnValues:{%s, %s}}`, c.ColumnValues[0].Hash(), c.ColumnValues[1].Hash())
+	e = fmt.Sprintf(`ColumnValues{ColumnValues:{%s, %s}}`, c.ColumnValues[0].Hash(), c.ColumnValues[1].Hash())
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)

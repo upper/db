@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// ColumnValue represents a bundle between a column and a corresponding value.
 type ColumnValue struct {
 	Column
 	Operator string
@@ -18,13 +19,15 @@ type columnValueT struct {
 	Value    string
 }
 
+// Hash returns a unique identifier.
 func (c *ColumnValue) Hash() string {
 	if c.hash == "" {
-		c.hash = fmt.Sprintf(`sqlgen.ColumnValue{Name:%q, Operator:%q, Value:%q}`, c.Column.Hash(), c.Operator, c.Value.Hash())
+		c.hash = fmt.Sprintf(`ColumnValue{Name:%q, Operator:%q, Value:%q}`, c.Column.Hash(), c.Operator, c.Value.Hash())
 	}
 	return c.hash
 }
 
+// Compile transforms the ColumnValue into its equivalent SQL representation.
 func (c *ColumnValue) Compile(layout *Template) (compiled string) {
 
 	if z, ok := layout.Read(c); ok {
@@ -44,26 +47,30 @@ func (c *ColumnValue) Compile(layout *Template) (compiled string) {
 	return
 }
 
+// ColumnValues represents an array of ColumnValue
 type ColumnValues struct {
 	ColumnValues []ColumnValue
 	hash         string
 }
 
+// NewColumnValues returns an array of ColumnValue
 func NewColumnValues(values ...ColumnValue) *ColumnValues {
 	return &ColumnValues{ColumnValues: values}
 }
 
+// Hash returns a unique identifier.
 func (c *ColumnValues) Hash() string {
 	if c.hash == "" {
 		s := make([]string, len(c.ColumnValues))
 		for i := range c.ColumnValues {
 			s[i] = c.ColumnValues[i].Hash()
 		}
-		c.hash = fmt.Sprintf("sqlgen.ColumnValues{ColumnValues:{%s}}", strings.Join(s, ", "))
+		c.hash = fmt.Sprintf("ColumnValues{ColumnValues:{%s}}", strings.Join(s, ", "))
 	}
 	return c.hash
 }
 
+// Compile transforms the ColumnValues into its SQL representation.
 func (c *ColumnValues) Compile(layout *Template) (compiled string) {
 
 	if z, ok := layout.Read(c); ok {
