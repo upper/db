@@ -1,23 +1,27 @@
 package sqlgen
 
 import (
-	"database/sql/driver"
+	//"database/sql/driver"
 	"fmt"
-	"log"
+	//"log"
 	"strings"
 )
 
+// Values represents an array of Value.
 type Values []Value
 
+// Value represents an escaped SQL value.
 type Value struct {
 	V    interface{}
 	hash string
 }
 
+// NewValue creates and returns a Value.
 func NewValue(v interface{}) *Value {
 	return &Value{V: v}
 }
 
+// Hash returns a unique identifier.
 func (v *Value) Hash() string {
 	if v.hash == "" {
 		switch t := v.V.(type) {
@@ -32,6 +36,7 @@ func (v *Value) Hash() string {
 	return v.hash
 }
 
+// Compile transforms the Value into an equivalent SQL representation.
 func (v *Value) Compile(layout *Template) (compiled string) {
 
 	if z, ok := layout.Read(v); ok {
@@ -43,7 +48,7 @@ func (v *Value) Compile(layout *Template) (compiled string) {
 	} else if raw, ok := v.V.(cc); ok {
 		compiled = raw.Compile(layout)
 	} else {
-		compiled = mustParse(layout.ValueQuote, NewRaw(fmt.Sprintf(`%v`, v.V)))
+		compiled = mustParse(layout.ValueQuote, RawValue(fmt.Sprintf(`%v`, v.V)))
 	}
 
 	layout.Write(v, compiled)
@@ -51,6 +56,7 @@ func (v *Value) Compile(layout *Template) (compiled string) {
 	return
 }
 
+/*
 func (v *Value) Scan(src interface{}) error {
 	log.Println("Scan(", src, ") on", v.V)
 	return nil
@@ -60,7 +66,9 @@ func (v *Value) Value() (driver.Value, error) {
 	log.Println("Value() on", v.V)
 	return v.V, nil
 }
+*/
 
+// Hash returns a unique identifier.
 func (vs Values) Hash() string {
 	hash := make([]string, 0, len(vs))
 	for i := range vs {
@@ -69,6 +77,7 @@ func (vs Values) Hash() string {
 	return `Values(` + strings.Join(hash, `,`) + `)`
 }
 
+// Compile transforms the Values into an equivalent SQL representation.
 func (vs Values) Compile(layout *Template) (compiled string) {
 	if c, ok := layout.Read(vs); ok {
 		return c
@@ -86,6 +95,7 @@ func (vs Values) Compile(layout *Template) (compiled string) {
 	return
 }
 
+/*
 func (vs Values) Scan(src interface{}) error {
 	log.Println("Values.Scan(", src, ")")
 	return nil
@@ -95,3 +105,4 @@ func (vs Values) Value() (driver.Value, error) {
 	log.Println("Values.Value()")
 	return vs, nil
 }
+*/

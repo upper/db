@@ -72,7 +72,7 @@ const (
 			{{ .Where }}
 	`
 
-	defaultSelectCountLayout = `
+	defaultCountLayout = `
 		SELECT
 			COUNT(1) AS _t
 		FROM {{.Table}}
@@ -143,7 +143,7 @@ var defaultTemplate = &Template{
 	TruncateLayout:      defaultTruncateLayout,
 	DropDatabaseLayout:  defaultDropDatabaseLayout,
 	DropTableLayout:     defaultDropTableLayout,
-	SelectCountLayout:   defaultSelectCountLayout,
+	CountLayout:   defaultCountLayout,
 	GroupByLayout:       defaultGroupByLayout,
 	Cache:               cache.NewCache(),
 }

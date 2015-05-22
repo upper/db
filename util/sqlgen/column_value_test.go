@@ -48,7 +48,7 @@ func TestColumnValue(t *testing.T) {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 
-	cv = ColumnValue{Column: Column{Name: "date"}, Operator: "=", Value: NewValue(NewRaw("NOW()"))}
+	cv = ColumnValue{Column: Column{Name: "date"}, Operator: "=", Value: NewValue(RawValue("NOW()"))}
 
 	s = cv.Compile(defaultTemplate)
 	e = `"date" = NOW()`

@@ -6,6 +6,7 @@ import (
 	"upper.io/cache"
 )
 
+// Statement represents different kinds of SQL statements.
 type Statement struct {
 	Type
 	Table    cc
@@ -50,6 +51,7 @@ func (s Statement) getHash(h cache.Hashable) string {
 	return ""
 }
 
+// Hash returns a unique identifier.
 func (s *Statement) Hash() string {
 	if s.hash == "" {
 		parts := strings.Join([]string{
@@ -72,6 +74,7 @@ func (s *Statement) Hash() string {
 	return s.hash
 }
 
+// Compile transforms the Statement into an equivalent SQL query.
 func (s *Statement) Compile(layout *Template) (compiled string) {
 
 	if z, ok := layout.Read(s); ok {
@@ -93,21 +96,21 @@ func (s *Statement) Compile(layout *Template) (compiled string) {
 	}
 
 	switch s.Type {
-	case SqlTruncate:
+	case Truncate:
 		compiled = mustParse(layout.TruncateLayout, data)
-	case SqlDropTable:
+	case DropTable:
 		compiled = mustParse(layout.DropTableLayout, data)
-	case SqlDropDatabase:
+	case DropDatabase:
 		compiled = mustParse(layout.DropDatabaseLayout, data)
-	case SqlSelectCount:
-		compiled = mustParse(layout.SelectCountLayout, data)
-	case SqlSelect:
+	case Count:
+		compiled = mustParse(layout.CountLayout, data)
+	case Select:
 		compiled = mustParse(layout.SelectLayout, data)
-	case SqlDelete:
+	case Delete:
 		compiled = mustParse(layout.DeleteLayout, data)
-	case SqlUpdate:
+	case Update:
 		compiled = mustParse(layout.UpdateLayout, data)
-	case SqlInsert:
+	case Insert:
 		compiled = mustParse(layout.InsertLayout, data)
 	default:
 		panic("Unknown template type.")

@@ -22,8 +22,8 @@ func TestTruncateTable(t *testing.T) {
 	var stmt Statement
 
 	stmt = Statement{
-		Type:  SqlTruncate,
-		Table: NewTable("table_name"),
+		Type:  Truncate,
+		Table: TableWithName("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -39,8 +39,8 @@ func TestDropTable(t *testing.T) {
 	var stmt Statement
 
 	stmt = Statement{
-		Type:  SqlDropTable,
-		Table: NewTable("table_name"),
+		Type:  DropTable,
+		Table: TableWithName("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -56,7 +56,7 @@ func TestDropDatabase(t *testing.T) {
 	var stmt Statement
 
 	stmt = Statement{
-		Type:     SqlDropDatabase,
+		Type:     DropDatabase,
 		Database: &Database{Name: "table_name"},
 	}
 
@@ -68,13 +68,13 @@ func TestDropDatabase(t *testing.T) {
 	}
 }
 
-func TestSelectCount(t *testing.T) {
+func TestCount(t *testing.T) {
 	var s, e string
 	var stmt Statement
 
 	stmt = Statement{
-		Type:  SqlSelectCount,
-		Table: NewTable("table_name"),
+		Type:  Count,
+		Table: TableWithName("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -85,13 +85,13 @@ func TestSelectCount(t *testing.T) {
 	}
 }
 
-func TestSelectCountRelation(t *testing.T) {
+func TestCountRelation(t *testing.T) {
 	var s, e string
 	var stmt Statement
 
 	stmt = Statement{
-		Type:  SqlSelectCount,
-		Table: NewTable("information_schema.tables"),
+		Type:  Count,
+		Table: TableWithName("information_schema.tables"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -102,15 +102,15 @@ func TestSelectCountRelation(t *testing.T) {
 	}
 }
 
-func TestSelectCountWhere(t *testing.T) {
+func TestCountWhere(t *testing.T) {
 	var s, e string
 	var stmt Statement
 
 	stmt = Statement{
-		Type:  SqlSelectCount,
-		Table: NewTable("table_name"),
+		Type:  Count,
+		Table: TableWithName("table_name"),
 		Where: NewWhere(
-			&ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: NewValue(NewRaw("7"))},
+			&ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: NewValue(RawValue("7"))},
 		),
 	}
 
@@ -127,8 +127,8 @@ func TestSelectStarFrom(t *testing.T) {
 	var stmt Statement
 
 	stmt = Statement{
-		Type:  SqlSelect,
-		Table: NewTable("table_name"),
+		Type:  Select,
+		Table: TableWithName("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -144,8 +144,8 @@ func TestSelectStarFromAlias(t *testing.T) {
 	var stmt Statement
 
 	stmt = Statement{
-		Type:  SqlSelect,
-		Table: NewTable("table.name AS foo"),
+		Type:  Select,
+		Table: TableWithName("table.name AS foo"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -161,8 +161,8 @@ func TestSelectStarFromRawWhere(t *testing.T) {
 	var stmt Statement
 
 	stmt = Statement{
-		Type:  SqlSelect,
-		Table: NewTable("table.name AS foo"),
+		Type:  Select,
+		Table: TableWithName("table.name AS foo"),
 		Where: NewWhere(
 			&Raw{Value: "foo.id = bar.foo_id"},
 		),
@@ -176,8 +176,8 @@ func TestSelectStarFromRawWhere(t *testing.T) {
 	}
 
 	stmt = Statement{
-		Type:  SqlSelect,
-		Table: NewTable("table.name AS foo"),
+		Type:  Select,
+		Table: TableWithName("table.name AS foo"),
 		Where: NewWhere(
 			&Raw{Value: "foo.id = bar.foo_id"},
 			&Raw{Value: "baz.id = exp.baz_id"},
@@ -197,8 +197,8 @@ func TestSelectStarFromMany(t *testing.T) {
 	var stmt Statement
 
 	stmt = Statement{
-		Type:  SqlSelect,
-		Table: NewTable("first.table AS foo, second.table as BAR, third.table aS baz"),
+		Type:  Select,
+		Table: TableWithName("first.table AS foo, second.table as BAR, third.table aS baz"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -214,8 +214,8 @@ func TestSelectArtistNameFrom(t *testing.T) {
 	var stmt Statement
 
 	stmt = Statement{
-		Type:  SqlSelect,
-		Table: NewTable("artist"),
+		Type:  Select,
+		Table: TableWithName("artist"),
 		Columns: NewColumns(
 			Column{Name: "artist.name"},
 		),
@@ -234,8 +234,8 @@ func TestSelectRawFrom(t *testing.T) {
 	var stmt Statement
 
 	stmt = Statement{
-		Type:  SqlSelect,
-		Table: NewTable(`artist`),
+		Type:  Select,
+		Table: TableWithName(`artist`),
 		Columns: NewColumns(
 			Column{Name: `artist.name`},
 			Column{Name: Raw{Value: `CONCAT(artist.name, " ", artist.last_name)`}},
@@ -255,13 +255,13 @@ func TestSelectFieldsFrom(t *testing.T) {
 	var stmt Statement
 
 	stmt = Statement{
-		Type: SqlSelect,
+		Type: Select,
 		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		Table: NewTable("table_name"),
+		Table: TableWithName("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -278,14 +278,14 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 
 	// LIMIT only.
 	stmt = Statement{
-		Type: SqlSelect,
+		Type: Select,
 		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
 		Limit: 42,
-		Table: NewTable("table_name"),
+		Table: TableWithName("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -297,14 +297,14 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 
 	// OFFSET only.
 	stmt = Statement{
-		Type: SqlSelect,
+		Type: Select,
 		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
 		Offset: 17,
-		Table:  NewTable("table_name"),
+		Table:  TableWithName("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -316,7 +316,7 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 
 	// LIMIT AND OFFSET.
 	stmt = Statement{
-		Type: SqlSelect,
+		Type: Select,
 		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
@@ -324,7 +324,7 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 		),
 		Limit:  42,
 		Offset: 17,
-		Table:  NewTable("table_name"),
+		Table:  TableWithName("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -341,7 +341,7 @@ func TestStatementGroupBy(t *testing.T) {
 
 	// Simple GROUP BY
 	stmt = Statement{
-		Type: SqlSelect,
+		Type: Select,
 		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
@@ -350,7 +350,7 @@ func TestStatementGroupBy(t *testing.T) {
 		GroupBy: NewGroupBy(
 			Column{Name: "foo"},
 		),
-		Table: NewTable("table_name"),
+		Table: TableWithName("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -361,7 +361,7 @@ func TestStatementGroupBy(t *testing.T) {
 	}
 
 	stmt = Statement{
-		Type: SqlSelect,
+		Type: Select,
 		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
@@ -371,7 +371,7 @@ func TestStatementGroupBy(t *testing.T) {
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 		),
-		Table: NewTable("table_name"),
+		Table: TableWithName("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -388,7 +388,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 
 	// Simple ORDER BY
 	stmt = Statement{
-		Type: SqlSelect,
+		Type: Select,
 		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
@@ -399,7 +399,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 				SortColumn{Column: Column{Name: "foo"}},
 			),
 		),
-		Table: NewTable("table_name"),
+		Table: TableWithName("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -411,7 +411,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 
 	// ORDER BY field ASC
 	stmt = Statement{
-		Type: SqlSelect,
+		Type: Select,
 		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
@@ -422,7 +422,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 				SortColumn{Column: Column{Name: "foo"}, Order: Ascendent},
 			),
 		),
-		Table: NewTable("table_name"),
+		Table: TableWithName("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -434,7 +434,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 
 	// ORDER BY field DESC
 	stmt = Statement{
-		Type: SqlSelect,
+		Type: Select,
 		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
@@ -445,7 +445,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 				SortColumn{Column: Column{Name: "foo"}, Order: Descendent},
 			),
 		),
-		Table: NewTable("table_name"),
+		Table: TableWithName("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -457,7 +457,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 
 	// ORDER BY many fields
 	stmt = Statement{
-		Type: SqlSelect,
+		Type: Select,
 		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
@@ -470,7 +470,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 				SortColumn{Column: Column{Name: "baz"}, Order: Descendent},
 			),
 		),
-		Table: NewTable("table_name"),
+		Table: TableWithName("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -482,7 +482,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 
 	// ORDER BY function
 	stmt = Statement{
-		Type: SqlSelect,
+		Type: Select,
 		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
@@ -494,7 +494,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 				SortColumn{Column: Column{Name: Raw{Value: "BAR()"}}, Order: Ascendent},
 			),
 		),
-		Table: NewTable("table_name"),
+		Table: TableWithName("table_name"),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -510,13 +510,13 @@ func TestSelectFieldsFromWhere(t *testing.T) {
 	var stmt Statement
 
 	stmt = Statement{
-		Type: SqlSelect,
+		Type: Select,
 		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		Table: NewTable("table_name"),
+		Table: TableWithName("table_name"),
 		Where: NewWhere(
 			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
 		),
@@ -535,13 +535,13 @@ func TestSelectFieldsFromWhereLimitOffset(t *testing.T) {
 	var stmt Statement
 
 	stmt = Statement{
-		Type: SqlSelect,
+		Type: Select,
 		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		Table: NewTable("table_name"),
+		Table: TableWithName("table_name"),
 		Where: NewWhere(
 			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
 		),
@@ -562,8 +562,8 @@ func TestDelete(t *testing.T) {
 	var stmt Statement
 
 	stmt = Statement{
-		Type:  SqlDelete,
-		Table: NewTable("table_name"),
+		Type:  Delete,
+		Table: TableWithName("table_name"),
 		Where: NewWhere(
 			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
 		),
@@ -582,8 +582,8 @@ func TestUpdate(t *testing.T) {
 	var stmt Statement
 
 	stmt = Statement{
-		Type:  SqlUpdate,
-		Table: NewTable("table_name"),
+		Type:  Update,
+		Table: TableWithName("table_name"),
 		ColumnValues: NewColumnValues(
 			ColumnValue{Column: Column{Name: "foo"}, Operator: "=", Value: NewValue(76)},
 		),
@@ -600,8 +600,8 @@ func TestUpdate(t *testing.T) {
 	}
 
 	stmt = Statement{
-		Type:  SqlUpdate,
-		Table: NewTable("table_name"),
+		Type:  Update,
+		Table: TableWithName("table_name"),
 		ColumnValues: NewColumnValues(
 			ColumnValue{Column: Column{Name: "foo"}, Operator: "=", Value: NewValue(76)},
 			ColumnValue{Column: Column{Name: "bar"}, Operator: "=", Value: NewValue(Raw{Value: "88"})},
@@ -624,8 +624,8 @@ func TestInsert(t *testing.T) {
 	var stmt Statement
 
 	stmt = Statement{
-		Type:  SqlInsert,
-		Table: NewTable("table_name"),
+		Type:  Insert,
+		Table: TableWithName("table_name"),
 		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
@@ -651,8 +651,8 @@ func TestInsertExtra(t *testing.T) {
 	var stmt Statement
 
 	stmt = Statement{
-		Type:  SqlInsert,
-		Table: NewTable("table_name"),
+		Type:  Insert,
+		Table: TableWithName("table_name"),
 		Extra: "RETURNING id",
 		Columns: NewColumns(
 			Column{Name: "foo"},
@@ -676,8 +676,8 @@ func TestInsertExtra(t *testing.T) {
 
 func BenchmarkStatementSimpleQuery(b *testing.B) {
 	stmt := Statement{
-		Type:  SqlSelectCount,
-		Table: NewTable("table_name"),
+		Type:  Count,
+		Table: TableWithName("table_name"),
 		Where: NewWhere(
 			&ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: NewValue(Raw{Value: "7"})},
 		),
@@ -690,8 +690,8 @@ func BenchmarkStatementSimpleQuery(b *testing.B) {
 
 func BenchmarkStatementSimpleQueryHash(b *testing.B) {
 	stmt := Statement{
-		Type:  SqlSelectCount,
-		Table: NewTable("table_name"),
+		Type:  Count,
+		Table: TableWithName("table_name"),
 		Where: NewWhere(
 			&ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: NewValue(Raw{Value: "7"})},
 		),
@@ -705,8 +705,8 @@ func BenchmarkStatementSimpleQueryHash(b *testing.B) {
 func BenchmarkStatementSimpleQueryNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		stmt := Statement{
-			Type:  SqlSelectCount,
-			Table: NewTable("table_name"),
+			Type:  Count,
+			Table: TableWithName("table_name"),
 			Where: NewWhere(
 				&ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: NewValue(Raw{Value: "7"})},
 			),
@@ -717,8 +717,8 @@ func BenchmarkStatementSimpleQueryNoCache(b *testing.B) {
 
 func BenchmarkStatementComplexQuery(b *testing.B) {
 	stmt := Statement{
-		Type:  SqlInsert,
-		Table: NewTable("table_name"),
+		Type:  Insert,
+		Table: TableWithName("table_name"),
 		Columns: NewColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
@@ -739,8 +739,8 @@ func BenchmarkStatementComplexQuery(b *testing.B) {
 func BenchmarkStatementComplexQueryNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		stmt := Statement{
-			Type:  SqlInsert,
-			Table: NewTable("table_name"),
+			Type:  Insert,
+			Table: TableWithName("table_name"),
 			Columns: NewColumns(
 				Column{Name: "foo"},
 				Column{Name: "bar"},

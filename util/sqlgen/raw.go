@@ -14,10 +14,12 @@ type Raw struct {
 	hash  string
 }
 
-func NewRaw(v string) *Raw {
+// RawValue creates and returns a new raw value.
+func RawValue(v string) *Raw {
 	return &Raw{Value: v}
 }
 
+// Hash returns a unique identifier.
 func (r *Raw) Hash() string {
 	if r.hash == "" {
 		r.hash = `sqlgen.Raw{Value:"` + r.Value + `"}`
@@ -25,10 +27,12 @@ func (r *Raw) Hash() string {
 	return r.hash
 }
 
+// Compile returns the raw value.
 func (r *Raw) Compile(*Template) string {
 	return r.Value
 }
 
+// String returns the raw value.
 func (r *Raw) String() string {
 	return r.Value
 }

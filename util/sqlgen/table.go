@@ -50,7 +50,8 @@ func quotedTableName(layout *Template, input string) string {
 	return mustParse(layout.TableAliasLayout, tableT{name, alias})
 }
 
-func NewTable(name string) *Table {
+// TableWithName creates an returns a Table with the given name.
+func TableWithName(name string) *Table {
 	return &Table{Name: name}
 }
 

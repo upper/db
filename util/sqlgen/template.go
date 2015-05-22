@@ -6,29 +6,35 @@ import (
 	"upper.io/cache"
 )
 
+// Type is the type of SQL query the statement represents.
 type Type uint
 
+// Values for Type.
 const (
-	SqlTruncate = iota
-	SqlDropTable
-	SqlDropDatabase
-	SqlSelectCount
-	SqlInsert
-	SqlSelect
-	SqlUpdate
-	SqlDelete
+	Truncate = Type(iota)
+	DropTable
+	DropDatabase
+	Count
+	Insert
+	Select
+	Update
+	Delete
 )
 
 type (
-	Limit  int
+	// Limit represents the SQL limit in a query.
+	Limit int
+	// Offset represents the SQL offset in a query.
 	Offset int
-	Extra  string
+	// Extra represents any custom SQL that is to be appended to the query.
+	Extra string
 )
 
 var (
 	parsedTemplates = make(map[string]*template.Template)
 )
 
+// Template is an SQL template.
 type Template struct {
 	ColumnSeparator     string
 	IdentifierSeparator string
@@ -56,7 +62,7 @@ type Template struct {
 	TruncateLayout      string
 	DropDatabaseLayout  string
 	DropTableLayout     string
-	SelectCountLayout   string
+	CountLayout         string
 	GroupByLayout       string
 	*cache.Cache
 }
