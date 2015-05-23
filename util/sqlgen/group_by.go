@@ -17,7 +17,9 @@ type groupByT struct {
 // Hash returns a unique identifier.
 func (g *GroupBy) Hash() string {
 	if g.hash == "" {
-		g.hash = fmt.Sprintf(`GroupBy(%s)`, g.Columns.Hash())
+		if g.Columns != nil {
+			g.hash = fmt.Sprintf(`GroupBy(%s)`, g.Columns.Hash())
+		}
 	}
 	return g.hash
 }

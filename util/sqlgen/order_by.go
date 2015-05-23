@@ -35,7 +35,7 @@ type SortColumns struct {
 
 // OrderBy represents an ORDER BY clause.
 type OrderBy struct {
-	SortColumns *SortColumns
+	SortColumns Fragment
 	hash        string
 }
 
@@ -115,7 +115,9 @@ func (s *SortColumns) Compile(layout *Template) (compiled string) {
 // Hash returns a unique identifier.
 func (s *OrderBy) Hash() string {
 	if s.hash == "" {
-		s.hash = `OrderBy(` + s.SortColumns.Hash() + `)`
+		if s.SortColumns != nil {
+			s.hash = `OrderBy(` + s.SortColumns.Hash() + `)`
+		}
 	}
 	return s.hash
 }
