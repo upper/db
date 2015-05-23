@@ -48,7 +48,7 @@ var (
 	template *sqlgen.Template
 
 	// Query statement placeholder
-	sqlPlaceholder = sqlgen.Value{sqlgen.Raw{`?`}}
+	sqlPlaceholder = sqlgen.RawValue(`?`)
 )
 
 type source struct {
@@ -204,20 +204,18 @@ func (s *source) Collections() (collections []string, err error) {
 
 	// Querying table names.
 	stmt := sqlgen.Statement{
-		Type: sqlgen.SqlSelect,
-		Columns: sqlgen.Columns{
-			{`table_name`},
-		},
-		Table: sqlgen.Table{
-			`information_schema.tables`,
-		},
-		Where: sqlgen.Where{
-			sqlgen.ColumnValue{
-				sqlgen.Column{`table_schema`},
-				`=`,
-				sqlgen.Value{`public`},
+		Type: sqlgen.Select,
+		Columns: sqlgen.JoinColumns(
+			sqlgen.ColumnWithName(`table_name`),
+		),
+		Table: sqlgen.TableWithName(`information_schema.tables`),
+		Where: sqlgen.WhereConditions(
+			&sqlgen.ColumnValue{
+				Column:   sqlgen.ColumnWithName(`table_schema`),
+				Operator: `=`,
+				Value:    sqlgen.NewValue(`public`),
 			},
-		},
+		),
 	}
 
 	// Executing statement.
@@ -266,8 +264,8 @@ func (s *source) Use(database string) (err error) {
 // Drops the currently active database.
 func (s *source) Drop() error {
 	_, err := s.doQuery(sqlgen.Statement{
-		Type:     sqlgen.SqlDropDatabase,
-		Database: sqlgen.Database{s.schema.Name},
+		Type:     sqlgen.DropDatabase,
+		Database: sqlgen.DatabaseWithName(s.schema.Name),
 	})
 	return err
 }
@@ -409,10 +407,10 @@ func (s *source) populateSchema() (err error) {
 
 	// Get database name.
 	stmt := sqlgen.Statement{
-		Type: sqlgen.SqlSelect,
-		Columns: sqlgen.Columns{
-			{sqlgen.Raw{`CURRENT_DATABASE()`}},
-		},
+		Type: sqlgen.Select,
+		Columns: sqlgen.JoinColumns(
+			sqlgen.RawValue(`CURRENT_DATABASE()`),
+		),
 	}
 
 	var row *sqlx.Row
@@ -453,15 +451,23 @@ func (s *source) tableExists(names ...string) error {
 		}
 
 		stmt = sqlgen.Statement{
-			Type:  sqlgen.SqlSelect,
-			Table: sqlgen.Table{`information_schema.tables`},
-			Columns: sqlgen.Columns{
-				{`table_name`},
-			},
-			Where: sqlgen.Where{
-				sqlgen.ColumnValue{sqlgen.Column{`table_catalog`}, `=`, sqlPlaceholder},
-				sqlgen.ColumnValue{sqlgen.Column{`table_name`}, `=`, sqlPlaceholder},
-			},
+			Type:  sqlgen.Select,
+			Table: sqlgen.TableWithName(`information_schema.tables`),
+			Columns: sqlgen.JoinColumns(
+				sqlgen.ColumnWithName(`table_name`),
+			),
+			Where: sqlgen.WhereConditions(
+				&sqlgen.ColumnValue{
+					Column:   sqlgen.ColumnWithName(`table_catalog`),
+					Operator: `=`,
+					Value:    sqlPlaceholder,
+				},
+				&sqlgen.ColumnValue{
+					Column:   sqlgen.ColumnWithName(`table_name`),
+					Operator: `=`,
+					Value:    sqlPlaceholder,
+				},
+			),
 		}
 
 		if rows, err = s.doQuery(stmt, s.schema.Name, names[i]); err != nil {
@@ -488,26 +494,24 @@ func (s *source) tableColumns(tableName string) ([]string, error) {
 	}
 
 	stmt := sqlgen.Statement{
-		Type: sqlgen.SqlSelect,
-		Table: sqlgen.Table{
-			`information_schema.columns`,
-		},
-		Columns: sqlgen.Columns{
-			{`column_name`},
-			{`data_type`},
-		},
-		Where: sqlgen.Where{
-			sqlgen.ColumnValue{
-				sqlgen.Column{`table_catalog`},
-				`=`,
-				sqlPlaceholder,
+		Type:  sqlgen.Select,
+		Table: sqlgen.TableWithName(`information_schema.columns`),
+		Columns: sqlgen.JoinColumns(
+			sqlgen.ColumnWithName(`column_name`),
+			sqlgen.ColumnWithName(`data_type`),
+		),
+		Where: sqlgen.WhereConditions(
+			&sqlgen.ColumnValue{
+				Column:   sqlgen.ColumnWithName(`table_catalog`),
+				Operator: `=`,
+				Value:    sqlPlaceholder,
 			},
-			sqlgen.ColumnValue{
-				sqlgen.Column{`table_name`},
-				`=`,
-				sqlPlaceholder,
+			&sqlgen.ColumnValue{
+				Column:   sqlgen.ColumnWithName(`table_name`),
+				Operator: `=`,
+				Value:    sqlPlaceholder,
 			},
-		},
+		),
 	}
 
 	var rows *sqlx.Rows
@@ -543,25 +547,25 @@ func (s *source) getPrimaryKey(tableName string) ([]string, error) {
 
 	// Getting primary key. See https://github.com/upper/db/issues/24.
 	stmt := sqlgen.Statement{
-		Type:  sqlgen.SqlSelect,
-		Table: sqlgen.Table{`pg_index, pg_class, pg_attribute`},
-		Columns: sqlgen.Columns{
-			{`pg_attribute.attname`},
-		},
-		Where: sqlgen.Where{
-			sqlgen.ColumnValue{sqlgen.Column{`pg_class.oid`}, `=`, sqlgen.Value{sqlgen.Raw{`'"` + tableName + `"'::regclass`}}},
-			sqlgen.ColumnValue{sqlgen.Column{`indrelid`}, `=`, sqlgen.Value{sqlgen.Raw{`pg_class.oid`}}},
-			sqlgen.ColumnValue{sqlgen.Column{`pg_attribute.attrelid`}, `=`, sqlgen.Value{sqlgen.Raw{`pg_class.oid`}}},
-			sqlgen.ColumnValue{sqlgen.Column{`pg_attribute.attnum`}, `=`, sqlgen.Value{sqlgen.Raw{`any(pg_index.indkey)`}}},
-			sqlgen.Raw{`indisprimary`},
-		},
-		OrderBy: sqlgen.OrderBy{
-			sqlgen.SortColumns{
-				{
-					sqlgen.Column{`attname`},
-					sqlgen.SqlSortAsc,
+		Type:  sqlgen.Select,
+		Table: sqlgen.TableWithName(`pg_index, pg_class, pg_attribute`),
+		Columns: sqlgen.JoinColumns(
+			sqlgen.ColumnWithName(`pg_attribute.attname`),
+		),
+		Where: sqlgen.WhereConditions(
+			sqlgen.RawValue(`pg_class.oid = '`+tableName+`'::regclass`),
+			sqlgen.RawValue(`indrelid = pg_class.oid`),
+			sqlgen.RawValue(`pg_attribute.attrelid = pg_class.oid`),
+			sqlgen.RawValue(`pg_attribute.attnum = ANY(pg_index.indkey)`),
+			sqlgen.RawValue(`indisprimary`),
+		),
+		OrderBy: &sqlgen.OrderBy{
+			SortColumns: sqlgen.JoinSortColumns(
+				&sqlgen.SortColumn{
+					Column: sqlgen.ColumnWithName(`attname`),
+					Order:  sqlgen.Ascendent,
 				},
-			},
+			),
 		},
 	}
 

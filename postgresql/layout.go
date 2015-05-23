@@ -24,7 +24,7 @@ package postgresql
 const (
 	pgsqlColumnSeparator     = `.`
 	pgsqlIdentifierSeparator = `, `
-	pgsqlIdentifierQuote     = `"{{.Raw}}"`
+	pgsqlIdentifierQuote     = `"{{.Value}}"`
 	pgsqlValueSeparator      = `, `
 	pgsqlValueQuote          = `'{{.}}'`
 	pgsqlAndKeyword          = `AND`
@@ -38,7 +38,7 @@ const (
 	pgsqlColumnValue         = `{{.Column}} {{.Operator}} {{.Value}}`
 	pgsqlTableAliasLayout    = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
 	pgsqlColumnAliasLayout   = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
-	pgsqlSortByColumnLayout  = `{{.Column}} {{.Sort}}`
+	pgsqlSortByColumnLayout  = `{{.Column}} {{.Order}}`
 
 	pgsqlOrderByLayout = `
     {{if .SortColumns}}

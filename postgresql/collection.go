@@ -47,50 +47,52 @@ func whereValues(term interface{}) (where sqlgen.Where, args []interface{}) {
 
 	switch t := term.(type) {
 	case []interface{}:
-		l := len(t)
-		where = make(sqlgen.Where, 0, l)
-		for _, cond := range t {
-			w, v := whereValues(cond)
+		for i := range t {
+			w, v := whereValues(t[i])
 			args = append(args, v...)
-			where = append(where, w...)
+			where.Conditions = append(where.Conditions, w.Conditions...)
 		}
+		return
 	case db.And:
-		and := make(sqlgen.And, 0, len(t))
-		for _, cond := range t {
-			k, v := whereValues(cond)
+		var op sqlgen.And
+		for i := range t {
+			k, v := whereValues(t[i])
 			args = append(args, v...)
-			and = append(and, k...)
+			op.Conditions = append(op.Conditions, k.Conditions...)
 		}
-		where = append(where, and)
+		where.Conditions = append(where.Conditions, &op)
+		return
 	case db.Or:
-		or := make(sqlgen.Or, 0, len(t))
-		for _, cond := range t {
-			k, v := whereValues(cond)
+		var op sqlgen.Or
+		for i := range t {
+			w, v := whereValues(t[i])
 			args = append(args, v...)
-			or = append(or, k...)
+			op.Conditions = append(op.Conditions, w.Conditions...)
 		}
-		where = append(where, or)
+		where.Conditions = append(where.Conditions, &op)
+		return
 	case db.Raw:
-		if s, ok := t.Value.(string); ok == true {
-			where = append(where, sqlgen.Raw{s})
+		if s, ok := t.Value.(string); ok {
+			where.Conditions = append(where.Conditions, sqlgen.RawValue(s))
 		}
+		return
 	case db.Cond:
-		k, v := conditionValues(t)
+		cv, v := columnValues(t)
 		args = append(args, v...)
-		for _, kk := range k {
-			where = append(where, kk)
+		for i := range cv.ColumnValues {
+			where.Conditions = append(where.Conditions, cv.ColumnValues[i])
 		}
+		return
 	case db.Constrainer:
-		k, v := conditionValues(t.Constraint())
+		cv, v := columnValues(t.Constraint())
 		args = append(args, v...)
-		for _, kk := range k {
-			where = append(where, kk)
+		for i := range cv.ColumnValues {
+			where.Conditions = append(where.Conditions, cv.ColumnValues[i])
 		}
-	default:
-		panic(fmt.Sprintf(db.ErrUnknownConditionType.Error(), reflect.TypeOf(t)))
+		return
 	}
 
-	return where, args
+	panic(fmt.Sprintf(db.ErrUnknownConditionType.Error(), term))
 }
 
 func interfaceArgs(value interface{}) (args []interface{}) {
@@ -122,17 +124,17 @@ func interfaceArgs(value interface{}) (args []interface{}) {
 	return args
 }
 
-func conditionValues(cond db.Cond) (columnValues sqlgen.ColumnValues, args []interface{}) {
+func columnValues(cond db.Cond) (columnValues sqlgen.ColumnValues, args []interface{}) {
 	args = []interface{}{}
 
 	for column, value := range cond {
-		var columnValue sqlgen.ColumnValue
+		columnValue := sqlgen.ColumnValue{}
 
 		// Guessing operator from input, or using a default one.
 		column := strings.TrimSpace(column)
 		chunks := strings.SplitN(column, ` `, 2)
 
-		columnValue.Column = sqlgen.Column{chunks[0]}
+		columnValue.Column = sqlgen.ColumnWithName(chunks[0])
 
 		if len(chunks) > 1 {
 			columnValue.Operator = chunks[1]
@@ -142,30 +144,29 @@ func conditionValues(cond db.Cond) (columnValues sqlgen.ColumnValues, args []int
 
 		switch value := value.(type) {
 		case db.Func:
-			// Catches functions.
 			v := interfaceArgs(value.Args)
 			columnValue.Operator = value.Name
 
 			if v == nil {
 				// A function with no arguments.
-				columnValue.Value = sqlgen.Value{sqlgen.Raw{`()`}}
+				columnValue.Value = sqlgen.RawValue(`()`)
 			} else {
 				// A function with one or more arguments.
-				columnValue.Value = sqlgen.Value{sqlgen.Raw{fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1))}}
+				columnValue.Value = sqlgen.RawValue(fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1)))
 			}
 
 			args = append(args, v...)
 		default:
-			// Catches everything else.
 			v := interfaceArgs(value)
+
 			l := len(v)
 			if v == nil || l == 0 {
 				// Nil value given.
-				columnValue.Value = sqlgen.Value{sqlgen.Raw{psqlNull}}
+				columnValue.Value = sqlgen.RawValue(psqlNull)
 			} else {
 				if l > 1 {
 					// Array value given.
-					columnValue.Value = sqlgen.Value{sqlgen.Raw{fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1))}}
+					columnValue.Value = sqlgen.RawValue(fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1)))
 				} else {
 					// Single value given.
 					columnValue.Value = sqlPlaceholder
@@ -174,7 +175,7 @@ func conditionValues(cond db.Cond) (columnValues sqlgen.ColumnValues, args []int
 			}
 		}
 
-		columnValues = append(columnValues, columnValue)
+		columnValues.ColumnValues = append(columnValues.ColumnValues, &columnValue)
 	}
 
 	return columnValues, args
@@ -205,8 +206,8 @@ func (t *table) tableN(i int) string {
 // Deletes all the rows within the collection.
 func (t *table) Truncate() error {
 	_, err := t.source.doExec(sqlgen.Statement{
-		Type:  sqlgen.SqlTruncate,
-		Table: sqlgen.Table{t.tableN(0)},
+		Type:  sqlgen.Truncate,
+		Table: sqlgen.TableWithName(t.tableN(0)),
 	})
 
 	if err != nil {
@@ -225,27 +226,30 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	var columns sqlgen.Columns
+	columns := new(sqlgen.Columns)
 
-	columns = make(sqlgen.Columns, 0, len(cols))
+	columns.Columns = make([]sqlgen.Fragment, 0, len(cols))
 	for i := range cols {
-		columns = append(columns, sqlgen.Column{cols[i]})
+		columns.Columns = append(columns.Columns, sqlgen.ColumnWithName(cols[i]))
 	}
 
-	var values sqlgen.Values
+	values := new(sqlgen.Values)
 	var arguments []interface{}
 
 	arguments = make([]interface{}, 0, len(vals))
-	values = make(sqlgen.Values, 0, len(vals))
+	values.Values = make([]sqlgen.Fragment, 0, len(vals))
 
 	for i := range vals {
 		switch v := vals[i].(type) {
+		case *sqlgen.Value:
+			// Adding value.
+			values.Values = append(values.Values, v)
 		case sqlgen.Value:
 			// Adding value.
-			values = append(values, v)
+			values.Values = append(values.Values, &v)
 		default:
 			// Adding both value and placeholder.
-			values = append(values, sqlPlaceholder)
+			values.Values = append(values.Values, sqlPlaceholder)
 			arguments = append(arguments, v)
 		}
 	}
@@ -260,8 +264,8 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 	}
 
 	stmt := sqlgen.Statement{
-		Type:    sqlgen.SqlInsert,
-		Table:   sqlgen.Table{t.tableN(0)},
+		Type:    sqlgen.Insert,
+		Table:   sqlgen.TableWithName(t.tableN(0)),
 		Columns: columns,
 		Values:  values,
 	}

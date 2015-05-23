@@ -1600,7 +1600,7 @@ func BenchmarkAppendRawSQL(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sql.DB)
+	driver := sess.Driver().(*sqlx.DB)
 
 	if _, err = driver.Exec(`TRUNCATE TABLE "artist"`); err != nil {
 		b.Fatal(err)
@@ -1654,7 +1654,7 @@ func BenchmarkAppendTxRawSQL(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sql.DB)
+	driver := sess.Driver().(*sqlx.DB)
 
 	if tx, err = driver.Begin(); err != nil {
 		b.Fatal(err)
