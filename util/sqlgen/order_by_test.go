@@ -5,8 +5,8 @@ import (
 )
 
 func TestOrderBy(t *testing.T) {
-	o := NewOrderBy(
-		NewSortColumns(
+	o := JoinWithOrderBy(
+		JoinSortColumns(
 			SortColumn{Column: Column{Name: "foo"}},
 		),
 	)
@@ -20,8 +20,8 @@ func TestOrderBy(t *testing.T) {
 }
 
 func TestOrderByDesc(t *testing.T) {
-	o := NewOrderBy(
-		NewSortColumns(
+	o := JoinWithOrderBy(
+		JoinSortColumns(
 			SortColumn{Column: Column{Name: "foo"}, Order: Descendent},
 		),
 	)
@@ -36,8 +36,8 @@ func TestOrderByDesc(t *testing.T) {
 
 func BenchmarkOrderBy(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		NewOrderBy(
-			NewSortColumns(
+		JoinWithOrderBy(
+			JoinSortColumns(
 				SortColumn{Column: Column{Name: "foo"}},
 			),
 		)
@@ -46,7 +46,7 @@ func BenchmarkOrderBy(b *testing.B) {
 
 func BenchmarkOrderByHash(b *testing.B) {
 	o := OrderBy{
-		SortColumns: NewSortColumns(
+		SortColumns: JoinSortColumns(
 			SortColumn{Column: Column{Name: "foo"}},
 		),
 	}
@@ -57,7 +57,7 @@ func BenchmarkOrderByHash(b *testing.B) {
 
 func BenchmarkCompileOrderByCompile(b *testing.B) {
 	o := OrderBy{
-		SortColumns: NewSortColumns(
+		SortColumns: JoinSortColumns(
 			SortColumn{Column: Column{Name: "foo"}},
 		),
 	}
@@ -68,8 +68,8 @@ func BenchmarkCompileOrderByCompile(b *testing.B) {
 
 func BenchmarkCompileOrderByCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		o := NewOrderBy(
-			NewSortColumns(
+		o := JoinWithOrderBy(
+			JoinSortColumns(
 				SortColumn{Column: Column{Name: "foo"}},
 			),
 		)
@@ -113,7 +113,7 @@ func BenchmarkSortColumnCompileNoCache(b *testing.B) {
 }
 
 func BenchmarkSortColumnsHash(b *testing.B) {
-	s := NewSortColumns(
+	s := JoinSortColumns(
 		SortColumn{Column: Column{Name: "foo"}},
 		SortColumn{Column: Column{Name: "bar"}},
 	)
@@ -123,7 +123,7 @@ func BenchmarkSortColumnsHash(b *testing.B) {
 }
 
 func BenchmarkSortColumnsCompile(b *testing.B) {
-	s := NewSortColumns(
+	s := JoinSortColumns(
 		SortColumn{Column: Column{Name: "foo"}},
 		SortColumn{Column: Column{Name: "bar"}},
 	)
@@ -134,7 +134,7 @@ func BenchmarkSortColumnsCompile(b *testing.B) {
 
 func BenchmarkSortColumnsCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		s := NewSortColumns(
+		s := JoinSortColumns(
 			SortColumn{Column: Column{Name: "foo"}},
 			SortColumn{Column: Column{Name: "bar"}},
 		)

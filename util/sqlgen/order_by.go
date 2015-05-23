@@ -43,13 +43,13 @@ type orderByT struct {
 	SortColumns string
 }
 
-// NewSortColumns creates and returns an array of column-order relations.
-func NewSortColumns(values ...SortColumn) *SortColumns {
+// JoinSortColumns creates and returns an array of column-order relations.
+func JoinSortColumns(values ...SortColumn) *SortColumns {
 	return &SortColumns{Columns: values}
 }
 
-// NewOrderBy creates an returns an OrderBy using the given SortColumns.
-func NewOrderBy(sc *SortColumns) *OrderBy {
+// JoinWithOrderBy creates an returns an OrderBy using the given SortColumns.
+func JoinWithOrderBy(sc *SortColumns) *OrderBy {
 	return &OrderBy{SortColumns: sc}
 }
 

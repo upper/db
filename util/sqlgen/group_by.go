@@ -22,9 +22,9 @@ func (g *GroupBy) Hash() string {
 	return g.hash
 }
 
-// NewGroupBy creates and returns a GroupBy with the given column.
-func NewGroupBy(columns ...Column) *GroupBy {
-	return &GroupBy{Columns: NewColumns(columns...)}
+// GroupByColumns creates and returns a GroupBy with the given column.
+func GroupByColumns(columns ...Column) *GroupBy {
+	return &GroupBy{Columns: JoinColumns(columns...)}
 }
 
 // Compile transforms the GroupBy into an equivalent SQL representation.

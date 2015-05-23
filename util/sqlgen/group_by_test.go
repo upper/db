@@ -7,7 +7,7 @@ import (
 func TestGroupBy(t *testing.T) {
 	var s, e string
 
-	columns := NewGroupBy(
+	columns := GroupByColumns(
 		Column{Name: "id"},
 		Column{Name: "customer"},
 		Column{Name: "service_id"},
@@ -23,9 +23,9 @@ func TestGroupBy(t *testing.T) {
 	}
 }
 
-func BenchmarkNewGroupBy(b *testing.B) {
+func BenchmarkGroupByColumns(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = NewGroupBy(
+		_ = GroupByColumns(
 			Column{Name: "a"},
 			Column{Name: "b"},
 			Column{Name: "c"},
@@ -34,7 +34,7 @@ func BenchmarkNewGroupBy(b *testing.B) {
 }
 
 func BenchmarkGroupByHash(b *testing.B) {
-	c := NewGroupBy(
+	c := GroupByColumns(
 		Column{Name: "id"},
 		Column{Name: "customer"},
 		Column{Name: "service_id"},
@@ -47,7 +47,7 @@ func BenchmarkGroupByHash(b *testing.B) {
 }
 
 func BenchmarkGroupByCompile(b *testing.B) {
-	c := NewGroupBy(
+	c := GroupByColumns(
 		Column{Name: "id"},
 		Column{Name: "customer"},
 		Column{Name: "service_id"},
@@ -61,7 +61,7 @@ func BenchmarkGroupByCompile(b *testing.B) {
 
 func BenchmarkGroupByCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		c := NewGroupBy(
+		c := GroupByColumns(
 			Column{Name: "id"},
 			Column{Name: "customer"},
 			Column{Name: "service_id"},

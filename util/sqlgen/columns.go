@@ -23,8 +23,8 @@ func (c *Columns) Hash() string {
 	return c.hash
 }
 
-// NewColumns creates and returns an array of Column.
-func NewColumns(columns ...Column) *Columns {
+// JoinColumns creates and returns an array of Column.
+func JoinColumns(columns ...Column) *Columns {
 	return &Columns{Columns: columns}
 }
 

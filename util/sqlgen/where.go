@@ -21,18 +21,18 @@ type conds struct {
 	Conds string
 }
 
-// NewWhere creates and retuens a new Where.
-func NewWhere(conditions ...cc) *Where {
+// WhereConditions creates and retuens a new Where.
+func WhereConditions(conditions ...cc) *Where {
 	return &Where{Conditions: conditions}
 }
 
-// NewOr creates and returns a new Or.
-func NewOr(conditions ...cc) *Or {
+// JoinWithOr creates and returns a new Or.
+func JoinWithOr(conditions ...cc) *Or {
 	return &Or{Conditions: conditions}
 }
 
-// NewAnd creates and returns a new And.
-func NewAnd(conditions ...cc) *And {
+// JoinWithAnd creates and returns a new And.
+func JoinWithAnd(conditions ...cc) *And {
 	return &And{Conditions: conditions}
 }
 

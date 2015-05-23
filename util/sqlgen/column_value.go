@@ -53,8 +53,8 @@ type ColumnValues struct {
 	hash         string
 }
 
-// NewColumnValues returns an array of ColumnValue
-func NewColumnValues(values ...ColumnValue) *ColumnValues {
+// JoinColumnValues returns an array of ColumnValue
+func JoinColumnValues(values ...ColumnValue) *ColumnValues {
 	return &ColumnValues{ColumnValues: values}
 }
 

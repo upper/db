@@ -109,7 +109,7 @@ func TestCountWhere(t *testing.T) {
 	stmt = Statement{
 		Type:  Count,
 		Table: TableWithName("table_name"),
-		Where: NewWhere(
+		Where: WhereConditions(
 			&ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: NewValue(RawValue("7"))},
 		),
 	}
@@ -163,7 +163,7 @@ func TestSelectStarFromRawWhere(t *testing.T) {
 	stmt = Statement{
 		Type:  Select,
 		Table: TableWithName("table.name AS foo"),
-		Where: NewWhere(
+		Where: WhereConditions(
 			&Raw{Value: "foo.id = bar.foo_id"},
 		),
 	}
@@ -178,7 +178,7 @@ func TestSelectStarFromRawWhere(t *testing.T) {
 	stmt = Statement{
 		Type:  Select,
 		Table: TableWithName("table.name AS foo"),
-		Where: NewWhere(
+		Where: WhereConditions(
 			&Raw{Value: "foo.id = bar.foo_id"},
 			&Raw{Value: "baz.id = exp.baz_id"},
 		),
@@ -216,7 +216,7 @@ func TestSelectArtistNameFrom(t *testing.T) {
 	stmt = Statement{
 		Type:  Select,
 		Table: TableWithName("artist"),
-		Columns: NewColumns(
+		Columns: JoinColumns(
 			Column{Name: "artist.name"},
 		),
 	}
@@ -236,7 +236,7 @@ func TestSelectRawFrom(t *testing.T) {
 	stmt = Statement{
 		Type:  Select,
 		Table: TableWithName(`artist`),
-		Columns: NewColumns(
+		Columns: JoinColumns(
 			Column{Name: `artist.name`},
 			Column{Name: Raw{Value: `CONCAT(artist.name, " ", artist.last_name)`}},
 		),
@@ -256,7 +256,7 @@ func TestSelectFieldsFrom(t *testing.T) {
 
 	stmt = Statement{
 		Type: Select,
-		Columns: NewColumns(
+		Columns: JoinColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
@@ -279,7 +279,7 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 	// LIMIT only.
 	stmt = Statement{
 		Type: Select,
-		Columns: NewColumns(
+		Columns: JoinColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
@@ -298,7 +298,7 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 	// OFFSET only.
 	stmt = Statement{
 		Type: Select,
-		Columns: NewColumns(
+		Columns: JoinColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
@@ -317,7 +317,7 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 	// LIMIT AND OFFSET.
 	stmt = Statement{
 		Type: Select,
-		Columns: NewColumns(
+		Columns: JoinColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
@@ -342,12 +342,12 @@ func TestStatementGroupBy(t *testing.T) {
 	// Simple GROUP BY
 	stmt = Statement{
 		Type: Select,
-		Columns: NewColumns(
+		Columns: JoinColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		GroupBy: NewGroupBy(
+		GroupBy: GroupByColumns(
 			Column{Name: "foo"},
 		),
 		Table: TableWithName("table_name"),
@@ -362,12 +362,12 @@ func TestStatementGroupBy(t *testing.T) {
 
 	stmt = Statement{
 		Type: Select,
-		Columns: NewColumns(
+		Columns: JoinColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		GroupBy: NewGroupBy(
+		GroupBy: GroupByColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 		),
@@ -389,13 +389,13 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	// Simple ORDER BY
 	stmt = Statement{
 		Type: Select,
-		Columns: NewColumns(
+		Columns: JoinColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		OrderBy: NewOrderBy(
-			NewSortColumns(
+		OrderBy: JoinWithOrderBy(
+			JoinSortColumns(
 				SortColumn{Column: Column{Name: "foo"}},
 			),
 		),
@@ -412,13 +412,13 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	// ORDER BY field ASC
 	stmt = Statement{
 		Type: Select,
-		Columns: NewColumns(
+		Columns: JoinColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		OrderBy: NewOrderBy(
-			NewSortColumns(
+		OrderBy: JoinWithOrderBy(
+			JoinSortColumns(
 				SortColumn{Column: Column{Name: "foo"}, Order: Ascendent},
 			),
 		),
@@ -435,13 +435,13 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	// ORDER BY field DESC
 	stmt = Statement{
 		Type: Select,
-		Columns: NewColumns(
+		Columns: JoinColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		OrderBy: NewOrderBy(
-			NewSortColumns(
+		OrderBy: JoinWithOrderBy(
+			JoinSortColumns(
 				SortColumn{Column: Column{Name: "foo"}, Order: Descendent},
 			),
 		),
@@ -458,13 +458,13 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	// ORDER BY many fields
 	stmt = Statement{
 		Type: Select,
-		Columns: NewColumns(
+		Columns: JoinColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		OrderBy: NewOrderBy(
-			NewSortColumns(
+		OrderBy: JoinWithOrderBy(
+			JoinSortColumns(
 				SortColumn{Column: Column{Name: "foo"}, Order: Descendent},
 				SortColumn{Column: Column{Name: "bar"}, Order: Ascendent},
 				SortColumn{Column: Column{Name: "baz"}, Order: Descendent},
@@ -483,13 +483,13 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 	// ORDER BY function
 	stmt = Statement{
 		Type: Select,
-		Columns: NewColumns(
+		Columns: JoinColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
-		OrderBy: NewOrderBy(
-			NewSortColumns(
+		OrderBy: JoinWithOrderBy(
+			JoinSortColumns(
 				SortColumn{Column: Column{Name: Raw{Value: "FOO()"}}, Order: Descendent},
 				SortColumn{Column: Column{Name: Raw{Value: "BAR()"}}, Order: Ascendent},
 			),
@@ -511,13 +511,13 @@ func TestSelectFieldsFromWhere(t *testing.T) {
 
 	stmt = Statement{
 		Type: Select,
-		Columns: NewColumns(
+		Columns: JoinColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
 		Table: TableWithName("table_name"),
-		Where: NewWhere(
+		Where: WhereConditions(
 			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
 		),
 	}
@@ -536,13 +536,13 @@ func TestSelectFieldsFromWhereLimitOffset(t *testing.T) {
 
 	stmt = Statement{
 		Type: Select,
-		Columns: NewColumns(
+		Columns: JoinColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
 		),
 		Table: TableWithName("table_name"),
-		Where: NewWhere(
+		Where: WhereConditions(
 			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
 		),
 		Limit:  10,
@@ -564,7 +564,7 @@ func TestDelete(t *testing.T) {
 	stmt = Statement{
 		Type:  Delete,
 		Table: TableWithName("table_name"),
-		Where: NewWhere(
+		Where: WhereConditions(
 			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
 		),
 	}
@@ -584,10 +584,10 @@ func TestUpdate(t *testing.T) {
 	stmt = Statement{
 		Type:  Update,
 		Table: TableWithName("table_name"),
-		ColumnValues: NewColumnValues(
+		ColumnValues: JoinColumnValues(
 			ColumnValue{Column: Column{Name: "foo"}, Operator: "=", Value: NewValue(76)},
 		),
-		Where: NewWhere(
+		Where: WhereConditions(
 			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
 		),
 	}
@@ -602,11 +602,11 @@ func TestUpdate(t *testing.T) {
 	stmt = Statement{
 		Type:  Update,
 		Table: TableWithName("table_name"),
-		ColumnValues: NewColumnValues(
+		ColumnValues: JoinColumnValues(
 			ColumnValue{Column: Column{Name: "foo"}, Operator: "=", Value: NewValue(76)},
 			ColumnValue{Column: Column{Name: "bar"}, Operator: "=", Value: NewValue(Raw{Value: "88"})},
 		),
-		Where: NewWhere(
+		Where: WhereConditions(
 			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
 		),
 	}
@@ -626,7 +626,7 @@ func TestInsert(t *testing.T) {
 	stmt = Statement{
 		Type:  Insert,
 		Table: TableWithName("table_name"),
-		Columns: NewColumns(
+		Columns: JoinColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
@@ -654,7 +654,7 @@ func TestInsertExtra(t *testing.T) {
 		Type:  Insert,
 		Table: TableWithName("table_name"),
 		Extra: "RETURNING id",
-		Columns: NewColumns(
+		Columns: JoinColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
@@ -678,7 +678,7 @@ func BenchmarkStatementSimpleQuery(b *testing.B) {
 	stmt := Statement{
 		Type:  Count,
 		Table: TableWithName("table_name"),
-		Where: NewWhere(
+		Where: WhereConditions(
 			&ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: NewValue(Raw{Value: "7"})},
 		),
 	}
@@ -692,7 +692,7 @@ func BenchmarkStatementSimpleQueryHash(b *testing.B) {
 	stmt := Statement{
 		Type:  Count,
 		Table: TableWithName("table_name"),
-		Where: NewWhere(
+		Where: WhereConditions(
 			&ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: NewValue(Raw{Value: "7"})},
 		),
 	}
@@ -707,7 +707,7 @@ func BenchmarkStatementSimpleQueryNoCache(b *testing.B) {
 		stmt := Statement{
 			Type:  Count,
 			Table: TableWithName("table_name"),
-			Where: NewWhere(
+			Where: WhereConditions(
 				&ColumnValue{Column: Column{Name: "a"}, Operator: "=", Value: NewValue(Raw{Value: "7"})},
 			),
 		}
@@ -719,7 +719,7 @@ func BenchmarkStatementComplexQuery(b *testing.B) {
 	stmt := Statement{
 		Type:  Insert,
 		Table: TableWithName("table_name"),
-		Columns: NewColumns(
+		Columns: JoinColumns(
 			Column{Name: "foo"},
 			Column{Name: "bar"},
 			Column{Name: "baz"},
@@ -741,7 +741,7 @@ func BenchmarkStatementComplexQueryNoCache(b *testing.B) {
 		stmt := Statement{
 			Type:  Insert,
 			Table: TableWithName("table_name"),
-			Columns: NewColumns(
+			Columns: JoinColumns(
 				Column{Name: "foo"},
 				Column{Name: "bar"},
 				Column{Name: "baz"},

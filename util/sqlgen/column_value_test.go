@@ -21,7 +21,7 @@ func TestColumnValueHash(t *testing.T) {
 func TestColumnValuesHash(t *testing.T) {
 	var s, e string
 
-	c := NewColumnValues(
+	c := JoinColumnValues(
 		ColumnValue{Column: Column{Name: "id"}, Operator: "=", Value: NewValue(1)},
 		ColumnValue{Column: Column{Name: "id"}, Operator: "=", Value: NewValue(2)},
 	)
@@ -61,7 +61,7 @@ func TestColumnValue(t *testing.T) {
 func TestColumnValues(t *testing.T) {
 	var s, e string
 
-	cvs := NewColumnValues(
+	cvs := JoinColumnValues(
 		ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: NewValue(8)},
 		ColumnValue{Column: Column{Name: "other.id"}, Operator: "<", Value: NewValue(&Raw{Value: "100"})},
 		ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: NewValue("Haruki Murakami")},
@@ -104,9 +104,9 @@ func BenchmarkColumnValueCompileNoCache(b *testing.B) {
 	}
 }
 
-func BenchmarkNewColumnValues(b *testing.B) {
+func BenchmarkJoinColumnValues(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = NewColumnValues(
+		_ = JoinColumnValues(
 			ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: NewValue(8)},
 			ColumnValue{Column: Column{Name: "other.id"}, Operator: "<", Value: NewValue(Raw{Value: "100"})},
 			ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: NewValue("Haruki Murakami")},
@@ -117,7 +117,7 @@ func BenchmarkNewColumnValues(b *testing.B) {
 }
 
 func BenchmarkColumnValuesHash(b *testing.B) {
-	cvs := NewColumnValues(
+	cvs := JoinColumnValues(
 		ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: NewValue(8)},
 		ColumnValue{Column: Column{Name: "other.id"}, Operator: "<", Value: NewValue(Raw{Value: "100"})},
 		ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: NewValue("Haruki Murakami")},
@@ -130,7 +130,7 @@ func BenchmarkColumnValuesHash(b *testing.B) {
 }
 
 func BenchmarkColumnValuesCompile(b *testing.B) {
-	cvs := NewColumnValues(
+	cvs := JoinColumnValues(
 		ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: NewValue(8)},
 		ColumnValue{Column: Column{Name: "other.id"}, Operator: "<", Value: NewValue(Raw{Value: "100"})},
 		ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: NewValue("Haruki Murakami")},
@@ -144,7 +144,7 @@ func BenchmarkColumnValuesCompile(b *testing.B) {
 
 func BenchmarkColumnValuesCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		cvs := NewColumnValues(
+		cvs := JoinColumnValues(
 			ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: NewValue(8)},
 			ColumnValue{Column: Column{Name: "other.id"}, Operator: "<", Value: NewValue(Raw{Value: "100"})},
 			ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: NewValue("Haruki Murakami")},

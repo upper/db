@@ -7,7 +7,7 @@ import (
 func TestColumns(t *testing.T) {
 	var s, e string
 
-	columns := NewColumns(
+	columns := JoinColumns(
 		Column{Name: "id"},
 		Column{Name: "customer"},
 		Column{Name: "service_id"},
@@ -23,9 +23,9 @@ func TestColumns(t *testing.T) {
 	}
 }
 
-func BenchmarkNewColumns(b *testing.B) {
+func BenchmarkJoinColumns(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = NewColumns(
+		_ = JoinColumns(
 			Column{Name: "a"},
 			Column{Name: "b"},
 			Column{Name: "c"},
@@ -34,7 +34,7 @@ func BenchmarkNewColumns(b *testing.B) {
 }
 
 func BenchmarkColumnsHash(b *testing.B) {
-	c := NewColumns(
+	c := JoinColumns(
 		Column{Name: "id"},
 		Column{Name: "customer"},
 		Column{Name: "service_id"},
@@ -47,7 +47,7 @@ func BenchmarkColumnsHash(b *testing.B) {
 }
 
 func BenchmarkColumnsCompile(b *testing.B) {
-	c := NewColumns(
+	c := JoinColumns(
 		Column{Name: "id"},
 		Column{Name: "customer"},
 		Column{Name: "service_id"},
@@ -61,7 +61,7 @@ func BenchmarkColumnsCompile(b *testing.B) {
 
 func BenchmarkColumnsCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		c := NewColumns(
+		c := JoinColumns(
 			Column{Name: "id"},
 			Column{Name: "customer"},
 			Column{Name: "service_id"},
