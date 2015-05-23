@@ -8,7 +8,7 @@ import (
 func TestColumnValueHash(t *testing.T) {
 	var s, e string
 
-	c := ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(1)}
+	c := &ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(1)}
 
 	s = c.Hash()
 	e = fmt.Sprintf(`ColumnValue{Name:%q, Operator:%q, Value:%q}`, c.Column.Hash(), c.Operator, c.Value.Hash())
@@ -22,8 +22,8 @@ func TestColumnValuesHash(t *testing.T) {
 	var s, e string
 
 	c := JoinColumnValues(
-		ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(1)},
-		ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(2)},
+		&ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(1)},
+		&ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(2)},
 	)
 
 	s = c.Hash()
@@ -37,9 +37,9 @@ func TestColumnValuesHash(t *testing.T) {
 
 func TestColumnValue(t *testing.T) {
 	var s, e string
-	var cv ColumnValue
+	var cv *ColumnValue
 
-	cv = ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(1)}
+	cv = &ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(1)}
 
 	s = cv.Compile(defaultTemplate)
 	e = `"id" = '1'`
@@ -48,7 +48,7 @@ func TestColumnValue(t *testing.T) {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 
-	cv = ColumnValue{Column: ColumnWithName("date"), Operator: "=", Value: NewValue(RawValue("NOW()"))}
+	cv = &ColumnValue{Column: ColumnWithName("date"), Operator: "=", Value: NewValue(RawValue("NOW()"))}
 
 	s = cv.Compile(defaultTemplate)
 	e = `"date" = NOW()`
@@ -62,11 +62,11 @@ func TestColumnValues(t *testing.T) {
 	var s, e string
 
 	cvs := JoinColumnValues(
-		ColumnValue{Column: ColumnWithName("id"), Operator: ">", Value: NewValue(8)},
-		ColumnValue{Column: ColumnWithName("other.id"), Operator: "<", Value: NewValue(&Raw{Value: "100"})},
-		ColumnValue{Column: ColumnWithName("name"), Operator: "=", Value: NewValue("Haruki Murakami")},
-		ColumnValue{Column: ColumnWithName("created"), Operator: ">=", Value: NewValue(&Raw{Value: "NOW()"})},
-		ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(&Raw{Value: "NOW()"})},
+		&ColumnValue{Column: ColumnWithName("id"), Operator: ">", Value: NewValue(8)},
+		&ColumnValue{Column: ColumnWithName("other.id"), Operator: "<", Value: NewValue(&Raw{Value: "100"})},
+		&ColumnValue{Column: ColumnWithName("name"), Operator: "=", Value: NewValue("Haruki Murakami")},
+		&ColumnValue{Column: ColumnWithName("created"), Operator: ">=", Value: NewValue(&Raw{Value: "NOW()"})},
+		&ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(&Raw{Value: "NOW()"})},
 	)
 
 	s = cvs.Compile(defaultTemplate)
@@ -79,19 +79,19 @@ func TestColumnValues(t *testing.T) {
 
 func BenchmarkNewColumnValue(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = ColumnValue{Column: ColumnWithName("a"), Operator: "=", Value: NewValue(Raw{Value: "7"})}
+		_ = &ColumnValue{Column: ColumnWithName("a"), Operator: "=", Value: NewValue(Raw{Value: "7"})}
 	}
 }
 
 func BenchmarkColumnValueHash(b *testing.B) {
-	cv := ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(1)}
+	cv := &ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(1)}
 	for i := 0; i < b.N; i++ {
 		cv.Hash()
 	}
 }
 
 func BenchmarkColumnValueCompile(b *testing.B) {
-	cv := ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(1)}
+	cv := &ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(1)}
 	for i := 0; i < b.N; i++ {
 		cv.Compile(defaultTemplate)
 	}
@@ -99,7 +99,7 @@ func BenchmarkColumnValueCompile(b *testing.B) {
 
 func BenchmarkColumnValueCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		cv := ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(1)}
+		cv := &ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(1)}
 		cv.Compile(defaultTemplate)
 	}
 }
@@ -107,22 +107,22 @@ func BenchmarkColumnValueCompileNoCache(b *testing.B) {
 func BenchmarkJoinColumnValues(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = JoinColumnValues(
-			ColumnValue{Column: ColumnWithName("id"), Operator: ">", Value: NewValue(8)},
-			ColumnValue{Column: ColumnWithName("other.id"), Operator: "<", Value: NewValue(Raw{Value: "100"})},
-			ColumnValue{Column: ColumnWithName("name"), Operator: "=", Value: NewValue("Haruki Murakami")},
-			ColumnValue{Column: ColumnWithName("created"), Operator: ">=", Value: NewValue(Raw{Value: "NOW()"})},
-			ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(Raw{Value: "NOW()"})},
+			&ColumnValue{Column: ColumnWithName("id"), Operator: ">", Value: NewValue(8)},
+			&ColumnValue{Column: ColumnWithName("other.id"), Operator: "<", Value: NewValue(Raw{Value: "100"})},
+			&ColumnValue{Column: ColumnWithName("name"), Operator: "=", Value: NewValue("Haruki Murakami")},
+			&ColumnValue{Column: ColumnWithName("created"), Operator: ">=", Value: NewValue(Raw{Value: "NOW()"})},
+			&ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(Raw{Value: "NOW()"})},
 		)
 	}
 }
 
 func BenchmarkColumnValuesHash(b *testing.B) {
 	cvs := JoinColumnValues(
-		ColumnValue{Column: ColumnWithName("id"), Operator: ">", Value: NewValue(8)},
-		ColumnValue{Column: ColumnWithName("other.id"), Operator: "<", Value: NewValue(Raw{Value: "100"})},
-		ColumnValue{Column: ColumnWithName("name"), Operator: "=", Value: NewValue("Haruki Murakami")},
-		ColumnValue{Column: ColumnWithName("created"), Operator: ">=", Value: NewValue(Raw{Value: "NOW()"})},
-		ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(Raw{Value: "NOW()"})},
+		&ColumnValue{Column: ColumnWithName("id"), Operator: ">", Value: NewValue(8)},
+		&ColumnValue{Column: ColumnWithName("other.id"), Operator: "<", Value: NewValue(Raw{Value: "100"})},
+		&ColumnValue{Column: ColumnWithName("name"), Operator: "=", Value: NewValue("Haruki Murakami")},
+		&ColumnValue{Column: ColumnWithName("created"), Operator: ">=", Value: NewValue(Raw{Value: "NOW()"})},
+		&ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(Raw{Value: "NOW()"})},
 	)
 	for i := 0; i < b.N; i++ {
 		cvs.Hash()
@@ -131,11 +131,11 @@ func BenchmarkColumnValuesHash(b *testing.B) {
 
 func BenchmarkColumnValuesCompile(b *testing.B) {
 	cvs := JoinColumnValues(
-		ColumnValue{Column: ColumnWithName("id"), Operator: ">", Value: NewValue(8)},
-		ColumnValue{Column: ColumnWithName("other.id"), Operator: "<", Value: NewValue(Raw{Value: "100"})},
-		ColumnValue{Column: ColumnWithName("name"), Operator: "=", Value: NewValue("Haruki Murakami")},
-		ColumnValue{Column: ColumnWithName("created"), Operator: ">=", Value: NewValue(Raw{Value: "NOW()"})},
-		ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(Raw{Value: "NOW()"})},
+		&ColumnValue{Column: ColumnWithName("id"), Operator: ">", Value: NewValue(8)},
+		&ColumnValue{Column: ColumnWithName("other.id"), Operator: "<", Value: NewValue(Raw{Value: "100"})},
+		&ColumnValue{Column: ColumnWithName("name"), Operator: "=", Value: NewValue("Haruki Murakami")},
+		&ColumnValue{Column: ColumnWithName("created"), Operator: ">=", Value: NewValue(Raw{Value: "NOW()"})},
+		&ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(Raw{Value: "NOW()"})},
 	)
 	for i := 0; i < b.N; i++ {
 		cvs.Compile(defaultTemplate)
@@ -145,11 +145,11 @@ func BenchmarkColumnValuesCompile(b *testing.B) {
 func BenchmarkColumnValuesCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		cvs := JoinColumnValues(
-			ColumnValue{Column: ColumnWithName("id"), Operator: ">", Value: NewValue(8)},
-			ColumnValue{Column: ColumnWithName("other.id"), Operator: "<", Value: NewValue(Raw{Value: "100"})},
-			ColumnValue{Column: ColumnWithName("name"), Operator: "=", Value: NewValue("Haruki Murakami")},
-			ColumnValue{Column: ColumnWithName("created"), Operator: ">=", Value: NewValue(Raw{Value: "NOW()"})},
-			ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(Raw{Value: "NOW()"})},
+			&ColumnValue{Column: ColumnWithName("id"), Operator: ">", Value: NewValue(8)},
+			&ColumnValue{Column: ColumnWithName("other.id"), Operator: "<", Value: NewValue(Raw{Value: "100"})},
+			&ColumnValue{Column: ColumnWithName("name"), Operator: "=", Value: NewValue("Haruki Murakami")},
+			&ColumnValue{Column: ColumnWithName("created"), Operator: ">=", Value: NewValue(Raw{Value: "NOW()"})},
+			&ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(Raw{Value: "NOW()"})},
 		)
 		cvs.Compile(defaultTemplate)
 	}

@@ -585,7 +585,7 @@ func TestUpdate(t *testing.T) {
 		Type:  Update,
 		Table: TableWithName("table_name"),
 		ColumnValues: JoinColumnValues(
-			ColumnValue{Column: &Column{Name: "foo"}, Operator: "=", Value: NewValue(76)},
+			&ColumnValue{Column: &Column{Name: "foo"}, Operator: "=", Value: NewValue(76)},
 		),
 		Where: WhereConditions(
 			&ColumnValue{Column: &Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
@@ -603,8 +603,8 @@ func TestUpdate(t *testing.T) {
 		Type:  Update,
 		Table: TableWithName("table_name"),
 		ColumnValues: JoinColumnValues(
-			ColumnValue{Column: &Column{Name: "foo"}, Operator: "=", Value: NewValue(76)},
-			ColumnValue{Column: &Column{Name: "bar"}, Operator: "=", Value: NewValue(Raw{Value: "88"})},
+			&ColumnValue{Column: &Column{Name: "foo"}, Operator: "=", Value: NewValue(76)},
+			&ColumnValue{Column: &Column{Name: "bar"}, Operator: "=", Value: NewValue(Raw{Value: "88"})},
 		),
 		Where: WhereConditions(
 			&ColumnValue{Column: &Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},

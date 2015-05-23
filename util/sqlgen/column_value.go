@@ -49,12 +49,12 @@ func (c *ColumnValue) Compile(layout *Template) (compiled string) {
 
 // ColumnValues represents an array of ColumnValue
 type ColumnValues struct {
-	ColumnValues []ColumnValue
+	ColumnValues []Fragment
 	hash         string
 }
 
 // JoinColumnValues returns an array of ColumnValue
-func JoinColumnValues(values ...ColumnValue) *ColumnValues {
+func JoinColumnValues(values ...Fragment) *ColumnValues {
 	return &ColumnValues{ColumnValues: values}
 }
 
