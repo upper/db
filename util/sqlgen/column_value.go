@@ -9,7 +9,7 @@ import (
 type ColumnValue struct {
 	Column
 	Operator string
-	Value    cc
+	Value    Fragment
 	hash     string
 }
 

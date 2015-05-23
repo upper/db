@@ -61,7 +61,7 @@ func (t *Table) Hash() string {
 		var s string
 
 		switch v := t.Name.(type) {
-		case cc:
+		case Fragment:
 			s = v.Hash()
 		case fmt.Stringer:
 			s = v.String()

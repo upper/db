@@ -27,7 +27,7 @@ func (c *Column) Hash() string {
 		var s string
 
 		switch t := c.Name.(type) {
-		case cc:
+		case Fragment:
 			s = t.Hash()
 		case fmt.Stringer:
 			s = t.String()

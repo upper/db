@@ -4,7 +4,7 @@ import (
 	"upper.io/cache"
 )
 
-type cc interface {
+type Fragment interface {
 	cache.Hashable
 	compilable
 }

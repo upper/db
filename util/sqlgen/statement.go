@@ -10,17 +10,17 @@ import (
 // Statement represents different kinds of SQL statements.
 type Statement struct {
 	Type
-	Table    cc
-	Database cc
+	Table    Fragment
+	Database Fragment
 	Limit
 	Offset
-	Columns      cc
-	Values       cc
-	ColumnValues cc
-	OrderBy      cc
-	GroupBy      cc
+	Columns      Fragment
+	Values       Fragment
+	ColumnValues Fragment
+	OrderBy      Fragment
+	GroupBy      Fragment
 	Extra
-	Where cc
+	Where Fragment
 	hash  string
 }
 
@@ -38,7 +38,7 @@ type statementT struct {
 	Where        string
 }
 
-func (layout *Template) doCompile(c cc) string {
+func (layout *Template) doCompile(c Fragment) string {
 	if c != nil {
 		return c.Compile(layout)
 	}

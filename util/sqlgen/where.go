@@ -13,7 +13,7 @@ type And Where
 
 // Where represents an SQL WHERE clause.
 type Where struct {
-	Conditions []cc
+	Conditions []Fragment
 	hash       string
 }
 
@@ -22,17 +22,17 @@ type conds struct {
 }
 
 // WhereConditions creates and retuens a new Where.
-func WhereConditions(conditions ...cc) *Where {
+func WhereConditions(conditions ...Fragment) *Where {
 	return &Where{Conditions: conditions}
 }
 
 // JoinWithOr creates and returns a new Or.
-func JoinWithOr(conditions ...cc) *Or {
+func JoinWithOr(conditions ...Fragment) *Or {
 	return &Or{Conditions: conditions}
 }
 
 // JoinWithAnd creates and returns a new And.
-func JoinWithAnd(conditions ...cc) *And {
+func JoinWithAnd(conditions ...Fragment) *And {
 	return &And{Conditions: conditions}
 }
 
@@ -104,7 +104,7 @@ func (w *Where) Compile(layout *Template) (compiled string) {
 	return
 }
 
-func groupCondition(layout *Template, terms []cc, joinKeyword string) string {
+func groupCondition(layout *Template, terms []Fragment, joinKeyword string) string {
 	l := len(terms)
 
 	chunks := make([]string, 0, l)

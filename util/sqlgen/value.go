@@ -25,7 +25,7 @@ func NewValue(v interface{}) *Value {
 func (v *Value) Hash() string {
 	if v.hash == "" {
 		switch t := v.V.(type) {
-		case cc:
+		case Fragment:
 			v.hash = `Value(` + t.Hash() + `)`
 		case string:
 			v.hash = `Value(` + t + `)`
@@ -45,7 +45,7 @@ func (v *Value) Compile(layout *Template) (compiled string) {
 
 	if raw, ok := v.V.(Raw); ok {
 		compiled = raw.Compile(layout)
-	} else if raw, ok := v.V.(cc); ok {
+	} else if raw, ok := v.V.(Fragment); ok {
 		compiled = raw.Compile(layout)
 	} else {
 		compiled = mustParse(layout.ValueQuote, RawValue(fmt.Sprintf(`%v`, v.V)))
