@@ -41,4 +41,5 @@ before_script:
   # - cat ql/_dumps/structs.sql | $GOPATH/bin/ql -db ql/_dumps/test.db
 
 script:
+  - go test upper.io/db/util/sqlgen -test.bench=.
   - UPPERIO_DB_DEBUG=1 go test -test.v=1
