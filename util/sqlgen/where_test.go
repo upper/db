@@ -8,9 +8,9 @@ func TestWhereAnd(t *testing.T) {
 	var s, e string
 
 	and := JoinWithAnd(
-		&ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: NewValue(&Raw{Value: "8"})},
-		&ColumnValue{Column: Column{Name: "id"}, Operator: "<", Value: NewValue(&Raw{Value: "99"})},
-		&ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: NewValue("John")},
+		&ColumnValue{Column: &Column{Name: "id"}, Operator: ">", Value: NewValue(&Raw{Value: "8"})},
+		&ColumnValue{Column: &Column{Name: "id"}, Operator: "<", Value: NewValue(&Raw{Value: "99"})},
+		&ColumnValue{Column: &Column{Name: "name"}, Operator: "=", Value: NewValue("John")},
 	)
 
 	s = and.Compile(defaultTemplate)
@@ -25,8 +25,8 @@ func TestWhereOr(t *testing.T) {
 	var s, e string
 
 	or := JoinWithOr(
-		&ColumnValue{Column: Column{Name: "id"}, Operator: "=", Value: NewValue(&Raw{Value: "8"})},
-		&ColumnValue{Column: Column{Name: "id"}, Operator: "=", Value: NewValue(&Raw{Value: "99"})},
+		&ColumnValue{Column: &Column{Name: "id"}, Operator: "=", Value: NewValue(&Raw{Value: "8"})},
+		&ColumnValue{Column: &Column{Name: "id"}, Operator: "=", Value: NewValue(&Raw{Value: "99"})},
 	)
 
 	s = or.Compile(defaultTemplate)
@@ -41,12 +41,12 @@ func TestWhereAndOr(t *testing.T) {
 	var s, e string
 
 	and := JoinWithAnd(
-		&ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: NewValue(&Raw{Value: "8"})},
-		&ColumnValue{Column: Column{Name: "id"}, Operator: "<", Value: NewValue(&Raw{Value: "99"})},
-		&ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: NewValue("John")},
+		&ColumnValue{Column: &Column{Name: "id"}, Operator: ">", Value: NewValue(&Raw{Value: "8"})},
+		&ColumnValue{Column: &Column{Name: "id"}, Operator: "<", Value: NewValue(&Raw{Value: "99"})},
+		&ColumnValue{Column: &Column{Name: "name"}, Operator: "=", Value: NewValue("John")},
 		JoinWithOr(
-			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: NewValue("Smith")},
-			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: NewValue("Reyes")},
+			&ColumnValue{Column: &Column{Name: "last_name"}, Operator: "=", Value: NewValue("Smith")},
+			&ColumnValue{Column: &Column{Name: "last_name"}, Operator: "=", Value: NewValue("Reyes")},
 		),
 	)
 
@@ -63,18 +63,18 @@ func TestWhereAndRawOrAnd(t *testing.T) {
 
 	where := WhereConditions(
 		JoinWithAnd(
-			&ColumnValue{Column: Column{Name: "id"}, Operator: ">", Value: NewValue(&Raw{Value: "8"})},
-			&ColumnValue{Column: Column{Name: "id"}, Operator: "<", Value: NewValue(&Raw{Value: "99"})},
+			&ColumnValue{Column: &Column{Name: "id"}, Operator: ">", Value: NewValue(&Raw{Value: "8"})},
+			&ColumnValue{Column: &Column{Name: "id"}, Operator: "<", Value: NewValue(&Raw{Value: "99"})},
 		),
-		&ColumnValue{Column: Column{Name: "name"}, Operator: "=", Value: NewValue("John")},
+		&ColumnValue{Column: &Column{Name: "name"}, Operator: "=", Value: NewValue("John")},
 		&Raw{Value: "city_id = 728"},
 		JoinWithOr(
-			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: NewValue("Smith")},
-			&ColumnValue{Column: Column{Name: "last_name"}, Operator: "=", Value: NewValue("Reyes")},
+			&ColumnValue{Column: &Column{Name: "last_name"}, Operator: "=", Value: NewValue("Smith")},
+			&ColumnValue{Column: &Column{Name: "last_name"}, Operator: "=", Value: NewValue("Reyes")},
 		),
 		JoinWithAnd(
-			&ColumnValue{Column: Column{Name: "age"}, Operator: ">", Value: NewValue(&Raw{Value: "18"})},
-			&ColumnValue{Column: Column{Name: "age"}, Operator: "<", Value: NewValue(&Raw{Value: "41"})},
+			&ColumnValue{Column: &Column{Name: "age"}, Operator: ">", Value: NewValue(&Raw{Value: "18"})},
+			&ColumnValue{Column: &Column{Name: "age"}, Operator: "<", Value: NewValue(&Raw{Value: "41"})},
 		),
 	)
 
@@ -89,14 +89,14 @@ func TestWhereAndRawOrAnd(t *testing.T) {
 func BenchmarkWhere(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = WhereConditions(
-			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
+			&ColumnValue{Column: &Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
 		)
 	}
 }
 
 func BenchmarkCompileWhere(b *testing.B) {
 	w := WhereConditions(
-		&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
+		&ColumnValue{Column: &Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
 	)
 	for i := 0; i < b.N; i++ {
 		w.Compile(defaultTemplate)
@@ -106,7 +106,7 @@ func BenchmarkCompileWhere(b *testing.B) {
 func BenchmarkCompileWhereNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		w := WhereConditions(
-			&ColumnValue{Column: Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
+			&ColumnValue{Column: &Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
 		)
 		w.Compile(defaultTemplate)
 	}

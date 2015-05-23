@@ -6,7 +6,7 @@ import (
 
 // GroupBy represents a SQL's "group by" statement.
 type GroupBy struct {
-	Columns *Columns
+	Columns Fragment
 	hash    string
 }
 
@@ -23,7 +23,7 @@ func (g *GroupBy) Hash() string {
 }
 
 // GroupByColumns creates and returns a GroupBy with the given column.
-func GroupByColumns(columns ...Column) *GroupBy {
+func GroupByColumns(columns ...Fragment) *GroupBy {
 	return &GroupBy{Columns: JoinColumns(columns...)}
 }
 

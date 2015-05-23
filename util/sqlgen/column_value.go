@@ -7,7 +7,7 @@ import (
 
 // ColumnValue represents a bundle between a column and a corresponding value.
 type ColumnValue struct {
-	Column
+	Column   Fragment
 	Operator string
 	Value    Fragment
 	hash     string

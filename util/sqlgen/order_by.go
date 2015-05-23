@@ -17,7 +17,7 @@ const (
 
 // SortColumn represents the column-order relation in an ORDER BY clause.
 type SortColumn struct {
-	Column
+	Column Fragment
 	Order
 	hash string
 }
@@ -29,7 +29,7 @@ type sortColumnT struct {
 
 // SortColumns represents the columns in an ORDER BY clause.
 type SortColumns struct {
-	Columns []SortColumn
+	Columns []Fragment
 	hash    string
 }
 
@@ -44,7 +44,7 @@ type orderByT struct {
 }
 
 // JoinSortColumns creates and returns an array of column-order relations.
-func JoinSortColumns(values ...SortColumn) *SortColumns {
+func JoinSortColumns(values ...Fragment) *SortColumns {
 	return &SortColumns{Columns: values}
 }
 

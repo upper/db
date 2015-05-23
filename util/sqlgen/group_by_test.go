@@ -8,11 +8,11 @@ func TestGroupBy(t *testing.T) {
 	var s, e string
 
 	columns := GroupByColumns(
-		Column{Name: "id"},
-		Column{Name: "customer"},
-		Column{Name: "service_id"},
-		Column{Name: "role.name"},
-		Column{Name: "role.id"},
+		&Column{Name: "id"},
+		&Column{Name: "customer"},
+		&Column{Name: "service_id"},
+		&Column{Name: "role.name"},
+		&Column{Name: "role.id"},
 	)
 
 	s = columns.Compile(defaultTemplate)
@@ -26,20 +26,20 @@ func TestGroupBy(t *testing.T) {
 func BenchmarkGroupByColumns(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = GroupByColumns(
-			Column{Name: "a"},
-			Column{Name: "b"},
-			Column{Name: "c"},
+			&Column{Name: "a"},
+			&Column{Name: "b"},
+			&Column{Name: "c"},
 		)
 	}
 }
 
 func BenchmarkGroupByHash(b *testing.B) {
 	c := GroupByColumns(
-		Column{Name: "id"},
-		Column{Name: "customer"},
-		Column{Name: "service_id"},
-		Column{Name: "role.name"},
-		Column{Name: "role.id"},
+		&Column{Name: "id"},
+		&Column{Name: "customer"},
+		&Column{Name: "service_id"},
+		&Column{Name: "role.name"},
+		&Column{Name: "role.id"},
 	)
 	for i := 0; i < b.N; i++ {
 		c.Hash()
@@ -48,11 +48,11 @@ func BenchmarkGroupByHash(b *testing.B) {
 
 func BenchmarkGroupByCompile(b *testing.B) {
 	c := GroupByColumns(
-		Column{Name: "id"},
-		Column{Name: "customer"},
-		Column{Name: "service_id"},
-		Column{Name: "role.name"},
-		Column{Name: "role.id"},
+		&Column{Name: "id"},
+		&Column{Name: "customer"},
+		&Column{Name: "service_id"},
+		&Column{Name: "role.name"},
+		&Column{Name: "role.id"},
 	)
 	for i := 0; i < b.N; i++ {
 		c.Compile(defaultTemplate)
@@ -62,11 +62,11 @@ func BenchmarkGroupByCompile(b *testing.B) {
 func BenchmarkGroupByCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		c := GroupByColumns(
-			Column{Name: "id"},
-			Column{Name: "customer"},
-			Column{Name: "service_id"},
-			Column{Name: "role.name"},
-			Column{Name: "role.id"},
+			&Column{Name: "id"},
+			&Column{Name: "customer"},
+			&Column{Name: "service_id"},
+			&Column{Name: "role.name"},
+			&Column{Name: "role.id"},
 		)
 		c.Compile(defaultTemplate)
 	}

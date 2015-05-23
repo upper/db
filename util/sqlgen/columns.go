@@ -7,7 +7,7 @@ import (
 
 // Columns represents an array of Column.
 type Columns struct {
-	Columns []Column
+	Columns []Fragment
 	hash    string
 }
 
@@ -24,7 +24,7 @@ func (c *Columns) Hash() string {
 }
 
 // JoinColumns creates and returns an array of Column.
-func JoinColumns(columns ...Column) *Columns {
+func JoinColumns(columns ...Fragment) *Columns {
 	return &Columns{Columns: columns}
 }
 

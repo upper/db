@@ -10,6 +10,11 @@ type Database struct {
 	hash string
 }
 
+// DatabaseWithName returns a Database with the given name.
+func DatabaseWithName(name string) *Database {
+	return &Database{Name: name}
+}
+
 // Hash returns a unique identifier.
 func (d *Database) Hash() string {
 	if d.hash == "" {

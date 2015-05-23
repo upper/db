@@ -8,7 +8,10 @@ import (
 )
 
 // Values represents an array of Value.
-type Values []Value
+type Values struct {
+	Values []Fragment
+	hash   string
+}
 
 // Value represents an escaped SQL value.
 type Value struct {
@@ -19,6 +22,11 @@ type Value struct {
 // NewValue creates and returns a Value.
 func NewValue(v interface{}) *Value {
 	return &Value{V: v}
+}
+
+// JoinValues creates and returns an array of values.
+func JoinValues(v ...Fragment) *Values {
+	return &Values{Values: v}
 }
 
 // Hash returns a unique identifier.
@@ -69,25 +77,28 @@ func (v *Value) Value() (driver.Value, error) {
 */
 
 // Hash returns a unique identifier.
-func (vs Values) Hash() string {
-	hash := make([]string, 0, len(vs))
-	for i := range vs {
-		hash = append(hash, vs[i].Hash())
+func (vs *Values) Hash() string {
+	if vs.hash == "" {
+		hash := make([]string, len(vs.Values))
+		for i := range vs.Values {
+			hash[i] = vs.Values[i].Hash()
+		}
+		vs.hash = `Values(` + strings.Join(hash, `,`) + `)`
 	}
-	return `Values(` + strings.Join(hash, `,`) + `)`
+	return vs.hash
 }
 
 // Compile transforms the Values into an equivalent SQL representation.
-func (vs Values) Compile(layout *Template) (compiled string) {
+func (vs *Values) Compile(layout *Template) (compiled string) {
 	if c, ok := layout.Read(vs); ok {
 		return c
 	}
 
-	l := len(vs)
+	l := len(vs.Values)
 	if l > 0 {
 		chunks := make([]string, 0, l)
 		for i := 0; i < l; i++ {
-			chunks = append(chunks, vs[i].Compile(layout))
+			chunks = append(chunks, vs.Values[i].Compile(layout))
 		}
 		compiled = strings.Join(chunks, layout.ValueSeparator)
 	}

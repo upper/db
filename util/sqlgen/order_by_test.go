@@ -7,7 +7,7 @@ import (
 func TestOrderBy(t *testing.T) {
 	o := JoinWithOrderBy(
 		JoinSortColumns(
-			SortColumn{Column: Column{Name: "foo"}},
+			&SortColumn{Column: &Column{Name: "foo"}},
 		),
 	)
 
@@ -22,7 +22,7 @@ func TestOrderBy(t *testing.T) {
 func TestOrderByDesc(t *testing.T) {
 	o := JoinWithOrderBy(
 		JoinSortColumns(
-			SortColumn{Column: Column{Name: "foo"}, Order: Descendent},
+			&SortColumn{Column: &Column{Name: "foo"}, Order: Descendent},
 		),
 	)
 
@@ -38,7 +38,7 @@ func BenchmarkOrderBy(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		JoinWithOrderBy(
 			JoinSortColumns(
-				SortColumn{Column: Column{Name: "foo"}},
+				&SortColumn{Column: &Column{Name: "foo"}},
 			),
 		)
 	}
@@ -47,7 +47,7 @@ func BenchmarkOrderBy(b *testing.B) {
 func BenchmarkOrderByHash(b *testing.B) {
 	o := OrderBy{
 		SortColumns: JoinSortColumns(
-			SortColumn{Column: Column{Name: "foo"}},
+			&SortColumn{Column: &Column{Name: "foo"}},
 		),
 	}
 	for i := 0; i < b.N; i++ {
@@ -58,7 +58,7 @@ func BenchmarkOrderByHash(b *testing.B) {
 func BenchmarkCompileOrderByCompile(b *testing.B) {
 	o := OrderBy{
 		SortColumns: JoinSortColumns(
-			SortColumn{Column: Column{Name: "foo"}},
+			&SortColumn{Column: &Column{Name: "foo"}},
 		),
 	}
 	for i := 0; i < b.N; i++ {
@@ -70,7 +70,7 @@ func BenchmarkCompileOrderByCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		o := JoinWithOrderBy(
 			JoinSortColumns(
-				SortColumn{Column: Column{Name: "foo"}},
+				&SortColumn{Column: &Column{Name: "foo"}},
 			),
 		)
 		o.Compile(defaultTemplate)
@@ -92,14 +92,14 @@ func BenchmarkCompileOrderCompileNoCache(b *testing.B) {
 }
 
 func BenchmarkSortColumnHash(b *testing.B) {
-	s := SortColumn{Column: Column{Name: "foo"}}
+	s := &SortColumn{Column: &Column{Name: "foo"}}
 	for i := 0; i < b.N; i++ {
 		s.Hash()
 	}
 }
 
 func BenchmarkSortColumnCompile(b *testing.B) {
-	s := SortColumn{Column: Column{Name: "foo"}}
+	s := &SortColumn{Column: &Column{Name: "foo"}}
 	for i := 0; i < b.N; i++ {
 		s.Compile(defaultTemplate)
 	}
@@ -107,15 +107,15 @@ func BenchmarkSortColumnCompile(b *testing.B) {
 
 func BenchmarkSortColumnCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		s := SortColumn{Column: Column{Name: "foo"}}
+		s := &SortColumn{Column: &Column{Name: "foo"}}
 		s.Compile(defaultTemplate)
 	}
 }
 
 func BenchmarkSortColumnsHash(b *testing.B) {
 	s := JoinSortColumns(
-		SortColumn{Column: Column{Name: "foo"}},
-		SortColumn{Column: Column{Name: "bar"}},
+		&SortColumn{Column: &Column{Name: "foo"}},
+		&SortColumn{Column: &Column{Name: "bar"}},
 	)
 	for i := 0; i < b.N; i++ {
 		s.Hash()
@@ -124,8 +124,8 @@ func BenchmarkSortColumnsHash(b *testing.B) {
 
 func BenchmarkSortColumnsCompile(b *testing.B) {
 	s := JoinSortColumns(
-		SortColumn{Column: Column{Name: "foo"}},
-		SortColumn{Column: Column{Name: "bar"}},
+		&SortColumn{Column: &Column{Name: "foo"}},
+		&SortColumn{Column: &Column{Name: "bar"}},
 	)
 	for i := 0; i < b.N; i++ {
 		s.Compile(defaultTemplate)
@@ -135,8 +135,8 @@ func BenchmarkSortColumnsCompile(b *testing.B) {
 func BenchmarkSortColumnsCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s := JoinSortColumns(
-			SortColumn{Column: Column{Name: "foo"}},
-			SortColumn{Column: Column{Name: "bar"}},
+			&SortColumn{Column: &Column{Name: "foo"}},
+			&SortColumn{Column: &Column{Name: "bar"}},
 		)
 		s.Compile(defaultTemplate)
 	}
