@@ -64,3 +64,12 @@ CREATE TABLE composite_keys (
   some_val varchar(255) default '',
   primary key (code, user_id)
 );
+
+DROP TABLE IF EXISTS option_types;
+
+CREATE TABLE option_types (
+  id serial primary key,
+  name varchar(255) default '',
+  tags varchar(64)[],
+  settings jsonb
+);

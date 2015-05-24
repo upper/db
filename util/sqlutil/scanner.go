@@ -23,6 +23,12 @@ package sqlutil
 
 import (
 	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
+	"strconv"
+	"strings"
+
 	"upper.io/db"
 )
 
@@ -35,3 +41,148 @@ func (u scanner) Scan(v interface{}) error {
 }
 
 var _ sql.Scanner = scanner{}
+
+//------
+
+type JsonbType struct {
+	V interface{}
+}
+
+func (j *JsonbType) Scan(src interface{}) error {
+	b, ok := src.([]byte)
+	if !ok {
+		return errors.New("Scan source was not []bytes")
+	}
+
+	v := JsonbType{}
+	if err := json.Unmarshal(b, &v.V); err != nil {
+		return err
+	}
+	*j = v
+	return nil
+}
+
+func (j JsonbType) Value() (driver.Value, error) {
+	b, err := json.Marshal(j.V)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+//------
+
+type StringArray []string
+
+func (a *StringArray) Scan(src interface{}) error {
+	if src == nil {
+		*a = StringArray{}
+		return nil
+	}
+	b, ok := src.([]byte)
+	if !ok {
+		return errors.New("Scan source was not []bytes")
+	}
+	if len(b) == 0 {
+		return nil
+	}
+	s := string(b)[1 : len(b)-1]
+	if s == "" {
+		return nil
+	}
+	results := strings.Split(s, ",")
+	*a = StringArray(results)
+	return nil
+}
+
+// Value implements the driver.Valuer interface.
+func (a StringArray) Value() (driver.Value, error) {
+	if a == nil {
+		return nil, nil
+	}
+
+	if n := len(a); n > 0 {
+		// There will be at least two curly brackets, 2*N bytes of quotes,
+		// and N-1 bytes of delimiters.
+		b := make([]byte, 1, 1+3*n)
+		b[0] = '{'
+
+		b = appendArrayQuotedString(b, a[0])
+		for i := 1; i < n; i++ {
+			b = append(b, ',')
+			b = appendArrayQuotedString(b, a[i])
+		}
+
+		return append(b, '}'), nil
+	}
+
+	return []byte{'{', '}'}, nil
+}
+
+func appendArrayQuotedString(b []byte, v string) []byte {
+	b = append(b, '"')
+	for {
+		i := strings.IndexAny(v, `"\`)
+		if i < 0 {
+			b = append(b, v...)
+			break
+		}
+		if i > 0 {
+			b = append(b, v[:i]...)
+		}
+		b = append(b, '\\', v[i])
+		v = v[i+1:]
+	}
+	return append(b, '"')
+}
+
+//------
+
+type Int64Array []int64
+
+func (a *Int64Array) Scan(src interface{}) error {
+	if src == nil {
+		return nil
+	}
+	b, ok := src.([]byte)
+	if !ok {
+		return errors.New("Scan source was not []bytes")
+	}
+
+	s := string(b)[1 : len(b)-1]
+	parts := strings.Split(s, ",")
+	results := make([]int64, 0)
+	for _, n := range parts {
+		i, err := strconv.ParseInt(n, 10, 64)
+		if err != nil {
+			return err
+		}
+		results = append(results, i)
+	}
+	*a = Int64Array(results)
+	return nil
+}
+
+// Value implements the driver.Valuer interface.
+func (a Int64Array) Value() (driver.Value, error) {
+	if a == nil {
+		return nil, nil
+	}
+
+	if n := len(a); n > 0 {
+		// There will be at least two curly brackets, N bytes of values,
+		// and N-1 bytes of delimiters.
+		b := make([]byte, 1, 1+2*n)
+		b[0] = '{'
+
+		b = strconv.AppendInt(b, a[0], 10)
+		for i := 1; i < n; i++ {
+			b = append(b, ',')
+			b = strconv.AppendInt(b, a[i], 10)
+		}
+
+		return append(b, '}'), nil
+	}
+
+	return []byte{'{', '}'}, nil
+}
