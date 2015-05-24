@@ -32,11 +32,11 @@ import (
 	"menteslibres.net/gosexy/to"
 
 	"upper.io/db"
-	"upper.io/db/util"
 )
 
 var (
-	reInvisibleChars = regexp.MustCompile(`[\s\r\n\t]+`)
+	reInvisibleChars       = regexp.MustCompile(`[\s\r\n\t]+`)
+	reColumnCompareExclude = regexp.MustCompile(`[^a-zA-Z0-9]`)
 )
 
 var (
@@ -46,15 +46,21 @@ var (
 	nullStringType  = reflect.TypeOf(sql.NullString{})
 )
 
+// NormalizeColumn prepares a column for comparison against another column.
+func NormalizeColumn(s string) string {
+	return strings.ToLower(reColumnCompareExclude.ReplaceAllString(s, ""))
+}
+
 // T type is commonly used by adapters to map database/sql values to Go values
 // using FieldValues()
 type T struct {
 	Columns []string
+	Mapper  *reflectx.Mapper
 }
 
 func (t *T) columnLike(s string) string {
 	for _, name := range t.Columns {
-		if util.NormalizeColumn(s) == util.NormalizeColumn(name) {
+		if NormalizeColumn(s) == NormalizeColumn(name) {
 			return name
 		}
 	}
@@ -62,14 +68,12 @@ func (t *T) columnLike(s string) string {
 }
 
 func marshal(v interface{}) (interface{}, error) {
-
 	if m, isMarshaler := v.(db.Marshaler); isMarshaler {
 		var err error
 		if v, err = m.MarshalDB(); err != nil {
 			return nil, err
 		}
 	}
-
 	return v, nil
 }
 
@@ -90,78 +94,30 @@ func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
 	switch itemT.Kind() {
 
 	case reflect.Struct:
-		nfields := itemV.NumField()
+
+		fieldMap := t.Mapper.TypeMap(itemT).FieldMap()
+		nfields := len(fieldMap)
 
 		values = make([]interface{}, 0, nfields)
 		fields = make([]string, 0, nfields)
 
-		for i := 0; i < nfields; i++ {
+		for _, fi := range fieldMap {
+			value := reflectx.FieldByIndexesReadOnly(itemV, fi.Index).Interface()
 
-			field := itemT.Field(i)
-
-			if field.PkgPath != `` {
-				// Field is unexported.
-				continue
-			}
-
-			// TODO: can we get the placeholder used above somewhere...?
-			// from the sqlx part..?
-
-			if field.Anonymous {
-				// It's an anonymous field. Let's skip it unless it has an explicit
-				// `db` tag.
-				if field.Tag.Get(`db`) == `` {
+			if _, ok := fi.Options["omitempty"]; ok {
+				if value == fi.Zero.Interface() {
 					continue
 				}
 			}
 
-			// Field options.
-			fieldName, fieldOptions := util.ParseTag(field.Tag.Get(`db`))
+			// TODO: columnLike stuff...?
 
-			// Skipping field
-			if fieldName == `-` {
-				continue
+			fields = append(fields, fi.Name)
+			v, err := marshal(value)
+			if err != nil {
+				return nil, nil, err
 			}
-
-			// Trying to match field name.
-
-			// Still don't have a match? try to match againt JSON.
-			if fieldName == `` {
-				fieldName, _ = util.ParseTag(field.Tag.Get(`json`))
-			}
-
-			// Nothing works, trying to match by name.
-			if fieldName == `` {
-				fieldName = t.columnLike(field.Name)
-			}
-
-			// Processing tag options.
-			value := itemV.Field(i).Interface()
-
-			if fieldOptions[`omitempty`] == true {
-				zero := reflect.Zero(reflect.TypeOf(value)).Interface()
-				if value == zero {
-					continue
-				}
-			}
-
-			if fieldOptions[`inline`] == true {
-				infields, invalues, inerr := t.FieldValues(value)
-				if inerr != nil {
-					return nil, nil, inerr
-				}
-				fields = append(fields, infields...)
-				values = append(values, invalues...)
-			} else {
-				fields = append(fields, fieldName)
-				v, err := marshal(value)
-
-				if err != nil {
-					return nil, nil, err
-				}
-
-				values = append(values, v)
-			}
+			values = append(values, v)
 		}
 
 	case reflect.Map:
@@ -199,14 +155,5 @@ func reset(data interface{}) error {
 
 // NewMapper creates a reflectx.Mapper
 func NewMapper() *reflectx.Mapper {
-	mapFunc := strings.ToLower
-
-	tagFunc := func(value string) string {
-		if strings.Contains(value, ",") {
-			return strings.Split(value, ",")[0]
-		}
-		return value
-	}
-
-	return reflectx.NewMapperTagFunc("db", mapFunc, tagFunc)
+	return reflectx.NewMapper("db")
 }
