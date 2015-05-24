@@ -68,7 +68,7 @@ func (r *result) setCursor() error {
 
 // Sets conditions for reducing the working set.
 func (r *result) Where(terms ...interface{}) db.Result {
-	r.where, r.arguments = whereValues(terms)
+	r.where, r.arguments = sqlutil.ToWhereWithArguments(terms)
 	return r
 }
 
@@ -152,7 +152,7 @@ func (r *result) Select(fields ...interface{}) db.Result {
 		var col sqlgen.Fragment
 		switch value := fields[i].(type) {
 		case db.Func:
-			v := interfaceArgs(value.Args)
+			v := sqlutil.ToInterfaceArguments(value.Args)
 			var s string
 			if len(v) == 0 {
 				s = fmt.Sprintf(`%s()`, value.Name)

@@ -24,7 +24,6 @@ package postgresql
 import (
 	"database/sql"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -42,147 +41,8 @@ type table struct {
 	names      []string
 }
 
-func whereValues(term interface{}) (where sqlgen.Where, args []interface{}) {
-	args = []interface{}{}
-
-	switch t := term.(type) {
-	case []interface{}:
-		for i := range t {
-			w, v := whereValues(t[i])
-			args = append(args, v...)
-			where.Conditions = append(where.Conditions, w.Conditions...)
-		}
-		return
-	case db.And:
-		var op sqlgen.And
-		for i := range t {
-			k, v := whereValues(t[i])
-			args = append(args, v...)
-			op.Conditions = append(op.Conditions, k.Conditions...)
-		}
-		where.Conditions = append(where.Conditions, &op)
-		return
-	case db.Or:
-		var op sqlgen.Or
-		for i := range t {
-			w, v := whereValues(t[i])
-			args = append(args, v...)
-			op.Conditions = append(op.Conditions, w.Conditions...)
-		}
-		where.Conditions = append(where.Conditions, &op)
-		return
-	case db.Raw:
-		if s, ok := t.Value.(string); ok {
-			where.Conditions = append(where.Conditions, sqlgen.RawValue(s))
-		}
-		return
-	case db.Cond:
-		cv, v := columnValues(t)
-		args = append(args, v...)
-		for i := range cv.ColumnValues {
-			where.Conditions = append(where.Conditions, cv.ColumnValues[i])
-		}
-		return
-	case db.Constrainer:
-		cv, v := columnValues(t.Constraint())
-		args = append(args, v...)
-		for i := range cv.ColumnValues {
-			where.Conditions = append(where.Conditions, cv.ColumnValues[i])
-		}
-		return
-	}
-
-	panic(fmt.Sprintf(db.ErrUnknownConditionType.Error(), term))
-}
-
-func interfaceArgs(value interface{}) (args []interface{}) {
-	if value == nil {
-		return nil
-	}
-
-	v := reflect.ValueOf(value)
-
-	switch v.Type().Kind() {
-	case reflect.Slice:
-		var i, total int
-
-		total = v.Len()
-		if total > 0 {
-			args = make([]interface{}, total)
-
-			for i = 0; i < total; i++ {
-				args[i] = v.Index(i).Interface()
-			}
-
-			return args
-		}
-		return nil
-	default:
-		args = []interface{}{value}
-	}
-
-	return args
-}
-
-func columnValues(cond db.Cond) (columnValues sqlgen.ColumnValues, args []interface{}) {
-	args = []interface{}{}
-
-	for column, value := range cond {
-		columnValue := sqlgen.ColumnValue{}
-
-		// Guessing operator from input, or using a default one.
-		column := strings.TrimSpace(column)
-		chunks := strings.SplitN(column, ` `, 2)
-
-		columnValue.Column = sqlgen.ColumnWithName(chunks[0])
-
-		if len(chunks) > 1 {
-			columnValue.Operator = chunks[1]
-		} else {
-			columnValue.Operator = defaultOperator
-		}
-
-		switch value := value.(type) {
-		case db.Func:
-			v := interfaceArgs(value.Args)
-			columnValue.Operator = value.Name
-
-			if v == nil {
-				// A function with no arguments.
-				columnValue.Value = sqlgen.RawValue(`()`)
-			} else {
-				// A function with one or more arguments.
-				columnValue.Value = sqlgen.RawValue(fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1)))
-			}
-
-			args = append(args, v...)
-		default:
-			v := interfaceArgs(value)
-
-			l := len(v)
-			if v == nil || l == 0 {
-				// Nil value given.
-				columnValue.Value = sqlgen.RawValue(psqlNull)
-			} else {
-				if l > 1 {
-					// Array value given.
-					columnValue.Value = sqlgen.RawValue(fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1)))
-				} else {
-					// Single value given.
-					columnValue.Value = sqlPlaceholder
-				}
-				args = append(args, v...)
-			}
-		}
-
-		columnValues.ColumnValues = append(columnValues.ColumnValues, &columnValue)
-	}
-
-	return columnValues, args
-}
-
 func (t *table) Find(terms ...interface{}) db.Result {
-	where, arguments := whereValues(terms)
+	where, arguments := sqlutil.ToWhereWithArguments(terms)
 
 	result := &result{
 		table:     t,
