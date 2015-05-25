@@ -30,32 +30,28 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq" // PostgreSQL driver.
-	"upper.io/cache"
+	_ "github.com/lib/pq" // Go PostgreSQL driver.
 	"upper.io/db"
 	"upper.io/db/util/schema"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
-)
-
-const (
-	// Adapter is the public name of the adapter.
-	Adapter = `postgresql`
+	"upper.io/db/util/sqlutil/tx"
 )
 
 var (
-	// Query template
-	template *sqlgen.Template
-
-	// Query statement placeholder
 	sqlPlaceholder = sqlgen.RawValue(`?`)
 )
 
 type source struct {
 	connURL db.ConnectionURL
 	session *sqlx.DB
-	tx      *tx
+	tx      *sqltx.Tx
 	schema  *schema.DatabaseSchema
+}
+
+type tx struct {
+	*sqltx.Tx
+	*source
 }
 
 type columnSchemaT struct {
@@ -77,12 +73,12 @@ func debugLog(query string, args []interface{}, err error, start int64, end int6
 	}
 }
 
-// Returns the underlying *sqlx.DB instance.
+// Driver returns the underlying *sqlx.DB instance.
 func (s *source) Driver() interface{} {
 	return s.session
 }
 
-// Attempts to connect to a database using the stored settings.
+// Open attempts to connect to the PostgreSQL server using the stored settings.
 func (s *source) Open() error {
 	var err error
 
@@ -90,8 +86,6 @@ func (s *source) Open() error {
 	// condition checks for that type and provides backwards compatibility.
 	if settings, ok := s.connURL.(db.Settings); ok {
 
-		// User is providing a db.Settings struct, let's translate it into a
-		// ConnectionURL{}.
 		conn := ConnectionURL{
 			User:     settings.User,
 			Password: settings.Password,
@@ -102,7 +96,6 @@ func (s *source) Open() error {
 			},
 		}
 
-		// Replace original s.connURL
 		s.connURL = conn
 	}
 
@@ -119,6 +112,7 @@ func (s *source) Open() error {
 	return nil
 }
 
+// Clone returns a cloned db.Database session.
 func (s *source) Clone() (db.Database, error) {
 	return s.clone()
 }
@@ -134,13 +128,13 @@ func (s *source) clone() (*source, error) {
 	return src, nil
 }
 
-// Ping verifies a connection to the database is still alive,
-// establishing a connection if necessary.
+// Ping checks whether a connection to the database is still alive by pinging
+// it, establishing a connection if necessary.
 func (s *source) Ping() error {
 	return s.session.Ping()
 }
 
-// Closes the current database session.
+// Close terminates the current database session.
 func (s *source) Close() error {
 	if s.session != nil {
 		return s.session.Close()
@@ -148,7 +142,7 @@ func (s *source) Close() error {
 	return nil
 }
 
-// Returns a collection instance by name.
+// Collection returns a table by name.
 func (s *source) Collection(names ...string) (db.Collection, error) {
 	var err error
 
@@ -157,7 +151,7 @@ func (s *source) Collection(names ...string) (db.Collection, error) {
 	}
 
 	if s.tx != nil {
-		if s.tx.done {
+		if s.tx.Done() {
 			return nil, sql.ErrTxDone
 		}
 	}
@@ -188,8 +182,7 @@ func (s *source) Collection(names ...string) (db.Collection, error) {
 	return col, nil
 }
 
-// Collections() Returns a list of non-system tables/collections contained
-// within the currently active database.
+// Collections returns a list of non-system tables within the database.
 func (s *source) Collections() (collections []string, err error) {
 
 	tablesInSchema := len(s.schema.Tables)
@@ -220,7 +213,7 @@ func (s *source) Collections() (collections []string, err error) {
 
 	// Executing statement.
 	var rows *sqlx.Rows
-	if rows, err = s.doQuery(stmt); err != nil {
+	if rows, err = s.Query(stmt); err != nil {
 		return nil, err
 	}
 
@@ -246,7 +239,7 @@ func (s *source) Collections() (collections []string, err error) {
 	return collections, nil
 }
 
-// Changes the active database.
+// Use changes the active database.
 func (s *source) Use(database string) (err error) {
 	var conn ConnectionURL
 
@@ -261,26 +254,28 @@ func (s *source) Use(database string) (err error) {
 	return s.Open()
 }
 
-// Drops the currently active database.
+// Drop removes all tables within the current database.
 func (s *source) Drop() error {
-	_, err := s.doQuery(sqlgen.Statement{
+	_, err := s.Query(sqlgen.Statement{
 		Type:     sqlgen.DropDatabase,
 		Database: sqlgen.DatabaseWithName(s.schema.Name),
 	})
 	return err
 }
 
-// Stores database settings.
+// Setup stores database settings.
 func (s *source) Setup(connURL db.ConnectionURL) error {
 	s.connURL = connURL
 	return s.Open()
 }
 
-// Returns the string name of the database.
+// Name returns the name of the database.
 func (s *source) Name() string {
 	return s.schema.Name
 }
 
+// Transaction starts a transaction block and returns a db.Tx struct that can
+// be used to issue transactional queries.
 func (s *source) Transaction() (db.Tx, error) {
 	var err error
 	var clone *source
@@ -294,14 +289,12 @@ func (s *source) Transaction() (db.Tx, error) {
 		return nil, err
 	}
 
-	tx := &tx{source: clone, sqlTx: sqlTx}
+	clone.tx = sqltx.New(sqlTx)
 
-	clone.tx = tx
-
-	return tx, nil
+	return tx{Tx: clone.tx, source: clone}, nil
 }
 
-func (s *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
+func (s *source) Exec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
 	var query string
 	var res sql.Result
 	var err error
@@ -326,7 +319,7 @@ func (s *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result,
 	}
 
 	if s.tx != nil {
-		res, err = s.tx.sqlTx.Exec(query, args...)
+		res, err = s.tx.Exec(query, args...)
 	} else {
 		res, err = s.session.Exec(query, args...)
 	}
@@ -334,7 +327,7 @@ func (s *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result,
 	return res, err
 }
 
-func (s *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Rows, error) {
+func (s *source) Query(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Rows, error) {
 	var rows *sqlx.Rows
 	var query string
 	var err error
@@ -359,7 +352,7 @@ func (s *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Rows
 	}
 
 	if s.tx != nil {
-		rows, err = s.tx.sqlTx.Queryx(query, args...)
+		rows, err = s.tx.Queryx(query, args...)
 	} else {
 		rows, err = s.session.Queryx(query, args...)
 	}
@@ -367,7 +360,7 @@ func (s *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Rows
 	return rows, err
 }
 
-func (s *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Row, error) {
+func (s *source) QueryRow(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Row, error) {
 	var query string
 	var row *sqlx.Row
 	var err error
@@ -392,7 +385,7 @@ func (s *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sqlx.R
 	}
 
 	if s.tx != nil {
-		row = s.tx.sqlTx.QueryRowx(query, args...)
+		row = s.tx.QueryRowx(query, args...)
 	} else {
 		row = s.session.QueryRowx(query, args...)
 	}
@@ -415,7 +408,7 @@ func (s *source) populateSchema() (err error) {
 
 	var row *sqlx.Row
 
-	if row, err = s.doQueryRow(stmt); err != nil {
+	if row, err = s.QueryRow(stmt); err != nil {
 		return err
 	}
 
@@ -470,7 +463,7 @@ func (s *source) tableExists(names ...string) error {
 			),
 		}
 
-		if rows, err = s.doQuery(stmt, s.schema.Name, names[i]); err != nil {
+		if rows, err = s.Query(stmt, s.schema.Name, names[i]); err != nil {
 			return db.ErrCollectionDoesNotExist
 		}
 
@@ -517,7 +510,7 @@ func (s *source) tableColumns(tableName string) ([]string, error) {
 	var rows *sqlx.Rows
 	var err error
 
-	if rows, err = s.doQuery(stmt, s.schema.Name, tableName); err != nil {
+	if rows, err = s.Query(stmt, s.schema.Name, tableName); err != nil {
 		return nil, err
 	}
 
@@ -572,7 +565,7 @@ func (s *source) getPrimaryKey(tableName string) ([]string, error) {
 	var rows *sqlx.Rows
 	var err error
 
-	if rows, err = s.doQuery(stmt); err != nil {
+	if rows, err = s.Query(stmt); err != nil {
 		return nil, err
 	}
 
@@ -587,40 +580,4 @@ func (s *source) getPrimaryKey(tableName string) ([]string, error) {
 	}
 
 	return tableSchema.PrimaryKey, nil
-}
-
-func init() {
-	template = &sqlgen.Template{
-		pgsqlColumnSeparator,
-		pgsqlIdentifierSeparator,
-		pgsqlIdentifierQuote,
-		pgsqlValueSeparator,
-		pgsqlValueQuote,
-		pgsqlAndKeyword,
-		pgsqlOrKeyword,
-		pgsqlNotKeyword,
-		pgsqlDescKeyword,
-		pgsqlAscKeyword,
-		pgsqlDefaultOperator,
-		pgsqlClauseGroup,
-		pgsqlClauseOperator,
-		pgsqlColumnValue,
-		pgsqlTableAliasLayout,
-		pgsqlColumnAliasLayout,
-		pgsqlSortByColumnLayout,
-		pgsqlWhereLayout,
-		pgsqlOrderByLayout,
-		pgsqlInsertLayout,
-		pgsqlSelectLayout,
-		pgsqlUpdateLayout,
-		pgsqlDeleteLayout,
-		pgsqlTruncateLayout,
-		pgsqlDropDatabaseLayout,
-		pgsqlDropTableLayout,
-		pgsqlSelectCountLayout,
-		pgsqlGroupByLayout,
-		cache.NewCache(),
-	}
-
-	db.Register(Adapter, &source{})
 }

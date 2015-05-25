@@ -30,27 +30,20 @@ import (
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
+	"upper.io/db/util/sqlutil/result"
 )
-
-const defaultOperator = `=`
 
 type table struct {
 	sqlutil.T
-	source     *source
+	*source
 	primaryKey string
 	names      []string
 }
 
+// Find creates a result set with the given conditions.
 func (t *table) Find(terms ...interface{}) db.Result {
 	where, arguments := sqlutil.ToWhereWithArguments(terms)
-
-	result := &result{
-		table:     t,
-		where:     where,
-		arguments: arguments,
-	}
-
-	return result
+	return result.NewResult(t, where, arguments)
 }
 
 func (t *table) tableN(i int) string {
@@ -63,9 +56,9 @@ func (t *table) tableN(i int) string {
 	return ""
 }
 
-// Deletes all the rows within the collection.
+// Truncate deletes all rows within the table.
 func (t *table) Truncate() error {
-	_, err := t.source.doExec(sqlgen.Statement{
+	_, err := t.source.Exec(sqlgen.Statement{
 		Type:  sqlgen.Truncate,
 		Table: sqlgen.TableWithName(t.tableN(0)),
 	})
@@ -77,7 +70,7 @@ func (t *table) Truncate() error {
 	return nil
 }
 
-// Appends an item (map or struct) into the collection.
+// Append inserts an item (map or struct) into the collection.
 func (t *table) Append(item interface{}) (interface{}, error) {
 
 	cols, vals, err := t.FieldValues(item)
@@ -134,7 +127,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 	if len(pKey) == 0 {
 		var res sql.Result
 
-		if res, err = t.source.doExec(stmt, arguments...); err != nil {
+		if res, err = t.source.Exec(stmt, arguments...); err != nil {
 			return nil, err
 		}
 
@@ -149,7 +142,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 	// A primary key was found.
 	stmt.Extra = sqlgen.Extra(fmt.Sprintf(`RETURNING "%s"`, strings.Join(pKey, `", "`)))
-	if rows, err = t.source.doQuery(stmt, arguments...); err != nil {
+	if rows, err = t.source.Query(stmt, arguments...); err != nil {
 		return nil, err
 	}
 
@@ -196,7 +189,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 	return keyMap, nil
 }
 
-// Returns true if the collection exists.
+// Exists returns true if the collection exists.
 func (t *table) Exists() bool {
 	if err := t.source.tableExists(t.names...); err != nil {
 		return false
@@ -204,6 +197,7 @@ func (t *table) Exists() bool {
 	return true
 }
 
+// Name returns the name of the table or tables that form the collection.
 func (t *table) Name() string {
 	return strings.Join(t.names, `, `)
 }

@@ -19,7 +19,7 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package postgresql
+package result
 
 import (
 	"fmt"
@@ -31,12 +31,16 @@ import (
 	"upper.io/db/util/sqlutil"
 )
 
+var (
+	sqlPlaceholder = sqlgen.RawValue(`?`)
+)
+
 type counter struct {
 	Total uint64 `db:"_t"`
 }
 
-type result struct {
-	table     *table
+type Result struct {
+	table     DataProvider
 	cursor    *sqlx.Rows // This is the main query cursor. It starts as a nil value.
 	limit     sqlgen.Limit
 	offset    sqlgen.Offset
@@ -47,12 +51,22 @@ type result struct {
 	arguments []interface{}
 }
 
+// NewResult creates and results a new result set on the given table, this set
+// is limited by the given sqlgen.Where conditions.
+func NewResult(p DataProvider, where sqlgen.Where, arguments []interface{}) *Result {
+	return &Result{
+		table:     p,
+		where:     where,
+		arguments: arguments,
+	}
+}
+
 // Executes a SELECT statement that can feed Next(), All() or One().
-func (r *result) setCursor() error {
+func (r *Result) setCursor() error {
 	var err error
 	// We need a cursor, if the cursor does not exists yet then we create one.
 	if r.cursor == nil {
-		r.cursor, err = r.table.source.doQuery(sqlgen.Statement{
+		r.cursor, err = r.table.Query(sqlgen.Statement{
 			Type:    sqlgen.Select,
 			Table:   sqlgen.TableWithName(r.table.Name()),
 			Columns: &r.columns,
@@ -67,27 +81,27 @@ func (r *result) setCursor() error {
 }
 
 // Sets conditions for reducing the working set.
-func (r *result) Where(terms ...interface{}) db.Result {
+func (r *Result) Where(terms ...interface{}) db.Result {
 	r.where, r.arguments = sqlutil.ToWhereWithArguments(terms)
 	return r
 }
 
 // Determines the maximum limit of results to be returned.
-func (r *result) Limit(n uint) db.Result {
+func (r *Result) Limit(n uint) db.Result {
 	r.limit = sqlgen.Limit(n)
 	return r
 }
 
 // Determines how many documents will be skipped before starting to grab
 // results.
-func (r *result) Skip(n uint) db.Result {
+func (r *Result) Skip(n uint) db.Result {
 	r.offset = sqlgen.Offset(n)
 	return r
 }
 
 // Used to group results that have the same value in the same column or
 // columns.
-func (r *result) Group(fields ...interface{}) db.Result {
+func (r *Result) Group(fields ...interface{}) db.Result {
 	var columns []sqlgen.Fragment
 
 	for i := range fields {
@@ -107,7 +121,7 @@ func (r *result) Group(fields ...interface{}) db.Result {
 // Determines sorting of results according to the provided names. Fields may be
 // prefixed by - (minus) which means descending order, ascending order would be
 // used otherwise.
-func (r *result) Sort(fields ...interface{}) db.Result {
+func (r *Result) Sort(fields ...interface{}) db.Result {
 
 	var sortColumns sqlgen.SortColumns
 
@@ -144,7 +158,7 @@ func (r *result) Sort(fields ...interface{}) db.Result {
 }
 
 // Retrieves only the given fields.
-func (r *result) Select(fields ...interface{}) db.Result {
+func (r *Result) Select(fields ...interface{}) db.Result {
 
 	r.columns = sqlgen.Columns{}
 
@@ -176,7 +190,7 @@ func (r *result) Select(fields ...interface{}) db.Result {
 }
 
 // Dumps all results into a pointer to an slice of structs or maps.
-func (r *result) All(dst interface{}) error {
+func (r *Result) All(dst interface{}) error {
 	var err error
 
 	if r.cursor != nil {
@@ -199,7 +213,7 @@ func (r *result) All(dst interface{}) error {
 }
 
 // Fetches only one result from the resultset.
-func (r *result) One(dst interface{}) error {
+func (r *Result) One(dst interface{}) error {
 	var err error
 
 	if r.cursor != nil {
@@ -214,7 +228,7 @@ func (r *result) One(dst interface{}) error {
 }
 
 // Fetches the next result from the resultset.
-func (r *result) Next(dst interface{}) (err error) {
+func (r *Result) Next(dst interface{}) (err error) {
 
 	if err = r.setCursor(); err != nil {
 		r.Close()
@@ -230,10 +244,10 @@ func (r *result) Next(dst interface{}) (err error) {
 }
 
 // Removes the matching items from the collection.
-func (r *result) Remove() error {
+func (r *Result) Remove() error {
 	var err error
 
-	_, err = r.table.source.doExec(sqlgen.Statement{
+	_, err = r.table.Exec(sqlgen.Statement{
 		Type:  sqlgen.Delete,
 		Table: sqlgen.TableWithName(r.table.Name()),
 		Where: &r.where,
@@ -245,7 +259,7 @@ func (r *result) Remove() error {
 
 // Updates matching items from the collection with values of the given map or
 // struct.
-func (r *result) Update(values interface{}) error {
+func (r *Result) Update(values interface{}) error {
 
 	ff, vv, err := r.table.FieldValues(values)
 	if err != nil {
@@ -260,7 +274,7 @@ func (r *result) Update(values interface{}) error {
 
 	vv = append(vv, r.arguments...)
 
-	_, err = r.table.source.doExec(sqlgen.Statement{
+	_, err = r.table.Exec(sqlgen.Statement{
 		Type:         sqlgen.Update,
 		Table:        sqlgen.TableWithName(r.table.Name()),
 		ColumnValues: cvs,
@@ -271,7 +285,7 @@ func (r *result) Update(values interface{}) error {
 }
 
 // Closes the result set.
-func (r *result) Close() (err error) {
+func (r *Result) Close() (err error) {
 	if r.cursor != nil {
 		err = r.cursor.Close()
 		r.cursor = nil
@@ -280,10 +294,10 @@ func (r *result) Close() (err error) {
 }
 
 // Counts the elements within the main conditions of the set.
-func (r *result) Count() (uint64, error) {
+func (r *Result) Count() (uint64, error) {
 	var count counter
 
-	row, err := r.table.source.doQueryRow(sqlgen.Statement{
+	row, err := r.table.QueryRow(sqlgen.Statement{
 		Type:  sqlgen.Count,
 		Table: sqlgen.TableWithName(r.table.Name()),
 		Where: &r.where,
