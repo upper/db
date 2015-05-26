@@ -152,7 +152,7 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 		values := make([]interface{}, len(columns))
 		typeMap := rows.Mapper.TypeMap(itemT)
 		fieldMap := typeMap.Names
-		wrappedValues := map[reflect.Value][]interface{}{}
+		wrappedValues := map[*reflectx.Field]interface{}{}
 
 		for i, k := range columns {
 			fi, ok := fieldMap[k]
@@ -161,19 +161,18 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 				continue
 			}
 
-			f := reflectx.FieldByIndexes(item, fi.Index)
-
 			// TODO: refactor into a nice pattern
 			if _, ok := fi.Options["stringarray"]; ok {
 				values[i] = &[]byte{}
-				wrappedValues[f] = []interface{}{"stringarray", values[i]}
+				wrappedValues[fi] = values[i]
 			} else if _, ok := fi.Options["int64array"]; ok {
 				values[i] = &[]byte{}
-				wrappedValues[f] = []interface{}{"int64array", values[i]}
+				wrappedValues[fi] = values[i]
 			} else if _, ok := fi.Options["jsonb"]; ok {
 				values[i] = &[]byte{}
-				wrappedValues[f] = []interface{}{"jsonb", values[i]}
+				wrappedValues[fi] = values[i]
 			} else {
+				f := reflectx.FieldByIndexes(item, fi.Index)
 				values[i] = f.Addr().Interface()
 			}
 
@@ -194,9 +193,19 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 		}
 
 		// TODO: move this stuff out of here.. find a nice pattern
-		for f, v := range wrappedValues {
-			opt := v[0].(string)
-			b := v[1].(*[]byte)
+		for fi, v := range wrappedValues {
+			var opt string
+			if _, ok := fi.Options["stringarray"]; ok {
+				opt = "stringarray"
+			} else if _, ok := fi.Options["int64array"]; ok {
+				opt = "int64array"
+			} else if _, ok := fi.Options["jsonb"]; ok {
+				opt = "jsonb"
+			}
+
+			b := v.(*[]byte)
+
+			f := reflectx.FieldByIndexesReadOnly(item, fi.Index)
 
 			switch opt {
 			case "stringarray":
