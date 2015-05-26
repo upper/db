@@ -30,45 +30,40 @@ import (
 // Adapter is the public name of the adapter.
 const Adapter = `postgresql`
 
-var (
-	_ = db.Database(&source{})
-	_ = db.Collection(&table{})
-)
-
 var template *sqlgen.Template
 
 func init() {
 	template = &sqlgen.Template{
-		ColumnSeparator:     pgsqlColumnSeparator,
-		IdentifierSeparator: pgsqlIdentifierSeparator,
-		IdentifierQuote:     pgsqlIdentifierQuote,
-		ValueSeparator:      pgsqlValueSeparator,
-		ValueQuote:          pgsqlValueQuote,
-		AndKeyword:          pgsqlAndKeyword,
-		OrKeyword:           pgsqlOrKeyword,
-		NotKeyword:          pgsqlNotKeyword,
-		DescKeyword:         pgsqlDescKeyword,
-		AscKeyword:          pgsqlAscKeyword,
-		DefaultOperator:     pgsqlDefaultOperator,
-		ClauseGroup:         pgsqlClauseGroup,
-		ClauseOperator:      pgsqlClauseOperator,
-		ColumnValue:         pgsqlColumnValue,
-		TableAliasLayout:    pgsqlTableAliasLayout,
-		ColumnAliasLayout:   pgsqlColumnAliasLayout,
-		SortByColumnLayout:  pgsqlSortByColumnLayout,
-		WhereLayout:         pgsqlWhereLayout,
-		OrderByLayout:       pgsqlOrderByLayout,
-		InsertLayout:        pgsqlInsertLayout,
-		SelectLayout:        pgsqlSelectLayout,
-		UpdateLayout:        pgsqlUpdateLayout,
-		DeleteLayout:        pgsqlDeleteLayout,
-		TruncateLayout:      pgsqlTruncateLayout,
-		DropDatabaseLayout:  pgsqlDropDatabaseLayout,
-		DropTableLayout:     pgsqlDropTableLayout,
-		CountLayout:         pgsqlSelectCountLayout,
-		GroupByLayout:       pgsqlGroupByLayout,
+		ColumnSeparator:     adapterColumnSeparator,
+		IdentifierSeparator: adapterIdentifierSeparator,
+		IdentifierQuote:     adapterIdentifierQuote,
+		ValueSeparator:      adapterValueSeparator,
+		ValueQuote:          adapterValueQuote,
+		AndKeyword:          adapterAndKeyword,
+		OrKeyword:           adapterOrKeyword,
+		NotKeyword:          adapterNotKeyword,
+		DescKeyword:         adapterDescKeyword,
+		AscKeyword:          adapterAscKeyword,
+		DefaultOperator:     adapterDefaultOperator,
+		ClauseGroup:         adapterClauseGroup,
+		ClauseOperator:      adapterClauseOperator,
+		ColumnValue:         adapterColumnValue,
+		TableAliasLayout:    adapterTableAliasLayout,
+		ColumnAliasLayout:   adapterColumnAliasLayout,
+		SortByColumnLayout:  adapterSortByColumnLayout,
+		WhereLayout:         adapterWhereLayout,
+		OrderByLayout:       adapterOrderByLayout,
+		InsertLayout:        adapterInsertLayout,
+		SelectLayout:        adapterSelectLayout,
+		UpdateLayout:        adapterUpdateLayout,
+		DeleteLayout:        adapterDeleteLayout,
+		TruncateLayout:      adapterTruncateLayout,
+		DropDatabaseLayout:  adapterDropDatabaseLayout,
+		DropTableLayout:     adapterDropTableLayout,
+		CountLayout:         adapterSelectCountLayout,
+		GroupByLayout:       adapterGroupByLayout,
 		Cache:               cache.NewCache(),
 	}
 
-	db.Register(Adapter, &source{})
+	db.Register(Adapter, &database{})
 }

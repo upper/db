@@ -35,17 +35,14 @@ import (
 
 type table struct {
 	sqlutil.T
-	*source
+	*database
 	primaryKey string
 	names      []string
 }
 
-// Find creates a result set with the given conditions.
-func (t *table) Find(terms ...interface{}) db.Result {
-	where, arguments := sqlutil.ToWhereWithArguments(terms)
-	return result.NewResult(t, where, arguments)
-}
+var _ = db.Collection(&table{})
 
+// tableN returns the nth name provided to the table.
 func (t *table) tableN(i int) string {
 	if len(t.names) > i {
 		chunks := strings.SplitN(t.names[i], " ", 2)
@@ -56,9 +53,15 @@ func (t *table) tableN(i int) string {
 	return ""
 }
 
-// Truncate deletes all rows within the table.
+// Find creates a result set with the given conditions.
+func (t *table) Find(terms ...interface{}) db.Result {
+	where, arguments := sqlutil.ToWhereWithArguments(terms)
+	return result.NewResult(t, where, arguments)
+}
+
+// Truncate deletes all rows from the table.
 func (t *table) Truncate() error {
-	_, err := t.source.Exec(sqlgen.Statement{
+	_, err := t.database.Exec(sqlgen.Statement{
 		Type:  sqlgen.Truncate,
 		Table: sqlgen.TableWithName(t.tableN(0)),
 	})
@@ -109,7 +112,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 	var pKey []string
 
-	if pKey, err = t.source.getPrimaryKey(t.tableN(0)); err != nil {
+	if pKey, err = t.database.getPrimaryKey(t.tableN(0)); err != nil {
 		if err != sql.ErrNoRows {
 			// Can't tell primary key.
 			return nil, err
@@ -127,7 +130,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 	if len(pKey) == 0 {
 		var res sql.Result
 
-		if res, err = t.source.Exec(stmt, arguments...); err != nil {
+		if res, err = t.database.Exec(stmt, arguments...); err != nil {
 			return nil, err
 		}
 
@@ -142,7 +145,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 	// A primary key was found.
 	stmt.Extra = sqlgen.Extra(fmt.Sprintf(`RETURNING "%s"`, strings.Join(pKey, `", "`)))
-	if rows, err = t.source.Query(stmt, arguments...); err != nil {
+	if rows, err = t.database.Query(stmt, arguments...); err != nil {
 		return nil, err
 	}
 
@@ -191,7 +194,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 // Exists returns true if the collection exists.
 func (t *table) Exists() bool {
-	if err := t.source.tableExists(t.names...); err != nil {
+	if err := t.database.tableExists(t.names...); err != nil {
 		return false
 	}
 	return true
