@@ -161,7 +161,7 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 				continue
 			}
 
-			f := reflectx.FieldByIndexesReadOnly(item, fi.Index)
+			f := reflectx.FieldByIndexes(item, fi.Index)
 
 			// TODO: refactor into a nice pattern
 			if _, ok := fi.Options["stringarray"]; ok {
