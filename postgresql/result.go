@@ -108,7 +108,7 @@ func (r *result) Group(fields ...interface{}) db.Result {
 			}
 			groupByColumns = append(groupByColumns, sqlgen.Column{sqlgen.Raw{s}})
 		case db.Raw:
-			groupByColumns = append(groupByColumns, sqlgen.Column{sqlgen.Raw{fmt.Sprintf("%v", value)}})
+			groupByColumns = append(groupByColumns, sqlgen.Column{sqlgen.Raw{fmt.Sprintf("%v", value.Value)}})
 		default:
 			groupByColumns = append(groupByColumns, sqlgen.Column{value})
 		}
