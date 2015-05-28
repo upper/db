@@ -157,3 +157,38 @@ func ToColumnValues(cond db.Cond) (ToColumnValues sqlgen.ColumnValues, args []in
 
 	return ToColumnValues, args
 }
+
+// ToColumnsValuesAndArguments maps the given columnNames and columnValues into
+// sqlgen's Columns and Values, it also extracts and returns query arguments.
+func ToColumnsValuesAndArguments(columnNames []string, columnValues []interface{}) (*sqlgen.Columns, *sqlgen.Values, []interface{}, error) {
+	var arguments []interface{}
+
+	columns := new(sqlgen.Columns)
+
+	columns.Columns = make([]sqlgen.Fragment, 0, len(columnNames))
+	for i := range columnNames {
+		columns.Columns = append(columns.Columns, sqlgen.ColumnWithName(columnNames[i]))
+	}
+
+	values := new(sqlgen.Values)
+
+	arguments = make([]interface{}, 0, len(columnValues))
+	values.Values = make([]sqlgen.Fragment, 0, len(columnValues))
+
+	for i := range columnValues {
+		switch v := columnValues[i].(type) {
+		case *sqlgen.Value:
+			// Adding value.
+			values.Values = append(values.Values, v)
+		case sqlgen.Value:
+			// Adding value.
+			values.Values = append(values.Values, &v)
+		default:
+			// Adding both value and placeholder.
+			values.Values = append(values.Values, sqlPlaceholder)
+			arguments = append(arguments, v)
+		}
+	}
+
+	return columns, values, arguments, nil
+}

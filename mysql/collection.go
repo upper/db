@@ -67,7 +67,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	sqlgenCols, sqlgenVals, sqlgenArgs, err := t.ColumnsValuesAndArguments(columnNames, columnValues)
+	sqlgenCols, sqlgenVals, sqlgenArgs, err := sqlutil.ToColumnsValuesAndArguments(columnNames, columnValues)
 
 	if err != nil {
 		return nil, err

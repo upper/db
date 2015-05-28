@@ -64,38 +64,16 @@ func (t *table) Truncate() error {
 // Append inserts an item (map or struct) into the collection.
 func (t *table) Append(item interface{}) (interface{}, error) {
 
-	cols, vals, err := t.FieldValues(item)
+	columnNames, columnValues, err := t.FieldValues(item)
 
 	if err != nil {
 		return nil, err
 	}
 
-	columns := new(sqlgen.Columns)
+	sqlgenCols, sqlgenVals, sqlgenArgs, err := sqlutil.ToColumnsValuesAndArguments(columnNames, columnValues)
 
-	columns.Columns = make([]sqlgen.Fragment, 0, len(cols))
-	for i := range cols {
-		columns.Columns = append(columns.Columns, sqlgen.ColumnWithName(cols[i]))
-	}
-
-	values := new(sqlgen.Values)
-	var arguments []interface{}
-
-	arguments = make([]interface{}, 0, len(vals))
-	values.Values = make([]sqlgen.Fragment, 0, len(vals))
-
-	for i := range vals {
-		switch v := vals[i].(type) {
-		case *sqlgen.Value:
-			// Adding value.
-			values.Values = append(values.Values, v)
-		case sqlgen.Value:
-			// Adding value.
-			values.Values = append(values.Values, &v)
-		default:
-			// Adding both value and placeholder.
-			values.Values = append(values.Values, sqlPlaceholder)
-			arguments = append(arguments, v)
-		}
+	if err != nil {
+		return nil, err
 	}
 
 	var pKey []string
@@ -110,15 +88,15 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 	stmt := sqlgen.Statement{
 		Type:    sqlgen.Insert,
 		Table:   sqlgen.TableWithName(t.MainTableName()),
-		Columns: columns,
-		Values:  values,
+		Columns: sqlgenCols,
+		Values:  sqlgenVals,
 	}
 
 	// No primary keys defined.
 	if len(pKey) == 0 {
 		var res sql.Result
 
-		if res, err = t.database.Exec(stmt, arguments...); err != nil {
+		if res, err = t.database.Exec(stmt, sqlgenArgs...); err != nil {
 			return nil, err
 		}
 
@@ -133,7 +111,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 	// A primary key was found.
 	stmt.Extra = sqlgen.Extra(fmt.Sprintf(`RETURNING "%s"`, strings.Join(pKey, `", "`)))
-	if rows, err = t.database.Query(stmt, arguments...); err != nil {
+	if rows, err = t.database.Query(stmt, sqlgenArgs...); err != nil {
 		return nil, err
 	}
 
