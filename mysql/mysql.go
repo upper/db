@@ -65,5 +65,5 @@ func init() {
 		Cache:               cache.NewCache(),
 	}
 
-	db.Register(Adapter, &source{})
+	db.Register(Adapter, &database{})
 }

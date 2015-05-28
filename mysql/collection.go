@@ -33,7 +33,7 @@ import (
 
 type table struct {
 	sqlutil.T
-	*source
+	*database
 	names []string
 }
 
@@ -58,7 +58,7 @@ func (t *table) Find(terms ...interface{}) db.Result {
 
 // Truncate deletes all rows from the table.
 func (t *table) Truncate() error {
-	_, err := t.source.Exec(sqlgen.Statement{
+	_, err := t.database.Exec(sqlgen.Statement{
 		Type:  sqlgen.Truncate,
 		Table: sqlgen.TableWithName(t.tableN(0)),
 	})
@@ -107,7 +107,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		}
 	}
 
-	if pKey, err = t.source.getPrimaryKey(t.tableN(0)); err != nil {
+	if pKey, err = t.database.getPrimaryKey(t.tableN(0)); err != nil {
 		if err != sql.ErrNoRows {
 			// Can't tell primary key.
 			return nil, err
@@ -122,7 +122,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 	}
 
 	var res sql.Result
-	if res, err = t.source.Exec(stmt, arguments...); err != nil {
+	if res, err = t.database.Exec(stmt, arguments...); err != nil {
 		return nil, err
 	}
 
@@ -177,7 +177,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 // Returns true if the collection exists.
 func (t *table) Exists() bool {
-	if err := t.source.tableExists(t.names...); err != nil {
+	if err := t.database.tableExists(t.names...); err != nil {
 		return false
 	}
 	return true
