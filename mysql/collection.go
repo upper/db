@@ -57,7 +57,7 @@ func (t *table) Truncate() error {
 	return nil
 }
 
-// Appends an item (map or struct) into the collection.
+// Append inserts an item (map or struct) into the collection.
 func (t *table) Append(item interface{}) (interface{}, error) {
 	var pKey []string
 
@@ -141,7 +141,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 	return keyMap, nil
 }
 
-// Returns true if the collection exists.
+// Exists returns true if the collection exists.
 func (t *table) Exists() bool {
 	if err := t.database.tableExists(t.Tables...); err != nil {
 		return false
