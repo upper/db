@@ -47,7 +47,7 @@ import (
 )
 
 const (
-	database = `_dumps/gotest.sqlite3.db`
+	databaseName = `_dumps/gotest.sqlite3.db`
 )
 
 const (
@@ -55,7 +55,7 @@ const (
 )
 
 var settings = ConnectionURL{
-	Database: database,
+	Database: databaseName,
 }
 
 // Structure for testing conversions and datatypes.
@@ -167,7 +167,7 @@ func TestOldSettings(t *testing.T) {
 	var sess db.Database
 
 	oldSettings := db.Settings{
-		Database: database,
+		Database: databaseName,
 	}
 
 	// Opening database.
@@ -1402,7 +1402,7 @@ func BenchmarkAppendRawSQL(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sql.DB)
+	driver := sess.Driver().(*sqlx.DB)
 
 	if _, err = driver.Exec(`DELETE FROM "artist"`); err != nil {
 		b.Fatal(err)
@@ -1456,7 +1456,7 @@ func BenchmarkAppendTxRawSQL(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sql.DB)
+	driver := sess.Driver().(*sqlx.DB)
 
 	if tx, err = driver.Begin(); err != nil {
 		b.Fatal(err)
