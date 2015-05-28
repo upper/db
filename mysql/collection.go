@@ -34,21 +34,9 @@ import (
 type table struct {
 	sqlutil.T
 	*database
-	names []string
 }
 
 var _ = db.Collection(&table{})
-
-// tableN returns the nth name provided to the table.
-func (t *table) tableN(i int) string {
-	if len(t.names) > i {
-		chunks := strings.SplitN(t.names[i], " ", 2)
-		if len(chunks) > 0 {
-			return chunks[0]
-		}
-	}
-	return ""
-}
 
 // Find creates a result set with the given conditions.
 func (t *table) Find(terms ...interface{}) db.Result {
@@ -60,7 +48,7 @@ func (t *table) Find(terms ...interface{}) db.Result {
 func (t *table) Truncate() error {
 	_, err := t.database.Exec(sqlgen.Statement{
 		Type:  sqlgen.Truncate,
-		Table: sqlgen.TableWithName(t.tableN(0)),
+		Table: sqlgen.TableWithName(t.MainTableName()),
 	})
 
 	if err != nil {
@@ -73,41 +61,19 @@ func (t *table) Truncate() error {
 func (t *table) Append(item interface{}) (interface{}, error) {
 	var pKey []string
 
-	cols, vals, err := t.FieldValues(item)
+	columnNames, columnValues, err := t.FieldValues(item)
 
 	if err != nil {
 		return nil, err
 	}
 
-	columns := new(sqlgen.Columns)
+	sqlgenCols, sqlgenVals, sqlgenArgs, err := t.ColumnsValuesAndArguments(columnNames, columnValues)
 
-	columns.Columns = make([]sqlgen.Fragment, 0, len(cols))
-	for i := range cols {
-		columns.Columns = append(columns.Columns, sqlgen.ColumnWithName(cols[i]))
+	if err != nil {
+		return nil, err
 	}
 
-	values := new(sqlgen.Values)
-	var arguments []interface{}
-
-	arguments = make([]interface{}, 0, len(vals))
-	values.Values = make([]sqlgen.Fragment, 0, len(vals))
-
-	for i := range vals {
-		switch v := vals[i].(type) {
-		case *sqlgen.Value:
-			// Adding value.
-			values.Values = append(values.Values, v)
-		case sqlgen.Value:
-			// Adding value.
-			values.Values = append(values.Values, &v)
-		default:
-			// Adding both value and placeholder.
-			values.Values = append(values.Values, sqlPlaceholder)
-			arguments = append(arguments, v)
-		}
-	}
-
-	if pKey, err = t.database.getPrimaryKey(t.tableN(0)); err != nil {
+	if pKey, err = t.database.getPrimaryKey(t.MainTableName()); err != nil {
 		if err != sql.ErrNoRows {
 			// Can't tell primary key.
 			return nil, err
@@ -116,13 +82,13 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 	stmt := sqlgen.Statement{
 		Type:    sqlgen.Insert,
-		Table:   sqlgen.TableWithName(t.tableN(0)),
-		Columns: columns,
-		Values:  values,
+		Table:   sqlgen.TableWithName(t.MainTableName()),
+		Columns: sqlgenCols,
+		Values:  sqlgenVals,
 	}
 
 	var res sql.Result
-	if res, err = t.database.Exec(stmt, arguments...); err != nil {
+	if res, err = t.database.Exec(stmt, sqlgenArgs...); err != nil {
 		return nil, err
 	}
 
@@ -149,10 +115,10 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 	// were given for constructing the composite key.
 	keyMap := make(map[string]interface{})
 
-	for i := range cols {
+	for i := range columnNames {
 		for j := 0; j < len(pKey); j++ {
-			if pKey[j] == cols[i] {
-				keyMap[pKey[j]] = vals[i]
+			if pKey[j] == columnNames[i] {
+				keyMap[pKey[j]] = columnValues[i]
 			}
 		}
 	}
@@ -177,12 +143,13 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 // Returns true if the collection exists.
 func (t *table) Exists() bool {
-	if err := t.database.tableExists(t.names...); err != nil {
+	if err := t.database.tableExists(t.Tables...); err != nil {
 		return false
 	}
 	return true
 }
 
+// Name returns the name of the table or tables that form the collection.
 func (t *table) Name() string {
-	return strings.Join(t.names, `, `)
+	return strings.Join(t.Tables, `, `)
 }

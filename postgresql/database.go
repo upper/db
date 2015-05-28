@@ -24,13 +24,12 @@ package postgresql
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq" // Go PostgreSQL driver.
+	_ "github.com/lib/pq" // PostgreSQL driver.
 	"upper.io/db"
 	"upper.io/db/util/schema"
 	"upper.io/db/util/sqlgen"
@@ -64,26 +63,12 @@ type columnSchemaT struct {
 	DataType string `db:"data_type"`
 }
 
-func debugEnabled() bool {
-	if os.Getenv(db.EnvEnableDebug) != "" {
-		return true
-	}
-	return false
-}
-
-func debugLog(query string, args []interface{}, err error, start int64, end int64) {
-	if debugEnabled() == true {
-		d := sqlutil.Debug{query, args, err, start, end}
-		d.Print()
-	}
-}
-
 // Driver returns the underlying *sqlx.DB instance.
 func (d *database) Driver() interface{} {
 	return d.session
 }
 
-// Open attempts to connect to the PostgreSQL server using already stored settings.
+// Open attempts to connect to the database server using already stored settings.
 func (d *database) Open() error {
 	var err error
 
@@ -164,8 +149,9 @@ func (d *database) Collection(names ...string) (db.Collection, error) {
 
 	col := &table{
 		database: d,
-		names:    names,
 	}
+
+	col.Tables = names
 
 	for _, name := range names {
 		chunks := strings.SplitN(name, ` `, 2)
@@ -311,7 +297,7 @@ func (d *database) Exec(stmt sqlgen.Statement, args ...interface{}) (sql.Result,
 
 	defer func() {
 		end = time.Now().UnixNano()
-		debugLog(query, args, err, start, end)
+		sqlutil.Log(query, args, err, start, end)
 	}()
 
 	if d.session == nil {
@@ -345,7 +331,7 @@ func (d *database) Query(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Rows
 
 	defer func() {
 		end = time.Now().UnixNano()
-		debugLog(query, args, err, start, end)
+		sqlutil.Log(query, args, err, start, end)
 	}()
 
 	if d.session == nil {
@@ -379,7 +365,7 @@ func (d *database) QueryRow(stmt sqlgen.Statement, args ...interface{}) (*sqlx.R
 
 	defer func() {
 		end = time.Now().UnixNano()
-		debugLog(query, args, err, start, end)
+		sqlutil.Log(query, args, err, start, end)
 	}()
 
 	if d.session == nil {

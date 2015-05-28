@@ -33,6 +33,7 @@ import (
 
 	"upper.io/db"
 	"upper.io/db/util"
+	"upper.io/db/util/sqlgen"
 )
 
 var (
@@ -50,6 +51,7 @@ var (
 // using FieldValues()
 type T struct {
 	Columns []string
+	Tables  []string
 }
 
 func (t *T) columnLike(s string) string {
@@ -209,4 +211,53 @@ func NewMapper() *reflectx.Mapper {
 	}
 
 	return reflectx.NewMapperTagFunc("db", mapFunc, tagFunc)
+}
+
+// MainTableName returns the name of the first table.
+func (t *T) MainTableName() string {
+	return t.NthTableName(0)
+}
+
+// NthTableName returns the table name at index i.
+func (t *T) NthTableName(i int) string {
+	if len(t.Tables) > i {
+		chunks := strings.SplitN(t.Tables[i], " ", 2)
+		if len(chunks) > 0 {
+			return chunks[0]
+		}
+	}
+	return ""
+}
+
+func (t *T) ColumnsValuesAndArguments(columnNames []string, columnValues []interface{}) (*sqlgen.Columns, *sqlgen.Values, []interface{}, error) {
+	var arguments []interface{}
+
+	columns := new(sqlgen.Columns)
+
+	columns.Columns = make([]sqlgen.Fragment, 0, len(columnNames))
+	for i := range columnNames {
+		columns.Columns = append(columns.Columns, sqlgen.ColumnWithName(columnNames[i]))
+	}
+
+	values := new(sqlgen.Values)
+
+	arguments = make([]interface{}, 0, len(columnValues))
+	values.Values = make([]sqlgen.Fragment, 0, len(columnValues))
+
+	for i := range columnValues {
+		switch v := columnValues[i].(type) {
+		case *sqlgen.Value:
+			// Adding value.
+			values.Values = append(values.Values, v)
+		case sqlgen.Value:
+			// Adding value.
+			values.Values = append(values.Values, &v)
+		default:
+			// Adding both value and placeholder.
+			values.Values = append(values.Values, sqlPlaceholder)
+			arguments = append(arguments, v)
+		}
+	}
+
+	return columns, values, arguments, nil
 }

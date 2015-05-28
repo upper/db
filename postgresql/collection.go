@@ -37,21 +37,9 @@ type table struct {
 	sqlutil.T
 	*database
 	primaryKey string
-	names      []string
 }
 
 var _ = db.Collection(&table{})
-
-// tableN returns the nth name provided to the table.
-func (t *table) tableN(i int) string {
-	if len(t.names) > i {
-		chunks := strings.SplitN(t.names[i], " ", 2)
-		if len(chunks) > 0 {
-			return chunks[0]
-		}
-	}
-	return ""
-}
 
 // Find creates a result set with the given conditions.
 func (t *table) Find(terms ...interface{}) db.Result {
@@ -63,7 +51,7 @@ func (t *table) Find(terms ...interface{}) db.Result {
 func (t *table) Truncate() error {
 	_, err := t.database.Exec(sqlgen.Statement{
 		Type:  sqlgen.Truncate,
-		Table: sqlgen.TableWithName(t.tableN(0)),
+		Table: sqlgen.TableWithName(t.MainTableName()),
 	})
 
 	if err != nil {
@@ -112,7 +100,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 	var pKey []string
 
-	if pKey, err = t.database.getPrimaryKey(t.tableN(0)); err != nil {
+	if pKey, err = t.database.getPrimaryKey(t.MainTableName()); err != nil {
 		if err != sql.ErrNoRows {
 			// Can't tell primary key.
 			return nil, err
@@ -121,7 +109,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 	stmt := sqlgen.Statement{
 		Type:    sqlgen.Insert,
-		Table:   sqlgen.TableWithName(t.tableN(0)),
+		Table:   sqlgen.TableWithName(t.MainTableName()),
 		Columns: columns,
 		Values:  values,
 	}
@@ -194,7 +182,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 // Exists returns true if the collection exists.
 func (t *table) Exists() bool {
-	if err := t.database.tableExists(t.names...); err != nil {
+	if err := t.database.tableExists(t.Tables...); err != nil {
 		return false
 	}
 	return true
@@ -202,5 +190,5 @@ func (t *table) Exists() bool {
 
 // Name returns the name of the table or tables that form the collection.
 func (t *table) Name() string {
-	return strings.Join(t.names, `, `)
+	return strings.Join(t.Tables, `, `)
 }

@@ -163,10 +163,8 @@ func (d *database) Collection(names ...string) (db.Collection, error) {
 		}
 	}
 
-	col := &table{
-		database: d,
-		names:    names,
-	}
+	col := &table{database: d}
+	col.Tables = names
 
 	for _, name := range names {
 		chunks := strings.SplitN(name, ` `, 2)
