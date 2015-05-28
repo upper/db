@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+// Copyright (c) 2012-2015 José Carlos Nieto, https://menteslibres.net/xiam
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,37 +22,37 @@
 package mysql
 
 const (
-	mysqlColumnSeparator     = `.`
-	mysqlIdentifierSeparator = `, `
-	mysqlIdentifierQuote     = "`{{.Raw}}`"
-	mysqlValueSeparator      = `, `
-	mysqlValueQuote          = `'{{.}}'`
-	mysqlAndKeyword          = `AND`
-	mysqlOrKeyword           = `OR`
-	mysqlNotKeyword          = `NOT`
-	mysqlDescKeyword         = `DESC`
-	mysqlAscKeyword          = `ASC`
-	mysqlDefaultOperator     = `=`
-	mysqlClauseGroup         = `({{.}})`
-	mysqlClauseOperator      = ` {{.}} `
-	mysqlColumnValue         = `{{.Column}} {{.Operator}} {{.Value}}`
-	mysqlTableAliasLayout    = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
-	mysqlColumnAliasLayout   = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
-	mysqlSortByColumnLayout  = `{{.Column}} {{.Sort}}`
+	adapterColumnSeparator     = `.`
+	adapterIdentifierSeparator = `, `
+	adapterIdentifierQuote     = "`{{.Value}}`"
+	adapterValueSeparator      = `, `
+	adapterValueQuote          = `'{{.}}'`
+	adapterAndKeyword          = `AND`
+	adapterOrKeyword           = `OR`
+	adapterNotKeyword          = `NOT`
+	adapterDescKeyword         = `DESC`
+	adapterAscKeyword          = `ASC`
+	adapterDefaultOperator     = `=`
+	adapterClauseGroup         = `({{.}})`
+	adapterClauseOperator      = ` {{.}} `
+	adapterColumnValue         = `{{.Column}} {{.Operator}} {{.Value}}`
+	adapterTableAliasLayout    = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
+	adapterColumnAliasLayout   = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
+	adapterSortByColumnLayout  = `{{.Column}} {{.Order}}`
 
-	mysqlOrderByLayout = `
+	adapterOrderByLayout = `
 		{{if .SortColumns}}
 			ORDER BY {{.SortColumns}}
 		{{end}}
 	`
 
-	mysqlWhereLayout = `
+	adapterWhereLayout = `
 		{{if .Conds}}
 			WHERE {{.Conds}}
 		{{end}}
 	`
 
-	mysqlSelectLayout = `
+	adapterSelectLayout = `
 		SELECT
 
 			{{if .Columns}}
@@ -79,19 +79,19 @@ const (
 				OFFSET {{.Offset}}
 			{{end}}
 	`
-	mysqlDeleteLayout = `
+	adapterDeleteLayout = `
 		DELETE
 			FROM {{.Table}}
 			{{.Where}}
 	`
-	mysqlUpdateLayout = `
+	adapterUpdateLayout = `
 		UPDATE
 			{{.Table}}
 		SET {{.ColumnValues}}
 			{{ .Where }}
 	`
 
-	mysqlSelectCountLayout = `
+	adapterSelectCountLayout = `
 		SELECT
 			COUNT(1) AS _t
 		FROM {{.Table}}
@@ -106,7 +106,7 @@ const (
 			{{end}}
 	`
 
-	mysqlInsertLayout = `
+	adapterInsertLayout = `
 		INSERT INTO {{.Table}}
 			({{.Columns}})
 		VALUES
@@ -114,23 +114,21 @@ const (
 		{{.Extra}}
 	`
 
-	mysqlTruncateLayout = `
+	adapterTruncateLayout = `
 		TRUNCATE TABLE {{.Table}}
 	`
 
-	mysqlDropDatabaseLayout = `
+	adapterDropDatabaseLayout = `
 		DROP DATABASE {{.Database}}
 	`
 
-	mysqlDropTableLayout = `
+	adapterDropTableLayout = `
 		DROP TABLE {{.Table}}
 	`
 
-	mysqlGroupByLayout = `
+	adapterGroupByLayout = `
 		{{if .GroupColumns}}
 			GROUP BY {{.GroupColumns}}
 		{{end}}
 	`
-
-	mysqlNull = `NULL`
 )
