@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+// Copyright (c) 2012-2015 José Carlos Nieto, https://menteslibres.net/xiam
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -24,318 +24,55 @@ package ql
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
 	_ "github.com/cznic/ql/driver" // QL driver
 	"github.com/jmoiron/sqlx"
-	"upper.io/cache"
 	"upper.io/db"
 	"upper.io/db/util/schema"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
-)
-
-const (
-	// Adapter is the public name of the adapter.
-	Adapter = `ql`
+	"upper.io/db/util/sqlutil/tx"
 )
 
 var (
-	template *sqlgen.Template
-
-	sqlPlaceholder = sqlgen.Value{sqlgen.Raw{`?`}}
+	sqlPlaceholder = sqlgen.RawValue(`?`)
 )
 
-type source struct {
+type database struct {
 	connURL db.ConnectionURL
 	session *sqlx.DB
-	tx      *tx
+	tx      *sqltx.Tx
 	schema  *schema.DatabaseSchema
 }
+
+type tx struct {
+	*sqltx.Tx
+	*database
+}
+
+var (
+	_ = db.Database(&database{})
+	_ = db.Tx(&tx{})
+)
 
 type columnSchemaT struct {
 	Name string `db:"Name"`
 }
 
-func debugEnabled() bool {
-	if os.Getenv(db.EnvEnableDebug) != "" {
-		return true
-	}
-	return false
+// Driver returns the underlying *sqlx.DB instance.
+func (d *database) Driver() interface{} {
+	return d.session
 }
 
-func debugLog(query string, args []interface{}, err error, start int64, end int64) {
-	if debugEnabled() == true {
-		d := sqlutil.Debug{query, args, err, start, end}
-		d.Print()
-	}
-}
-
-func init() {
-
-	template = &sqlgen.Template{
-		qlColumnSeparator,
-		qlIdentifierSeparator,
-		qlIdentifierQuote,
-		qlValueSeparator,
-		qlValueQuote,
-		qlAndKeyword,
-		qlOrKeyword,
-		qlNotKeyword,
-		qlDescKeyword,
-		qlAscKeyword,
-		qlDefaultOperator,
-		qlClauseGroup,
-		qlClauseOperator,
-		qlColumnValue,
-		qlTableAliasLayout,
-		qlColumnAliasLayout,
-		qlSortByColumnLayout,
-		qlWhereLayout,
-		qlOrderByLayout,
-		qlInsertLayout,
-		qlSelectLayout,
-		qlUpdateLayout,
-		qlDeleteLayout,
-		qlTruncateLayout,
-		qlDropDatabaseLayout,
-		qlDropTableLayout,
-		qlSelectCountLayout,
-		qlGroupByLayout,
-		cache.NewCache(),
-	}
-
-	db.Register(Adapter, &source{})
-}
-
-func (s *source) populateSchema() (err error) {
-	var collections []string
-
-	s.schema = schema.NewDatabaseSchema()
-
-	var conn ConnectionURL
-
-	if conn, err = ParseURL(s.connURL.String()); err != nil {
-		return err
-	}
-
-	s.schema.Name = conn.Database
-
-	// The Collections() call will populate schema if its nil.
-	if collections, err = s.Collections(); err != nil {
-		return err
-	}
-
-	for i := range collections {
-		// Populate each collection.
-		if _, err = s.Collection(collections[i]); err != nil {
-			return err
-		}
-	}
-
-	return err
-}
-
-func (s *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
-	var query string
-	var res sql.Result
-	var err error
-	var start, end int64
-
-	start = time.Now().UnixNano()
-
-	defer func() {
-		end = time.Now().UnixNano()
-		debugLog(query, args, err, start, end)
-	}()
-
-	if s.session == nil {
-		return nil, db.ErrNotConnected
-	}
-
-	query = stmt.Compile(template)
-
-	l := len(args)
-	for i := 0; i < l; i++ {
-		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
-	}
-
-	if s.tx != nil {
-		res, err = s.tx.sqlTx.Exec(query, args...)
-	} else {
-		var tx *sqlx.Tx
-
-		if tx, err = s.session.Beginx(); err != nil {
-			return nil, err
-		}
-
-		if res, err = tx.Exec(query, args...); err != nil {
-			return nil, err
-		}
-
-		if err = tx.Commit(); err != nil {
-			return nil, err
-		}
-	}
-
-	return res, err
-}
-
-func (s *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Rows, error) {
-	var rows *sqlx.Rows
-	var query string
-	var err error
-	var start, end int64
-
-	start = time.Now().UnixNano()
-
-	defer func() {
-		end = time.Now().UnixNano()
-		debugLog(query, args, err, start, end)
-	}()
-
-	if s.session == nil {
-		return nil, db.ErrNotConnected
-	}
-
-	query = stmt.Compile(template)
-
-	l := len(args)
-	for i := 0; i < l; i++ {
-		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
-	}
-
-	if s.tx != nil {
-		rows, err = s.tx.sqlTx.Queryx(query, args...)
-	} else {
-		var tx *sqlx.Tx
-
-		if tx, err = s.session.Beginx(); err != nil {
-			return nil, err
-		}
-
-		if rows, err = tx.Queryx(query, args...); err != nil {
-			return nil, err
-		}
-
-		if err = tx.Commit(); err != nil {
-			return nil, err
-		}
-	}
-
-	return rows, err
-}
-
-func (s *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Row, error) {
-	var query string
-	var row *sqlx.Row
-	var err error
-	var start, end int64
-
-	start = time.Now().UnixNano()
-
-	defer func() {
-		end = time.Now().UnixNano()
-		debugLog(query, args, err, start, end)
-	}()
-
-	if s.session == nil {
-		return nil, db.ErrNotConnected
-	}
-
-	query = stmt.Compile(template)
-
-	l := len(args)
-	for i := 0; i < l; i++ {
-		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
-	}
-
-	if s.tx != nil {
-		row = s.tx.sqlTx.QueryRowx(query, args...)
-	} else {
-		var tx *sqlx.Tx
-
-		if tx, err = s.session.Beginx(); err != nil {
-			return nil, err
-		}
-
-		if row = tx.QueryRowx(query, args...); err != nil {
-			return nil, err
-		}
-
-		if err = tx.Commit(); err != nil {
-			return nil, err
-		}
-	}
-
-	return row, err
-}
-
-// Returns the string name of the database.
-func (s *source) Name() string {
-	return s.schema.Name
-}
-
-//  Ping verifies a connection to the database is still alive,
-//  establishing a connection if necessary.
-func (s *source) Ping() error {
-	return s.session.Ping()
-}
-
-func (s *source) clone() (adapter *source, err error) {
-	adapter = new(source)
-
-	if err = adapter.Setup(s.connURL); err != nil {
-		return nil, err
-	}
-
-	return adapter, nil
-}
-
-func (s *source) Clone() (db.Database, error) {
-	return s.clone()
-}
-
-func (s *source) Transaction() (db.Tx, error) {
-	var err error
-	var clone *source
-	var sqlTx *sqlx.Tx
-
-	if clone, err = s.clone(); err != nil {
-		return nil, err
-	}
-
-	if sqlTx, err = s.session.Beginx(); err != nil {
-		return nil, err
-	}
-
-	tx := &tx{source: clone, sqlTx: sqlTx}
-
-	clone.tx = tx
-
-	return tx, nil
-}
-
-// Stores database settings.
-func (s *source) Setup(conn db.ConnectionURL) error {
-	s.connURL = conn
-	return s.Open()
-}
-
-// Returns the underlying *sqlx.DB instance.
-func (s *source) Driver() interface{} {
-	return s.session
-}
-
-// Attempts to connect to a database using the stored settings.
-func (s *source) Open() error {
+// Open attempts to connect to the database server using already stored settings.
+func (d *database) Open() error {
 	var err error
 
 	// Before db.ConnectionURL we used a unified db.Settings struct. This
 	// condition checks for that type and provides backwards compatibility.
-	if settings, ok := s.connURL.(db.Settings); ok {
+	if settings, ok := d.connURL.(db.Settings); ok {
 
 		// User is providing a db.Settings struct, let's translate it into a
 		// ConnectionURL{}.
@@ -343,75 +80,115 @@ func (s *source) Open() error {
 			Database: settings.Database,
 		}
 
-		s.connURL = conn
+		d.connURL = conn
 	}
 
-	if s.session, err = sqlx.Open(`ql`, s.connURL.String()); err != nil {
+	if d.session, err = sqlx.Open(`ql`, d.connURL.String()); err != nil {
 		return err
 	}
 
-	s.session.Mapper = sqlutil.NewMapper()
+	d.session.Mapper = sqlutil.NewMapper()
 
-	if err = s.populateSchema(); err != nil {
+	if err = d.populateSchema(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// Closes the current database session.
-func (s *source) Close() error {
-	if s.session != nil {
-		return s.session.Close()
+// Clone returns a cloned db.Database session, this is typically used for
+// transactions.
+func (d *database) Clone() (db.Database, error) {
+	return d.clone()
+}
+
+func (d *database) clone() (adapter *database, err error) {
+	adapter = new(database)
+
+	if err = adapter.Setup(d.connURL); err != nil {
+		return nil, err
+	}
+
+	return adapter, nil
+}
+
+// Ping checks whether a connection to the database is still alive by pinging
+// it, establishing a connection if necessary.
+func (d *database) Ping() error {
+	return d.session.Ping()
+}
+
+// Close terminates the current database session.
+func (d *database) Close() error {
+	if d.session != nil {
+		return d.session.Close()
 	}
 	return nil
 }
 
-// Changes the active database.
-func (s *source) Use(database string) (err error) {
-	var conn ConnectionURL
+// Collection returns a table by name.
+func (d *database) Collection(names ...string) (db.Collection, error) {
+	var err error
 
-	if conn, err = ParseURL(s.connURL.String()); err != nil {
-		return err
+	if len(names) == 0 {
+		return nil, db.ErrMissingCollectionName
 	}
 
-	conn.Database = database
+	if d.tx != nil {
+		if d.tx.Done() {
+			return nil, sql.ErrTxDone
+		}
+	}
 
-	s.connURL = conn
+	col := &table{database: d}
+	col.Tables = names
 
-	return s.Open()
+	for _, name := range names {
+		chunks := strings.SplitN(name, ` `, 2)
+
+		if len(chunks) == 0 {
+			return nil, db.ErrMissingCollectionName
+		}
+
+		tableName := chunks[0]
+
+		if err := d.tableExists(tableName); err != nil {
+			return nil, err
+		}
+
+		if col.Columns, err = d.tableColumns(tableName); err != nil {
+			return nil, err
+		}
+	}
+
+	return col, nil
 }
 
-// Drops the currently active database.
-func (s *source) Drop() error {
-	return db.ErrUnsupported
-}
+// Collections returns a list of non-system tables from the database.
+func (d *database) Collections() (collections []string, err error) {
 
-// Returns a list of all tables within the currently active database.
-func (s *source) Collections() (collections []string, err error) {
-
-	tablesInSchema := len(s.schema.Tables)
+	tablesInSchema := len(d.schema.Tables)
 
 	// Is schema already populated?
 	if tablesInSchema > 0 {
 		// Pulling table names from schema.
-		return s.schema.Tables, nil
+		return d.schema.Tables, nil
 	}
 
 	// Schema is empty.
 
 	// Querying table names.
 	stmt := sqlgen.Statement{
-		Type:  sqlgen.SqlSelect,
-		Table: sqlgen.Table{`__Table`},
-		Columns: sqlgen.Columns{
-			{`Name`},
-		},
+		Type:  sqlgen.Select,
+		Table: sqlgen.TableWithName(`__Table`),
+		Columns: sqlgen.JoinColumns(
+			sqlgen.ColumnWithName(`Name`),
+		),
 	}
 
 	// Executing statement.
 	var rows *sqlx.Rows
-	if rows, err = s.doQuery(stmt); err != nil {
+	if rows, err = d.Query(stmt); err != nil {
 		return nil, err
 	}
 
@@ -428,7 +205,7 @@ func (s *source) Collections() (collections []string, err error) {
 		}
 
 		// Adding table entry to schema.
-		s.schema.AddTable(name)
+		d.schema.AddTable(name)
 
 		// Adding table to collections array.
 		collections = append(collections, name)
@@ -437,30 +214,253 @@ func (s *source) Collections() (collections []string, err error) {
 	return collections, nil
 }
 
-func (s *source) tableExists(names ...string) error {
+// Use changes the active database.
+func (d *database) Use(database string) (err error) {
+	var conn ConnectionURL
+
+	if conn, err = ParseURL(d.connURL.String()); err != nil {
+		return err
+	}
+
+	conn.Database = database
+
+	d.connURL = conn
+
+	return d.Open()
+}
+
+// Drop removes all tables from the current database.
+func (d *database) Drop() error {
+	return db.ErrUnsupported
+}
+
+// Setup stores database settings.
+func (d *database) Setup(conn db.ConnectionURL) error {
+	d.connURL = conn
+	return d.Open()
+}
+
+// Name returns the name of the database.
+func (d *database) Name() string {
+	return d.schema.Name
+}
+
+// Transaction starts a transaction block and returns a db.Tx struct that can
+// be used to issue transactional queries.
+func (d *database) Transaction() (db.Tx, error) {
+	var err error
+	var clone *database
+	var sqlTx *sqlx.Tx
+
+	if clone, err = d.clone(); err != nil {
+		return nil, err
+	}
+
+	if sqlTx, err = clone.session.Beginx(); err != nil {
+		return nil, err
+	}
+
+	clone.tx = sqltx.New(sqlTx)
+
+	return tx{Tx: clone.tx, database: clone}, nil
+}
+
+// Exec compiles and executes a statement that does not return any rows.
+func (d *database) Exec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
+	var query string
+	var res sql.Result
+	var err error
+	var start, end int64
+
+	start = time.Now().UnixNano()
+
+	defer func() {
+		end = time.Now().UnixNano()
+		sqlutil.Log(query, args, err, start, end)
+	}()
+
+	if d.session == nil {
+		return nil, db.ErrNotConnected
+	}
+
+	query = stmt.Compile(template.Template)
+
+	l := len(args)
+	for i := 0; i < l; i++ {
+		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
+	}
+
+	if d.tx != nil {
+		res, err = d.tx.Exec(query, args...)
+	} else {
+		var tx *sqlx.Tx
+
+		if tx, err = d.session.Beginx(); err != nil {
+			return nil, err
+		}
+
+		if res, err = tx.Exec(query, args...); err != nil {
+			return nil, err
+		}
+
+		if err = tx.Commit(); err != nil {
+			return nil, err
+		}
+	}
+
+	return res, err
+}
+
+// Query compiles and executes a statement that returns rows.
+func (d *database) Query(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Rows, error) {
+	var rows *sqlx.Rows
+	var query string
+	var err error
+	var start, end int64
+
+	start = time.Now().UnixNano()
+
+	defer func() {
+		end = time.Now().UnixNano()
+		sqlutil.Log(query, args, err, start, end)
+	}()
+
+	if d.session == nil {
+		return nil, db.ErrNotConnected
+	}
+
+	query = stmt.Compile(template.Template)
+
+	l := len(args)
+	for i := 0; i < l; i++ {
+		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
+	}
+
+	if d.tx != nil {
+		rows, err = d.tx.Queryx(query, args...)
+	} else {
+		var tx *sqlx.Tx
+
+		if tx, err = d.session.Beginx(); err != nil {
+			return nil, err
+		}
+
+		if rows, err = tx.Queryx(query, args...); err != nil {
+			return nil, err
+		}
+
+		if err = tx.Commit(); err != nil {
+			return nil, err
+		}
+	}
+
+	return rows, err
+}
+
+// QueryRow compiles and executes a statement that returns at most one row.
+func (d *database) QueryRow(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Row, error) {
+	var query string
+	var row *sqlx.Row
+	var err error
+	var start, end int64
+
+	start = time.Now().UnixNano()
+
+	defer func() {
+		end = time.Now().UnixNano()
+		sqlutil.Log(query, args, err, start, end)
+	}()
+
+	if d.session == nil {
+		return nil, db.ErrNotConnected
+	}
+
+	query = stmt.Compile(template.Template)
+
+	l := len(args)
+	for i := 0; i < l; i++ {
+		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
+	}
+
+	if d.tx != nil {
+		row = d.tx.QueryRowx(query, args...)
+	} else {
+		var tx *sqlx.Tx
+
+		if tx, err = d.session.Beginx(); err != nil {
+			return nil, err
+		}
+
+		if row = tx.QueryRowx(query, args...); err != nil {
+			return nil, err
+		}
+
+		if err = tx.Commit(); err != nil {
+			return nil, err
+		}
+	}
+
+	return row, err
+}
+
+// populateSchema looks up for the table info in the database and populates its
+// schema for internal use.
+func (d *database) populateSchema() (err error) {
+	var collections []string
+
+	d.schema = schema.NewDatabaseSchema()
+
+	var conn ConnectionURL
+
+	if conn, err = ParseURL(d.connURL.String()); err != nil {
+		return err
+	}
+
+	d.schema.Name = conn.Database
+
+	// The Collections() call will populate schema if its nil.
+	if collections, err = d.Collections(); err != nil {
+		return err
+	}
+
+	for i := range collections {
+		// Populate each collection.
+		if _, err = d.Collection(collections[i]); err != nil {
+			return err
+		}
+	}
+
+	return err
+}
+
+func (d *database) tableExists(names ...string) error {
 	var stmt sqlgen.Statement
 	var err error
 	var rows *sqlx.Rows
 
 	for i := range names {
 
-		if s.schema.HasTable(names[i]) {
+		if d.schema.HasTable(names[i]) {
 			// We already know this table exists.
 			continue
 		}
 
 		stmt = sqlgen.Statement{
-			Type:  sqlgen.SqlSelect,
-			Table: sqlgen.Table{`__Table`},
-			Columns: sqlgen.Columns{
-				{`Name`},
-			},
-			Where: sqlgen.Where{
-				sqlgen.ColumnValue{sqlgen.Column{`Name`}, `==`, sqlPlaceholder},
-			},
+			Type:  sqlgen.Select,
+			Table: sqlgen.TableWithName(`__Table`),
+			Columns: sqlgen.JoinColumns(
+				sqlgen.ColumnWithName(`Name`),
+			),
+			Where: sqlgen.WhereConditions(
+				&sqlgen.ColumnValue{
+					Column:   sqlgen.ColumnWithName(`Name`),
+					Operator: `==`,
+					Value:    sqlPlaceholder,
+				},
+			),
 		}
 
-		if rows, err = s.doQuery(stmt, names[i]); err != nil {
+		if rows, err = d.Query(stmt, names[i]); err != nil {
 			return db.ErrCollectionDoesNotExist
 		}
 
@@ -474,31 +474,35 @@ func (s *source) tableExists(names ...string) error {
 	return nil
 }
 
-func (s *source) tableColumns(tableName string) ([]string, error) {
+func (d *database) tableColumns(tableName string) ([]string, error) {
 
 	// Making sure this table is allocated.
-	tableSchema := s.schema.Table(tableName)
+	tableSchema := d.schema.Table(tableName)
 
 	if len(tableSchema.Columns) > 0 {
 		return tableSchema.Columns, nil
 	}
 
 	stmt := sqlgen.Statement{
-		Type:  sqlgen.SqlSelect,
-		Table: sqlgen.Table{`__Column`},
-		Columns: sqlgen.Columns{
-			{`Name`},
-			{`Type`},
-		},
-		Where: sqlgen.Where{
-			sqlgen.ColumnValue{sqlgen.Column{`TableName`}, `==`, sqlPlaceholder},
-		},
+		Type:  sqlgen.Select,
+		Table: sqlgen.TableWithName(`__Column`),
+		Columns: sqlgen.JoinColumns(
+			sqlgen.ColumnWithName(`Name`),
+			sqlgen.ColumnWithName(`Type`),
+		),
+		Where: sqlgen.WhereConditions(
+			&sqlgen.ColumnValue{
+				Column:   sqlgen.ColumnWithName(`TableName`),
+				Operator: `==`,
+				Value:    sqlPlaceholder,
+			},
+		),
 	}
 
 	var rows *sqlx.Rows
 	var err error
 
-	if rows, err = s.doQuery(stmt, tableName); err != nil {
+	if rows, err = d.Query(stmt, tableName); err != nil {
 		return nil, err
 	}
 
@@ -508,51 +512,11 @@ func (s *source) tableColumns(tableName string) ([]string, error) {
 		return nil, err
 	}
 
-	s.schema.TableInfo[tableName].Columns = make([]string, 0, len(tableFields))
+	d.schema.TableInfo[tableName].Columns = make([]string, 0, len(tableFields))
 
 	for i := range tableFields {
-		s.schema.TableInfo[tableName].Columns = append(s.schema.TableInfo[tableName].Columns, tableFields[i].Name)
+		d.schema.TableInfo[tableName].Columns = append(d.schema.TableInfo[tableName].Columns, tableFields[i].Name)
 	}
 
-	return s.schema.TableInfo[tableName].Columns, nil
-}
-
-// Returns a collection instance by name.
-func (s *source) Collection(names ...string) (db.Collection, error) {
-	var err error
-
-	if len(names) == 0 {
-		return nil, db.ErrMissingCollectionName
-	}
-
-	if s.tx != nil {
-		if s.tx.done {
-			return nil, sql.ErrTxDone
-		}
-	}
-
-	col := &table{
-		source: s,
-		names:  names,
-	}
-
-	for _, name := range names {
-		chunks := strings.SplitN(name, ` `, 2)
-
-		if len(chunks) == 0 {
-			return nil, db.ErrMissingCollectionName
-		}
-
-		tableName := chunks[0]
-
-		if err := s.tableExists(tableName); err != nil {
-			return nil, err
-		}
-
-		if col.Columns, err = s.tableColumns(tableName); err != nil {
-			return nil, err
-		}
-	}
-
-	return col, nil
+	return d.schema.TableInfo[tableName].Columns, nil
 }
