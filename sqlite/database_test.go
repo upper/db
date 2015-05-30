@@ -1378,12 +1378,9 @@ func TestDataTypes(t *testing.T) {
 	loc, _ := time.LoadLocation(testTimeZone)
 	item.Date = item.Date.In(loc)
 
-	if testValues.Date.String() == item.Date.String() {
-		testValues.Date = item.Date
-	}
-
-	if testValues.DateP.String() == item.DateP.String() {
-		// testValues.Date = item.Date
+	if item.DateP.Location() != testValues.DateP.Location() {
+		v := item.DateP.In(testValues.DateP.Location())
+		item.DateP = &v
 	}
 
 	// The original value and the test subject must match.
