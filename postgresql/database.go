@@ -541,7 +541,7 @@ func (d *database) getPrimaryKey(tableName string) ([]string, error) {
 			sqlgen.ColumnWithName(`pg_attribute.attname`),
 		),
 		Where: sqlgen.WhereConditions(
-			sqlgen.RawValue(`pg_class.oid = '`+tableName+`'::regclass`),
+			sqlgen.RawValue(`pg_class.oid = '"`+tableName+`"'::regclass`),
 			sqlgen.RawValue(`indrelid = pg_class.oid`),
 			sqlgen.RawValue(`pg_attribute.attrelid = pg_class.oid`),
 			sqlgen.RawValue(`pg_attribute.attnum = ANY(pg_index.indkey)`),
