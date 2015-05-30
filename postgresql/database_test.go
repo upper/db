@@ -195,9 +195,9 @@ func TestOpenWithWrongData(t *testing.T) {
 
 	// Attempt to open with wrong password.
 	wrongSettings = db.Settings{
-		Database: databaseName,
+		Database: "fail",
 		Host:     host,
-		User:     username,
+		User:     "fail",
 		Password: "fail",
 	}
 
