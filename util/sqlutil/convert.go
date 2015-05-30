@@ -9,20 +9,27 @@ import (
 )
 
 var (
-	sqlPlaceholder     = sqlgen.RawValue(`?`)
-	sqlNull            = sqlgen.RawValue(`NULL`)
-	sqlDefaultOperator = "="
+	sqlPlaceholder = sqlgen.RawValue(`?`)
+	sqlNull        = sqlgen.RawValue(`NULL`)
 )
+
+type TemplateWithUtils struct {
+	*sqlgen.Template
+}
+
+func NewTemplateWithUtils(template *sqlgen.Template) *TemplateWithUtils {
+	return &TemplateWithUtils{template}
+}
 
 // ToWhereWithArguments converts the given db.Cond parameters into a sqlgen.Where
 // value.
-func ToWhereWithArguments(term interface{}) (where sqlgen.Where, args []interface{}) {
+func (tu *TemplateWithUtils) ToWhereWithArguments(term interface{}) (where sqlgen.Where, args []interface{}) {
 	args = []interface{}{}
 
 	switch t := term.(type) {
 	case []interface{}:
 		for i := range t {
-			w, v := ToWhereWithArguments(t[i])
+			w, v := tu.ToWhereWithArguments(t[i])
 			args = append(args, v...)
 			where.Conditions = append(where.Conditions, w.Conditions...)
 		}
@@ -30,7 +37,7 @@ func ToWhereWithArguments(term interface{}) (where sqlgen.Where, args []interfac
 	case db.And:
 		var op sqlgen.And
 		for i := range t {
-			k, v := ToWhereWithArguments(t[i])
+			k, v := tu.ToWhereWithArguments(t[i])
 			args = append(args, v...)
 			op.Conditions = append(op.Conditions, k.Conditions...)
 		}
@@ -39,7 +46,7 @@ func ToWhereWithArguments(term interface{}) (where sqlgen.Where, args []interfac
 	case db.Or:
 		var op sqlgen.Or
 		for i := range t {
-			w, v := ToWhereWithArguments(t[i])
+			w, v := tu.ToWhereWithArguments(t[i])
 			args = append(args, v...)
 			op.Conditions = append(op.Conditions, w.Conditions...)
 		}
@@ -51,14 +58,14 @@ func ToWhereWithArguments(term interface{}) (where sqlgen.Where, args []interfac
 		}
 		return
 	case db.Cond:
-		cv, v := ToColumnValues(t)
+		cv, v := tu.ToColumnValues(t)
 		args = append(args, v...)
 		for i := range cv.ColumnValues {
 			where.Conditions = append(where.Conditions, cv.ColumnValues[i])
 		}
 		return
 	case db.Constrainer:
-		cv, v := ToColumnValues(t.Constraint())
+		cv, v := tu.ToColumnValues(t.Constraint())
 		args = append(args, v...)
 		for i := range cv.ColumnValues {
 			where.Conditions = append(where.Conditions, cv.ColumnValues[i])
@@ -70,7 +77,7 @@ func ToWhereWithArguments(term interface{}) (where sqlgen.Where, args []interfac
 }
 
 // ToInterfaceArguments converts the given value into an array of interfaces.
-func ToInterfaceArguments(value interface{}) (args []interface{}) {
+func (tu *TemplateWithUtils) ToInterfaceArguments(value interface{}) (args []interface{}) {
 	if value == nil {
 		return nil
 	}
@@ -100,7 +107,7 @@ func ToInterfaceArguments(value interface{}) (args []interface{}) {
 }
 
 // ToColumnValues converts the given db.Cond into a sqlgen.ColumnValues struct.
-func ToColumnValues(cond db.Cond) (ToColumnValues sqlgen.ColumnValues, args []interface{}) {
+func (tu *TemplateWithUtils) ToColumnValues(cond db.Cond) (ToColumnValues sqlgen.ColumnValues, args []interface{}) {
 
 	args = []interface{}{}
 
@@ -116,12 +123,12 @@ func ToColumnValues(cond db.Cond) (ToColumnValues sqlgen.ColumnValues, args []in
 		if len(chunks) > 1 {
 			columnValue.Operator = chunks[1]
 		} else {
-			columnValue.Operator = sqlDefaultOperator
+			columnValue.Operator = tu.DefaultOperator
 		}
 
 		switch value := value.(type) {
 		case db.Func:
-			v := ToInterfaceArguments(value.Args)
+			v := tu.ToInterfaceArguments(value.Args)
 			columnValue.Operator = value.Name
 
 			if v == nil {
@@ -134,7 +141,7 @@ func ToColumnValues(cond db.Cond) (ToColumnValues sqlgen.ColumnValues, args []in
 
 			args = append(args, v...)
 		default:
-			v := ToInterfaceArguments(value)
+			v := tu.ToInterfaceArguments(value)
 
 			l := len(v)
 			if v == nil || l == 0 {
@@ -160,7 +167,7 @@ func ToColumnValues(cond db.Cond) (ToColumnValues sqlgen.ColumnValues, args []in
 
 // ToColumnsValuesAndArguments maps the given columnNames and columnValues into
 // sqlgen's Columns and Values, it also extracts and returns query arguments.
-func ToColumnsValuesAndArguments(columnNames []string, columnValues []interface{}) (*sqlgen.Columns, *sqlgen.Values, []interface{}, error) {
+func (tu *TemplateWithUtils) ToColumnsValuesAndArguments(columnNames []string, columnValues []interface{}) (*sqlgen.Columns, *sqlgen.Values, []interface{}, error) {
 	var arguments []interface{}
 
 	columns := new(sqlgen.Columns)

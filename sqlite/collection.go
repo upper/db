@@ -41,8 +41,8 @@ var _ = db.Collection(&table{})
 
 // Find creates a result set with the given conditions.
 func (t *table) Find(terms ...interface{}) db.Result {
-	where, arguments := sqlutil.ToWhereWithArguments(terms)
-	return result.NewResult(t, where, arguments)
+	where, arguments := template.ToWhereWithArguments(terms)
+	return result.NewResult(template, t, where, arguments)
 }
 
 // Truncate deletes all rows from the table.
@@ -68,7 +68,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	sqlgenCols, sqlgenVals, sqlgenArgs, err := sqlutil.ToColumnsValuesAndArguments(columnNames, columnValues)
+	sqlgenCols, sqlgenVals, sqlgenArgs, err := template.ToColumnsValuesAndArguments(columnNames, columnValues)
 
 	if err != nil {
 		return nil, err

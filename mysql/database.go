@@ -285,11 +285,11 @@ func (d *database) Transaction() (db.Tx, error) {
 	var clone *database
 	var sqlTx *sqlx.Tx
 
-	if sqlTx, err = d.session.Beginx(); err != nil {
+	if clone, err = d.clone(); err != nil {
 		return nil, err
 	}
 
-	if clone, err = d.clone(); err != nil {
+	if sqlTx, err = clone.session.Beginx(); err != nil {
 		return nil, err
 	}
 
@@ -316,7 +316,7 @@ func (d *database) Exec(stmt sqlgen.Statement, args ...interface{}) (sql.Result,
 		return nil, db.ErrNotConnected
 	}
 
-	query = stmt.Compile(template)
+	query = stmt.Compile(template.Template)
 
 	if d.tx != nil {
 		res, err = d.tx.Exec(query, args...)
@@ -345,7 +345,7 @@ func (d *database) Query(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Rows
 		return nil, db.ErrNotConnected
 	}
 
-	query = stmt.Compile(template)
+	query = stmt.Compile(template.Template)
 
 	if d.tx != nil {
 		rows, err = d.tx.Queryx(query, args...)
@@ -374,7 +374,7 @@ func (d *database) QueryRow(stmt sqlgen.Statement, args ...interface{}) (*sqlx.R
 		return nil, db.ErrNotConnected
 	}
 
-	query = stmt.Compile(template)
+	query = stmt.Compile(template.Template)
 
 	if d.tx != nil {
 		row = d.tx.QueryRowx(query, args...)

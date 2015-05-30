@@ -48,6 +48,7 @@ type Template struct {
 	DescKeyword         string
 	AscKeyword          string
 	DefaultOperator     string
+	AssignmentOperator  string
 	ClauseGroup         string
 	ClauseOperator      string
 	ColumnValue         string

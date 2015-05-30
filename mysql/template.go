@@ -33,6 +33,7 @@ const (
 	adapterDescKeyword         = `DESC`
 	adapterAscKeyword          = `ASC`
 	adapterDefaultOperator     = `=`
+	adapterAssignmentOperator  = `=`
 	adapterClauseGroup         = `({{.}})`
 	adapterClauseOperator      = ` {{.}} `
 	adapterColumnValue         = `{{.Column}} {{.Operator}} {{.Value}}`

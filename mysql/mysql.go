@@ -25,15 +25,16 @@ import (
 	"upper.io/cache"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
+	"upper.io/db/util/sqlutil"
 )
 
 // Adapter is the public name of the adapter.
 const Adapter = `mysql`
 
-var template *sqlgen.Template
+var template *sqlutil.TemplateWithUtils
 
 func init() {
-	template = &sqlgen.Template{
+	template = sqlutil.NewTemplateWithUtils(&sqlgen.Template{
 		ColumnSeparator:     adapterColumnSeparator,
 		IdentifierSeparator: adapterIdentifierSeparator,
 		IdentifierQuote:     adapterIdentifierQuote,
@@ -45,6 +46,7 @@ func init() {
 		DescKeyword:         adapterDescKeyword,
 		AscKeyword:          adapterAscKeyword,
 		DefaultOperator:     adapterDefaultOperator,
+		AssignmentOperator:  adapterAssignmentOperator,
 		ClauseGroup:         adapterClauseGroup,
 		ClauseOperator:      adapterClauseOperator,
 		ColumnValue:         adapterColumnValue,
@@ -63,7 +65,7 @@ func init() {
 		CountLayout:         adapterSelectCountLayout,
 		GroupByLayout:       adapterGroupByLayout,
 		Cache:               cache.NewCache(),
-	}
+	})
 
 	db.Register(Adapter, &database{})
 }

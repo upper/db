@@ -49,15 +49,17 @@ type Result struct {
 	orderBy   sqlgen.OrderBy
 	groupBy   sqlgen.GroupBy
 	arguments []interface{}
+	template  *sqlutil.TemplateWithUtils
 }
 
 // NewResult creates and results a new result set on the given table, this set
 // is limited by the given sqlgen.Where conditions.
-func NewResult(p DataProvider, where sqlgen.Where, arguments []interface{}) *Result {
+func NewResult(template *sqlutil.TemplateWithUtils, p DataProvider, where sqlgen.Where, arguments []interface{}) *Result {
 	return &Result{
 		table:     p,
 		where:     where,
 		arguments: arguments,
+		template:  template,
 	}
 }
 
@@ -82,7 +84,7 @@ func (r *Result) setCursor() error {
 
 // Sets conditions for reducing the working set.
 func (r *Result) Where(terms ...interface{}) db.Result {
-	r.where, r.arguments = sqlutil.ToWhereWithArguments(terms)
+	r.where, r.arguments = r.template.ToWhereWithArguments(terms)
 	return r
 }
 
@@ -166,7 +168,7 @@ func (r *Result) Select(fields ...interface{}) db.Result {
 		var col sqlgen.Fragment
 		switch value := fields[i].(type) {
 		case db.Func:
-			v := sqlutil.ToInterfaceArguments(value.Args)
+			v := r.template.ToInterfaceArguments(value.Args)
 			var s string
 			if len(v) == 0 {
 				s = fmt.Sprintf(`%s()`, value.Name)
@@ -269,7 +271,7 @@ func (r *Result) Update(values interface{}) error {
 	cvs := new(sqlgen.ColumnValues)
 
 	for i := range ff {
-		cvs.ColumnValues = append(cvs.ColumnValues, &sqlgen.ColumnValue{Column: sqlgen.ColumnWithName(ff[i]), Operator: "=", Value: sqlPlaceholder})
+		cvs.ColumnValues = append(cvs.ColumnValues, &sqlgen.ColumnValue{Column: sqlgen.ColumnWithName(ff[i]), Operator: r.template.AssignmentOperator, Value: sqlPlaceholder})
 	}
 
 	vv = append(vv, r.arguments...)
