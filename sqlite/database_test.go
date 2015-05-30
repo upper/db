@@ -1378,10 +1378,18 @@ func TestDataTypes(t *testing.T) {
 	loc, _ := time.LoadLocation(testTimeZone)
 	item.Date = item.Date.In(loc)
 
+	if testValues.Date.String() == item.Date.String() {
+		testValues.Date = item.Date
+	}
+
 	// The original value and the test subject must match.
 	if !reflect.DeepEqual(item, testValues) {
 		fmt.Printf("item1: %#v\n", item)
 		fmt.Printf("test2: %#v\n", testValues)
+		fmt.Printf("item1: %#v\n", item.Date.String())
+		fmt.Printf("test2: %#v\n", testValues.Date.String())
+		fmt.Printf("item1: %#v\n", item.DateP)
+		fmt.Printf("test2: %#v\n", testValues.DateP)
 		t.Fatalf("Struct is different.")
 	}
 }
