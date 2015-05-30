@@ -1378,6 +1378,7 @@ func TestDataTypes(t *testing.T) {
 	loc, _ := time.LoadLocation(testTimeZone)
 	item.Date = item.Date.In(loc)
 
+	// TODO: Try to guess this conversion.
 	if item.DateP.Location() != testValues.DateP.Location() {
 		v := item.DateP.In(testValues.DateP.Location())
 		item.DateP = &v
