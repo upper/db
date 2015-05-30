@@ -1379,9 +1379,9 @@ func TestDataTypes(t *testing.T) {
 	item.Date = item.Date.In(loc)
 
 	// The original value and the test subject must match.
-	if reflect.DeepEqual(item, testValues) == false {
-		fmt.Printf("item1: %v\n", item)
-		fmt.Printf("test2: %v\n", testValues)
+	if !reflect.DeepEqual(item, testValues) {
+		fmt.Printf("item1: %#v\n", item)
+		fmt.Printf("test2: %#v\n", testValues)
 		t.Fatalf("Struct is different.")
 	}
 }
