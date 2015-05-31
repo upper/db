@@ -94,7 +94,21 @@ func (r *result) Group(fields ...interface{}) db.Result {
 	l := len(fields)
 	for i := 0; i < l; i++ {
 		switch value := fields[i].(type) {
-		// Maybe other types?
+		case db.Func:
+			v := interfaceArgs(value.Args)
+			var s string
+			if len(v) == 0 {
+				s = fmt.Sprintf(`%s()`, value.Name)
+			} else {
+				ss := make([]string, 0, len(v))
+				for j := range v {
+					ss = append(ss, fmt.Sprintf(`%v`, v[j]))
+				}
+				s = fmt.Sprintf(`%s(%s)`, value.Name, strings.Join(ss, `, `))
+			}
+			groupByColumns = append(groupByColumns, sqlgen.Column{sqlgen.Raw{s}})
+		case db.Raw:
+			groupByColumns = append(groupByColumns, sqlgen.Column{sqlgen.Raw{fmt.Sprintf("%v", value.Value)}})
 		default:
 			groupByColumns = append(groupByColumns, sqlgen.Column{value})
 		}
