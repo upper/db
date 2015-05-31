@@ -23,20 +23,18 @@ package sqlutil
 
 import (
 	"database/sql"
+	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
 
 	"github.com/jmoiron/sqlx/reflectx"
-
-	"menteslibres.net/gosexy/to"
-
 	"upper.io/db"
-	"upper.io/db/util"
 )
 
 var (
-	reInvisibleChars = regexp.MustCompile(`[\s\r\n\t]+`)
+	reInvisibleChars       = regexp.MustCompile(`[\s\r\n\t]+`)
+	reColumnCompareExclude = regexp.MustCompile(`[^a-zA-Z0-9]`)
 )
 
 var (
@@ -50,27 +48,17 @@ var (
 // using FieldValues()
 type T struct {
 	Columns []string
+	Mapper  *reflectx.Mapper
+	Tables  []string // Holds table names.
 }
 
 func (t *T) columnLike(s string) string {
 	for _, name := range t.Columns {
-		if util.NormalizeColumn(s) == util.NormalizeColumn(name) {
+		if normalizeColumn(s) == normalizeColumn(name) {
 			return name
 		}
 	}
 	return s
-}
-
-func marshal(v interface{}) (interface{}, error) {
-
-	if m, isMarshaler := v.(db.Marshaler); isMarshaler {
-		var err error
-		if v, err = m.MarshalDB(); err != nil {
-			return nil, err
-		}
-	}
-
-	return v, nil
 }
 
 func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
@@ -90,78 +78,46 @@ func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
 	switch itemT.Kind() {
 
 	case reflect.Struct:
-		nfields := itemV.NumField()
+
+		fieldMap := t.Mapper.TypeMap(itemT).Names
+		nfields := len(fieldMap)
 
 		values = make([]interface{}, 0, nfields)
 		fields = make([]string, 0, nfields)
 
-		for i := 0; i < nfields; i++ {
+		for _, fi := range fieldMap {
+			// log.Println("=>", fi.Name, fi.Options)
 
-			field := itemT.Field(i)
-
-			if field.PkgPath != `` {
-				// Field is unexported.
+			fld := reflectx.FieldByIndexesReadOnly(itemV, fi.Index)
+			if fld.Kind() == reflect.Ptr && fld.IsNil() {
 				continue
 			}
 
-			// TODO: can we get the placeholder used above somewhere...?
-			// from the sqlx part..?
-
-			if field.Anonymous {
-				// It's an anonymous field. Let's skip it unless it has an explicit
-				// `db` tag.
-				if field.Tag.Get(`db`) == `` {
-					continue
-				}
-			}
-
-			// Field options.
-			fieldName, fieldOptions := util.ParseTag(field.Tag.Get(`db`))
-
-			// Skipping field
-			if fieldName == `-` {
-				continue
-			}
-
-			// Trying to match field name.
-
-			// Still don't have a match? try to match againt JSON.
-			if fieldName == `` {
-				fieldName, _ = util.ParseTag(field.Tag.Get(`json`))
-			}
-
-			// Nothing works, trying to match by name.
-			if fieldName == `` {
-				fieldName = t.columnLike(field.Name)
-			}
-
-			// Processing tag options.
-			value := itemV.Field(i).Interface()
-
-			if fieldOptions[`omitempty`] == true {
-				zero := reflect.Zero(reflect.TypeOf(value)).Interface()
-				if value == zero {
-					continue
-				}
-			}
-
-			if fieldOptions[`inline`] == true {
-				infields, invalues, inerr := t.FieldValues(value)
-				if inerr != nil {
-					return nil, nil, inerr
-				}
-				fields = append(fields, infields...)
-				values = append(values, invalues...)
+			var value interface{}
+			if _, ok := fi.Options["stringarray"]; ok {
+				value = StringArray(fld.Interface().([]string))
+			} else if _, ok := fi.Options["int64array"]; ok {
+				value = Int64Array(fld.Interface().([]int64))
+			} else if _, ok := fi.Options["jsonb"]; ok {
+				value = JsonbType{fld.Interface()}
 			} else {
-				fields = append(fields, fieldName)
-				v, err := marshal(value)
-
-				if err != nil {
-					return nil, nil, err
-				}
-
-				values = append(values, v)
+				value = fld.Interface()
 			}
+
+			if _, ok := fi.Options["omitempty"]; ok {
+				if value == fi.Zero.Interface() {
+					continue
+				}
+			}
+
+			// TODO: columnLike stuff...?
+
+			fields = append(fields, fi.Name)
+			v, err := marshal(value)
+			if err != nil {
+				return nil, nil, err
+			}
+			values = append(values, v)
 		}
 
 	case reflect.Map:
@@ -172,7 +128,7 @@ func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
 
 		for i, keyV := range mkeys {
 			valv := itemV.MapIndex(keyV)
-			fields[i] = t.columnLike(to.String(keyV.Interface()))
+			fields[i] = t.columnLike(fmt.Sprintf("%v", keyV.Interface()))
 
 			v, err := marshal(valv.Interface())
 			if err != nil {
@@ -181,11 +137,22 @@ func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
 
 			values[i] = v
 		}
+
 	default:
 		return nil, nil, db.ErrExpectingMapOrStruct
 	}
 
 	return fields, values, nil
+}
+
+func marshal(v interface{}) (interface{}, error) {
+	if m, isMarshaler := v.(db.Marshaler); isMarshaler {
+		var err error
+		if v, err = m.MarshalDB(); err != nil {
+			return nil, err
+		}
+	}
+	return v, nil
 }
 
 func reset(data interface{}) error {
@@ -197,16 +164,28 @@ func reset(data interface{}) error {
 	return nil
 }
 
+// normalizeColumn prepares a column for comparison against another column.
+func normalizeColumn(s string) string {
+	return strings.ToLower(reColumnCompareExclude.ReplaceAllString(s, ""))
+}
+
 // NewMapper creates a reflectx.Mapper
 func NewMapper() *reflectx.Mapper {
-	mapFunc := strings.ToLower
+	return reflectx.NewMapper("db")
+}
 
-	tagFunc := func(value string) string {
-		if strings.Contains(value, ",") {
-			return strings.Split(value, ",")[0]
+// MainTableName returns the name of the first table.
+func (t *T) MainTableName() string {
+	return t.NthTableName(0)
+}
+
+// NthTableName returns the table name at index i.
+func (t *T) NthTableName(i int) string {
+	if len(t.Tables) > i {
+		chunks := strings.SplitN(t.Tables[i], " ", 2)
+		if len(chunks) > 0 {
+			return chunks[0]
 		}
-		return value
 	}
-
-	return reflectx.NewMapperTagFunc("db", mapFunc, tagFunc)
+	return ""
 }

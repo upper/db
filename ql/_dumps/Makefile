@@ -1,3 +1,3 @@
 all:
 	rm -f test.db
-	cat structs.sql | ql -db test.db
+	cat structs.sql | $$GOPATH/bin/ql -db test.db

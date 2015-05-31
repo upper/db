@@ -4,10 +4,10 @@ import (
 	"testing"
 )
 
-func TestColumns(t *testing.T) {
+func TestGroupBy(t *testing.T) {
 	var s, e string
 
-	columns := JoinColumns(
+	columns := GroupByColumns(
 		&Column{Name: "id"},
 		&Column{Name: "customer"},
 		&Column{Name: "service_id"},
@@ -16,16 +16,16 @@ func TestColumns(t *testing.T) {
 	)
 
 	s = columns.Compile(defaultTemplate)
-	e = `"id", "customer", "service_id", "role"."name", "role"."id"`
+	e = `GROUP BY "id", "customer", "service_id", "role"."name", "role"."id"`
 
-	if s != e {
+	if trim(s) != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 }
 
-func BenchmarkJoinColumns(b *testing.B) {
+func BenchmarkGroupByColumns(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = JoinColumns(
+		_ = GroupByColumns(
 			&Column{Name: "a"},
 			&Column{Name: "b"},
 			&Column{Name: "c"},
@@ -33,8 +33,8 @@ func BenchmarkJoinColumns(b *testing.B) {
 	}
 }
 
-func BenchmarkColumnsHash(b *testing.B) {
-	c := JoinColumns(
+func BenchmarkGroupByHash(b *testing.B) {
+	c := GroupByColumns(
 		&Column{Name: "id"},
 		&Column{Name: "customer"},
 		&Column{Name: "service_id"},
@@ -46,8 +46,8 @@ func BenchmarkColumnsHash(b *testing.B) {
 	}
 }
 
-func BenchmarkColumnsCompile(b *testing.B) {
-	c := JoinColumns(
+func BenchmarkGroupByCompile(b *testing.B) {
+	c := GroupByColumns(
 		&Column{Name: "id"},
 		&Column{Name: "customer"},
 		&Column{Name: "service_id"},
@@ -59,9 +59,9 @@ func BenchmarkColumnsCompile(b *testing.B) {
 	}
 }
 
-func BenchmarkColumnsCompileNoCache(b *testing.B) {
+func BenchmarkGroupByCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		c := JoinColumns(
+		c := GroupByColumns(
 			&Column{Name: "id"},
 			&Column{Name: "customer"},
 			&Column{Name: "service_id"},

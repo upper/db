@@ -19,37 +19,28 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package util
+package sqltx
 
 import (
-	"regexp"
-	"strings"
+	"github.com/jmoiron/sqlx"
 )
 
-var reColumnCompareExclude = regexp.MustCompile(`[^a-zA-Z0-9]`)
-
-type tagOptions map[string]bool
-
-func parseTagOptions(s string) tagOptions {
-	opts := make(tagOptions)
-	chunks := strings.Split(s, `,`)
-	for _, chunk := range chunks {
-		opts[strings.TrimSpace(chunk)] = true
-	}
-	return opts
+type Tx struct {
+	*sqlx.Tx
+	done bool
 }
 
-// ParseTag splits a struct tag into comma separated chunks. The first chunk is
-// returned as a string value, remaining chunks are considered enabled options.
-func ParseTag(tag string) (string, tagOptions) {
-	// Based on http://golang.org/src/pkg/encoding/json/tags.go
-	if i := strings.Index(tag, `,`); i != -1 {
-		return tag[:i], parseTagOptions(tag[i+1:])
-	}
-	return tag, parseTagOptions(``)
+func New(tx *sqlx.Tx) *Tx {
+	return &Tx{Tx: tx}
 }
 
-// NormalizeColumn prepares a column for comparison against another column.
-func NormalizeColumn(s string) string {
-	return strings.ToLower(reColumnCompareExclude.ReplaceAllString(s, ""))
+func (t *Tx) Done() bool {
+	return t.done
+}
+
+func (t *Tx) Commit() (err error) {
+	if err = t.Tx.Commit(); err == nil {
+		t.done = true
+	}
+	return err
 }

@@ -1,31 +1,50 @@
 package sqlgen
 
-type GroupBy Columns
+import (
+	"fmt"
+)
 
-type groupBy_s struct {
+// GroupBy represents a SQL's "group by" statement.
+type GroupBy struct {
+	Columns Fragment
+	hash    string
+}
+
+type groupByT struct {
 	GroupColumns string
 }
 
-func (self GroupBy) Hash() string {
-	return `GroupBy(` + Columns(self).Hash() + `)`
+// Hash returns a unique identifier.
+func (g *GroupBy) Hash() string {
+	if g.hash == "" {
+		if g.Columns != nil {
+			g.hash = fmt.Sprintf(`GroupBy(%s)`, g.Columns.Hash())
+		}
+	}
+	return g.hash
 }
 
-func (self GroupBy) Compile(layout *Template) (compiled string) {
+// GroupByColumns creates and returns a GroupBy with the given column.
+func GroupByColumns(columns ...Fragment) *GroupBy {
+	return &GroupBy{Columns: JoinColumns(columns...)}
+}
 
-	if c, ok := layout.Read(self); ok {
+// Compile transforms the GroupBy into an equivalent SQL representation.
+func (g *GroupBy) Compile(layout *Template) (compiled string) {
+
+	if c, ok := layout.Read(g); ok {
 		return c
 	}
 
-	if len(self) > 0 {
-
-		data := groupBy_s{
-			GroupColumns: Columns(self).Compile(layout),
+	if g.Columns != nil {
+		data := groupByT{
+			GroupColumns: g.Columns.Compile(layout),
 		}
 
 		compiled = mustParse(layout.GroupByLayout, data)
 	}
 
-	layout.Write(self, compiled)
+	layout.Write(g, compiled)
 
 	return
 }

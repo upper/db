@@ -1,9 +1,41 @@
 package sqlgen
 
 import (
+	"bytes"
+	"text/template"
+
 	"upper.io/cache"
 )
 
+// Type is the type of SQL query the statement represents.
+type Type uint
+
+// Values for Type.
+const (
+	Truncate = Type(iota)
+	DropTable
+	DropDatabase
+	Count
+	Insert
+	Select
+	Update
+	Delete
+)
+
+type (
+	// Limit represents the SQL limit in a query.
+	Limit int
+	// Offset represents the SQL offset in a query.
+	Offset int
+	// Extra represents any custom SQL that is to be appended to the query.
+	Extra string
+)
+
+var (
+	parsedTemplates = make(map[string]*template.Template)
+)
+
+// Template is an SQL template.
 type Template struct {
 	ColumnSeparator     string
 	IdentifierSeparator string
@@ -16,6 +48,7 @@ type Template struct {
 	DescKeyword         string
 	AscKeyword          string
 	DefaultOperator     string
+	AssignmentOperator  string
 	ClauseGroup         string
 	ClauseOperator      string
 	ColumnValue         string
@@ -31,7 +64,22 @@ type Template struct {
 	TruncateLayout      string
 	DropDatabaseLayout  string
 	DropTableLayout     string
-	SelectCountLayout   string
+	CountLayout         string
 	GroupByLayout       string
 	*cache.Cache
+}
+
+func mustParse(text string, data interface{}) string {
+	var b bytes.Buffer
+	var ok bool
+
+	if _, ok = parsedTemplates[text]; !ok {
+		parsedTemplates[text] = template.Must(template.New("").Parse(text))
+	}
+
+	if err := parsedTemplates[text].Execute(&b, data); err != nil {
+		panic("There was an error compiling the following template:\n" + text + "\nError was: " + err.Error())
+	}
+
+	return b.String()
 }

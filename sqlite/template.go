@@ -19,40 +19,41 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package ql
+package sqlite
 
 const (
-	qlColumnSeparator     = `.`
-	qlIdentifierSeparator = `, `
-	qlIdentifierQuote     = `{{.Raw}}`
-	qlValueSeparator      = `, `
-	qlValueQuote          = `"{{.}}"`
-	qlAndKeyword          = `&&`
-	qlOrKeyword           = `||`
-	qlNotKeyword          = `!=`
-	qlDescKeyword         = `DESC`
-	qlAscKeyword          = `ASC`
-	qlDefaultOperator     = `==`
-	qlClauseGroup         = `({{.}})`
-	qlClauseOperator      = ` {{.}} `
-	qlColumnValue         = `{{.Column}} {{.Operator}} {{.Value}}`
-	qlTableAliasLayout    = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
-	qlColumnAliasLayout   = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
-	qlSortByColumnLayout  = `{{.Column}} {{.Sort}}`
+	adapterColumnSeparator     = `.`
+	adapterIdentifierSeparator = `, `
+	adapterIdentifierQuote     = `"{{.Value}}"`
+	adapterValueSeparator      = `, `
+	adapterValueQuote          = `'{{.}}'`
+	adapterAndKeyword          = `AND`
+	adapterOrKeyword           = `OR`
+	adapterNotKeyword          = `NOT`
+	adapterDescKeyword         = `DESC`
+	adapterAscKeyword          = `ASC`
+	adapterDefaultOperator     = `=`
+	adapterAssignmentOperator  = `=`
+	adapterClauseGroup         = `({{.}})`
+	adapterClauseOperator      = ` {{.}} `
+	adapterColumnValue         = `{{.Column}} {{.Operator}} {{.Value}}`
+	adapterTableAliasLayout    = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
+	adapterColumnAliasLayout   = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
+	adapterSortByColumnLayout  = `{{.Column}} {{.Order}}`
 
-	qlOrderByLayout = `
+	adapterOrderByLayout = `
 		{{if .SortColumns}}
 			ORDER BY {{.SortColumns}}
 		{{end}}
 	`
 
-	qlWhereLayout = `
+	adapterWhereLayout = `
 		{{if .Conds}}
 			WHERE {{.Conds}}
 		{{end}}
 	`
 
-	qlSelectLayout = `
+	adapterSelectLayout = `
 		SELECT
 
 			{{if .Columns}}
@@ -74,24 +75,27 @@ const (
 			{{end}}
 
 			{{if .Offset}}
+				{{if not .Limit}}
+					LIMIT -1
+				{{end}}
 				OFFSET {{.Offset}}
 			{{end}}
 	`
-	qlDeleteLayout = `
+	adapterDeleteLayout = `
 		DELETE
 			FROM {{.Table}}
 			{{.Where}}
 	`
-	qlUpdateLayout = `
+	adapterUpdateLayout = `
 		UPDATE
 			{{.Table}}
 		SET {{.ColumnValues}}
 			{{ .Where }}
 	`
 
-	qlSelectCountLayout = `
+	adapterSelectCountLayout = `
 		SELECT
-			count(1) AS total
+			COUNT(1) AS _t
 		FROM {{.Table}}
 			{{.Where}}
 
@@ -100,11 +104,14 @@ const (
 			{{end}}
 
 			{{if .Offset}}
+				{{if not .Limit}}
+					LIMIT -1
+				{{end}}
 				OFFSET {{.Offset}}
 			{{end}}
 	`
 
-	qlInsertLayout = `
+	adapterInsertLayout = `
 		INSERT INTO {{.Table}}
 			({{.Columns}})
 		VALUES
@@ -112,19 +119,19 @@ const (
 		{{.Extra}}
 	`
 
-	qlTruncateLayout = `
-		TRUNCATE TABLE {{.Table}}
+	adapterTruncateLayout = `
+		DELETE FROM {{.Table}}
 	`
 
-	qlDropDatabaseLayout = `
+	adapterDropDatabaseLayout = `
 		DROP DATABASE {{.Database}}
 	`
 
-	qlDropTableLayout = `
+	adapterDropTableLayout = `
 		DROP TABLE {{.Table}}
 	`
 
-	qlGroupByLayout = `
+	adapterGroupByLayout = `
 		{{if .GroupColumns}}
 			GROUP BY {{.GroupColumns}}
 		{{end}}

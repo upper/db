@@ -100,6 +100,10 @@ type Func struct {
 // 	}
 type And []interface{}
 
+func (a And) And(exp ...interface{}) And {
+	return append(a, exp...)
+}
+
 // Or is an array of interfaced that is used to join two or more expressions
 // under logical disjunction, it accepts `db.Cond{}`, `db.And{}`, `db.Raw{}`
 // and other `db.Or{}` values.
@@ -112,6 +116,10 @@ type And []interface{}
 // 		db.Cond{"year": 1987},
 // 	}
 type Or []interface{}
+
+func (o Or) Or(exp ...interface{}) Or {
+	return append(o, exp...)
+}
 
 // Raw holds chunks of data to be passed to the database without any filtering.
 // Use with care.

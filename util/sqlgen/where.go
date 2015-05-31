@@ -1,84 +1,110 @@
 package sqlgen
 
 import (
+	"fmt"
 	"strings"
 )
 
-type (
-	Or    []cc
-	And   []cc
-	Where []cc
-)
+// Or represents an SQL OR operator.
+type Or Where
+
+// And represents an SQL AND operator.
+type And Where
+
+// Where represents an SQL WHERE clause.
+type Where struct {
+	Conditions []Fragment
+	hash       string
+}
 
 type conds struct {
 	Conds string
 }
 
-func (self Or) Hash() string {
-	hash := make([]string, 0, len(self))
-	for i := range self {
-		hash = append(hash, self[i].Hash())
-	}
-	return `Or(` + strings.Join(hash, `,`) + `)`
+// WhereConditions creates and retuens a new Where.
+func WhereConditions(conditions ...Fragment) *Where {
+	return &Where{Conditions: conditions}
 }
 
-func (self Or) Compile(layout *Template) (compiled string) {
-	if c, ok := layout.Read(self); ok {
-		return c
+// JoinWithOr creates and returns a new Or.
+func JoinWithOr(conditions ...Fragment) *Or {
+	return &Or{Conditions: conditions}
+}
+
+// JoinWithAnd creates and returns a new And.
+func JoinWithAnd(conditions ...Fragment) *And {
+	return &And{Conditions: conditions}
+}
+
+// Hash returns a unique identifier.
+func (w *Where) Hash() string {
+	if w.hash == "" {
+		hash := make([]string, len(w.Conditions))
+		for i := range w.Conditions {
+			hash[i] = w.Conditions[i].Hash()
+		}
+		w.hash = fmt.Sprintf(`Where{%s}`, strings.Join(hash, `, `))
+	}
+	return w.hash
+}
+
+// Hash returns a unique identifier.
+func (o *Or) Hash() string {
+	w := Where(*o)
+	return `Or(` + w.Hash() + `)`
+}
+
+// Hash returns a unique identifier.
+func (a *And) Hash() string {
+	w := Where(*a)
+	return `Or(` + w.Hash() + `)`
+}
+
+// Compile transforms the Or into an equivalent SQL representation.
+func (o *Or) Compile(layout *Template) (compiled string) {
+
+	if z, ok := layout.Read(o); ok {
+		return z
 	}
 
-	compiled = groupCondition(layout, self, mustParse(layout.ClauseOperator, layout.OrKeyword))
+	compiled = groupCondition(layout, o.Conditions, mustParse(layout.ClauseOperator, layout.OrKeyword))
 
-	layout.Write(self, compiled)
+	layout.Write(o, compiled)
 
 	return
 }
 
-func (self And) Hash() string {
-	hash := make([]string, 0, len(self))
-	for i := range self {
-		hash = append(hash, self[i].Hash())
-	}
-	return `And(` + strings.Join(hash, `,`) + `)`
-}
-
-func (self And) Compile(layout *Template) (compiled string) {
-	if c, ok := layout.Read(self); ok {
+// Compile transforms the And into an equivalent SQL representation.
+func (a *And) Compile(layout *Template) (compiled string) {
+	if c, ok := layout.Read(a); ok {
 		return c
 	}
 
-	compiled = groupCondition(layout, self, mustParse(layout.ClauseOperator, layout.AndKeyword))
+	compiled = groupCondition(layout, a.Conditions, mustParse(layout.ClauseOperator, layout.AndKeyword))
 
-	layout.Write(self, compiled)
+	layout.Write(a, compiled)
 
 	return
 }
 
-func (self Where) Hash() string {
-	hash := make([]string, 0, len(self))
-	for i := range self {
-		hash = append(hash, self[i].Hash())
-	}
-	return `Where(` + strings.Join(hash, `,`) + `)`
-}
-
-func (self Where) Compile(layout *Template) (compiled string) {
-	if c, ok := layout.Read(self); ok {
+// Compile transforms the Where into an equivalent SQL representation.
+func (w *Where) Compile(layout *Template) (compiled string) {
+	if c, ok := layout.Read(w); ok {
 		return c
 	}
 
-	grouped := groupCondition(layout, self, mustParse(layout.ClauseOperator, layout.AndKeyword))
+	grouped := groupCondition(layout, w.Conditions, mustParse(layout.ClauseOperator, layout.AndKeyword))
 
 	if grouped != "" {
 		compiled = mustParse(layout.WhereLayout, conds{grouped})
 	}
 
-	layout.Write(self, compiled)
+	layout.Write(w, compiled)
 
 	return
 }
 
-func groupCondition(layout *Template, terms []cc, joinKeyword string) string {
+func groupCondition(layout *Template, terms []Fragment, joinKeyword string) string {
 	l := len(terms)
 
 	chunks := make([]string, 0, l)

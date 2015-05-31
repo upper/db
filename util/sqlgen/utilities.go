@@ -10,50 +10,61 @@ const (
 	stageClose
 )
 
-func isSpace(in byte) bool {
+// isBlankSymbol returns true if the given byte is either space, tab, carriage
+// return or newline.
+func isBlankSymbol(in byte) bool {
 	return in == ' ' || in == '\t' || in == '\r' || in == '\n'
 }
 
-func trimString(in string) string {
+// trimString returns a slice of s with a leading and trailing blank symbols
+// (as defined by isBlankSymbol) removed.
+func trimString(s string) string {
 
-	start, end := 0, len(in)-1
+	// This conversion is rather slow.
+	// return string(trimBytes([]byte(s)))
 
-	// Where do we start cutting?
-	for ; start <= end; start++ {
-		if isSpace(in[start]) == false {
-			break
+	start, end := 0, len(s)-1
+
+	if end < start {
+		return ""
+	}
+
+	for isBlankSymbol(s[start]) {
+		start++
+		if start >= end {
+			return ""
 		}
 	}
 
-	// Where do we end cutting?
-	for ; end >= start; end-- {
-		if isSpace(in[end]) == false {
-			break
-		}
+	for isBlankSymbol(s[end]) {
+		end--
 	}
 
-	return in[start : end+1]
+	return s[start : end+1]
 }
 
-func trimByte(in []byte) []byte {
+// trimBytes returns a slice of s with a leading and trailing blank symbols (as
+// defined by isBlankSymbol) removed.
+func trimBytes(s []byte) []byte {
 
-	start, end := 0, len(in)-1
+	start, end := 0, len(s)-1
 
-	// Where do we start cutting?
-	for ; start <= end; start++ {
-		if isSpace(in[start]) == false {
-			break
+	if end < start {
+		return []byte{}
+	}
+
+	for isBlankSymbol(s[start]) {
+		start++
+		if start >= end {
+			return []byte{}
 		}
 	}
 
-	// Where do we end cutting?
-	for ; end >= start; end-- {
-		if isSpace(in[end]) == false {
-			break
-		}
+	for isBlankSymbol(s[end]) {
+		end--
 	}
 
-	return in[start : end+1]
+	return s[start : end+1]
 }
 
 /*
@@ -95,15 +106,12 @@ func separateByComma(in string) (out []string) {
 
 // Separates by spaces, ignoring spaces too.
 func separateBySpace(in string) (out []string) {
-	l := len(in)
-
-	if l == 0 {
+	if len(in) == 0 {
 		return []string{""}
 	}
 
-	out = make([]string, 0, l)
-
 	pre := strings.Split(in, " ")
+	out = make([]string, 0, len(pre))
 
 	for i := range pre {
 		pre[i] = trimString(pre[i])
@@ -119,7 +127,7 @@ func separateByAS(in string) (out []string) {
 	out = []string{}
 
 	if len(in) < 6 {
-		// Min expression: "a AS b"
+		// The minimum expression with the AS keyword is "x AS y", 6 chars.
 		return []string{in}
 	}
 
@@ -129,7 +137,7 @@ func separateByAS(in string) (out []string) {
 		var end int
 
 		for end = start; end <= lim; end++ {
-			if end > 3 && isSpace(in[end]) && isSpace(in[end-3]) {
+			if end > 3 && isBlankSymbol(in[end]) && isBlankSymbol(in[end-3]) {
 				if (in[end-1] == 's' || in[end-1] == 'S') && (in[end-2] == 'a' || in[end-2] == 'A') {
 					break
 				}

@@ -24,7 +24,6 @@ package mongo
 
 import (
 	"errors"
-	"flag"
 	"math/rand"
 	"os"
 	"reflect"
@@ -52,7 +51,7 @@ var settings = ConnectionURL{
 	Password: password,
 }
 
-var host = flag.String("host", "testserver.local", "Testing server address.")
+var host string
 
 // Structure for testing conversions and datatypes.
 type testValuesStruct struct {
@@ -127,8 +126,11 @@ func init() {
 		time.Second * time.Duration(7331),
 	}
 
-	flag.Parse()
-	settings.Address = db.ParseAddress(*host)
+	if host = os.Getenv("TEST_HOST"); host == "" {
+		host = "localhost"
+	}
+
+	settings.Address = db.ParseAddress(host)
 }
 
 // Enabling outputting some information to stdout, useful for development.
@@ -155,7 +157,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	// Attempt to open with safe settings.
 	rightSettings = db.Settings{
 		Database: database,
-		Host:     *host,
+		Host:     host,
 		User:     username,
 		Password: password,
 	}
@@ -169,7 +171,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	// Attempt to open with wrong password.
 	wrongSettings = db.Settings{
 		Database: database,
-		Host:     *host,
+		Host:     host,
 		User:     username,
 		Password: "fail",
 	}
@@ -181,7 +183,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	// Attempt to open with wrong database.
 	wrongSettings = db.Settings{
 		Database: "fail",
-		Host:     *host,
+		Host:     host,
 		User:     username,
 		Password: password,
 	}
@@ -193,7 +195,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	// Attempt to open with wrong username.
 	wrongSettings = db.Settings{
 		Database: database,
-		Host:     *host,
+		Host:     host,
 		User:     "fail",
 		Password: password,
 	}

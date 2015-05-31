@@ -22,7 +22,7 @@
 package sqlutil
 
 import (
-	"errors"
+	"encoding/json"
 	"reflect"
 
 	"github.com/jmoiron/sqlx"
@@ -150,14 +150,99 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 	case reflect.Struct:
 
 		values := make([]interface{}, len(columns))
-		fields := rows.Mapper.TraversalsByName(itemT, columns)
+		typeMap := rows.Mapper.TypeMap(itemT)
+		fieldMap := typeMap.Names
+		wrappedValues := map[reflect.Value][]interface{}{}
 
-		if err = fieldsByTraversal(item, fields, values, true); err != nil {
-			return item, err
+		for i, k := range columns {
+			fi, ok := fieldMap[k]
+			if !ok {
+				values[i] = new(interface{})
+				continue
+			}
+
+			f := reflectx.FieldByIndexesReadOnly(item, fi.Index)
+
+			// TODO: refactor into a nice pattern
+			if _, ok := fi.Options["stringarray"]; ok {
+				values[i] = &[]byte{}
+				wrappedValues[f] = []interface{}{"stringarray", values[i]}
+			} else if _, ok := fi.Options["int64array"]; ok {
+				values[i] = &[]byte{}
+				wrappedValues[f] = []interface{}{"int64array", values[i]}
+			} else if _, ok := fi.Options["jsonb"]; ok {
+				values[i] = &[]byte{}
+				wrappedValues[f] = []interface{}{"jsonb", values[i]}
+			} else {
+				values[i] = f.Addr().Interface()
+			}
+
+			if u, ok := values[i].(db.Unmarshaler); ok {
+				values[i] = scanner{u}
+			}
 		}
+
+		// Scanner - for reads
+		// Valuer  - for writes
+
+		// OptionTypes
+		// - before/after scan
+		// - before/after valuer..
 
 		if err = rows.Scan(values...); err != nil {
 			return item, err
+		}
+
+		// TODO: move this stuff out of here.. find a nice pattern
+		for f, v := range wrappedValues {
+			opt := v[0].(string)
+			b := v[1].(*[]byte)
+
+			switch opt {
+			case "stringarray":
+				v := StringArray{}
+				err := v.Scan(*b)
+				if err != nil {
+					return item, err
+				}
+				f.Set(reflect.ValueOf(v))
+			case "int64array":
+				v := Int64Array{}
+				err := v.Scan(*b)
+				if err != nil {
+					return item, err
+				}
+				f.Set(reflect.ValueOf(v))
+			case "jsonb":
+				if len(*b) == 0 {
+					continue
+				}
+
+				var vv reflect.Value
+				t := reflect.PtrTo(f.Type())
+
+				switch t.Kind() {
+				case reflect.Map:
+					vv = reflect.MakeMap(t)
+				case reflect.Slice:
+					vv = reflect.MakeSlice(t, 0, 0)
+				default:
+					vv = reflect.New(t)
+				}
+
+				err := json.Unmarshal(*b, vv.Interface())
+				if err != nil {
+					return item, err
+				}
+
+				vv = vv.Elem().Elem()
+
+				if !vv.IsValid() || (vv.Kind() == reflect.Ptr && vv.IsNil()) {
+					continue
+				}
+
+				f.Set(vv)
+			}
 		}
 
 	case reflect.Map:
@@ -187,35 +272,4 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 	}
 
 	return item, nil
-}
-
-func fieldsByTraversal(v reflect.Value, traversals [][]int, values []interface{}, ptrs bool) error {
-	v = reflect.Indirect(v)
-
-	if v.Kind() != reflect.Struct {
-		return errors.New("argument not a struct")
-	}
-
-	for i, traversal := range traversals {
-
-		if len(traversal) == 0 {
-			values[i] = new(interface{})
-			continue
-		}
-
-		f := reflectx.FieldByIndexes(v, traversal)
-
-		if ptrs {
-			values[i] = f.Addr().Interface()
-		} else {
-			values[i] = f.Interface()
-		}
-
-		// Provides compatibility with db.Unmarshaler
-		if u, ok := values[i].(db.Unmarshaler); ok {
-			values[i] = scanner{u}
-		}
-
-	}
-	return nil
 }
