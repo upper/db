@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+// Copyright (c) 2012-2015 José Carlos Nieto, https://menteslibres.net/xiam
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -19,40 +19,41 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package sqlite
+package mysql
 
 const (
-	sqlColumnSeparator     = `.`
-	sqlIdentifierSeparator = `, `
-	sqlIdentifierQuote     = `"{{.Raw}}"`
-	sqlValueSeparator      = `, `
-	sqlValueQuote          = `'{{.}}'`
-	sqlAndKeyword          = `AND`
-	sqlOrKeyword           = `OR`
-	sqlNotKeyword          = `NOT`
-	sqlDescKeyword         = `DESC`
-	sqlAscKeyword          = `ASC`
-	sqlDefaultOperator     = `=`
-	sqlClauseGroup         = `({{.}})`
-	sqlClauseOperator      = ` {{.}} `
-	sqlColumnValue         = `{{.Column}} {{.Operator}} {{.Value}}`
-	sqlTableAliasLayout    = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
-	sqlColumnAliasLayout   = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
-	sqlSortByColumnLayout  = `{{.Column}} {{.Sort}}`
+	adapterColumnSeparator     = `.`
+	adapterIdentifierSeparator = `, `
+	adapterIdentifierQuote     = "`{{.Value}}`"
+	adapterValueSeparator      = `, `
+	adapterValueQuote          = `'{{.}}'`
+	adapterAndKeyword          = `AND`
+	adapterOrKeyword           = `OR`
+	adapterNotKeyword          = `NOT`
+	adapterDescKeyword         = `DESC`
+	adapterAscKeyword          = `ASC`
+	adapterDefaultOperator     = `=`
+	adapterAssignmentOperator  = `=`
+	adapterClauseGroup         = `({{.}})`
+	adapterClauseOperator      = ` {{.}} `
+	adapterColumnValue         = `{{.Column}} {{.Operator}} {{.Value}}`
+	adapterTableAliasLayout    = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
+	adapterColumnAliasLayout   = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
+	adapterSortByColumnLayout  = `{{.Column}} {{.Order}}`
 
-	sqlOrderByLayout = `
+	adapterOrderByLayout = `
 		{{if .SortColumns}}
 			ORDER BY {{.SortColumns}}
 		{{end}}
 	`
 
-	sqlWhereLayout = `
+	adapterWhereLayout = `
 		{{if .Conds}}
 			WHERE {{.Conds}}
 		{{end}}
 	`
 
-	sqlSelectLayout = `
+	adapterSelectLayout = `
 		SELECT
 
 			{{if .Columns}}
@@ -61,7 +62,9 @@ const (
 				*
 			{{end}}
 
-			FROM {{.Table}}
+			{{if .Table}}
+				FROM {{.Table}}
+			{{end}}
 
 			{{.Where}}
 
@@ -74,25 +77,22 @@ const (
 			{{end}}
 
 			{{if .Offset}}
-				{{if not .Limit}}
-					LIMIT -1 
-				{{end}}
 				OFFSET {{.Offset}}
 			{{end}}
 	`
-	sqlDeleteLayout = `
+	adapterDeleteLayout = `
 		DELETE
 			FROM {{.Table}}
 			{{.Where}}
 	`
-	sqlUpdateLayout = `
+	adapterUpdateLayout = `
 		UPDATE
 			{{.Table}}
 		SET {{.ColumnValues}}
 			{{ .Where }}
 	`
 
-	sqlSelectCountLayout = `
+	adapterSelectCountLayout = `
 		SELECT
 			COUNT(1) AS _t
 		FROM {{.Table}}
@@ -103,14 +103,11 @@ const (
 			{{end}}
 
 			{{if .Offset}}
-				{{if not .Limit}}
-					LIMIT -1 
-				{{end}}
 				OFFSET {{.Offset}}
 			{{end}}
 	`
 
-	sqlInsertLayout = `
+	adapterInsertLayout = `
 		INSERT INTO {{.Table}}
 			({{.Columns}})
 		VALUES
@@ -118,23 +115,21 @@ const (
 		{{.Extra}}
 	`
 
-	sqlTruncateLayout = `
-		DELETE FROM {{.Table}}
+	adapterTruncateLayout = `
+		TRUNCATE TABLE {{.Table}}
 	`
 
-	sqlDropDatabaseLayout = `
+	adapterDropDatabaseLayout = `
 		DROP DATABASE {{.Database}}
 	`
 
-	sqlDropTableLayout = `
+	adapterDropTableLayout = `
 		DROP TABLE {{.Table}}
 	`
 
-	sqlGroupByLayout = `
+	adapterGroupByLayout = `
 		{{if .GroupColumns}}
 			GROUP BY {{.GroupColumns}}
 		{{end}}
 	`
-
-	sqlNull = `NULL`
 )

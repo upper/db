@@ -24,190 +24,34 @@ package postgresql
 import (
 	"database/sql"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
+	"upper.io/db/util/sqlutil/result"
 )
-
-const defaultOperator = `=`
 
 type table struct {
 	sqlutil.T
-	source     *source
+	*database
 	primaryKey string
-	names      []string
 }
 
-func whereValues(term interface{}) (where sqlgen.Where, args []interface{}) {
-	args = []interface{}{}
+var _ = db.Collection(&table{})
 
-	switch t := term.(type) {
-	case []interface{}:
-		for i := range t {
-			w, v := whereValues(t[i])
-			args = append(args, v...)
-			where.Conditions = append(where.Conditions, w.Conditions...)
-		}
-		return
-	case db.And:
-		var op sqlgen.And
-		for i := range t {
-			k, v := whereValues(t[i])
-			args = append(args, v...)
-			op.Conditions = append(op.Conditions, k.Conditions...)
-		}
-		where.Conditions = append(where.Conditions, &op)
-		return
-	case db.Or:
-		var op sqlgen.Or
-		for i := range t {
-			w, v := whereValues(t[i])
-			args = append(args, v...)
-			op.Conditions = append(op.Conditions, w.Conditions...)
-		}
-		where.Conditions = append(where.Conditions, &op)
-		return
-	case db.Raw:
-		if s, ok := t.Value.(string); ok {
-			where.Conditions = append(where.Conditions, sqlgen.RawValue(s))
-		}
-		return
-	case db.Cond:
-		cv, v := columnValues(t)
-		args = append(args, v...)
-		for i := range cv.ColumnValues {
-			where.Conditions = append(where.Conditions, cv.ColumnValues[i])
-		}
-		return
-	case db.Constrainer:
-		cv, v := columnValues(t.Constraint())
-		args = append(args, v...)
-		for i := range cv.ColumnValues {
-			where.Conditions = append(where.Conditions, cv.ColumnValues[i])
-		}
-		return
-	}
-
-	panic(fmt.Sprintf(db.ErrUnknownConditionType.Error(), term))
-}
-
-func interfaceArgs(value interface{}) (args []interface{}) {
-	if value == nil {
-		return nil
-	}
-
-	v := reflect.ValueOf(value)
-
-	switch v.Type().Kind() {
-	case reflect.Slice:
-		var i, total int
-
-		total = v.Len()
-		if total > 0 {
-			args = make([]interface{}, total)
-
-			for i = 0; i < total; i++ {
-				args[i] = v.Index(i).Interface()
-			}
-
-			return args
-		}
-		return nil
-	default:
-		args = []interface{}{value}
-	}
-
-	return args
-}
-
-func columnValues(cond db.Cond) (columnValues sqlgen.ColumnValues, args []interface{}) {
-	args = []interface{}{}
-
-	for column, value := range cond {
-		columnValue := sqlgen.ColumnValue{}
-
-		// Guessing operator from input, or using a default one.
-		column := strings.TrimSpace(column)
-		chunks := strings.SplitN(column, ` `, 2)
-
-		columnValue.Column = sqlgen.ColumnWithName(chunks[0])
-
-		if len(chunks) > 1 {
-			columnValue.Operator = chunks[1]
-		} else {
-			columnValue.Operator = defaultOperator
-		}
-
-		switch value := value.(type) {
-		case db.Func:
-			v := interfaceArgs(value.Args)
-			columnValue.Operator = value.Name
-
-			if v == nil {
-				// A function with no arguments.
-				columnValue.Value = sqlgen.RawValue(`()`)
-			} else {
-				// A function with one or more arguments.
-				columnValue.Value = sqlgen.RawValue(fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1)))
-			}
-
-			args = append(args, v...)
-		default:
-			v := interfaceArgs(value)
-
-			l := len(v)
-			if v == nil || l == 0 {
-				// Nil value given.
-				columnValue.Value = sqlgen.RawValue(psqlNull)
-			} else {
-				if l > 1 {
-					// Array value given.
-					columnValue.Value = sqlgen.RawValue(fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1)))
-				} else {
-					// Single value given.
-					columnValue.Value = sqlPlaceholder
-				}
-				args = append(args, v...)
-			}
-		}
-
-		columnValues.ColumnValues = append(columnValues.ColumnValues, &columnValue)
-	}
-
-	return columnValues, args
-}
-
+// Find creates a result set with the given conditions.
 func (t *table) Find(terms ...interface{}) db.Result {
-	where, arguments := whereValues(terms)
-
-	result := &result{
-		table:     t,
-		where:     where,
-		arguments: arguments,
-	}
-
-	return result
+	where, arguments := template.ToWhereWithArguments(terms)
+	return result.NewResult(template, t, where, arguments)
 }
 
-func (t *table) tableN(i int) string {
-	if len(t.names) > i {
-		chunks := strings.SplitN(t.names[i], " ", 2)
-		if len(chunks) > 0 {
-			return chunks[0]
-		}
-	}
-	return ""
-}
-
-// Deletes all the rows within the collection.
+// Truncate deletes all rows from the table.
 func (t *table) Truncate() error {
-	_, err := t.source.doExec(sqlgen.Statement{
+	_, err := t.database.Exec(sqlgen.Statement{
 		Type:  sqlgen.Truncate,
-		Table: sqlgen.TableWithName(t.tableN(0)),
+		Table: sqlgen.TableWithName(t.MainTableName()),
 	})
 
 	if err != nil {
@@ -217,46 +61,24 @@ func (t *table) Truncate() error {
 	return nil
 }
 
-// Appends an item (map or struct) into the collection.
+// Append inserts an item (map or struct) into the collection.
 func (t *table) Append(item interface{}) (interface{}, error) {
 
-	cols, vals, err := t.FieldValues(item)
+	columnNames, columnValues, err := t.FieldValues(item)
 
 	if err != nil {
 		return nil, err
 	}
 
-	columns := new(sqlgen.Columns)
+	sqlgenCols, sqlgenVals, sqlgenArgs, err := template.ToColumnsValuesAndArguments(columnNames, columnValues)
 
-	columns.Columns = make([]sqlgen.Fragment, 0, len(cols))
-	for i := range cols {
-		columns.Columns = append(columns.Columns, sqlgen.ColumnWithName(cols[i]))
-	}
-
-	values := new(sqlgen.Values)
-	var arguments []interface{}
-
-	arguments = make([]interface{}, 0, len(vals))
-	values.Values = make([]sqlgen.Fragment, 0, len(vals))
-
-	for i := range vals {
-		switch v := vals[i].(type) {
-		case *sqlgen.Value:
-			// Adding value.
-			values.Values = append(values.Values, v)
-		case sqlgen.Value:
-			// Adding value.
-			values.Values = append(values.Values, &v)
-		default:
-			// Adding both value and placeholder.
-			values.Values = append(values.Values, sqlPlaceholder)
-			arguments = append(arguments, v)
-		}
+	if err != nil {
+		return nil, err
 	}
 
 	var pKey []string
 
-	if pKey, err = t.source.getPrimaryKey(t.tableN(0)); err != nil {
+	if pKey, err = t.database.getPrimaryKey(t.MainTableName()); err != nil {
 		if err != sql.ErrNoRows {
 			// Can't tell primary key.
 			return nil, err
@@ -265,16 +87,16 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 	stmt := sqlgen.Statement{
 		Type:    sqlgen.Insert,
-		Table:   sqlgen.TableWithName(t.tableN(0)),
-		Columns: columns,
-		Values:  values,
+		Table:   sqlgen.TableWithName(t.MainTableName()),
+		Columns: sqlgenCols,
+		Values:  sqlgenVals,
 	}
 
 	// No primary keys defined.
 	if len(pKey) == 0 {
 		var res sql.Result
 
-		if res, err = t.source.doExec(stmt, arguments...); err != nil {
+		if res, err = t.database.Exec(stmt, sqlgenArgs...); err != nil {
 			return nil, err
 		}
 
@@ -289,7 +111,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 	// A primary key was found.
 	stmt.Extra = sqlgen.Extra(fmt.Sprintf(`RETURNING "%s"`, strings.Join(pKey, `", "`)))
-	if rows, err = t.source.doQuery(stmt, arguments...); err != nil {
+	if rows, err = t.database.Query(stmt, sqlgenArgs...); err != nil {
 		return nil, err
 	}
 
@@ -336,14 +158,15 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 	return keyMap, nil
 }
 
-// Returns true if the collection exists.
+// Exists returns true if the collection exists.
 func (t *table) Exists() bool {
-	if err := t.source.tableExists(t.names...); err != nil {
+	if err := t.database.tableExists(t.Tables...); err != nil {
 		return false
 	}
 	return true
 }
 
+// Name returns the name of the table or tables that form the collection.
 func (t *table) Name() string {
-	return strings.Join(t.names, `, `)
+	return strings.Join(t.Tables, `, `)
 }

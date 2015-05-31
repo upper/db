@@ -49,6 +49,7 @@ var (
 type T struct {
 	Columns []string
 	Mapper  *reflectx.Mapper
+	Tables  []string // Holds table names.
 }
 
 func (t *T) columnLike(s string) string {
@@ -171,4 +172,20 @@ func normalizeColumn(s string) string {
 // NewMapper creates a reflectx.Mapper
 func NewMapper() *reflectx.Mapper {
 	return reflectx.NewMapper("db")
+}
+
+// MainTableName returns the name of the first table.
+func (t *T) MainTableName() string {
+	return t.NthTableName(0)
+}
+
+// NthTableName returns the table name at index i.
+func (t *T) NthTableName(i int) string {
+	if len(t.Tables) > i {
+		chunks := strings.SplitN(t.Tables[i], " ", 2)
+		if len(chunks) > 0 {
+			return chunks[0]
+		}
+	}
+	return ""
 }

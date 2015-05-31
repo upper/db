@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+// Copyright (c) 2012-2015 José Carlos Nieto, https://menteslibres.net/xiam
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -40,9 +40,9 @@ import (
 )
 
 const (
-	database = "upperio_tests"
-	username = "upperio"
-	password = "upperio"
+	databaseName = "upperio_tests"
+	username     = "upperio"
+	password     = "upperio"
 )
 
 const (
@@ -50,7 +50,7 @@ const (
 )
 
 var settings = ConnectionURL{
-	Database: database,
+	Database: databaseName,
 	User:     username,
 	Password: password,
 	Options: map[string]string{
@@ -179,7 +179,7 @@ func TestOpenWithWrongData(t *testing.T) {
 
 	// Attempt to open with safe settings.
 	rightSettings = db.Settings{
-		Database: database,
+		Database: databaseName,
 		Host:     host,
 		User:     username,
 		Password: password,
@@ -193,7 +193,7 @@ func TestOpenWithWrongData(t *testing.T) {
 
 	// Attempt to open with wrong password.
 	wrongSettings = db.Settings{
-		Database: database,
+		Database: databaseName,
 		Host:     host,
 		User:     username,
 		Password: "fail",
@@ -217,7 +217,7 @@ func TestOpenWithWrongData(t *testing.T) {
 
 	// Attempt to open with wrong username.
 	wrongSettings = db.Settings{
-		Database: database,
+		Database: databaseName,
 		Host:     host,
 		User:     "fail",
 		Password: password,
@@ -234,7 +234,7 @@ func TestOldSettings(t *testing.T) {
 	var sess db.Database
 
 	oldSettings := db.Settings{
-		Database: database,
+		Database: databaseName,
 		User:     username,
 		Password: password,
 		Host:     host,
@@ -1470,7 +1470,7 @@ func BenchmarkAppendRawSQL(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sql.DB)
+	driver := sess.Driver().(*sqlx.DB)
 
 	if _, err = driver.Exec("TRUNCATE TABLE `artist`"); err != nil {
 		b.Fatal(err)
@@ -1524,7 +1524,7 @@ func BenchmarkAppendTxRawSQL(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sql.DB)
+	driver := sess.Driver().(*sqlx.DB)
 
 	if tx, err = driver.Begin(); err != nil {
 		b.Fatal(err)

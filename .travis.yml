@@ -13,15 +13,16 @@ go:
   - 1.4.1
   - 1.4.2
 
-env: GOARCH=amd64 TEST_HOST=127.0.0.1
+env: GOARCH=amd64 TEST_HOST=127.0.0.1 UPPERIO_DB_DEBUG=1
 
 install:
-  - sudo apt-get install bzr
-  # - go get github.com/cznic/ql/ql # ql command line util.
-  # - go install github.com/cznic/ql/ql # ql command line util.
+  - sudo apt-get install -y bzr make
+  - go get github.com/cznic/ql/ql # ql command line util.
+  - go install github.com/cznic/ql/ql # ql command line util.
   - mkdir ../../../upper.io
   - ln -s $PWD ../../../upper.io/db
   - go get -t -d
+  - cd $GOPATH/src/github.com/jmoiron/sqlx && git checkout ptrs # Peter's branch.
   # - go get upper.io/db/mongo
   # - go get upper.io/db/mysql
   # - go get upper.io/db/postgresql
@@ -35,11 +36,24 @@ before_script:
   - mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql
   - cat mysql/_dumps/setup.sql | mysql -uroot
   - cat mysql/_dumps/structs.sql | mysql -uupperio -pupperio upperio_tests
+
   - cat postgresql/_dumps/setup.sql | psql -U postgres
   - cat postgresql/_dumps/structs.sql | PGPASSWORD="upperio" psql -U upperio upperio_tests
+
   - mongo upperio_tests --eval 'db.addUser("upperio", "upperio")'
+
+  - (cd mysql/_dumps && make)
+  - (cd postgresql/_dumps && make)
+  - (cd sqlite/_dumps && make)
+  - (cd ql/_dumps && make)
+
   # - cat ql/_dumps/structs.sql | $GOPATH/bin/ql -db ql/_dumps/test.db
 
 script:
   - go test upper.io/db/util/sqlgen -test.bench=.
-  - UPPERIO_DB_DEBUG=1 go test -test.v=1
+  - go test upper.io/db/postgresql -test.bench=.
+  - go test upper.io/db/mysql -test.bench=.
+  - go test upper.io/db/sqlite -test.bench=.
+  - go test upper.io/db/ql -test.bench=.
+  - go test upper.io/db/mongo -test.bench=.
+  - go test -test.v

@@ -46,7 +46,7 @@ import (
 )
 
 const (
-	database = `_dumps/test.db`
+	databaseName = `_dumps/test.db`
 )
 
 const (
@@ -54,7 +54,7 @@ const (
 )
 
 var settings = db.Settings{
-	Database: database,
+	Database: databaseName,
 }
 
 // Structure for testing conversions and datatypes.
@@ -155,7 +155,7 @@ func TestOldSettings(t *testing.T) {
 	var sess db.Database
 
 	oldSettings := db.Settings{
-		Database: database,
+		Database: databaseName,
 	}
 
 	// Opening database.
@@ -942,6 +942,7 @@ func TestRawQuery(t *testing.T) {
 	var rows *sqlx.Rows
 	var err error
 	var drv *sqlx.DB
+	var tx *sqlx.Tx
 
 	type publicationType struct {
 		ID       int64  `db:"id,omitempty"`
@@ -957,7 +958,11 @@ func TestRawQuery(t *testing.T) {
 
 	drv = sess.Driver().(*sqlx.DB)
 
-	rows, err = drv.Queryx(`
+	if tx, err = drv.Beginx(); err != nil {
+		t.Fatal(err)
+	}
+
+	if rows, err = tx.Queryx(`
 		SELECT
 			p.id AS id,
 			p.title AS publication_title,
@@ -967,9 +972,11 @@ func TestRawQuery(t *testing.T) {
 			(SELECT id() AS id, title, author_id FROM publication) AS p
 		WHERE
 			a.id == p.author_id
-	`)
+	`); err != nil {
+		t.Fatal(err)
+	}
 
-	if err != nil {
+	if err = tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
 

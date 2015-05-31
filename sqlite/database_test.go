@@ -47,7 +47,7 @@ import (
 )
 
 const (
-	database = `_dumps/gotest.sqlite3.db`
+	databaseName = `_dumps/gotest.sqlite3.db`
 )
 
 const (
@@ -55,7 +55,7 @@ const (
 )
 
 var settings = ConnectionURL{
-	Database: database,
+	Database: databaseName,
 }
 
 // Structure for testing conversions and datatypes.
@@ -167,7 +167,7 @@ func TestOldSettings(t *testing.T) {
 	var sess db.Database
 
 	oldSettings := db.Settings{
-		Database: database,
+		Database: databaseName,
 	}
 
 	// Opening database.
@@ -1378,10 +1378,24 @@ func TestDataTypes(t *testing.T) {
 	loc, _ := time.LoadLocation(testTimeZone)
 	item.Date = item.Date.In(loc)
 
+	// TODO: Try to guess this conversion.
+	if item.DateP.Location() != testValues.DateP.Location() {
+		v := item.DateP.In(testValues.DateP.Location())
+		item.DateP = &v
+	}
+
 	// The original value and the test subject must match.
-	if reflect.DeepEqual(item, testValues) == false {
-		fmt.Printf("item1: %v\n", item)
-		fmt.Printf("test2: %v\n", testValues)
+	if !reflect.DeepEqual(item, testValues) {
+		fmt.Printf("item1: %#v\n", item)
+		fmt.Printf("test2: %#v\n", testValues)
+		fmt.Printf("item1: %#v\n", item.Date.String())
+		fmt.Printf("test2: %#v\n", testValues.Date.String())
+		fmt.Printf("item1: %v\n", item.Date.Location().String())
+		fmt.Printf("test2: %v\n", testValues.Date.Location().String())
+		fmt.Printf("item1: %#v\n", item.DateP)
+		fmt.Printf("test2: %#v\n", testValues.DateP)
+		fmt.Printf("item1: %v\n", item.DateP.Location().String())
+		fmt.Printf("test2: %v\n", testValues.DateP.Location().String())
 		t.Fatalf("Struct is different.")
 	}
 }
@@ -1402,7 +1416,7 @@ func BenchmarkAppendRawSQL(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sql.DB)
+	driver := sess.Driver().(*sqlx.DB)
 
 	if _, err = driver.Exec(`DELETE FROM "artist"`); err != nil {
 		b.Fatal(err)
@@ -1456,7 +1470,7 @@ func BenchmarkAppendTxRawSQL(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sql.DB)
+	driver := sess.Driver().(*sqlx.DB)
 
 	if tx, err = driver.Begin(); err != nil {
 		b.Fatal(err)

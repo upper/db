@@ -37,8 +37,8 @@ type scanner struct {
 	i int
 }
 
-// Next returns the next rune.
-// It returns 0, false if the end of the text has been reached.
+// Next returns the next rune.  It returns 0, false if the end of the text has
+// been reached.
 func (s *scanner) Next() (rune, bool) {
 	if s.i >= len(s.s) {
 		return 0, false
@@ -48,8 +48,8 @@ func (s *scanner) Next() (rune, bool) {
 	return r, true
 }
 
-// SkipSpaces returns the next non-whitespace rune.
-// It returns 0, false if the end of the text has been reached.
+// SkipSpaces returns the next non-whitespace rune.  It returns 0, false if the
+// end of the text has been reached.
 func (s *scanner) SkipSpaces() (rune, bool) {
 	r, ok := s.Next()
 	for unicode.IsSpace(r) && ok {
