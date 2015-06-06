@@ -17,8 +17,8 @@ env: GOARCH=amd64 TEST_HOST=127.0.0.1 UPPERIO_DB_DEBUG=1
 
 install:
   - sudo apt-get install -y bzr make
-  - go get github.com/cznic/ql/ql # ql command line util.
-  - go install github.com/cznic/ql/ql # ql command line util.
+  - go get github.com/cznic/ql/ql       # ql command line util.
+  - go install github.com/cznic/ql/ql   # ql command line util.
   - mkdir ../../../upper.io
   - ln -s $PWD ../../../upper.io/db
   - cd ../../../upper.io/db
@@ -28,7 +28,7 @@ install:
   - go get -t -d upper.io/db/postgresql
   - go get -t -d upper.io/db/mongo
   - go get -t -d upper.io/db/ql
-  - (cd $GOPATH/src/github.com/jmoiron/sqlx && git pull -a && git checkout ptrs) # Peter's branch.
+  - (cd $GOPATH/src/github.com/jmoiron/sqlx && git pull -a && git checkout ptrs && go build && go install) # Peter's branch.
 
 services:
   - mongodb
