@@ -17,11 +17,11 @@ env: GOARCH=amd64 TEST_HOST=127.0.0.1 UPPERIO_DB_DEBUG=1
 
 install:
   - sudo apt-get install -y bzr make
+  - mkdir $GOPATH/src/upper.io/db
+  - mv $PWD $GOPATH/src/upper.io/db
+  - cd $GOPATH/src/upper.io/db
+  - ls -la
   - go get github.com/cznic/ql/ql       # ql command line util.
-  - go install github.com/cznic/ql/ql   # ql command line util.
-  - mkdir ../../../upper.io
-  - ln -s $PWD ../../../upper.io/db
-  - cd ../../../upper.io/db
   - go get -t -d
   - go get -t -d upper.io/db/mysql
   - go get -t -d upper.io/db/sqlite
@@ -51,6 +51,7 @@ before_script:
   - cat ql/_dumps/structs.sql | $GOPATH/bin/ql -db ql/_dumps/test.db
 
 script:
+  - cd $GOPATH/src/upper.io/db
   - go test upper.io/db/mysql -test.bench=.
   - go test upper.io/db/sqlite -test.bench=.
   - go test upper.io/db/ql -test.bench=.
