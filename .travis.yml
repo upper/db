@@ -22,7 +22,7 @@ install:
   - mkdir ../../../upper.io
   - ln -s $PWD ../../../upper.io/db
   - go get -t -d
-  - cd $GOPATH/src/github.com/jmoiron/sqlx && git checkout ptrs # Peter's branch.
+  - (cd $GOPATH/src/github.com/jmoiron/sqlx && git checkout ptrs) # Peter's branch.
   # - go get upper.io/db/mongo
   # - go get upper.io/db/mysql
   # - go get upper.io/db/postgresql
@@ -50,8 +50,7 @@ before_script:
   - cat ql/_dumps/structs.sql | $GOPATH/bin/ql -db ql/_dumps/test.db
 
 script:
-  - go test upper.io/db/util/sqlgen -test.bench=.
-  - go test upper.io/db/postgresql -test.bench=.
+
   - go test upper.io/db/mysql -test.bench=.
   - go test upper.io/db/sqlite -test.bench=.
   - go test upper.io/db/ql -test.bench=.
