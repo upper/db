@@ -21,14 +21,14 @@ install:
   - go install github.com/cznic/ql/ql # ql command line util.
   - mkdir ../../../upper.io
   - ln -s $PWD ../../../upper.io/db
-  - go get -d ../...
+  - cd ../../../upper.io/db
   - go get -t -d
+  - go get -t -d upper.io/db/mysql
+  - go get -t -d upper.io/db/sqlite
+  - go get -t -d upper.io/db/postgresql
+  - go get -t -d upper.io/db/mongo
+  - go get -t -d upper.io/db/ql
   - (cd $GOPATH/src/github.com/jmoiron/sqlx && git pull -a && git checkout ptrs) # Peter's branch.
-  # - go get upper.io/db/mongo
-  # - go get upper.io/db/mysql
-  # - go get upper.io/db/postgresql
-  # - go get upper.io/db/sqlite
-  # - go get upper.io/db/ql
 
 services:
   - mongodb
@@ -51,7 +51,6 @@ before_script:
   - cat ql/_dumps/structs.sql | $GOPATH/bin/ql -db ql/_dumps/test.db
 
 script:
-
   - go test upper.io/db/mysql -test.bench=.
   - go test upper.io/db/sqlite -test.bench=.
   - go test upper.io/db/ql -test.bench=.
