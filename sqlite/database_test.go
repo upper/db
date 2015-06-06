@@ -548,35 +548,6 @@ func TestResultFetch(t *testing.T) {
 
 	res.Close()
 
-	// Dumping into an struct with no tags.
-	rowStruct := struct {
-		ID   uint64
-		Name string
-	}{}
-
-	res = artist.Find()
-
-	for {
-		err = res.Next(&rowStruct)
-
-		if err == db.ErrNoMoreRows {
-			break
-		}
-
-		if err == nil {
-			if rowStruct.ID == 0 {
-				t.Fatalf("Expecting a not null ID.")
-			}
-			if rowStruct.Name == "" {
-				t.Fatalf("Expecting a name.")
-			}
-		} else {
-			t.Fatal(err)
-		}
-	}
-
-	res.Close()
-
 	// Dumping into a tagged struct.
 	rowStruct2 := struct {
 		Value1 uint64 `db:"id"`
@@ -606,7 +577,7 @@ func TestResultFetch(t *testing.T) {
 
 	res.Close()
 
-	// Dumping into an slice of maps.
+	// Dumping into a slice of maps.
 	allRowsMap := []map[string]interface{}{}
 
 	res = artist.Find()
@@ -624,11 +595,10 @@ func TestResultFetch(t *testing.T) {
 		}
 	}
 
-	// Dumping into an slice of structs.
-
+	// Dumping into a slice of structs.
 	allRowsStruct := []struct {
-		ID   uint64
-		Name string
+		ID   uint64 `db:"id,omitempty"`
+		Name string `db:"name"`
 	}{}
 
 	res = artist.Find()
@@ -687,8 +657,8 @@ func TestUpdate(t *testing.T) {
 
 	// Defining destination struct
 	value := struct {
-		ID   uint64
-		Name string
+		ID   uint64 `db:"id,omitempty"`
+		Name string `db:"name"`
 	}{}
 
 	// Getting the first artist.
@@ -719,7 +689,7 @@ func TestUpdate(t *testing.T) {
 
 	// Updating set with a struct
 	rowStruct := struct {
-		Name string
+		Name string `db:"name"`
 	}{strings.ToLower(value.Name)}
 
 	if err = res.Update(rowStruct); err != nil {
