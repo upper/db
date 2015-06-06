@@ -21,13 +21,13 @@ install:
   - mv $PWD $GOPATH/src/upper.io/db
   - cd $GOPATH/src/upper.io/db
   - ls -la
-  - go get github.com/cznic/ql/ql       # ql command line util.
-  - go get -t -d
-  - go get -t -d upper.io/db/mysql
-  - go get -t -d upper.io/db/sqlite
-  - go get -t -d upper.io/db/postgresql
-  - go get -t -d upper.io/db/mongo
-  - go get -t -d upper.io/db/ql
+  - go get -v github.com/cznic/ql/ql       # ql command line util.
+  - go get -v -t -d
+  - go get -v -t -d upper.io/db/mysql
+  - go get -v -t -d upper.io/db/sqlite
+  - go get -v -t -d upper.io/db/postgresql
+  - go get -v -t -d upper.io/db/mongo
+  - go get -v -t -d upper.io/db/ql
   - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db
 
 services:
@@ -51,7 +51,7 @@ before_script:
   - cat ql/_dumps/structs.sql | $GOPATH/bin/ql -db ql/_dumps/test.db
 
 script:
-  - (cd $GOPATH/src/github.com/jmoiron/sqlx && git pull -a && git checkout ptrs && go build && go install) # Peter's branch.
+  - (cd $GOPATH/src/github.com/jmoiron/sqlx && git pull -a && git checkout ptrs && go build -a && go install) # Peter's branch.
   - cd $GOPATH/src/upper.io/db
   - go test upper.io/db/mysql -test.bench=.
   - go test upper.io/db/sqlite -test.bench=.
