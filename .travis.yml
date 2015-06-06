@@ -28,7 +28,7 @@ install:
   - go get -t -d upper.io/db/postgresql
   - go get -t -d upper.io/db/mongo
   - go get -t -d upper.io/db/ql
-  - (cd $GOPATH/src/github.com/jmoiron/sqlx && git pull -a && git checkout ptrs && go build && go install) # Peter's branch.
+  - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db
 
 services:
   - mongodb
@@ -51,6 +51,7 @@ before_script:
   - cat ql/_dumps/structs.sql | $GOPATH/bin/ql -db ql/_dumps/test.db
 
 script:
+  - (cd $GOPATH/src/github.com/jmoiron/sqlx && git pull -a && git checkout ptrs && go build && go install) # Peter's branch.
   - cd $GOPATH/src/upper.io/db
   - go test upper.io/db/mysql -test.bench=.
   - go test upper.io/db/sqlite -test.bench=.
