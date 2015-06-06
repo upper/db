@@ -385,8 +385,8 @@ var setupFn = map[string]func(driver interface{}) error{
 }
 
 type birthday struct {
-	Name   string    // Must match by name.
-	Born   time.Time // Must match by name.
+	Name   string    `db:"name"`
+	Born   time.Time `db:"born"`
 	BornUT timeType  `db:"born_ut"`
 	OmitMe bool      `json:"omit_me" db:"-" bson:"-"`
 }
@@ -395,15 +395,15 @@ type fibonacci struct {
 	Input  uint64 `db:"input"`
 	Output uint64 `db:"output"`
 	// Test for BSON option.
-	OmitMe bool `json:"omitme" db:",bson,omitempty" bson:"omit_me,omitempty"`
+	OmitMe bool `json:"omit_me" db:"omit_me,bson,omitempty" bson:"omit_me,omitempty"`
 }
 
 type oddEven struct {
 	// Test for JSON option.
-	Input int `json:"input"`
+	Input int `json:"input" db:"input"`
 	// Test for JSON option.
 	// The "bson" tag is required by mgo.
-	IsEven bool `json:"is_even" db:",json" bson:"is_even"`
+	IsEven bool `json:"is_even" db:"is_even,json" bson:"is_even"`
 	OmitMe bool `json:"omit_me" db:"-" bson:"-"`
 }
 
@@ -418,7 +418,7 @@ type mapE struct {
 type mapN struct {
 	ID        uint          `db:"id,omitempty"`
 	MongoID   bson.ObjectId `db:"-" bson:"_id,omitempty"`
-	Case_TEST string
+	Case_TEST string        `db:"case_test"`
 }
 
 // Struct for testing marshalling.
