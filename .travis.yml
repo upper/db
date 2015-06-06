@@ -21,7 +21,7 @@ install:
   - go install github.com/cznic/ql/ql # ql command line util.
   - mkdir ../../../upper.io
   - ln -s $PWD ../../../upper.io/db
-  - go get ../...
+  - go get -d ../...
   - go get -t -d
   - (cd $GOPATH/src/github.com/jmoiron/sqlx && git pull -a && git checkout ptrs) # Peter's branch.
   # - go get upper.io/db/mongo
