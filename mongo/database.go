@@ -19,7 +19,7 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package mongo
+package mongo // import "upper.io/v2/db/mongo"
 
 import (
 	"fmt"
@@ -29,7 +29,7 @@ import (
 	"time"
 
 	"gopkg.in/mgo.v2"
-	"upper.io/db"
+	"upper.io/v2/db"
 )
 
 const Adapter = `mongo`

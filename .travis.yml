@@ -17,18 +17,18 @@ env: GOARCH=amd64 TEST_HOST=127.0.0.1 UPPERIO_DB_DEBUG=1
 
 install:
   - sudo apt-get install -y bzr make
-  - mkdir -p $GOPATH/src/upper.io
-  - mv $PWD $GOPATH/src/upper.io/db
-  - cd $GOPATH/src/upper.io/db
+  - mkdir -p $GOPATH/src/upper.io/v2
+  - mv $PWD $GOPATH/src/upper.io/v2/db
+  - cd $GOPATH/src/upper.io/v2/db
   - ls -la
   - go get -v github.com/cznic/ql/ql       # ql command line util.
   - go get -v -t -d
-  - go get -v -t -d upper.io/db/mysql
-  - go get -v -t -d upper.io/db/sqlite
-  - go get -v -t -d upper.io/db/postgresql
-  - go get -v -t -d upper.io/db/mongo
-  - go get -v -t -d upper.io/db/ql
-  - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db
+  - go get -v -t -d upper.io/v2/db/mysql
+  - go get -v -t -d upper.io/v2/db/sqlite
+  - go get -v -t -d upper.io/v2/db/postgresql
+  - go get -v -t -d upper.io/v2/db/mongo
+  - go get -v -t -d upper.io/v2/db/ql
+  - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/v2/db
 
 services:
   - mongodb
@@ -52,9 +52,9 @@ before_script:
 
 script:
   - (cd $GOPATH/src/github.com/jmoiron/sqlx && git pull -a && git checkout ptrs && go build -a && go install) # Peter's branch.
-  - cd $GOPATH/src/upper.io/db
-  - go test upper.io/db/mysql -test.bench=.
-  - go test upper.io/db/sqlite -test.bench=.
-  - go test upper.io/db/ql -test.bench=.
-  - go test upper.io/db/mongo -test.bench=.
+  - cd $GOPATH/src/upper.io/v2/db
+  - go test upper.io/v2/db/mysql -test.bench=.
+  - go test upper.io/v2/db/sqlite -test.bench=.
+  - go test upper.io/v2/db/ql -test.bench=.
+  - go test upper.io/v2/db/mongo -test.bench=.
   - go test -test.v

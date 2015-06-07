@@ -3,7 +3,7 @@ package result
 import (
 	"database/sql"
 	"github.com/jmoiron/sqlx"
-	"upper.io/db/util/sqlgen"
+	"upper.io/v2/db/util/sqlgen"
 )
 
 type DataProvider interface {

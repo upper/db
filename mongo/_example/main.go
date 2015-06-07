@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"upper.io/db"         // Imports the main db package.
-	_ "upper.io/db/mongo" // Imports the mongo adapter.
+	"upper.io/v2/db"         // Imports the main db package.
+	_ "upper.io/v2/db/mongo" // Imports the mongo adapter.
 )
 
 var settings = db.Settings{

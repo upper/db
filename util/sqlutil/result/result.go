@@ -26,9 +26,9 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
-	"upper.io/db"
-	"upper.io/db/util/sqlgen"
-	"upper.io/db/util/sqlutil"
+	"upper.io/v2/db"
+	"upper.io/v2/db/util/sqlgen"
+	"upper.io/v2/db/util/sqlutil"
 )
 
 var (

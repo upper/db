@@ -29,7 +29,7 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx/reflectx"
-	"upper.io/db"
+	"upper.io/v2/db"
 )
 
 var (

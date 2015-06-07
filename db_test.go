@@ -34,13 +34,13 @@ import (
 	"github.com/jmoiron/sqlx"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"upper.io/db"
-	"upper.io/db/mongo"
+	"upper.io/v2/db"
+	"upper.io/v2/db/mongo"
 
-	"upper.io/db/mysql"
-	"upper.io/db/postgresql"
-	"upper.io/db/ql"
-	"upper.io/db/sqlite"
+	"upper.io/v2/db/mysql"
+	"upper.io/v2/db/postgresql"
+	"upper.io/v2/db/ql"
+	"upper.io/v2/db/sqlite"
 )
 
 var wrappers = []string{

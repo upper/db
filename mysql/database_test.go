@@ -35,8 +35,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"menteslibres.net/gosexy/to"
-	"upper.io/db"
-	"upper.io/db/util/sqlutil"
+	"upper.io/v2/db"
+	"upper.io/v2/db/util/sqlutil"
 )
 
 const (

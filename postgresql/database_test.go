@@ -35,8 +35,8 @@ import (
 	"math/rand"
 
 	"github.com/jmoiron/sqlx"
-	"upper.io/db"
-	"upper.io/db/util/sqlutil"
+	"upper.io/v2/db"
+	"upper.io/v2/db/util/sqlutil"
 )
 
 const (
