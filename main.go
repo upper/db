@@ -41,7 +41,7 @@
 //	var people []Person
 //	res = col.Find(db.Cond{"name": "Max"}).Limit(2).Sort("-input")
 //	err = res.All(&people)
-package db
+package db // import "upper.io/db"
 
 // Cond is a map used to define conditions passed to `db.Collection.Find()` and
 // `db.Result.Where()`.
