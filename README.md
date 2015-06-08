@@ -4,7 +4,7 @@
 <img src="https://upper.io/images/icon.svg" width="256" />
 </center>
 
-[![Build Status](https://travis-ci.org/upper/db.v1.svg?branch=master)](https://travis-ci.org/upper/db.v1)
+[![Build Status](https://travis-ci.org/upper/db.svg?branch=master)](https://travis-ci.org/upper/db)
 
 ## The `db` package
 
