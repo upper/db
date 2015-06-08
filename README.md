@@ -1,5 +1,7 @@
 # upper.io/v2/db
 
+*V2 IS CURRENTLY IN DEVELOPMENT AND NOT YET READY TO USE*
+
 <center>
 <img src="https://upper.io/images/icon.svg" width="256" />
 </center>
