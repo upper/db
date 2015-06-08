@@ -30,7 +30,8 @@ install:
   - go get -v -t -d upper.io/v2/db/ql
   - go get -v github.com/pkieltyka/sqlx
   - (cd $GOPATH/src/github.com/pkieltyka/sqlx && git pull -a && git checkout ptrs) # temporal fix
-  - cp -r $GOPATH/src/github.com/pkieltyka/sqlx/* $GOPATH/src/github.com/jmoiron/sqlx/ # temporal fix
+  - (cp -r $GOPATH/src/github.com/pkieltyka/sqlx/* $GOPATH/src/github.com/jmoiron/sqlx) # temporal fix
+  - (cd $GOPATH/src/github.com/jmoiron/sqlx && go build -a && go install)
   - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/v2/db
 
 services:
@@ -54,7 +55,6 @@ before_script:
   - cat ql/_dumps/structs.sql | $GOPATH/bin/ql -db ql/_dumps/test.db
 
 script:
-  - (cd $GOPATH/src/github.com/jmoiron/sqlx && git pull -a && git checkout ptrs && go build -a && go install) # Peter's branch.
   - cd $GOPATH/src/upper.io/v2/db
   - go test upper.io/v2/db/mysql -test.bench=.
   - go test upper.io/v2/db/sqlite -test.bench=.
