@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+// Copyright (c) 2012-2015 José Carlos Nieto, https://menteslibres.net/xiam
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -19,40 +19,41 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package postgresql
+package mysql
 
 const (
-	pgsqlColumnSeparator     = `.`
-	pgsqlIdentifierSeparator = `, `
-	pgsqlIdentifierQuote     = `"{{.Raw}}"`
-	pgsqlValueSeparator      = `, `
-	pgsqlValueQuote          = `'{{.}}'`
-	pgsqlAndKeyword          = `AND`
-	pgsqlOrKeyword           = `OR`
-	pgsqlNotKeyword          = `NOT`
-	pgsqlDescKeyword         = `DESC`
-	pgsqlAscKeyword          = `ASC`
-	pgsqlDefaultOperator     = `=`
-	pgsqlClauseGroup         = `({{.}})`
-	pgsqlClauseOperator      = ` {{.}} `
-	pgsqlColumnValue         = `{{.Column}} {{.Operator}} {{.Value}}`
-	pgsqlTableAliasLayout    = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
-	pgsqlColumnAliasLayout   = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
-	pgsqlSortByColumnLayout  = `{{.Column}} {{.Sort}}`
+	adapterColumnSeparator     = `.`
+	adapterIdentifierSeparator = `, `
+	adapterIdentifierQuote     = "`{{.Value}}`"
+	adapterValueSeparator      = `, `
+	adapterValueQuote          = `'{{.}}'`
+	adapterAndKeyword          = `AND`
+	adapterOrKeyword           = `OR`
+	adapterNotKeyword          = `NOT`
+	adapterDescKeyword         = `DESC`
+	adapterAscKeyword          = `ASC`
+	adapterDefaultOperator     = `=`
+	adapterAssignmentOperator  = `=`
+	adapterClauseGroup         = `({{.}})`
+	adapterClauseOperator      = ` {{.}} `
+	adapterColumnValue         = `{{.Column}} {{.Operator}} {{.Value}}`
+	adapterTableAliasLayout    = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
+	adapterColumnAliasLayout   = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
+	adapterSortByColumnLayout  = `{{.Column}} {{.Order}}`
 
-	pgsqlOrderByLayout = `
+	adapterOrderByLayout = `
 		{{if .SortColumns}}
 			ORDER BY {{.SortColumns}}
 		{{end}}
 	`
 
-	pgsqlWhereLayout = `
+	adapterWhereLayout = `
 		{{if .Conds}}
 			WHERE {{.Conds}}
 		{{end}}
 	`
 
-	pgsqlSelectLayout = `
+	adapterSelectLayout = `
 		SELECT
 
 			{{if .Columns}}
@@ -79,19 +80,19 @@ const (
 				OFFSET {{.Offset}}
 			{{end}}
 	`
-	pgsqlDeleteLayout = `
+	adapterDeleteLayout = `
 		DELETE
 			FROM {{.Table}}
 			{{.Where}}
 	`
-	pgsqlUpdateLayout = `
+	adapterUpdateLayout = `
 		UPDATE
 			{{.Table}}
 		SET {{.ColumnValues}}
 			{{ .Where }}
 	`
 
-	pgsqlSelectCountLayout = `
+	adapterSelectCountLayout = `
 		SELECT
 			COUNT(1) AS _t
 		FROM {{.Table}}
@@ -106,7 +107,7 @@ const (
 			{{end}}
 	`
 
-	pgsqlInsertLayout = `
+	adapterInsertLayout = `
 		INSERT INTO {{.Table}}
 			({{.Columns}})
 		VALUES
@@ -114,23 +115,21 @@ const (
 		{{.Extra}}
 	`
 
-	pgsqlTruncateLayout = `
-		TRUNCATE TABLE {{.Table}} RESTART IDENTITY
+	adapterTruncateLayout = `
+		TRUNCATE TABLE {{.Table}}
 	`
 
-	pgsqlDropDatabaseLayout = `
+	adapterDropDatabaseLayout = `
 		DROP DATABASE {{.Database}}
 	`
 
-	pgsqlDropTableLayout = `
+	adapterDropTableLayout = `
 		DROP TABLE {{.Table}}
 	`
 
-	pgsqlGroupByLayout = `
+	adapterGroupByLayout = `
 		{{if .GroupColumns}}
 			GROUP BY {{.GroupColumns}}
 		{{end}}
 	`
-
-	psqlNull = `NULL`
 )

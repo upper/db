@@ -2,24 +2,29 @@ package sqlgen
 
 import (
 	"strconv"
+	"strings"
+
+	"upper.io/cache"
 )
 
+// Statement represents different kinds of SQL statements.
 type Statement struct {
 	Type
-	Table
-	Database
+	Table    Fragment
+	Database Fragment
 	Limit
 	Offset
-	Columns
-	Values
-	ColumnValues
-	OrderBy
-	GroupBy
+	Columns      Fragment
+	Values       Fragment
+	ColumnValues Fragment
+	OrderBy      Fragment
+	GroupBy      Fragment
 	Extra
-	Where
+	Where Fragment
+	hash  string
 }
 
-type statement_s struct {
+type statementT struct {
 	Table    string
 	Database string
 	Limit
@@ -33,64 +38,86 @@ type statement_s struct {
 	Where        string
 }
 
-func (self Statement) Hash() string {
-	hash := `Statement(` +
-		strconv.Itoa(int(self.Type)) + `;` +
-		self.Table.Hash() + `;` +
-		self.Database.Hash() + `;` +
-		strconv.Itoa(int(self.Limit)) + `;` +
-		strconv.Itoa(int(self.Offset)) + `;` +
-		self.Columns.Hash() + `;` +
-		self.Values.Hash() + `;` +
-		self.ColumnValues.Hash() + `;` +
-		self.OrderBy.Hash() + `;` +
-		self.GroupBy.Hash() + `;` +
-		string(self.Extra) + `;` +
-		self.Where.Hash() +
-		`)`
-	return hash
+func (layout *Template) doCompile(c Fragment) string {
+	if c != nil {
+		return c.Compile(layout)
+	}
+	return ""
 }
 
-func (self *Statement) Compile(layout *Template) (compiled string) {
+func (s Statement) getHash(h cache.Hashable) string {
+	if h != nil {
+		return h.Hash()
+	}
+	return ""
+}
 
-	if c, ok := layout.Read(self); ok {
-		return c
+// Hash returns a unique identifier.
+func (s *Statement) Hash() string {
+	if s.hash == "" {
+		parts := strings.Join([]string{
+			strconv.Itoa(int(s.Type)),
+			s.getHash(s.Table),
+			s.getHash(s.Database),
+			strconv.Itoa(int(s.Limit)),
+			strconv.Itoa(int(s.Offset)),
+			s.getHash(s.Columns),
+			s.getHash(s.Values),
+			s.getHash(s.ColumnValues),
+			s.getHash(s.OrderBy),
+			s.getHash(s.GroupBy),
+			string(s.Extra),
+			s.getHash(s.Where),
+		}, ";")
+
+		s.hash = `Statement(` + parts + `)`
+	}
+	return s.hash
+}
+
+// Compile transforms the Statement into an equivalent SQL query.
+func (s *Statement) Compile(layout *Template) (compiled string) {
+
+	if z, ok := layout.Read(s); ok {
+		return z
 	}
 
-	data := statement_s{
-		Table:        self.Table.Compile(layout),
-		Database:     self.Database.Compile(layout),
-		Limit:        self.Limit,
-		Offset:       self.Offset,
-		Columns:      self.Columns.Compile(layout),
-		Values:       self.Values.Compile(layout),
-		ColumnValues: self.ColumnValues.Compile(layout),
-		OrderBy:      self.OrderBy.Compile(layout),
-		GroupBy:      self.GroupBy.Compile(layout),
-		Extra:        string(self.Extra),
-		Where:        self.Where.Compile(layout),
+	data := statementT{
+		Table:        layout.doCompile(s.Table),
+		Database:     layout.doCompile(s.Database),
+		Limit:        s.Limit,
+		Offset:       s.Offset,
+		Columns:      layout.doCompile(s.Columns),
+		Values:       layout.doCompile(s.Values),
+		ColumnValues: layout.doCompile(s.ColumnValues),
+		OrderBy:      layout.doCompile(s.OrderBy),
+		GroupBy:      layout.doCompile(s.GroupBy),
+		Extra:        string(s.Extra),
+		Where:        layout.doCompile(s.Where),
 	}
 
-	switch self.Type {
-	case SqlTruncate:
+	switch s.Type {
+	case Truncate:
 		compiled = mustParse(layout.TruncateLayout, data)
-	case SqlDropTable:
+	case DropTable:
 		compiled = mustParse(layout.DropTableLayout, data)
-	case SqlDropDatabase:
+	case DropDatabase:
 		compiled = mustParse(layout.DropDatabaseLayout, data)
-	case SqlSelectCount:
-		compiled = mustParse(layout.SelectCountLayout, data)
-	case SqlSelect:
+	case Count:
+		compiled = mustParse(layout.CountLayout, data)
+	case Select:
 		compiled = mustParse(layout.SelectLayout, data)
-	case SqlDelete:
+	case Delete:
 		compiled = mustParse(layout.DeleteLayout, data)
-	case SqlUpdate:
+	case Update:
 		compiled = mustParse(layout.UpdateLayout, data)
-	case SqlInsert:
+	case Insert:
 		compiled = mustParse(layout.InsertLayout, data)
+	default:
+		panic("Unknown template type.")
 	}
 
-	layout.Write(self, compiled)
+	layout.Write(s, compiled)
 
 	return compiled
 }

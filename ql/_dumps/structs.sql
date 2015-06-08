@@ -43,6 +43,7 @@ CREATE TABLE data_types (
   _date time,
   _nildate time,
   _ptrdate time,
+  _defaultdate time,
   _time time
 );
 

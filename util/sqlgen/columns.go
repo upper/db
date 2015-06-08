@@ -1,38 +1,53 @@
 package sqlgen
 
 import (
+	"fmt"
 	"strings"
 )
 
-type Columns []Column
-
-func (self Columns) Hash() string {
-	hash := make([]string, 0, len(self))
-	for i := range self {
-		hash = append(hash, self[i].Hash())
-	}
-	return `Columns(` + strings.Join(hash, `,`) + `)`
+// Columns represents an array of Column.
+type Columns struct {
+	Columns []Fragment
+	hash    string
 }
 
-func (self Columns) Compile(layout *Template) (compiled string) {
+// Hash returns a unique identifier.
+func (c *Columns) Hash() string {
+	if c.hash == "" {
+		s := make([]string, len(c.Columns))
+		for i := range c.Columns {
+			s[i] = c.Columns[i].Hash()
+		}
+		c.hash = fmt.Sprintf("Columns{Columns:{%s}}", strings.Join(s, ", "))
+	}
+	return c.hash
+}
 
-	if c, ok := layout.Read(self); ok {
-		return c
+// JoinColumns creates and returns an array of Column.
+func JoinColumns(columns ...Fragment) *Columns {
+	return &Columns{Columns: columns}
+}
+
+// Compile transforms the Columns into an equivalent SQL representation.
+func (c *Columns) Compile(layout *Template) (compiled string) {
+
+	if z, ok := layout.Read(c); ok {
+		return z
 	}
 
-	l := len(self)
+	l := len(c.Columns)
 
 	if l > 0 {
 		out := make([]string, l)
 
 		for i := 0; i < l; i++ {
-			out[i] = self[i].Compile(layout)
+			out[i] = c.Columns[i].Compile(layout)
 		}
 
 		compiled = strings.Join(out, layout.IdentifierSeparator)
 	}
 
-	layout.Write(self, compiled)
+	layout.Write(c, compiled)
 
 	return
 }

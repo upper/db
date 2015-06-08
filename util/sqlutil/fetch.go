@@ -22,17 +22,17 @@
 package sqlutil
 
 import (
-	"database/sql"
+	"encoding/json"
 	"reflect"
 
-	"menteslibres.net/gosexy/to"
-	"upper.io/db"
-	"upper.io/db/util"
+	"github.com/jmoiron/sqlx"
+	"github.com/jmoiron/sqlx/reflectx"
+	"upper.io/v2/db"
 )
 
-// FetchRow receives a *sql.Rows value and tries to map all the rows into a
+// FetchRow receives a *sqlx.Rows value and tries to map all the rows into a
 // single struct given by the pointer `dst`.
-func FetchRow(rows *sql.Rows, dst interface{}) error {
+func FetchRow(rows *sqlx.Rows, dst interface{}) error {
 	var columns []string
 	var err error
 
@@ -59,22 +59,28 @@ func FetchRow(rows *sql.Rows, dst interface{}) error {
 		return db.ErrNoMoreRows
 	}
 
-	item, err := fetchResult(itemV.Type(), rows, columns)
+	itemT := itemV.Type()
+	item, err := fetchResult(itemT, rows, columns)
 
 	if err != nil {
 		return err
 	}
 
-	itemV.Set(reflect.Indirect(item))
+	if itemT.Kind() == reflect.Ptr {
+		itemV.Set(item)
+	} else {
+		itemV.Set(reflect.Indirect(item))
+	}
 
 	return nil
 }
 
-// FetchRows receives a *sql.Rows value and tries to map all the rows into a
+// FetchRows receives a *sqlx.Rows value and tries to map all the rows into a
 // slice of structs given by the pointer `dst`.
-func FetchRows(rows *sql.Rows, dst interface{}) error {
-	var columns []string
+func FetchRows(rows *sqlx.Rows, dst interface{}) error {
 	var err error
+
+	defer rows.Close()
 
 	// Destination.
 	dstv := reflect.ValueOf(dst)
@@ -91,6 +97,7 @@ func FetchRows(rows *sql.Rows, dst interface{}) error {
 		return db.ErrExpectingSliceMapStruct
 	}
 
+	var columns []string
 	if columns, err = rows.Columns(); err != nil {
 		return err
 	}
@@ -101,199 +108,176 @@ func FetchRows(rows *sql.Rows, dst interface{}) error {
 	reset(dst)
 
 	for rows.Next() {
-
 		item, err := fetchResult(itemT, rows, columns)
-
 		if err != nil {
 			return err
 		}
-
-		slicev = reflect.Append(slicev, reflect.Indirect(item))
+		if itemT.Kind() == reflect.Ptr {
+			slicev = reflect.Append(slicev, item)
+		} else {
+			slicev = reflect.Append(slicev, reflect.Indirect(item))
+		}
 	}
-
-	rows.Close()
 
 	dstv.Elem().Set(slicev)
 
 	return nil
 }
 
-// indirect function taken from encoding/json/decode.go
-//
-// Copyright 2010 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-func indirect(v reflect.Value, decodingNull bool) (db.Unmarshaler, reflect.Value) {
-	// If v is a named type and is addressable,
-	// start with its address, so that if the type has pointer methods,
-	// we find them.
-	if v.Kind() != reflect.Ptr && v.Type().Name() != "" && v.CanAddr() {
-		v = v.Addr()
-	}
-	for {
-		// Load value from interface, but only if the result will be
-		// usefully addressable.
-		if v.Kind() == reflect.Interface && !v.IsNil() {
-			e := v.Elem()
-			if e.Kind() == reflect.Ptr && !e.IsNil() && (!decodingNull || e.Elem().Kind() == reflect.Ptr) {
-				v = e
-				continue
-			}
-		}
-
-		if v.Kind() != reflect.Ptr {
-			break
-		}
-
-		if v.Elem().Kind() != reflect.Ptr && decodingNull && v.CanSet() {
-			break
-		}
-		if v.IsNil() {
-			v.Set(reflect.New(v.Type().Elem()))
-		}
-		if v.Type().NumMethod() > 0 {
-			if u, ok := v.Interface().(db.Unmarshaler); ok {
-				return u, reflect.Value{}
-			}
-		}
-		v = v.Elem()
-	}
-	return nil, v
-}
-
-func fetchResult(itemT reflect.Type, rows *sql.Rows, columns []string) (reflect.Value, error) {
+func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect.Value, error) {
 	var item reflect.Value
 	var err error
 
-	switch itemT.Kind() {
+	objT := itemT
+
+	switch objT.Kind() {
 	case reflect.Map:
-		item = reflect.MakeMap(itemT)
+		item = reflect.MakeMap(objT)
 	case reflect.Struct:
-		item = reflect.New(itemT)
+		item = reflect.New(objT)
+	case reflect.Ptr:
+		objT = itemT.Elem()
+		if objT.Kind() != reflect.Struct {
+			return item, db.ErrExpectingMapOrStruct
+		}
+		item = reflect.New(objT)
 	default:
 		return item, db.ErrExpectingMapOrStruct
 	}
 
-	expecting := len(columns)
+	switch objT.Kind() {
 
-	// Allocating results.
-	values := make([]*sql.RawBytes, expecting)
-	scanArgs := make([]interface{}, expecting)
+	case reflect.Struct:
 
-	for i := range columns {
-		scanArgs[i] = &values[i]
-	}
+		values := make([]interface{}, len(columns))
+		typeMap := rows.Mapper.TypeMap(itemT)
+		fieldMap := typeMap.Names
+		wrappedValues := map[*reflectx.Field]interface{}{}
 
-	if err = rows.Scan(scanArgs...); err != nil {
-		return item, err
-	}
+		for i, k := range columns {
+			fi, ok := fieldMap[k]
+			if !ok {
+				values[i] = new(interface{})
+				continue
+			}
 
-	// Range over row values.
-	for i, value := range values {
+			// TODO: refactor into a nice pattern
+			if _, ok := fi.Options["stringarray"]; ok {
+				values[i] = &[]byte{}
+				wrappedValues[fi] = values[i]
+			} else if _, ok := fi.Options["int64array"]; ok {
+				values[i] = &[]byte{}
+				wrappedValues[fi] = values[i]
+			} else if _, ok := fi.Options["jsonb"]; ok {
+				values[i] = &[]byte{}
+				wrappedValues[fi] = values[i]
+			} else {
+				f := reflectx.FieldByIndexes(item, fi.Index)
+				values[i] = f.Addr().Interface()
+			}
 
-		if value != nil {
-			// Real column name
-			column := columns[i]
-
-			// Value as string.
-			svalue := string(*value)
-
-			var cv reflect.Value
-
-			v, _ := to.Convert(svalue, reflect.String)
-			cv = reflect.ValueOf(v)
-
-			switch itemT.Kind() {
-			// Destination is a map.
-			case reflect.Map:
-				if cv.Type() != itemT.Elem() {
-					if itemT.Elem().Kind() == reflect.Interface {
-						cv, _ = util.StringToType(svalue, cv.Type())
-					} else {
-						cv, _ = util.StringToType(svalue, itemT.Elem())
-					}
-				}
-				if cv.IsValid() {
-					item.SetMapIndex(reflect.ValueOf(column), cv)
-				}
-			// Destionation is a struct.
-			case reflect.Struct:
-
-				index := util.GetStructFieldIndex(itemT, column)
-
-				if index == nil {
-					continue
-				} else {
-
-					// Destination field.
-					destf := item.Elem().FieldByIndex(index)
-
-					if destf.IsValid() {
-
-						if cv.Type() != destf.Type() {
-
-							if destf.Type().Kind() != reflect.Interface {
-
-								switch destf.Type() {
-								case nullFloat64Type:
-									nullFloat64 := sql.NullFloat64{}
-									if svalue != `` {
-										nullFloat64.Scan(svalue)
-									}
-									cv = reflect.ValueOf(nullFloat64)
-								case nullInt64Type:
-									nullInt64 := sql.NullInt64{}
-									if svalue != `` {
-										nullInt64.Scan(svalue)
-									}
-									cv = reflect.ValueOf(nullInt64)
-								case nullBoolType:
-									nullBool := sql.NullBool{}
-									if svalue != `` {
-										nullBool.Scan(svalue)
-									}
-									cv = reflect.ValueOf(nullBool)
-								case nullStringType:
-									nullString := sql.NullString{}
-									nullString.Scan(svalue)
-									cv = reflect.ValueOf(nullString)
-								default:
-									var decodingNull bool
-
-									if svalue == "" {
-										decodingNull = true
-									}
-
-									u, _ := indirect(destf, decodingNull)
-
-									if u != nil {
-										u.UnmarshalDB(svalue)
-
-										if destf.Kind() == reflect.Interface || destf.Kind() == reflect.Ptr {
-											cv = reflect.ValueOf(u)
-										} else {
-											cv = reflect.ValueOf(u).Elem()
-										}
-
-									} else {
-										cv, _ = util.StringToType(svalue, destf.Type())
-									}
-
-								}
-							}
-
-						}
-
-						// Copying value.
-						if cv.IsValid() {
-							destf.Set(cv)
-						}
-
-					}
-				}
-
+			if u, ok := values[i].(db.Unmarshaler); ok {
+				values[i] = scanner{u}
 			}
 		}
+
+		// Scanner - for reads
+		// Valuer  - for writes
+
+		// OptionTypes
+		// - before/after scan
+		// - before/after valuer..
+
+		if err = rows.Scan(values...); err != nil {
+			return item, err
+		}
+
+		// TODO: move this stuff out of here.. find a nice pattern
+		for fi, v := range wrappedValues {
+			var opt string
+			if _, ok := fi.Options["stringarray"]; ok {
+				opt = "stringarray"
+			} else if _, ok := fi.Options["int64array"]; ok {
+				opt = "int64array"
+			} else if _, ok := fi.Options["jsonb"]; ok {
+				opt = "jsonb"
+			}
+
+			b := v.(*[]byte)
+
+			f := reflectx.FieldByIndexesReadOnly(item, fi.Index)
+
+			switch opt {
+			case "stringarray":
+				v := StringArray{}
+				err := v.Scan(*b)
+				if err != nil {
+					return item, err
+				}
+				f.Set(reflect.ValueOf(v))
+			case "int64array":
+				v := Int64Array{}
+				err := v.Scan(*b)
+				if err != nil {
+					return item, err
+				}
+				f.Set(reflect.ValueOf(v))
+			case "jsonb":
+				if len(*b) == 0 {
+					continue
+				}
+
+				var vv reflect.Value
+				t := reflect.PtrTo(f.Type())
+
+				switch t.Kind() {
+				case reflect.Map:
+					vv = reflect.MakeMap(t)
+				case reflect.Slice:
+					vv = reflect.MakeSlice(t, 0, 0)
+				default:
+					vv = reflect.New(t)
+				}
+
+				err := json.Unmarshal(*b, vv.Interface())
+				if err != nil {
+					return item, err
+				}
+
+				vv = vv.Elem().Elem()
+
+				if !vv.IsValid() || (vv.Kind() == reflect.Ptr && vv.IsNil()) {
+					continue
+				}
+
+				f.Set(vv)
+			}
+		}
+
+	case reflect.Map:
+
+		columns, err := rows.Columns()
+		if err != nil {
+			return item, err
+		}
+
+		values := make([]interface{}, len(columns))
+		for i := range values {
+			if itemT.Elem().Kind() == reflect.Interface {
+				values[i] = new(interface{})
+			} else {
+				values[i] = reflect.New(itemT.Elem()).Interface()
+			}
+		}
+
+		if err = rows.Scan(values...); err != nil {
+			return item, err
+		}
+
+		for i, column := range columns {
+			item.SetMapIndex(reflect.ValueOf(column), reflect.Indirect(reflect.ValueOf(values[i])))
+		}
+
 	}
 
 	return item, nil

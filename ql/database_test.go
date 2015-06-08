@@ -40,42 +40,48 @@ import (
 	"testing"
 	"time"
 
-	"upper.io/db"
-	"upper.io/db/util/sqlutil"
+	"github.com/jmoiron/sqlx"
+	"upper.io/v2/db"
+	"upper.io/v2/db/util/sqlutil"
 )
 
 const (
-	database = `_dumps/test.db`
+	databaseName = `_dumps/test.db`
+)
+
+const (
+	testTimeZone = "Canada/Eastern"
 )
 
 var settings = db.Settings{
-	Database: database,
+	Database: databaseName,
 }
 
 // Structure for testing conversions and datatypes.
 type testValuesStruct struct {
-	Uint   uint   `field:"_uint"`
-	Uint8  uint8  `field:"_uint8"`
-	Uint16 uint16 `field:"_uint16"`
-	Uint32 uint32 `field:"_uint32"`
-	Uint64 uint64 `field:"_uint64"`
+	Uint   uint   `db:"_uint"`
+	Uint8  uint8  `db:"_uint8"`
+	Uint16 uint16 `db:"_uint16"`
+	Uint32 uint32 `db:"_uint32"`
+	Uint64 uint64 `db:"_uint64"`
 
-	Int   int   `field:"_int"`
-	Int8  int8  `field:"_int8"`
-	Int16 int16 `field:"_int16"`
-	Int32 int32 `field:"_int32"`
-	Int64 int64 `field:"_int64"`
+	Int   int   `db:"_int"`
+	Int8  int8  `db:"_int8"`
+	Int16 int16 `db:"_int16"`
+	Int32 int32 `db:"_int32"`
+	Int64 int64 `db:"_int64"`
 
-	Float32 float32 `field:"_float32"`
-	Float64 float64 `field:"_float64"`
+	Float32 float32 `db:"_float32"`
+	Float64 float64 `db:"_float64"`
 
-	Bool   bool   `field:"_bool"`
-	String string `field:"_string"`
+	Bool   bool   `db:"_bool"`
+	String string `db:"_string"`
 
-	Date  time.Time     `field:"_date"`
-	DateN *time.Time    `field:"_nildate"`
-	DateP *time.Time    `field:"_ptrdate"`
-	Time  time.Duration `field:"_time"`
+	Date  time.Time  `db:"_date"`
+	DateN *time.Time `db:"_nildate"`
+	DateP *time.Time `db:"_ptrdate"`
+	DateD *time.Time `db:"_defaultdate,omitempty"`
+	Time  int64      `db:"_time"`
 }
 
 type itemWithKey struct {
@@ -103,7 +109,14 @@ func (item *itemWithKey) SetID(keys map[string]interface{}) error {
 var testValues testValuesStruct
 
 func init() {
-	t := time.Date(2012, 7, 28, 1, 2, 3, 0, time.Local)
+	loc, err := time.LoadLocation(testTimeZone)
+
+	if err != nil {
+		panic(err.Error())
+	}
+
+	t := time.Date(2011, 7, 28, 1, 2, 3, 0, loc)
+	tnz := time.Date(2012, 7, 28, 1, 2, 3, 0, time.UTC)
 
 	testValues = testValuesStruct{
 		1, 1, 1, 1, 1,
@@ -113,8 +126,9 @@ func init() {
 		"Hello world!",
 		t,
 		nil,
-		&t,
-		time.Second * time.Duration(7331),
+		&tnz,
+		nil,
+		int64(time.Second * time.Duration(7331)),
 	}
 }
 
@@ -141,7 +155,7 @@ func TestOldSettings(t *testing.T) {
 	var sess db.Database
 
 	oldSettings := db.Settings{
-		Database: database,
+		Database: databaseName,
 	}
 
 	// Opening database.
@@ -417,39 +431,10 @@ func TestResultFetch(t *testing.T) {
 
 	res.Close()
 
-	// Dumping into an struct with no tags.
-	rowStruct := struct {
-		ID   uint64
-		Name string
-	}{}
-
-	res = artist.Find().Select("id() AS id", "name")
-
-	for {
-		err = res.Next(&rowStruct)
-
-		if err == db.ErrNoMoreRows {
-			break
-		}
-
-		if err == nil {
-			if rowStruct.ID == 0 {
-				t.Fatalf("Expecting a not null ID.")
-			}
-			if rowStruct.Name == "" {
-				t.Fatalf("Expecting a name.")
-			}
-		} else {
-			t.Fatal(err)
-		}
-	}
-
-	res.Close()
-
 	// Dumping into a tagged struct.
 	rowStruct2 := struct {
-		Value1 uint64 `field:"id"`
-		Value2 string `field:"name"`
+		Value1 uint64 `db:"id"`
+		Value2 string `db:"name"`
 	}{}
 
 	res = artist.Find().Select("id() AS id", "name")
@@ -493,11 +478,10 @@ func TestResultFetch(t *testing.T) {
 		}
 	}
 
-	// Dumping into an slice of structs.
-
+	// Dumping into a slice of structs.
 	allRowsStruct := []struct {
-		ID   uint64
-		Name string
+		ID   uint64 `db:"id"`
+		Name string `db:"name"`
 	}{}
 
 	res = artist.Find().Select("id() AS id", "name")
@@ -517,8 +501,8 @@ func TestResultFetch(t *testing.T) {
 
 	// Dumping into an slice of tagged structs.
 	allRowsStruct2 := []struct {
-		Value1 uint64 `field:"id"`
-		Value2 string `field:"name"`
+		Value1 uint64 `db:"id"`
+		Value2 string `db:"name"`
 	}{}
 
 	res = artist.Find().Select("id() AS id", "name")
@@ -588,7 +572,7 @@ func TestUpdate(t *testing.T) {
 
 	// Updating set with a struct
 	rowStruct := struct {
-		Name string
+		Name string `db:"name"`
 	}{strings.ToLower(value.Name)}
 
 	if err = res.Update(rowStruct); err != nil {
@@ -925,9 +909,10 @@ func TestRawRelations(t *testing.T) {
 
 func TestRawQuery(t *testing.T) {
 	var sess db.Database
-	var rows *sql.Rows
+	var rows *sqlx.Rows
 	var err error
-	var drv *sql.DB
+	var drv *sqlx.DB
+	var tx *sqlx.Tx
 
 	type publicationType struct {
 		ID       int64  `db:"id,omitempty"`
@@ -941,9 +926,13 @@ func TestRawQuery(t *testing.T) {
 
 	defer sess.Close()
 
-	drv = sess.Driver().(*sql.DB)
+	drv = sess.Driver().(*sqlx.DB)
 
-	rows, err = drv.Query(`
+	if tx, err = drv.Beginx(); err != nil {
+		t.Fatal(err)
+	}
+
+	if rows, err = tx.Queryx(`
 		SELECT
 			p.id AS id,
 			p.title AS publication_title,
@@ -953,9 +942,11 @@ func TestRawQuery(t *testing.T) {
 			(SELECT id() AS id, title, author_id FROM publication) AS p
 		WHERE
 			a.id == p.author_id
-	`)
+	`); err != nil {
+		t.Fatal(err)
+	}
 
-	if err != nil {
+	if err = tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1276,7 +1267,7 @@ func BenchmarkAppendRawSQL(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sql.DB)
+	driver := sess.Driver().(*sqlx.DB)
 
 	if tx, err = driver.Begin(); err != nil {
 		b.Fatal(err)
@@ -1349,7 +1340,7 @@ func BenchmarkAppendTxRawSQL(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sql.DB)
+	driver := sess.Driver().(*sqlx.DB)
 
 	if tx, err = driver.Begin(); err != nil {
 		b.Fatal(err)

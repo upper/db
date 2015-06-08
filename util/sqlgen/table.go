@@ -13,6 +13,7 @@ type tableT struct {
 // Table struct represents a SQL table.
 type Table struct {
 	Name interface{}
+	hash string
 }
 
 func quotedTableName(layout *Template, input string) string {
@@ -33,7 +34,7 @@ func quotedTableName(layout *Template, input string) string {
 	for i := range nameChunks {
 		// nameChunks[i] = strings.TrimSpace(nameChunks[i])
 		nameChunks[i] = trimString(nameChunks[i])
-		nameChunks[i] = mustParse(layout.IdentifierQuote, Raw{nameChunks[i]})
+		nameChunks[i] = mustParse(layout.IdentifierQuote, Raw{Value: nameChunks[i]})
 	}
 
 	name = strings.Join(nameChunks, layout.ColumnSeparator)
@@ -43,28 +44,44 @@ func quotedTableName(layout *Template, input string) string {
 	if len(chunks) > 1 {
 		// alias = strings.TrimSpace(chunks[1])
 		alias = trimString(chunks[1])
-		alias = mustParse(layout.IdentifierQuote, Raw{alias})
+		alias = mustParse(layout.IdentifierQuote, Raw{Value: alias})
 	}
 
 	return mustParse(layout.TableAliasLayout, tableT{name, alias})
 }
 
+// TableWithName creates an returns a Table with the given name.
+func TableWithName(name string) *Table {
+	return &Table{Name: name}
+}
+
 // Hash returns a string hash of the table value.
-func (t Table) Hash() string {
-	switch t := t.Name.(type) {
-	case cc:
-		return `Table(` + t.Hash() + `)`
-	case string:
-		return `Table(` + t + `)`
+func (t *Table) Hash() string {
+	if t.hash == "" {
+		var s string
+
+		switch v := t.Name.(type) {
+		case Fragment:
+			s = v.Hash()
+		case fmt.Stringer:
+			s = v.String()
+		case string:
+			s = v
+		default:
+			s = fmt.Sprintf("%v", t.Name)
+		}
+
+		t.hash = fmt.Sprintf(`Table{Name:%q}`, s)
 	}
-	return fmt.Sprintf(`Table(%v)`, t.Name)
+
+	return t.hash
 }
 
 // Compile transforms a table struct into a SQL chunk.
-func (t Table) Compile(layout *Template) (compiled string) {
+func (t *Table) Compile(layout *Template) (compiled string) {
 
-	if c, ok := layout.Read(t); ok {
-		return c
+	if z, ok := layout.Read(t); ok {
+		return z
 	}
 
 	switch value := t.Name.(type) {

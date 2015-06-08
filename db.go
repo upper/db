@@ -22,26 +22,27 @@
 // Package db provides a single interface for interacting with different data
 // sources through the use of adapters that wrap well-known database drivers.
 //
-// As of today, `upper.io/db` fully supports MySQL, PostgreSQL and SQLite (CRUD
+// As of today, `upper.io/v2/db` fully supports MySQL, PostgreSQL and SQLite (CRUD
 // + Transactions) and provides partial support for MongoDB and QL (CRUD only).
 //
 // Usage:
 //
 // 	import(
 //		// Main package.
-// 		"upper.io/db"
+// 		"upper.io/v2/db"
 //		// PostgreSQL adapter.
-// 		"upper.io/db/postgresql"
+// 		"upper.io/v2/db/postgresql"
 // 	)
 //
-// `upper.io/db` is not an ORM and thus does not impose any hard restrictions
+// `upper.io/v2/db` is not an ORM and thus does not impose any hard restrictions
 // on data structures:
 //
 //	// This code works the same for all supported databases.
 //	var people []Person
 //	res = col.Find(db.Cond{"name": "Max"}).Limit(2).Sort("-input")
 //	err = res.All(&people)
-package db // import "upper.io/db"
+
+package db // import "upper.io/v2/db"
 
 // Cond is a map used to define conditions passed to `db.Collection.Find()` and
 // `db.Result.Where()`.
@@ -100,6 +101,10 @@ type Func struct {
 // 	}
 type And []interface{}
 
+func (a And) And(exp ...interface{}) And {
+	return append(a, exp...)
+}
+
 // Or is an array of interfaced that is used to join two or more expressions
 // under logical disjunction, it accepts `db.Cond{}`, `db.And{}`, `db.Raw{}`
 // and other `db.Or{}` values.
@@ -112,6 +117,10 @@ type And []interface{}
 // 		db.Cond{"year": 1987},
 // 	}
 type Or []interface{}
+
+func (o Or) Or(exp ...interface{}) Or {
+	return append(o, exp...)
+}
 
 // Raw holds chunks of data to be passed to the database without any filtering.
 // Use with care.

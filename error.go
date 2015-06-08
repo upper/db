@@ -47,7 +47,7 @@ var (
 	ErrUnsupportedDestination  = errors.New(`Unsupported destination type.`)
 	ErrUnsupportedType         = errors.New(`This type does not support marshaling.`)
 	ErrUnsupportedValue        = errors.New(`This value does not support unmarshaling.`)
-	ErrUnknownConditionType    = errors.New(`Arguments of type %s can't be used as constraints.`)
+	ErrUnknownConditionType    = errors.New(`Arguments of type %T can't be used as constraints.`)
 )
 
 // Deprecated but kept for backwards compatibility. See: https://github.com/upper/db/issues/18

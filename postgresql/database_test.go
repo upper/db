@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+// Copyright (c) 2012-2015 José Carlos Nieto, https://menteslibres.net/xiam
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,18 +21,10 @@
 
 package postgresql
 
-// In order to execute these tests you must initialize the database first:
-//
-// cd _dumps
-// make
-// cd ..
-// go test
-
 import (
 	"database/sql"
 	"errors"
-	"flag"
-	"math/rand"
+	"fmt"
 	"os"
 	"reflect"
 	"strconv"
@@ -40,49 +32,64 @@ import (
 	"testing"
 	"time"
 
-	"menteslibres.net/gosexy/to"
-	"upper.io/db"
-	"upper.io/db/util/sqlutil"
+	"math/rand"
+
+	"github.com/jmoiron/sqlx"
+	"upper.io/v2/db"
+	"upper.io/v2/db/util/sqlutil"
 )
 
 const (
-	database = "upperio_tests"
-	username = "upperio"
-	password = "upperio"
+	databaseName = "upperio_tests"
+	username     = "upperio"
+	password     = "upperio"
+)
+
+const (
+	testTimeZone = "Canada/Eastern"
 )
 
 var settings = ConnectionURL{
-	Database: database,
+	Database: databaseName,
 	User:     username,
 	Password: password,
+	Options: map[string]string{
+		"timezone": testTimeZone,
+	},
 }
 
-var host = flag.String("host", "testserver.local", "Testing server address.")
+var host string
 
 // Structure for testing conversions and datatypes.
 type testValuesStruct struct {
-	Uint   uint   `field:"_uint"`
-	Uint8  uint8  `field:"_uint8"`
-	Uint16 uint16 `field:"_uint16"`
-	Uint32 uint32 `field:"_uint32"`
-	Uint64 uint64 `field:"_uint64"`
+	Uint   uint   `db:"_uint"`
+	Uint8  uint8  `db:"_uint8"`
+	Uint16 uint16 `db:"_uint16"`
+	Uint32 uint32 `db:"_uint32"`
+	Uint64 uint64 `db:"_uint64"`
 
-	Int   int   `field:"_int"`
-	Int8  int8  `field:"_int8"`
-	Int16 int16 `field:"_int16"`
-	Int32 int32 `field:"_int32"`
-	Int64 int64 `field:"_int64"`
+	Int   int   `db:"_int"`
+	Int8  int8  `db:"_int8"`
+	Int16 int16 `db:"_int16"`
+	Int32 int32 `db:"_int32"`
+	Int64 int64 `db:"_int64"`
 
-	Float32 float32 `field:"_float32"`
-	Float64 float64 `field:"_float64"`
+	Float32 float32 `db:"_float32"`
+	Float64 float64 `db:"_float64"`
 
-	Bool   bool   `field:"_bool"`
-	String string `field:"_string"`
+	Bool   bool   `db:"_bool"`
+	String string `db:"_string"`
 
-	Date  time.Time     `field:"_date"`
-	DateN *time.Time    `field:"_nildate"`
-	DateP *time.Time    `field:"_ptrdate"`
-	Time  time.Duration `field:"_time"`
+	Date  time.Time  `db:"_date"`
+	DateN *time.Time `db:"_nildate"`
+	DateP *time.Time `db:"_ptrdate"`
+	DateD *time.Time `db:"_defaultdate,omitempty"`
+	Time  int64      `db:"_time"`
+}
+
+type artistType struct {
+	ID   int64  `db:"id,omitempty"`
+	Name string `db:"name"`
 }
 
 type artistWithInt64Key struct {
@@ -111,8 +118,8 @@ func (item itemWithKey) Constraint() db.Cond {
 
 func (item *itemWithKey) SetID(keys map[string]interface{}) error {
 	if len(keys) == 2 {
-		item.Code = keys["code"].(string)
-		item.UserID = keys["user_id"].(string)
+		item.Code = string(keys["code"].([]byte))
+		item.UserID = string(keys["user_id"].([]byte))
 		return nil
 	}
 	return errors.New(`Expecting exactly two keys.`)
@@ -121,8 +128,14 @@ func (item *itemWithKey) SetID(keys map[string]interface{}) error {
 var testValues testValuesStruct
 
 func init() {
+	loc, err := time.LoadLocation(testTimeZone)
 
-	t := time.Date(2012, 7, 28, 1, 2, 3, 0, time.Local)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	t := time.Date(2011, 7, 28, 1, 2, 3, 0, loc)                     // timestamp with time zone
+	tnz := time.Date(2012, 7, 28, 1, 2, 3, 0, time.FixedZone("", 0)) // timestamp without time zone
 
 	testValues = testValuesStruct{
 		1, 1, 1, 1, 1,
@@ -132,18 +145,22 @@ func init() {
 		"Hello world!",
 		t,
 		nil,
-		&t,
-		time.Second * time.Duration(7331),
+		&tnz,
+		nil,
+		int64(time.Second * time.Duration(7331)),
 	}
 
-	flag.Parse()
-	settings.Address = db.ParseAddress(*host)
+	if host = os.Getenv("TEST_HOST"); host == "" {
+		host = "localhost"
+	}
+
+	settings.Address = db.ParseAddress(host)
 }
 
-// Loggin some information to stdout (like the SQL query and its
+// Logging some information to stdout (like the SQL query and its
 // arguments), useful for development.
 func TestEnableDebug(t *testing.T) {
-	os.Setenv(db.EnvEnableDebug, "TRUE")
+	// os.Setenv(db.EnvEnableDebug, "TRUE")
 }
 
 // Attempts to open an empty datasource.
@@ -158,14 +175,14 @@ func TestOpenFailed(t *testing.T) {
 }
 
 // Attempts to open an empty datasource.
-func TestOpenWithWrongData(t *testing.T) {
+func SkipTestOpenWithWrongData(t *testing.T) {
 	var err error
 	var rightSettings, wrongSettings db.Settings
 
 	// Attempt to open with safe settings.
 	rightSettings = db.Settings{
-		Database: database,
-		Host:     *host,
+		Database: databaseName,
+		Host:     host,
 		User:     username,
 		Password: password,
 	}
@@ -178,9 +195,9 @@ func TestOpenWithWrongData(t *testing.T) {
 
 	// Attempt to open with wrong password.
 	wrongSettings = db.Settings{
-		Database: database,
-		Host:     *host,
-		User:     username,
+		Database: "fail",
+		Host:     host,
+		User:     "fail",
 		Password: "fail",
 	}
 
@@ -191,7 +208,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	// Attempt to open with wrong database.
 	wrongSettings = db.Settings{
 		Database: "fail",
-		Host:     *host,
+		Host:     host,
 		User:     username,
 		Password: password,
 	}
@@ -202,8 +219,8 @@ func TestOpenWithWrongData(t *testing.T) {
 
 	// Attempt to open with wrong username.
 	wrongSettings = db.Settings{
-		Database: database,
-		Host:     *host,
+		Database: databaseName,
+		Host:     host,
 		User:     "fail",
 		Password: password,
 	}
@@ -219,10 +236,10 @@ func TestOldSettings(t *testing.T) {
 	var sess db.Database
 
 	oldSettings := db.Settings{
-		Database: database,
+		Database: databaseName,
 		User:     username,
 		Password: password,
-		Host:     *host,
+		Host:     host,
 	}
 
 	// Opening database.
@@ -234,7 +251,7 @@ func TestOldSettings(t *testing.T) {
 	sess.Close()
 }
 
-// Test USE
+// Test Use
 func TestUse(t *testing.T) {
 	var err error
 	var sess db.Database
@@ -246,7 +263,7 @@ func TestUse(t *testing.T) {
 
 	// Connecting to another database, error expected.
 	if err = sess.Use("Another database"); err == nil {
-		t.Fatal("This database does not exists!")
+		t.Fatal("This database should not exist!")
 	}
 
 	// Closing connection.
@@ -346,7 +363,7 @@ func TestAppend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if to.Int64(id) == 0 {
+	if pk, ok := id.(int64); !ok || pk == 0 {
 		t.Fatalf("Expecting an ID.")
 	}
 
@@ -361,7 +378,7 @@ func TestAppend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if to.Int64(id) == 0 {
+	if pk, ok := id.(int64); !ok || pk == 0 {
 		t.Fatalf("Expecting an ID.")
 	}
 
@@ -376,7 +393,7 @@ func TestAppend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if to.Int64(id) == 0 {
+	if pk, ok := id.(int64); !ok || pk == 0 {
 		t.Fatalf("Expecting an ID.")
 	}
 
@@ -466,39 +483,10 @@ func TestResultFetch(t *testing.T) {
 		}
 
 		if err == nil {
-			if to.Int64(rowMap["id"]) == 0 {
+			if id, ok := rowMap["id"].(int64); !ok || id == 0 {
 				t.Fatalf("Expecting a not null ID.")
 			}
-			if to.String(rowMap["name"]) == "" {
-				t.Fatalf("Expecting a name.")
-			}
-		} else {
-			t.Fatal(err)
-		}
-	}
-
-	res.Close()
-
-	// Dumping into an struct with no tags.
-	rowStruct := struct {
-		ID   uint64
-		Name string
-	}{}
-
-	res = artist.Find()
-
-	for {
-		err = res.Next(&rowStruct)
-
-		if err == db.ErrNoMoreRows {
-			break
-		}
-
-		if err == nil {
-			if rowStruct.ID == 0 {
-				t.Fatalf("Expecting a not null ID.")
-			}
-			if rowStruct.Name == "" {
+			if name, ok := rowMap["name"].([]byte); !ok || len(name) == 0 {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
@@ -510,8 +498,8 @@ func TestResultFetch(t *testing.T) {
 
 	// Dumping into a tagged struct.
 	rowStruct2 := struct {
-		Value1 uint64 `field:"id"`
-		Value2 string `field:"name"`
+		Value1 uint64 `db:"id"`
+		Value2 string `db:"name"`
 	}{}
 
 	res = artist.Find()
@@ -537,7 +525,7 @@ func TestResultFetch(t *testing.T) {
 
 	res.Close()
 
-	// Dumping into an slice of maps.
+	// Dumping into a slice of maps.
 	allRowsMap := []map[string]interface{}{}
 
 	res = artist.Find()
@@ -550,16 +538,15 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	for _, singleRowMap := range allRowsMap {
-		if to.Int64(singleRowMap["id"]) == 0 {
+		if pk, ok := singleRowMap["id"].(int64); !ok || pk == 0 {
 			t.Fatalf("Expecting a not null ID.")
 		}
 	}
 
-	// Dumping into an slice of structs.
-
+	// Dumping into a slice of structs.
 	allRowsStruct := []struct {
-		ID   uint64
-		Name string
+		ID   uint64 `db:"id,omitempty"`
+		Name string `db:"name"`
 	}{}
 
 	res = artist.Find()
@@ -577,10 +564,10 @@ func TestResultFetch(t *testing.T) {
 		}
 	}
 
-	// Dumping into an slice of tagged structs.
+	// Dumping into a slice of tagged structs.
 	allRowsStruct2 := []struct {
-		Value1 uint64 `field:"id"`
-		Value2 string `field:"name"`
+		Value1 uint64 `db:"id"`
+		Value2 string `db:"name"`
 	}{}
 
 	res = artist.Find()
@@ -597,6 +584,164 @@ func TestResultFetch(t *testing.T) {
 		if singleRowStruct.Value1 == 0 {
 			t.Fatalf("Expecting a not null ID.")
 		}
+	}
+}
+
+func TestResultFetchOne(t *testing.T) {
+	var err error
+	var sess db.Database
+	var artist db.Collection
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	if artist, err = sess.Collection("artist"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Fetching one struct
+	var someArtist artistType
+	err = artist.Find().Limit(1).One(&someArtist)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if someArtist.Name == "" {
+		t.Fatal("Expecting an artist object with a name.")
+	}
+	if someArtist.ID <= 0 {
+		t.Fatal("Expecting an artist to have an ID.")
+	}
+
+	// Fetching one object
+	var someArtistObj *artistType
+	err = artist.Find().Limit(1).One(&someArtistObj)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if someArtistObj.Name == "" {
+		t.Fatal("Expecting an artist object with a name.")
+	}
+	if someArtistObj.ID <= 0 {
+		t.Fatal("Expecting an artist object to have an ID.")
+	}
+}
+
+func TestResultFetchAll(t *testing.T) {
+	var err error
+	var sess db.Database
+	var artist db.Collection
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	if artist, err = sess.Collection("artist"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Fetching all artists into struct
+	artists := []artistType{}
+	err = artist.Find().All(&artists)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(artists) == 0 {
+		t.Fatal("Expecting some artists.")
+	}
+	if artists[0].Name == "" {
+		t.Fatal("Expecting the first artist to have a name.")
+	}
+	if artists[0].ID <= 0 {
+		t.Fatal("Expecting the first artist to have an ID.")
+	}
+
+	// Fetching all artists into struct objects
+	artistObjs := []*artistType{}
+	err = artist.Find().All(&artistObjs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(artistObjs) == 0 {
+		t.Fatal("Expecting some artist objects.")
+	}
+	if artistObjs[0].Name == "" {
+		t.Fatal("Expecting the first artist object to have a name.")
+	}
+	if artistObjs[0].ID <= 0 {
+		t.Fatal("Expecting the first artist object to have an ID.")
+	}
+}
+
+func TestInlineStructs(t *testing.T) {
+	var sess db.Database
+	var err error
+
+	var review db.Collection
+
+	type reviewTypeDetails struct {
+		Name     string    `db:"name"`
+		Comments string    `db:"comments"`
+		Created  time.Time `db:"created"`
+	}
+
+	type reviewType struct {
+		ID            int64             `db:"id,omitempty"`
+		PublicationID int64             `db:"publication_id"`
+		Details       reviewTypeDetails `db:",inline"`
+	}
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	if review, err = sess.Collection("review"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = review.Truncate(); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := reviewType{
+		PublicationID: 123,
+		Details: reviewTypeDetails{
+			Name: "..name..", Comments: "..comments..",
+		},
+	}
+
+	id, err := review.Append(rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id.(int64) <= 0 {
+		t.Fatal("bad id")
+	}
+	rec.ID = id.(int64)
+
+	var recChk reviewType
+	err = review.Find().One(&recChk)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if recChk.ID != rec.ID {
+		t.Fatal("ID of review does not match, expecting:", rec.ID, "got:", recChk.ID)
+	}
+	if recChk.Details.Name != rec.Details.Name {
+		t.Fatal("Name of inline field does not match, expecting:",
+			rec.Details.Name, "got:", recChk.Details.Name)
 	}
 }
 
@@ -618,8 +763,8 @@ func TestUpdate(t *testing.T) {
 
 	// Defining destination struct
 	value := struct {
-		ID   uint64
-		Name string
+		ID   uint64 `db:"id,omitempty"`
+		Name string `db:"name"`
 	}{}
 
 	// Getting the first artist.
@@ -650,7 +795,7 @@ func TestUpdate(t *testing.T) {
 
 	// Updating set with a struct
 	rowStruct := struct {
-		Name string
+		Name string `db:"name"`
 	}{strings.ToLower(value.Name)}
 
 	if err = res.Update(rowStruct); err != nil {
@@ -670,7 +815,7 @@ func TestUpdate(t *testing.T) {
 	// Updating set with a tagged struct
 	rowStruct2 := struct {
 		Value1 string `db:"name"`
-	}{strings.Replace(value.Name, "z", "Z", -1)}
+	}{"john"}
 
 	if err = res.Update(rowStruct2); err != nil {
 		t.Fatal(err)
@@ -683,6 +828,25 @@ func TestUpdate(t *testing.T) {
 
 	// Verifying
 	if value.Name != rowStruct2.Value1 {
+		t.Fatalf("Expecting a modification.")
+	}
+
+	// Updating set with a tagged object
+	rowStruct3 := &struct {
+		Value1 string `db:"name"`
+	}{"anderson"}
+
+	if err = res.Update(rowStruct3); err != nil {
+		t.Fatal(err)
+	}
+
+	// Pulling it again.
+	if err = res.One(&value); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verifying
+	if value.Name != rowStruct3.Value1 {
 		t.Fatalf("Expecting a modification.")
 	}
 }
@@ -837,7 +1001,7 @@ func TestNullableFields(t *testing.T) {
 	// In PostgreSQL, how we can tell if this is an invalid null?
 
 	// if test.NullStringTest.Valid {
-	// 	t.Fatalf(`Expecting invalid null.`)
+	//  t.Fatalf(`Expecting invalid null.`)
 	// }
 
 	// Testing insertion of valid nulls.
@@ -959,11 +1123,6 @@ func TestRawRelations(t *testing.T) {
 	var artist db.Collection
 	var publication db.Collection
 	var review db.Collection
-
-	type artistType struct {
-		ID   int64  `db:"id,omitempty"`
-		Name string `db:"name"`
-	}
 
 	type publicationType struct {
 		ID       int64  `db:"id,omitempty"`
@@ -1131,9 +1290,9 @@ func TestRawRelations(t *testing.T) {
 
 func TestRawQuery(t *testing.T) {
 	var sess db.Database
-	var rows *sql.Rows
+	var rows *sqlx.Rows
 	var err error
-	var drv *sql.DB
+	var drv *sqlx.DB
 
 	type publicationType struct {
 		ID       int64  `db:"id,omitempty"`
@@ -1147,19 +1306,19 @@ func TestRawQuery(t *testing.T) {
 
 	defer sess.Close()
 
-	drv = sess.Driver().(*sql.DB)
+	drv = sess.Driver().(*sqlx.DB)
 
-	rows, err = drv.Query(`
-		SELECT
-			p.id,
-			p.title AS publication_title,
-			a.name AS artist_name
-		FROM
-			artist AS a,
-			publication AS p
-		WHERE
-			a.id = p.author_id
-	`)
+	rows, err = drv.Queryx(`
+    SELECT
+      p.id,
+      p.title AS publication_title,
+      a.name AS artist_name
+    FROM
+      artist AS a,
+      publication AS p
+    WHERE
+      a.id = p.author_id
+  `)
 
 	if err != nil {
 		t.Fatal(err)
@@ -1180,11 +1339,6 @@ func TestRawQuery(t *testing.T) {
 func TestTransactionsAndRollback(t *testing.T) {
 	var sess db.Database
 	var err error
-
-	type artistType struct {
-		ID   int64  `db:"id,omitempty"`
-		Name string `db:"name"`
-	}
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatal(err)
@@ -1402,6 +1556,8 @@ func TestCompositeKeys(t *testing.T) {
 // then it tries to get the stored datatypes and check if the stored and the
 // original values match.
 func TestDataTypes(t *testing.T) {
+	// os.Setenv(db.EnvEnableDebug, "TRUE")
+
 	var res db.Result
 	var sess db.Database
 	var dataTypes db.Collection
@@ -1444,11 +1600,297 @@ func TestDataTypes(t *testing.T) {
 	// Trying to dump the subject into an empty structure of the same type.
 	var item testValuesStruct
 
-	res.One(&item)
+	if err = res.One(&item); err != nil {
+		t.Fatal(err)
+	}
+
+	if item.DateD == nil {
+		t.Fatal("Expecting default date to have been set on append")
+	}
+
+	// Copy the default date (this value is set by the database)
+	testValues.DateD = item.DateD
 
 	// The original value and the test subject must match.
 	if reflect.DeepEqual(item, testValues) == false {
+		fmt.Printf("item1: %v\n", item)
+		fmt.Printf("test2: %v\n", testValues)
 		t.Fatalf("Struct is different.")
+	}
+}
+
+func TestOptionTypes(t *testing.T) {
+	var err error
+	var sess db.Database
+	var optionTypes db.Collection
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	if optionTypes, err = sess.Collection("option_types"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = optionTypes.Truncate(); err != nil {
+		t.Fatal(err)
+	}
+
+	// TODO: lets do some benchmarking on these auto-wrapped option types..
+
+	// TODO: add nullable jsonb field mapped to a []string
+
+	// A struct with wrapped option types defined in the struct tags
+	// for postgres string array and jsonb types
+	type optionType struct {
+		ID       int64                  `db:"id,omitempty"`
+		Name     string                 `db:"name"`
+		Tags     []string               `db:"tags,stringarray"`
+		Settings map[string]interface{} `db:"settings,jsonb"`
+	}
+
+	// Item 1
+	item1 := optionType{
+		Name:     "Food",
+		Tags:     []string{"toronto", "pizza"},
+		Settings: map[string]interface{}{"a": 1, "b": 2},
+	}
+
+	id, err := optionTypes.Append(item1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pk, ok := id.(int64); !ok || pk == 0 {
+		t.Fatalf("Expecting an ID.")
+	}
+
+	var item1Chk optionType
+	if err := optionTypes.Find(db.Cond{"id": id}).One(&item1Chk); err != nil {
+		t.Fatal(err)
+	}
+
+	if item1Chk.Settings["a"].(float64) != 1 { // float64 because of json..
+		t.Fatalf("Expecting Settings['a'] of jsonb value to be 1")
+	}
+
+	if item1Chk.Tags[0] != "toronto" {
+		t.Fatalf("Expecting first element of Tags stringarray to be 'toronto'")
+	}
+
+	// Item 1 B
+	item1b := &optionType{
+		Name:     "Golang",
+		Tags:     []string{"love", "it"},
+		Settings: map[string]interface{}{"go": 1, "lang": 2},
+	}
+
+	id, err = optionTypes.Append(item1b)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pk, ok := id.(int64); !ok || pk == 0 {
+		t.Fatalf("Expecting an ID.")
+	}
+
+	var item1bChk optionType
+	if err := optionTypes.Find(db.Cond{"id": id}).One(&item1bChk); err != nil {
+		t.Fatal(err)
+	}
+
+	if item1bChk.Settings["go"].(float64) != 1 { // float64 because of json..
+		t.Fatalf("Expecting Settings['go'] of jsonb value to be 1")
+	}
+
+	if item1bChk.Tags[0] != "love" {
+		t.Fatalf("Expecting first element of Tags stringarray to be 'love'")
+	}
+
+	// Item 1 C
+	item1c := &optionType{
+		Name: "Sup", Tags: []string{}, Settings: map[string]interface{}{},
+	}
+
+	id, err = optionTypes.Append(item1c)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pk, ok := id.(int64); !ok || pk == 0 {
+		t.Fatalf("Expecting an ID.")
+	}
+
+	var item1cChk optionType
+	if err := optionTypes.Find(db.Cond{"id": id}).One(&item1cChk); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(item1cChk.Tags) != 0 {
+		t.Fatalf("Expecting tags array to be empty but is %v", item1cChk.Tags)
+	}
+
+	if len(item1cChk.Settings) != 0 {
+		t.Fatalf("Expecting Settings map to be empty")
+	}
+
+	// An option type to pointer jsonb field
+	type optionType2 struct {
+		ID       int64                   `db:"id,omitempty"`
+		Name     string                  `db:"name"`
+		Tags     []string                `db:"tags,stringarray"`
+		Settings *map[string]interface{} `db:"settings,jsonb"`
+	}
+
+	item2 := optionType2{
+		Name: "JS", Tags: []string{"hi", "bye"}, Settings: nil,
+	}
+
+	id, err = optionTypes.Append(item2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pk, ok := id.(int64); !ok || pk == 0 {
+		t.Fatalf("Expecting an ID.")
+	}
+
+	var item2Chk optionType2
+	res := optionTypes.Find(db.Cond{"id": id})
+	if err := res.One(&item2Chk); err != nil {
+		t.Fatal(err)
+	}
+
+	if item2Chk.ID != id.(int64) {
+		t.Fatalf("Expecting id to match")
+	}
+
+	if item2Chk.Name != item2.Name {
+		t.Fatalf("Expecting Name to match")
+	}
+
+	if item2Chk.Tags[0] != item2.Tags[0] || len(item2Chk.Tags) != len(item2.Tags) {
+		t.Fatalf("Expecting tags to match")
+	}
+
+	// Update the value
+	m := map[string]interface{}{}
+	m["lang"] = "javascript"
+	m["num"] = 31337
+	item2.Settings = &m
+	err = res.Update(item2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := res.One(&item2Chk); err != nil {
+		t.Fatal(err)
+	}
+
+	if (*item2Chk.Settings)["num"].(float64) != 31337 { // float64 because of json..
+		t.Fatalf("Expecting Settings['num'] of jsonb value to be 31337")
+	}
+
+	if (*item2Chk.Settings)["lang"] != "javascript" {
+		t.Fatalf("Expecting Settings['lang'] of jsonb value to be 'javascript'")
+	}
+
+	// An option type to pointer string array field
+	type optionType3 struct {
+		ID       int64                  `db:"id,omitempty"`
+		Name     string                 `db:"name"`
+		Tags     *[]string              `db:"tags,stringarray"`
+		Settings map[string]interface{} `db:"settings,jsonb"`
+	}
+
+	item3 := optionType3{
+		Name: "Julia", Tags: nil, Settings: map[string]interface{}{"girl": true, "lang": true},
+	}
+
+	id, err = optionTypes.Append(item3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pk, ok := id.(int64); !ok || pk == 0 {
+		t.Fatalf("Expecting an ID.")
+	}
+
+	var item3Chk optionType2
+	if err := optionTypes.Find(db.Cond{"id": id}).One(&item3Chk); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOptionTypeJsonbStruct(t *testing.T) {
+	var err error
+	var sess db.Database
+	var optionTypes db.Collection
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	if optionTypes, err = sess.Collection("option_types"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = optionTypes.Truncate(); err != nil {
+		t.Fatal(err)
+	}
+
+	// A struct with wrapped option types defined in the struct tags
+	// for postgres string array and jsonb types
+	type Settings struct {
+		Name string `json:"name"`
+		Num  int64  `json:"num"`
+	}
+
+	type OptionType struct {
+		ID       int64    `db:"id,omitempty"`
+		Name     string   `db:"name"`
+		Tags     []string `db:"tags,stringarray"`
+		Settings Settings `db:"settings,jsonb"`
+	}
+
+	item1 := &OptionType{
+		Name:     "Hi",
+		Tags:     []string{"aah", "ok"},
+		Settings: Settings{Name: "a", Num: 123},
+	}
+
+	id, err := optionTypes.Append(item1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pk, ok := id.(int64); !ok || pk == 0 {
+		t.Fatalf("Expecting an ID.")
+	}
+
+	var item1Chk OptionType
+	if err := optionTypes.Find(db.Cond{"id": id}).One(&item1Chk); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(item1Chk.Tags) != 2 {
+		t.Fatalf("Expecting 2 tags")
+	}
+
+	if item1Chk.Tags[0] != "aah" {
+		t.Fatalf("Expecting first tag to be 0")
+	}
+
+	if item1Chk.Settings.Name != "a" {
+		t.Fatalf("Expecting Name to be 'a'")
+	}
+
+	if item1Chk.Settings.Num != 123 {
+		t.Fatalf("Expecting Num to be 123")
 	}
 }
 
@@ -1468,7 +1910,7 @@ func BenchmarkAppendRawSQL(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sql.DB)
+	driver := sess.Driver().(*sqlx.DB)
 
 	if _, err = driver.Exec(`TRUNCATE TABLE "artist"`); err != nil {
 		b.Fatal(err)
@@ -1522,7 +1964,7 @@ func BenchmarkAppendTxRawSQL(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sql.DB)
+	driver := sess.Driver().(*sqlx.DB)
 
 	if tx, err = driver.Begin(); err != nil {
 		b.Fatal(err)

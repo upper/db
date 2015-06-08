@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+// Copyright (c) 2012-2015 José Carlos Nieto, https://menteslibres.net/xiam
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -19,26 +19,28 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package postgresql
+package sqltx
 
 import (
-	"database/sql"
+	"github.com/jmoiron/sqlx"
 )
 
-type tx struct {
-	*source
-	sqlTx *sql.Tx
-	done  bool
+type Tx struct {
+	*sqlx.Tx
+	done bool
 }
 
-func (t *tx) Commit() (err error) {
-	err = t.sqlTx.Commit()
-	if err == nil {
+func New(tx *sqlx.Tx) *Tx {
+	return &Tx{Tx: tx}
+}
+
+func (t *Tx) Done() bool {
+	return t.done
+}
+
+func (t *Tx) Commit() (err error) {
+	if err = t.Tx.Commit(); err == nil {
 		t.done = true
 	}
 	return err
-}
-
-func (t *tx) Rollback() error {
-	return t.sqlTx.Rollback()
 }

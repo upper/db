@@ -19,40 +19,41 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package mysql
+package sqlite
 
 const (
-	mysqlColumnSeparator     = `.`
-	mysqlIdentifierSeparator = `, `
-	mysqlIdentifierQuote     = "`{{.Raw}}`"
-	mysqlValueSeparator      = `, `
-	mysqlValueQuote          = `'{{.}}'`
-	mysqlAndKeyword          = `AND`
-	mysqlOrKeyword           = `OR`
-	mysqlNotKeyword          = `NOT`
-	mysqlDescKeyword         = `DESC`
-	mysqlAscKeyword          = `ASC`
-	mysqlDefaultOperator     = `=`
-	mysqlClauseGroup         = `({{.}})`
-	mysqlClauseOperator      = ` {{.}} `
-	mysqlColumnValue         = `{{.Column}} {{.Operator}} {{.Value}}`
-	mysqlTableAliasLayout    = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
-	mysqlColumnAliasLayout   = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
-	mysqlSortByColumnLayout  = `{{.Column}} {{.Sort}}`
+	adapterColumnSeparator     = `.`
+	adapterIdentifierSeparator = `, `
+	adapterIdentifierQuote     = `"{{.Value}}"`
+	adapterValueSeparator      = `, `
+	adapterValueQuote          = `'{{.}}'`
+	adapterAndKeyword          = `AND`
+	adapterOrKeyword           = `OR`
+	adapterNotKeyword          = `NOT`
+	adapterDescKeyword         = `DESC`
+	adapterAscKeyword          = `ASC`
+	adapterDefaultOperator     = `=`
+	adapterAssignmentOperator  = `=`
+	adapterClauseGroup         = `({{.}})`
+	adapterClauseOperator      = ` {{.}} `
+	adapterColumnValue         = `{{.Column}} {{.Operator}} {{.Value}}`
+	adapterTableAliasLayout    = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
+	adapterColumnAliasLayout   = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
+	adapterSortByColumnLayout  = `{{.Column}} {{.Order}}`
 
-	mysqlOrderByLayout = `
+	adapterOrderByLayout = `
 		{{if .SortColumns}}
 			ORDER BY {{.SortColumns}}
 		{{end}}
 	`
 
-	mysqlWhereLayout = `
+	adapterWhereLayout = `
 		{{if .Conds}}
 			WHERE {{.Conds}}
 		{{end}}
 	`
 
-	mysqlSelectLayout = `
+	adapterSelectLayout = `
 		SELECT
 
 			{{if .Columns}}
@@ -61,9 +62,7 @@ const (
 				*
 			{{end}}
 
-			{{if .Table}}
-				FROM {{.Table}}
-			{{end}}
+			FROM {{.Table}}
 
 			{{.Where}}
 
@@ -76,22 +75,25 @@ const (
 			{{end}}
 
 			{{if .Offset}}
+				{{if not .Limit}}
+					LIMIT -1
+				{{end}}
 				OFFSET {{.Offset}}
 			{{end}}
 	`
-	mysqlDeleteLayout = `
+	adapterDeleteLayout = `
 		DELETE
 			FROM {{.Table}}
 			{{.Where}}
 	`
-	mysqlUpdateLayout = `
+	adapterUpdateLayout = `
 		UPDATE
 			{{.Table}}
 		SET {{.ColumnValues}}
 			{{ .Where }}
 	`
 
-	mysqlSelectCountLayout = `
+	adapterSelectCountLayout = `
 		SELECT
 			COUNT(1) AS _t
 		FROM {{.Table}}
@@ -102,11 +104,14 @@ const (
 			{{end}}
 
 			{{if .Offset}}
+				{{if not .Limit}}
+					LIMIT -1
+				{{end}}
 				OFFSET {{.Offset}}
 			{{end}}
 	`
 
-	mysqlInsertLayout = `
+	adapterInsertLayout = `
 		INSERT INTO {{.Table}}
 			({{.Columns}})
 		VALUES
@@ -114,23 +119,21 @@ const (
 		{{.Extra}}
 	`
 
-	mysqlTruncateLayout = `
-		TRUNCATE TABLE {{.Table}}
+	adapterTruncateLayout = `
+		DELETE FROM {{.Table}}
 	`
 
-	mysqlDropDatabaseLayout = `
+	adapterDropDatabaseLayout = `
 		DROP DATABASE {{.Database}}
 	`
 
-	mysqlDropTableLayout = `
+	adapterDropTableLayout = `
 		DROP TABLE {{.Table}}
 	`
 
-	mysqlGroupByLayout = `
+	adapterGroupByLayout = `
 		{{if .GroupColumns}}
 			GROUP BY {{.GroupColumns}}
 		{{end}}
 	`
-
-	mysqlNull = `NULL`
 )

@@ -47,10 +47,10 @@ CREATE TABLE data_types (
  _rune integer,
  _bool integer,
  _string text,
- _date text,
- _nildate text,
- _ptrdate text,
- _bytea text,
+ _date datetime,
+ _nildate datetime,
+ _ptrdate datetime,
+ _defaultdate datetime default current_timestamp,
  _time text
 );
 

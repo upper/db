@@ -24,7 +24,10 @@ package sqlutil
 import (
 	"fmt"
 	"log"
+	"os"
 	"strings"
+
+	"upper.io/v2/db"
 )
 
 // Debug is used for printing SQL queries and arguments.
@@ -58,4 +61,18 @@ func (d *Debug) Print() {
 	s = append(s, fmt.Sprintf(`T: %0.5fs`, float64(d.End-d.Start)/float64(1e9)))
 
 	log.Printf("\n\t%s\n\n", strings.Join(s, "\n\t"))
+}
+
+func IsDebugEnabled() bool {
+	if os.Getenv(db.EnvEnableDebug) != "" {
+		return true
+	}
+	return false
+}
+
+func Log(query string, args []interface{}, err error, start int64, end int64) {
+	if IsDebugEnabled() {
+		d := Debug{query, args, err, start, end}
+		d.Print()
+	}
 }

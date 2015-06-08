@@ -24,7 +24,7 @@ package mysql
 import (
 	"testing"
 
-	"upper.io/db"
+	"upper.io/v2/db"
 )
 
 func TestConnectionURL(t *testing.T) {
