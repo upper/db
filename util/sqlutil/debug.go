@@ -27,7 +27,7 @@ import (
 	"os"
 	"strings"
 
-	"upper.io/v2/db"
+	"upper.io/db"
 )
 
 // Debug is used for printing SQL queries and arguments.

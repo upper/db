@@ -29,7 +29,7 @@ import (
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"upper.io/v2/db"
+	"upper.io/db"
 )
 
 type Result struct {

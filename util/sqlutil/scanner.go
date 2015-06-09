@@ -29,7 +29,7 @@ import (
 	"strconv"
 	"strings"
 
-	"upper.io/v2/db"
+	"upper.io/db"
 )
 
 type scanner struct {

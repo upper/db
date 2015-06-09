@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"upper.io/v2/db"
-	"upper.io/v2/db/util/sqlgen"
+	"upper.io/db"
+	"upper.io/db/util/sqlgen"
 )
 
 var (

@@ -1,4 +1,4 @@
-# upper.io/v2/db
+# upper.io/db
 
 *V2 IS CURRENTLY IN DEVELOPMENT AND NOT YET READY TO USE*
 
@@ -10,15 +10,15 @@
 
 ## The `db` package
 
-![Upper.io](https://upper.io/v2/db/res/general.png)
+![Upper.io](https://upper.io/db/res/general.png)
 
-`upper.io/v2/db` is a [Go][2] package that allows developers to communicate with
+`upper.io/db` is a [Go][2] package that allows developers to communicate with
 different databases through the use of *adapters* that wrap well-supported
 database drivers.
 
-## Is `upper.io/v2/db` an ORM?
+## Is `upper.io/db` an ORM?
 
-`upper.io/v2/db` is not an ORM in the sense that it does not tell you how to
+`upper.io/db` is not an ORM in the sense that it does not tell you how to
 design your software or how to validate your data, instead it only focuses on
 being a tool that deals with common operations on different databases:
 
@@ -31,26 +31,26 @@ res = col.Find(db.Cond{"name": "Max"}).Limit(10).Sort("-last_name")
 err = res.All(&people)
 ```
 
-In strict sense `upper.io/v2/db` could be considered a really basic non-magical
+In strict sense `upper.io/db` could be considered a really basic non-magical
 ORM that rather stays out of the way.
 
 ## Supported databases
 
-![Adapters](https://upper.io/v2/db/res/adapters.png)
+![Adapters](https://upper.io/db/res/adapters.png)
 
-`upper.io/v2/db` attempts to provide full compatiblity for [CRUD][2] operations
+`upper.io/db` attempts to provide full compatiblity for [CRUD][2] operations
 across adapters. Some other operations (such *transactions*) are supported only
 on specific database adapters, such as MySQL, PostgreSQL and SQLite.
 
-* [MongoDB](https://upper.io/v2/db/mongo) via [mgo](http://godoc.org/labix.org/v2/mgo)
-* [MySQL](https://upper.io/v2/db/mysql) via [mysql](https://github.com/go-sql-driver/mysql)
-* [PostgreSQL](https://upper.io/v2/db/postgresql) via [pq](https://github.com/lib/pq)
-* [QL](https://upper.io/v2/db/ql) via [ql](https://github.com/cznic/ql)
-* [SQLite3](https://upper.io/v2/db/sqlite) via [go-sqlite3](https://github.com/mattn/go-sqlite3)
+* [MongoDB](https://upper.io/db/mongo) via [mgo](http://godoc.org/labix.org/v2/mgo)
+* [MySQL](https://upper.io/db/mysql) via [mysql](https://github.com/go-sql-driver/mysql)
+* [PostgreSQL](https://upper.io/db/postgresql) via [pq](https://github.com/lib/pq)
+* [QL](https://upper.io/db/ql) via [ql](https://github.com/cznic/ql)
+* [SQLite3](https://upper.io/db/sqlite) via [go-sqlite3](https://github.com/mattn/go-sqlite3)
 
 ## User documentation
 
-See the project page, recipes and user documentation at [upper.io/v2/db][1].
+See the project page, recipes and user documentation at [upper.io/db][1].
 
 ## License
 
@@ -75,6 +75,6 @@ See the project page, recipes and user documentation at [upper.io/v2/db][1].
 > OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 > WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-[1]: https://upper.io/v2/db
+[1]: https://upper.io/db
 [2]: http://golang.org
 [3]: http://en.wikipedia.org/wiki/Create,_read,_update_and_delete

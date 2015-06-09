@@ -22,19 +22,19 @@
 // Package db provides a single interface for interacting with different data
 // sources through the use of adapters that wrap well-known database drivers.
 //
-// As of today, `upper.io/v2/db` fully supports MySQL, PostgreSQL and SQLite (CRUD
+// As of today, `upper.io/db` fully supports MySQL, PostgreSQL and SQLite (CRUD
 // + Transactions) and provides partial support for MongoDB and QL (CRUD only).
 //
 // Usage:
 //
 // 	import(
 //		// Main package.
-// 		"upper.io/v2/db"
+// 		"upper.io/db"
 //		// PostgreSQL adapter.
-// 		"upper.io/v2/db/postgresql"
+// 		"upper.io/db/postgresql"
 // 	)
 //
-// `upper.io/v2/db` is not an ORM and thus does not impose any hard restrictions
+// `upper.io/db` is not an ORM and thus does not impose any hard restrictions
 // on data structures:
 //
 //	// This code works the same for all supported databases.
@@ -42,7 +42,7 @@
 //	res = col.Find(db.Cond{"name": "Max"}).Limit(2).Sort("-input")
 //	err = res.All(&people)
 
-package db // import "upper.io/v2/db"
+package db // import "upper.io/db"
 
 // Cond is a map used to define conditions passed to `db.Collection.Find()` and
 // `db.Result.Where()`.

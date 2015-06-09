@@ -19,13 +19,13 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package mysql // import "upper.io/v2/db/mysql"
+package mysql // import "upper.io/db/mysql"
 
 import (
 	"upper.io/cache"
-	"upper.io/v2/db"
-	"upper.io/v2/db/util/sqlgen"
-	"upper.io/v2/db/util/sqlutil"
+	"upper.io/db"
+	"upper.io/db/util/sqlgen"
+	"upper.io/db/util/sqlutil"
 )
 
 // Adapter is the public name of the adapter.

@@ -27,7 +27,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
-	"upper.io/v2/db"
+	"upper.io/db"
 )
 
 // FetchRow receives a *sqlx.Rows value and tries to map all the rows into a

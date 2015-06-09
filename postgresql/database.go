@@ -30,11 +30,11 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // PostgreSQL driver.
-	"upper.io/v2/db"
-	"upper.io/v2/db/util/schema"
-	"upper.io/v2/db/util/sqlgen"
-	"upper.io/v2/db/util/sqlutil"
-	"upper.io/v2/db/util/sqlutil/tx"
+	"upper.io/db"
+	"upper.io/db/util/schema"
+	"upper.io/db/util/sqlgen"
+	"upper.io/db/util/sqlutil"
+	"upper.io/db/util/sqlutil/tx"
 )
 
 var (

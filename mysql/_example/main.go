@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"upper.io/v2/db"         // Imports the main db package.
-	_ "upper.io/v2/db/mysql" // Improts the mysql adapter.
+	"upper.io/db"         // Imports the main db package.
+	_ "upper.io/db/mysql" // Improts the mysql adapter.
 )
 
 var settings = db.Settings{

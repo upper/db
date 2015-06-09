@@ -19,13 +19,13 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package ql // import "upper.io/v2/db/ql"
+package ql // import "upper.io/db/ql"
 
 import (
 	"upper.io/cache"
-	"upper.io/v2/db"
-	"upper.io/v2/db/util/sqlgen"
-	"upper.io/v2/db/util/sqlutil"
+	"upper.io/db"
+	"upper.io/db/util/sqlgen"
+	"upper.io/db/util/sqlutil"
 )
 
 // Adapter is the public name of the adapter.

@@ -41,8 +41,8 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"upper.io/v2/db"
-	"upper.io/v2/db/util/sqlutil"
+	"upper.io/db"
+	"upper.io/db/util/sqlutil"
 )
 
 const (

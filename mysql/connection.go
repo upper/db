@@ -26,7 +26,7 @@ import (
 	"net/url"
 	"strings"
 
-	"upper.io/v2/db"
+	"upper.io/db"
 )
 
 const defaultPort = 3306
