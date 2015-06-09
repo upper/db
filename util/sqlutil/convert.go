@@ -9,8 +9,11 @@ import (
 )
 
 var (
-	sqlPlaceholder = sqlgen.RawValue(`?`)
-	sqlNull        = sqlgen.RawValue(`NULL`)
+	sqlPlaceholder     = sqlgen.RawValue(`?`)
+	sqlNull            = sqlgen.RawValue(`NULL`)
+	sqlIsOperator      = `IS`
+	sqlInOperator      = `IN`
+	sqlDefaultOperator = `=`
 )
 
 type TemplateWithUtils struct {
@@ -122,8 +125,6 @@ func (tu *TemplateWithUtils) ToColumnValues(cond db.Cond) (ToColumnValues sqlgen
 
 		if len(chunks) > 1 {
 			columnValue.Operator = chunks[1]
-		} else {
-			columnValue.Operator = tu.DefaultOperator
 		}
 
 		switch value := value.(type) {
@@ -143,19 +144,33 @@ func (tu *TemplateWithUtils) ToColumnValues(cond db.Cond) (ToColumnValues sqlgen
 		default:
 			v := tu.ToInterfaceArguments(value)
 
-			l := len(v)
-			if v == nil || l == 0 {
+			if v == nil {
 				// Nil value given.
 				columnValue.Value = sqlNull
+				if columnValue.Operator == "" {
+					columnValue.Operator = sqlIsOperator
+				}
 			} else {
-				if l > 1 {
+				if len(v) > 1 {
 					// Array value given.
 					columnValue.Value = sqlgen.RawValue(fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1)))
+					if columnValue.Operator == "" {
+						columnValue.Operator = sqlInOperator
+					}
 				} else {
 					// Single value given.
 					columnValue.Value = sqlPlaceholder
 				}
 				args = append(args, v...)
+			}
+		}
+
+		// Using guessed operator if no operator was given.
+		if columnValue.Operator == "" {
+			if tu.DefaultOperator != "" {
+				columnValue.Operator = tu.DefaultOperator
+			} else {
+				columnValue.Operator = sqlDefaultOperator
 			}
 		}
 
