@@ -152,7 +152,7 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 		values := make([]interface{}, len(columns))
 		typeMap := rows.Mapper.TypeMap(itemT)
 		fieldMap := typeMap.Names
-		wrappedValues := map[*reflectx.Field]interface{}{}
+		wrappedValues := map[*reflectx.FieldInfo]interface{}{}
 
 		for i, k := range columns {
 			fi, ok := fieldMap[k]
