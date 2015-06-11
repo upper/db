@@ -39,6 +39,13 @@ services:
 
 before_script:
   - mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql
+
+  - rm -rf $HOME/gopath/src/upper.io
+  - mkdir -p $HOME/gopath/src/upper.io
+  - mv $HOME/gopath/src/github.com/upper/db $HOME/gopath/src/upper.io
+  - cd $HOME/gopath/src/upper.io/db
+  - export TRAVIS_BUILD_DIR=$HOME/gopath/src/upper.io/db
+
   - cat mysql/_dumps/setup.sql | mysql -uroot
   - cat mysql/_dumps/structs.sql | mysql -uupperio -pupperio upperio_tests
 
