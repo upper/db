@@ -1380,8 +1380,13 @@ func BenchmarkAppendRawSQL(b *testing.B) {
 	}
 
 	b.ResetTimer()
+	stmt, err := driver.Prepare(
+		`INSERT INTO "artist" ("name") VALUES('Hayao Miyazaki')`)
+	if err != nil {
+		b.Fatal(err)
+	}
 	for i := 0; i < b.N; i++ {
-		if _, err = driver.Exec(`INSERT INTO "artist" ("name") VALUES('Hayao Miyazaki')`); err != nil {
+		if _, err = stmt.Exec(); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -1438,8 +1443,13 @@ func BenchmarkAppendTxRawSQL(b *testing.B) {
 	}
 
 	b.ResetTimer()
+	stmt, err := tx.Prepare(
+		`INSERT INTO "artist" ("name") VALUES('Hayao Miyazaki')`)
+	if err != nil {
+		b.Fatal(err)
+	}
 	for i := 0; i < b.N; i++ {
-		if _, err = tx.Exec(`INSERT INTO "artist" ("name") VALUES('Hayao Miyazaki')`); err != nil {
+		if _, err = stmt.Exec(); err != nil {
 			b.Fatal(err)
 		}
 	}
