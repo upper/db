@@ -42,5 +42,6 @@ before_script:
   # - cat ql/_dumps/structs.sql | $GOPATH/bin/ql -db ql/_dumps/test.db
 
 script:
+  - cd $HOME/gopath/src/upper.io/db
   - go version
   - go test -host 127.0.0.1
