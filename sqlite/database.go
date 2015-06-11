@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 	// Importing SQLite3 driver.
 	_ "github.com/mattn/go-sqlite3"
@@ -63,6 +64,40 @@ type source struct {
 	// and retrieve all the column information we'd need, such as name and if it
 	// is a primary key.
 	columns map[string][]columnSchemaT
+
+	// Caches the last query. Stores a *cachedStmt.
+	stmtCache atomic.Value
+}
+
+type cachedStmt struct {
+	query    string
+	prepared *sql.Stmt
+}
+
+// Prepare statement, or return cached prepared statement.
+func (s *source) prepare(stmt sqlgen.Statement) (prep *sql.Stmt, err error) {
+	query := stmt.Compile(template)
+	cached, ok := s.stmtCache.Load().(*cachedStmt)
+	if ok && cached.query == query {
+		prep = cached.prepared
+	} else {
+		if s.tx != nil {
+			prep, err = s.tx.sqlTx.Prepare(query)
+		} else {
+			prep, err = s.session.Prepare(query)
+		}
+		if err != nil {
+			return
+		}
+		s.stmtCache.Store(&cachedStmt{query: query, prepared: prep})
+	}
+	return
+}
+
+var invalidCache = &cachedStmt{query: "¡not valid SQL!"}
+
+func (s *source) clearCache() {
+	s.stmtCache.Store(invalidCache) // Store(nil) is not allowed
 }
 
 type columnSchemaT struct {
@@ -151,7 +186,6 @@ func (s *source) populateSchema() (err error) {
 
 func (s *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
 	var query string
-	var res sql.Result
 	var err error
 	var start, end int64
 
@@ -166,19 +200,14 @@ func (s *source) doExec(stmt sqlgen.Statement, args ...interface{}) (sql.Result,
 		return nil, db.ErrNotConnected
 	}
 
-	query = stmt.Compile(template)
-
-	if s.tx != nil {
-		res, err = s.tx.sqlTx.Exec(query, args...)
-	} else {
-		res, err = s.session.Exec(query, args...)
+	prepared, err := s.prepare(stmt)
+	if err != nil {
+		return nil, err
 	}
-
-	return res, err
+	return prepared.Exec(args...)
 }
 
 func (s *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Rows, error) {
-	var rows *sql.Rows
 	var query string
 	var err error
 	var start, end int64
@@ -194,20 +223,15 @@ func (s *source) doQuery(stmt sqlgen.Statement, args ...interface{}) (*sql.Rows,
 		return nil, db.ErrNotConnected
 	}
 
-	query = stmt.Compile(template)
-
-	if s.tx != nil {
-		rows, err = s.tx.sqlTx.Query(query, args...)
-	} else {
-		rows, err = s.session.Query(query, args...)
+	prepared, err := s.prepare(stmt)
+	if err != nil {
+		return nil, err
 	}
-
-	return rows, err
+	return prepared.Query(args...)
 }
 
 func (s *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Row, error) {
 	var query string
-	var row *sql.Row
 	var err error
 	var start, end int64
 
@@ -222,15 +246,11 @@ func (s *source) doQueryRow(stmt sqlgen.Statement, args ...interface{}) (*sql.Ro
 		return nil, db.ErrNotConnected
 	}
 
-	query = stmt.Compile(template)
-
-	if s.tx != nil {
-		row = s.tx.sqlTx.QueryRow(query, args...)
-	} else {
-		row = s.session.QueryRow(query, args...)
+	prepared, err := s.prepare(stmt)
+	if err != nil {
+		return nil, err
 	}
-
-	return row, err
+	return prepared.QueryRow(args...), nil
 }
 
 func (s *source) doRawQuery(query string, args ...interface{}) (*sql.Rows, error) {
@@ -319,6 +339,8 @@ func (s *source) Driver() interface{} {
 func (s *source) Open() error {
 	var err error
 
+	s.clearCache()
+
 	// Before db.ConnectionURL we used a unified db.Settings struct. This
 	// condition checks for that type and provides backwards compatibility.
 	if settings, ok := s.connURL.(db.Settings); ok {
@@ -347,6 +369,7 @@ func (s *source) Open() error {
 
 // Closes the current database session.
 func (s *source) Close() error {
+	s.clearCache()
 	if s.session != nil {
 		return s.session.Close()
 	}
