@@ -41,8 +41,8 @@ import (
 
 const (
 	databaseName = "upperio_tests"
-	username     = "upperio"
-	password     = "upperio"
+	username     = "upperio_tests"
+	password     = "upperio_secret"
 )
 
 const (
