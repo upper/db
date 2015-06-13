@@ -29,7 +29,7 @@ services:
   - mongodb
 
 before_script:
-  - rm -rf $HOME/gopath/src/upper.io
+  - rm -rf $HOME/gopath/src/upper.io/db
   - mkdir -p $HOME/gopath/src/upper.io
   - mv $HOME/gopath/src/github.com/upper/db $HOME/gopath/src/upper.io
   - cd $HOME/gopath/src/upper.io/db
