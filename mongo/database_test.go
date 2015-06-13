@@ -40,8 +40,8 @@ import (
 // Wrapper settings.
 const (
 	database = "upperio_tests"
-	username = "upperio"
-	password = "upperio"
+	username = "upperio_tests"
+	password = "upperio_secret"
 )
 
 // Global settings for tests.
