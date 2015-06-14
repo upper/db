@@ -1370,11 +1370,6 @@ func TestDataTypes(t *testing.T) {
 	}
 }
 
-// We are going to benchmark the engine, so this is no longed needed.
-func TestDisableDebug(t *testing.T) {
-	os.Setenv(db.EnvEnableDebug, "")
-}
-
 // Benchmarking raw database/sql.
 func BenchmarkAppendRawSQL(b *testing.B) {
 	var err error
@@ -1392,14 +1387,47 @@ func BenchmarkAppendRawSQL(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	b.ResetTimer()
-	stmt, err := driver.Prepare(
-		`INSERT INTO "artist" ("name") VALUES('Hayao Miyazaki')`)
+	stmt, err := driver.Prepare(`INSERT INTO "artist" ("name") VALUES('Hayao Miyazaki')`)
 	if err != nil {
 		b.Fatal(err)
 	}
+
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, err = stmt.Exec(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkAppendRawSQLWithArgs(b *testing.B) {
+	var err error
+	var sess db.Database
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		b.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	driver := sess.Driver().(*sqlx.DB)
+
+	if _, err = driver.Exec(`DELETE FROM "artist"`); err != nil {
+		b.Fatal(err)
+	}
+
+	stmt, err := driver.Prepare(`INSERT INTO "artist" ("name") VALUES(?) RETURNING "id"`)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	args = []interface{}{
+		"Hayao Miyazaki",
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err = stmt.Query(args...); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -1455,12 +1483,12 @@ func BenchmarkAppendTxRawSQL(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	b.ResetTimer()
-	stmt, err := tx.Prepare(
-		`INSERT INTO "artist" ("name") VALUES('Hayao Miyazaki')`)
+	stmt, err := tx.Prepare(`INSERT INTO "artist" ("name") VALUES('Hayao Miyazaki')`)
 	if err != nil {
 		b.Fatal(err)
 	}
+
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, err = stmt.Exec(); err != nil {
 			b.Fatal(err)

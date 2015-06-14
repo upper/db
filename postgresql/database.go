@@ -30,6 +30,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // PostgreSQL driver.
+	"upper.io/cache"
 	"upper.io/db"
 	"upper.io/db/util/schema"
 	"upper.io/db/util/sqlgen"
@@ -42,10 +43,11 @@ var (
 )
 
 type database struct {
-	connURL db.ConnectionURL
-	session *sqlx.DB
-	tx      *sqltx.Tx
-	schema  *schema.DatabaseSchema
+	connURL          db.ConnectionURL
+	session          *sqlx.DB
+	tx               *sqltx.Tx
+	schema           *schema.DatabaseSchema
+	cachedStatements *cache.Cache
 }
 
 type tx struct {
@@ -92,6 +94,8 @@ func (d *database) Open() error {
 	if d.session, err = sqlx.Open(`postgres`, d.connURL.String()); err != nil {
 		return err
 	}
+
+	d.cachedStatements = cache.NewCache()
 
 	d.session.Mapper = sqlutil.NewMapper()
 
@@ -186,7 +190,7 @@ func (d *database) Collections() (collections []string, err error) {
 	// Schema is empty.
 
 	// Querying table names.
-	stmt := sqlgen.Statement{
+	stmt := &sqlgen.Statement{
 		Type: sqlgen.Select,
 		Columns: sqlgen.JoinColumns(
 			sqlgen.ColumnWithName(`table_name`),
@@ -246,7 +250,7 @@ func (d *database) Use(database string) (err error) {
 
 // Drop removes all tables from the current database.
 func (d *database) Drop() error {
-	_, err := d.Query(sqlgen.Statement{
+	_, err := d.Query(&sqlgen.Statement{
 		Type:     sqlgen.DropDatabase,
 		Database: sqlgen.DatabaseWithName(d.schema.Name),
 	})
@@ -285,7 +289,7 @@ func (d *database) Transaction() (db.Tx, error) {
 }
 
 // Exec compiles and executes a statement that does not return any rows.
-func (d *database) Exec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
+func (d *database) Exec(stmt *sqlgen.Statement, args ...interface{}) (sql.Result, error) {
 	var query string
 	var res sql.Result
 	var err error
@@ -319,7 +323,7 @@ func (d *database) Exec(stmt sqlgen.Statement, args ...interface{}) (sql.Result,
 }
 
 // Query compiles and executes a statement that returns rows.
-func (d *database) Query(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Rows, error) {
+func (d *database) Query(stmt *sqlgen.Statement, args ...interface{}) (*sqlx.Rows, error) {
 	var rows *sqlx.Rows
 	var query string
 	var err error
@@ -336,24 +340,45 @@ func (d *database) Query(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Rows
 		return nil, db.ErrNotConnected
 	}
 
-	query = stmt.Compile(template.Template)
+	var p *sqlx.Stmt
 
-	l := len(args)
-	for i := 0; i < l; i++ {
-		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
-	}
+	pc, ok := d.cachedStatements.ReadRaw(stmt)
 
-	if d.tx != nil {
-		rows, err = d.tx.Queryx(query, args...)
+	if ok {
+		p = pc.(*sqlx.Stmt)
 	} else {
-		rows, err = d.session.Queryx(query, args...)
+		buf := stmt.Compile(template.Template)
+
+		j := 1
+		for i := range buf {
+			if buf[i] == '?' {
+				query = query + "$" + strconv.Itoa(j)
+				j++
+			} else {
+				query = query + string(buf[i])
+			}
+		}
+
+		if d.tx != nil {
+			p, err = d.tx.Preparex(query)
+		} else {
+			p, err = d.session.Preparex(query)
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		d.cachedStatements.Write(stmt, p)
 	}
+
+	rows, err = p.Queryx(args...)
 
 	return rows, err
 }
 
 // QueryRow compiles and executes a statement that returns at most one row.
-func (d *database) QueryRow(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Row, error) {
+func (d *database) QueryRow(stmt *sqlgen.Statement, args ...interface{}) (*sqlx.Row, error) {
 	var query string
 	var row *sqlx.Row
 	var err error
@@ -394,7 +419,7 @@ func (d *database) populateSchema() (err error) {
 	d.schema = schema.NewDatabaseSchema()
 
 	// Get database name.
-	stmt := sqlgen.Statement{
+	stmt := &sqlgen.Statement{
 		Type: sqlgen.Select,
 		Columns: sqlgen.JoinColumns(
 			sqlgen.RawValue(`CURRENT_DATABASE()`),
@@ -425,7 +450,7 @@ func (d *database) populateSchema() (err error) {
 }
 
 func (d *database) tableExists(names ...string) error {
-	var stmt sqlgen.Statement
+	var stmt *sqlgen.Statement
 	var err error
 	var rows *sqlx.Rows
 
@@ -436,7 +461,7 @@ func (d *database) tableExists(names ...string) error {
 			continue
 		}
 
-		stmt = sqlgen.Statement{
+		stmt = &sqlgen.Statement{
 			Type:  sqlgen.Select,
 			Table: sqlgen.TableWithName(`information_schema.tables`),
 			Columns: sqlgen.JoinColumns(
@@ -479,7 +504,7 @@ func (d *database) tableColumns(tableName string) ([]string, error) {
 		return tableSchema.Columns, nil
 	}
 
-	stmt := sqlgen.Statement{
+	stmt := &sqlgen.Statement{
 		Type:  sqlgen.Select,
 		Table: sqlgen.TableWithName(`information_schema.columns`),
 		Columns: sqlgen.JoinColumns(
@@ -532,7 +557,7 @@ func (d *database) getPrimaryKey(tableName string) ([]string, error) {
 	}
 
 	// Getting primary key. See https://github.com/upper/db/issues/24.
-	stmt := sqlgen.Statement{
+	stmt := &sqlgen.Statement{
 		Type:  sqlgen.Select,
 		Table: sqlgen.TableWithName(`pg_index, pg_class, pg_attribute`),
 		Columns: sqlgen.JoinColumns(
