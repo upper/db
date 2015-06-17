@@ -54,7 +54,7 @@ See the project page, recipes and user documentation at [upper.io/db][1].
 
 This project is licensed under the terms of the **MIT License**.
 
-> Copyright (c) 2012-2015 The upper.io/db authors
+> Copyright (c) 2012-2015 The upper.io/db authors. All rights reserved.
 >
 > Permission is hereby granted, free of charge, to any person obtaining
 > a copy of this software and associated documentation files (the
