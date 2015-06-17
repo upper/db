@@ -52,7 +52,9 @@ See the project page, recipes and user documentation at [upper.io/db][1].
 
 ## License
 
-> Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+This project is licensed under the terms of the **MIT License**.
+
+> Copyright (c) 2012-2015 The upper.io/db authors. All rights reserved.
 >
 > Permission is hereby granted, free of charge, to any person obtaining
 > a copy of this software and associated documentation files (the
@@ -72,6 +74,11 @@ See the project page, recipes and user documentation at [upper.io/db][1].
 > LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 > OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 > WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+## Authors
+
+* [José Carlos Nieto](https://github.com/xiam)
+* [Peter Kieltyka](https://github.com/pkieltyka)
 
 [1]: https://upper.io/db
 [2]: http://golang.org
