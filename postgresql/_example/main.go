@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"upper.io/db"              // Imports the main db package.
@@ -11,9 +12,9 @@ import (
 
 var settings = db.Settings{
 	Database: `upperio_tests`, // Database name.
-	Host:     `testserver.local`,
-	User:     `upperio`, // Database username.
-	Password: `upperio`, // Database password.
+	Host:     `127.0.0.1`,
+	User:     `upperio_tests`,  // Database username.
+	Password: `upperio_secret`, // Database password.
 }
 
 // Birthday example struct.
@@ -25,6 +26,10 @@ type Birthday struct {
 }
 
 func main() {
+
+	if os.Getenv("TEST_HOST") != "" {
+		settings.Host = os.Getenv("TEST_HOST")
+	}
 
 	// Attemping to establish a connection to the database.
 	sess, err := db.Open("postgresql", settings)
