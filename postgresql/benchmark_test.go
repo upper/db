@@ -10,6 +10,10 @@ import (
 	"upper.io/db"
 )
 
+const (
+	testRows = 10000
+)
+
 // BenchmarkSQLAppend benchmarks raw INSERT SQL queries without using prepared
 // statements nor arguments.
 func BenchmarkSQLAppend(b *testing.B) {
@@ -367,5 +371,120 @@ func BenchmarkUpperAppendTransactionWithMap(b *testing.B) {
 
 	if err = tx.Commit(); err != nil {
 		b.Fatal(err)
+	}
+}
+
+// BenchmarkSQLSelect benchmarks SQL select queries.
+func BenchmarkSQLSelect(b *testing.B) {
+	var err error
+	var sess db.Database
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		b.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	driver := sess.Driver().(*sqlx.DB)
+
+	if _, err = driver.Exec(`TRUNCATE TABLE "artist"`); err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < testRows; i++ {
+		if _, err = driver.Exec(fmt.Sprintf(`INSERT INTO "artist" ("name") VALUES('Artist %d')`, i)); err != nil {
+			b.Fatal(err)
+		}
+	}
+	var res *sql.Rows
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if res, err = driver.Query(`SELECT * FROM "artist" WHERE "name" = $1`, fmt.Sprintf("Artist %d", i%testRows)); err != nil {
+			b.Fatal(err)
+		}
+		res.Close()
+	}
+}
+
+// BenchmarkSQLPreparedSelect benchmarks SQL select queries using prepared
+// statements.
+func BenchmarkSQLPreparedSelect(b *testing.B) {
+	var err error
+	var sess db.Database
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		b.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	driver := sess.Driver().(*sqlx.DB)
+
+	if _, err = driver.Exec(`TRUNCATE TABLE "artist"`); err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < testRows; i++ {
+		if _, err = driver.Exec(fmt.Sprintf(`INSERT INTO "artist" ("name") VALUES('Artist %d')`, i)); err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	stmt, err := driver.Prepare(`SELECT * FROM "artist" WHERE "name" = $1`)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	var res *sql.Rows
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if res, err = stmt.Query(fmt.Sprintf("Artist %d", i%testRows)); err != nil {
+			b.Fatal(err)
+		}
+		res.Close()
+	}
+}
+
+// BenchmarkUpperFind benchmarks upper.io/db's One method.
+func BenchmarkUpperFind(b *testing.B) {
+	var err error
+	var sess db.Database
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		b.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	artist, err := sess.Collection("artist")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	artist.Truncate()
+
+	type artistType struct {
+		Name string `db:"name"`
+	}
+
+	var item artistType
+
+	for i := 0; i < testRows; i++ {
+		item = artistType{
+			Name: fmt.Sprintf("Artist %d", i),
+		}
+		if _, err = artist.Append(item); err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		res := artist.Find(db.Cond{"name": fmt.Sprintf("Artist %d", i%testRows)})
+		if err = res.One(&item); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
