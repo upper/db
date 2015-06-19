@@ -1169,7 +1169,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	}
 
 	if count != 1 {
-		t.Fatalf("Expecting only one element.")
+		t.Fatalf("Expecting only one element, got %d.", count)
 	}
 
 	// Attempt to add some rows.
