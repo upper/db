@@ -14,6 +14,29 @@ const (
 	testRows = 10000
 )
 
+func connectAndAddFakeRows() (db.Database, error) {
+	var err error
+	var sess db.Database
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		return nil, err
+	}
+
+	driver := sess.Driver().(*sqlx.DB)
+
+	if _, err = driver.Exec(`TRUNCATE TABLE "artist"`); err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < testRows; i++ {
+		if _, err = driver.Exec(fmt.Sprintf(`INSERT INTO "artist" ("name") VALUES('Artist %d')`, i)); err != nil {
+			return nil, err
+		}
+	}
+
+	return sess, nil
+}
+
 // BenchmarkSQLAppend benchmarks raw INSERT SQL queries without using prepared
 // statements nor arguments.
 func BenchmarkSQLAppend(b *testing.B) {
@@ -379,7 +402,7 @@ func BenchmarkSQLSelect(b *testing.B) {
 	var err error
 	var sess db.Database
 
-	if sess, err = db.Open(Adapter, settings); err != nil {
+	if sess, err = connectAndAddFakeRows(); err != nil {
 		b.Fatal(err)
 	}
 
@@ -387,15 +410,6 @@ func BenchmarkSQLSelect(b *testing.B) {
 
 	driver := sess.Driver().(*sqlx.DB)
 
-	if _, err = driver.Exec(`TRUNCATE TABLE "artist"`); err != nil {
-		b.Fatal(err)
-	}
-
-	for i := 0; i < testRows; i++ {
-		if _, err = driver.Exec(fmt.Sprintf(`INSERT INTO "artist" ("name") VALUES('Artist %d')`, i)); err != nil {
-			b.Fatal(err)
-		}
-	}
 	var res *sql.Rows
 
 	b.ResetTimer()
@@ -413,23 +427,12 @@ func BenchmarkSQLPreparedSelect(b *testing.B) {
 	var err error
 	var sess db.Database
 
-	if sess, err = db.Open(Adapter, settings); err != nil {
+	if sess, err = connectAndAddFakeRows(); err != nil {
 		b.Fatal(err)
 	}
-
 	defer sess.Close()
 
 	driver := sess.Driver().(*sqlx.DB)
-
-	if _, err = driver.Exec(`TRUNCATE TABLE "artist"`); err != nil {
-		b.Fatal(err)
-	}
-
-	for i := 0; i < testRows; i++ {
-		if _, err = driver.Exec(fmt.Sprintf(`INSERT INTO "artist" ("name") VALUES('Artist %d')`, i)); err != nil {
-			b.Fatal(err)
-		}
-	}
 
 	stmt, err := driver.Prepare(`SELECT * FROM "artist" WHERE "name" = $1`)
 	if err != nil {
@@ -452,7 +455,7 @@ func BenchmarkUpperFind(b *testing.B) {
 	var err error
 	var sess db.Database
 
-	if sess, err = db.Open(Adapter, settings); err != nil {
+	if sess, err = connectAndAddFakeRows(); err != nil {
 		b.Fatal(err)
 	}
 
