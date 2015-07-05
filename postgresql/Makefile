@@ -11,4 +11,4 @@ test: reset-db
 	$(MAKE) -C _example
 
 bench: reset-db
-	go test -v -test.bench=.
+	go test -v -test.bench=. -test.benchtime=10s -benchmem

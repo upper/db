@@ -116,12 +116,12 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	defer rows.Close()
-
 	keyMap := map[string]interface{}{}
 	if err := sqlutil.FetchRow(rows, &keyMap); err != nil {
+		rows.Close()
 		return nil, err
 	}
+	rows.Close()
 
 	// Does the item satisfy the db.IDSetter interface?
 	if setter, ok := item.(db.IDSetter); ok {

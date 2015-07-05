@@ -23,7 +23,6 @@ package postgresql
 
 import (
 	"database/sql"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -63,6 +62,50 @@ var (
 type columnSchemaT struct {
 	Name     string `db:"column_name"`
 	DataType string `db:"data_type"`
+}
+
+func (d *database) prepareStatement(stmt *sqlgen.Statement) (p *sqlx.Stmt, query string, err error) {
+	if d.session == nil {
+		return nil, "", db.ErrNotConnected
+	}
+
+	pc, ok := d.cachedStatements.ReadRaw(stmt)
+
+	if ok {
+		p = pc.(*sqlx.Stmt)
+	} else {
+		query = compileAndReplacePlaceholders(stmt)
+
+		if d.tx != nil {
+			p, err = d.tx.Preparex(query)
+		} else {
+			p, err = d.session.Preparex(query)
+		}
+
+		if err != nil {
+			return nil, "", err
+		}
+
+		d.cachedStatements.Write(stmt, p)
+	}
+
+	return p, query, nil
+}
+
+func compileAndReplacePlaceholders(stmt *sqlgen.Statement) (query string) {
+	buf := stmt.Compile(template.Template)
+
+	j := 1
+	for i := range buf {
+		if buf[i] == '?' {
+			query = query + "$" + strconv.Itoa(j)
+			j++
+		} else {
+			query = query + string(buf[i])
+		}
+	}
+
+	return query
 }
 
 // Driver returns the underlying *sqlx.DB instance.
@@ -211,8 +254,6 @@ func (d *database) Collections() (collections []string, err error) {
 		return nil, err
 	}
 
-	defer rows.Close()
-
 	collections = []string{}
 
 	var name string
@@ -220,6 +261,7 @@ func (d *database) Collections() (collections []string, err error) {
 	for rows.Next() {
 		// Getting table name.
 		if err = rows.Scan(&name); err != nil {
+			rows.Close()
 			return nil, err
 		}
 
@@ -291,124 +333,70 @@ func (d *database) Transaction() (db.Tx, error) {
 // Exec compiles and executes a statement that does not return any rows.
 func (d *database) Exec(stmt *sqlgen.Statement, args ...interface{}) (sql.Result, error) {
 	var query string
-	var res sql.Result
+	var p *sqlx.Stmt
 	var err error
-	var start, end int64
 
-	start = time.Now().UnixNano()
+	if db.Debug {
+		var start, end int64
+		start = time.Now().UnixNano()
 
-	defer func() {
-		end = time.Now().UnixNano()
-		sqlutil.Log(query, args, err, start, end)
-	}()
-
-	if d.session == nil {
-		return nil, db.ErrNotConnected
+		defer func() {
+			end = time.Now().UnixNano()
+			sqlutil.Log(query, args, err, start, end)
+		}()
 	}
 
-	query = stmt.Compile(template.Template)
-
-	l := len(args)
-	for i := 0; i < l; i++ {
-		query = strings.Replace(query, `?`, fmt.Sprintf(`$%d`, i+1), 1)
+	if p, query, err = d.prepareStatement(stmt); err != nil {
+		return nil, err
 	}
 
-	if d.tx != nil {
-		res, err = d.tx.Exec(query, args...)
-	} else {
-		res, err = d.session.Exec(query, args...)
-	}
-
-	return res, err
+	return p.Exec(args...)
 }
 
 // Query compiles and executes a statement that returns rows.
 func (d *database) Query(stmt *sqlgen.Statement, args ...interface{}) (*sqlx.Rows, error) {
-	var rows *sqlx.Rows
 	var query string
-	var err error
-	var start, end int64
-
-	start = time.Now().UnixNano()
-
-	defer func() {
-		end = time.Now().UnixNano()
-		sqlutil.Log(query, args, err, start, end)
-	}()
-
-	if d.session == nil {
-		return nil, db.ErrNotConnected
-	}
-
 	var p *sqlx.Stmt
+	var err error
 
-	pc, ok := d.cachedStatements.ReadRaw(stmt)
+	if db.Debug {
+		var start, end int64
+		start = time.Now().UnixNano()
 
-	if ok {
-		p = pc.(*sqlx.Stmt)
-	} else {
-		buf := stmt.Compile(template.Template)
-
-		j := 1
-		for i := range buf {
-			if buf[i] == '?' {
-				query = query + "$" + strconv.Itoa(j)
-				j++
-			} else {
-				query = query + string(buf[i])
-			}
-		}
-
-		if d.tx != nil {
-			p, err = d.tx.Preparex(query)
-		} else {
-			p, err = d.session.Preparex(query)
-		}
-
-		if err != nil {
-			return nil, err
-		}
-
-		d.cachedStatements.Write(stmt, p)
+		defer func() {
+			end = time.Now().UnixNano()
+			sqlutil.Log(query, args, err, start, end)
+		}()
 	}
 
-	rows, err = p.Queryx(args...)
+	if p, query, err = d.prepareStatement(stmt); err != nil {
+		return nil, err
+	}
 
-	return rows, err
+	return p.Queryx(args...)
 }
 
 // QueryRow compiles and executes a statement that returns at most one row.
 func (d *database) QueryRow(stmt *sqlgen.Statement, args ...interface{}) (*sqlx.Row, error) {
 	var query string
-	var row *sqlx.Row
+	var p *sqlx.Stmt
 	var err error
-	var start, end int64
 
-	start = time.Now().UnixNano()
+	if db.Debug {
+		var start, end int64
+		start = time.Now().UnixNano()
 
-	defer func() {
-		end = time.Now().UnixNano()
-		sqlutil.Log(query, args, err, start, end)
-	}()
-
-	if d.session == nil {
-		return nil, db.ErrNotConnected
+		defer func() {
+			end = time.Now().UnixNano()
+			sqlutil.Log(query, args, err, start, end)
+		}()
 	}
 
-	query = stmt.Compile(template.Template)
-
-	l := len(args)
-	for i := 0; i < l; i++ {
-		query = strings.Replace(query, `?`, `$`+strconv.Itoa(i+1), 1)
+	if p, query, err = d.prepareStatement(stmt); err != nil {
+		return nil, err
 	}
 
-	if d.tx != nil {
-		row = d.tx.QueryRowx(query, args...)
-	} else {
-		row = d.session.QueryRowx(query, args...)
-	}
-
-	return row, err
+	return p.QueryRowx(args...), nil
 }
 
 // populateSchema looks up for the table info in the database and populates its
@@ -485,9 +473,8 @@ func (d *database) tableExists(names ...string) error {
 			return db.ErrCollectionDoesNotExist
 		}
 
-		defer rows.Close()
-
 		if !rows.Next() {
+			rows.Close()
 			return db.ErrCollectionDoesNotExist
 		}
 	}
@@ -532,13 +519,14 @@ func (d *database) tableColumns(tableName string) ([]string, error) {
 		return nil, err
 	}
 
-	defer rows.Close()
-
 	tableFields := []columnSchemaT{}
 
 	if err = sqlutil.FetchRows(rows, &tableFields); err != nil {
+		rows.Close()
 		return nil, err
 	}
+
+	rows.Close()
 
 	d.schema.TableInfo[tableName].Columns = make([]string, 0, len(tableFields))
 
@@ -587,13 +575,12 @@ func (d *database) getPrimaryKey(tableName string) ([]string, error) {
 		return nil, err
 	}
 
-	defer rows.Close()
-
 	tableSchema.PrimaryKey = make([]string, 0, 1)
 
 	for rows.Next() {
 		var key string
 		if err = rows.Scan(&key); err != nil {
+			rows.Close()
 			return nil, err
 		}
 		tableSchema.PrimaryKey = append(tableSchema.PrimaryKey, key)
