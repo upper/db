@@ -863,6 +863,14 @@ func TestFibonacci(t *testing.T) {
 				t.Fatalf(`%s: Unexpected count %d.`, wrapper, total)
 			}
 
+			// Find() with empty expression
+			res1b := col.Find(db.Or{db.And{db.Cond{}, db.Cond{}}, db.Or{db.Cond{}}})
+			total, err = res1b.Count()
+
+			if total != 6 {
+				t.Fatalf(`%s: Unexpected count %d.`, wrapper, total)
+			}
+
 			// Find() with explicit IS NULL
 			res2 := col.Find(db.Cond{"input IS": nil})
 			total, err = res2.Count()

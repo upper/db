@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 )
@@ -33,6 +34,9 @@ func (tu *TemplateWithUtils) ToWhereWithArguments(term interface{}) (where sqlge
 	case []interface{}:
 		for i := range t {
 			w, v := tu.ToWhereWithArguments(t[i])
+			if len(w.Conditions) == 0 {
+				continue
+			}
 			args = append(args, v...)
 			where.Conditions = append(where.Conditions, w.Conditions...)
 		}
@@ -40,20 +44,30 @@ func (tu *TemplateWithUtils) ToWhereWithArguments(term interface{}) (where sqlge
 	case db.And:
 		var op sqlgen.And
 		for i := range t {
-			k, v := tu.ToWhereWithArguments(t[i])
+			w, v := tu.ToWhereWithArguments(t[i])
+			if len(w.Conditions) == 0 {
+				continue
+			}
 			args = append(args, v...)
-			op.Conditions = append(op.Conditions, k.Conditions...)
+			op.Conditions = append(op.Conditions, w.Conditions...)
 		}
-		where.Conditions = append(where.Conditions, &op)
+		if len(op.Conditions) > 0 {
+			where.Conditions = append(where.Conditions, &op)
+		}
 		return
 	case db.Or:
 		var op sqlgen.Or
 		for i := range t {
 			w, v := tu.ToWhereWithArguments(t[i])
+			if len(w.Conditions) == 0 {
+				continue
+			}
 			args = append(args, v...)
 			op.Conditions = append(op.Conditions, w.Conditions...)
 		}
-		where.Conditions = append(where.Conditions, &op)
+		if len(op.Conditions) > 0 {
+			where.Conditions = append(where.Conditions, &op)
+		}
 		return
 	case db.Raw:
 		if s, ok := t.Value.(string); ok {
