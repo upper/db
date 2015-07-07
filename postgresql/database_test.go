@@ -25,14 +25,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
-
-	"math/rand"
 
 	"github.com/jmoiron/sqlx"
 	"upper.io/db"
