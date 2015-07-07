@@ -28,9 +28,8 @@ install:
   - go get -v -t -d upper.io/db/postgresql
   - go get -v -t -d upper.io/db/mongo
   - go get -v -t -d upper.io/db/ql
-  - go get -v github.com/pkieltyka/sqlx
-  - (cd $GOPATH/src/github.com/pkieltyka/sqlx && git pull -a && git checkout ptrs) # temporal fix
-  - (cp -r $GOPATH/src/github.com/pkieltyka/sqlx/* $GOPATH/src/github.com/jmoiron/sqlx) # temporal fix
+  - go get -v github.com/jmoiron/sqlx
+  - (cd $GOPATH/src/github.com/jmoiron/sqlx && git pull -a && git checkout ptrs) # temporal fix
   - (cd $GOPATH/src/github.com/jmoiron/sqlx && go build -a && go install)
   - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db
 
