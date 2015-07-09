@@ -14,6 +14,9 @@ go:
 addons:
   postgresql: "9.4"
 
+services:
+  - mongodb
+
 env: GOARCH=amd64 TEST_HOST=127.0.0.1 UPPERIO_DB_DEBUG=1
 
 install:
@@ -32,9 +35,6 @@ install:
   - (cd $GOPATH/src/github.com/jmoiron/sqlx && git pull -a && git checkout ptrs) # temporal fix
   - (cd $GOPATH/src/github.com/jmoiron/sqlx && go build -a && go install)
   - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db
-
-services:
-  - mongodb
 
 before_script:
   - mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql
