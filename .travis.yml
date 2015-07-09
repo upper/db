@@ -1,3 +1,5 @@
+sudo: false
+
 language: go
 
 go:
@@ -8,6 +10,9 @@ go:
   - 1.4
   - 1.4.1
   - 1.4.2
+
+addons:
+  postgresql: "9.4"
 
 env: GOARCH=amd64 TEST_HOST=127.0.0.1 UPPERIO_DB_DEBUG=1
 
@@ -34,8 +39,6 @@ services:
 
 before_script:
   - mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql
-  - cat mysql/_dumps/setup.sql | mysql -uroot
-  - cat mysql/_dumps/structs.sql | mysql -uupperio_tests -pupperio_secret upperio_tests
 
   - mongo upperio_tests --eval 'db.addUser("upperio_tests", "upperio_secret")'
 
