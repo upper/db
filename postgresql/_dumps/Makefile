@@ -6,7 +6,7 @@ DB_PASSWORD ?= upperio_secret
 DB_NAME     ?= upperio_tests
 
 setup:
-	cat setup.sql | PGPASSWORD="$(DB_PASSWORD)" psql -U$(DB_USERNAME) $(DB_NAME) -h$(TEST_HOST) -p$(TEST_PORT)
-
+	psql -h$(TEST_HOST) -p$(TEST_PORT) < setup.sql
+	
 reset-db:
 	cat structs.sql | PGPASSWORD="$(DB_PASSWORD)" psql -U$(DB_USERNAME) $(DB_NAME) -h$(TEST_HOST) -p$(TEST_PORT)
