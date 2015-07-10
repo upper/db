@@ -156,12 +156,6 @@ func init() {
 	settings.Address = db.ParseAddress(host)
 }
 
-// Logging some information to stdout (like the SQL query and its
-// arguments), useful for development.
-func TestEnableDebug(t *testing.T) {
-	// os.Setenv(db.EnvEnableDebug, "TRUE")
-}
-
 // Attempts to open an empty datasource.
 func TestOpenFailed(t *testing.T) {
 	var err error
@@ -1891,11 +1885,6 @@ func TestOptionTypeJsonbStruct(t *testing.T) {
 	if item1Chk.Settings.Num != 123 {
 		t.Fatalf("Expecting Num to be 123")
 	}
-}
-
-// We are going to benchmark the engine, so this is no longed needed.
-func TestDisableDebug(t *testing.T) {
-	os.Setenv(db.EnvEnableDebug, "")
 }
 
 // Benchmarking raw database/sql.

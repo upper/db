@@ -46,9 +46,9 @@ before_script:
 
 script:
   - cd $GOPATH/src/upper.io/db
-  - go test upper.io/db/postgresql
-  - go test upper.io/db/mysql
-  - go test upper.io/db/sqlite
-  - go test upper.io/db/ql
-  - go test upper.io/db/mongo
-  - go test
+  - go test -v upper.io/db/postgresql
+  - go test -v upper.io/db/mysql
+  - go test -v upper.io/db/sqlite
+  - go test -v upper.io/db/ql
+  - go test -v upper.io/db/mongo
+  - go test -v .

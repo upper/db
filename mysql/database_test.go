@@ -154,12 +154,6 @@ func init() {
 	settings.Address = db.ParseAddress(host)
 }
 
-// Loggin some information to stdout (like the SQL query and its
-// arguments), useful for development.
-func TestEnableDebug(t *testing.T) {
-	os.Setenv(db.EnvEnableDebug, "TRUE")
-}
-
 // Attempts to open an empty datasource.
 func TestOpenFailed(t *testing.T) {
 	var err error
@@ -1421,11 +1415,6 @@ func TestDataTypes(t *testing.T) {
 		fmt.Printf("test2: %v\n", testValues)
 		t.Fatalf("Struct is different.")
 	}
-}
-
-// We are going to benchmark the engine, so this is no longed needed.
-func TestDisableDebug(t *testing.T) {
-	os.Setenv(db.EnvEnableDebug, "")
 }
 
 // Benchmarking raw database/sql.

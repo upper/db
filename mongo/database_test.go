@@ -132,11 +132,6 @@ func init() {
 	settings.Address = db.ParseAddress(host)
 }
 
-// Enabling outputting some information to stdout, useful for development.
-func TestEnableDebug(t *testing.T) {
-	os.Setenv(db.EnvEnableDebug, "TRUE")
-}
-
 // Trying to open an empty datasource, it must succeed (mongo).
 /*
 func TestOpenFailed(t *testing.T) {
@@ -964,11 +959,6 @@ func TestDataTypes(t *testing.T) {
 	if reflect.DeepEqual(item, testValues) == false {
 		t.Errorf("Struct is different.")
 	}
-}
-
-// We are going to benchmark the engine, so this is no longed needed.
-func TestDisableDebug(t *testing.T) {
-	os.Setenv(db.EnvEnableDebug, "")
 }
 
 // Benchmarking raw mgo queries.

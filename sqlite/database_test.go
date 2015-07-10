@@ -33,7 +33,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -141,12 +140,6 @@ func init() {
 		nil,
 		int64(time.Second * time.Duration(7331)),
 	}
-}
-
-// Loggin some information to stdout (like the SQL query and its
-// arguments), useful for development.
-func TestEnableDebug(t *testing.T) {
-	// os.Setenv(db.EnvEnableDebug, "TRUE")
 }
 
 // Attempts to open an empty datasource.
@@ -1367,11 +1360,6 @@ func TestDataTypes(t *testing.T) {
 		fmt.Printf("test2: %v\n", testValues.DateP.Location().String())
 		t.Fatalf("Struct is different.")
 	}
-}
-
-// We are going to benchmark the engine, so this is no longed needed.
-func TestDisableDebug(t *testing.T) {
-	os.Setenv(db.EnvEnableDebug, "")
 }
 
 // Benchmarking raw database/sql.

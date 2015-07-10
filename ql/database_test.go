@@ -30,7 +30,6 @@ package ql
 
 import (
 	"database/sql"
-	"os"
 
 	//"reflect"
 	//"errors"
@@ -129,12 +128,6 @@ func init() {
 		nil,
 		int64(time.Second * time.Duration(7331)),
 	}
-}
-
-// Loggin some information to stdout (like the SQL query and its
-// arguments), useful for development.
-func TestEnableDebug(t *testing.T) {
-	os.Setenv(db.EnvEnableDebug, "TRUE")
 }
 
 // Attempts to open an empty datasource.
@@ -420,7 +413,7 @@ func TestResultFetch(t *testing.T) {
 			if pk, ok := rowMap["id"].(int64); !ok || pk == 0 {
 				t.Fatalf("Expecting a not null ID.")
 			}
-			if name, ok := rowMap["name"].(string); !ok || name == "" {
+			if name, ok := rowMap["name"].([]byte); !ok || string(name) == "" {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
@@ -1248,11 +1241,6 @@ func TestDataTypes(t *testing.T) {
 	}
 }
 */
-
-// We are going to benchmark the engine, so this is no longed needed.
-func TestDisableDebug(t *testing.T) {
-	os.Setenv(db.EnvEnableDebug, "")
-}
 
 // Benchmarking raw database/sql.
 func BenchmarkAppendRawSQL(b *testing.B) {
