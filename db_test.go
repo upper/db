@@ -36,7 +36,6 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db"
 	"upper.io/db/mongo"
-
 	"upper.io/db/mysql"
 	"upper.io/db/postgresql"
 	"upper.io/db/ql"
