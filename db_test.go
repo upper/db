@@ -83,14 +83,14 @@ func init() {
 		`mongo`: &mongo.ConnectionURL{
 			Database: `upperio_tests`,
 			Address:  db.Host(host),
-			User:     `upperio`,
-			Password: `upperio`,
+			User:     `upperio_tests`,
+			Password: `upperio_secret`,
 		},
 		`mysql`: &mysql.ConnectionURL{
 			Database: `upperio_tests`,
 			Address:  db.Host(host),
-			User:     `upperio`,
-			Password: `upperio`,
+			User:     `upperio_tests`,
+			Password: `upperio_secret`,
 			Options: map[string]string{
 				"parseTime": "true",
 			},
@@ -98,8 +98,8 @@ func init() {
 		`postgresql`: &postgresql.ConnectionURL{
 			Database: `upperio_tests`,
 			Address:  db.Host(host),
-			User:     `upperio`,
-			Password: `upperio`,
+			User:     `upperio_tests`,
+			Password: `upperio_secret`,
 			Options: map[string]string{
 				"timezone": "UTC",
 			},

@@ -25,6 +25,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"reflect"
@@ -595,6 +596,7 @@ func TestResultFetch(t *testing.T) {
 		}
 
 		if err == nil {
+			log.Println("rowMap[id]:", rowMap["id"], reflect.TypeOf(rowMap["id"]))
 			if pk, ok := rowMap["id"].(int64); !ok || pk == 0 {
 				t.Fatalf("Expecting a not null ID.")
 			}
