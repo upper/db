@@ -5,6 +5,8 @@ DB_USERNAME ?= upperio_tests
 DB_PASSWORD ?= upperio_secret
 DB_NAME     ?= upperio_tests
 
+all: setup reset-db
+
 setup:
 	mysql -uroot -h"$(TEST_HOST)" -P$(TEST_PORT) < setup.sql
 

@@ -33,7 +33,6 @@ import (
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 )
 
@@ -543,7 +542,7 @@ func TestResultFetch(t *testing.T) {
 			if row_m["_id"].(bson.ObjectId).Valid() != true {
 				t.Fatalf("Expecting a valid bson.ObjectId.")
 			}
-			if to.String(row_m["name"]) == "" {
+			if name, ok := row_m["name"].(string); !ok || name == "" {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {

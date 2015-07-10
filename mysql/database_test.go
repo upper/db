@@ -34,7 +34,6 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 	"upper.io/db/util/sqlutil"
 )
@@ -337,7 +336,7 @@ func TestAppend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if to.Int64(id) == 0 {
+	if pk, ok := id.(int64); !ok || pk == 0 {
 		t.Fatalf("Expecting an ID.")
 	}
 
@@ -352,7 +351,7 @@ func TestAppend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if to.Int64(id) == 0 {
+	if pk, ok := id.(int64); !ok || pk == 0 {
 		t.Fatalf("Expecting an ID.")
 	}
 
@@ -367,7 +366,7 @@ func TestAppend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if to.Int64(id) == 0 {
+	if pk, ok := id.(int64); !ok || pk == 0 {
 		t.Fatalf("Expecting an ID.")
 	}
 
@@ -602,10 +601,10 @@ func TestResultFetch(t *testing.T) {
 		}
 
 		if err == nil {
-			if to.Int64(rowMap["id"]) == 0 {
+			if pk, ok := rowMap["id"].(int64); !ok || pk == 0 {
 				t.Fatalf("Expecting a not null ID.")
 			}
-			if to.String(rowMap["name"]) == "" {
+			if name, ok := rowMap["name"].(string); !ok || name == "" {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
@@ -657,7 +656,7 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	for _, singleRowMap := range allRowsMap {
-		if to.Int64(singleRowMap["id"]) == 0 {
+		if pk, ok := singleRowMap["id"].(int64); !ok || pk == 0 {
 			t.Fatalf("Expecting a not null ID.")
 		}
 	}

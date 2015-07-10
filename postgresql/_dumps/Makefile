@@ -5,6 +5,8 @@ DB_USERNAME ?= upperio_tests
 DB_PASSWORD ?= upperio_secret
 DB_NAME     ?= upperio_tests
 
+all: setup reset-db
+
 setup:
 	psql -Upostgres -h$(TEST_HOST) -p$(TEST_PORT) < setup.sql
 
