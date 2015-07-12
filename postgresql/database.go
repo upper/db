@@ -285,16 +285,18 @@ func (d *database) Collections() (collections []string, err error) {
 }
 
 // Use changes the active database.
-func (d *database) Use(database string) (err error) {
+func (d *database) Use(name string) (err error) {
 	var conn ConnectionURL
 
 	if conn, err = ParseURL(d.connURL.String()); err != nil {
 		return err
 	}
 
-	conn.Database = database
+	conn.Database = name
 
 	d.connURL = conn
+
+	d.schema = nil
 
 	return d.Open()
 }
