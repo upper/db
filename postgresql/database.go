@@ -54,6 +54,11 @@ type tx struct {
 	*database
 }
 
+type cachedStatement struct {
+	*sqlx.Stmt
+	query string
+}
+
 var (
 	_ = db.Database(&database{})
 	_ = db.Tx(&tx{})
@@ -72,7 +77,9 @@ func (d *database) prepareStatement(stmt *sqlgen.Statement) (p *sqlx.Stmt, query
 	pc, ok := d.cachedStatements.ReadRaw(stmt)
 
 	if ok {
-		p = pc.(*sqlx.Stmt)
+		ps := pc.(*cachedStatement)
+		p = ps.Stmt
+		query = ps.query
 	} else {
 		query = compileAndReplacePlaceholders(stmt)
 
@@ -86,7 +93,7 @@ func (d *database) prepareStatement(stmt *sqlgen.Statement) (p *sqlx.Stmt, query
 			return nil, "", err
 		}
 
-		d.cachedStatements.Write(stmt, p)
+		d.cachedStatements.Write(stmt, &cachedStatement{p, query})
 	}
 
 	return p, query, nil
@@ -138,12 +145,14 @@ func (d *database) Open() error {
 		return err
 	}
 
-	d.cachedStatements = cache.NewCache()
-
 	d.session.Mapper = sqlutil.NewMapper()
 
-	if err = d.populateSchema(); err != nil {
-		return err
+	d.cachedStatements = cache.NewCache()
+
+	if d.schema == nil {
+		if err = d.populateSchema(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -156,14 +165,13 @@ func (d *database) Clone() (db.Database, error) {
 }
 
 func (d *database) clone() (*database, error) {
-	src := new(database)
-	src.Setup(d.connURL)
-
-	if err := src.Open(); err != nil {
+	clone := &database{
+		schema: d.schema,
+	}
+	if err := clone.Setup(d.connURL); err != nil {
 		return nil, err
 	}
-
-	return src, nil
+	return clone, nil
 }
 
 // Ping checks whether a connection to the database is still alive by pinging
@@ -175,6 +183,7 @@ func (d *database) Ping() error {
 // Close terminates the current database session.
 func (d *database) Close() error {
 	if d.session != nil {
+		d.cachedStatements.Clear()
 		return d.session.Close()
 	}
 	return nil
@@ -314,8 +323,8 @@ func (d *database) Name() string {
 // be used to issue transactional queries.
 func (d *database) Transaction() (db.Tx, error) {
 	var err error
-	var clone *database
 	var sqlTx *sqlx.Tx
+	var clone *database
 
 	if clone, err = d.clone(); err != nil {
 		return nil, err

@@ -59,7 +59,7 @@ func BenchmarkSQLAppend(b *testing.B) {
 
 	driver := sess.Driver().(*sqlx.DB)
 
-	if _, err = driver.Exec(`TRUNCATE TABLE "artist"`); err != nil {
+	if _, err = driver.Exec(`TRUNCATE TABLE "artist" RESTART IDENTITY`); err != nil {
 		b.Fatal(err)
 	}
 
@@ -86,7 +86,7 @@ func BenchmarkSQLAppendWithArgs(b *testing.B) {
 
 	driver := sess.Driver().(*sqlx.DB)
 
-	if _, err = driver.Exec(`DELETE FROM "artist"`); err != nil {
+	if _, err = driver.Exec(`TRUNCATE TABLE "artist" RESTART IDENTITY`); err != nil {
 		b.Fatal(err)
 	}
 
@@ -119,7 +119,7 @@ func BenchmarkSQLPreparedAppend(b *testing.B) {
 
 	driver := sess.Driver().(*sqlx.DB)
 
-	if _, err = driver.Exec(`TRUNCATE TABLE "artist"`); err != nil {
+	if _, err = driver.Exec(`TRUNCATE TABLE "artist" RESTART IDENTITY`); err != nil {
 		b.Fatal(err)
 	}
 
@@ -221,7 +221,7 @@ func BenchmarkSQLPreparedAppendWithVariableArgs(b *testing.B) {
 func BenchmarkSQLPreparedAppendTransactionWithArgs(b *testing.B) {
 	var err error
 	var sess db.Database
-	var tx *sql.Tx
+	var tx *sqlx.Tx
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatal(err)
@@ -231,28 +231,28 @@ func BenchmarkSQLPreparedAppendTransactionWithArgs(b *testing.B) {
 
 	driver := sess.Driver().(*sqlx.DB)
 
-	if tx, err = driver.Begin(); err != nil {
+	if tx, err = driver.Beginx(); err != nil {
 		b.Fatal(err)
 	}
 
-	if _, err = tx.Exec(`TRUNCATE TABLE "artist"`); err != nil {
+	if _, err = tx.Exec(`TRUNCATE TABLE "artist" RESTART IDENTITY`); err != nil {
 		b.Fatal(err)
 	}
 
-	stmt, err := tx.Prepare(`INSERT INTO "artist" ("name") VALUES($1) RETURNING "id"`)
+	stmt, err := tx.Preparex(`INSERT INTO "artist" ("name") VALUES($1) RETURNING "id"`)
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	args := []interface{}{
-		"Hayo Miyazaki",
+		"Hayao Miyazaki",
 	}
 
-	var rows *sql.Rows
+	var rows *sqlx.Rows
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if rows, err = stmt.Query(args...); err != nil {
+		if rows, err = stmt.Queryx(args...); err != nil {
 			b.Fatal(err)
 		}
 		rows.Close()

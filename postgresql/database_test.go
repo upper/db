@@ -1364,7 +1364,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Attempt to use the same transaction should fail.
+	// An attempt to use the same transaction must fail.
 	if _, err = tx.Collection("artist"); err == nil {
 		t.Fatalf("Illegal, transaction has already been commited.")
 	}
