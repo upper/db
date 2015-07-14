@@ -36,7 +36,6 @@ import (
 type table struct {
 	sqlutil.T
 	*database
-	primaryKey string
 }
 
 var _ = db.Collection(&table{})
