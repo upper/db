@@ -1,7 +1,6 @@
 package postgresql
 
 import (
-	"database/sql"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -94,11 +93,11 @@ func BenchmarkSQLAppendWithArgs(b *testing.B) {
 		"Hayao Miyazaki",
 	}
 
-	var rows *sql.Rows
+	var rows *sqlx.Rows
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if rows, err = driver.Query(`INSERT INTO "artist" ("name") VALUES($1) RETURNING "id"`, args...); err != nil {
+		if rows, err = driver.Queryx(`INSERT INTO "artist" ("name") VALUES($1) RETURNING "id"`, args...); err != nil {
 			b.Fatal(err)
 		}
 		rows.Close()
@@ -155,7 +154,7 @@ func BenchmarkSQLPreparedAppendWithArgs(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	stmt, err := driver.Prepare(`INSERT INTO "artist" ("name") VALUES($1) RETURNING "id"`)
+	stmt, err := driver.Preparex(`INSERT INTO "artist" ("name") VALUES($1) RETURNING "id"`)
 
 	if err != nil {
 		b.Fatal(err)
@@ -165,11 +164,11 @@ func BenchmarkSQLPreparedAppendWithArgs(b *testing.B) {
 		"Hayao Miyazaki",
 	}
 
-	var rows *sql.Rows
+	var rows *sqlx.Rows
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if rows, err = stmt.Query(args...); err != nil {
+		if rows, err = stmt.Queryx(args...); err != nil {
 			b.Fatal(err)
 		}
 		rows.Close()
@@ -195,20 +194,20 @@ func BenchmarkSQLPreparedAppendWithVariableArgs(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	stmt, err := driver.Prepare(`INSERT INTO "artist" ("name") VALUES($1) RETURNING "id"`)
+	stmt, err := driver.Preparex(`INSERT INTO "artist" ("name") VALUES($1) RETURNING "id"`)
 
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	var rows *sql.Rows
+	var rows *sqlx.Rows
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		args := []interface{}{
 			fmt.Sprintf("Hayao Miyazaki %d", rand.Int()),
 		}
-		if rows, err = stmt.Query(args...); err != nil {
+		if rows, err = stmt.Queryx(args...); err != nil {
 			b.Fatal(err)
 		}
 		rows.Close()
@@ -418,11 +417,11 @@ func BenchmarkSQLSelect(b *testing.B) {
 
 	driver := sess.Driver().(*sqlx.DB)
 
-	var res *sql.Rows
+	var res *sqlx.Rows
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if res, err = driver.Query(`SELECT * FROM "artist" WHERE "name" = $1`, artistN(i)); err != nil {
+		if res, err = driver.Queryx(`SELECT * FROM "artist" WHERE "name" = $1`, artistN(i)); err != nil {
 			b.Fatal(err)
 		}
 		res.Close()
@@ -442,16 +441,16 @@ func BenchmarkSQLPreparedSelect(b *testing.B) {
 
 	driver := sess.Driver().(*sqlx.DB)
 
-	stmt, err := driver.Prepare(`SELECT * FROM "artist" WHERE "name" = $1`)
+	stmt, err := driver.Preparex(`SELECT * FROM "artist" WHERE "name" = $1`)
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	var res *sql.Rows
+	var res *sqlx.Rows
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if res, err = stmt.Query(artistN(i)); err != nil {
+		if res, err = stmt.Queryx(artistN(i)); err != nil {
 			b.Fatal(err)
 		}
 		res.Close()
