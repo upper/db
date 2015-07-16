@@ -1421,7 +1421,7 @@ func BenchmarkAppendRawSQLWithArgs(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	args = []interface{}{
+	args := []interface{}{
 		"Hayao Miyazaki",
 	}
 

@@ -29,6 +29,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3" // SQLite3 driver.
+	"upper.io/cache"
 	"upper.io/db"
 	"upper.io/db/util/schema"
 	"upper.io/db/util/sqlgen"
@@ -48,12 +49,18 @@ type database struct {
 	// columns property was introduced so we could query PRAGMA data only once
 	// and retrieve all the column information we'd need, such as name and if it
 	// is a primary key.
-	columns map[string][]columnSchemaT
+	columns          map[string][]columnSchemaT
+	cachedStatements *cache.Cache
 }
 
 type tx struct {
 	*sqltx.Tx
 	*database
+}
+
+type cachedStatement struct {
+	*sqlx.Stmt
+	query string
 }
 
 var (
@@ -64,6 +71,40 @@ var (
 type columnSchemaT struct {
 	Name string `db:"name"`
 	PK   int    `db:"pk"`
+}
+
+func (d *database) prepareStatement(stmt *sqlgen.Statement) (p *sqlx.Stmt, query string, err error) {
+	if d.session == nil {
+		return nil, "", db.ErrNotConnected
+	}
+
+	pc, ok := d.cachedStatements.ReadRaw(stmt)
+
+	if ok {
+		ps := pc.(*cachedStatement)
+		p = ps.Stmt
+		query = ps.query
+	} else {
+		query = compileAndReplacePlaceholders(stmt)
+
+		if d.tx != nil {
+			p, err = d.tx.Preparex(query)
+		} else {
+			p, err = d.session.Preparex(query)
+		}
+
+		if err != nil {
+			return nil, "", err
+		}
+
+		d.cachedStatements.Write(stmt, &cachedStatement{p, query})
+	}
+
+	return p, query, nil
+}
+
+func compileAndReplacePlaceholders(stmt *sqlgen.Statement) string {
+	return stmt.Compile(template.Template)
 }
 
 // Driver returns the underlying *sqlx.DB instance.
@@ -96,8 +137,12 @@ func (d *database) Open() error {
 
 	d.session.Mapper = sqlutil.NewMapper()
 
-	if err = d.populateSchema(); err != nil {
-		return err
+	d.cachedStatements = cache.NewCache()
+
+	if d.schema == nil {
+		if err = d.populateSchema(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -110,14 +155,13 @@ func (d *database) Clone() (db.Database, error) {
 }
 
 func (d *database) clone() (*database, error) {
-	src := &database{}
-	src.Setup(d.connURL)
-
-	if err := src.Open(); err != nil {
+	clone := &database{
+		schema: d.schema,
+	}
+	if err := clone.Setup(d.connURL); err != nil {
 		return nil, err
 	}
-
-	return src, nil
+	return clone, nil
 }
 
 // Ping checks whether a connection to the database is still alive by pinging
@@ -187,7 +231,7 @@ func (d *database) Collections() (collections []string, err error) {
 	// Schema is empty.
 
 	// Querying table names.
-	stmt := sqlgen.Statement{
+	stmt := &sqlgen.Statement{
 		Type: sqlgen.Select,
 		Columns: sqlgen.JoinColumns(
 			sqlgen.ColumnWithName(`tbl_name`),
@@ -231,16 +275,18 @@ func (d *database) Collections() (collections []string, err error) {
 }
 
 // Use changes the active database.
-func (d *database) Use(database string) (err error) {
+func (d *database) Use(name string) (err error) {
 	var conn ConnectionURL
 
 	if conn, err = ParseURL(d.connURL.String()); err != nil {
 		return err
 	}
 
-	conn.Database = database
+	conn.Database = name
 
 	d.connURL = conn
+
+	d.schema = nil
 
 	return d.Open()
 }
@@ -248,7 +294,7 @@ func (d *database) Use(database string) (err error) {
 // Drop removes all tables from the current database.
 func (d *database) Drop() error {
 
-	_, err := d.Query(sqlgen.Statement{
+	_, err := d.Query(&sqlgen.Statement{
 		Type:     sqlgen.DropDatabase,
 		Database: sqlgen.DatabaseWithName(d.schema.Name),
 	})
@@ -288,90 +334,72 @@ func (d *database) Transaction() (db.Tx, error) {
 }
 
 // Exec compiles and executes a statement that does not return any rows.
-func (d *database) Exec(stmt sqlgen.Statement, args ...interface{}) (sql.Result, error) {
+func (d *database) Exec(stmt *sqlgen.Statement, args ...interface{}) (sql.Result, error) {
 	var query string
-	var res sql.Result
+	var p *sqlx.Stmt
 	var err error
-	var start, end int64
 
-	start = time.Now().UnixNano()
+	if db.Debug {
+		var start, end int64
+		start = time.Now().UnixNano()
 
-	defer func() {
-		end = time.Now().UnixNano()
-		sqlutil.Log(query, args, err, start, end)
-	}()
-
-	if d.session == nil {
-		return nil, db.ErrNotConnected
+		defer func() {
+			end = time.Now().UnixNano()
+			sqlutil.Log(query, args, err, start, end)
+		}()
 	}
 
-	query = stmt.Compile(template.Template)
-
-	if d.tx != nil {
-		res, err = d.tx.Exec(query, args...)
-	} else {
-		res, err = d.session.Exec(query, args...)
+	if p, query, err = d.prepareStatement(stmt); err != nil {
+		return nil, err
 	}
 
-	return res, err
+	return p.Exec(args...)
 }
 
 // Query compiles and executes a statement that returns rows.
-func (d *database) Query(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Rows, error) {
-	var rows *sqlx.Rows
+func (d *database) Query(stmt *sqlgen.Statement, args ...interface{}) (*sqlx.Rows, error) {
 	var query string
+	var p *sqlx.Stmt
 	var err error
-	var start, end int64
 
-	start = time.Now().UnixNano()
+	if db.Debug {
+		var start, end int64
+		start = time.Now().UnixNano()
 
-	defer func() {
-		end = time.Now().UnixNano()
-		sqlutil.Log(query, args, err, start, end)
-	}()
-
-	if d.session == nil {
-		return nil, db.ErrNotConnected
+		defer func() {
+			end = time.Now().UnixNano()
+			sqlutil.Log(query, args, err, start, end)
+		}()
 	}
 
-	query = stmt.Compile(template.Template)
-
-	if d.tx != nil {
-		rows, err = d.tx.Queryx(query, args...)
-	} else {
-		rows, err = d.session.Queryx(query, args...)
+	if p, query, err = d.prepareStatement(stmt); err != nil {
+		return nil, err
 	}
 
-	return rows, err
+	return p.Queryx(args...)
 }
 
 // QueryRow compiles and executes a statement that returns at most one row.
-func (d *database) QueryRow(stmt sqlgen.Statement, args ...interface{}) (*sqlx.Row, error) {
+func (d *database) QueryRow(stmt *sqlgen.Statement, args ...interface{}) (*sqlx.Row, error) {
 	var query string
-	var row *sqlx.Row
+	var p *sqlx.Stmt
 	var err error
-	var start, end int64
 
-	start = time.Now().UnixNano()
+	if db.Debug {
+		var start, end int64
+		start = time.Now().UnixNano()
 
-	defer func() {
-		end = time.Now().UnixNano()
-		sqlutil.Log(query, args, err, start, end)
-	}()
-
-	if d.session == nil {
-		return nil, db.ErrNotConnected
+		defer func() {
+			end = time.Now().UnixNano()
+			sqlutil.Log(query, args, err, start, end)
+		}()
 	}
 
-	query = stmt.Compile(template.Template)
-
-	if d.tx != nil {
-		row = d.tx.QueryRowx(query, args...)
-	} else {
-		row = d.session.QueryRowx(query, args...)
+	if p, query, err = d.prepareStatement(stmt); err != nil {
+		return nil, err
 	}
 
-	return row, err
+	return p.QueryRowx(args...), nil
 }
 
 // populateSchema looks up for the table info in the database and populates its
@@ -405,7 +433,7 @@ func (d *database) populateSchema() (err error) {
 }
 
 func (d *database) tableExists(names ...string) error {
-	var stmt sqlgen.Statement
+	var stmt *sqlgen.Statement
 	var err error
 	var rows *sqlx.Rows
 
@@ -416,7 +444,7 @@ func (d *database) tableExists(names ...string) error {
 			continue
 		}
 
-		stmt = sqlgen.Statement{
+		stmt = &sqlgen.Statement{
 			Type:  sqlgen.Select,
 			Table: sqlgen.TableWithName(`sqlite_master`),
 			Columns: sqlgen.JoinColumns(
