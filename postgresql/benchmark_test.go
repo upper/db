@@ -150,7 +150,7 @@ func BenchmarkSQLPreparedAppendWithArgs(b *testing.B) {
 
 	driver := sess.Driver().(*sqlx.DB)
 
-	if _, err = driver.Exec(`DELETE FROM "artist"`); err != nil {
+	if _, err = driver.Exec(`TRUNCATE TABLE "artist"`); err != nil {
 		b.Fatal(err)
 	}
 
@@ -190,7 +190,7 @@ func BenchmarkSQLPreparedAppendWithVariableArgs(b *testing.B) {
 
 	driver := sess.Driver().(*sqlx.DB)
 
-	if _, err = driver.Exec(`DELETE FROM "artist"`); err != nil {
+	if _, err = driver.Exec(`TRUNCATE TABLE "artist"`); err != nil {
 		b.Fatal(err)
 	}
 
