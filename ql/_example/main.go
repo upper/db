@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"upper.io/db"      // Imports the main db package.
@@ -16,12 +17,16 @@ var settings = db.Settings{
 // Birthday struct example
 type Birthday struct {
 	// Maps the "Name" property to the "name" column of the "birthdays" table.
-	Name string `field:"name"`
+	Name string `db:"name"`
 	// Maps the "Born" property to the "born" column of the "birthdays" table.
-	Born time.Time `field:"born"`
+	Born time.Time `db:"born"`
 }
 
 func main() {
+
+	if os.Getenv("DB_NAME") != "" {
+		settings.Database = os.Getenv("DB_NAME")
+	}
 
 	// Attemping to open the "example.db" database file.
 	sess, err := db.Open("ql", settings)

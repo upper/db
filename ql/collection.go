@@ -49,7 +49,7 @@ func (t *table) Find(terms ...interface{}) db.Result {
 
 // Truncate deletes all rows from the table.
 func (t *table) Truncate() error {
-	_, err := t.database.Exec(sqlgen.Statement{
+	_, err := t.database.Exec(&sqlgen.Statement{
 		Type:  sqlgen.Truncate,
 		Table: sqlgen.TableWithName(t.MainTableName()),
 	})
@@ -75,7 +75,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	stmt := sqlgen.Statement{
+	stmt := &sqlgen.Statement{
 		Type:    sqlgen.Insert,
 		Table:   sqlgen.TableWithName(t.MainTableName()),
 		Columns: sqlgenCols,
