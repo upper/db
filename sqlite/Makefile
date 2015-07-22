@@ -1,3 +1,5 @@
+BENCHTIME ?= 10s
+
 build:
 	go build && go install
 
@@ -9,4 +11,4 @@ test: reset-db
 	$(MAKE) -C _example
 
 bench: reset-db
-	go test -v -test.bench=. -test.benchtime=10s -benchmem
+	go test -v -test.bench=. -test.benchtime=$(BENCHTIME) -benchmem
