@@ -46,9 +46,9 @@ before_script:
 
 script:
   - cd $GOPATH/src/upper.io/db
-  - go test -v upper.io/db/postgresql
-  - go test -v upper.io/db/mysql
-  - go test -v upper.io/db/sqlite
-  - go test -v upper.io/db/ql
-  - go test -v upper.io/db/mongo
   - go test -v .
+  - make bench -C $GOPATH/src/upper.io/db/mysql
+  - make bench -C $GOPATH/src/upper.io/db/postgresql
+  - make bench -C $GOPATH/src/upper.io/db/ql
+  - make bench -C $GOPATH/src/upper.io/db/sqlite
+  - make bench -C $GOPATH/src/upper.io/db/mongo
