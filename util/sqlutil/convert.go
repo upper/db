@@ -4,13 +4,17 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 )
 
 var (
-	sqlPlaceholder = sqlgen.RawValue(`?`)
-	sqlNull        = sqlgen.RawValue(`NULL`)
+	sqlPlaceholder     = sqlgen.RawValue(`?`)
+	sqlNull            = sqlgen.RawValue(`NULL`)
+	sqlIsOperator      = `IS`
+	sqlInOperator      = `IN`
+	sqlDefaultOperator = `=`
 )
 
 type TemplateWithUtils struct {
@@ -30,6 +34,9 @@ func (tu *TemplateWithUtils) ToWhereWithArguments(term interface{}) (where sqlge
 	case []interface{}:
 		for i := range t {
 			w, v := tu.ToWhereWithArguments(t[i])
+			if len(w.Conditions) == 0 {
+				continue
+			}
 			args = append(args, v...)
 			where.Conditions = append(where.Conditions, w.Conditions...)
 		}
@@ -37,20 +44,30 @@ func (tu *TemplateWithUtils) ToWhereWithArguments(term interface{}) (where sqlge
 	case db.And:
 		var op sqlgen.And
 		for i := range t {
-			k, v := tu.ToWhereWithArguments(t[i])
+			w, v := tu.ToWhereWithArguments(t[i])
+			if len(w.Conditions) == 0 {
+				continue
+			}
 			args = append(args, v...)
-			op.Conditions = append(op.Conditions, k.Conditions...)
+			op.Conditions = append(op.Conditions, w.Conditions...)
 		}
-		where.Conditions = append(where.Conditions, &op)
+		if len(op.Conditions) > 0 {
+			where.Conditions = append(where.Conditions, &op)
+		}
 		return
 	case db.Or:
 		var op sqlgen.Or
 		for i := range t {
 			w, v := tu.ToWhereWithArguments(t[i])
+			if len(w.Conditions) == 0 {
+				continue
+			}
 			args = append(args, v...)
 			op.Conditions = append(op.Conditions, w.Conditions...)
 		}
-		where.Conditions = append(where.Conditions, &op)
+		if len(op.Conditions) > 0 {
+			where.Conditions = append(where.Conditions, &op)
+		}
 		return
 	case db.Raw:
 		if s, ok := t.Value.(string); ok {
@@ -122,8 +139,6 @@ func (tu *TemplateWithUtils) ToColumnValues(cond db.Cond) (ToColumnValues sqlgen
 
 		if len(chunks) > 1 {
 			columnValue.Operator = chunks[1]
-		} else {
-			columnValue.Operator = tu.DefaultOperator
 		}
 
 		switch value := value.(type) {
@@ -143,19 +158,33 @@ func (tu *TemplateWithUtils) ToColumnValues(cond db.Cond) (ToColumnValues sqlgen
 		default:
 			v := tu.ToInterfaceArguments(value)
 
-			l := len(v)
-			if v == nil || l == 0 {
+			if v == nil {
 				// Nil value given.
 				columnValue.Value = sqlNull
+				if columnValue.Operator == "" {
+					columnValue.Operator = sqlIsOperator
+				}
 			} else {
-				if l > 1 {
+				if len(v) > 1 {
 					// Array value given.
 					columnValue.Value = sqlgen.RawValue(fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1)))
+					if columnValue.Operator == "" {
+						columnValue.Operator = sqlInOperator
+					}
 				} else {
 					// Single value given.
 					columnValue.Value = sqlPlaceholder
 				}
 				args = append(args, v...)
+			}
+		}
+
+		// Using guessed operator if no operator was given.
+		if columnValue.Operator == "" {
+			if tu.DefaultOperator != "" {
+				columnValue.Operator = tu.DefaultOperator
+			} else {
+				columnValue.Operator = sqlDefaultOperator
 			}
 		}
 

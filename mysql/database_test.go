@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2015 José Carlos Nieto, https://menteslibres.net/xiam
+// Copyright (c) 2012-2015 The upper.io/db authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -25,6 +25,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"reflect"
@@ -34,7 +35,6 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 	"upper.io/db/util/sqlutil"
 )
@@ -153,12 +153,6 @@ func init() {
 	}
 
 	settings.Address = db.ParseAddress(host)
-}
-
-// Loggin some information to stdout (like the SQL query and its
-// arguments), useful for development.
-func TestEnableDebug(t *testing.T) {
-	os.Setenv(db.EnvEnableDebug, "TRUE")
 }
 
 // Attempts to open an empty datasource.
@@ -337,7 +331,7 @@ func TestAppend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if to.Int64(id) == 0 {
+	if pk, ok := id.(int64); !ok || pk == 0 {
 		t.Fatalf("Expecting an ID.")
 	}
 
@@ -352,7 +346,7 @@ func TestAppend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if to.Int64(id) == 0 {
+	if pk, ok := id.(int64); !ok || pk == 0 {
 		t.Fatalf("Expecting an ID.")
 	}
 
@@ -367,7 +361,7 @@ func TestAppend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if to.Int64(id) == 0 {
+	if pk, ok := id.(int64); !ok || pk == 0 {
 		t.Fatalf("Expecting an ID.")
 	}
 
@@ -602,10 +596,11 @@ func TestResultFetch(t *testing.T) {
 		}
 
 		if err == nil {
-			if to.Int64(rowMap["id"]) == 0 {
+			log.Println("rowMap[id]:", rowMap["id"], reflect.TypeOf(rowMap["id"]))
+			if pk, ok := rowMap["id"].(int64); !ok || pk == 0 {
 				t.Fatalf("Expecting a not null ID.")
 			}
-			if to.String(rowMap["name"]) == "" {
+			if name, ok := rowMap["name"].([]byte); !ok || string(name) == "" {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
@@ -657,7 +652,7 @@ func TestResultFetch(t *testing.T) {
 	}
 
 	for _, singleRowMap := range allRowsMap {
-		if to.Int64(singleRowMap["id"]) == 0 {
+		if pk, ok := singleRowMap["id"].(int64); !ok || pk == 0 {
 			t.Fatalf("Expecting a not null ID.")
 		}
 	}

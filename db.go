@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+// Copyright (c) 2012-2015 The upper.io/db authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -42,7 +42,9 @@
 //	res = col.Find(db.Cond{"name": "Max"}).Limit(2).Sort("-input")
 //	err = res.All(&people)
 
-package db // import "upper.io/db"
+package db
+
+// import "upper.io/db"
 
 // Cond is a map used to define conditions passed to `db.Collection.Find()` and
 // `db.Result.Where()`.
@@ -313,20 +315,6 @@ type ConnectionURL interface {
 	String() string
 }
 
-// EnvEnableDebug may be used by adapters to determine if the user has enabled
-// debugging.
-//
-// If the user sets the `UPPERIO_DB_DEBUG` environment variable to a
-// non-empty value, all generated statements will be printed at runtime to
-// the standard logger.
-//
-// Example:
-//
-//	UPPERIO_DB_DEBUG=1 go test
-//
-//	UPPERIO_DB_DEBUG=1 ./go-program
-const EnvEnableDebug = `UPPERIO_DB_DEBUG`
-
 // Marshaler is the interface implemented by structs that can marshal
 // themselves into data suitable for storage.
 type Marshaler interface {
@@ -360,3 +348,17 @@ type Int64IDSetter interface {
 type Uint64IDSetter interface {
 	SetID(uint64) error
 }
+
+// EnvEnableDebug may be used by adapters to determine if the user has enabled
+// debugging.
+//
+// If the user sets the `UPPERIO_DB_DEBUG` environment variable to a
+// non-empty value, all generated statements will be printed at runtime to
+// the standard logger.
+//
+// Example:
+//
+//	UPPERIO_DB_DEBUG=1 go test
+//
+//	UPPERIO_DB_DEBUG=1 ./go-program
+const EnvEnableDebug = `UPPERIO_DB_DEBUG`

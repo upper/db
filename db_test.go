@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+// Copyright (c) 2012-2015 The upper.io/db authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -36,7 +36,6 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db"
 	"upper.io/db/mongo"
-
 	"upper.io/db/mysql"
 	"upper.io/db/postgresql"
 	"upper.io/db/ql"
@@ -84,14 +83,14 @@ func init() {
 		`mongo`: &mongo.ConnectionURL{
 			Database: `upperio_tests`,
 			Address:  db.Host(host),
-			User:     `upperio`,
-			Password: `upperio`,
+			User:     `upperio_tests`,
+			Password: `upperio_secret`,
 		},
 		`mysql`: &mysql.ConnectionURL{
 			Database: `upperio_tests`,
 			Address:  db.Host(host),
-			User:     `upperio`,
-			Password: `upperio`,
+			User:     `upperio_tests`,
+			Password: `upperio_secret`,
 			Options: map[string]string{
 				"parseTime": "true",
 			},
@@ -99,8 +98,8 @@ func init() {
 		`postgresql`: &postgresql.ConnectionURL{
 			Database: `upperio_tests`,
 			Address:  db.Host(host),
-			User:     `upperio`,
-			Password: `upperio`,
+			User:     `upperio_tests`,
+			Password: `upperio_secret`,
 			Options: map[string]string{
 				"timezone": "UTC",
 			},
@@ -847,12 +846,72 @@ func TestFibonacci(t *testing.T) {
 				t.Fatalf(`%s: Unexpected count %d.`, wrapper, total)
 			}
 
+			// Find() with no arguments.
 			res = col.Find()
-
 			total, err = res.Count()
 
 			if total != 6 {
 				t.Fatalf(`%s: Unexpected count %d.`, wrapper, total)
+			}
+
+			// Skipping mongodb as the results of this are not defined there.
+			if wrapper != `mongo` {
+
+				// Find() with empty db.Cond.
+				res1 := col.Find(db.Cond{})
+				total, err = res1.Count()
+
+				if total != 6 {
+					t.Fatalf(`%s: Unexpected count %d.`, wrapper, total)
+				}
+
+				// Find() with empty expression
+				res1b := col.Find(db.Or{db.And{db.Cond{}, db.Cond{}}, db.Or{db.Cond{}}})
+				total, err = res1b.Count()
+
+				if total != 6 {
+					t.Fatalf(`%s: Unexpected count %d.`, wrapper, total)
+				}
+
+				// Find() with explicit IS NULL
+				res2 := col.Find(db.Cond{"input IS": nil})
+				total, err = res2.Count()
+
+				if total != 0 {
+					t.Fatalf(`%s: Unexpected count %d.`, wrapper, total)
+				}
+
+				// Find() with implicit IS NULL
+				res2a := col.Find(db.Cond{"input": nil})
+				total, err = res2a.Count()
+
+				if total != 0 {
+					t.Fatalf(`%s: Unexpected count %d.`, wrapper, total)
+				}
+
+				// Find() with explicit = NULL
+				res2b := col.Find(db.Cond{"input =": nil})
+				total, err = res2b.Count()
+
+				if total != 0 {
+					t.Fatalf(`%s: Unexpected count %d.`, wrapper, total)
+				}
+
+				// Find() with implicit IN
+				res3 := col.Find(db.Cond{"input": []int{1, 2, 3, 4}})
+				total, err = res3.Count()
+
+				if total != 3 {
+					t.Fatalf(`%s: Unexpected count %d.`, wrapper, total)
+				}
+
+				// Find() with implicit NOT IN
+				res3a := col.Find(db.Cond{"input NOT IN": []int{1, 2, 3, 4}})
+				total, err = res3a.Count()
+
+				if total != 3 {
+					t.Fatalf(`%s: Unexpected count %d.`, wrapper, total)
+				}
 			}
 
 			var items []fibonacci
@@ -860,6 +919,10 @@ func TestFibonacci(t *testing.T) {
 
 			if err != nil {
 				t.Fatalf(`%s: %q`, wrapper, err)
+			}
+
+			if len(items) != 6 {
+				t.Fatalf(`Waiting for 6 items.`)
 			}
 
 			for _, item := range items {
