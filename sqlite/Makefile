@@ -2,7 +2,7 @@ build:
 	go build && go install
 
 reset-db:
-	$(MAKE) -C _dumps
+	$(MAKE) reset-db -C _dumps
 
 test: reset-db
 	go test -v

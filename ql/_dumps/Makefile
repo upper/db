@@ -1,7 +1,7 @@
 DB_NAME     ?= test.db
 
-load: clean
-	cat structs.sql | $$GOPATH/bin/ql -db $(DB_NAME)
+reset-db: clean
+	$$GOPATH/bin/ql -db $(DB_NAME) < structs.sql
 
 clean:
 	rm -f $(DB_NAME)

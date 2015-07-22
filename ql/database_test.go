@@ -29,7 +29,6 @@ package ql
 // go test
 
 import (
-	"os"
 
 	//"reflect"
 	//"errors"
