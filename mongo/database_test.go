@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2014 José Carlos Nieto, https://menteslibres.net/xiam
+// Copyright (c) 2012-2015 The upper.io/db authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -33,7 +33,6 @@ import (
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"menteslibres.net/gosexy/to"
 	"upper.io/db"
 )
 
@@ -131,11 +130,6 @@ func init() {
 	}
 
 	settings.Address = db.ParseAddress(host)
-}
-
-// Enabling outputting some information to stdout, useful for development.
-func TestEnableDebug(t *testing.T) {
-	os.Setenv(db.EnvEnableDebug, "TRUE")
 }
 
 // Trying to open an empty datasource, it must succeed (mongo).
@@ -543,7 +537,7 @@ func TestResultFetch(t *testing.T) {
 			if row_m["_id"].(bson.ObjectId).Valid() != true {
 				t.Fatalf("Expecting a valid bson.ObjectId.")
 			}
-			if to.String(row_m["name"]) == "" {
+			if name, ok := row_m["name"].(string); !ok || name == "" {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
@@ -965,11 +959,6 @@ func TestDataTypes(t *testing.T) {
 	if reflect.DeepEqual(item, testValues) == false {
 		t.Errorf("Struct is different.")
 	}
-}
-
-// We are going to benchmark the engine, so this is no longed needed.
-func TestDisableDebug(t *testing.T) {
-	os.Setenv(db.EnvEnableDebug, "")
 }
 
 // Benchmarking raw mgo queries.

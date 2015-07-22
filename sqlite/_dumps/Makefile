@@ -1,4 +1,6 @@
-load: clean
+all: reset-db
+
+reset-db: clean
 	cat structs.sql | sqlite3 gotest.sqlite3.db
 
 clean:
