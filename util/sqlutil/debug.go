@@ -30,6 +30,12 @@ import (
 	"upper.io/db"
 )
 
+func init() {
+	if os.Getenv(db.EnvEnableDebug) != "" {
+		db.Debug = true
+	}
+}
+
 // Debug is used for printing SQL queries and arguments.
 type Debug struct {
 	SQL   string
@@ -63,15 +69,8 @@ func (d *Debug) Print() {
 	log.Printf("\n\t%s\n\n", strings.Join(s, "\n\t"))
 }
 
-func IsDebugEnabled() bool {
-	if os.Getenv(db.EnvEnableDebug) != "" {
-		return true
-	}
-	return false
-}
-
 func Log(query string, args []interface{}, err error, start int64, end int64) {
-	if IsDebugEnabled() {
+	if db.Debug {
 		d := Debug{query, args, err, start, end}
 		d.Print()
 	}

@@ -68,7 +68,7 @@ func (r *Result) setCursor() error {
 	var err error
 	// We need a cursor, if the cursor does not exists yet then we create one.
 	if r.cursor == nil {
-		r.cursor, err = r.table.Query(sqlgen.Statement{
+		r.cursor, err = r.table.Query(&sqlgen.Statement{
 			Type:    sqlgen.Select,
 			Table:   sqlgen.TableWithName(r.table.Name()),
 			Columns: &r.columns,
@@ -249,7 +249,7 @@ func (r *Result) Next(dst interface{}) (err error) {
 func (r *Result) Remove() error {
 	var err error
 
-	_, err = r.table.Exec(sqlgen.Statement{
+	_, err = r.table.Exec(&sqlgen.Statement{
 		Type:  sqlgen.Delete,
 		Table: sqlgen.TableWithName(r.table.Name()),
 		Where: &r.where,
@@ -276,7 +276,7 @@ func (r *Result) Update(values interface{}) error {
 
 	vv = append(vv, r.arguments...)
 
-	_, err = r.table.Exec(sqlgen.Statement{
+	_, err = r.table.Exec(&sqlgen.Statement{
 		Type:         sqlgen.Update,
 		Table:        sqlgen.TableWithName(r.table.Name()),
 		ColumnValues: cvs,
@@ -299,7 +299,7 @@ func (r *Result) Close() (err error) {
 func (r *Result) Count() (uint64, error) {
 	var count counter
 
-	row, err := r.table.QueryRow(sqlgen.Statement{
+	row, err := r.table.QueryRow(&sqlgen.Statement{
 		Type:  sqlgen.Count,
 		Table: sqlgen.TableWithName(r.table.Name()),
 		Where: &r.where,

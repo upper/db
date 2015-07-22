@@ -1,5 +1,3 @@
-TEST_HOST ?= 127.0.0.1
-
 build:
 	go build && go install
 

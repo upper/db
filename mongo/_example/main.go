@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"upper.io/db"         // Imports the main db package.
@@ -22,6 +23,10 @@ type Birthday struct {
 }
 
 func main() {
+
+	if os.Getenv("TEST_HOST") != "" {
+		settings.Host = os.Getenv("TEST_HOST")
+	}
 
 	// Attemping to establish a connection to the database.
 	sess, err := db.Open("mongo", settings)

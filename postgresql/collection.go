@@ -36,7 +36,6 @@ import (
 type table struct {
 	sqlutil.T
 	*database
-	primaryKey string
 }
 
 var _ = db.Collection(&table{})
@@ -49,7 +48,7 @@ func (t *table) Find(terms ...interface{}) db.Result {
 
 // Truncate deletes all rows from the table.
 func (t *table) Truncate() error {
-	_, err := t.database.Exec(sqlgen.Statement{
+	_, err := t.database.Exec(&sqlgen.Statement{
 		Type:  sqlgen.Truncate,
 		Table: sqlgen.TableWithName(t.MainTableName()),
 	})
@@ -85,7 +84,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		}
 	}
 
-	stmt := sqlgen.Statement{
+	stmt := &sqlgen.Statement{
 		Type:    sqlgen.Insert,
 		Table:   sqlgen.TableWithName(t.MainTableName()),
 		Columns: sqlgenCols,
@@ -111,16 +110,17 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 
 	// A primary key was found.
 	stmt.Extra = sqlgen.Extra(fmt.Sprintf(`RETURNING "%s"`, strings.Join(pKey, `", "`)))
+
 	if rows, err = t.database.Query(stmt, sqlgenArgs...); err != nil {
 		return nil, err
 	}
 
-	defer rows.Close()
-
 	keyMap := map[string]interface{}{}
 	if err := sqlutil.FetchRow(rows, &keyMap); err != nil {
+		rows.Close()
 		return nil, err
 	}
+	rows.Close()
 
 	// Does the item satisfy the db.IDSetter interface?
 	if setter, ok := item.(db.IDSetter); ok {

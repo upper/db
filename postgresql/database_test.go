@@ -1363,7 +1363,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Attempt to use the same transaction should fail.
+	// An attempt to use the same transaction must fail.
 	if _, err = tx.Collection("artist"); err == nil {
 		t.Fatalf("Illegal, transaction has already been commited.")
 	}
@@ -1549,7 +1549,6 @@ func TestCompositeKeys(t *testing.T) {
 // then it tries to get the stored datatypes and check if the stored and the
 // original values match.
 func TestDataTypes(t *testing.T) {
-	// os.Setenv(db.EnvEnableDebug, "TRUE")
 
 	var res db.Result
 	var sess db.Database
@@ -1884,182 +1883,5 @@ func TestOptionTypeJsonbStruct(t *testing.T) {
 
 	if item1Chk.Settings.Num != 123 {
 		t.Fatalf("Expecting Num to be 123")
-	}
-}
-
-// Benchmarking raw database/sql.
-func BenchmarkAppendRawSQL(b *testing.B) {
-	var err error
-	var sess db.Database
-
-	if sess, err = db.Open(Adapter, settings); err != nil {
-		b.Fatal(err)
-	}
-
-	defer sess.Close()
-
-	driver := sess.Driver().(*sqlx.DB)
-
-	if _, err = driver.Exec(`TRUNCATE TABLE "artist"`); err != nil {
-		b.Fatal(err)
-	}
-
-	stmt, err := driver.Prepare(`INSERT INTO "artist" ("name") VALUES('Hayao Miyazaki')`)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if _, err = stmt.Exec(); err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-// Benchmarking Append().
-//
-// Contributed by wei2912
-// See: https://github.com/gosexy/db/issues/20#issuecomment-20097801
-func BenchmarkAppendUpper(b *testing.B) {
-	sess, err := db.Open(Adapter, settings)
-
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	defer sess.Close()
-
-	artist, err := sess.Collection("artist")
-	artist.Truncate()
-
-	item := struct {
-		Name string `db:"name"`
-	}{"Hayao Miyazaki"}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if _, err = artist.Append(item); err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-// Benchmarking raw database/sql.
-func BenchmarkAppendTxRawSQL(b *testing.B) {
-	var err error
-	var sess db.Database
-	var tx *sql.Tx
-
-	if sess, err = db.Open(Adapter, settings); err != nil {
-		b.Fatal(err)
-	}
-
-	defer sess.Close()
-
-	driver := sess.Driver().(*sqlx.DB)
-
-	if tx, err = driver.Begin(); err != nil {
-		b.Fatal(err)
-	}
-
-	if _, err = tx.Exec(`TRUNCATE TABLE "artist"`); err != nil {
-		b.Fatal(err)
-	}
-
-	stmt, err := tx.Prepare(`INSERT INTO "artist" ("name") VALUES('Hayao Miyazaki')`)
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if _, err = stmt.Exec(); err != nil {
-			b.Fatal(err)
-		}
-	}
-
-	if err = tx.Commit(); err != nil {
-		b.Fatal(err)
-	}
-}
-
-// Benchmarking Append() with transactions.
-func BenchmarkAppendTxUpper(b *testing.B) {
-	var sess db.Database
-	var err error
-
-	if sess, err = db.Open(Adapter, settings); err != nil {
-		b.Fatal(err)
-	}
-
-	defer sess.Close()
-
-	var tx db.Tx
-	if tx, err = sess.Transaction(); err != nil {
-		b.Fatal(err)
-	}
-
-	var artist db.Collection
-	if artist, err = tx.Collection("artist"); err != nil {
-		b.Fatal(err)
-	}
-
-	if err = artist.Truncate(); err != nil {
-		b.Fatal(err)
-	}
-
-	item := struct {
-		Name string `db:"name"`
-	}{"Hayao Miyazaki"}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if _, err = artist.Append(item); err != nil {
-			b.Fatal(err)
-		}
-	}
-
-	if err = tx.Commit(); err != nil {
-		b.Fatal(err)
-	}
-}
-
-// Benchmarking Append() with map.
-func BenchmarkAppendTxUpperMap(b *testing.B) {
-	var sess db.Database
-	var err error
-
-	if sess, err = db.Open(Adapter, settings); err != nil {
-		b.Fatal(err)
-	}
-
-	defer sess.Close()
-
-	var tx db.Tx
-	if tx, err = sess.Transaction(); err != nil {
-		b.Fatal(err)
-	}
-
-	var artist db.Collection
-	if artist, err = tx.Collection("artist"); err != nil {
-		b.Fatal(err)
-	}
-
-	if err = artist.Truncate(); err != nil {
-		b.Fatal(err)
-	}
-
-	item := map[string]string{"name": "Hayao Miyazaki"}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if _, err = artist.Append(item); err != nil {
-			b.Fatal(err)
-		}
-	}
-
-	if err = tx.Commit(); err != nil {
-		b.Fatal(err)
 	}
 }

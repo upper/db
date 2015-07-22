@@ -1,5 +1,7 @@
-all: reset-db
+DB_NAME     ?= test.db
 
-reset-db:
-	rm -f test.db
-	cat structs.sql | $$GOPATH/bin/ql -db test.db
+load: clean
+	cat structs.sql | $$GOPATH/bin/ql -db $(DB_NAME)
+
+clean:
+	rm -f $(DB_NAME)
