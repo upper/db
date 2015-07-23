@@ -1,7 +1,7 @@
 all: reset-db
 
 reset-db: clean
-	cat structs.sql | sqlite3 gotest.sqlite3.db
+	sqlite3 gotest.sqlite3.db < structs.sql
 
 clean:
 	rm -f gotest.sqlite3.db
