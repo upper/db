@@ -4,7 +4,13 @@ BENCHTIME ?= 10s
 build:
 	go build && go install
 
-reset-db:
+require-client:
+	if [ -z "$(which mysql)" ]; then \
+		echo 'Missing "mysql" command. Please install the MySQL client and try again.' && \
+		exit 1; \
+	fi
+
+reset-db: require-client
 	$(MAKE) reset-db -C _dumps
 
 test: reset-db

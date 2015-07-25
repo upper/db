@@ -3,7 +3,13 @@ BENCHTIME ?= 10s
 build:
 	go build && go install
 
-reset-db:
+require-client:
+	if [ -z "$(which ql)" ]; then \
+		echo 'Missing "ql" command. Please install the QL cli tool and try again.' && \
+		exit 1; \
+	fi
+
+reset-db: require-client
 	$(MAKE) reset-db -C _dumps
 
 test: reset-db

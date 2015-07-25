@@ -4,7 +4,13 @@ BENCHTIME ?= 10s
 build:
 	go build && go install
 
-reset-db:
+require-client:
+	if [ -z "$(which psql)" ]; then \
+		echo 'Missing "psql" command. Please install the PostgreSQL client and try again.' && \
+		exit 1; \
+	fi
+
+reset-db: require-client
 	$(MAKE) reset-db -C _dumps
 
 test: reset-db
