@@ -4,7 +4,7 @@ build:
 	go build && go install
 
 require-client:
-	if [ -z "$(which sqlite3)" ]; then \
+	if [ -z "$$(which sqlite3)" ]; then \
 		echo 'Missing "sqlite3" command. Please install SQLite3 and try again.' && \
 		exit 1; \
 	fi

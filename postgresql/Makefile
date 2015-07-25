@@ -5,7 +5,7 @@ build:
 	go build && go install
 
 require-client:
-	if [ -z "$(which psql)" ]; then \
+	if [ -z "$$(which psql)" ]; then \
 		echo 'Missing "psql" command. Please install the PostgreSQL client and try again.' && \
 		exit 1; \
 	fi

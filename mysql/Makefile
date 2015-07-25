@@ -5,7 +5,7 @@ build:
 	go build && go install
 
 require-client:
-	if [ -z "$(which mysql)" ]; then \
+	if [ -z "$$(which mysql)" ]; then \
 		echo 'Missing "mysql" command. Please install the MySQL client and try again.' && \
 		exit 1; \
 	fi
