@@ -28,6 +28,7 @@ import (
 
 	"gopkg.in/mgo.v2"
 	"upper.io/db"
+	"upper.io/db/util/adapter"
 )
 
 // Adapter holds the name of the mongodb adapter.
@@ -175,6 +176,15 @@ func (s *Source) Collections() (cols []string, err error) {
 	}
 
 	return cols, nil
+}
+
+// C returns a collection interface.
+func (s *Source) C(names ...string) db.Collection {
+	if len(names) > 1 {
+		return &adapter.NonExistentCollection{Err: db.ErrUnsupported}
+	}
+	c, _ := s.Collection(names...)
+	return c
 }
 
 // Collection returns a collection by name.
