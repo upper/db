@@ -25,6 +25,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/jmoiron/sqlx"

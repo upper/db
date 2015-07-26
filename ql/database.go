@@ -25,6 +25,7 @@ import (
 	"database/sql"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	_ "github.com/cznic/ql/driver" // QL driver

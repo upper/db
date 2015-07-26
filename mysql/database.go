@@ -24,6 +24,7 @@ package mysql
 import (
 	"database/sql"
 	"strings"
+	"text/template"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql" // MySQL driver.
