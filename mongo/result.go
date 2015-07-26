@@ -1,38 +1,42 @@
-/*
-  Copyright (c) 2014 The upper.io/db authors. All rights reserved.
-
-  Permission is hereby granted, free of charge, to any person obtaining
-  a copy of this software and associated documentation files (the
-  "Software"), to deal in the Software without restriction, including
-  without limitation the rights to use, copy, modify, merge, publish,
-  distribute, sublicense, and/or sell copies of the Software, and to
-  permit persons to whom the Software is furnished to do so, subject to
-  the following conditions:
-
-  The above copyright notice and this permission notice shall be
-  included in all copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+// Copyright (c) 2012-2015 The upper.io/db authors. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package mongo
 
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
+	"encoding/json"
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db"
+	"upper.io/db/util/sqlutil"
 )
 
-type Result struct {
+// result represents a query result.
+type result struct {
 	c           *Collection
 	queryChunks *chunks
 	iter        *mgo.Iter
@@ -42,113 +46,128 @@ var (
 	errUnknownSortValue = errors.New(`Unknown sort value "%s".`)
 )
 
-// Creates a *mgo.Iter we can use in Next(), All() or One().
-func (self *Result) setCursor() error {
-	if self.iter == nil {
-		q, err := self.query()
+// setCursor creates a *mgo.Iter we can use in Next(), All() or One().
+func (r *result) setCursor() error {
+	if r.iter == nil {
+		q, err := r.query()
 		if err != nil {
 			return err
 		}
-		self.iter = q.Iter()
+		r.iter = q.Iter()
 	}
 	return nil
 }
 
-func (self *Result) Where(terms ...interface{}) db.Result {
-	self.queryChunks.Conditions = self.c.compileQuery(terms...)
-	return self
+func (r *result) Where(terms ...interface{}) db.Result {
+	r.queryChunks.Conditions = r.c.compileQuery(terms...)
+	return r
 }
 
-// Determines the maximum limit of results to be returned.
-func (self *Result) Limit(n uint) db.Result {
-	self.queryChunks.Limit = int(n)
-	return self
+// Limit determines the maximum limit of results to be returned.
+func (r *result) Limit(n uint) db.Result {
+	r.queryChunks.Limit = int(n)
+	return r
 }
 
-// Determines how many documents will be skipped before starting to grab
+// Skip determines how many documents will be skipped before starting to grab
 // results.
-func (self *Result) Skip(n uint) db.Result {
-	self.queryChunks.Offset = int(n)
-	return self
+func (r *result) Skip(n uint) db.Result {
+	r.queryChunks.Offset = int(n)
+	return r
 }
 
-// Determines sorting of results according to the provided names. Fields may be
-// prefixed by - (minus) which means descending order, ascending order would be
-// used otherwise.
-func (self *Result) Sort(fields ...interface{}) db.Result {
+// Sort determines sorting of results according to the provided names. Fields
+// may be prefixed by - (minus) which means descending order, ascending order
+// would be used otherwise.
+func (r *result) Sort(fields ...interface{}) db.Result {
 	ss := make([]string, len(fields))
 	for i, field := range fields {
 		ss[i] = fmt.Sprintf(`%v`, field)
 	}
-	self.queryChunks.Sort = ss
-	return self
+	r.queryChunks.Sort = ss
+	return r
 }
 
-// Retrieves only the given fields.
-func (self *Result) Select(fields ...interface{}) db.Result {
+// Select marks the specific fields the user wants to retrieve.
+func (r *result) Select(fields ...interface{}) db.Result {
 	fieldslen := len(fields)
-	self.queryChunks.Fields = make([]string, 0, fieldslen)
+	r.queryChunks.Fields = make([]string, 0, fieldslen)
 	for i := 0; i < fieldslen; i++ {
-		self.queryChunks.Fields = append(self.queryChunks.Fields, fmt.Sprintf(`%v`, fields[i]))
+		r.queryChunks.Fields = append(r.queryChunks.Fields, fmt.Sprintf(`%v`, fields[i]))
 	}
-	return self
+	return r
 }
 
-// Dumps all results into a pointer to an slice of structs or maps.
-func (self *Result) All(dst interface{}) error {
+// All dumps all results into a pointer to an slice of structs or maps.
+func (r *result) All(dst interface{}) (err error) {
 
-	var err error
+	if db.Debug {
+		var start, end int64
+		start = time.Now().UnixNano()
+		defer func() {
+			end = time.Now().UnixNano()
+			sqlutil.Log(r.debugQuery(fmt.Sprintf("find(%s)", mustJSON(r.queryChunks.Conditions))), nil, err, start, end)
+		}()
+	}
 
-	err = self.setCursor()
+	err = r.setCursor()
 
 	if err != nil {
 		return err
 	}
 
-	err = self.iter.All(dst)
+	err = r.iter.All(dst)
 
 	if err != nil {
 		return err
 	}
 
-	self.Close()
+	r.Close()
 
 	return nil
 }
 
-// Used to group results that have the same value in the same column or
-// columns.
-func (self *Result) Group(fields ...interface{}) db.Result {
-	self.queryChunks.GroupBy = fields
-	return self
+// Group is used to group results that have the same value in the same column
+// or columns.
+func (r *result) Group(fields ...interface{}) db.Result {
+	r.queryChunks.GroupBy = fields
+	return r
 }
 
-// Fetches only one result from the resultset.
-func (self *Result) One(dst interface{}) error {
-	var err error
-	err = self.Next(dst)
+// One fetches only one result from the resultset.
+func (r *result) One(dst interface{}) (err error) {
+	if db.Debug {
+		var start, end int64
+		start = time.Now().UnixNano()
+		defer func() {
+			end = time.Now().UnixNano()
+			sqlutil.Log(r.debugQuery(fmt.Sprintf("findOne(%s)", mustJSON(r.queryChunks.Conditions))), nil, err, start, end)
+		}()
+	}
+
+	err = r.Next(dst)
 
 	if err != nil {
 		return err
 	}
 
-	self.Close()
+	r.Close()
 
 	return nil
 }
 
-// Fetches the next result from the resultset.
-func (self *Result) Next(dst interface{}) error {
-	err := self.setCursor()
+// Next fetches the next result from the resultset.
+func (r *result) Next(dst interface{}) error {
+	err := r.setCursor()
 
 	if err != nil {
 		return err
 	}
 
-	success := self.iter.Next(dst)
+	success := r.iter.Next(dst)
 
 	if success == false {
-		err := self.iter.Err()
+		err := r.iter.Err()
 		if err == nil {
 			return db.ErrNoMoreRows
 		}
@@ -158,75 +177,152 @@ func (self *Result) Next(dst interface{}) error {
 	return nil
 }
 
-// Removes the matching items from the collection.
-func (self *Result) Remove() error {
-	var err error
-	_, err = self.c.collection.RemoveAll(self.queryChunks.Conditions)
+// Remove deletes the matching items from the collection.
+func (r *result) Remove() (err error) {
+	if db.Debug {
+		var start, end int64
+		start = time.Now().UnixNano()
+		defer func() {
+			end = time.Now().UnixNano()
+			sqlutil.Log(r.debugQuery(fmt.Sprintf("remove(%s)", mustJSON(r.queryChunks.Conditions))), nil, err, start, end)
+		}()
+	}
+
+	_, err = r.c.collection.RemoveAll(r.queryChunks.Conditions)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// Closes the result set.
-func (self *Result) Close() error {
+// Close closes the result set.
+func (r *result) Close() error {
 	var err error
-	if self.iter != nil {
-		err = self.iter.Close()
-		self.iter = nil
+	if r.iter != nil {
+		err = r.iter.Close()
+		r.iter = nil
 	}
 	return err
 }
 
-// Updates matching items from the collection with values of the given map or
-// struct.
-func (self *Result) Update(src interface{}) error {
-	var err error
-	_, err = self.c.collection.UpdateAll(self.queryChunks.Conditions, map[string]interface{}{"$set": src})
+// Update modified matching items from the collection with values of the given
+// map or struct.
+func (r *result) Update(src interface{}) (err error) {
+	updateSet := map[string]interface{}{"$set": src}
+
+	if db.Debug {
+		var start, end int64
+		start = time.Now().UnixNano()
+		defer func() {
+			end = time.Now().UnixNano()
+			sqlutil.Log(r.debugQuery(fmt.Sprintf("update(%s, %s)", mustJSON(r.queryChunks.Conditions), mustJSON(updateSet))), nil, err, start, end)
+		}()
+	}
+
+	_, err = r.c.collection.UpdateAll(r.queryChunks.Conditions, updateSet)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (self *Result) query() (*mgo.Query, error) {
+// query executes a mgo query.
+func (r *result) query() (*mgo.Query, error) {
 	var err error
 
-	q := self.c.collection.Find(self.queryChunks.Conditions)
+	q := r.c.collection.Find(r.queryChunks.Conditions)
 
-	if self.queryChunks.GroupBy != nil {
+	if len(r.queryChunks.GroupBy) > 0 {
 		return nil, db.ErrUnsupported
 	}
 
-	if self.queryChunks.Offset > 0 {
-		q = q.Skip(self.queryChunks.Offset)
+	if r.queryChunks.Offset > 0 {
+		q = q.Skip(r.queryChunks.Offset)
 	}
 
-	if self.queryChunks.Limit > 0 {
-		q = q.Limit(self.queryChunks.Limit)
+	if r.queryChunks.Limit > 0 {
+		q = q.Limit(r.queryChunks.Limit)
 	}
 
-	if self.queryChunks.Fields != nil {
-		sel := bson.M{}
-		for _, field := range self.queryChunks.Fields {
+	if len(r.queryChunks.Fields) > 0 {
+		selectedFields := bson.M{}
+		for _, field := range r.queryChunks.Fields {
 			if field == `*` {
 				break
 			}
-			sel[field] = true
+			selectedFields[field] = true
 		}
-		q = q.Select(sel)
+		if len(selectedFields) > 0 {
+			q = q.Select(selectedFields)
+		}
 	}
 
-	if len(self.queryChunks.Sort) > 0 {
-		q.Sort(self.queryChunks.Sort...)
+	if len(r.queryChunks.Sort) > 0 {
+		q.Sort(r.queryChunks.Sort...)
 	}
 
 	return q, err
 }
 
-// Counts matching elements.
-func (self *Result) Count() (uint64, error) {
-	q := self.c.collection.Find(self.queryChunks.Conditions)
-	total, err := q.Count()
-	return uint64(total), err
+// Count counts matching elements.
+func (r *result) Count() (total uint64, err error) {
+	if db.Debug {
+		var start, end int64
+		start = time.Now().UnixNano()
+		defer func() {
+			end = time.Now().UnixNano()
+			sqlutil.Log(r.debugQuery(fmt.Sprintf("find(%s).count()", mustJSON(r.queryChunks.Conditions))), nil, err, start, end)
+		}()
+	}
+
+	q := r.c.collection.Find(r.queryChunks.Conditions)
+	var c int
+	c, err = q.Count()
+	return uint64(c), err
+}
+
+func (r *result) debugQuery(action string) string {
+	query := fmt.Sprintf("db.%s.%s", r.c.collection.Name, action)
+
+	if r.queryChunks.Limit > 0 {
+		query = fmt.Sprintf("%s.limit(%d)", query, r.queryChunks.Limit)
+	}
+	if r.queryChunks.Offset > 0 {
+		query = fmt.Sprintf("%s.offset(%d)", query, r.queryChunks.Offset)
+	}
+	if len(r.queryChunks.Fields) > 0 {
+		selectedFields := bson.M{}
+		for _, field := range r.queryChunks.Fields {
+			if field == `*` {
+				break
+			}
+			selectedFields[field] = true
+		}
+		if len(selectedFields) > 0 {
+			query = fmt.Sprintf("%s.select(%v)", query, selectedFields)
+		}
+	}
+	if len(r.queryChunks.GroupBy) > 0 {
+		escaped := make([]string, len(r.queryChunks.GroupBy))
+		for i := range r.queryChunks.GroupBy {
+			escaped[i] = string(mustJSON(r.queryChunks.GroupBy[i]))
+		}
+		query = fmt.Sprintf("%s.groupBy(%v)", query, strings.Join(escaped, ", "))
+	}
+	if len(r.queryChunks.Sort) > 0 {
+		escaped := make([]string, len(r.queryChunks.Sort))
+		for i := range r.queryChunks.Sort {
+			escaped[i] = string(mustJSON(r.queryChunks.Sort[i]))
+		}
+		query = fmt.Sprintf("%s.sort(%s)", query, strings.Join(escaped, ", "))
+	}
+	return query
+}
+
+func mustJSON(in interface{}) (out []byte) {
+	out, err := json.Marshal(in)
+	if err != nil {
+		panic(err)
+	}
+	return out
 }

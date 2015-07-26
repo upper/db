@@ -33,7 +33,7 @@ import (
 	"upper.io/db"
 )
 
-// Mongodb Collection
+// Collection represents a mongodb collection.
 type Collection struct {
 	name       string
 	parent     *Source
@@ -49,8 +49,15 @@ type chunks struct {
 	GroupBy    []interface{}
 }
 
-func (self *Collection) Find(terms ...interface{}) db.Result {
+var (
+	// idCache should be a struct if we're going to cache more than just
+	// _id field here
+	idCache      = make(map[reflect.Type]string, 0)
+	idCacheMutex sync.RWMutex
+)
 
+// Find creates a result set with the given conditions.
+func (col *Collection) Find(terms ...interface{}) db.Result {
 	queryChunks := &chunks{}
 
 	// No specific fields given.
@@ -58,23 +65,19 @@ func (self *Collection) Find(terms ...interface{}) db.Result {
 		queryChunks.Fields = []string{"*"}
 	}
 
-	queryChunks.Conditions = self.compileQuery(terms...)
-
-	if debugEnabled() == true {
-		debugLogQuery(queryChunks)
-	}
+	queryChunks.Conditions = col.compileQuery(terms...)
 
 	// Actually executing query.
-	result := &Result{
-		self,
-		queryChunks,
-		nil,
+	r := &result{
+		c:           col,
+		queryChunks: queryChunks,
 	}
 
-	return result
+	return r
 }
 
-// Transforms conditions into something *mgo.Session can understand.
+// compileStatement transforms conditions into something *mgo.Session can
+// understand.
 func compileStatement(cond db.Cond) bson.M {
 	conds := bson.M{}
 
@@ -118,14 +121,15 @@ func compileStatement(cond db.Cond) bson.M {
 	return conds
 }
 
-// Compiles terms into something *mgo.Session can understand.
-func (self *Collection) compileConditions(term interface{}) interface{} {
+// compileConditions compiles terms into something *mgo.Session can
+// understand.
+func (col *Collection) compileConditions(term interface{}) interface{} {
 
 	switch t := term.(type) {
 	case []interface{}:
 		values := []interface{}{}
-		for i, _ := range t {
-			value := self.compileConditions(t[i])
+		for i := range t {
+			value := col.compileConditions(t[i])
 			if value != nil {
 				values = append(values, value)
 			}
@@ -135,15 +139,15 @@ func (self *Collection) compileConditions(term interface{}) interface{} {
 		}
 	case db.Or:
 		values := []interface{}{}
-		for i, _ := range t {
-			values = append(values, self.compileConditions(t[i]))
+		for i := range t {
+			values = append(values, col.compileConditions(t[i]))
 		}
 		condition := bson.M{`$or`: values}
 		return condition
 	case db.And:
 		values := []interface{}{}
-		for i, _ := range t {
-			values = append(values, self.compileConditions(t[i]))
+		for i := range t {
+			values = append(values, col.compileConditions(t[i]))
 		}
 		condition := bson.M{`$and`: values}
 		return condition
@@ -151,17 +155,16 @@ func (self *Collection) compileConditions(term interface{}) interface{} {
 		return compileStatement(t)
 	case db.Constrainer:
 		return compileStatement(t.Constraint())
-		//default:
-		// panic(fmt.Sprintf(db.ErrUnknownConditionType.Error(), reflect.TypeOf(t)))
 	}
 	return nil
 }
 
-// Compiles terms into something that *mgo.Session can understand.
-func (self *Collection) compileQuery(terms ...interface{}) interface{} {
+// compileQuery compiles terms into something that *mgo.Session can
+// understand.
+func (col *Collection) compileQuery(terms ...interface{}) interface{} {
 	var query interface{}
 
-	compiled := self.compileConditions(terms)
+	compiled := col.compileConditions(terms)
 
 	if compiled != nil {
 		conditions := compiled.([]interface{})
@@ -171,10 +174,10 @@ func (self *Collection) compileQuery(terms ...interface{}) interface{} {
 			// this should be correct.
 			// query = map[string]interface{}{"$and": conditions}
 
-			// trying to workaround https://jira.mongodb.org/browse/SERVER-4572
+			// attempt to workaround https://jira.mongodb.org/browse/SERVER-4572
 			mapped := map[string]interface{}{}
 			for _, v := range conditions {
-				for kk, _ := range v.(map[string]interface{}) {
+				for kk := range v.(map[string]interface{}) {
 					mapped[kk] = v.(map[string]interface{})[kk]
 				}
 			}
@@ -188,13 +191,14 @@ func (self *Collection) compileQuery(terms ...interface{}) interface{} {
 	return query
 }
 
-func (self *Collection) Name() string {
-	return self.collection.Name
+// Name returns the name of the table or tables that form the collection.
+func (col *Collection) Name() string {
+	return col.collection.Name
 }
 
-// Deletes all the rows within the collection.
-func (self *Collection) Truncate() error {
-	err := self.collection.DropCollection()
+// Truncate deletes all rows from the table.
+func (col *Collection) Truncate() error {
+	err := col.collection.DropCollection()
 
 	if err != nil {
 		return err
@@ -203,27 +207,27 @@ func (self *Collection) Truncate() error {
 	return nil
 }
 
-// Appends an item (map or struct) into the collection.
-func (self *Collection) Append(item interface{}) (interface{}, error) {
+// Append inserts an item (map or struct) into the collection.
+func (col *Collection) Append(item interface{}) (interface{}, error) {
 	var err error
 
-	id := getId(item)
+	id := getID(item)
 
-	if self.parent.VersionAtLeast(2, 6, 0, 0) {
+	if col.parent.versionAtLeast(2, 6, 0, 0) {
 		// this breaks MongoDb older than 2.6
-		if _, err = self.collection.Upsert(bson.M{"_id": id}, item); err != nil {
+		if _, err = col.collection.Upsert(bson.M{"_id": id}, item); err != nil {
 			return nil, err
 		}
 	} else {
 		// Allocating a new ID.
-		if err = self.collection.Insert(bson.M{"_id": id}); err != nil {
+		if err = col.collection.Insert(bson.M{"_id": id}); err != nil {
 			return nil, err
 		}
 
 		// Now append data the user wants to append.
-		if err = self.collection.Update(bson.M{"_id": id}, item); err != nil {
+		if err = col.collection.Update(bson.M{"_id": id}, item); err != nil {
 			// Cleanup allocated ID
-			self.collection.Remove(bson.M{"_id": id})
+			col.collection.Remove(bson.M{"_id": id})
 			return nil, err
 		}
 	}
@@ -245,9 +249,9 @@ func (self *Collection) Append(item interface{}) (interface{}, error) {
 	return id, nil
 }
 
-// Returns true if the collection exists.
-func (self *Collection) Exists() bool {
-	query := self.parent.database.C(`system.namespaces`).Find(map[string]string{`name`: fmt.Sprintf(`%s.%s`, self.parent.database.Name, self.collection.Name)})
+// Exists returns true if the collection exists.
+func (col *Collection) Exists() bool {
+	query := col.parent.database.C(`system.namespaces`).Find(map[string]string{`name`: fmt.Sprintf(`%s.%s`, col.parent.database.Name, col.collection.Name)})
 	count, _ := query.Count()
 	if count > 0 {
 		return true
@@ -255,59 +259,17 @@ func (self *Collection) Exists() bool {
 	return false
 }
 
-// Transforms data from db.Item format into mgo format.
-func toInternal(val interface{}) interface{} {
-
-	// TODO: use reflection to target kinds and not just types.
-	switch t := val.(type) {
-	case db.Cond:
-		for k, _ := range t {
-			t[k] = toInternal(t[k])
-		}
-	case map[string]interface{}:
-		for k, _ := range t {
-			t[k] = toInternal(t[k])
-		}
-	}
-
-	return val
-}
-
-// Transforms data from mgo format into db.Item format.
-func toNative(val interface{}) interface{} {
-
-	// TODO: use reflection to target kinds and not just types.
-
-	switch t := val.(type) {
-	case bson.M:
-		v := map[string]interface{}{}
-		for i, _ := range t {
-			v[i] = toNative(t[i])
-		}
-		return v
-	}
-
-	return val
-
-}
-
-var (
-	// idCache should be a struct if we're going to cache more than just _id field here
-	idCache      = make(map[reflect.Type]string, 0)
-	idCacheMutex sync.RWMutex
-)
-
 // Fetches object _id or generates a new one if object doesn't have one or the one it has is invalid
-func getId(item interface{}) bson.ObjectId {
+func getID(item interface{}) bson.ObjectId {
 	v := reflect.ValueOf(item)
 
 	switch v.Kind() {
 	case reflect.Map:
 		if inItem, ok := item.(map[string]interface{}); ok {
 			if id, ok := inItem["_id"]; ok {
-				bsonId, ok := id.(bson.ObjectId)
+				bsonID, ok := id.(bson.ObjectId)
 				if ok {
-					return bsonId
+					return bsonID
 				}
 			}
 		}
@@ -346,9 +308,9 @@ func getId(item interface{}) bson.ObjectId {
 			}
 		}
 		if fieldName != "" {
-			if bsonId, ok := v.FieldByName(fieldName).Interface().(bson.ObjectId); ok {
-				if bsonId.Valid() {
-					return bsonId
+			if bsonID, ok := v.FieldByName(fieldName).Interface().(bson.ObjectId); ok {
+				if bsonID.Valid() {
+					return bsonID
 				}
 			}
 		}

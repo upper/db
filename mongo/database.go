@@ -23,8 +23,6 @@ package mongo // import "upper.io/db/mongo"
 
 import (
 	"fmt"
-	"log"
-	"os"
 	"strings"
 	"time"
 
@@ -32,10 +30,12 @@ import (
 	"upper.io/db"
 )
 
+// Adapter holds the name of the mongodb adapter.
 const Adapter = `mongo`
 
 var connTimeout = time.Second * 5
 
+// Source represents a MongoDB database.
 type Source struct {
 	name     string
 	connURL  db.ConnectionURL
@@ -44,32 +44,22 @@ type Source struct {
 	version  []int
 }
 
-func debugEnabled() bool {
-	if os.Getenv(db.EnvEnableDebug) != "" {
-		return true
-	}
-	return false
-}
-
 func init() {
 	db.Register(Adapter, &Source{})
 }
 
-func debugLogQuery(c *chunks) {
-	log.Printf("Fields: %v\nLimit: %v\nOffset: %v\nSort: %v\nConditions: %v\n", c.Fields, c.Limit, c.Offset, c.Sort, c.Conditions)
-}
-
-// Returns the string name of the database.
+// Name returns the name of the database.
 func (s *Source) Name() string {
 	return s.name
 }
 
-// Stores database settings.
+// Setup stores database settings and opens a connection to a database.
 func (s *Source) Setup(connURL db.ConnectionURL) error {
 	s.connURL = connURL
 	return s.Open()
 }
 
+// Clone returns a cloned db.Database session.
 func (s *Source) Clone() (db.Database, error) {
 	clone := &Source{
 		name:     s.name,
@@ -81,42 +71,47 @@ func (s *Source) Clone() (db.Database, error) {
 	return clone, nil
 }
 
+// Transaction should support transactions, but it doesn't as MongoDB
+// currently does not support them.
 func (s *Source) Transaction() (db.Tx, error) {
 	return nil, db.ErrUnsupported
 }
 
+// Ping checks whether a connection to the database is still alive by pinging
+// it, establishing a connection if necessary.
 func (s *Source) Ping() error {
 	return s.session.Ping()
 }
 
-// Returns the underlying *mgo.Session instance.
+// Driver returns the underlying *sqlx.DB instance.
 func (s *Source) Driver() interface{} {
 	return s.session
 }
 
-// Attempts to connect to a database using the stored settings.
+// Open attempts to connect to the database server using already stored
+// settings.
 func (s *Source) Open() error {
 	var err error
 
 	// Before db.ConnectionURL we used a unified db.Settings struct. This
 	// condition checks for that type and provides backwards compatibility.
 	if settings, ok := s.connURL.(db.Settings); ok {
-		var sAddr string
+		var addr string
 
 		if settings.Host != "" {
 			if settings.Port > 0 {
-				sAddr = fmt.Sprintf("%s:%d", settings.Host, settings.Port)
+				addr = fmt.Sprintf("%s:%d", settings.Host, settings.Port)
 			} else {
-				sAddr = settings.Host
+				addr = settings.Host
 			}
 		} else {
-			sAddr = settings.Socket
+			addr = settings.Socket
 		}
 
 		conn := ConnectionURL{
 			User:     settings.User,
 			Password: settings.Password,
-			Address:  db.ParseAddress(sAddr),
+			Address:  db.ParseAddress(addr),
 			Database: settings.Database,
 		}
 
@@ -133,7 +128,7 @@ func (s *Source) Open() error {
 	return nil
 }
 
-// Closes the current database session.
+// Close terminates the current database session.
 func (s *Source) Close() error {
 	if s.session != nil {
 		s.session.Close()
@@ -141,7 +136,7 @@ func (s *Source) Close() error {
 	return nil
 }
 
-// Changes the active database.
+// Use changes the active database.
 func (s *Source) Use(database string) (err error) {
 	var conn ConnectionURL
 
@@ -156,14 +151,13 @@ func (s *Source) Use(database string) (err error) {
 	return s.Open()
 }
 
-// Drops the currently active database.
+// Drop drops the current database.
 func (s *Source) Drop() error {
 	err := s.database.DropDatabase()
 	return err
 }
 
-// Returns a slice of non-system collection names within the active
-// database.
+// Collections returns a list of non-system tables from the database.
 func (s *Source) Collections() (cols []string, err error) {
 	var rawcols []string
 	var col string
@@ -175,7 +169,7 @@ func (s *Source) Collections() (cols []string, err error) {
 	cols = make([]string, 0, len(rawcols))
 
 	for _, col = range rawcols {
-		if strings.HasPrefix(col, "system.") == false {
+		if !strings.HasPrefix(col, "system.") {
 			cols = append(cols, col)
 		}
 	}
@@ -183,7 +177,7 @@ func (s *Source) Collections() (cols []string, err error) {
 	return cols, nil
 }
 
-// Returns a collection instance by name.
+// Collection returns a collection by name.
 func (s *Source) Collection(names ...string) (db.Collection, error) {
 	var err error
 
@@ -197,14 +191,14 @@ func (s *Source) Collection(names ...string) (db.Collection, error) {
 	col.parent = s
 	col.collection = s.database.C(name)
 
-	if col.Exists() == false {
+	if !col.Exists() {
 		err = db.ErrCollectionDoesNotExist
 	}
 
 	return col, err
 }
 
-func (s *Source) VersionAtLeast(version ...int) bool {
+func (s *Source) versionAtLeast(version ...int) bool {
 	// only fetch this once - it makes a db call
 	if len(s.version) == 0 {
 		buildInfo, err := s.database.Session.BuildInfo()
@@ -220,10 +214,6 @@ func (s *Source) VersionAtLeast(version ...int) bool {
 		}
 		if s.version[i] < version[i] {
 			return false
-		}
-
-		if s.version[i] > version[i] {
-			return true
 		}
 	}
 	return true
