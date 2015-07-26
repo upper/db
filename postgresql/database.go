@@ -25,7 +25,6 @@ import (
 	"database/sql"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/jmoiron/sqlx"

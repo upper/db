@@ -2,7 +2,6 @@ package result
 
 import (
 	"database/sql"
-
 	"github.com/jmoiron/sqlx"
 	"upper.io/db/util/sqlgen"
 )

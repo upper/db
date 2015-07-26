@@ -2,11 +2,10 @@ package mongo
 
 import (
 	"fmt"
-	"math/rand"
-	"testing"
-
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	"math/rand"
+	"testing"
 
 	"upper.io/db"
 )
