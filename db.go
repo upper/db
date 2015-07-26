@@ -41,7 +41,6 @@
 //	var people []Person
 //	res = col.Find(db.Cond{"name": "Max"}).Limit(2).Sort("-input")
 //	err = res.All(&people)
-
 package db
 
 // import "upper.io/db"
@@ -103,6 +102,7 @@ type Func struct {
 // 	}
 type And []interface{}
 
+// And adds a new expression to an And conditions array.
 func (a And) And(exp ...interface{}) And {
 	return append(a, exp...)
 }
@@ -120,6 +120,7 @@ func (a And) And(exp ...interface{}) And {
 // 	}
 type Or []interface{}
 
+// Or adds a new expression to an Or conditions array.
 func (o Or) Or(exp ...interface{}) Or {
 	return append(o, exp...)
 }
