@@ -132,16 +132,13 @@ func init() {
 	settings.Address = db.ParseAddress(host)
 }
 
-// Trying to open an empty datasource, it must succeed (mongo).
-/*
-func TestOpenFailed(t *testing.T) {
+func SkipTestOpenFailed(t *testing.T) {
 	_, err := db.Open(Adapter, db.Settings{})
 
 	if err != nil {
 		t.Errorf(err.Error())
 	}
 }
-*/
 
 // Attempts to open an empty datasource.
 func TestOpenWithWrongData(t *testing.T) {
@@ -439,14 +436,14 @@ func TestGroup(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	type stats_t struct {
+	type statsT struct {
 		Numeric int `db:"numeric" bson:"numeric"`
 		Value   int `db:"value" bson:"value"`
 	}
 
 	defer sess.Close()
 
-	if stats, err = sess.Collection("stats_test"); err != nil {
+	if stats, err = sess.Collection("statsTest"); err != nil {
 		if err != db.ErrCollectionDoesNotExist {
 			t.Fatal(err)
 		}
@@ -462,12 +459,12 @@ func TestGroup(t *testing.T) {
 	// Adding row append.
 	for i := 0; i < 1000; i++ {
 		numeric, value := rand.Intn(10), rand.Intn(100)
-		if _, err = stats.Append(stats_t{numeric, value}); err != nil {
+		if _, err = stats.Append(statsT{numeric, value}); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	// db.stats_test.group({key: {numeric: true}, initial: {sum: 0}, reduce: function(doc, prev) { prev.sum += 1}});
+	// db.statsTest.group({key: {numeric: true}, initial: {sum: 0}, reduce: function(doc, prev) { prev.sum += 1}});
 
 	// Testing GROUP BY
 	res := stats.Find().Group(bson.M{
@@ -516,28 +513,28 @@ func TestResultFetch(t *testing.T) {
 	// Testing map
 	res = artist.Find()
 
-	row_m := map[string]interface{}{}
+	rowM := map[string]interface{}{}
 
 	for {
-		err = res.Next(&row_m)
+		err = res.Next(&rowM)
 
 		if err == db.ErrNoMoreRows {
-			// No more row_ms left.
+			// No more rowMs left.
 			break
 		}
 
 		if err == nil {
-			if row_m["_id"] == nil {
+			if rowM["_id"] == nil {
 				t.Fatalf("Expecting an ID.")
 			}
-			if _, ok := row_m["_id"].(bson.ObjectId); ok != true {
+			if _, ok := rowM["_id"].(bson.ObjectId); ok != true {
 				t.Fatalf("Expecting a bson.ObjectId.")
 			}
 
-			if row_m["_id"].(bson.ObjectId).Valid() != true {
+			if rowM["_id"].(bson.ObjectId).Valid() != true {
 				t.Fatalf("Expecting a valid bson.ObjectId.")
 			}
-			if name, ok := row_m["name"].(string); !ok || name == "" {
+			if name, ok := rowM["name"].(string); !ok || name == "" {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
@@ -548,26 +545,26 @@ func TestResultFetch(t *testing.T) {
 	res.Close()
 
 	// Testing struct
-	row_s := struct {
-		Id   bson.ObjectId `bson:"_id"`
+	rowS := struct {
+		ID   bson.ObjectId `bson:"_id"`
 		Name string        `bson:"name"`
 	}{}
 
 	res = artist.Find()
 
 	for {
-		err = res.Next(&row_s)
+		err = res.Next(&rowS)
 
 		if err == db.ErrNoMoreRows {
-			// No more row_s' left.
+			// No more rowS' left.
 			break
 		}
 
 		if err == nil {
-			if row_s.Id.Valid() == false {
+			if rowS.ID.Valid() == false {
 				t.Fatalf("Expecting a not null ID.")
 			}
-			if row_s.Name == "" {
+			if rowS.Name == "" {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
@@ -578,7 +575,7 @@ func TestResultFetch(t *testing.T) {
 	res.Close()
 
 	// Testing tagged struct
-	row_t := struct {
+	rowT := struct {
 		Value1 bson.ObjectId `bson:"_id"`
 		Value2 string        `bson:"name"`
 	}{}
@@ -586,18 +583,18 @@ func TestResultFetch(t *testing.T) {
 	res = artist.Find()
 
 	for {
-		err = res.Next(&row_t)
+		err = res.Next(&rowT)
 
 		if err == db.ErrNoMoreRows {
-			// No more row_t's left.
+			// No more rowT's left.
 			break
 		}
 
 		if err == nil {
-			if row_t.Value1.Valid() == false {
+			if rowT.Value1.Valid() == false {
 				t.Fatalf("Expecting a not null ID.")
 			}
-			if row_t.Value2 == "" {
+			if rowT.Value2 == "" {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {
@@ -610,15 +607,15 @@ func TestResultFetch(t *testing.T) {
 	// Testing Result.All() with a slice of maps.
 	res = artist.Find()
 
-	all_rows_m := []map[string]interface{}{}
-	err = res.All(&all_rows_m)
+	allRowsM := []map[string]interface{}{}
+	err = res.All(&allRowsM)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, single_row_m := range all_rows_m {
-		if single_row_m["_id"] == nil {
+	for _, singleRowM := range allRowsM {
+		if singleRowM["_id"] == nil {
 			t.Fatalf("Expecting a not null ID.")
 		}
 	}
@@ -626,18 +623,18 @@ func TestResultFetch(t *testing.T) {
 	// Testing Result.All() with a slice of structs.
 	res = artist.Find()
 
-	all_rows_s := []struct {
-		Id   bson.ObjectId `bson:"_id"`
+	allRowsS := []struct {
+		ID   bson.ObjectId `bson:"_id"`
 		Name string
 	}{}
-	err = res.All(&all_rows_s)
+	err = res.All(&allRowsS)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, single_row_s := range all_rows_s {
-		if single_row_s.Id.Valid() == false {
+	for _, singleRowS := range allRowsS {
+		if singleRowS.ID.Valid() == false {
 			t.Fatalf("Expecting a not null ID.")
 		}
 	}
@@ -645,18 +642,18 @@ func TestResultFetch(t *testing.T) {
 	// Testing Result.All() with a slice of tagged structs.
 	res = artist.Find()
 
-	all_rows_t := []struct {
+	allRowsT := []struct {
 		Value1 bson.ObjectId `bson:"_id"`
 		Value2 string        `bson:"name"`
 	}{}
-	err = res.All(&all_rows_t)
+	err = res.All(&allRowsT)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, single_row_t := range all_rows_t {
-		if single_row_t.Value1.Valid() == false {
+	for _, singleRowT := range allRowsT {
+		if singleRowT.Value1.Valid() == false {
 			t.Fatalf("Expecting a not null ID.")
 		}
 	}
@@ -685,7 +682,7 @@ func TestUpdate(t *testing.T) {
 
 	// Value
 	value := struct {
-		Id   bson.ObjectId `bson:"_id"`
+		ID   bson.ObjectId `bson:"_id"`
 		Name string
 	}{}
 
@@ -699,11 +696,11 @@ func TestUpdate(t *testing.T) {
 	}
 
 	// Updating with a map
-	row_m := map[string]interface{}{
+	rowM := map[string]interface{}{
 		"name": strings.ToUpper(value.Name),
 	}
 
-	err = res.Update(row_m)
+	err = res.Update(rowM)
 
 	if err != nil {
 		t.Fatal(err)
@@ -715,16 +712,16 @@ func TestUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if value.Name != row_m["name"] {
+	if value.Name != rowM["name"] {
 		t.Fatalf("Expecting a modification.")
 	}
 
 	// Updating with a struct
-	row_s := struct {
+	rowS := struct {
 		Name string
 	}{strings.ToLower(value.Name)}
 
-	err = res.Update(row_s)
+	err = res.Update(rowS)
 
 	if err != nil {
 		t.Fatal(err)
@@ -736,16 +733,16 @@ func TestUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if value.Name != row_s.Name {
+	if value.Name != rowS.Name {
 		t.Fatalf("Expecting a modification.")
 	}
 
 	// Updating with a tagged struct
-	row_t := struct {
+	rowT := struct {
 		Value1 string `bson:"name"`
 	}{strings.Replace(value.Name, "z", "Z", -1)}
 
-	err = res.Update(row_t)
+	err = res.Update(rowT)
 
 	if err != nil {
 		t.Fatal(err)
@@ -757,7 +754,7 @@ func TestUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if value.Name != row_t.Value1 {
+	if value.Name != rowT.Value1 {
 		t.Fatalf("Expecting a modification.")
 	}
 
@@ -785,20 +782,20 @@ func TestFunction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	row_s := struct {
-		Id   uint64
+	rowS := struct {
+		ID   uint64
 		Name string
 	}{}
 
 	res = artist.Find(db.Cond{"_id $nin": []int{0, -1}})
 
-	if err = res.One(&row_s); err != nil {
+	if err = res.One(&rowS); err != nil {
 		t.Fatalf("One: %q", err)
 	}
 
 	res = artist.Find(db.Cond{"_id": db.Func{"$nin", []int{0, -1}}})
 
-	if err = res.One(&row_s); err != nil {
+	if err = res.One(&rowS); err != nil {
 		t.Fatalf("One: %q", err)
 	}
 
@@ -831,7 +828,7 @@ func TestRemove(t *testing.T) {
 	res := artist.Find(db.Cond{"_id $ne": nil}).Limit(1)
 
 	var first struct {
-		Id bson.ObjectId `bson:"_id"`
+		ID bson.ObjectId `bson:"_id"`
 	}
 
 	err = res.One(&first)
@@ -840,7 +837,7 @@ func TestRemove(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	res = artist.Find(db.Cond{"_id": first.Id})
+	res = artist.Find(db.Cond{"_id": first.ID})
 
 	// Trying to remove the row.
 	err = res.Remove()
