@@ -31,7 +31,6 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db"
 )
@@ -955,74 +954,5 @@ func TestDataTypes(t *testing.T) {
 	// The original value and the test subject must match.
 	if reflect.DeepEqual(item, testValues) == false {
 		t.Errorf("Struct is different.")
-	}
-}
-
-// Benchmarking raw mgo queries.
-func BenchmarkAppendRaw(b *testing.B) {
-	sess, err := db.Open(Adapter, settings)
-
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	defer sess.Close()
-
-	artist, err := sess.Collection("artist")
-	artist.Truncate()
-
-	driver := sess.Driver().(*mgo.Session)
-
-	mgodb := driver.DB(database)
-	col := mgodb.C("artist")
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		err := col.Insert(map[string]string{"name": "Hayao Miyazaki"})
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func BenchmarkAppendDbItem(b *testing.B) {
-	sess, err := db.Open(Adapter, settings)
-
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	defer sess.Close()
-
-	artist, err := sess.Collection("artist")
-	artist.Truncate()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err = artist.Append(map[string]string{"name": "Leonardo DaVinci"})
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func BenchmarkAppendStruct(b *testing.B) {
-	sess, err := db.Open(Adapter, settings)
-
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	defer sess.Close()
-
-	artist, err := sess.Collection("artist")
-	artist.Truncate()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err = artist.Append(struct{ Name string }{"John Lennon"})
-		if err != nil {
-			b.Fatal(err)
-		}
 	}
 }
