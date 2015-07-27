@@ -170,6 +170,12 @@ type Database interface {
 	// Close() closes the currently active connection to the database.
 	Close() error
 
+	// C is a short-hand to Collection(). If the given collection does not exists
+	// subsequent calls to any Collection or Result method that expect the
+	// collection to exists will fail returning the original error a call to
+	// Collection() would have returned.
+	C(...string) Collection
+
 	// Collection() returns a `db.Collection{}` struct by name. Some databases
 	// support collections of more than one source or table, refer to the
 	// documentation of the specific database adapter to see if using multiple
