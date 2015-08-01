@@ -1230,6 +1230,12 @@ func TestTransactionsAndRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Won't fail
+	sqlxTx := tx.Driver().(*sqlx.Tx)
+	if _, err = sqlxTx.Exec(`INSERT INTO "artist" ("id", "name") VALUES(?, ?)`, 4, "Fourth"); err != nil {
+		t.Fatal(err)
+	}
+
 	if err = tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
@@ -1238,7 +1244,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 		t.Fatalf("Should have failed, as we've already commited.")
 	}
 
-	// Let's verify we have 3 rows.
+	// Let's verify we have 4 rows.
 	if artist, err = sess.Collection("artist"); err != nil {
 		t.Fatal(err)
 	}
@@ -1247,8 +1253,8 @@ func TestTransactionsAndRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if count != 3 {
-		t.Fatalf("Expecting 3 elements.")
+	if count != 4 {
+		t.Fatalf("Expecting exactly 4 results.")
 	}
 
 }

@@ -50,11 +50,6 @@ type database struct {
 	cachedStatements *cache.Cache
 }
 
-type tx struct {
-	*sqltx.Tx
-	*database
-}
-
 type cachedStatement struct {
 	*sqlx.Stmt
 	query string
@@ -348,7 +343,7 @@ func (d *database) Transaction() (db.Tx, error) {
 
 	clone.tx = sqltx.New(sqlTx)
 
-	return tx{Tx: clone.tx, database: clone}, nil
+	return &tx{Tx: clone.tx, database: clone}, nil
 }
 
 // Exec compiles and executes a statement that does not return any rows.
