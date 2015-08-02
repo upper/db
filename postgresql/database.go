@@ -25,6 +25,7 @@ import (
 	"database/sql"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -48,6 +49,8 @@ type database struct {
 	tx               *sqltx.Tx
 	schema           *schema.DatabaseSchema
 	cachedStatements *cache.Cache
+	collections      map[string]*table
+	collectionsMu    sync.Mutex
 }
 
 type tx struct {
@@ -150,6 +153,8 @@ func (d *database) Open() error {
 
 	d.cachedStatements = cache.NewCache()
 
+	d.collections = make(map[string]*table)
+
 	if d.schema == nil {
 		if err = d.populateSchema(); err != nil {
 			return err
@@ -192,6 +197,14 @@ func (d *database) Close() error {
 
 // C returns a collection interface.
 func (d *database) C(names ...string) db.Collection {
+	if len(names) == 0 {
+		return &adapter.NonExistentCollection{Err: db.ErrMissingCollectionName}
+	}
+
+	if c, ok := d.collections[sqlutil.HashTableNames(names)]; ok {
+		return c
+	}
+
 	c, err := d.Collection(names...)
 	if err != nil {
 		return &adapter.NonExistentCollection{Err: err}
@@ -234,6 +247,11 @@ func (d *database) Collection(names ...string) (db.Collection, error) {
 			return nil, err
 		}
 	}
+
+	// Saving the collection for C().
+	d.collectionsMu.Lock()
+	d.collections[sqlutil.HashTableNames(names)] = col
+	d.collectionsMu.Unlock()
 
 	return col, nil
 }

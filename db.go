@@ -173,7 +173,8 @@ type Database interface {
 	// C is a short-hand to Collection(). If the given collection does not exists
 	// subsequent calls to any Collection or Result method that expect the
 	// collection to exists will fail returning the original error a call to
-	// Collection() would have returned.
+	// Collection() would have returned. The output of C() may be a cached
+	// collection value.
 	C(...string) Collection
 
 	// Collection() returns a `db.Collection{}` struct by name. Some databases

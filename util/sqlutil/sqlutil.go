@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	// "crypto/md5"
 
 	"github.com/jmoiron/sqlx/reflectx"
 	"upper.io/db"
@@ -188,4 +189,11 @@ func (t *T) NthTableName(i int) string {
 		}
 	}
 	return ""
+}
+
+// HashTableNames returns a unique string for the given array of tables.
+func HashTableNames(names []string) string {
+	return strings.Join(names, "|")
+	// I think we don't really need to do this, the strings.Join already provides a unique string per array.
+	// return fmt.Sprintf("%x", md5.Sum([]byte(strings.Join(names, "|"))))
 }
