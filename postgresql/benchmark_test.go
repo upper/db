@@ -675,3 +675,23 @@ func BenchmarkUpperRemove(b *testing.B) {
 		}
 	}
 }
+
+// BenchmarkUpperGetCollection
+func BenchmarkUpperGetCollection(b *testing.B) {
+	var err error
+	var sess db.Database
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		b.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := sess.Collection("artist")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
