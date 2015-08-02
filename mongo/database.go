@@ -24,6 +24,7 @@ package mongo // import "upper.io/db/mongo"
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"gopkg.in/mgo.v2"
@@ -38,11 +39,13 @@ var connTimeout = time.Second * 5
 
 // Source represents a MongoDB database.
 type Source struct {
-	name     string
-	connURL  db.ConnectionURL
-	session  *mgo.Session
-	database *mgo.Database
-	version  []int
+	name          string
+	connURL       db.ConnectionURL
+	session       *mgo.Session
+	database      *mgo.Database
+	version       []int
+	collections   map[string]*Collection
+	collectionsMu sync.Mutex
 }
 
 func init() {
@@ -63,11 +66,12 @@ func (s *Source) Setup(connURL db.ConnectionURL) error {
 // Clone returns a cloned db.Database session.
 func (s *Source) Clone() (db.Database, error) {
 	clone := &Source{
-		name:     s.name,
-		connURL:  s.connURL,
-		session:  s.session.Copy(),
-		database: s.database,
-		version:  s.version,
+		name:        s.name,
+		connURL:     s.connURL,
+		session:     s.session.Copy(),
+		database:    s.database,
+		version:     s.version,
+		collections: map[string]*Collection{},
 	}
 	return clone, nil
 }
@@ -124,6 +128,7 @@ func (s *Source) Open() error {
 		return err
 	}
 
+	s.collections = map[string]*Collection{}
 	s.database = s.session.DB("")
 
 	return nil
@@ -195,11 +200,21 @@ func (s *Source) Collection(names ...string) (db.Collection, error) {
 		return nil, db.ErrUnsupported
 	}
 
+	s.collectionsMu.Lock()
+	defer s.collectionsMu.Unlock()
+
 	name := names[0]
 
-	col := &Collection{}
-	col.parent = s
-	col.collection = s.database.C(name)
+	var col *Collection
+	var ok bool
+
+	if col, ok = s.collections[name]; !ok {
+		col = &Collection{
+			parent:     s,
+			collection: s.database.C(name),
+		}
+		s.collections[name] = col
+	}
 
 	if !col.Exists() {
 		err = db.ErrCollectionDoesNotExist
