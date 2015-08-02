@@ -185,16 +185,32 @@ func (s *Source) Collections() (cols []string, err error) {
 
 // C returns a collection interface.
 func (s *Source) C(names ...string) db.Collection {
+	if len(names) == 0 {
+		return &adapter.NonExistentCollection{Err: db.ErrMissingCollectionName}
+	}
+
 	if len(names) > 1 {
 		return &adapter.NonExistentCollection{Err: db.ErrUnsupported}
 	}
-	c, _ := s.Collection(names...)
+
+	name := names[0]
+
+	if col, ok := s.collections[name]; ok {
+		// We can safely ignore if the collection exists or not.
+		return col
+	}
+
+	c, _ := s.Collection(name)
 	return c
 }
 
 // Collection returns a collection by name.
 func (s *Source) Collection(names ...string) (db.Collection, error) {
 	var err error
+
+	if len(names) == 0 {
+		return nil, db.ErrMissingCollectionName
+	}
 
 	if len(names) > 1 {
 		return nil, db.ErrUnsupported
