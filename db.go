@@ -43,8 +43,6 @@
 //	err = res.All(&people)
 package db
 
-// import "upper.io/db"
-
 // Cond is a map used to define conditions passed to `db.Collection.Find()` and
 // `db.Result.Where()`.
 //
@@ -58,7 +56,7 @@ package db
 //
 //	Where age is lower than 18 (On MongoDB context).
 //	db.Cond { "age $lt": 18 }
-type Cond map[string]interface{}
+type Cond map[interface{}]interface{}
 
 // Func is a struct that represents database functions.
 //
@@ -123,24 +121,6 @@ type Or []interface{}
 // Or adds a new expression to an Or conditions array.
 func (o Or) Or(exp ...interface{}) Or {
 	return append(o, exp...)
-}
-
-// Raw holds chunks of data to be passed to the database without any filtering.
-// Use with care.
-//
-// When using `db.Raw{}`, the developer is responsible of providing a sanitized
-// instruction to the database.
-//
-// The `db.Raw{}` expression is allowed as element on `db.Cond{}`, `db.And{}`,
-// `db.Or{}` expressions and as argument on `db.Result.Select()` and
-// `db.Collection.Find()` methods.
-//
-// Example:
-//
-//	// SQL: SOUNDEX('Hello')
-//	Raw{"SOUNDEX('Hello')"}
-type Raw struct {
-	Value interface{}
 }
 
 // Database is an interface that defines methods that must be provided by
