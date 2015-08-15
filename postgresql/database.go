@@ -31,6 +31,7 @@ import (
 	_ "github.com/lib/pq" // PostgreSQL driver.
 	"upper.io/cache"
 	"upper.io/db"
+	"upper.io/db/util/adapter"
 	"upper.io/db/util/schema"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
@@ -187,6 +188,15 @@ func (d *database) Close() error {
 		return d.session.Close()
 	}
 	return nil
+}
+
+// C returns a collection interface.
+func (d *database) C(names ...string) db.Collection {
+	c, err := d.Collection(names...)
+	if err != nil {
+		return &adapter.NonExistentCollection{Err: err}
+	}
+	return c
 }
 
 // Collection returns a table by name.

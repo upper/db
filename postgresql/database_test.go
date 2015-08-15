@@ -446,6 +446,27 @@ func TestResultCount(t *testing.T) {
 	}
 }
 
+// Attempts to count all rows in a table that does not exist.
+func TestResultNonExistentCount(t *testing.T) {
+	sess, err := db.Open(Adapter, settings)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	total, err := sess.C("notartist").Find().Count()
+
+	if err != db.ErrCollectionDoesNotExist {
+		t.Fatal("Expecting a specific error, got", err)
+	}
+
+	if total != 0 {
+		t.Fatal("Counter should be zero")
+	}
+}
+
 // Attempts to fetch results one by one.
 func TestResultFetch(t *testing.T) {
 	var err error
