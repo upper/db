@@ -609,3 +609,8 @@ func (d *database) getPrimaryKey(tableName string) ([]string, error) {
 
 	return tableSchema.PrimaryKey, nil
 }
+
+// Builder returns a custom query builder.
+func (d *database) Builder() db.QueryBuilder {
+	return &Builder{sess: d}
+}

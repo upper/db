@@ -1299,7 +1299,6 @@ func TestRawRelations(t *testing.T) {
 	if len(all) != 9 {
 		t.Fatalf("Expecting some rows.")
 	}
-
 }
 
 func TestRawQuery(t *testing.T) {
@@ -1905,4 +1904,84 @@ func TestOptionTypeJsonbStruct(t *testing.T) {
 	if item1Chk.Settings.Num != 123 {
 		t.Fatalf("Expecting Num to be 123")
 	}
+}
+
+func TestQueryBuilder(t *testing.T) {
+	var sess db.Database
+	var err error
+	var res db.Result
+	var artist artistType
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	b := sess.Builder()
+
+	// SELECT * FROM artist
+	res = b.Select().From("artist")
+
+	if err = res.One(&artist); err != nil {
+		t.Fatal(err)
+	}
+
+	// SELECT * FROM artist WHERE name LIKE '%F%'
+	res = b.Select().From("artist").Where("name LIKE ?", "%F%")
+
+	if err = res.One(&artist); err != nil {
+		t.Fatal(err)
+	}
+
+	// SELECT "id" FROM artist WHERE name LIKE '%Miya%' OR name LIKE 'F%'
+	res = b.Select("id").From("artist").Where(`name LIKE ? OR name LIKE ?`, "%Miya%", "F%")
+
+	if err = res.One(&artist); err != nil {
+		t.Fatal(err)
+	}
+
+	// SELECT * FROM artist WHERE name = "First"
+	res = b.Select().From("artist").Where("name", "First")
+
+	if err = res.One(&artist); err != nil {
+		t.Fatal(err)
+	}
+
+	// SELECT * FROM artist WHERE id > 2
+	res = b.Select().From("artist").Where("id >", 2)
+
+	if err = res.One(&artist); err != nil {
+		t.Fatal(err)
+	}
+
+	// SELECT * FROM artist WHERE id <= 2 AND name != 'A'
+	res = b.Select().From("artist").Where("id <= 2 AND name != ?", "A")
+
+	if err = res.One(&artist); err != nil {
+		t.Fatal(err)
+	}
+
+	// SELECT * FROM artist WHERE id IN (1, 2, 3, 4)
+	res = b.Select().From("artist").Where("id IN", []int{1, 2, 3, 4})
+
+	if err = res.One(&artist); err != nil {
+		t.Fatal(err)
+	}
+
+	// SELECT * FROM artist WHERE id IN (1, 2, 3, 4)
+	res = b.Select().From("artist").Where("id IN", 1, 2, 3, 4)
+
+	if err = res.One(&artist); err != nil {
+		t.Fatal(err)
+	}
+
+	// SELECT * FROM artist a, publication p WHERE p.author_id = a.id LIMIT 1
+	res = b.Select().From("artist a", "publication AS p").
+		Where("p.author_id = a.id").Limit(1)
+
+	if err = res.One(&artist); err != nil {
+		t.Fatal(err)
+	}
+
 }

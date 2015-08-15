@@ -32,6 +32,30 @@ func (tu *TemplateWithUtils) ToWhereWithArguments(term interface{}) (where sqlge
 
 	switch t := term.(type) {
 	case []interface{}:
+		if len(t) > 0 {
+			if s, ok := t[0].(string); ok {
+				if strings.ContainsAny(s, "?") || len(t) == 1 {
+					where.Conditions = []sqlgen.Fragment{sqlgen.RawValue(s)}
+					args = t[1:]
+				} else {
+					cond := db.Cond{}
+
+					if len(t) > 2 {
+						cond[s] = t[1:]
+					} else {
+						cond[s] = t[1]
+					}
+
+					cv, v := tu.ToColumnValues(cond)
+
+					args = append(args, v...)
+					for i := range cv.ColumnValues {
+						where.Conditions = append(where.Conditions, cv.ColumnValues[i])
+					}
+				}
+				return
+			}
+		}
 		for i := range t {
 			w, v := tu.ToWhereWithArguments(t[i])
 			if len(w.Conditions) == 0 {

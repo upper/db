@@ -156,6 +156,9 @@ type Database interface {
 	//	internalSQLDriver := sess.Driver().(*sql.DB)
 	Driver() interface{}
 
+	// Builder is an experimental interface
+	Builder() QueryBuilder
+
 	// Open() attempts to stablish a connection with the database server, a
 	// previous call to Setup() is required.
 	Open() error
