@@ -22,11 +22,13 @@
 package result
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
 	"upper.io/db"
+	"upper.io/db/util/adapter"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
 )
@@ -46,6 +48,7 @@ type Result struct {
 	offset    sqlgen.Offset
 	columns   sqlgen.Columns
 	where     sqlgen.Where
+	joins     []*sqlgen.Join
 	orderBy   sqlgen.OrderBy
 	groupBy   sqlgen.GroupBy
 	arguments []interface{}
@@ -68,23 +71,106 @@ func (r *Result) setCursor() error {
 	var err error
 	// We need a cursor, if the cursor does not exists yet then we create one.
 	if r.cursor == nil {
-		r.cursor, err = r.table.Query(&sqlgen.Statement{
+		stmt := sqlgen.Statement{
 			Type:    sqlgen.Select,
 			Table:   sqlgen.TableWithName(r.table.Name()),
 			Columns: &r.columns,
 			Limit:   r.limit,
 			Offset:  r.offset,
+			Joins:   sqlgen.JoinConditions(r.joins...),
 			Where:   &r.where,
 			OrderBy: &r.orderBy,
 			GroupBy: &r.groupBy,
-		}, r.arguments...)
+		}
+		r.cursor, err = r.table.Query(&stmt, r.arguments...)
 	}
 	return err
 }
 
 // Sets conditions for reducing the working set.
 func (r *Result) Where(terms ...interface{}) db.Result {
-	r.where, r.arguments = r.template.ToWhereWithArguments(terms)
+	w, a := r.template.ToWhereWithArguments(terms)
+	r.where = w
+	r.arguments = append(r.arguments, a...)
+	return r
+}
+
+func (r *Result) pushJoin(t string, tables []interface{}) db.Result {
+	if r.joins == nil {
+		r.joins = []*sqlgen.Join{}
+	}
+
+	tableNames := make([]string, len(tables))
+	for i := range tables {
+		tableNames[i] = fmt.Sprintf("%s", tables[i])
+	}
+
+	r.joins = append(r.joins,
+		&sqlgen.Join{
+			Type:  t,
+			Table: sqlgen.TableWithName(strings.Join(tableNames, ", ")),
+		},
+	)
+
+	return r
+}
+
+func (r *Result) Using(columns ...interface{}) db.Result {
+	if len(r.joins) == 0 {
+		return &adapter.NonExistentResult{errors.New(`Cannot use Using() without a preceding Join() expression.`)}
+	}
+
+	lastJoin := r.joins[len(r.joins)-1]
+
+	if lastJoin.On != nil {
+		return &adapter.NonExistentResult{errors.New(`Cannot use Using() and On() with the same Join() expression.`)}
+	}
+
+	fragments := make([]sqlgen.Fragment, len(columns))
+	for i := range fragments {
+		fragments[i] = sqlgen.ColumnWithName(fmt.Sprintf("%s", columns[i]))
+	}
+
+	lastJoin.Using = sqlgen.UsingColumns(fragments...)
+	return r
+}
+
+func (r *Result) FullJoin(tables ...interface{}) db.Result {
+	return r.pushJoin("CROSS", tables)
+}
+
+func (r *Result) CrossJoin(tables ...interface{}) db.Result {
+	return r.pushJoin("CROSS", tables)
+}
+
+func (r *Result) RightJoin(tables ...interface{}) db.Result {
+	return r.pushJoin("RIGHT", tables)
+}
+
+func (r *Result) LeftJoin(tables ...interface{}) db.Result {
+	return r.pushJoin("LEFT", tables)
+}
+
+func (r *Result) Join(tables ...interface{}) db.Result {
+	return r.pushJoin("", tables)
+}
+
+func (r *Result) On(terms ...interface{}) db.Result {
+	if len(r.joins) == 0 {
+		return &adapter.NonExistentResult{errors.New(`Cannot use On() without a preceding Join() expression.`)}
+	}
+
+	lastJoin := r.joins[len(r.joins)-1]
+
+	if lastJoin.On != nil {
+		return &adapter.NonExistentResult{errors.New(`Cannot use Using() and On() with the same Join() expression.`)}
+	}
+
+	w, a := r.template.ToWhereWithArguments(terms)
+	o := sqlgen.On(w)
+	lastJoin.On = &o
+
+	r.arguments = append(r.arguments, a...)
 	return r
 }
 

@@ -284,6 +284,17 @@ type Result interface {
 	// Where() discards the initial filtering conditions and sets new ones.
 	Where(...interface{}) Result
 
+	Join(...interface{}) Result
+
+	LeftJoin(...interface{}) Result
+	RightJoin(...interface{}) Result
+	FullJoin(...interface{}) Result
+	CrossJoin(...interface{}) Result
+
+	On(...interface{}) Result
+
+	Using(...interface{}) Result
+
 	// Group() is used to group results that have the same value in the same
 	// column or columns.
 	Group(...interface{}) Result
