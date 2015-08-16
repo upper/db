@@ -56,6 +56,9 @@ type Template struct {
 	ColumnAliasLayout   string
 	SortByColumnLayout  string
 	WhereLayout         string
+	OnLayout            string
+	UsingLayout         string
+	JoinLayout          string
 	OrderByLayout       string
 	InsertLayout        string
 	SelectLayout        string

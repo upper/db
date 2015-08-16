@@ -28,6 +28,16 @@ func JoinColumns(columns ...Fragment) *Columns {
 	return &Columns{Columns: columns}
 }
 
+// OnConditions creates and retuens a new On.
+func OnConditions(conditions ...Fragment) *On {
+	return &On{Conditions: conditions}
+}
+
+// UsingColumns builds a Using from the given columns.
+func UsingColumns(columns ...Fragment) *Using {
+	return &Using{Columns: columns}
+}
+
 // Compile transforms the Columns into an equivalent SQL representation.
 func (c *Columns) Compile(layout *Template) (compiled string) {
 

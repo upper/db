@@ -35,6 +35,26 @@ const (
 		{{end}}
 	`
 
+	defaultUsingLayout = `
+		{{if .Columns}}
+			USING ({{.Columns}})
+		{{end}}
+	`
+
+	defaultJoinLayout = `
+		{{if .Table}}
+			{{.Type}} JOIN {{.Table}}
+			{{.On}}
+			{{.Using}}
+		{{end}}
+	`
+
+	defaultOnLayout = `
+		{{if .Conds}}
+			ON {{.Conds}}
+		{{end}}
+	`
+
 	defaultSelectLayout = `
 		SELECT
 
@@ -135,6 +155,9 @@ var defaultTemplate = &Template{
 	ColumnAliasLayout:   defaultColumnAliasLayout,
 	SortByColumnLayout:  defaultSortByColumnLayout,
 	WhereLayout:         defaultWhereLayout,
+	OnLayout:            defaultOnLayout,
+	UsingLayout:         defaultUsingLayout,
+	JoinLayout:          defaultJoinLayout,
 	OrderByLayout:       defaultOrderByLayout,
 	InsertLayout:        defaultInsertLayout,
 	SelectLayout:        defaultSelectLayout,

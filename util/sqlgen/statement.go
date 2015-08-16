@@ -1,6 +1,7 @@
 package sqlgen
 
 import (
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -39,14 +40,14 @@ type statementT struct {
 }
 
 func (layout *Template) doCompile(c Fragment) string {
-	if c != nil {
+	if c != nil && !reflect.ValueOf(c).IsNil() {
 		return c.Compile(layout)
 	}
 	return ""
 }
 
-func (s Statement) getHash(h cache.Hashable) string {
-	if h != nil {
+func getHash(h cache.Hashable) string {
+	if h != nil && !reflect.ValueOf(h).IsNil() {
 		return h.Hash()
 	}
 	return ""
@@ -57,20 +58,20 @@ func (s *Statement) Hash() string {
 	if s.hash == "" {
 		parts := strings.Join([]string{
 			strconv.Itoa(int(s.Type)),
-			s.getHash(s.Table),
-			s.getHash(s.Database),
+			getHash(s.Table),
+			getHash(s.Database),
 			strconv.Itoa(int(s.Limit)),
 			strconv.Itoa(int(s.Offset)),
-			s.getHash(s.Columns),
-			s.getHash(s.Values),
-			s.getHash(s.ColumnValues),
-			s.getHash(s.OrderBy),
-			s.getHash(s.GroupBy),
+			getHash(s.Columns),
+			getHash(s.Values),
+			getHash(s.ColumnValues),
+			getHash(s.OrderBy),
+			getHash(s.GroupBy),
 			string(s.Extra),
-			s.getHash(s.Where),
+			getHash(s.Where),
 		}, ";")
 
-		s.hash = `Statement(` + parts + `)`
+		s.hash = `Statement{` + parts + `}`
 	}
 	return s.hash
 }

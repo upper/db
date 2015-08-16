@@ -51,11 +51,12 @@ func (v *Value) Compile(layout *Template) (compiled string) {
 		return z
 	}
 
-	if raw, ok := v.V.(Raw); ok {
-		compiled = raw.Compile(layout)
-	} else if raw, ok := v.V.(Fragment); ok {
-		compiled = raw.Compile(layout)
-	} else {
+	switch t := v.V.(type) {
+	case Raw:
+		compiled = t.Compile(layout)
+	case Fragment:
+		compiled = t.Compile(layout)
+	default:
 		compiled = mustParse(layout.ValueQuote, RawValue(fmt.Sprintf(`%v`, v.V)))
 	}
 
