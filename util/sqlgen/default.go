@@ -66,6 +66,8 @@ const (
 
 			FROM {{.Table}}
 
+			{{.Join}}
+
 			{{.Where}}
 
 			{{.GroupBy}}

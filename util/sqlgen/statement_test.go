@@ -229,6 +229,61 @@ func TestSelectArtistNameFrom(t *testing.T) {
 	}
 }
 
+func TestSelectJoin(t *testing.T) {
+	var s, e string
+
+	stmt := Statement{
+		Type:  Select,
+		Table: TableWithName("artist a"),
+		Columns: JoinColumns(
+			&Column{Name: "a.name"},
+		),
+		Join: &Join{
+			Table: TableWithName("books b"),
+			On: OnConditions(
+				&ColumnValue{
+					Column:   ColumnWithName("b.author_id"),
+					Operator: `=`,
+					Value:    NewValue(ColumnWithName("a.id")),
+				},
+			),
+		},
+	}
+
+	s = trim(stmt.Compile(defaultTemplate))
+	e = `SELECT "a"."name" FROM "artist" AS "a" JOIN "books" AS "b" ON ("b"."author_id" = "a"."id")`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestSelectJoinUsing(t *testing.T) {
+	var s, e string
+
+	stmt := Statement{
+		Type:  Select,
+		Table: TableWithName("artist a"),
+		Columns: JoinColumns(
+			&Column{Name: "a.name"},
+		),
+		Join: &Join{
+			Table: TableWithName("books b"),
+			Using: UsingColumns(
+				ColumnWithName("artist_id"),
+				ColumnWithName("country"),
+			),
+		},
+	}
+
+	s = trim(stmt.Compile(defaultTemplate))
+	e = `SELECT "a"."name" FROM "artist" AS "a" JOIN "books" AS "b" USING ("artist_id", "country")`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
 func TestSelectRawFrom(t *testing.T) {
 	var s, e string
 	var stmt Statement

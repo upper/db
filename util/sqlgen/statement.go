@@ -11,25 +11,26 @@ import (
 // Statement represents different kinds of SQL statements.
 type Statement struct {
 	Type
-	Table    Fragment
-	Database Fragment
-	Limit
-	Offset
+	Table        Fragment
+	Database     Fragment
 	Columns      Fragment
 	Values       Fragment
 	ColumnValues Fragment
 	OrderBy      Fragment
 	GroupBy      Fragment
+	Join         Fragment
+	Where        Fragment
 	Extra
-	Where Fragment
-	hash  string
+
+	Limit
+	Offset
+
+	hash string
 }
 
 type statementT struct {
-	Table    string
-	Database string
-	Limit
-	Offset
+	Table        string
+	Database     string
 	Columns      string
 	Values       string
 	ColumnValues string
@@ -37,6 +38,9 @@ type statementT struct {
 	GroupBy      string
 	Extra        string
 	Where        string
+	Join         string
+	Limit
+	Offset
 }
 
 func (layout *Template) doCompile(c Fragment) string {
@@ -69,6 +73,7 @@ func (s *Statement) Hash() string {
 			getHash(s.GroupBy),
 			string(s.Extra),
 			getHash(s.Where),
+			getHash(s.Join),
 		}, ";")
 
 		s.hash = `Statement{` + parts + `}`
@@ -95,6 +100,7 @@ func (s *Statement) Compile(layout *Template) (compiled string) {
 		GroupBy:      layout.doCompile(s.GroupBy),
 		Extra:        string(s.Extra),
 		Where:        layout.doCompile(s.Where),
+		Join:         layout.doCompile(s.Join),
 	}
 
 	switch s.Type {
