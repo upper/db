@@ -51,21 +51,23 @@ func TestUsing(t *testing.T) {
 func TestJoinOn(t *testing.T) {
 	var s, e string
 
-	join := &Join{
-		Table: TableWithName("countries c"),
-		On: OnConditions(
-			&ColumnValue{
-				Column:   &Column{Name: "p.country_id"},
-				Operator: "=",
-				Value:    NewValue(&Column{Name: "a.id"}),
-			},
-			&ColumnValue{
-				Column:   &Column{Name: "p.country_code"},
-				Operator: "=",
-				Value:    NewValue(&Column{Name: "a.code"}),
-			},
-		),
-	}
+	join := JoinConditions(
+		&Join{
+			Table: TableWithName("countries c"),
+			On: OnConditions(
+				&ColumnValue{
+					Column:   &Column{Name: "p.country_id"},
+					Operator: "=",
+					Value:    NewValue(&Column{Name: "a.id"}),
+				},
+				&ColumnValue{
+					Column:   &Column{Name: "p.country_code"},
+					Operator: "=",
+					Value:    NewValue(&Column{Name: "a.code"}),
+				},
+			),
+		},
+	)
 
 	s = trim(join.Compile(defaultTemplate))
 	e = `JOIN "countries" AS "c" ON ("p"."country_id" = "a"."id" AND "p"."country_code" = "a"."code")`
@@ -78,7 +80,7 @@ func TestJoinOn(t *testing.T) {
 func TestInnerJoinOn(t *testing.T) {
 	var s, e string
 
-	join := &Join{
+	join := JoinConditions(&Join{
 		Type:  "INNER",
 		Table: TableWithName("countries c"),
 		On: OnConditions(
@@ -93,7 +95,7 @@ func TestInnerJoinOn(t *testing.T) {
 				Value:    NewValue(ColumnWithName("a.code")),
 			},
 		),
-	}
+	})
 
 	s = trim(join.Compile(defaultTemplate))
 	e = `INNER JOIN "countries" AS "c" ON ("p"."country_id" = "a"."id" AND "p"."country_code" = "a"."code")`
@@ -106,11 +108,11 @@ func TestInnerJoinOn(t *testing.T) {
 func TestLeftJoinUsing(t *testing.T) {
 	var s, e string
 
-	join := Join{
+	join := JoinConditions(&Join{
 		Type:  "LEFT",
 		Table: TableWithName("countries"),
 		Using: UsingColumns(ColumnWithName("name")),
-	}
+	})
 
 	s = trim(join.Compile(defaultTemplate))
 	e = `LEFT JOIN "countries" USING ("name")`
@@ -120,13 +122,28 @@ func TestLeftJoinUsing(t *testing.T) {
 	}
 }
 
+func TestNaturalJoinOn(t *testing.T) {
+	var s, e string
+
+	join := JoinConditions(&Join{
+		Table: TableWithName("countries"),
+	})
+
+	s = trim(join.Compile(defaultTemplate))
+	e = `NATURAL JOIN "countries"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
 func TestNaturalInnerJoinOn(t *testing.T) {
 	var s, e string
 
-	join := Join{
-		Type:  "NATURAL INNER",
+	join := JoinConditions(&Join{
+		Type:  "INNER",
 		Table: TableWithName("countries"),
-	}
+	})
 
 	s = trim(join.Compile(defaultTemplate))
 	e = `NATURAL INNER JOIN "countries"`
@@ -136,9 +153,27 @@ func TestNaturalInnerJoinOn(t *testing.T) {
 	}
 }
 
+func TestMultipleJoins(t *testing.T) {
+	var s, e string
+
+	join := JoinConditions(&Join{
+		Type:  "LEFT",
+		Table: TableWithName("countries"),
+	}, &Join{
+		Table: TableWithName("cities"),
+	})
+
+	s = trim(join.Compile(defaultTemplate))
+	e = `NATURAL LEFT JOIN "countries" NATURAL JOIN "cities"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
 func BenchmarkJoin(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = &Join{
+		_ = JoinConditions(&Join{
 			Table: TableWithName("countries c"),
 			On: OnConditions(
 				&ColumnValue{
@@ -152,12 +187,12 @@ func BenchmarkJoin(b *testing.B) {
 					Value:    NewValue(&Column{Name: "a.code"}),
 				},
 			),
-		}
+		})
 	}
 }
 
 func BenchmarkCompileJoin(b *testing.B) {
-	j := &Join{
+	j := JoinConditions(&Join{
 		Table: TableWithName("countries c"),
 		On: OnConditions(
 			&ColumnValue{
@@ -171,7 +206,7 @@ func BenchmarkCompileJoin(b *testing.B) {
 				Value:    NewValue(&Column{Name: "a.code"}),
 			},
 		),
-	}
+	})
 	for i := 0; i < b.N; i++ {
 		j.Compile(defaultTemplate)
 	}
@@ -179,7 +214,7 @@ func BenchmarkCompileJoin(b *testing.B) {
 
 func BenchmarkCompileJoinNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		j := &Join{
+		j := JoinConditions(&Join{
 			Table: TableWithName("countries c"),
 			On: OnConditions(
 				&ColumnValue{
@@ -193,7 +228,7 @@ func BenchmarkCompileJoinNoCache(b *testing.B) {
 					Value:    NewValue(&Column{Name: "a.code"}),
 				},
 			),
-		}
+		})
 		j.Compile(defaultTemplate)
 	}
 }

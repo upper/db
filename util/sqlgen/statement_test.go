@@ -238,7 +238,7 @@ func TestSelectJoin(t *testing.T) {
 		Columns: JoinColumns(
 			&Column{Name: "a.name"},
 		),
-		Join: &Join{
+		Joins: JoinConditions(&Join{
 			Table: TableWithName("books b"),
 			On: OnConditions(
 				&ColumnValue{
@@ -247,7 +247,7 @@ func TestSelectJoin(t *testing.T) {
 					Value:    NewValue(ColumnWithName("a.id")),
 				},
 			),
-		},
+		}),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
@@ -267,17 +267,56 @@ func TestSelectJoinUsing(t *testing.T) {
 		Columns: JoinColumns(
 			&Column{Name: "a.name"},
 		),
-		Join: &Join{
+		Joins: JoinConditions(&Join{
 			Table: TableWithName("books b"),
 			Using: UsingColumns(
 				ColumnWithName("artist_id"),
 				ColumnWithName("country"),
 			),
-		},
+		}),
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
 	e = `SELECT "a"."name" FROM "artist" AS "a" JOIN "books" AS "b" USING ("artist_id", "country")`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestSelectUnfinishedJoin(t *testing.T) {
+	var s, e string
+
+	stmt := Statement{
+		Type:  Select,
+		Table: TableWithName("artist a"),
+		Columns: JoinColumns(
+			&Column{Name: "a.name"},
+		),
+		Joins: JoinConditions(&Join{}),
+	}
+
+	s = trim(stmt.Compile(defaultTemplate))
+	e = `SELECT "a"."name" FROM "artist" AS "a"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestSelectNaturalJoin(t *testing.T) {
+	var s, e string
+
+	stmt := Statement{
+		Type:  Select,
+		Table: TableWithName("artist"),
+		Joins: JoinConditions(&Join{
+			Table: TableWithName("books"),
+		}),
+	}
+
+	s = trim(stmt.Compile(defaultTemplate))
+	e = `SELECT * FROM "artist" NATURAL JOIN "books"`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)

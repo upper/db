@@ -43,9 +43,15 @@ const (
 
 	defaultJoinLayout = `
 		{{if .Table}}
-			{{.Type}} JOIN {{.Table}}
-			{{.On}}
-			{{.Using}}
+			{{ if .On }}
+				{{.Type}} JOIN {{.Table}}
+				{{.On}}
+			{{ else if .Using }}
+				{{.Type}} JOIN {{.Table}}
+				{{.Using}}
+			{{else}}
+				NATURAL {{.Type}} JOIN {{.Table}}
+			{{end}}
 		{{end}}
 	`
 
@@ -66,7 +72,7 @@ const (
 
 			FROM {{.Table}}
 
-			{{.Join}}
+			{{.Joins}}
 
 			{{.Where}}
 

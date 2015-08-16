@@ -12,6 +12,52 @@ type innerJoinT struct {
 	Using string
 }
 
+// Join represents join conditions.
+type Joins struct {
+	Conditions []Fragment
+	hash       string
+}
+
+// Hash returns a unique identifier.
+func (j *Joins) Hash() string {
+	if j.hash == "" {
+		hash := make([]string, len(j.Conditions))
+		for i := range j.Conditions {
+			hash[i] = j.Conditions[i].Hash()
+		}
+		j.hash = fmt.Sprintf(`Join{%s}`, strings.Join(hash, `, `))
+	}
+	return j.hash
+}
+
+// Compile transforms the Where into an equivalent SQL representation.
+func (j *Joins) Compile(layout *Template) (compiled string) {
+	if c, ok := layout.Read(j); ok {
+		return c
+	}
+
+	l := len(j.Conditions)
+
+	chunks := make([]string, 0, l)
+
+	if l > 0 {
+		for i := 0; i < l; i++ {
+			chunks = append(chunks, j.Conditions[i].Compile(layout))
+		}
+	}
+
+	compiled = strings.Join(chunks, " ")
+
+	layout.Write(j, compiled)
+
+	return
+}
+
+// JoinConditions creates a Joins object.
+func JoinConditions(joins ...Fragment) *Joins {
+	return &Joins{Conditions: joins}
+}
+
 // Join represents a generic JOIN statement.
 type Join struct {
 	Type string
@@ -24,7 +70,7 @@ type Join struct {
 // Hash returns a unique string given a JOIN.
 func (j *Join) Hash() string {
 	if j.hash == "" {
-		if j.Table.Hash() != "" {
+		if j.Table != nil && j.Table.Hash() != "" {
 			j.hash = fmt.Sprintf(`Join{%s}`, strings.Join([]string{
 				j.Type,
 				j.Table.Hash(),

@@ -18,7 +18,7 @@ type Statement struct {
 	ColumnValues Fragment
 	OrderBy      Fragment
 	GroupBy      Fragment
-	Join         Fragment
+	Joins        Fragment
 	Where        Fragment
 	Extra
 
@@ -38,7 +38,7 @@ type statementT struct {
 	GroupBy      string
 	Extra        string
 	Where        string
-	Join         string
+	Joins        string
 	Limit
 	Offset
 }
@@ -73,7 +73,7 @@ func (s *Statement) Hash() string {
 			getHash(s.GroupBy),
 			string(s.Extra),
 			getHash(s.Where),
-			getHash(s.Join),
+			getHash(s.Joins),
 		}, ";")
 
 		s.hash = `Statement{` + parts + `}`
@@ -100,7 +100,7 @@ func (s *Statement) Compile(layout *Template) (compiled string) {
 		GroupBy:      layout.doCompile(s.GroupBy),
 		Extra:        string(s.Extra),
 		Where:        layout.doCompile(s.Where),
-		Join:         layout.doCompile(s.Join),
+		Joins:        layout.doCompile(s.Joins),
 	}
 
 	switch s.Type {
