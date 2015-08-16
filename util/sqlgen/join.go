@@ -54,8 +54,12 @@ func (j *Joins) Compile(layout *Template) (compiled string) {
 }
 
 // JoinConditions creates a Joins object.
-func JoinConditions(joins ...Fragment) *Joins {
-	return &Joins{Conditions: joins}
+func JoinConditions(joins ...*Join) *Joins {
+	fragments := make([]Fragment, len(joins))
+	for i := range fragments {
+		fragments[i] = joins[i]
+	}
+	return &Joins{Conditions: fragments}
 }
 
 // Join represents a generic JOIN statement.

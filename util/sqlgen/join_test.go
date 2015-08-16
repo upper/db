@@ -153,6 +153,22 @@ func TestNaturalInnerJoinOn(t *testing.T) {
 	}
 }
 
+func TestCrossJoin(t *testing.T) {
+	var s, e string
+
+	join := JoinConditions(&Join{
+		Type:  "CROSS",
+		Table: TableWithName("countries"),
+	})
+
+	s = trim(join.Compile(defaultTemplate))
+	e = `CROSS JOIN "countries"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
 func TestMultipleJoins(t *testing.T) {
 	var s, e string
 

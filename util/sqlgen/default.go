@@ -49,6 +49,8 @@ const (
 			{{ else if .Using }}
 				{{.Type}} JOIN {{.Table}}
 				{{.Using}}
+			{{ else if .Type | eq "CROSS" }}
+				{{.Type}} JOIN {{.Table}}
 			{{else}}
 				NATURAL {{.Type}} JOIN {{.Table}}
 			{{end}}
