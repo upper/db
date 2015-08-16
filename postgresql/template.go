@@ -53,6 +53,34 @@ const (
     {{end}}
   `
 
+	adapterUsingLayout = `
+		{{if .Columns}}
+			USING ({{.Columns}})
+		{{end}}
+	`
+
+	adapterJoinLayout = `
+		{{if .Table}}
+			{{ if .On }}
+				{{.Type}} JOIN {{.Table}}
+				{{.On}}
+			{{ else if .Using }}
+				{{.Type}} JOIN {{.Table}}
+				{{.Using}}
+			{{ else if .Type | eq "CROSS" }}
+				{{.Type}} JOIN {{.Table}}
+			{{else}}
+				NATURAL {{.Type}} JOIN {{.Table}}
+			{{end}}
+		{{end}}
+	`
+
+	adapterOnLayout = `
+		{{if .Conds}}
+			ON {{.Conds}}
+		{{end}}
+	`
+
 	adapterSelectLayout = `
     SELECT
 
@@ -65,6 +93,8 @@ const (
       {{if .Table}}
         FROM {{.Table}}
       {{end}}
+
+      {{.Joins}}
 
       {{.Where}}
 

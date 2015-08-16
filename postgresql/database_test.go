@@ -1984,4 +1984,83 @@ func TestQueryBuilder(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// SELECT * FROM artist NATURAL JOIN publication
+	res = b.Select("id").From("artist").Join("publication")
+
+	if err = res.One(&artist); err != nil {
+		t.Fatal(err)
+	}
+
+	// SELECT * FROM artist a JOIN publication p ON p.author_id = a.id LIMIT 1
+	res = b.Select().From("artist a").Join("publication p").
+		On("p.author_id = a.id").Limit(1)
+
+	if err = res.One(&artist); err != nil {
+		t.Fatal(err)
+	}
+
+	// SELECT * FROM artist a JOIN publication p ON p.author_id = a.id WHERE a.id = 2 LIMIT 1
+	res = b.Select().From("artist a").Join("publication p").
+		On("p.author_id = a.id").Where(db.Cond{"a.id": 2}).Limit(1)
+
+	if err = res.One(&artist); err != nil {
+		t.Fatal(err)
+	}
+
+	// SELECT * FROM artist a JOIN publication p ON p.author_id = a.id WHERE a.id = 2 LIMIT 1
+	res = b.Select().From("artist a").Join("publication p").
+		On("p.author_id = a.id").Where("a.id = ?", 2).Limit(1)
+
+	if err = res.One(&artist); err != nil {
+		t.Fatal(err)
+	}
+
+	// SELECT * FROM artist a JOIN publication p ON p.title LIKE '%Totoro%' WHERE a.id = 1
+	res = b.Select().From("artist a").Join("publication p").
+		On("p.title LIKE ? OR p.title LIKE ?", "%Totoro%", "%Robot%").
+		Where("a.id = ?", 2).Limit(1)
+
+	if err = res.One(&artist); err != nil {
+		t.Fatal(err)
+	}
+
+	// SELECT * FROM artist a LEFT JOIN publication p1 ON (p1.id = a.id) RIGHT JOIN publication p2 ON (p2.id = a.id);
+	res = b.Select().From("artist a").
+		LeftJoin("publication p1").On("p1.id = a.id").
+		RightJoin("publication p2").On("p2.id = a.id")
+
+	if err = res.One(&artist); err != nil {
+		t.Fatal(err)
+	}
+
+	// SELECT * FROM artist CROSS JOIN publication
+	res = b.Select().From("artist").
+		CrossJoin("publication")
+
+	if err = res.One(&artist); err != nil {
+		t.Fatal(err)
+	}
+
+	// SELECT * FROM artist JOIN publication USING(id)
+	res = b.Select().From("artist").
+		Join("publication").Using("id")
+
+	if err = res.One(&artist); err != nil {
+		t.Fatal(err)
+	}
+
+	// Should not work because using both On() and Using()
+	res = b.Select().From("artist a").Join("publications p").On("p1.id = a.id").Using("id")
+
+	if err = res.One(&artist); err == nil {
+		t.Fatal("Expecting an error.")
+	}
+
+	// Should not work because a Join() is missing before On().
+	res = b.Select().From("artist a").On("p1.id = a.id")
+
+	if err = res.One(&artist); err == nil {
+		t.Fatal("Expecting an error.")
+	}
+
 }
