@@ -93,7 +93,7 @@ func (d *database) prepareStatement(stmt *sqlgen.Statement) (p *sqlx.Stmt, query
 		}
 
 		if err != nil {
-			return nil, "", err
+			return nil, query, err
 		}
 
 		d.cachedStatements.Write(stmt, &cachedStatement{p, query})
