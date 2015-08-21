@@ -212,6 +212,32 @@ func BenchmarkUpperFind(b *testing.B) {
 	}
 }
 
+// BenchmarkUpperFindWithC benchmarks upper.io/db's One method.
+func BenchmarkUpperFindWithC(b *testing.B) {
+	var err error
+	var sess db.Database
+
+	if sess, err = connectAndAddFakeRows(); err != nil {
+		b.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	type artistType struct {
+		Name string `db:"name"`
+	}
+
+	var item artistType
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		res := sess.C("artist").Find(db.Cond{"name": artistN(i)})
+		if err = res.One(&item); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 // BenchmarkUpperFindAll benchmarks upper.io/db's All method.
 func BenchmarkUpperFindAll(b *testing.B) {
 	var err error
@@ -346,5 +372,42 @@ func BenchmarkUpperRemove(b *testing.B) {
 		if err = res.Remove(); err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+// BenchmarkUpperGetCollection
+func BenchmarkUpperGetCollection(b *testing.B) {
+	var err error
+	var sess db.Database
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		b.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := sess.Collection("artist")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// BenchmarkUpperC
+func BenchmarkUpperC(b *testing.B) {
+	var err error
+	var sess db.Database
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		b.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		sess.C("artist")
 	}
 }
