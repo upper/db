@@ -24,6 +24,7 @@ package mysql
 import (
 	"database/sql"
 	"strings"
+	"sync"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql" // MySQL driver.
@@ -47,11 +48,8 @@ type database struct {
 	tx               *sqltx.Tx
 	schema           *schema.DatabaseSchema
 	cachedStatements *cache.Cache
-}
-
-type tx struct {
-	*sqltx.Tx
-	*database
+	collections      map[string]*table
+	collectionsMu    sync.Mutex
 }
 
 type cachedStatement struct {
@@ -160,6 +158,8 @@ func (d *database) Open() error {
 
 	d.cachedStatements = cache.NewCache()
 
+	d.collections = make(map[string]*table)
+
 	if d.schema == nil {
 		if err = d.populateSchema(); err != nil {
 			return err
@@ -202,6 +202,14 @@ func (d *database) Close() error {
 
 // C returns a collection interface.
 func (d *database) C(names ...string) db.Collection {
+	if len(names) == 0 {
+		return &adapter.NonExistentCollection{Err: db.ErrMissingCollectionName}
+	}
+
+	if c, ok := d.collections[sqlutil.HashTableNames(names)]; ok {
+		return c
+	}
+
 	c, err := d.Collection(names...)
 	if err != nil {
 		return &adapter.NonExistentCollection{Err: err}
@@ -244,6 +252,11 @@ func (d *database) Collection(names ...string) (db.Collection, error) {
 			return nil, err
 		}
 	}
+
+	// Saving the collection for C().
+	d.collectionsMu.Lock()
+	d.collections[sqlutil.HashTableNames(names)] = col
+	d.collectionsMu.Unlock()
 
 	return col, nil
 }
@@ -357,7 +370,7 @@ func (d *database) Transaction() (db.Tx, error) {
 
 	clone.tx = sqltx.New(sqlTx)
 
-	return tx{Tx: clone.tx, database: clone}, nil
+	return &tx{Tx: clone.tx, database: clone}, nil
 }
 
 // Exec compiles and executes a statement that does not return any rows.
