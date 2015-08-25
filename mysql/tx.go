@@ -46,3 +46,12 @@ func (t *tx) Commit() error {
 	t.database.Close()
 	return nil
 }
+
+// Rollback discards the current transaction and frees up the connection.
+func (t *tx) Rollback() error {
+	if err := t.Tx.Rollback(); err != nil {
+		return err
+	}
+	t.database.Close()
+	return nil
+}
