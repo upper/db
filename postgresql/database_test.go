@@ -30,6 +30,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1911,4 +1912,51 @@ func TestOptionTypeJsonbStruct(t *testing.T) {
 	if item1Chk.Settings.Num != 123 {
 		t.Fatalf("Expecting Num to be 123")
 	}
+}
+
+// TestExhaustConnections simulates a "too many connections" situation
+// triggered by opening more transactions than available connections.
+// upper.io/db deals with this problem by waiting a bit more for the connection
+// to be established.
+func TestExhaustConnections(t *testing.T) {
+	var err error
+	var sess db.Database
+	var wg sync.WaitGroup
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	// By default, PostgreSQL accepts 100 connections only.
+	for i := 0; i < 500; i++ {
+		wg.Add(1)
+		t.Logf("Tx %d: Pending", i)
+		go func(t *testing.T, wg *sync.WaitGroup, i int) {
+			var tx db.Tx
+			defer wg.Done()
+
+			start := time.Now()
+
+			// Requesting a new transaction session.
+			if tx, err = sess.Transaction(); err != nil {
+				t.Fatal(err)
+			}
+
+			t.Logf("Tx %d: OK (waiting time: %v)", i, time.Now().Sub(start))
+
+			// Let's suppose that we do some complex stuff and that the transaction
+			// lasts 3 seconds.
+			time.Sleep(time.Second * 3)
+
+			if err := tx.Rollback(); err != nil {
+				t.Fatal(err)
+			}
+
+			t.Logf("Tx %d: Done", i)
+		}(t, &wg, i)
+	}
+
+	wg.Wait()
+
+	sess.Close()
 }

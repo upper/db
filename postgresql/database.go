@@ -58,6 +58,8 @@ type cachedStatement struct {
 	query string
 }
 
+var waitForConnMu sync.Mutex
+
 var (
 	_ = db.Database(&database{})
 	_ = db.Tx(&tx{})
@@ -140,7 +142,12 @@ func (d *database) Open() error {
 		d.connURL = conn
 	}
 
-	if d.session, err = sqlx.Open(`postgres`, d.connURL.String()); err != nil {
+	connFn := func(d **database) (err error) {
+		(*d).session, err = sqlx.Open(`postgres`, (*d).connURL.String())
+		return
+	}
+
+	if err := waitForConnection(func() error { return connFn(&d) }); err != nil {
 		return err
 	}
 
@@ -355,12 +362,16 @@ func (d *database) Transaction() (db.Tx, error) {
 		return nil, err
 	}
 
-	if sqlTx, err = clone.session.Beginx(); err != nil {
+	connFn := func(sqlTx **sqlx.Tx) (err error) {
+		*sqlTx, err = clone.session.Beginx()
+		return
+	}
+
+	if err := waitForConnection(func() error { return connFn(&sqlTx) }); err != nil {
 		return nil, err
 	}
 
 	clone.tx = sqltx.New(sqlTx)
-
 	return &tx{Tx: clone.tx, database: clone}, nil
 }
 
@@ -621,4 +632,38 @@ func (d *database) getPrimaryKey(tableName string) ([]string, error) {
 	}
 
 	return tableSchema.PrimaryKey, nil
+}
+
+// waitForConnection tries to execute the connectFn function, if connectFn
+// returns an error, then waitForConnection will keep trying until connectFn
+// returns nil. Maximum waiting time is 5s after having acquired the lock.
+func waitForConnection(connectFn func() error) error {
+	// This lock ensures first-come, first-served and prevents opening too many
+	// file descriptors.
+	waitForConnMu.Lock()
+	defer waitForConnMu.Unlock()
+
+	// Minimum waiting time.
+	waitTime := time.Millisecond * 10
+
+	// Waitig 5 seconds for a successful connection.
+	for timeStart := time.Now(); time.Now().Sub(timeStart) < time.Second*5; {
+		if err := connectFn(); err != nil {
+			if strings.Contains(err.Error(), `too many clients`) {
+				// Sleep and try again if, and only if, the server replied with a "too
+				// many clients" error.
+				time.Sleep(waitTime)
+				if waitTime < time.Millisecond*500 {
+					// Wait a bit more next time.
+					waitTime = waitTime * 2
+				}
+				continue
+			}
+			// Return any other error immediately.
+			return err
+		}
+		return nil
+	}
+
+	return db.ErrGivingUpTryingToConnect
 }
