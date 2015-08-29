@@ -48,6 +48,8 @@ var (
 	ErrUnsupportedType         = errors.New(`This type does not support marshaling.`)
 	ErrUnsupportedValue        = errors.New(`This value does not support unmarshaling.`)
 	ErrUnknownConditionType    = errors.New(`Arguments of type %T can't be used as constraints.`)
+	ErrTooManyClients          = errors.New(`Can't connect to database server: too many clients.`)
+	ErrGivingUpTryingToConnect = errors.New(`Giving up trying to connect: too many clients.`)
 )
 
 // Deprecated but kept for backwards compatibility. See: https://github.com/upper/db/issues/18
