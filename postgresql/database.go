@@ -649,7 +649,7 @@ func waitForConnection(connectFn func() error) error {
 	// Waitig 5 seconds for a successful connection.
 	for timeStart := time.Now(); time.Now().Sub(timeStart) < time.Second*5; {
 		if err := connectFn(); err != nil {
-			if strings.Contains(err.Error(), `too many clients`) {
+			if strings.Contains(err.Error(), `too many clients`) || strings.Contains(err.Error(), `remaining connection slots are reserved`) {
 				// Sleep and try again if, and only if, the server replied with a "too
 				// many clients" error.
 				time.Sleep(waitTime)
