@@ -23,9 +23,11 @@ package sqlite
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -61,6 +63,18 @@ type cachedStatement struct {
 	*sqlx.Stmt
 	query string
 }
+
+var (
+	fileOpenCount       int32
+	waitForFdMu         sync.Mutex
+	errTooManyOpenFiles = errors.New(`Too many open database files.`)
+)
+
+const (
+	// If we try to open lots of sessions cgo will panic without a warning, this
+	// artificial limit was added to prevent that panic.
+	maxOpenFiles = 100
+)
 
 var (
 	_ = db.Database(&database{})
@@ -130,7 +144,22 @@ func (d *database) Open() error {
 		d.connURL = conn
 	}
 
-	if d.session, err = sqlx.Open(`sqlite3`, d.connURL.String()); err != nil {
+	openFn := func(d **database) (err error) {
+		openFiles := atomic.LoadInt32(&fileOpenCount)
+
+		if openFiles > maxOpenFiles {
+			return errTooManyOpenFiles
+		}
+
+		(*d).session, err = sqlx.Open(`sqlite3`, (*d).connURL.String())
+
+		if err == nil {
+			atomic.AddInt32(&fileOpenCount, 1)
+		}
+		return
+	}
+
+	if err := waitForFreeFd(func() error { return openFn(&d) }); err != nil {
 		return err
 	}
 
@@ -174,7 +203,14 @@ func (d *database) Ping() error {
 // Close terminates the current database session.
 func (d *database) Close() error {
 	if d.session != nil {
-		return d.session.Close()
+		if err := d.session.Close(); err != nil {
+			panic(err.Error())
+		}
+		d.session = nil
+		if atomic.AddInt32(&fileOpenCount, -1) < 0 {
+			return errors.New(`Close() without Open()?`)
+		}
+		return nil
 	}
 	return nil
 }
@@ -347,12 +383,16 @@ func (d *database) Transaction() (db.Tx, error) {
 		return nil, err
 	}
 
-	if sqlTx, err = clone.session.Beginx(); err != nil {
+	openFn := func(sqlTx **sqlx.Tx) (err error) {
+		*sqlTx, err = clone.session.Beginx()
+		return
+	}
+
+	if err := waitForFreeFd(func() error { return openFn(&sqlTx) }); err != nil {
 		return nil, err
 	}
 
 	clone.tx = sqltx.New(sqlTx)
-
 	return &tx{Tx: clone.tx, database: clone}, nil
 }
 
@@ -584,4 +624,38 @@ func (d *database) doRawQuery(query string, args ...interface{}) (*sqlx.Rows, er
 	}
 
 	return rows, err
+}
+
+// waitForFreeFd tries to execute the openFn function, if openFn
+// returns an error, then waitForFreeFd will keep trying until openFn
+// returns nil. Maximum waiting time is 5s after having acquired the lock.
+func waitForFreeFd(openFn func() error) error {
+	// This lock ensures first-come, first-served and prevents opening too many
+	// file descriptors.
+	waitForFdMu.Lock()
+	defer waitForFdMu.Unlock()
+
+	// Minimum waiting time.
+	waitTime := time.Millisecond * 10
+
+	// Waitig 5 seconds for a successful connection.
+	for timeStart := time.Now(); time.Now().Sub(timeStart) < time.Second*5; {
+		if err := openFn(); err != nil {
+			if err == errTooManyOpenFiles {
+				// Sleep and try again if, and only if, the server replied with a "too
+				// many clients" error.
+				time.Sleep(waitTime)
+				if waitTime < time.Millisecond*500 {
+					// Wait a bit more next time.
+					waitTime = waitTime * 2
+				}
+				continue
+			}
+			// Return any other error immediately.
+			return err
+		}
+		return nil
+	}
+
+	return db.ErrGivingUpTryingToConnect
 }
