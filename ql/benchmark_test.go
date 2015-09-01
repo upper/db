@@ -475,15 +475,6 @@ func BenchmarkSQLSelect(b *testing.B) {
 	var err error
 	var sess db.Database
 
-	connectAndAddFakeRows()
-	/*
-		// This is failing for some reason, I suspect that QL's Close() removes
-		// some cached value that the next Open() tries to use.
-		if sess, err = connectAndAddFakeRows(); err != nil {
-			b.Fatal(err)
-		}
-	*/
-
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatal(err)
 	}
@@ -509,18 +500,10 @@ func BenchmarkSQLPreparedSelect(b *testing.B) {
 	var err error
 	var sess db.Database
 
-	connectAndAddFakeRows()
-	/*
-		// This is failing for some reason, I suspect that QL's Close() removes
-		// some cached value that the next Open() tries to use.
-		if sess, err = connectAndAddFakeRows(); err != nil {
-			b.Fatal(err)
-		}
-	*/
-
-	if sess, err = db.Open(Adapter, settings); err != nil {
+	if sess, err = connectAndAddFakeRows(); err != nil {
 		b.Fatal(err)
 	}
+
 	defer sess.Close()
 
 	driver := sess.Driver().(*sqlx.DB)
