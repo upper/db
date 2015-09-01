@@ -49,6 +49,7 @@ script:
   - go test -v .
   - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/mysql
   - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/postgresql
-  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/ql
+# - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/ql # Temporarily skipping, see https://github.com/cznic/ql/issues/107
+  - BENCHTIME=2s make test -C $GOPATH/src/upper.io/db/ql
   - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/sqlite
   - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/mongo
