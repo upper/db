@@ -738,3 +738,87 @@ func BenchmarkUpperC(b *testing.B) {
 		sess.C("artist")
 	}
 }
+
+// BenchmarkUpperCommitManyTransactions benchmarks
+func BenchmarkUpperCommitManyTransactions(b *testing.B) {
+	var sess db.Database
+	var err error
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		b.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		var tx db.Tx
+		if tx, err = sess.Transaction(); err != nil {
+			b.Fatal(err)
+		}
+
+		var artist db.Collection
+		if artist, err = tx.Collection("artist"); err != nil {
+			b.Fatal(err)
+		}
+
+		if err = artist.Truncate(); err != nil {
+			b.Fatal(err)
+		}
+
+		item := struct {
+			Name string `db:"name"`
+		}{"Hayao Miyazaki"}
+
+		if _, err = artist.Append(item); err != nil {
+			b.Fatal(err)
+		}
+
+		if err = tx.Commit(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// BenchmarkUpperRollbackManyTransactions benchmarks
+func BenchmarkUpperRollbackManyTransactions(b *testing.B) {
+	var sess db.Database
+	var err error
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		b.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		var tx db.Tx
+		if tx, err = sess.Transaction(); err != nil {
+			b.Fatal(err)
+		}
+
+		var artist db.Collection
+		if artist, err = tx.Collection("artist"); err != nil {
+			b.Fatal(err)
+		}
+
+		if err = artist.Truncate(); err != nil {
+			b.Fatal(err)
+		}
+
+		item := struct {
+			Name string `db:"name"`
+		}{"Hayao Miyazaki"}
+
+		if _, err = artist.Append(item); err != nil {
+			b.Fatal(err)
+		}
+
+		if err = tx.Rollback(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
