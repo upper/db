@@ -2069,6 +2069,38 @@ func TestQueryBuilder(t *testing.T) {
 	if err = res.One(&artist); err == nil {
 		t.Fatal("Expecting an error.")
 	}
+
+	// INSERT INTO artist VALUES (10, 'Ryuichi Sakamoto'), (11, 'Alondra de la Parra')
+	if _, err = b.InsertInto("artist").Values(10, "Ryuichi Sakamoto").Values(11, "Alondra de la Parra").Exec(); err != nil {
+		t.Fatal(err)
+	}
+
+	// INSERT INTO artist COLUMNS("name") VALUES('Chavela Vargas')
+	if _, err = b.InsertInto("artist").Columns("name", "id").Values("Chavela Vargas", 12).Exec(); err != nil {
+		t.Fatal(err)
+	}
+
+	/*
+		// INSERT INTO artist (name) VALUES(? || ?)
+		if err = b.InsertInto("artist").Columns("name").Values(db.Raw("(? || ' ' || ?)"), "Tom", "Yorke").Exec(); err != nil {
+			t.Fatal(err)
+		}
+		// INSERT INTO artist ("name") VALUES('Michael Jackson')
+		if err = b.InsertInto("artist").Columns("name").Record(map[string]string{"no": "Not me!", "name": "Michael Jackson"}).Exec(); err != nil {
+			t.Fatal(err)
+		}
+
+		// INSERT INTO artist ("id", "name") VALUES(20, 'Francisco Toledo')
+		if err = b.InsertInto("artist").Value(map[string]string{"id": 20, "name": "Francisco Toledo"}).Exec(); err != nil {
+			t.Fatal(err)
+		}
+
+		// INSERT INTO artist ("name") VALUES('Mads Mikkelsen')
+		if err = b.InsertInto("artist").Value(artistType{"Mads Mikkelsen"}).Exec(); err != nil {
+			t.Fatal(err)
+		}
+	*/
+
 }
 
 // TestExhaustConnections simulates a "too many connections" situation

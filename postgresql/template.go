@@ -139,9 +139,9 @@ const (
 
 	adapterInsertLayout = `
     INSERT INTO {{.Table}}
-      ({{.Columns}})
+      {{if .Columns }}({{.Columns}}){{end}}
     VALUES
-      ({{.Values}})
+      {{.Values}}
     {{.Extra}}
   `
 
