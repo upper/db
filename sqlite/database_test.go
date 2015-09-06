@@ -36,6 +36,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1386,5 +1387,58 @@ func TestDataTypes(t *testing.T) {
 		fmt.Printf("item1: %v\n", item.DateP.Location().String())
 		fmt.Printf("test2: %v\n", testValues.DateP.Location().String())
 		t.Fatalf("Struct is different.")
+	}
+}
+
+// TestExhaustConnections simulates a "too many connections" situation
+// triggered by opening more transactions than available connections.
+// upper.io/db deals with this problem by waiting a bit more for the connection
+// to be established.
+func TestExhaustConnections(t *testing.T) {
+	var err error
+	var sess db.Database
+	var wg sync.WaitGroup
+
+	originalFileOpenCount := fileOpenCount
+
+	if sess, err = db.Open(Adapter, settings); err != nil {
+		t.Fatal(err)
+	}
+
+	// SQLite does not require any kind of connection blocking
+	for i := 0; i < 500; i++ {
+		wg.Add(1)
+		t.Logf("Tx %d: Pending", i)
+		go func(t *testing.T, wg *sync.WaitGroup, i int) {
+			var tx db.Tx
+			defer wg.Done()
+
+			start := time.Now()
+
+			// Requesting a new transaction session.
+			if tx, err = sess.Transaction(); err != nil {
+				panic(err.Error())
+			}
+
+			t.Logf("Tx %d: OK (waiting time: %v)", i, time.Now().Sub(start))
+
+			// Let's suppose that we do some complex stuff and that the transaction
+			// lasts 3 seconds.
+			time.Sleep(time.Second * 3)
+
+			if err := tx.Rollback(); err != nil {
+				panic(err.Error())
+			}
+
+			t.Logf("Tx %d: Done", i)
+		}(t, &wg, i)
+	}
+
+	wg.Wait()
+
+	sess.Close()
+
+	if fileOpenCount != originalFileOpenCount {
+		t.Fatalf("File open count must be %d.", originalFileOpenCount)
 	}
 }
