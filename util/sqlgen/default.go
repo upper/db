@@ -121,7 +121,7 @@ const (
 		INSERT INTO {{.Table}}
 			({{.Columns}})
 		VALUES
-			({{.Values}})
+			{{.Values}}
 		{{.Extra}}
 	`
 

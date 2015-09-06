@@ -12,7 +12,7 @@ type innerJoinT struct {
 	Using string
 }
 
-// Join represents join conditions.
+// Joins represents the union of different join conditions.
 type Joins struct {
 	Conditions []Fragment
 	hash       string

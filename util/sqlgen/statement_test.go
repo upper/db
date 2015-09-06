@@ -725,7 +725,7 @@ func TestInsert(t *testing.T) {
 			&Column{Name: "bar"},
 			&Column{Name: "baz"},
 		),
-		Values: JoinValues(
+		Values: NewValueGroup(
 			&Value{V: "1"},
 			&Value{V: 2},
 			&Value{V: Raw{Value: "3"}},
@@ -734,6 +734,40 @@ func TestInsert(t *testing.T) {
 
 	s = trim(stmt.Compile(defaultTemplate))
 	e = `INSERT INTO "table_name" ("foo", "bar", "baz") VALUES ('1', '2', 3)`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestInsertMultiple(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:  Insert,
+		Table: TableWithName("table_name"),
+		Columns: JoinColumns(
+			&Column{Name: "foo"},
+			&Column{Name: "bar"},
+			&Column{Name: "baz"},
+		),
+		Values: JoinValueGroups(
+			NewValueGroup(
+				NewValue("1"),
+				NewValue("2"),
+				NewValue(RawValue("3")),
+			),
+			NewValueGroup(
+				NewValue(RawValue("4")),
+				NewValue(RawValue("5")),
+				NewValue(RawValue("6")),
+			),
+		),
+	}
+
+	s = trim(stmt.Compile(defaultTemplate))
+	e = `INSERT INTO "table_name" ("foo", "bar", "baz") VALUES ('1', '2', 3), (4, 5, 6)`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -753,7 +787,7 @@ func TestInsertExtra(t *testing.T) {
 			&Column{Name: "bar"},
 			&Column{Name: "baz"},
 		),
-		Values: JoinValues(
+		Values: NewValueGroup(
 			&Value{V: "1"},
 			&Value{V: 2},
 			&Value{V: Raw{Value: "3"}},
@@ -818,7 +852,7 @@ func BenchmarkStatementComplexQuery(b *testing.B) {
 			&Column{Name: "bar"},
 			&Column{Name: "baz"},
 		),
-		Values: JoinValues(
+		Values: NewValueGroup(
 			&Value{V: "1"},
 			&Value{V: 2},
 			&Value{V: Raw{Value: "3"}},
@@ -840,7 +874,7 @@ func BenchmarkStatementComplexQueryNoCache(b *testing.B) {
 				&Column{Name: "bar"},
 				&Column{Name: "baz"},
 			),
-			Values: JoinValues(
+			Values: NewValueGroup(
 				&Value{V: "1"},
 				&Value{V: 2},
 				&Value{V: Raw{Value: "3"}},

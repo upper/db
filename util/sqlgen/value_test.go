@@ -30,14 +30,14 @@ func TestValue(t *testing.T) {
 func TestValues(t *testing.T) {
 	var s, e string
 
-	val := JoinValues(
+	val := NewValueGroup(
 		&Value{V: &Raw{Value: "1"}},
 		&Value{V: &Raw{Value: "2"}},
 		&Value{V: "3"},
 	)
 
 	s = val.Compile(defaultTemplate)
-	e = `1, 2, '3'`
+	e = `(1, 2, '3')`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -73,19 +73,19 @@ func BenchmarkValueCompileNoCache(b *testing.B) {
 
 func BenchmarkValues(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = JoinValues(NewValue("a"), NewValue("b"))
+		_ = NewValueGroup(NewValue("a"), NewValue("b"))
 	}
 }
 
 func BenchmarkValuesHash(b *testing.B) {
-	vs := JoinValues(NewValue("a"), NewValue("b"))
+	vs := NewValueGroup(NewValue("a"), NewValue("b"))
 	for i := 0; i < b.N; i++ {
 		_ = vs.Hash()
 	}
 }
 
 func BenchmarkValuesCompile(b *testing.B) {
-	vs := JoinValues(NewValue("a"), NewValue("b"))
+	vs := NewValueGroup(NewValue("a"), NewValue("b"))
 	for i := 0; i < b.N; i++ {
 		_ = vs.Compile(defaultTemplate)
 	}
@@ -93,7 +93,7 @@ func BenchmarkValuesCompile(b *testing.B) {
 
 func BenchmarkValuesCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		vs := JoinValues(NewValue("a"), NewValue("b"))
+		vs := NewValueGroup(NewValue("a"), NewValue("b"))
 		_ = vs.Compile(defaultTemplate)
 	}
 }
