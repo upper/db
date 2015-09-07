@@ -148,74 +148,111 @@ func (tu *TemplateWithUtils) ToInterfaceArguments(value interface{}) (args []int
 }
 
 // ToColumnValues converts the given db.Cond into a sqlgen.ColumnValues struct.
-func (tu *TemplateWithUtils) ToColumnValues(cond db.Cond) (ToColumnValues sqlgen.ColumnValues, args []interface{}) {
-
+func (tu *TemplateWithUtils) ToColumnValues(term interface{}) (cv sqlgen.ColumnValues, args []interface{}) {
 	args = []interface{}{}
 
-	for column, value := range cond {
-		columnValue := sqlgen.ColumnValue{}
+	switch t := term.(type) {
+	case []interface{}:
+		l := len(t)
+		for i := 0; i < l; i++ {
+			column := t[i].(string)
 
-		// Guessing operator from input, or using a default one.
-		column := strings.TrimSpace(column)
-		chunks := strings.SplitN(column, ` `, 2)
-
-		columnValue.Column = sqlgen.ColumnWithName(chunks[0])
-
-		if len(chunks) > 1 {
-			columnValue.Operator = chunks[1]
-		}
-
-		switch value := value.(type) {
-		case db.Func:
-			v := tu.ToInterfaceArguments(value.Args)
-			columnValue.Operator = value.Name
-
-			if v == nil {
-				// A function with no arguments.
-				columnValue.Value = sqlgen.RawValue(`()`)
-			} else {
-				// A function with one or more arguments.
-				columnValue.Value = sqlgen.RawValue(fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1)))
+			if !strings.ContainsAny(column, "=") {
+				column = fmt.Sprintf("%s = ?", column)
 			}
 
-			args = append(args, v...)
-		default:
-			v := tu.ToInterfaceArguments(value)
+			chunks := strings.SplitN(column, "=", 2)
 
-			if v == nil {
-				// Nil value given.
-				columnValue.Value = sqlNull
-				if columnValue.Operator == "" {
-					columnValue.Operator = sqlIsOperator
+			column = chunks[0]
+			format := strings.TrimSpace(chunks[1])
+
+			columnValue := sqlgen.ColumnValue{
+				Column:   sqlgen.ColumnWithName(column),
+				Operator: "=",
+				Value:    sqlgen.RawValue(format),
+			}
+
+			ps := strings.Count(format, "?")
+			if i+ps < l {
+				for j := 0; j < ps; j++ {
+					args = append(args, t[i+j+1])
 				}
+				i = i + ps
 			} else {
-				if len(v) > 1 {
-					// Array value given.
+				panic(fmt.Sprintf("Format string %q has more placeholders than given arguments.", format))
+			}
+
+			cv.ColumnValues = append(cv.ColumnValues, &columnValue)
+		}
+		return cv, args
+		// Return error.
+	case db.Cond:
+		for column, value := range t {
+			columnValue := sqlgen.ColumnValue{}
+
+			// Guessing operator from input, or using a default one.
+			column := strings.TrimSpace(column)
+			chunks := strings.SplitN(column, ` `, 2)
+
+			columnValue.Column = sqlgen.ColumnWithName(chunks[0])
+
+			if len(chunks) > 1 {
+				columnValue.Operator = chunks[1]
+			}
+
+			switch value := value.(type) {
+			case db.Func:
+				v := tu.ToInterfaceArguments(value.Args)
+				columnValue.Operator = value.Name
+
+				if v == nil {
+					// A function with no arguments.
+					columnValue.Value = sqlgen.RawValue(`()`)
+				} else {
+					// A function with one or more arguments.
 					columnValue.Value = sqlgen.RawValue(fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1)))
+				}
+
+				args = append(args, v...)
+			default:
+				v := tu.ToInterfaceArguments(value)
+
+				if v == nil {
+					// Nil value given.
+					columnValue.Value = sqlNull
 					if columnValue.Operator == "" {
-						columnValue.Operator = sqlInOperator
+						columnValue.Operator = sqlIsOperator
 					}
 				} else {
-					// Single value given.
-					columnValue.Value = sqlPlaceholder
+					if len(v) > 1 {
+						// Array value given.
+						columnValue.Value = sqlgen.RawValue(fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1)))
+						if columnValue.Operator == "" {
+							columnValue.Operator = sqlInOperator
+						}
+					} else {
+						// Single value given.
+						columnValue.Value = sqlPlaceholder
+					}
+					args = append(args, v...)
 				}
-				args = append(args, v...)
 			}
-		}
 
-		// Using guessed operator if no operator was given.
-		if columnValue.Operator == "" {
-			if tu.DefaultOperator != "" {
-				columnValue.Operator = tu.DefaultOperator
-			} else {
-				columnValue.Operator = sqlDefaultOperator
+			// Using guessed operator if no operator was given.
+			if columnValue.Operator == "" {
+				if tu.DefaultOperator != "" {
+					columnValue.Operator = tu.DefaultOperator
+				} else {
+					columnValue.Operator = sqlDefaultOperator
+				}
 			}
-		}
 
-		ToColumnValues.ColumnValues = append(ToColumnValues.ColumnValues, &columnValue)
+			cv.ColumnValues = append(cv.ColumnValues, &columnValue)
+		}
+		return cv, args
 	}
 
-	return ToColumnValues, args
+	panic("Unknown map type.")
 }
 
 // ToColumnsValuesAndArguments maps the given columnNames and columnValues into

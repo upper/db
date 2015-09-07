@@ -2080,9 +2080,37 @@ func TestQueryBuilder(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// DELETE FROM artist WHERE name = 'Chavela Vargas' LIMIT 1
+	if _, err = b.DeleteFrom("artist").Where("name = ?", "Chavela Vargas").Limit(1).Exec(); err != nil {
+		t.Fatal(err)
+	}
+
+	// DELETE FROM artist WHERE id > 5
+	if _, err = b.DeleteFrom("artist").Where("id > 5").Exec(); err != nil {
+		t.Fatal(err)
+	}
+
+	// UPDATE artist SET name = ?
+	if _, err = b.Update("artist").Set("name", "Artist").Exec(); err != nil {
+		t.Fatal(err)
+	}
+
+	// UPDATE artist SET name = ? WHERE id < 5
+	if _, err = b.Update("artist").Set("name = ?", "Artist").Where("id < ?", 5).Exec(); err != nil {
+		t.Fatal(err)
+	}
+
+	// UPDATE artist SET name = ? || ' ' || ? || id, id = id + ? WHERE id > ?
+	if _, err = b.Update("artist").Set(
+		"name = ? || ' ' || ? || id", "Artist", "#",
+		"id = id + ?", 10,
+	).Where("id > ?", 0).Exec(); err != nil {
+		t.Fatal(err)
+	}
+
 	/*
 		// INSERT INTO artist (name) VALUES(? || ?)
-		if err = b.InsertInto("artist").Columns("name").Values(db.Raw("(? || ' ' || ?)"), "Tom", "Yorke").Exec(); err != nil {
+		if err = b.InsertInto("artist").Columns("name").Values(db.Expr("? || ' ' || ?", "Tom", "Yorke")).Exec(); err != nil {
 			t.Fatal(err)
 		}
 		// INSERT INTO artist ("name") VALUES('Michael Jackson')

@@ -8,7 +8,8 @@ import (
 type QueryBuilder interface {
 	Select(fields ...interface{}) QuerySelector
 	InsertInto(table string) QueryInserter
-	//Update(table string) QueryUpdater
+	DeleteFrom(table string) QueryDeleter
+	Update(table string) QueryUpdater
 }
 
 type QuerySelector interface {
@@ -18,11 +19,22 @@ type QuerySelector interface {
 type QueryInserter interface {
 	Values(...interface{}) QueryInserter
 	Columns(...string) QueryInserter
-	Exec() (sql.Result, error)
+	QueryExecer
+}
+
+type QueryDeleter interface {
+	Where(...interface{}) QueryDeleter
+	Limit(int) QueryDeleter
+	QueryExecer
 }
 
 type QueryUpdater interface {
-	Set() QueryUpdater
+	Set(...interface{}) QueryUpdater
+	Where(...interface{}) QueryUpdater
+	Limit(int) QueryUpdater
+	QueryExecer
+}
 
-	Do() error
+type QueryExecer interface {
+	Exec() (sql.Result, error)
 }

@@ -25,6 +25,20 @@ func (b *Builder) InsertInto(table string) db.QueryInserter {
 	}
 }
 
+func (b *Builder) DeleteFrom(table string) db.QueryDeleter {
+	return &QueryDeleter{
+		builder: b,
+		table:   table,
+	}
+}
+
+func (b *Builder) Update(table string) db.QueryUpdater {
+	return &QueryUpdater{
+		builder: b,
+		table:   table,
+	}
+}
+
 type QuerySelector struct {
 	builder *Builder
 	fields  []interface{}
@@ -79,4 +93,87 @@ func (qi *QueryInserter) Values(values ...interface{}) db.QueryInserter {
 	}
 	qi.values = append(qi.values, sqlgen.NewValueGroup(f...))
 	return qi
+}
+
+type QueryDeleter struct {
+	builder *Builder
+	table   string
+	limit   int
+	where   *sqlgen.Where
+	args    []interface{}
+}
+
+func (qd *QueryDeleter) Where(terms ...interface{}) db.QueryDeleter {
+	where, arguments := template.ToWhereWithArguments(terms)
+	qd.where = &where
+	qd.args = append(qd.args, arguments...)
+	return qd
+}
+
+func (qd *QueryDeleter) Limit(limit int) db.QueryDeleter {
+	qd.limit = limit
+	return qd
+}
+
+func (qd *QueryDeleter) Exec() (sql.Result, error) {
+	stmt := &sqlgen.Statement{
+		Type:  sqlgen.Delete,
+		Table: sqlgen.TableWithName(qd.table),
+	}
+
+	if qd.Where != nil {
+		stmt.Where = qd.where
+	}
+
+	if qd.limit != 0 {
+		stmt.Limit = sqlgen.Limit(qd.limit)
+	}
+
+	return qd.builder.sess.Exec(stmt, qd.args...)
+}
+
+type QueryUpdater struct {
+	builder      *Builder
+	table        string
+	columnValues *sqlgen.ColumnValues
+	limit        int
+	where        *sqlgen.Where
+	args         []interface{}
+}
+
+func (qu *QueryUpdater) Set(terms ...interface{}) db.QueryUpdater {
+	cv, args := template.ToColumnValues(terms)
+	qu.columnValues = &cv
+	qu.args = append(qu.args, args...)
+	return qu
+}
+
+func (qu *QueryUpdater) Where(terms ...interface{}) db.QueryUpdater {
+	where, arguments := template.ToWhereWithArguments(terms)
+	qu.where = &where
+	qu.args = append(qu.args, arguments...)
+	return qu
+}
+
+func (qu *QueryUpdater) Exec() (sql.Result, error) {
+	stmt := &sqlgen.Statement{
+		Type:         sqlgen.Update,
+		Table:        sqlgen.TableWithName(qu.table),
+		ColumnValues: qu.columnValues,
+	}
+
+	if qu.Where != nil {
+		stmt.Where = qu.where
+	}
+
+	if qu.limit != 0 {
+		stmt.Limit = sqlgen.Limit(qu.limit)
+	}
+
+	return qu.builder.sess.Exec(stmt, qu.args...)
+}
+
+func (qu *QueryUpdater) Limit(limit int) db.QueryUpdater {
+	qu.limit = limit
+	return qu
 }
