@@ -89,7 +89,9 @@ const (
 
 	defaultInsertLayout = `
 		INSERT INTO {{.Table}}
-			({{.Columns}})
+			{{if .Columns}}
+				({{.Columns}})
+			{{end}}
 		VALUES
 			({{.Values}})
 		{{.Extra}}

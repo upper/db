@@ -660,3 +660,25 @@ func TestInsertExtra(t *testing.T) {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 }
+
+func TestInsertNoCols(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:  SqlInsert,
+		Table: Table{"table_name"},
+		Values: Values{
+			Value{"1"},
+			Value{2},
+			Value{Raw{"3"}},
+		},
+	}
+
+	s = trim(stmt.Compile(defaultTemplate))
+	e = `INSERT INTO "table_name" VALUES ('1', '2', 3)`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
