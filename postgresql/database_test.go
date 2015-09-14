@@ -1390,6 +1390,8 @@ func TestTransactionsAndRollback(t *testing.T) {
 		t.Fatalf("Illegal, transaction has already been commited.")
 	}
 
+	tx.Close()
+
 	// Use another transaction.
 	if tx, err = sess.Transaction(); err != nil {
 		t.Fatal(err)
@@ -1436,6 +1438,8 @@ func TestTransactionsAndRollback(t *testing.T) {
 		t.Fatalf("Expecting only one element.")
 	}
 
+	tx.Close()
+
 	// Attempt to add some rows.
 	if tx, err = sess.Transaction(); err != nil {
 		t.Fatal(err)
@@ -1476,6 +1480,8 @@ func TestTransactionsAndRollback(t *testing.T) {
 	if count != 1 {
 		t.Fatalf("Expecting only one element.")
 	}
+
+	tx.Close()
 
 	// Attempt to add some rows.
 	if tx, err = sess.Transaction(); err != nil {
@@ -1948,7 +1954,7 @@ func TestExhaustConnections(t *testing.T) {
 			// lasts 3 seconds.
 			time.Sleep(time.Second * 3)
 
-			if err := tx.Rollback(); err != nil {
+			if err := tx.Close(); err != nil {
 				t.Fatal(err)
 			}
 
