@@ -1304,7 +1304,7 @@ func TestExhaustConnections(t *testing.T) {
 			// We have to use a shorten time here.
 			time.Sleep(time.Millisecond * 500)
 
-			if err := tx.Rollback(); err != nil {
+			if err := tx.Close(); err != nil {
 				panic(err.Error())
 			}
 

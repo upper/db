@@ -43,7 +43,6 @@ func (t *tx) Commit() error {
 	if err := t.Tx.Commit(); err != nil {
 		return err
 	}
-	t.database.Close()
 	return nil
 }
 
@@ -52,6 +51,5 @@ func (t *tx) Rollback() error {
 	if err := t.Tx.Rollback(); err != nil {
 		return err
 	}
-	t.database.Close()
 	return nil
 }

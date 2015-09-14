@@ -1948,7 +1948,7 @@ func TestExhaustConnections(t *testing.T) {
 			// lasts 3 seconds.
 			time.Sleep(time.Second * 3)
 
-			if err := tx.Rollback(); err != nil {
+			if err := tx.Close(); err != nil {
 				t.Fatal(err)
 			}
 
