@@ -517,6 +517,34 @@ func TestSelectFieldsFromWhere(t *testing.T) {
 	}
 }
 
+func TestSelectFieldsAliasFromWhereAnd(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type: SqlSelect,
+		Columns: Columns{
+			{"foo.name fu"},
+			{"bar.name ba"},
+			{"bez.name be"},
+		},
+		Table: Table{"table_name1, table_name2"},
+		Where: Where{
+			And {
+				ColumnValue{Column{"baz"}, "=", Value{99}},
+				ColumnValue{Column{"bez"}, "<", Value{66}},
+			},
+		},
+	}
+
+	s = trim(stmt.Compile(defaultTemplate))
+	e = `SELECT "foo"."name" AS "fu", "bar"."name" AS "ba", "bez"."name" AS "be" FROM "table_name1", "table_name2" WHERE (("baz" = '99' AND "bez" < '66'))`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
 func TestSelectFieldsFromWhereLimitOffset(t *testing.T) {
 	var s, e string
 	var stmt Statement
