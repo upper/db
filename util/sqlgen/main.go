@@ -22,6 +22,7 @@ type (
 	Limit  int
 	Offset int
 	Extra  string
+	Using  string
 )
 
 var parsedTemplates = make(map[string]*template.Template)

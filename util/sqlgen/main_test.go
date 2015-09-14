@@ -580,12 +580,36 @@ func TestDelete(t *testing.T) {
 		Type:  SqlDelete,
 		Table: Table{"table_name"},
 		Where: Where{
-			ColumnValue{Column{"baz"}, "=", Value{99}},
+			ColumnValue{Column{"baz"}, "=", Value{"99"}},	
 		},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
 	e = `DELETE FROM "table_name" WHERE ("baz" = '99')`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestDeleteUsing(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:  SqlDelete,
+		Table: Table{"table_name"},
+		Using: "alt_table",
+		Where: Where{
+			And {
+				ColumnValue{Column{"baz"}, "=", Value{"alt_table.taz"}},
+				ColumnValue{Column{"bez"}, "=", Value{"alt_table.tez"}},
+			},
+		},
+	}
+
+	s = trim(stmt.Compile(defaultTemplate))
+	e = `DELETE FROM "table_name" USING "alt_table" WHERE (("baz" = 'alt_table.taz' AND "bez" = 'alt_table.tez'))`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
