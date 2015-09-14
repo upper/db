@@ -336,6 +336,7 @@ func BenchmarkUpperAppendTransaction(b *testing.B) {
 	if tx, err = sess.Transaction(); err != nil {
 		b.Fatal(err)
 	}
+	defer tx.Close()
 
 	var artist db.Collection
 	if artist, err = tx.Collection("artist"); err != nil {
@@ -378,6 +379,7 @@ func BenchmarkUpperAppendTransactionWithMap(b *testing.B) {
 	if tx, err = sess.Transaction(); err != nil {
 		b.Fatal(err)
 	}
+	defer tx.Close()
 
 	var artist db.Collection
 	if artist, err = tx.Collection("artist"); err != nil {
@@ -778,6 +780,8 @@ func BenchmarkUpperCommitManyTransactions(b *testing.B) {
 		if err = tx.Commit(); err != nil {
 			b.Fatal(err)
 		}
+
+		tx.Close()
 	}
 }
 
@@ -820,5 +824,7 @@ func BenchmarkUpperRollbackManyTransactions(b *testing.B) {
 		if err = tx.Rollback(); err != nil {
 			b.Fatal(err)
 		}
+
+		tx.Close()
 	}
 }
