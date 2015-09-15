@@ -249,6 +249,11 @@ func (s *Source) versionAtLeast(version ...int) bool {
 		s.version = buildInfo.VersionArray
 	}
 
+	// Check major version first
+	if s.version[0] > version[0] {
+		return true
+	}
+
 	for i := range version {
 		if i == len(s.version) {
 			return false
