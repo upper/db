@@ -263,7 +263,8 @@ func (col *Collection) Exists() bool {
 
 // Fetches object _id or generates a new one if object doesn't have one or the one it has is invalid
 func getID(item interface{}) interface{} {
-	v := reflect.ValueOf(item)
+	v := reflect.ValueOf(item) // convert interface to Value
+	v = reflect.Indirect(v)    // convert pointers
 
 	switch v.Kind() {
 	case reflect.Map:
