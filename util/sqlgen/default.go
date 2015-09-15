@@ -63,6 +63,11 @@ const (
 	defaultDeleteLayout = `
 		DELETE
 			FROM {{.Table}}
+			
+			{{if .Using}}
+				USING "{{.Using}}"
+			{{end}}
+			
 			{{.Where}}
 	`
 	defaultUpdateLayout = `
@@ -89,7 +94,9 @@ const (
 
 	defaultInsertLayout = `
 		INSERT INTO {{.Table}}
-			({{.Columns}})
+			{{if .Columns}}
+				({{.Columns}})
+			{{end}}
 		VALUES
 			({{.Values}})
 		{{.Extra}}

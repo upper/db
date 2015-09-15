@@ -517,6 +517,34 @@ func TestSelectFieldsFromWhere(t *testing.T) {
 	}
 }
 
+func TestSelectFieldsAliasFromWhereAnd(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type: SqlSelect,
+		Columns: Columns{
+			{"foo.name fu"},
+			{"bar.name ba"},
+			{"bez.name be"},
+		},
+		Table: Table{"table_name1, table_name2"},
+		Where: Where{
+			And {
+				ColumnValue{Column{"baz"}, "=", Value{99}},
+				ColumnValue{Column{"bez"}, "<", Value{66}},
+			},
+		},
+	}
+
+	s = trim(stmt.Compile(defaultTemplate))
+	e = `SELECT "foo"."name" AS "fu", "bar"."name" AS "ba", "bez"."name" AS "be" FROM "table_name1", "table_name2" WHERE (("baz" = '99' AND "bez" < '66'))`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
 func TestSelectFieldsFromWhereLimitOffset(t *testing.T) {
 	var s, e string
 	var stmt Statement
@@ -552,12 +580,36 @@ func TestDelete(t *testing.T) {
 		Type:  SqlDelete,
 		Table: Table{"table_name"},
 		Where: Where{
-			ColumnValue{Column{"baz"}, "=", Value{99}},
+			ColumnValue{Column{"baz"}, "=", Value{"99"}},	
 		},
 	}
 
 	s = trim(stmt.Compile(defaultTemplate))
 	e = `DELETE FROM "table_name" WHERE ("baz" = '99')`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestDeleteUsing(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:  SqlDelete,
+		Table: Table{"table_name"},
+		Using: "alt_table",
+		Where: Where{
+			And {
+				ColumnValue{Column{"baz"}, "=", Value{"alt_table.taz"}},
+				ColumnValue{Column{"bez"}, "=", Value{"alt_table.tez"}},
+			},
+		},
+	}
+
+	s = trim(stmt.Compile(defaultTemplate))
+	e = `DELETE FROM "table_name" USING "alt_table" WHERE (("baz" = 'alt_table.taz' AND "bez" = 'alt_table.tez'))`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -655,6 +707,28 @@ func TestInsertExtra(t *testing.T) {
 
 	s = trim(stmt.Compile(defaultTemplate))
 	e = `INSERT INTO "table_name" ("foo", "bar", "baz") VALUES ('1', '2', 3) RETURNING id`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
+func TestInsertNoCols(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type:  SqlInsert,
+		Table: Table{"table_name"},
+		Values: Values{
+			Value{"1"},
+			Value{2},
+			Value{Raw{"3"}},
+		},
+	}
+
+	s = trim(stmt.Compile(defaultTemplate))
+	e = `INSERT INTO "table_name" VALUES ('1', '2', 3)`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)

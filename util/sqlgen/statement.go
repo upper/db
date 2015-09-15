@@ -16,6 +16,7 @@ type Statement struct {
 	OrderBy
 	GroupBy
 	Extra
+	Using
 	Where
 }
 
@@ -30,6 +31,7 @@ type statement_s struct {
 	OrderBy      string
 	GroupBy      string
 	Extra        string
+	Using        string
 	Where        string
 }
 
@@ -46,6 +48,7 @@ func (self Statement) Hash() string {
 		self.OrderBy.Hash() + `;` +
 		self.GroupBy.Hash() + `;` +
 		string(self.Extra) + `;` +
+		string(self.Using) + `;` +
 		self.Where.Hash() +
 		`)`
 	return hash
@@ -68,6 +71,7 @@ func (self *Statement) Compile(layout *Template) (compiled string) {
 		OrderBy:      self.OrderBy.Compile(layout),
 		GroupBy:      self.GroupBy.Compile(layout),
 		Extra:        string(self.Extra),
+		Using:        string(self.Using),
 		Where:        self.Where.Compile(layout),
 	}
 
