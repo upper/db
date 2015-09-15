@@ -365,6 +365,42 @@ func TestAppend(t *testing.T) {
 		t.Fatalf("Expecting a valid bson.ObjectId.")
 	}
 
+	// Appending a pointer to a struct
+	id, err = artist.Append(&struct {
+		ArtistName string `bson:"name"`
+	}{
+		"Metallica",
+	})
+
+	if id == nil {
+		t.Fatalf("Expecting an ID.")
+	}
+
+	if _, ok := id.(bson.ObjectId); ok != true {
+		t.Fatalf("Expecting a bson.ObjectId.")
+	}
+
+	if id.(bson.ObjectId).Valid() != true {
+		t.Fatalf("Expecting a valid bson.ObjectId.")
+	}
+
+	// Appending a pointer to a map
+	id, err = artist.Append(&map[string]string{
+		"name": "Freddie",
+	})
+
+	if id == nil {
+		t.Fatalf("Expecting an ID.")
+	}
+
+	if _, ok := id.(bson.ObjectId); ok != true {
+		t.Fatalf("Expecting a bson.ObjectId.")
+	}
+
+	if id.(bson.ObjectId).Valid() != true {
+		t.Fatalf("Expecting a valid bson.ObjectId.")
+	}
+
 	// Attempt to append and update a private key
 	itemStruct3 := artistWithObjectIdKey{
 		Name: "Janus",
@@ -380,13 +416,13 @@ func TestAppend(t *testing.T) {
 
 	var total uint64
 
-	// Counting elements, must be exactly 4 elements.
+	// Counting elements, must be exactly 6 elements.
 	if total, err = artist.Find().Count(); err != nil {
 		t.Fatal(err)
 	}
 
-	if total != 4 {
-		t.Fatalf("Expecting exactly 4 rows.")
+	if total != 6 {
+		t.Fatalf("Expecting exactly 6 rows.")
 	}
 
 }
