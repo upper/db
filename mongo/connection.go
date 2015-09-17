@@ -149,7 +149,7 @@ func ParseURL(s string) (conn ConnectionURL, err error) {
 	}
 
 	// Parsing host.
-	conn.Address = db.ParseAddress(u.Host)
+	conn.Address = ParseCluster(u.Host)
 
 	// Deleting / from start of the string.
 	conn.Database = strings.Trim(u.Path, "/")
