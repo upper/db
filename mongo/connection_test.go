@@ -98,7 +98,7 @@ func TestParseConnectionURL(t *testing.T) {
 		t.Fatal("Failed to parse database.")
 	}
 
-	s = "mongodb://user:pass@localhost:1111,1.2.3.4:2222,example.org:1234/another_database?cache=foobar&mode=ro"
+	s = "mongodb://user:pass@localhost,1.2.3.4,example.org/another_database?cache=foobar&mode=ro"
 
 	if u, err = ParseURL(s); err != nil {
 		t.Fatal(err)
@@ -124,7 +124,7 @@ func TestParseConnectionURL(t *testing.T) {
 		t.Fatal("Expecting password.")
 	}
 
-	if u.Address.String() != "localhost:1111,1.2.3.4:2222,example.org:1234" {
+	if u.Address.String() != "localhost,1.2.3.4,example.org" {
 		t.Fatal("Expecting host.")
 	}
 
@@ -132,6 +132,16 @@ func TestParseConnectionURL(t *testing.T) {
 
 	if _, err = ParseURL(s); err == nil {
 		t.Fatal("Expecting error.")
+	}
+	
+	s = "mongodb://user:pass@a.cluter0:1111,a.cluster1:2222,a.cluster2:3333/database"
+	
+	if u, err = ParseURL(s); err != nil {
+		t.Fatal(err)
+	}
+	
+	if u.Address.String() != "a.cluter0:1111,a.cluster1:2222,a.cluster2:3333" {
+		t.Fatal("Expecting cluster.")
 	}
 
 }
