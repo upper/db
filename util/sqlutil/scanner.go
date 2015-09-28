@@ -148,6 +148,9 @@ func (a *Int64Array) Scan(src interface{}) error {
 	if !ok {
 		return errors.New("Scan source was not []bytes")
 	}
+	if len(b) == 0 {
+		return nil
+	}
 
 	s := string(b)[1 : len(b)-1]
 	results := make([]int64, 0)
