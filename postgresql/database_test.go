@@ -35,6 +35,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"upper.io/db"
 	"upper.io/db/util/sqlutil"
 )
@@ -1916,8 +1917,10 @@ func TestOptionTypeJsonbStruct(t *testing.T) {
 func TestQueryBuilder(t *testing.T) {
 	var sess db.Database
 	var err error
-	var res db.Result
+	var sel db.QuerySelector
 	var artist artistType
+
+	assert := assert.New(t)
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatal(err)
@@ -1927,148 +1930,121 @@ func TestQueryBuilder(t *testing.T) {
 
 	b := sess.Builder()
 
-	// SELECT * FROM artist
-	res = b.Select().From("artist")
+	assert.Equal(
+		`SELECT * FROM "artist"`,
+		b.SelectAllFrom("artist").String(),
+	)
 
-	if err = res.One(&artist); err != nil {
-		t.Fatal(err)
-	}
+	assert.Equal(
+		`SELECT * FROM "artist"`,
+		b.Select().From("artist").String(),
+	)
 
-	// SELECT * FROM artist WHERE name LIKE '%F%'
-	res = b.Select().From("artist").Where("name LIKE ?", "%F%")
+	assert.Equal(
+		`SELECT * FROM "artist" LIMIT -1 OFFSET 5`,
+		b.Select().From("artist").Limit(-1).Offset(5).String(),
+	)
 
-	if err = res.One(&artist); err != nil {
-		t.Fatal(err)
-	}
+	assert.Equal(
+		`SELECT "id" FROM "artist"`,
+		b.Select("id").From("artist").String(),
+	)
 
-	// SELECT "id" FROM artist WHERE name LIKE '%Miya%' OR name LIKE 'F%'
-	res = b.Select("id").From("artist").Where(`name LIKE ? OR name LIKE ?`, "%Miya%", "F%")
+	assert.Equal(
+		`SELECT "id", "name" FROM "artist"`,
+		b.Select("id", "name").From("artist").String(),
+	)
 
-	if err = res.One(&artist); err != nil {
-		t.Fatal(err)
-	}
+	assert.Equal(
+		`SELECT * FROM "artist" WHERE ("name" = $1)`,
+		b.SelectAllFrom("artist").Where("name", "Haruki").String(),
+	)
 
-	// SELECT * FROM artist WHERE name = "First"
-	res = b.Select().From("artist").Where("name", "First")
+	assert.Equal(
+		`SELECT * FROM "artist" WHERE (name LIKE $1)`,
+		b.SelectAllFrom("artist").Where("name LIKE ?", `%F%`).String(),
+	)
 
-	if err = res.One(&artist); err != nil {
-		t.Fatal(err)
-	}
+	assert.Equal(
+		`SELECT "id" FROM "artist" WHERE (name LIKE $1 OR name LIKE $2)`,
+		b.Select("id").From("artist").Where(`name LIKE ? OR name LIKE ?`, `%Miya%`, `F%`).String(),
+	)
 
-	// SELECT * FROM artist WHERE id > 2
-	res = b.Select().From("artist").Where("id >", 2)
+	assert.Equal(
+		`SELECT * FROM "artist" WHERE ("id" > $1)`,
+		b.SelectAllFrom("artist").Where("id >", 2).String(),
+	)
 
-	if err = res.One(&artist); err != nil {
-		t.Fatal(err)
-	}
+	assert.Equal(
+		`SELECT * FROM "artist" WHERE (id <= 2 AND name != $1)`,
+		b.SelectAllFrom("artist").Where("id <= 2 AND name != ?", "A").String(),
+	)
 
-	// SELECT * FROM artist WHERE id <= 2 AND name != 'A'
-	res = b.Select().From("artist").Where("id <= 2 AND name != ?", "A")
+	assert.Equal(
+		`SELECT * FROM "artist" WHERE ("id" IN ($1, $2, $3, $4))`,
+		b.SelectAllFrom("artist").Where("id IN", []int{1, 9, 8, 7}).String(),
+	)
 
-	if err = res.One(&artist); err != nil {
-		t.Fatal(err)
-	}
+	assert.Equal(
+		`SELECT * FROM "artist" WHERE (name IS NOT NULL)`,
+		b.SelectAllFrom("artist").Where("name IS NOT NULL").String(),
+	)
 
-	// SELECT * FROM artist WHERE id IN (1, 2, 3, 4)
-	res = b.Select().From("artist").Where("id IN", []int{1, 2, 3, 4})
+	assert.Equal(
+		`SELECT * FROM "artist" AS "a", "publication" AS "p" WHERE (p.author_id = a.id) LIMIT 1`,
+		b.Select().From("artist a", "publication as p").Where("p.author_id = a.id").Limit(1).String(),
+	)
 
-	if err = res.One(&artist); err != nil {
-		t.Fatal(err)
-	}
+	assert.Equal(
+		`SELECT "id" FROM "artist" NATURAL JOIN "publication"`,
+		b.Select("id").From("artist").Join("publication").String(),
+	)
 
-	// SELECT * FROM artist WHERE id IN (1, 2, 3, 4)
-	res = b.Select().From("artist").Where("id IN", 1, 2, 3, 4)
+	assert.Equal(
+		`SELECT * FROM "artist" AS "a" JOIN "publication" AS "p" ON (p.author_id = a.id) LIMIT 1`,
+		b.SelectAllFrom("artist a").Join("publication p").On("p.author_id = a.id").Limit(1).String(),
+	)
 
-	if err = res.One(&artist); err != nil {
-		t.Fatal(err)
-	}
+	assert.Equal(
+		`SELECT * FROM "artist" AS "a" JOIN "publication" AS "p" ON (p.author_id = a.id) WHERE ("a"."id" = $1) LIMIT 1`,
+		b.SelectAllFrom("artist a").Join("publication p").On("p.author_id = a.id").Where("a.id", 2).Limit(1).String(),
+	)
 
-	// SELECT * FROM artist a, publication p WHERE p.author_id = a.id LIMIT 1
-	res = b.Select().From("artist a", "publication AS p").
-		Where("p.author_id = a.id").Limit(1)
+	assert.Equal(
+		`SELECT * FROM "artist" JOIN "publication" AS "p" ON (p.author_id = a.id) WHERE (a.id = 2) LIMIT 1`,
+		b.SelectAllFrom("artist").Join("publication p").On("p.author_id = a.id").Where("a.id = 2").Limit(1).String(),
+	)
 
-	if err = res.One(&artist); err != nil {
-		t.Fatal(err)
-	}
+	assert.Equal(
+		`SELECT * FROM "artist" AS "a" JOIN "publication" AS "p" ON (p.title LIKE $1 OR p.title LIKE $2) WHERE (a.id = $3) LIMIT 1`,
+		b.SelectAllFrom("artist a").Join("publication p").On("p.title LIKE ? OR p.title LIKE ?", "%Totoro%", "%Robot%").Where("a.id = ?", 2).Limit(1).String(),
+	)
 
-	// SELECT * FROM artist NATURAL JOIN publication
-	res = b.Select("id").From("artist").Join("publication")
+	assert.Equal(
+		`SELECT * FROM "artist" AS "a" LEFT JOIN "publication" AS "p1" ON (p1.id = a.id) RIGHT JOIN "publication" AS "p2" ON (p2.id = a.id)`,
+		b.SelectAllFrom("artist a").
+			LeftJoin("publication p1").On("p1.id = a.id").
+			RightJoin("publication p2").On("p2.id = a.id").
+			String(),
+	)
 
-	if err = res.One(&artist); err != nil {
-		t.Fatal(err)
-	}
+	assert.Equal(
+		`SELECT * FROM "artist" CROSS JOIN "publication"`,
+		b.SelectAllFrom("artist").CrossJoin("publication").String(),
+	)
 
-	// SELECT * FROM artist a JOIN publication p ON p.author_id = a.id LIMIT 1
-	res = b.Select().From("artist a").Join("publication p").
-		On("p.author_id = a.id").Limit(1)
+	assert.Equal(
+		`SELECT * FROM "artist" JOIN "publication" USING ("id")`,
+		b.SelectAllFrom("artist").Join("publication").Using("id").String(),
+	)
 
-	if err = res.One(&artist); err != nil {
-		t.Fatal(err)
-	}
-
-	// SELECT * FROM artist a JOIN publication p ON p.author_id = a.id WHERE a.id = 2 LIMIT 1
-	res = b.Select().From("artist a").Join("publication p").
-		On("p.author_id = a.id").Where(db.Cond{"a.id": 2}).Limit(1)
-
-	if err = res.One(&artist); err != nil {
-		t.Fatal(err)
-	}
-
-	// SELECT * FROM artist a JOIN publication p ON p.author_id = a.id WHERE a.id = 2 LIMIT 1
-	res = b.Select().From("artist a").Join("publication p").
-		On("p.author_id = a.id").Where("a.id = ?", 2).Limit(1)
-
-	if err = res.One(&artist); err != nil {
-		t.Fatal(err)
-	}
-
-	// SELECT * FROM artist a JOIN publication p ON p.title LIKE '%Totoro%' WHERE a.id = 1
-	res = b.Select().From("artist a").Join("publication p").
-		On("p.title LIKE ? OR p.title LIKE ?", "%Totoro%", "%Robot%").
-		Where("a.id = ?", 2).Limit(1)
-
-	if err = res.One(&artist); err != nil {
-		t.Fatal(err)
-	}
-
-	// SELECT * FROM artist a LEFT JOIN publication p1 ON (p1.id = a.id) RIGHT JOIN publication p2 ON (p2.id = a.id);
-	res = b.Select().From("artist a").
-		LeftJoin("publication p1").On("p1.id = a.id").
-		RightJoin("publication p2").On("p2.id = a.id")
-
-	if err = res.One(&artist); err != nil {
-		t.Fatal(err)
-	}
-
-	// SELECT * FROM artist CROSS JOIN publication
-	res = b.Select().From("artist").
-		CrossJoin("publication")
-
-	if err = res.One(&artist); err != nil {
-		t.Fatal(err)
-	}
-
-	// SELECT * FROM artist JOIN publication USING(id)
-	res = b.Select().From("artist").
-		Join("publication").Using("id")
-
-	if err = res.One(&artist); err != nil {
-		t.Fatal(err)
-	}
-
-	// Should not work because using both On() and Using()
-	res = b.Select().From("artist a").Join("publications p").On("p1.id = a.id").Using("id")
-
-	if err = res.One(&artist); err == nil {
-		t.Fatal("Expecting an error.")
-	}
+	// Should not work because we are using both "On()" and "Using()"
+	sel = b.Select().From("artist a").Join("publications p").On("p1.id = a.id").Using("id")
+	assert.Error(sel.One(&artist))
 
 	// Should not work because a Join() is missing before On().
-	res = b.Select().From("artist a").On("p1.id = a.id")
-
-	if err = res.One(&artist); err == nil {
-		t.Fatal("Expecting an error.")
-	}
+	sel = b.Select().From("artist a").On("p1.id = a.id")
+	assert.Error(sel.One(&artist))
 
 	// INSERT INTO artist VALUES (10, 'Ryuichi Sakamoto'), (11, 'Alondra de la Parra')
 	if _, err = b.InsertInto("artist").Values(10, "Ryuichi Sakamoto").Values(11, "Alondra de la Parra").Exec(); err != nil {
