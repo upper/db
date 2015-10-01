@@ -28,64 +28,69 @@ type Builder struct {
 }
 
 func (b *Builder) SelectAllFrom(table string) db.QuerySelector {
-	return &QuerySelector{
+	qs := &QuerySelector{
 		builder: b,
 		table:   table,
 	}
+
+	qs.stringer = &stringer{qs}
+	return qs
 }
 
 func (b *Builder) Select(columns ...interface{}) db.QuerySelector {
 	f, err := columnFragments(columns)
 
-	return &QuerySelector{
+	qs := &QuerySelector{
 		builder: b,
 		columns: sqlgen.JoinColumns(f...),
 		err:     err,
 	}
+
+	qs.stringer = &stringer{qs}
+	return qs
 }
 
 func (b *Builder) InsertInto(table string) db.QueryInserter {
-	return &QueryInserter{
+	qi := &QueryInserter{
 		builder: b,
 		table:   table,
 	}
+
+	qi.stringer = &stringer{qi}
+	return qi
 }
 
 func (b *Builder) DeleteFrom(table string) db.QueryDeleter {
-	return &QueryDeleter{
+	qd := &QueryDeleter{
 		builder: b,
 		table:   table,
 	}
+
+	qd.stringer = &stringer{qd}
+	return qd
 }
 
 func (b *Builder) Update(table string) db.QueryUpdater {
-	return &QueryUpdater{
+	qu := &QueryUpdater{
 		builder: b,
 		table:   table,
 	}
+
+	qu.stringer = &stringer{qu}
+	return qu
 }
 
 type QueryInserter struct {
-	builder *Builder
-	table   string
-	values  []*sqlgen.Values
-	columns []sqlgen.Fragment
+	*stringer
+	builder   *Builder
+	table     string
+	values    []*sqlgen.Values
+	columns   []sqlgen.Fragment
+	arguments []interface{}
 }
 
 func (qi *QueryInserter) Exec() (sql.Result, error) {
-	stmt := &sqlgen.Statement{
-		Type:  sqlgen.Insert,
-		Table: sqlgen.TableWithName(qi.table),
-	}
-
-	if len(qi.values) > 0 {
-		stmt.Values = sqlgen.JoinValueGroups(qi.values...)
-	}
-	if len(qi.columns) > 0 {
-		stmt.Columns = sqlgen.JoinColumns(qi.columns...)
-	}
-
-	return qi.builder.sess.Exec(stmt)
+	return qi.builder.sess.Exec(qi.statement())
 }
 
 func (qi *QueryInserter) Columns(columns ...string) db.QueryInserter {
@@ -99,31 +104,49 @@ func (qi *QueryInserter) Columns(columns ...string) db.QueryInserter {
 }
 
 func (qi *QueryInserter) Values(values ...interface{}) db.QueryInserter {
-	l := len(values)
-	f := make([]sqlgen.Fragment, l)
-	for i := 0; i < l; i++ {
-		if _, ok := values[i].(db.Raw); ok {
-			f[i] = sqlgen.NewValue(sqlgen.RawValue(fmt.Sprintf("%v", values[i])))
-		} else {
-			f[i] = sqlgen.NewValue(values[i])
+	if len(qi.columns) == 0 || len(values) == len(qi.columns) {
+		qi.arguments = append(qi.arguments, values...)
+
+		l := len(values)
+		placeholders := make([]sqlgen.Fragment, l)
+		for i := 0; i < l; i++ {
+			placeholders[i] = sqlgen.RawValue(`?`)
 		}
+		qi.values = append(qi.values, sqlgen.NewValueGroup(placeholders...))
 	}
-	qi.values = append(qi.values, sqlgen.NewValueGroup(f...))
+
 	return qi
 }
 
+func (qi *QueryInserter) statement() *sqlgen.Statement {
+	stmt := &sqlgen.Statement{
+		Type:  sqlgen.Insert,
+		Table: sqlgen.TableWithName(qi.table),
+	}
+
+	if len(qi.values) > 0 {
+		stmt.Values = sqlgen.JoinValueGroups(qi.values...)
+	}
+
+	if len(qi.columns) > 0 {
+		stmt.Columns = sqlgen.JoinColumns(qi.columns...)
+	}
+	return stmt
+}
+
 type QueryDeleter struct {
-	builder *Builder
-	table   string
-	limit   int
-	where   *sqlgen.Where
-	args    []interface{}
+	*stringer
+	builder   *Builder
+	table     string
+	limit     int
+	where     *sqlgen.Where
+	arguments []interface{}
 }
 
 func (qd *QueryDeleter) Where(terms ...interface{}) db.QueryDeleter {
 	where, arguments := template.ToWhereWithArguments(terms)
 	qd.where = &where
-	qd.args = append(qd.args, arguments...)
+	qd.arguments = append(qd.arguments, arguments...)
 	return qd
 }
 
@@ -133,6 +156,10 @@ func (qd *QueryDeleter) Limit(limit int) db.QueryDeleter {
 }
 
 func (qd *QueryDeleter) Exec() (sql.Result, error) {
+	return qd.builder.sess.Exec(qd.statement(), qd.arguments...)
+}
+
+func (qd *QueryDeleter) statement() *sqlgen.Statement {
 	stmt := &sqlgen.Statement{
 		Type:  sqlgen.Delete,
 		Table: sqlgen.TableWithName(qd.table),
@@ -146,33 +173,43 @@ func (qd *QueryDeleter) Exec() (sql.Result, error) {
 		stmt.Limit = sqlgen.Limit(qd.limit)
 	}
 
-	return qd.builder.sess.Exec(stmt, qd.args...)
+	return stmt
 }
 
 type QueryUpdater struct {
+	*stringer
 	builder      *Builder
 	table        string
 	columnValues *sqlgen.ColumnValues
 	limit        int
 	where        *sqlgen.Where
-	args         []interface{}
+	arguments    []interface{}
 }
 
 func (qu *QueryUpdater) Set(terms ...interface{}) db.QueryUpdater {
-	cv, args := template.ToColumnValues(terms)
+	cv, arguments := template.ToColumnValues(terms)
 	qu.columnValues = &cv
-	qu.args = append(qu.args, args...)
+	qu.arguments = append(qu.arguments, arguments...)
 	return qu
 }
 
 func (qu *QueryUpdater) Where(terms ...interface{}) db.QueryUpdater {
 	where, arguments := template.ToWhereWithArguments(terms)
 	qu.where = &where
-	qu.args = append(qu.args, arguments...)
+	qu.arguments = append(qu.arguments, arguments...)
 	return qu
 }
 
 func (qu *QueryUpdater) Exec() (sql.Result, error) {
+	return qu.builder.sess.Exec(qu.statement(), qu.arguments...)
+}
+
+func (qu *QueryUpdater) Limit(limit int) db.QueryUpdater {
+	qu.limit = limit
+	return qu
+}
+
+func (qu *QueryUpdater) statement() *sqlgen.Statement {
 	stmt := &sqlgen.Statement{
 		Type:         sqlgen.Update,
 		Table:        sqlgen.TableWithName(qu.table),
@@ -187,15 +224,11 @@ func (qu *QueryUpdater) Exec() (sql.Result, error) {
 		stmt.Limit = sqlgen.Limit(qu.limit)
 	}
 
-	return qu.builder.sess.Exec(stmt, qu.args...)
-}
-
-func (qu *QueryUpdater) Limit(limit int) db.QueryUpdater {
-	qu.limit = limit
-	return qu
+	return stmt
 }
 
 type QuerySelector struct {
+	*stringer
 	mode      SelectMode
 	cursor    *sqlx.Rows // This is the main query cursor. It starts as a nil value.
 	builder   *Builder
@@ -386,9 +419,6 @@ func (qs *QuerySelector) QueryRow() (*sqlx.Row, error) {
 }
 
 func (qs *QuerySelector) Close() (err error) {
-	if qs.err != nil {
-		return qs.err
-	}
 	if qs.cursor != nil {
 		err = qs.cursor.Close()
 		qs.cursor = nil
@@ -404,8 +434,6 @@ func (qs *QuerySelector) setCursor() (err error) {
 }
 
 func (qs *QuerySelector) One(dst interface{}) error {
-	var err error
-
 	if qs.err != nil {
 		return qs.err
 	}
@@ -416,9 +444,11 @@ func (qs *QuerySelector) One(dst interface{}) error {
 
 	defer qs.Close()
 
-	err = qs.Next(dst)
+	if !qs.Next(dst) {
+		return qs.Err()
+	}
 
-	return err
+	return nil
 }
 
 func (qs *QuerySelector) All(dst interface{}) error {
@@ -446,28 +476,30 @@ func (qs *QuerySelector) All(dst interface{}) error {
 	return err
 }
 
-func (qs *QuerySelector) Next(dst interface{}) (err error) {
+func (qs *QuerySelector) Err() (err error) {
+	return qs.err
+}
+
+func (qs *QuerySelector) Next(dst interface{}) bool {
+	var err error
+
 	if qs.err != nil {
-		return qs.err
+		return false
 	}
 
 	if err = qs.setCursor(); err != nil {
+		qs.err = err
 		qs.Close()
-		return err
+		return false
 	}
 
 	if err = sqlutil.FetchRow(qs.cursor, dst); err != nil {
+		qs.err = err
 		qs.Close()
-		return err
+		return false
 	}
 
-	return nil
-}
-
-func (qs *QuerySelector) String() string {
-	q := compileAndReplacePlaceholders(qs.statement())
-	q = reInvisibleChars.ReplaceAllString(q, ` `)
-	return strings.TrimSpace(q)
+	return true
 }
 
 func columnFragments(columns []interface{}) ([]sqlgen.Fragment, error) {
@@ -477,7 +509,7 @@ func columnFragments(columns []interface{}) ([]sqlgen.Fragment, error) {
 	for i := 0; i < l; i++ {
 		switch v := columns[i].(type) {
 		case db.Raw:
-			f[i] = sqlgen.RawValue(fmt.Sprintf("%v", v))
+			f[i] = sqlgen.RawValue(fmt.Sprintf("%v", v.Value))
 		case sqlgen.Fragment:
 			f[i] = v
 		case string:
@@ -490,4 +522,21 @@ func columnFragments(columns []interface{}) ([]sqlgen.Fragment, error) {
 	}
 
 	return f, nil
+}
+
+type hasStatement interface {
+	statement() *sqlgen.Statement
+}
+
+type stringer struct {
+	i hasStatement
+}
+
+func (s *stringer) String() string {
+	if s != nil && s.i != nil {
+		q := compileAndReplacePlaceholders(s.i.statement())
+		q = reInvisibleChars.ReplaceAllString(q, ` `)
+		return strings.TrimSpace(q)
+	}
+	return ""
 }

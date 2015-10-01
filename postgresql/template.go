@@ -114,6 +114,13 @@ const (
     DELETE
       FROM {{.Table}}
       {{.Where}}
+    {{if .Limit}}
+      LIMIT {{.Limit}}
+    {{end}}
+
+    {{if .Offset}}
+      OFFSET {{.Offset}}
+    {{end}}
   `
 	adapterUpdateLayout = `
     UPDATE

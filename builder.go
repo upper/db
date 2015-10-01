@@ -34,7 +34,7 @@ type QuerySelector interface {
 	Offset(int) QuerySelector
 
 	QueryGetter
-	ResultIterator
+	Iterator
 	fmt.Stringer
 }
 
@@ -43,6 +43,7 @@ type QueryInserter interface {
 	Columns(...string) QueryInserter
 
 	QueryExecer
+	fmt.Stringer
 }
 
 type QueryDeleter interface {
@@ -50,6 +51,7 @@ type QueryDeleter interface {
 	Limit(int) QueryDeleter
 
 	QueryExecer
+	fmt.Stringer
 }
 
 type QueryUpdater interface {
@@ -58,6 +60,7 @@ type QueryUpdater interface {
 	Limit(int) QueryUpdater
 
 	QueryExecer
+	fmt.Stringer
 }
 
 type QueryExecer interface {
@@ -69,9 +72,10 @@ type QueryGetter interface {
 	QueryRow() (*sqlx.Row, error)
 }
 
-type ResultIterator interface {
+type Iterator interface {
 	All(interface{}) error
-	Next(interface{}) error
 	One(interface{}) error
+	Next(interface{}) bool
+	Err() error
 	Close() error
 }

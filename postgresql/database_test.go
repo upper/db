@@ -1917,10 +1917,6 @@ func TestOptionTypeJsonbStruct(t *testing.T) {
 func TestQueryBuilder(t *testing.T) {
 	var sess db.Database
 	var err error
-	var sel db.QuerySelector
-	var artist artistType
-
-	assert := assert.New(t)
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatal(err)
@@ -1929,6 +1925,10 @@ func TestQueryBuilder(t *testing.T) {
 	defer sess.Close()
 
 	b := sess.Builder()
+
+	assert := assert.New(t)
+
+	// Testing SELECT.
 
 	assert.Equal(
 		`SELECT * FROM "artist"`,
@@ -2038,51 +2038,58 @@ func TestQueryBuilder(t *testing.T) {
 		b.SelectAllFrom("artist").Join("publication").Using("id").String(),
 	)
 
-	// Should not work because we are using both "On()" and "Using()"
-	sel = b.Select().From("artist a").Join("publications p").On("p1.id = a.id").Using("id")
-	assert.Error(sel.One(&artist))
+	assert.Equal(
+		`SELECT DATE()`,
+		b.Select(db.Raw{"DATE()"}).String(),
+	)
 
-	// Should not work because a Join() is missing before On().
-	sel = b.Select().From("artist a").On("p1.id = a.id")
-	assert.Error(sel.One(&artist))
+	// Testing INSERT.
 
-	// INSERT INTO artist VALUES (10, 'Ryuichi Sakamoto'), (11, 'Alondra de la Parra')
-	if _, err = b.InsertInto("artist").Values(10, "Ryuichi Sakamoto").Values(11, "Alondra de la Parra").Exec(); err != nil {
-		t.Fatal(err)
-	}
+	assert.Equal(
+		`INSERT INTO "artist" VALUES ($1, $2), ($3, $4), ($5, $6)`,
+		b.InsertInto("artist").
+			Values(10, "Ryuichi Sakamoto").
+			Values(11, "Alondra de la Parra").
+			Values(12, "Haruki Murakami").
+			String(),
+	)
 
-	// INSERT INTO artist COLUMNS("name") VALUES('Chavela Vargas')
-	if _, err = b.InsertInto("artist").Columns("name", "id").Values("Chavela Vargas", 12).Exec(); err != nil {
-		t.Fatal(err)
-	}
+	assert.Equal(
+		`INSERT INTO "artist" ("name", "id") VALUES ($1, $2)`,
+		b.InsertInto("artist").Columns("name", "id").Values("Chavela Vargas", 12).String(),
+	)
 
-	// DELETE FROM artist WHERE name = 'Chavela Vargas' LIMIT 1
-	if _, err = b.DeleteFrom("artist").Where("name = ?", "Chavela Vargas").Limit(1).Exec(); err != nil {
-		t.Fatal(err)
-	}
+	// Testing DELETE.
 
-	// DELETE FROM artist WHERE id > 5
-	if _, err = b.DeleteFrom("artist").Where("id > 5").Exec(); err != nil {
-		t.Fatal(err)
-	}
+	assert.Equal(
+		`DELETE FROM "artist" WHERE (name = $1) LIMIT 1`,
+		b.DeleteFrom("artist").Where("name = ?", "Chavela Vargas").Limit(1).String(),
+	)
 
-	// UPDATE artist SET name = ?
-	if _, err = b.Update("artist").Set("name", "Artist").Exec(); err != nil {
-		t.Fatal(err)
-	}
+	assert.Equal(
+		`DELETE FROM "artist" WHERE (id > 5)`,
+		b.DeleteFrom("artist").Where("id > 5").String(),
+	)
 
-	// UPDATE artist SET name = ? WHERE id < 5
-	if _, err = b.Update("artist").Set("name = ?", "Artist").Where("id < ?", 5).Exec(); err != nil {
-		t.Fatal(err)
-	}
+	// Testing UPDATE.
 
-	// UPDATE artist SET name = ? || ' ' || ? || id, id = id + ? WHERE id > ?
-	if _, err = b.Update("artist").Set(
-		"name = ? || ' ' || ? || id", "Artist", "#",
-		"id = id + ?", 10,
-	).Where("id > ?", 0).Exec(); err != nil {
-		t.Fatal(err)
-	}
+	assert.Equal(
+		`UPDATE "artist" SET "name" = $1`,
+		b.Update("artist").Set("name", "Artist").String(),
+	)
+
+	assert.Equal(
+		`UPDATE "artist" SET "name" = $1 WHERE ("id" < $2)`,
+		b.Update("artist").Set("name = ?", "Artist").Where("id <", 5).String(),
+	)
+
+	assert.Equal(
+		`UPDATE "artist" SET "name" = $1 || ' ' || $2 || id, "id" = id + $3 WHERE (id > $4)`,
+		b.Update("artist").Set(
+			"name = ? || ' ' || ? || id", "Artist", "#",
+			"id = id + ?", 10,
+		).Where("id > ?", 0).String(),
+	)
 
 	/*
 		// INSERT INTO artist (name) VALUES(? || ?)
@@ -2105,6 +2112,34 @@ func TestQueryBuilder(t *testing.T) {
 		}
 	*/
 
+	// Testing actual queries.
+
+	var artist artistType
+	var artists []artistType
+
+	err = b.SelectAllFrom("artist").All(&artists)
+	assert.NoError(err)
+	assert.True(len(artists) > 0)
+
+	err = b.SelectAllFrom("artist").One(&artist)
+	assert.NoError(err)
+	assert.NotNil(artist)
+
+	var qs db.QuerySelector
+
+	qs = b.SelectAllFrom("artist")
+	for qs.Next(&artist) {
+		assert.Nil(qs.Err())
+		assert.NotNil(artist)
+	}
+
+	assert.Nil(qs.Close())
+
+	qs = b.Select().From("artist a").Join("publications p").On("p1.id = a.id").Using("id")
+	assert.Error(qs.One(&artist), `Should not work because it attempts to use both "On()" and "Using()" in the same JOIN.`)
+
+	qs = b.Select().From("artist a").On("p1.id = a.id")
+	assert.Error(qs.One(&artist), `Should not work because it should put a "Join()" before "On()".`)
 }
 
 // TestExhaustConnections simulates a "too many connections" situation
