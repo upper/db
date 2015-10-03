@@ -32,6 +32,7 @@ import (
 	_ "github.com/lib/pq" // PostgreSQL driver.
 	"upper.io/cache"
 	"upper.io/db"
+	"upper.io/db/builder"
 	"upper.io/db/util/adapter"
 	"upper.io/db/util/schema"
 	"upper.io/db/util/sqlgen"
@@ -636,7 +637,7 @@ func (d *database) getPrimaryKey(tableName string) ([]string, error) {
 
 // Builder returns a custom query builder.
 func (d *database) Builder() db.QueryBuilder {
-	return &Builder{sess: d}
+	return builder.NewBuilder(d, template)
 }
 
 // waitForConnection tries to execute the connectFn function, if connectFn
