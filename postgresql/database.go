@@ -528,6 +528,10 @@ func (d *database) tableExists(names ...string) error {
 	return nil
 }
 
+func (d *database) TableColumns(tableName string) ([]string, error) {
+	return d.tableColumns(tableName)
+}
+
 func (d *database) tableColumns(tableName string) ([]string, error) {
 
 	// Making sure this table is allocated.

@@ -58,6 +58,14 @@ func JoinColumnValues(values ...Fragment) *ColumnValues {
 	return &ColumnValues{ColumnValues: values}
 }
 
+func (c *ColumnValues) Append(values ...Fragment) *ColumnValues {
+	for _, f := range values {
+		c.ColumnValues = append(c.ColumnValues, f)
+	}
+	c.hash = ""
+	return c
+}
+
 // Hash returns a unique identifier.
 func (c *ColumnValues) Hash() string {
 	if c.hash == "" {

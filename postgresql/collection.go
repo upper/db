@@ -41,9 +41,8 @@ type table struct {
 var _ = db.Collection(&table{})
 
 // Find creates a result set with the given conditions.
-func (t *table) Find(terms ...interface{}) db.Result {
-	where, arguments := template.ToWhereWithArguments(terms)
-	return result.NewResult(template, t, where, arguments)
+func (t *table) Find(conds ...interface{}) db.Result {
+	return result.NewResult(t.database.Builder(), t, conds)
 }
 
 // Truncate deletes all rows from the table.

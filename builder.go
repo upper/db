@@ -17,6 +17,7 @@ type QueryBuilder interface {
 }
 
 type QuerySelector interface {
+	Columns(columns ...interface{}) QuerySelector
 	From(tables ...string) QuerySelector
 	Distinct() QuerySelector
 	Where(...interface{}) QuerySelector
@@ -33,8 +34,9 @@ type QuerySelector interface {
 	Limit(int) QuerySelector
 	Offset(int) QuerySelector
 
+	Iterator() Iterator
+
 	QueryGetter
-	Iterator
 	fmt.Stringer
 }
 

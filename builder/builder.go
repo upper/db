@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jmoiron/sqlx"
+	"github.com/jmoiron/sqlx/reflectx"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,8 +17,15 @@ import (
 
 type SelectMode uint8
 
+var mapper = reflectx.NewMapper("db")
+
 var (
-	reInvisibleChars = regexp.MustCompile(`[\s\r\n\t]+`)
+	reInvisibleChars       = regexp.MustCompile(`[\s\r\n\t]+`)
+	reColumnCompareExclude = regexp.MustCompile(`[^a-zA-Z0-9]`)
+)
+
+var (
+	sqlPlaceholder = sqlgen.RawValue(`?`)
 )
 
 const (
@@ -28,6 +37,8 @@ type sqlDatabase interface {
 	Query(stmt *sqlgen.Statement, args ...interface{}) (*sqlx.Rows, error)
 	QueryRow(stmt *sqlgen.Statement, args ...interface{}) (*sqlx.Row, error)
 	Exec(stmt *sqlgen.Statement, args ...interface{}) (sql.Result, error)
+
+	TableColumns(tableName string) ([]string, error)
 }
 
 type Builder struct {
@@ -46,16 +57,12 @@ func (b *Builder) SelectAllFrom(table string) db.QuerySelector {
 }
 
 func (b *Builder) Select(columns ...interface{}) db.QuerySelector {
-	f, err := columnFragments(b.t, columns)
-
 	qs := &QuerySelector{
 		builder: b,
-		columns: sqlgen.JoinColumns(f...),
-		err:     err,
 	}
 
 	qs.stringer = &stringer{qs, b.t.Template}
-	return qs
+	return qs.Columns(columns...)
 }
 
 func (b *Builder) InsertInto(table string) db.QueryInserter {
@@ -80,8 +87,9 @@ func (b *Builder) DeleteFrom(table string) db.QueryDeleter {
 
 func (b *Builder) Update(table string) db.QueryUpdater {
 	qu := &QueryUpdater{
-		builder: b,
-		table:   table,
+		builder:      b,
+		table:        table,
+		columnValues: &sqlgen.ColumnValues{},
 	}
 
 	qu.stringer = &stringer{qu, b.t.Template}
@@ -195,9 +203,28 @@ type QueryUpdater struct {
 }
 
 func (qu *QueryUpdater) Set(terms ...interface{}) db.QueryUpdater {
-	cv, arguments := qu.builder.t.ToColumnValues(terms)
-	qu.columnValues = &cv
-	qu.arguments = append(qu.arguments, arguments...)
+	if len(terms) == 1 {
+		columns, _ := qu.builder.sess.TableColumns(qu.table)
+		ff, vv, _ := fieldValues(columns, terms[0])
+
+		cvs := make([]sqlgen.Fragment, len(ff))
+
+		for i := range ff {
+			cvs[i] = &sqlgen.ColumnValue{
+				Column:   sqlgen.ColumnWithName(ff[i]),
+				Operator: qu.builder.t.AssignmentOperator,
+				Value:    sqlPlaceholder,
+			}
+		}
+
+		qu.columnValues.Append(cvs...)
+		qu.arguments = append(qu.arguments, vv...)
+	} else if len(terms) > 1 {
+		cv, arguments := qu.builder.t.ToColumnValues(terms)
+		qu.columnValues.Append(cv.ColumnValues...)
+		qu.arguments = append(qu.arguments, arguments...)
+	}
+
 	return qu
 }
 
@@ -235,10 +262,14 @@ func (qu *QueryUpdater) statement() *sqlgen.Statement {
 	return stmt
 }
 
+type iterator struct {
+	cursor *sqlx.Rows // This is the main query cursor. It starts as a nil value.
+	err    error
+}
+
 type QuerySelector struct {
 	*stringer
 	mode      SelectMode
-	cursor    *sqlx.Rows // This is the main query cursor. It starts as a nil value.
 	builder   *Builder
 	table     string
 	where     *sqlgen.Where
@@ -254,6 +285,16 @@ type QuerySelector struct {
 
 func (qs *QuerySelector) From(tables ...string) db.QuerySelector {
 	qs.table = strings.Join(tables, ",")
+	return qs
+}
+
+func (qs *QuerySelector) Columns(columns ...interface{}) db.QuerySelector {
+	f, err := columnFragments(qs.builder.t, columns)
+	if err != nil {
+		qs.err = err
+		return qs
+	}
+	qs.columns = sqlgen.JoinColumns(f...)
 	return qs
 }
 
@@ -426,88 +467,9 @@ func (qs *QuerySelector) QueryRow() (*sqlx.Row, error) {
 	return qs.builder.sess.QueryRow(qs.statement(), qs.arguments...)
 }
 
-func (qs *QuerySelector) Close() (err error) {
-	if qs.cursor != nil {
-		err = qs.cursor.Close()
-		qs.cursor = nil
-	}
-	return err
-}
-
-func (qs *QuerySelector) setCursor() (err error) {
-	if qs.cursor == nil {
-		qs.cursor, err = qs.builder.sess.Query(qs.statement(), qs.arguments...)
-	}
-	return err
-}
-
-func (qs *QuerySelector) One(dst interface{}) error {
-	if qs.err != nil {
-		return qs.err
-	}
-
-	if qs.cursor != nil {
-		return db.ErrQueryIsPending
-	}
-
-	defer qs.Close()
-
-	if !qs.Next(dst) {
-		return qs.Err()
-	}
-
-	return nil
-}
-
-func (qs *QuerySelector) All(dst interface{}) error {
-	var err error
-
-	if qs.err != nil {
-		return qs.err
-	}
-
-	if qs.cursor != nil {
-		return db.ErrQueryIsPending
-	}
-
-	err = qs.setCursor()
-
-	if err != nil {
-		return err
-	}
-
-	defer qs.Close()
-
-	// Fetching all results within the cursor.
-	err = sqlutil.FetchRows(qs.cursor, dst)
-
-	return err
-}
-
-func (qs *QuerySelector) Err() (err error) {
-	return qs.err
-}
-
-func (qs *QuerySelector) Next(dst interface{}) bool {
-	var err error
-
-	if qs.err != nil {
-		return false
-	}
-
-	if err = qs.setCursor(); err != nil {
-		qs.err = err
-		qs.Close()
-		return false
-	}
-
-	if err = sqlutil.FetchRow(qs.cursor, dst); err != nil {
-		qs.err = err
-		qs.Close()
-		return false
-	}
-
-	return true
+func (qs *QuerySelector) Iterator() db.Iterator {
+	rows, err := qs.builder.sess.Query(qs.statement(), qs.arguments...)
+	return &iterator{rows, err}
 }
 
 func columnFragments(template *sqlutil.TemplateWithUtils, columns []interface{}) ([]sqlgen.Fragment, error) {
@@ -584,4 +546,169 @@ func NewBuilder(sess sqlDatabase, t *sqlutil.TemplateWithUtils) *Builder {
 		sess: sess,
 		t:    t,
 	}
+}
+
+func (iter *iterator) One(dst interface{}) error {
+	if iter.err != nil {
+		return iter.err
+	}
+
+	defer iter.Close()
+
+	if !iter.Next(dst) {
+		return iter.Err()
+	}
+
+	return nil
+}
+
+func (iter *iterator) All(dst interface{}) error {
+	var err error
+
+	if iter.err != nil {
+		return iter.err
+	}
+
+	defer iter.Close()
+
+	// Fetching all results within the cursor.
+	err = sqlutil.FetchRows(iter.cursor, dst)
+
+	return err
+}
+
+func (iter *iterator) Err() (err error) {
+	return iter.err
+}
+
+func (iter *iterator) Next(dst interface{}) bool {
+	var err error
+
+	if iter.err != nil {
+		return false
+	}
+
+	if err = sqlutil.FetchRow(iter.cursor, dst); err != nil {
+		iter.err = err
+		iter.Close()
+		return false
+	}
+
+	return true
+}
+
+func (iter *iterator) Close() (err error) {
+	if iter.cursor != nil {
+		err = iter.cursor.Close()
+		iter.cursor = nil
+	}
+	return err
+}
+
+func fieldValues(columns []string, item interface{}) ([]string, []interface{}, error) {
+	fields := []string{}
+	values := []interface{}{}
+
+	itemV := reflect.ValueOf(item)
+	itemT := itemV.Type()
+
+	if itemT.Kind() == reflect.Ptr {
+		// Single derefence. Just in case user passed a pointer to struct instead of a struct.
+		item = itemV.Elem().Interface()
+		itemV = reflect.ValueOf(item)
+		itemT = itemV.Type()
+	}
+
+	switch itemT.Kind() {
+
+	case reflect.Struct:
+
+		fieldMap := mapper.TypeMap(itemT).Names
+		nfields := len(fieldMap)
+
+		values = make([]interface{}, 0, nfields)
+		fields = make([]string, 0, nfields)
+
+		for _, fi := range fieldMap {
+			// log.Println("=>", fi.Name, fi.Options)
+
+			fld := reflectx.FieldByIndexesReadOnly(itemV, fi.Index)
+			if fld.Kind() == reflect.Ptr && fld.IsNil() {
+				continue
+			}
+
+			var value interface{}
+			if _, ok := fi.Options["stringarray"]; ok {
+				value = sqlutil.StringArray(fld.Interface().([]string))
+			} else if _, ok := fi.Options["int64array"]; ok {
+				value = sqlutil.Int64Array(fld.Interface().([]int64))
+			} else if _, ok := fi.Options["jsonb"]; ok {
+				value = sqlutil.JsonbType{fld.Interface()}
+			} else {
+				value = fld.Interface()
+			}
+
+			if _, ok := fi.Options["omitempty"]; ok {
+				if value == fi.Zero.Interface() {
+					continue
+				}
+			}
+
+			// TODO: columnLike stuff...?
+
+			fields = append(fields, fi.Name)
+			v, err := marshal(value)
+			if err != nil {
+				return nil, nil, err
+			}
+			values = append(values, v)
+		}
+
+	case reflect.Map:
+		nfields := itemV.Len()
+		values = make([]interface{}, nfields)
+		fields = make([]string, nfields)
+		mkeys := itemV.MapKeys()
+
+		for i, keyV := range mkeys {
+			valv := itemV.MapIndex(keyV)
+			fields[i] = columnLike(columns, fmt.Sprintf("%v", keyV.Interface()))
+
+			v, err := marshal(valv.Interface())
+			if err != nil {
+				return nil, nil, err
+			}
+
+			values[i] = v
+		}
+
+	default:
+		return nil, nil, db.ErrExpectingMapOrStruct
+	}
+
+	return fields, values, nil
+}
+
+func columnLike(columns []string, s string) string {
+	for _, name := range columns {
+		if normalizeColumn(s) == normalizeColumn(name) {
+			return name
+		}
+	}
+	return s
+}
+
+func marshal(v interface{}) (interface{}, error) {
+	if m, isMarshaler := v.(db.Marshaler); isMarshaler {
+		var err error
+		if v, err = m.MarshalDB(); err != nil {
+			return nil, err
+		}
+	}
+	return v, nil
+}
+
+// normalizeColumn prepares a column for comparison against another column.
+func normalizeColumn(s string) string {
+	return strings.ToLower(reColumnCompareExclude.ReplaceAllString(s, ""))
 }

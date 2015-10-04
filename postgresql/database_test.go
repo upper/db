@@ -2084,6 +2084,25 @@ func TestQueryBuilder(t *testing.T) {
 	)
 
 	assert.Equal(
+		`UPDATE "artist" SET "name" = $1 WHERE ("id" < $2)`,
+		b.Update("artist").Set(map[string]string{"name": "Artist"}).Where(db.Cond{"id <": 5}).String(),
+	)
+
+	assert.Equal(
+		`UPDATE "artist" SET "name" = $1 WHERE ("id" < $2)`,
+		b.Update("artist").Set(struct {
+			Nombre string `db:"name"`
+		}{"Artist"}).Where(db.Cond{"id <": 5}).String(),
+	)
+
+	assert.Equal(
+		`UPDATE "artist" SET "name" = $1, "last_name" = $2 WHERE ("id" < $3)`,
+		b.Update("artist").Set(struct {
+			Nombre string `db:"name"`
+		}{"Artist"}).Set(map[string]string{"last_name": "Foo"}).Where(db.Cond{"id <": 5}).String(),
+	)
+
+	assert.Equal(
 		`UPDATE "artist" SET "name" = $1 || ' ' || $2 || id, "id" = id + $3 WHERE (id > $4)`,
 		b.Update("artist").Set(
 			"name = ? || ' ' || ? || id", "Artist", "#",
@@ -2114,32 +2133,35 @@ func TestQueryBuilder(t *testing.T) {
 
 	// Testing actual queries.
 
-	var artist artistType
-	var artists []artistType
+	/*
+		var artist artistType
+		var artists []artistType
 
-	err = b.SelectAllFrom("artist").All(&artists)
-	assert.NoError(err)
-	assert.True(len(artists) > 0)
+		err = b.SelectAllFrom("artist").Iterator().All(&artists)
+		assert.NoError(err)
+		assert.True(len(artists) > 0)
 
-	err = b.SelectAllFrom("artist").One(&artist)
-	assert.NoError(err)
-	assert.NotNil(artist)
-
-	var qs db.QuerySelector
-
-	qs = b.SelectAllFrom("artist")
-	for qs.Next(&artist) {
-		assert.Nil(qs.Err())
+		err = b.SelectAllFrom("artist").Iterator().One(&artist)
+		assert.NoError(err)
 		assert.NotNil(artist)
-	}
 
-	assert.Nil(qs.Close())
+		var qs db.QuerySelector
 
-	qs = b.Select().From("artist a").Join("publications p").On("p1.id = a.id").Using("id")
-	assert.Error(qs.One(&artist), `Should not work because it attempts to use both "On()" and "Using()" in the same JOIN.`)
+		qs = b.SelectAllFrom("artist")
+		iter := qs.Iterator()
+		for iter.Next(&artist) {
+			assert.Nil(iter.Err())
+			assert.NotNil(artist)
+		}
 
-	qs = b.Select().From("artist a").On("p1.id = a.id")
-	assert.Error(qs.One(&artist), `Should not work because it should put a "Join()" before "On()".`)
+		assert.Nil(iter.Close())
+
+		qs = b.Select().From("artist a").Join("publications p").On("p1.id = a.id").Using("id")
+		assert.Error(qs.Iterator().One(&artist), `Should not work because it attempts to use both "On()" and "Using()" in the same JOIN.`)
+
+		qs = b.Select().From("artist a").On("p1.id = a.id")
+		assert.Error(qs.Iterator().One(&artist), `Should not work because it should put a "Join()" before "On()".`)
+	*/
 }
 
 // TestExhaustConnections simulates a "too many connections" situation
