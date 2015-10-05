@@ -193,6 +193,9 @@ func (d *database) Ping() error {
 // Close terminates the current database session.
 func (d *database) Close() error {
 	if d.session != nil {
+		if d.tx != nil && !d.tx.Done() {
+			d.tx.Rollback()
+		}
 		d.cachedStatements.Clear()
 		return d.session.Close()
 	}

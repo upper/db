@@ -203,14 +203,17 @@ func (d *database) Ping() error {
 // Close terminates the current database session.
 func (d *database) Close() error {
 	if d.session != nil {
+		if d.tx != nil && !d.tx.Done() {
+			d.tx.Rollback()
+		}
+		d.cachedStatements.Clear()
 		if err := d.session.Close(); err != nil {
-			panic(err.Error())
+			return err
 		}
 		d.session = nil
 		if atomic.AddInt32(&fileOpenCount, -1) < 0 {
 			return errors.New(`Close() without Open()?`)
 		}
-		return nil
 	}
 	return nil
 }

@@ -38,20 +38,18 @@ func (t *tx) Driver() interface{} {
 	return nil
 }
 
-// Commit commits the current transaction and frees up the connection.
+// Commit commits the current transaction.
 func (t *tx) Commit() error {
 	if err := t.Tx.Commit(); err != nil {
 		return err
 	}
-	t.database.Close()
 	return nil
 }
 
-// Rollback discards the current transaction and frees up the connection.
+// Rollback discards the current transaction.
 func (t *tx) Rollback() error {
 	if err := t.Tx.Rollback(); err != nil {
 		return err
 	}
-	t.database.Close()
 	return nil
 }

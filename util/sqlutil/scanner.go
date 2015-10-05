@@ -148,16 +148,21 @@ func (a *Int64Array) Scan(src interface{}) error {
 	if !ok {
 		return errors.New("Scan source was not []bytes")
 	}
+	if len(b) == 0 {
+		return nil
+	}
 
 	s := string(b)[1 : len(b)-1]
-	parts := strings.Split(s, ",")
 	results := make([]int64, 0)
-	for _, n := range parts {
-		i, err := strconv.ParseInt(n, 10, 64)
-		if err != nil {
-			return err
+	if s != "" {
+		parts := strings.Split(s, ",")
+		for _, n := range parts {
+			i, err := strconv.ParseInt(n, 10, 64)
+			if err != nil {
+				return err
+			}
+			results = append(results, i)
 		}
-		results = append(results, i)
 	}
 	*a = Int64Array(results)
 	return nil

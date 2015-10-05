@@ -240,9 +240,11 @@ func (col *Collection) Append(item interface{}) (interface{}, error) {
 	}
 
 	// And other interfaces?
-	if setter, ok := item.(ObjectIdIDSetter); ok {
-		if err := setter.SetID(id); err != nil {
-			return nil, err
+	if _, ok := id.(bson.ObjectId); ok {
+		if setter, ok := item.(ObjectIdIDSetter); ok {
+			if err := setter.SetID(id.(bson.ObjectId)); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -260,8 +262,9 @@ func (col *Collection) Exists() bool {
 }
 
 // Fetches object _id or generates a new one if object doesn't have one or the one it has is invalid
-func getID(item interface{}) bson.ObjectId {
-	v := reflect.ValueOf(item)
+func getID(item interface{}) interface{} {
+	v := reflect.ValueOf(item) // convert interface to Value
+	v = reflect.Indirect(v)    // convert pointers
 
 	switch v.Kind() {
 	case reflect.Map:
@@ -312,6 +315,8 @@ func getID(item interface{}) bson.ObjectId {
 				if bsonID.Valid() {
 					return bsonID
 				}
+			} else {
+				return v.FieldByName(fieldName).Interface()
 			}
 		}
 	}
