@@ -37,8 +37,6 @@ type sqlDatabase interface {
 	Query(stmt *sqlgen.Statement, args ...interface{}) (*sqlx.Rows, error)
 	QueryRow(stmt *sqlgen.Statement, args ...interface{}) (*sqlx.Row, error)
 	Exec(stmt *sqlgen.Statement, args ...interface{}) (sql.Result, error)
-
-	TableColumns(tableName string) ([]string, error)
 }
 
 type Builder struct {
@@ -120,7 +118,18 @@ func (qi *QueryInserter) Columns(columns ...string) db.QueryInserter {
 }
 
 func (qi *QueryInserter) Values(values ...interface{}) db.QueryInserter {
-	if len(qi.columns) == 0 || len(values) == len(qi.columns) {
+	if len(qi.columns) == 0 && len(values) == 1 {
+		ff, vv, _ := Map(values[0])
+
+		columns, vals, arguments, _ := qi.builder.t.ToColumnsValuesAndArguments(ff, vv)
+
+		qi.arguments = append(qi.arguments, arguments...)
+		qi.values = append(qi.values, vals)
+
+		for _, c := range columns.Columns {
+			qi.columns = append(qi.columns, c)
+		}
+	} else if len(qi.columns) == 0 || len(values) == len(qi.columns) {
 		qi.arguments = append(qi.arguments, values...)
 
 		l := len(values)
@@ -204,8 +213,7 @@ type QueryUpdater struct {
 
 func (qu *QueryUpdater) Set(terms ...interface{}) db.QueryUpdater {
 	if len(terms) == 1 {
-		columns, _ := qu.builder.sess.TableColumns(qu.table)
-		ff, vv, _ := fieldValues(columns, terms[0])
+		ff, vv, _ := Map(terms[0])
 
 		cvs := make([]sqlgen.Fragment, len(ff))
 
@@ -216,7 +224,6 @@ func (qu *QueryUpdater) Set(terms ...interface{}) db.QueryUpdater {
 				Value:    sqlPlaceholder,
 			}
 		}
-
 		qu.columnValues.Append(cvs...)
 		qu.arguments = append(qu.arguments, vv...)
 	} else if len(terms) > 1 {
@@ -605,7 +612,7 @@ func (iter *iterator) Close() (err error) {
 	return err
 }
 
-func fieldValues(columns []string, item interface{}) ([]string, []interface{}, error) {
+func Map(item interface{}) ([]string, []interface{}, error) {
 	fields := []string{}
 	values := []interface{}{}
 
@@ -672,7 +679,7 @@ func fieldValues(columns []string, item interface{}) ([]string, []interface{}, e
 
 		for i, keyV := range mkeys {
 			valv := itemV.MapIndex(keyV)
-			fields[i] = columnLike(columns, fmt.Sprintf("%v", keyV.Interface()))
+			fields[i] = fmt.Sprintf("%v", keyV.Interface())
 
 			v, err := marshal(valv.Interface())
 			if err != nil {
@@ -681,7 +688,6 @@ func fieldValues(columns []string, item interface{}) ([]string, []interface{}, e
 
 			values[i] = v
 		}
-
 	default:
 		return nil, nil, db.ErrExpectingMapOrStruct
 	}

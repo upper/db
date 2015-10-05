@@ -25,9 +25,15 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strings"
 
 	"upper.io/db"
+)
+
+var (
+	reInvisibleChars       = regexp.MustCompile(`[\s\r\n\t]+`)
+	reColumnCompareExclude = regexp.MustCompile(`[^a-zA-Z0-9]`)
 )
 
 func init() {

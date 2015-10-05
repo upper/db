@@ -282,3 +282,12 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 
 	return item, nil
 }
+
+func reset(data interface{}) error {
+	// Resetting element.
+	v := reflect.ValueOf(data).Elem()
+	t := v.Type()
+	z := reflect.Zero(t)
+	v.Set(z)
+	return nil
+}

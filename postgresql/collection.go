@@ -28,6 +28,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"upper.io/db"
+	"upper.io/db/builder"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
 	"upper.io/db/util/sqlutil/result"
@@ -42,7 +43,7 @@ var _ = db.Collection(&table{})
 
 // Find creates a result set with the given conditions.
 func (t *table) Find(conds ...interface{}) db.Result {
-	return result.NewResult(t.database.Builder(), t, conds)
+	return result.NewResult(t.database.Builder(), t.Name(), conds)
 }
 
 // Truncate deletes all rows from the table.
@@ -51,7 +52,6 @@ func (t *table) Truncate() error {
 		Type:  sqlgen.Truncate,
 		Table: sqlgen.TableWithName(t.MainTableName()),
 	})
-
 	if err != nil {
 		return err
 	}
@@ -61,8 +61,7 @@ func (t *table) Truncate() error {
 
 // Append inserts an item (map or struct) into the collection.
 func (t *table) Append(item interface{}) (interface{}, error) {
-
-	columnNames, columnValues, err := t.FieldValues(item)
+	columnNames, columnValues, err := builder.Map(item)
 
 	if err != nil {
 		return nil, err

@@ -27,7 +27,7 @@ import (
 
 type Result struct {
 	b       db.QueryBuilder
-	dp      DataProvider
+	table   string
 	iter    db.Iterator
 	limit   int
 	offset  int
@@ -40,10 +40,10 @@ type Result struct {
 
 // NewResult creates and results a new result set on the given table, this set
 // is limited by the given sqlgen.Where conditions.
-func NewResult(b db.QueryBuilder, dp DataProvider, conds []interface{}) *Result {
+func NewResult(b db.QueryBuilder, table string, conds []interface{}) *Result {
 	return &Result{
 		b:     b,
-		dp:    dp,
+		table: table,
 		conds: conds,
 	}
 }
@@ -111,7 +111,7 @@ func (r *Result) Next(dst interface{}) (err error) {
 
 // Removes the matching items from the collection.
 func (r *Result) Remove() error {
-	q := r.b.DeleteFrom(r.dp.Name()).
+	q := r.b.DeleteFrom(r.table).
 		Where(r.conds...).
 		Limit(r.limit)
 
@@ -130,7 +130,7 @@ func (r *Result) Close() error {
 // Updates matching items from the collection with values of the given map or
 // struct.
 func (r *Result) Update(values interface{}) error {
-	q := r.b.Update(r.dp.Name()).
+	q := r.b.Update(r.table).
 		Set(values).
 		Where(r.conds...).
 		Limit(r.limit)
@@ -158,7 +158,7 @@ func (r *Result) Count() (uint64, error) {
 func (r *Result) buildSelect() db.QuerySelector {
 	q := r.b.Select(r.fields...)
 
-	q.From(r.dp.Name())
+	q.From(r.table)
 	q.Where(r.conds...)
 	q.Limit(r.limit)
 	q.Offset(r.offset)

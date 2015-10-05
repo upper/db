@@ -2056,6 +2056,19 @@ func TestQueryBuilder(t *testing.T) {
 
 	assert.Equal(
 		`INSERT INTO "artist" ("name", "id") VALUES ($1, $2)`,
+		b.InsertInto("artist").Values(map[string]string{"id": "12", "name": "Chavela Vargas"}).String(),
+	)
+
+	assert.Equal(
+		`INSERT INTO "artist" ("name", "id") VALUES ($1, $2)`,
+		b.InsertInto("artist").Values(struct {
+			ID   int    `db:"id"`
+			Name string `db:"name"`
+		}{12, "Chavela Vargas"}).String(),
+	)
+
+	assert.Equal(
+		`INSERT INTO "artist" ("name", "id") VALUES ($1, $2)`,
 		b.InsertInto("artist").Columns("name", "id").Values("Chavela Vargas", 12).String(),
 	)
 

@@ -152,8 +152,6 @@ func (d *database) Open() error {
 		return err
 	}
 
-	d.session.Mapper = sqlutil.NewMapper()
-
 	d.cachedStatements = cache.NewCache()
 
 	d.collections = make(map[string]*table)
@@ -231,7 +229,6 @@ func (d *database) Collection(names ...string) (db.Collection, error) {
 
 	col := &table{database: d}
 	col.T.Tables = names
-	col.T.Mapper = d.session.Mapper
 
 	for _, name := range names {
 		chunks := strings.SplitN(name, ` `, 2)
