@@ -8,6 +8,7 @@ import (
 	"github.com/jmoiron/sqlx/reflectx"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"upper.io/db"
@@ -18,6 +19,24 @@ import (
 type SelectMode uint8
 
 var mapper = reflectx.NewMapper("db")
+
+type fieldValue struct {
+	fields []string
+	values []interface{}
+}
+
+func (fv *fieldValue) Len() int {
+	return len(fv.fields)
+}
+
+func (fv *fieldValue) Swap(i, j int) {
+	fv.fields[i], fv.fields[j] = fv.fields[j], fv.fields[i]
+	fv.values[i], fv.values[j] = fv.values[j], fv.values[i]
+}
+
+func (fv *fieldValue) Less(i, j int) bool {
+	return fv.fields[i] < fv.fields[j]
+}
 
 var (
 	reInvisibleChars       = regexp.MustCompile(`[\s\r\n\t]+`)
@@ -548,10 +567,10 @@ func (s *stringer) compileAndReplacePlaceholders(stmt *sqlgen.Statement) (query 
 	return query
 }
 
-func NewBuilder(sess sqlDatabase, t *sqlutil.TemplateWithUtils) *Builder {
+func NewBuilder(sess sqlDatabase, t *sqlgen.Template) *Builder {
 	return &Builder{
 		sess: sess,
-		t:    t,
+		t:    sqlutil.NewTemplateWithUtils(t),
 	}
 }
 
@@ -613,8 +632,7 @@ func (iter *iterator) Close() (err error) {
 }
 
 func Map(item interface{}) ([]string, []interface{}, error) {
-	fields := []string{}
-	values := []interface{}{}
+	var fv fieldValue
 
 	itemV := reflect.ValueOf(item)
 	itemT := itemV.Type()
@@ -633,8 +651,8 @@ func Map(item interface{}) ([]string, []interface{}, error) {
 		fieldMap := mapper.TypeMap(itemT).Names
 		nfields := len(fieldMap)
 
-		values = make([]interface{}, 0, nfields)
-		fields = make([]string, 0, nfields)
+		fv.values = make([]interface{}, 0, nfields)
+		fv.fields = make([]string, 0, nfields)
 
 		for _, fi := range fieldMap {
 			// log.Println("=>", fi.Name, fi.Options)
@@ -661,47 +679,38 @@ func Map(item interface{}) ([]string, []interface{}, error) {
 				}
 			}
 
-			// TODO: columnLike stuff...?
-
-			fields = append(fields, fi.Name)
+			fv.fields = append(fv.fields, fi.Name)
 			v, err := marshal(value)
 			if err != nil {
 				return nil, nil, err
 			}
-			values = append(values, v)
+			fv.values = append(fv.values, v)
 		}
 
 	case reflect.Map:
 		nfields := itemV.Len()
-		values = make([]interface{}, nfields)
-		fields = make([]string, nfields)
+		fv.values = make([]interface{}, nfields)
+		fv.fields = make([]string, nfields)
 		mkeys := itemV.MapKeys()
 
 		for i, keyV := range mkeys {
 			valv := itemV.MapIndex(keyV)
-			fields[i] = fmt.Sprintf("%v", keyV.Interface())
+			fv.fields[i] = fmt.Sprintf("%v", keyV.Interface())
 
 			v, err := marshal(valv.Interface())
 			if err != nil {
 				return nil, nil, err
 			}
 
-			values[i] = v
+			fv.values[i] = v
 		}
 	default:
 		return nil, nil, db.ErrExpectingMapOrStruct
 	}
 
-	return fields, values, nil
-}
+	sort.Sort(&fv)
 
-func columnLike(columns []string, s string) string {
-	for _, name := range columns {
-		if normalizeColumn(s) == normalizeColumn(name) {
-			return name
-		}
-	}
-	return s
+	return fv.fields, fv.values, nil
 }
 
 func marshal(v interface{}) (interface{}, error) {
@@ -712,9 +721,4 @@ func marshal(v interface{}) (interface{}, error) {
 		}
 	}
 	return v, nil
-}
-
-// normalizeColumn prepares a column for comparison against another column.
-func normalizeColumn(s string) string {
-	return strings.ToLower(reColumnCompareExclude.ReplaceAllString(s, ""))
 }
