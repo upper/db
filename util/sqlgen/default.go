@@ -16,6 +16,7 @@ const (
 	defaultDescKeyword         = `DESC`
 	defaultAscKeyword          = `ASC`
 	defaultDefaultOperator     = `=`
+	defaultAssignmentOperator  = `=`
 	defaultClauseGroup         = `({{.}})`
 	defaultClauseOperator      = ` {{.}} `
 	defaultColumnValue         = `{{.Column}} {{.Operator}} {{.Value}}`
@@ -64,36 +65,44 @@ const (
 	`
 
 	defaultSelectLayout = `
-		SELECT
+    SELECT
 
-			{{if .Columns}}
-				{{.Columns}}
-			{{else}}
-				*
-			{{end}}
+      {{if .Columns}}
+        {{.Columns}}
+      {{else}}
+        *
+      {{end}}
 
-			FROM {{.Table}}
+      {{if .Table}}
+        FROM {{.Table}}
+      {{end}}
 
-			{{.Joins}}
+      {{.Joins}}
 
-			{{.Where}}
+      {{.Where}}
 
-			{{.GroupBy}}
+      {{.GroupBy}}
 
-			{{.OrderBy}}
+      {{.OrderBy}}
 
-			{{if .Limit}}
-				LIMIT {{.Limit}}
-			{{end}}
+      {{if .Limit}}
+        LIMIT {{.Limit}}
+      {{end}}
 
-			{{if .Offset}}
-				OFFSET {{.Offset}}
-			{{end}}
+      {{if .Offset}}
+        OFFSET {{.Offset}}
+      {{end}}
 	`
 	defaultDeleteLayout = `
-		DELETE
-			FROM {{.Table}}
-			{{.Where}}
+    DELETE
+      FROM {{.Table}}
+      {{.Where}}
+    {{if .Limit}}
+      LIMIT {{.Limit}}
+    {{end}}
+    {{if .Offset}}
+      OFFSET {{.Offset}}
+    {{end}}
 	`
 	defaultUpdateLayout = `
 		UPDATE
@@ -118,11 +127,11 @@ const (
 	`
 
 	defaultInsertLayout = `
-		INSERT INTO {{.Table}}
-			({{.Columns}})
-		VALUES
-			{{.Values}}
-		{{.Extra}}
+    INSERT INTO {{.Table}}
+      {{if .Columns }}({{.Columns}}){{end}}
+    VALUES
+      {{.Values}}
+    {{.Extra}}
 	`
 
 	defaultTruncateLayout = `
@@ -158,6 +167,7 @@ var defaultTemplate = &Template{
 	DescKeyword:         defaultDescKeyword,
 	AscKeyword:          defaultAscKeyword,
 	DefaultOperator:     defaultDefaultOperator,
+	AssignmentOperator:  defaultAssignmentOperator,
 	ClauseGroup:         defaultClauseGroup,
 	ClauseOperator:      defaultClauseOperator,
 	ColumnValue:         defaultColumnValue,

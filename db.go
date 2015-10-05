@@ -178,13 +178,13 @@ type Database interface {
 	// collection to exists will fail returning the original error a call to
 	// Collection() would have returned. The output of C() may be a cached
 	// collection value.
-	C(...string) Collection
+	C(string) Collection
 
 	// Collection() returns a `db.Collection{}` struct by name. Some databases
 	// support collections of more than one source or table, refer to the
 	// documentation of the specific database adapter to see if using multiple
 	// sources is supported.
-	Collection(...string) (Collection, error)
+	Collection(string) (Collection, error)
 
 	// Collections() returns the names of all non-system sources or tables within
 	// the active database.

@@ -52,6 +52,7 @@ type database struct {
 	cachedStatements *cache.Cache
 	collections      map[string]*table
 	collectionsMu    sync.Mutex
+	builder          db.QueryBuilder
 }
 
 type cachedStatement struct {
@@ -152,6 +153,8 @@ func (d *database) Open() error {
 		return err
 	}
 
+	d.builder = builder.NewBuilder(d, template.Template)
+
 	d.cachedStatements = cache.NewCache()
 
 	d.collections = make(map[string]*table)
@@ -197,16 +200,12 @@ func (d *database) Close() error {
 }
 
 // C returns a collection interface.
-func (d *database) C(names ...string) db.Collection {
-	if len(names) == 0 {
-		return &adapter.NonExistentCollection{Err: db.ErrMissingCollectionName}
-	}
-
-	if c, ok := d.collections[sqlutil.HashTableNames(names)]; ok {
+func (d *database) C(name string) db.Collection {
+	if c, ok := d.collections[name]; ok {
 		return c
 	}
 
-	c, err := d.Collection(names...)
+	c, err := d.Collection(name)
 	if err != nil {
 		return &adapter.NonExistentCollection{Err: err}
 	}
@@ -214,43 +213,21 @@ func (d *database) C(names ...string) db.Collection {
 }
 
 // Collection returns a table by name.
-func (d *database) Collection(names ...string) (db.Collection, error) {
-	var err error
-
-	if len(names) == 0 {
-		return nil, db.ErrMissingCollectionName
-	}
-
+func (d *database) Collection(name string) (db.Collection, error) {
 	if d.tx != nil {
 		if d.tx.Done() {
 			return nil, sql.ErrTxDone
 		}
 	}
 
-	col := &table{database: d}
-	col.T.Tables = names
-
-	for _, name := range names {
-		chunks := strings.SplitN(name, ` `, 2)
-
-		if len(chunks) == 0 {
-			return nil, db.ErrMissingCollectionName
-		}
-
-		tableName := chunks[0]
-
-		if err := d.tableExists(tableName); err != nil {
-			return nil, err
-		}
-
-		if col.Columns, err = d.tableColumns(tableName); err != nil {
-			return nil, err
-		}
+	if err := d.tableExists(name); err != nil {
+		return nil, err
 	}
 
-	// Saving the collection for C().
+	col := &table{database: d, name: name}
+
 	d.collectionsMu.Lock()
-	d.collections[sqlutil.HashTableNames(names)] = col
+	d.collections[name] = col
 	d.collectionsMu.Unlock()
 
 	return col, nil
@@ -638,7 +615,7 @@ func (d *database) getPrimaryKey(tableName string) ([]string, error) {
 
 // Builder returns a custom query builder.
 func (d *database) Builder() db.QueryBuilder {
-	return builder.NewBuilder(d, template)
+	return d.builder
 }
 
 // waitForConnection tries to execute the connectFn function, if connectFn
