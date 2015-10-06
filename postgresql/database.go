@@ -211,7 +211,7 @@ func (d *database) C(name string) db.Collection {
 	return c
 }
 
-// Collection returns a table by name.
+// Collection returns the table that matches the given name.
 func (d *database) Collection(name string) (db.Collection, error) {
 	if d.tx != nil {
 		if d.tx.Done() {
@@ -219,11 +219,11 @@ func (d *database) Collection(name string) (db.Collection, error) {
 		}
 	}
 
-	if err := d.tableExists(name); err != nil {
+	if err := d.TableExists(name); err != nil {
 		return nil, err
 	}
 
-	col := &table{database: d, name: name}
+	col := newTable(d, name)
 
 	d.collectionsMu.Lock()
 	d.collections[name] = col
@@ -424,19 +424,13 @@ func (d *database) populateSchema() (err error) {
 	return err
 }
 
-func (d *database) tableExists(names ...string) error {
-	var row map[string]string
-
-	for _, tableName := range names {
-
-		if d.schema.HasTable(tableName) {
-			// We already know this table exists.
-			continue
-		}
-
+func (d *database) TableExists(name string) error {
+	if !d.schema.HasTable(name) {
 		q := d.Builder().Select("table_name").
 			From("information_schema.tables").
-			Where("table_catalog = ? AND table_name = ?", d.schema.Name, tableName)
+			Where("table_catalog = ? AND table_name = ?", d.schema.Name, name)
+
+		var row map[string]string
 
 		if err := q.Iterator().One(&row); err != nil {
 			return db.ErrCollectionDoesNotExist
@@ -447,10 +441,6 @@ func (d *database) tableExists(names ...string) error {
 }
 
 func (d *database) TableColumns(tableName string) ([]string, error) {
-	return d.tableColumns(tableName)
-}
-
-func (d *database) tableColumns(tableName string) ([]string, error) {
 
 	tableSchema := d.schema.Table(tableName)
 
@@ -477,7 +467,7 @@ func (d *database) tableColumns(tableName string) ([]string, error) {
 	return d.schema.TableInfo[tableName].Columns, nil
 }
 
-func (d *database) getPrimaryKey(tableName string) ([]string, error) {
+func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
 	tableSchema := d.schema.Table(tableName)
 
 	if len(tableSchema.PrimaryKey) != 0 {

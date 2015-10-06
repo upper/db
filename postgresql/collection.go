@@ -28,21 +28,15 @@ import (
 
 	"upper.io/db"
 	"upper.io/db/builder"
+	"upper.io/db/internal/sqladapter"
 	"upper.io/db/util/sqlgen"
-	"upper.io/db/util/sqlutil/result"
 )
 
 type table struct {
-	*database
-	name string
+	*sqladapter.Collection
 }
 
 var _ = db.Collection(&table{})
-
-// Find creates a result set with the given conditions.
-func (t *table) Find(conds ...interface{}) db.Result {
-	return result.NewResult(t.database.Builder(), t.Name(), conds)
-}
 
 // Truncate deletes all rows from the table.
 func (t *table) Truncate() error {
@@ -52,7 +46,7 @@ func (t *table) Truncate() error {
 		Extra: sqlgen.Extra("RESTART IDENTITY"),
 	}
 
-	if _, err := t.database.Exec(&stmt); err != nil {
+	if _, err := t.Database().Builder().Exec(&stmt); err != nil {
 		return err
 	}
 	return nil
@@ -66,37 +60,35 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 	}
 
 	var pKey []string
-	if pKey, err = t.database.getPrimaryKey(t.Name()); err != nil {
+	if pKey, err = t.Database().TablePrimaryKey(t.Name()); err != nil {
 		if err != sql.ErrNoRows {
-			// Can't tell primary key.
 			return nil, err
 		}
 	}
 
-	q := t.database.Builder().InsertInto(t.Name()).
+	q := t.Database().Builder().InsertInto(t.Name()).
 		Columns(columnNames...).
 		Values(columnValues...)
 
-	// No primary keys defined.
 	if len(pKey) == 0 {
-
+		// There is no primary key.
 		var res sql.Result
+
 		if res, err = q.Exec(); err != nil {
 			return nil, err
 		}
 
-		// Attempt to use LastInsertId() (probably won't work, but the exec()
-		// succeeded, so the error from LastInsertId() is ignored).
+		// Attempt to use LastInsertId() (probably won't work, but the Exec()
+		// succeeded, so we can safely ignore the error from LastInsertId()).
 		lastID, _ := res.LastInsertId()
 
 		return lastID, nil
 	}
 
-	// A primary key was found.
+	// Asking the database to return the primary key after insertion.
 	q.Extra(fmt.Sprintf(`RETURNING "%s"`, strings.Join(pKey, `", "`)))
 
 	var keyMap map[string]interface{}
-
 	if err = q.Iterator().One(&keyMap); err != nil {
 		return nil, err
 	}
@@ -133,19 +125,10 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		return id.(int64), nil
 	}
 
-	// More than one key, no interface matched, let's return a map.
+	// This was a compound key and no interface matched it, let's return a map.
 	return keyMap, nil
 }
 
-// Exists returns true if the collection exists.
-func (t *table) Exists() bool {
-	if err := t.database.tableExists(t.Name()); err != nil {
-		return false
-	}
-	return true
-}
-
-// Name returns the name of the table or tables that form the collection.
-func (t *table) Name() string {
-	return t.name
+func newTable(d *database, name string) *table {
+	return &table{sqladapter.NewCollection(d, name)}
 }

@@ -63,6 +63,15 @@ type Builder struct {
 	t    *sqlutil.TemplateWithUtils
 }
 
+func (b *Builder) Exec(query interface{}, args ...interface{}) (sql.Result, error) {
+	switch q := query.(type) {
+	case *sqlgen.Statement:
+		return b.sess.Exec(q, args...)
+	default:
+		return nil, errors.New("Unsupported query type.")
+	}
+}
+
 func (b *Builder) TruncateTable(table string) db.QueryTruncater {
 	qs := &QueryTruncater{
 		builder: b,

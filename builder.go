@@ -14,6 +14,8 @@ type QueryBuilder interface {
 	InsertInto(table string) QueryInserter
 	DeleteFrom(table string) QueryDeleter
 	Update(table string) QueryUpdater
+
+	Exec(query interface{}, args ...interface{}) (sql.Result, error)
 }
 
 type QuerySelector interface {
