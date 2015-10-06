@@ -40,10 +40,6 @@ import (
 	"upper.io/db/util/sqlutil/tx"
 )
 
-var (
-	sqlPlaceholder = sqlgen.RawValue(`?`)
-)
-
 type database struct {
 	connURL          db.ConnectionURL
 	session          *sqlx.DB
@@ -247,46 +243,19 @@ func (d *database) Collections() (collections []string, err error) {
 		return d.schema.Tables, nil
 	}
 
-	// Schema is empty.
-
 	// Querying table names.
-	stmt := &sqlgen.Statement{
-		Type: sqlgen.Select,
-		Columns: sqlgen.JoinColumns(
-			sqlgen.ColumnWithName(`table_name`),
-		),
-		Table: sqlgen.TableWithName(`information_schema.tables`),
-		Where: sqlgen.WhereConditions(
-			&sqlgen.ColumnValue{
-				Column:   sqlgen.ColumnWithName(`table_schema`),
-				Operator: `=`,
-				Value:    sqlgen.NewValue(`public`),
-			},
-		),
+	q := d.Builder().Select("table_name").
+		From("information_schema.tables").
+		Where("table_schema = ?", "public")
+
+	var row struct {
+		TableName string `db:"table_name"`
 	}
 
-	// Executing statement.
-	var rows *sqlx.Rows
-	if rows, err = d.Query(stmt); err != nil {
-		return nil, err
-	}
-
-	collections = []string{}
-
-	var name string
-
-	for rows.Next() {
-		// Getting table name.
-		if err = rows.Scan(&name); err != nil {
-			rows.Close()
-			return nil, err
-		}
-
-		// Adding table entry to schema.
-		d.schema.AddTable(name)
-
-		// Adding table to collections array.
-		collections = append(collections, name)
+	iter := q.Iterator()
+	for iter.Next(&row) {
+		d.schema.AddTable(row.TableName)
+		collections = append(collections, row.TableName)
 	}
 
 	return collections, nil
@@ -430,22 +399,17 @@ func (d *database) populateSchema() (err error) {
 	d.schema = schema.NewDatabaseSchema()
 
 	// Get database name.
-	stmt := &sqlgen.Statement{
-		Type: sqlgen.Select,
-		Columns: sqlgen.JoinColumns(
-			sqlgen.RawValue(`CURRENT_DATABASE()`),
-		),
+	q := d.Builder().Select(db.Raw{"CURRENT_DATABASE() AS name"})
+
+	var row struct {
+		Name string `db:"name"`
 	}
 
-	var row *sqlx.Row
-
-	if row, err = d.QueryRow(stmt); err != nil {
+	if err := q.Iterator().One(&row); err != nil {
 		return err
 	}
 
-	if err = row.Scan(&d.schema.Name); err != nil {
-		return err
-	}
+	d.schema.Name = row.Name
 
 	if collections, err = d.Collections(); err != nil {
 		return err
@@ -461,43 +425,20 @@ func (d *database) populateSchema() (err error) {
 }
 
 func (d *database) tableExists(names ...string) error {
-	var stmt *sqlgen.Statement
-	var err error
-	var rows *sqlx.Rows
+	var row map[string]string
 
-	for i := range names {
+	for _, tableName := range names {
 
-		if d.schema.HasTable(names[i]) {
+		if d.schema.HasTable(tableName) {
 			// We already know this table exists.
 			continue
 		}
 
-		stmt = &sqlgen.Statement{
-			Type:  sqlgen.Select,
-			Table: sqlgen.TableWithName(`information_schema.tables`),
-			Columns: sqlgen.JoinColumns(
-				sqlgen.ColumnWithName(`table_name`),
-			),
-			Where: sqlgen.WhereConditions(
-				&sqlgen.ColumnValue{
-					Column:   sqlgen.ColumnWithName(`table_catalog`),
-					Operator: `=`,
-					Value:    sqlPlaceholder,
-				},
-				&sqlgen.ColumnValue{
-					Column:   sqlgen.ColumnWithName(`table_name`),
-					Operator: `=`,
-					Value:    sqlPlaceholder,
-				},
-			),
-		}
+		q := d.Builder().Select("table_name").
+			From("information_schema.tables").
+			Where("table_catalog = ? AND table_name = ?", d.schema.Name, tableName)
 
-		if rows, err = d.Query(stmt, d.schema.Name, names[i]); err != nil {
-			return db.ErrCollectionDoesNotExist
-		}
-
-		if !rows.Next() {
-			rows.Close()
+		if err := q.Iterator().One(&row); err != nil {
 			return db.ErrCollectionDoesNotExist
 		}
 	}
@@ -511,54 +452,26 @@ func (d *database) TableColumns(tableName string) ([]string, error) {
 
 func (d *database) tableColumns(tableName string) ([]string, error) {
 
-	// Making sure this table is allocated.
 	tableSchema := d.schema.Table(tableName)
 
 	if len(tableSchema.Columns) > 0 {
 		return tableSchema.Columns, nil
 	}
 
-	stmt := &sqlgen.Statement{
-		Type:  sqlgen.Select,
-		Table: sqlgen.TableWithName(`information_schema.columns`),
-		Columns: sqlgen.JoinColumns(
-			sqlgen.ColumnWithName(`column_name`),
-			sqlgen.ColumnWithName(`data_type`),
-		),
-		Where: sqlgen.WhereConditions(
-			&sqlgen.ColumnValue{
-				Column:   sqlgen.ColumnWithName(`table_catalog`),
-				Operator: `=`,
-				Value:    sqlPlaceholder,
-			},
-			&sqlgen.ColumnValue{
-				Column:   sqlgen.ColumnWithName(`table_name`),
-				Operator: `=`,
-				Value:    sqlPlaceholder,
-			},
-		),
-	}
+	q := d.Builder().Select("column_name", "data_type").
+		From("information_schema.columns").
+		Where("table_catalog = ? AND table_name = ?", d.schema.Name, tableName)
 
-	var rows *sqlx.Rows
-	var err error
+	var rows []columnSchemaT
 
-	if rows, err = d.Query(stmt, d.schema.Name, tableName); err != nil {
+	if err := q.Iterator().All(&rows); err != nil {
 		return nil, err
 	}
 
-	tableFields := []columnSchemaT{}
+	d.schema.TableInfo[tableName].Columns = make([]string, 0, len(rows))
 
-	if err = sqlutil.FetchRows(rows, &tableFields); err != nil {
-		rows.Close()
-		return nil, err
-	}
-
-	rows.Close()
-
-	d.schema.TableInfo[tableName].Columns = make([]string, 0, len(tableFields))
-
-	for i := range tableFields {
-		d.schema.TableInfo[tableName].Columns = append(d.schema.TableInfo[tableName].Columns, tableFields[i].Name)
+	for i := range rows {
+		d.schema.TableInfo[tableName].Columns = append(d.schema.TableInfo[tableName].Columns, rows[i].Name)
 	}
 
 	return d.schema.TableInfo[tableName].Columns, nil
@@ -571,46 +484,26 @@ func (d *database) getPrimaryKey(tableName string) ([]string, error) {
 		return tableSchema.PrimaryKey, nil
 	}
 
-	// Getting primary key. See https://github.com/upper/db/issues/24.
-	stmt := &sqlgen.Statement{
-		Type:  sqlgen.Select,
-		Table: sqlgen.TableWithName(`pg_index, pg_class, pg_attribute`),
-		Columns: sqlgen.JoinColumns(
-			sqlgen.ColumnWithName(`pg_attribute.attname`),
-		),
-		Where: sqlgen.WhereConditions(
-			sqlgen.RawValue(`pg_class.oid = '"`+tableName+`"'::regclass`),
-			sqlgen.RawValue(`indrelid = pg_class.oid`),
-			sqlgen.RawValue(`pg_attribute.attrelid = pg_class.oid`),
-			sqlgen.RawValue(`pg_attribute.attnum = ANY(pg_index.indkey)`),
-			sqlgen.RawValue(`indisprimary`),
-		),
-		OrderBy: &sqlgen.OrderBy{
-			SortColumns: sqlgen.JoinSortColumns(
-				&sqlgen.SortColumn{
-					Column: sqlgen.ColumnWithName(`attname`),
-					Order:  sqlgen.Ascendent,
-				},
-			),
-		},
-	}
-
-	var rows *sqlx.Rows
-	var err error
-
-	if rows, err = d.Query(stmt); err != nil {
-		return nil, err
-	}
-
 	tableSchema.PrimaryKey = make([]string, 0, 1)
 
-	for rows.Next() {
-		var key string
-		if err = rows.Scan(&key); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		tableSchema.PrimaryKey = append(tableSchema.PrimaryKey, key)
+	q := d.Builder().Select("pg_attribute.attname AS pkey").
+		From("pg_index", "pg_class", "pg_attribute").
+		Where(`
+			pg_class.oid = '"` + tableName + `"'::regclass
+			AND indrelid = pg_class.oid
+			AND pg_attribute.attrelid = pg_class.oid
+			AND pg_attribute.attnum = ANY(pg_index.indkey)
+			AND indisprimary
+		`).OrderBy("pkey")
+
+	iter := q.Iterator()
+
+	var row struct {
+		Key string `db:"pkey"`
+	}
+
+	for iter.Next(&row) {
+		tableSchema.PrimaryKey = append(tableSchema.PrimaryKey, row.Key)
 	}
 
 	return tableSchema.PrimaryKey, nil

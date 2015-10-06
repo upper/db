@@ -136,7 +136,7 @@ const (
 	`
 
 	defaultTruncateLayout = `
-		TRUNCATE TABLE {{.Table}}
+		TRUNCATE TABLE {{.Table}} {{.Extra}}
 	`
 
 	defaultDropDatabaseLayout = `

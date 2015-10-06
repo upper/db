@@ -43,8 +43,13 @@ type QuerySelector interface {
 type QueryInserter interface {
 	Values(...interface{}) QueryInserter
 	Columns(...string) QueryInserter
+	Extra(string) QueryInserter
+
+	Iterator() Iterator
 
 	QueryExecer
+	QueryGetter
+
 	fmt.Stringer
 }
 
@@ -80,4 +85,10 @@ type Iterator interface {
 	Next(interface{}) bool
 	Err() error
 	Close() error
+}
+
+type QueryTruncater interface {
+	Extra(s string) QueryTruncater
+
+	fmt.Stringer
 }

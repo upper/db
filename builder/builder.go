@@ -63,6 +63,16 @@ type Builder struct {
 	t    *sqlutil.TemplateWithUtils
 }
 
+func (b *Builder) TruncateTable(table string) db.QueryTruncater {
+	qs := &QueryTruncater{
+		builder: b,
+		table:   table,
+	}
+
+	qs.stringer = &stringer{qs, b.t.Template}
+	return qs
+}
+
 func (b *Builder) SelectAllFrom(table string) db.QuerySelector {
 	qs := &QuerySelector{
 		builder: b,
@@ -120,10 +130,29 @@ type QueryInserter struct {
 	values    []*sqlgen.Values
 	columns   []sqlgen.Fragment
 	arguments []interface{}
+	extra     string
+}
+
+func (qi *QueryInserter) Extra(s string) db.QueryInserter {
+	qi.extra = s
+	return qi
 }
 
 func (qi *QueryInserter) Exec() (sql.Result, error) {
 	return qi.builder.sess.Exec(qi.statement())
+}
+
+func (qi *QueryInserter) Query() (*sqlx.Rows, error) {
+	return qi.builder.sess.Query(qi.statement(), qi.arguments...)
+}
+
+func (qi *QueryInserter) QueryRow() (*sqlx.Row, error) {
+	return qi.builder.sess.QueryRow(qi.statement(), qi.arguments...)
+}
+
+func (qi *QueryInserter) Iterator() db.Iterator {
+	rows, err := qi.builder.sess.Query(qi.statement(), qi.arguments...)
+	return &iterator{rows, err}
 }
 
 func (qi *QueryInserter) Columns(columns ...string) db.QueryInserter {
@@ -166,6 +195,7 @@ func (qi *QueryInserter) statement() *sqlgen.Statement {
 	stmt := &sqlgen.Statement{
 		Type:  sqlgen.Insert,
 		Table: sqlgen.TableWithName(qi.table),
+		Extra: sqlgen.Extra(qi.extra),
 	}
 
 	if len(qi.values) > 0 {
@@ -496,6 +526,30 @@ func (qs *QuerySelector) QueryRow() (*sqlx.Row, error) {
 func (qs *QuerySelector) Iterator() db.Iterator {
 	rows, err := qs.builder.sess.Query(qs.statement(), qs.arguments...)
 	return &iterator{rows, err}
+}
+
+type QueryTruncater struct {
+	*stringer
+	builder *Builder
+	table   string
+	extra   string
+	err     error
+}
+
+func (qt *QueryTruncater) Extra(extra string) db.QueryTruncater {
+	qt.extra = extra
+	return qt
+}
+
+func (qt *QueryTruncater) statement() *sqlgen.Statement {
+
+	stmt := &sqlgen.Statement{
+		Type:  sqlgen.Truncate,
+		Table: sqlgen.TableWithName(qt.table),
+		Extra: sqlgen.Extra(qt.extra),
+	}
+
+	return stmt
 }
 
 func columnFragments(template *sqlutil.TemplateWithUtils, columns []interface{}) ([]sqlgen.Fragment, error) {

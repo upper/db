@@ -26,11 +26,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jmoiron/sqlx"
 	"upper.io/db"
 	"upper.io/db/builder"
 	"upper.io/db/util/sqlgen"
-	"upper.io/db/util/sqlutil"
 	"upper.io/db/util/sqlutil/result"
 )
 
@@ -48,33 +46,26 @@ func (t *table) Find(conds ...interface{}) db.Result {
 
 // Truncate deletes all rows from the table.
 func (t *table) Truncate() error {
-	_, err := t.database.Exec(&sqlgen.Statement{
+	stmt := sqlgen.Statement{
 		Type:  sqlgen.Truncate,
 		Table: sqlgen.TableWithName(t.Name()),
-	})
-	if err != nil {
-		return err
+		Extra: sqlgen.Extra("RESTART IDENTITY"),
 	}
 
+	if _, err := t.database.Exec(&stmt); err != nil {
+		return err
+	}
 	return nil
 }
 
 // Append inserts an item (map or struct) into the collection.
 func (t *table) Append(item interface{}) (interface{}, error) {
 	columnNames, columnValues, err := builder.Map(item)
-
-	if err != nil {
-		return nil, err
-	}
-
-	sqlgenCols, sqlgenVals, sqlgenArgs, err := template.ToColumnsValuesAndArguments(columnNames, columnValues)
-
 	if err != nil {
 		return nil, err
 	}
 
 	var pKey []string
-
 	if pKey, err = t.database.getPrimaryKey(t.Name()); err != nil {
 		if err != sql.ErrNoRows {
 			// Can't tell primary key.
@@ -82,18 +73,15 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		}
 	}
 
-	stmt := &sqlgen.Statement{
-		Type:    sqlgen.Insert,
-		Table:   sqlgen.TableWithName(t.Name()),
-		Columns: sqlgenCols,
-		Values:  sqlgenVals,
-	}
+	q := t.database.Builder().InsertInto(t.Name()).
+		Columns(columnNames...).
+		Values(columnValues...)
 
 	// No primary keys defined.
 	if len(pKey) == 0 {
-		var res sql.Result
 
-		if res, err = t.database.Exec(stmt, sqlgenArgs...); err != nil {
+		var res sql.Result
+		if res, err = q.Exec(); err != nil {
 			return nil, err
 		}
 
@@ -104,21 +92,14 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		return lastID, nil
 	}
 
-	var rows *sqlx.Rows
-
 	// A primary key was found.
-	stmt.Extra = sqlgen.Extra(fmt.Sprintf(`RETURNING "%s"`, strings.Join(pKey, `", "`)))
+	q.Extra(fmt.Sprintf(`RETURNING "%s"`, strings.Join(pKey, `", "`)))
 
-	if rows, err = t.database.Query(stmt, sqlgenArgs...); err != nil {
+	var keyMap map[string]interface{}
+
+	if err = q.Iterator().One(&keyMap); err != nil {
 		return nil, err
 	}
-
-	keyMap := map[string]interface{}{}
-	if err := sqlutil.FetchRow(rows, &keyMap); err != nil {
-		rows.Close()
-		return nil, err
-	}
-	rows.Close()
 
 	// Does the item satisfy the db.IDSetter interface?
 	if setter, ok := item.(db.IDSetter); ok {

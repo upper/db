@@ -145,6 +145,11 @@ func TestInsert(t *testing.T) {
 	)
 
 	assert.Equal(
+		`INSERT INTO "artist" ("id", "name") VALUES ($1, $2) RETURNING "id"`,
+		b.InsertInto("artist").Values(map[string]string{"id": "12", "name": "Chavela Vargas"}).Extra(`RETURNING "id"`).String(),
+	)
+
+	assert.Equal(
 		`INSERT INTO "artist" ("id", "name") VALUES ($1, $2)`,
 		b.InsertInto("artist").Values(map[string]interface{}{"name": "Chavela Vargas", "id": 12}).String(),
 	)
@@ -217,5 +222,15 @@ func TestDelete(t *testing.T) {
 	assert.Equal(
 		`DELETE FROM "artist" WHERE (id > 5)`,
 		b.DeleteFrom("artist").Where("id > 5").String(),
+	)
+}
+
+func TestTruncate(t *testing.T) {
+	b := &Builder{t: sqlutil.NewTemplateWithUtils(&testTemplate)}
+	assert := assert.New(t)
+
+	assert.Equal(
+		`TRUNCATE TABLE "artist" RESTART IDENTITY`,
+		b.TruncateTable("artist").Extra("RESTART IDENTITY").String(),
 	)
 }
