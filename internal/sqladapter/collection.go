@@ -5,23 +5,30 @@ import (
 	"upper.io/db/util/sqlutil/result"
 )
 
-type Collection struct {
+type Collection interface {
+	Name() string
+	Exists() bool
+	Find(conds ...interface{}) db.Result
+	Database() Database
+}
+
+type BaseCollection struct {
 	database  Database
 	tableName string
 }
 
 // NewCollection returns a collection with basic methods.
-func NewCollection(d Database, tableName string) *Collection {
-	return &Collection{database: d, tableName: tableName}
+func NewCollection(d Database, tableName string) Collection {
+	return &BaseCollection{database: d, tableName: tableName}
 }
 
 // Name returns the name of the table.
-func (c *Collection) Name() string {
+func (c *BaseCollection) Name() string {
 	return c.tableName
 }
 
 // Exists returns true if the collection exists.
-func (c *Collection) Exists() bool {
+func (c *BaseCollection) Exists() bool {
 	if err := c.Database().TableExists(c.Name()); err != nil {
 		return false
 	}
@@ -29,11 +36,11 @@ func (c *Collection) Exists() bool {
 }
 
 // Find creates a result set with the given conditions.
-func (c *Collection) Find(conds ...interface{}) db.Result {
+func (c *BaseCollection) Find(conds ...interface{}) db.Result {
 	return result.NewResult(c.Database().Builder(), c.Name(), conds)
 }
 
 // Database returns the database session that backs the collection.
-func (c *Collection) Database() Database {
+func (c *BaseCollection) Database() Database {
 	return c.database
 }

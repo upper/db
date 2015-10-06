@@ -33,7 +33,7 @@ import (
 )
 
 type table struct {
-	*sqladapter.Collection
+	sqladapter.Collection
 }
 
 var _ = db.Collection(&table{})

@@ -223,27 +223,6 @@ func SkipTestOpenWithWrongData(t *testing.T) {
 	}
 }
 
-// Old settings must be compatible.
-func TestOldSettings(t *testing.T) {
-	var err error
-	var sess db.Database
-
-	oldSettings := db.Settings{
-		Database: databaseName,
-		User:     username,
-		Password: password,
-		Host:     host,
-	}
-
-	// Opening database.
-	if sess, err = db.Open(Adapter, oldSettings); err != nil {
-		t.Fatal(err)
-	}
-
-	// Closing database.
-	sess.Close()
-}
-
 // Test Use
 func TestUse(t *testing.T) {
 	var err error

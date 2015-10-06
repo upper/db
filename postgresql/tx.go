@@ -22,6 +22,7 @@
 package postgresql
 
 import (
+	"upper.io/db"
 	"upper.io/db/util/sqlutil/tx"
 )
 
@@ -29,6 +30,8 @@ type tx struct {
 	*sqltx.Tx
 	*database
 }
+
+var _ = db.Tx(&tx{})
 
 // Driver returns the current transaction session.
 func (t *tx) Driver() interface{} {
