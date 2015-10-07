@@ -38,6 +38,9 @@ type database struct {
 
 var _ = db.Database(&database{})
 
+// CompileAndReplacePlaceholders compiles the given statement into an string
+// and replaces each generic placeholder with the placeholder the driver
+// expects (if any).
 func (d *database) CompileAndReplacePlaceholders(stmt *sqlgen.Statement) (query string) {
 	buf := stmt.Compile(d.Template())
 
@@ -54,15 +57,21 @@ func (d *database) CompileAndReplacePlaceholders(stmt *sqlgen.Statement) (query 
 	return query
 }
 
+// Err translates some known errors into generic errors.
 func (d *database) Err(err error) error {
-	s := err.Error()
-	if strings.Contains(s, `too many clients`) || strings.Contains(s, `remaining connection slots are reserved`) {
-		return db.ErrTooManyClients
+	if err != nil {
+		s := err.Error()
+		if strings.Contains(s, `too many clients`) || strings.Contains(s, `remaining connection slots are reserved`) {
+			return db.ErrTooManyClients
+		}
+		if strings.Contains(s, `relation`) && strings.Contains(s, `does not exist`) {
+			return db.ErrCollectionDoesNotExist
+		}
 	}
 	return err
 }
 
-// Open attempts to connect to the database server using already stored settings.
+// Open attempts to open a connection to the database server.
 func (d *database) Open() error {
 	var sess *sqlx.DB
 
@@ -78,10 +87,8 @@ func (d *database) Open() error {
 	return d.Bind(sess)
 }
 
+// Setup configures the adapter.
 func (d *database) Setup(connURL db.ConnectionURL) error {
-	if d.BaseDatabase != nil {
-		d.Close()
-	}
 	d.BaseDatabase = sqladapter.NewDatabase(d, connURL, template.Template)
 	return d.Open()
 }
@@ -93,22 +100,19 @@ func (d *database) Use(name string) (err error) {
 		return err
 	}
 	conn.Database = name
+	if d.BaseDatabase != nil {
+		d.Close()
+	}
 	return d.Setup(conn)
 }
 
-func (d *database) clone() (*database, error) {
-	clone := &database{}
-	clone.BaseDatabase = d.BaseDatabase.Clone(clone)
-	if err := clone.Open(); err != nil {
-		return nil, err
-	}
-	return clone, nil
-}
-
+// Clone creates a new database connection with the same settings as the
+// original.
 func (d *database) Clone() (db.Database, error) {
 	return d.clone()
 }
 
+// NewTable returns a db.Collection.
 func (d *database) NewTable(name string) db.Collection {
 	return newTable(d, name)
 }
@@ -121,13 +125,15 @@ func (d *database) Collections() (collections []string, err error) {
 			From("information_schema.tables").
 			Where("table_schema = ?", "public")
 
-		var row struct {
-			TableName string `db:"table_name"`
-		}
-
 		iter := q.Iterator()
-		for iter.Next(&row) {
-			d.Schema().AddTable(row.TableName)
+		defer iter.Close()
+
+		for iter.Next() {
+			var tableName string
+			if err := iter.Scan(&tableName); err != nil {
+				return nil, err
+			}
+			d.Schema().AddTable(tableName)
 		}
 	}
 
@@ -178,18 +184,22 @@ func (d *database) PopulateSchema() (err error) {
 
 	d.NewSchema()
 
-	// Get database name.
 	q := d.Builder().Select(db.Raw{"CURRENT_DATABASE() AS name"})
 
-	var row struct {
-		Name string `db:"name"`
+	var dbName string
+
+	iter := q.Iterator()
+	defer iter.Close()
+
+	if iter.Next() {
+		if err := iter.Scan(&dbName); err != nil {
+			return err
+		}
+	} else {
+		return iter.Err()
 	}
 
-	if err := q.Iterator().One(&row); err != nil {
-		return err
-	}
-
-	d.Schema().Name = row.Name
+	d.Schema().Name = dbName
 
 	if collections, err = d.Collections(); err != nil {
 		return err
@@ -204,6 +214,7 @@ func (d *database) PopulateSchema() (err error) {
 	return err
 }
 
+// TableExists checks whether a table exists and returns an error in case it doesn't.
 func (d *database) TableExists(name string) error {
 	if d.Schema().HasTable(name) {
 		return nil
@@ -213,15 +224,22 @@ func (d *database) TableExists(name string) error {
 		From("information_schema.tables").
 		Where("table_catalog = ? AND table_name = ?", d.Schema().Name, name)
 
-	var row map[string]string
+	iter := q.Iterator()
+	defer iter.Close()
 
-	if err := q.Iterator().One(&row); err != nil {
+	if iter.Next() {
+		var tableName string
+		if err := iter.Scan(&tableName); err != nil {
+			return err
+		}
+	} else {
 		return db.ErrCollectionDoesNotExist
 	}
 
 	return nil
 }
 
+// TableColumns returns all columns from the given table.
 func (d *database) TableColumns(tableName string) ([]string, error) {
 	s := d.Schema()
 
@@ -249,6 +267,7 @@ func (d *database) TableColumns(tableName string) ([]string, error) {
 	return s.Table(tableName).Columns, nil
 }
 
+// TablePrimaryKey returns all primary keys from the given table.
 func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
 	s := d.Schema()
 
@@ -271,14 +290,24 @@ func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
 		`).OrderBy("pkey")
 
 	iter := q.Iterator()
+	defer iter.Close()
 
-	var row struct {
-		Key string `db:"pkey"`
-	}
-
-	for iter.Next(&row) {
-		ts.PrimaryKey = append(ts.PrimaryKey, row.Key)
+	for iter.Next() {
+		var pKey string
+		if err := iter.Scan(&pKey); err != nil {
+			return nil, err
+		}
+		ts.PrimaryKey = append(ts.PrimaryKey, pKey)
 	}
 
 	return ts.PrimaryKey, nil
+}
+
+func (d *database) clone() (*database, error) {
+	clone := &database{}
+	clone.BaseDatabase = d.BaseDatabase.Clone(clone)
+	if err := clone.Open(); err != nil {
+		return nil, err
+	}
+	return clone, nil
 }

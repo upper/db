@@ -51,6 +51,3 @@ var (
 	ErrTooManyClients          = errors.New(`Can't connect to database server: too many clients.`)
 	ErrGivingUpTryingToConnect = errors.New(`Giving up trying to connect: too many clients.`)
 )
-
-// Deprecated but kept for backwards compatibility. See: https://github.com/upper/db/issues/18
-var ErrCollectionDoesNotExists = ErrCollectionDoesNotExist

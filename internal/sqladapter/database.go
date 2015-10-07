@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq" // PostgreSQL driver.
 	"upper.io/cache"
 	"upper.io/db"
 	"upper.io/db/builder"
@@ -141,6 +140,7 @@ func (d *BaseDatabase) C(name string) db.Collection {
 	if err != nil {
 		return &adapter.NonExistentCollection{Err: err}
 	}
+
 	return c
 }
 

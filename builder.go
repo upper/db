@@ -82,9 +82,10 @@ type QueryGetter interface {
 }
 
 type Iterator interface {
-	All(interface{}) error
-	One(interface{}) error
-	Next(interface{}) bool
+	All(dest interface{}) error
+	One(dest interface{}) error
+	Scan(dest ...interface{}) error
+	Next(dest ...interface{}) bool
 	Err() error
 	Close() error
 }

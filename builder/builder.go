@@ -637,6 +637,13 @@ func NewBuilder(sess sqlDatabase, t *sqlgen.Template) *Builder {
 	}
 }
 
+func (iter *iterator) Scan(dst ...interface{}) error {
+	if iter.err != nil {
+		return iter.err
+	}
+	return iter.cursor.Scan(dst...)
+}
+
 func (iter *iterator) One(dst interface{}) error {
 	if iter.err != nil {
 		return iter.err
@@ -670,20 +677,32 @@ func (iter *iterator) Err() (err error) {
 	return iter.err
 }
 
-func (iter *iterator) Next(dst interface{}) bool {
+func (iter *iterator) Next(dst ...interface{}) bool {
 	var err error
 
 	if iter.err != nil {
 		return false
 	}
 
-	if err = sqlutil.FetchRow(iter.cursor, dst); err != nil {
-		iter.err = err
-		iter.Close()
-		return false
+	switch len(dst) {
+	case 0:
+		if ok := iter.cursor.Next(); !ok {
+			iter.err = iter.cursor.Err()
+			iter.Close()
+			return false
+		}
+		return true
+	case 1:
+		if err = sqlutil.FetchRow(iter.cursor, dst[0]); err != nil {
+			iter.err = err
+			iter.Close()
+			return false
+		}
+		return true
 	}
 
-	return true
+	iter.err = db.ErrUnsupported
+	return false
 }
 
 func (iter *iterator) Close() (err error) {
