@@ -27,9 +27,9 @@ import (
 	"strings"
 
 	"upper.io/db"
-	"upper.io/db/builder"
+	"upper.io/builder"
 	"upper.io/db/internal/sqladapter"
-	"upper.io/db/util/sqlgen"
+	"upper.io/builder/sqlgen"
 )
 
 type table struct {

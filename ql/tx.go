@@ -22,7 +22,7 @@
 package ql
 
 import (
-	"upper.io/db/util/sqlutil/tx"
+	"upper.io/db/internal/sqlutil/tx"
 )
 
 type tx struct {

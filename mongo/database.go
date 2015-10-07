@@ -29,7 +29,7 @@ import (
 
 	"gopkg.in/mgo.v2"
 	"upper.io/db"
-	"upper.io/db/util/adapter"
+	"upper.io/db/internal/adapter"
 )
 
 // Adapter holds the name of the mongodb adapter.

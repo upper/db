@@ -2,7 +2,7 @@ package sqladapter
 
 import (
 	"upper.io/db"
-	"upper.io/db/util/sqlutil/result"
+	"upper.io/db/internal/sqlutil/result"
 )
 
 type Collection interface {

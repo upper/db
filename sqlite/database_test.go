@@ -42,7 +42,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"upper.io/db"
-	"upper.io/db/util/sqlutil"
+	"upper.io/db/internal/sqlutil"
 )
 
 const (

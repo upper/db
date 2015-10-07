@@ -8,12 +8,12 @@ import (
 	"github.com/jmoiron/sqlx"
 	"upper.io/cache"
 	"upper.io/db"
-	"upper.io/db/builder"
-	"upper.io/db/util/adapter"
-	"upper.io/db/util/schema"
-	"upper.io/db/util/sqlgen"
-	"upper.io/db/util/sqlutil"
-	"upper.io/db/util/sqlutil/tx"
+	"upper.io/builder"
+	"upper.io/db/internal/adapter"
+	"upper.io/db/internal/schema"
+	"upper.io/builder/sqlgen"
+	"upper.io/db/internal/sqlutil"
+	"upper.io/db/internal/sqlutil/tx"
 )
 
 type PartialDatabase interface {
