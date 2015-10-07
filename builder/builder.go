@@ -72,16 +72,6 @@ func (b *Builder) Exec(query interface{}, args ...interface{}) (sql.Result, erro
 	}
 }
 
-func (b *Builder) TruncateTable(table string) db.QueryTruncater {
-	qs := &QueryTruncater{
-		builder: b,
-		table:   table,
-	}
-
-	qs.stringer = &stringer{qs, b.t.Template}
-	return qs
-}
-
 func (b *Builder) SelectAllFrom(table string) db.QuerySelector {
 	qs := &QuerySelector{
 		builder: b,
@@ -535,30 +525,6 @@ func (qs *QuerySelector) QueryRow() (*sqlx.Row, error) {
 func (qs *QuerySelector) Iterator() db.Iterator {
 	rows, err := qs.builder.sess.Query(qs.statement(), qs.arguments...)
 	return &iterator{rows, err}
-}
-
-type QueryTruncater struct {
-	*stringer
-	builder *Builder
-	table   string
-	extra   string
-	err     error
-}
-
-func (qt *QueryTruncater) Extra(extra string) db.QueryTruncater {
-	qt.extra = extra
-	return qt
-}
-
-func (qt *QueryTruncater) statement() *sqlgen.Statement {
-
-	stmt := &sqlgen.Statement{
-		Type:  sqlgen.Truncate,
-		Table: sqlgen.TableWithName(qt.table),
-		Extra: sqlgen.Extra(qt.extra),
-	}
-
-	return stmt
 }
 
 func columnFragments(template *sqlutil.TemplateWithUtils, columns []interface{}) ([]sqlgen.Fragment, error) {

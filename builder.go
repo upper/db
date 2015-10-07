@@ -89,9 +89,3 @@ type Iterator interface {
 	Err() error
 	Close() error
 }
-
-type QueryTruncater interface {
-	Extra(s string) QueryTruncater
-
-	fmt.Stringer
-}
