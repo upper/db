@@ -28,6 +28,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // PostgreSQL driver.
 	"upper.io/builder/sqlgen"
+	template "upper.io/builder/template/postgresql"
 	"upper.io/db"
 	"upper.io/db/internal/sqladapter"
 	"upper.io/db/internal/sqlutil/tx"
@@ -90,7 +91,7 @@ func (d *database) Open() error {
 
 // Setup configures the adapter.
 func (d *database) Setup(connURL db.ConnectionURL) error {
-	d.BaseDatabase = sqladapter.NewDatabase(d, connURL, template)
+	d.BaseDatabase = sqladapter.NewDatabase(d, connURL, template.Template())
 	return d.Open()
 }
 

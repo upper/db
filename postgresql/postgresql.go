@@ -22,53 +22,12 @@
 package postgresql // import "upper.io/db/postgresql"
 
 import (
-	"upper.io/builder/sqlgen"
-	"upper.io/cache"
 	"upper.io/db"
 )
 
 // Adapter is the public name of the adapter.
 const Adapter = `postgresql`
 
-var template *sqlgen.Template
-
 func init() {
-
-	template = &sqlgen.Template{
-		ColumnSeparator:     adapterColumnSeparator,
-		IdentifierSeparator: adapterIdentifierSeparator,
-		IdentifierQuote:     adapterIdentifierQuote,
-		ValueSeparator:      adapterValueSeparator,
-		ValueQuote:          adapterValueQuote,
-		AndKeyword:          adapterAndKeyword,
-		OrKeyword:           adapterOrKeyword,
-		NotKeyword:          adapterNotKeyword,
-		DescKeyword:         adapterDescKeyword,
-		AscKeyword:          adapterAscKeyword,
-		DefaultOperator:     adapterDefaultOperator,
-		AssignmentOperator:  adapterAssignmentOperator,
-		ClauseGroup:         adapterClauseGroup,
-		ClauseOperator:      adapterClauseOperator,
-		ColumnValue:         adapterColumnValue,
-		TableAliasLayout:    adapterTableAliasLayout,
-		ColumnAliasLayout:   adapterColumnAliasLayout,
-		SortByColumnLayout:  adapterSortByColumnLayout,
-		WhereLayout:         adapterWhereLayout,
-		JoinLayout:          adapterJoinLayout,
-		OnLayout:            adapterOnLayout,
-		UsingLayout:         adapterUsingLayout,
-		OrderByLayout:       adapterOrderByLayout,
-		InsertLayout:        adapterInsertLayout,
-		SelectLayout:        adapterSelectLayout,
-		UpdateLayout:        adapterUpdateLayout,
-		DeleteLayout:        adapterDeleteLayout,
-		TruncateLayout:      adapterTruncateLayout,
-		DropDatabaseLayout:  adapterDropDatabaseLayout,
-		DropTableLayout:     adapterDropTableLayout,
-		CountLayout:         adapterSelectCountLayout,
-		GroupByLayout:       adapterGroupByLayout,
-		Cache:               cache.NewCache(),
-	}
-
 	db.Register(Adapter, &database{})
 }
