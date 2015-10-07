@@ -22,19 +22,19 @@
 package postgresql // import "upper.io/db/postgresql"
 
 import (
+	"upper.io/builder/sqlgen"
 	"upper.io/cache"
 	"upper.io/db"
-	"upper.io/builder/sqlgen"
-	"upper.io/db/internal/sqlutil"
 )
 
 // Adapter is the public name of the adapter.
 const Adapter = `postgresql`
 
-var template *sqlutil.TemplateWithUtils
+var template *sqlgen.Template
 
 func init() {
-	template = sqlutil.NewTemplateWithUtils(&sqlgen.Template{
+
+	template = &sqlgen.Template{
 		ColumnSeparator:     adapterColumnSeparator,
 		IdentifierSeparator: adapterIdentifierSeparator,
 		IdentifierQuote:     adapterIdentifierQuote,
@@ -68,7 +68,7 @@ func init() {
 		CountLayout:         adapterSelectCountLayout,
 		GroupByLayout:       adapterGroupByLayout,
 		Cache:               cache.NewCache(),
-	})
+	}
 
 	db.Register(Adapter, &database{})
 }

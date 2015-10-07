@@ -27,9 +27,9 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // PostgreSQL driver.
+	"upper.io/builder/sqlgen"
 	"upper.io/db"
 	"upper.io/db/internal/sqladapter"
-	"upper.io/builder/sqlgen"
 )
 
 type database struct {
@@ -89,7 +89,7 @@ func (d *database) Open() error {
 
 // Setup configures the adapter.
 func (d *database) Setup(connURL db.ConnectionURL) error {
-	d.BaseDatabase = sqladapter.NewDatabase(d, connURL, template.Template)
+	d.BaseDatabase = sqladapter.NewDatabase(d, connURL, template)
 	return d.Open()
 }
 

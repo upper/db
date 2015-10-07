@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"upper.io/builder"
+	"upper.io/builder/sqlgen"
 	"upper.io/cache"
 	"upper.io/db"
-	"upper.io/builder"
 	"upper.io/db/internal/adapter"
+	"upper.io/db/internal/debug"
 	"upper.io/db/internal/schema"
-	"upper.io/builder/sqlgen"
-	"upper.io/db/internal/sqlutil"
 	"upper.io/db/internal/sqlutil/tx"
 )
 
@@ -186,7 +186,7 @@ func (d *BaseDatabase) Exec(stmt *sqlgen.Statement, args ...interface{}) (sql.Re
 
 		defer func() {
 			end = time.Now().UnixNano()
-			sqlutil.Log(query, args, err, start, end)
+			debug.Log(query, args, err, start, end)
 		}()
 	}
 
@@ -209,7 +209,7 @@ func (d *BaseDatabase) Query(stmt *sqlgen.Statement, args ...interface{}) (*sqlx
 
 		defer func() {
 			end = time.Now().UnixNano()
-			sqlutil.Log(query, args, err, start, end)
+			debug.Log(query, args, err, start, end)
 		}()
 	}
 
@@ -232,7 +232,7 @@ func (d *BaseDatabase) QueryRow(stmt *sqlgen.Statement, args ...interface{}) (*s
 
 		defer func() {
 			end = time.Now().UnixNano()
-			sqlutil.Log(query, args, err, start, end)
+			debug.Log(query, args, err, start, end)
 		}()
 	}
 
