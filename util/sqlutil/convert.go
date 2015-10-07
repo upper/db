@@ -120,6 +120,12 @@ func (tu *TemplateWithUtils) ToInterfaceArguments(value interface{}) (args []int
 		args = []interface{}{value}
 	}
 
+	for i := range args {
+		if raw, ok := args[i].(db.Raw); ok {
+			args[i] = raw.Value
+		}
+	}
+
 	return args
 }
 
@@ -128,14 +134,17 @@ func (tu *TemplateWithUtils) ToColumnValues(cond db.Cond) (ToColumnValues sqlgen
 
 	args = []interface{}{}
 
-	for column, value := range cond {
-		columnValue := sqlgen.ColumnValue{}
+	for columnInterface, value := range cond {
+		var columnValue sqlgen.ColumnValue
 
-		// Guessing operator from input, or using a default one.
-		column := strings.TrimSpace(column)
+		column := strings.TrimSpace(fmt.Sprintf("%v", columnInterface))
 		chunks := strings.SplitN(column, ` `, 2)
 
-		columnValue.Column = sqlgen.ColumnWithName(chunks[0])
+		if _, ok := columnInterface.(db.Raw); ok {
+			columnValue.Column = sqlgen.RawValue(chunks[0])
+		} else {
+			columnValue.Column = sqlgen.ColumnWithName(chunks[0])
+		}
 
 		if len(chunks) > 1 {
 			columnValue.Operator = chunks[1]

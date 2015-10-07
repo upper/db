@@ -890,7 +890,7 @@ func TestFunction(t *testing.T) {
 		Name string
 	}{}
 
-	res = artist.Find(db.Cond{"id NOT IN": []int{0, -1}})
+	res = artist.Find(db.Cond{db.Raw{"id NOT IN"}: []int{0, -1}})
 
 	if err = res.One(&rowStruct); err != nil {
 		t.Fatal(err)
@@ -905,7 +905,11 @@ func TestFunction(t *testing.T) {
 	}
 
 	// Testing conditions
-	res = artist.Find(db.Cond{"id": db.Func{"NOT IN", []int{0, -1}}})
+	res = artist.Find(db.Cond{
+		db.Raw{"id"}: db.Func{
+			"NOT IN", []int{0, -1},
+		},
+	})
 
 	if err = res.One(&rowStruct); err != nil {
 		t.Fatal(err)
@@ -920,7 +924,7 @@ func TestFunction(t *testing.T) {
 	}
 
 	// Testing DISTINCT (function)
-	res = artist.Find().Select(
+	res = artist.Find(db.Cond{db.Raw{1}: db.Raw{1}}).Select(
 		db.Func{`DISTINCT`, `name`},
 	)
 
