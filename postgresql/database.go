@@ -30,6 +30,7 @@ import (
 	"upper.io/builder/sqlgen"
 	"upper.io/db"
 	"upper.io/db/internal/sqladapter"
+	"upper.io/db/internal/sqlutil/tx"
 )
 
 type database struct {
@@ -174,7 +175,7 @@ func (d *database) Transaction() (db.Tx, error) {
 
 	clone.BindTx(sqlTx)
 
-	return &tx{Tx: clone.Tx(), database: clone}, nil
+	return &sqltx.Database{Database: clone, Tx: clone.Tx()}, nil
 }
 
 // PopulateSchema looks up for the table info in the database and populates its

@@ -23,7 +23,13 @@ package sqltx
 
 import (
 	"github.com/jmoiron/sqlx"
+	"upper.io/db"
 )
+
+type Database struct {
+	db.Database
+	*Tx
+}
 
 type Tx struct {
 	*sqlx.Tx

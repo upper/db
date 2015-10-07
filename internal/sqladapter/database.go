@@ -34,9 +34,9 @@ type Database interface {
 type BaseDatabase struct {
 	partial PartialDatabase
 	sess    *sqlx.DB
+	tx      *sqltx.Tx
 
 	connURL          db.ConnectionURL
-	tx               *sqltx.Tx
 	schema           *schema.DatabaseSchema
 	cachedStatements *cache.Cache
 	collections      map[string]db.Collection
@@ -250,6 +250,9 @@ func (d *BaseDatabase) Builder() db.QueryBuilder {
 
 // Driver returns the underlying *sqlx.DB instance.
 func (d *BaseDatabase) Driver() interface{} {
+	if d.tx != nil {
+		return d.tx.Tx
+	}
 	return d.sess
 }
 
