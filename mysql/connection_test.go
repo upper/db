@@ -39,7 +39,7 @@ func TestConnectionURL(t *testing.T) {
 	// Adding a database name.
 	c.Database = "mydbname"
 
-	if c.String() != "/mydbname?charset=utf8" {
+	if c.String() != "/mydbname?charset=utf8&parseTime=true" {
 		t.Fatal(`Test failed, got:`, c.String())
 	}
 
@@ -49,7 +49,7 @@ func TestConnectionURL(t *testing.T) {
 		"sys_var": "esc@ped",
 	}
 
-	if c.String() != "/mydbname?charset=utf8mb4%2Cutf8&sys_var=esc%40ped" {
+	if c.String() != "/mydbname?charset=utf8mb4%2Cutf8&parseTime=true&sys_var=esc%40ped" {
 		t.Fatal(`Test failed, got:`, c.String())
 	}
 
@@ -60,21 +60,21 @@ func TestConnectionURL(t *testing.T) {
 	c.User = "user"
 	c.Password = "pass"
 
-	if c.String() != `user:pass@/mydbname?charset=utf8` {
+	if c.String() != `user:pass@/mydbname?charset=utf8&parseTime=true` {
 		t.Fatal(`Test failed, got:`, c.String())
 	}
 
 	// Setting host.
 	c.Address = db.HostPort("1.2.3.4", 3306)
 
-	if c.String() != `user:pass@tcp(1.2.3.4:3306)/mydbname?charset=utf8` {
+	if c.String() != `user:pass@tcp(1.2.3.4:3306)/mydbname?charset=utf8&parseTime=true` {
 		t.Fatal(`Test failed, got:`, c.String())
 	}
 
 	// Setting socket.
 	c.Address = db.Socket("/path/to/socket")
 
-	if c.String() != `user:pass@unix(/path/to/socket)/mydbname?charset=utf8` {
+	if c.String() != `user:pass@unix(/path/to/socket)/mydbname?charset=utf8&parseTime=true` {
 		t.Fatal(`Test failed, got:`, c.String())
 	}
 

@@ -23,35 +23,27 @@ package mysql
 
 import (
 	"database/sql"
-	"strings"
 
-	"upper.io/db"
+	"upper.io/builder"
 	"upper.io/builder/sqlgen"
-	"upper.io/db/internal/sqlutil"
-	"upper.io/db/internal/sqlutil/result"
+	"upper.io/db"
+	"upper.io/db/internal/sqladapter"
 )
 
 type table struct {
-	sqlutil.T
-	*database
+	sqladapter.Collection
 }
 
 var _ = db.Collection(&table{})
 
-// Find creates a result set with the given conditions.
-func (t *table) Find(terms ...interface{}) db.Result {
-	where, arguments := template.ToWhereWithArguments(terms)
-	return result.NewResult(template, t, where, arguments)
-}
-
 // Truncate deletes all rows from the table.
 func (t *table) Truncate() error {
-	_, err := t.database.Exec(&sqlgen.Statement{
+	stmt := sqlgen.Statement{
 		Type:  sqlgen.Truncate,
-		Table: sqlgen.TableWithName(t.MainTableName()),
-	})
+		Table: sqlgen.TableWithName(t.Name()),
+	}
 
-	if err != nil {
+	if _, err := t.Database().Builder().Exec(&stmt); err != nil {
 		return err
 	}
 	return nil
@@ -59,36 +51,24 @@ func (t *table) Truncate() error {
 
 // Append inserts an item (map or struct) into the collection.
 func (t *table) Append(item interface{}) (interface{}, error) {
+	columnNames, columnValues, err := builder.Map(item)
+	if err != nil {
+		return nil, err
+	}
+
 	var pKey []string
-
-	columnNames, columnValues, err := t.FieldValues(item)
-
-	if err != nil {
-		return nil, err
-	}
-
-	sqlgenCols, sqlgenVals, sqlgenArgs, err := template.ToColumnsValuesAndArguments(columnNames, columnValues)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if pKey, err = t.database.getPrimaryKey(t.MainTableName()); err != nil {
+	if pKey, err = t.Database().TablePrimaryKey(t.Name()); err != nil {
 		if err != sql.ErrNoRows {
-			// Can't tell primary key.
 			return nil, err
 		}
 	}
 
-	stmt := &sqlgen.Statement{
-		Type:    sqlgen.Insert,
-		Table:   sqlgen.TableWithName(t.MainTableName()),
-		Columns: sqlgenCols,
-		Values:  sqlgenVals,
-	}
+	q := t.Database().Builder().InsertInto(t.Name()).
+		Columns(columnNames...).
+		Values(columnValues...)
 
 	var res sql.Result
-	if res, err = t.database.Exec(stmt, sqlgenArgs...); err != nil {
+	if res, err = q.Exec(); err != nil {
 		return nil, err
 	}
 
@@ -141,15 +121,6 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 	return keyMap, nil
 }
 
-// Exists returns true if the collection exists.
-func (t *table) Exists() bool {
-	if err := t.database.tableExists(t.Tables...); err != nil {
-		return false
-	}
-	return true
-}
-
-// Name returns the name of the table or tables that form the collection.
-func (t *table) Name() string {
-	return strings.Join(t.Tables, `, `)
+func newTable(d *database, name string) *table {
+	return &table{sqladapter.NewCollection(d, name)}
 }

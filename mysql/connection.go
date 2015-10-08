@@ -99,6 +99,10 @@ func (c ConnectionURL) String() (s string) {
 		c.Options["charset"] = "utf8"
 	}
 
+	if _, ok := c.Options["parseTime"]; !ok {
+		c.Options["parseTime"] = "true"
+	}
+
 	// Converting options into URL values.
 	vv := url.Values{}
 
