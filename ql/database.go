@@ -25,92 +25,45 @@ import (
 	"database/sql"
 	"errors"
 	"strconv"
-	"strings"
-	"sync"
 	"sync/atomic"
-	"time"
 
 	_ "github.com/cznic/ql/driver" // QL driver
 	"github.com/jmoiron/sqlx"
-	"upper.io/cache"
-	"upper.io/db"
-	"upper.io/db/internal/adapter"
-	"upper.io/db/internal/schema"
 	"upper.io/builder/sqlgen"
-	"upper.io/db/internal/sqlutil"
+	template "upper.io/builder/template/ql"
+	"upper.io/db"
+	"upper.io/db/internal/sqladapter"
 	"upper.io/db/internal/sqlutil/tx"
 )
 
-var (
-	sqlPlaceholder = sqlgen.RawValue(`?`)
-)
-
 type database struct {
-	connURL          db.ConnectionURL
-	session          *sqlx.DB
-	tx               *sqltx.Tx
-	schema           *schema.DatabaseSchema
-	cachedStatements *cache.Cache
-	collections      map[string]*table
-	collectionsMu    sync.Mutex
-}
-
-type cachedStatement struct {
-	*sqlx.Stmt
-	query string
+	*sqladapter.BaseDatabase
+	columns map[string][]columnSchemaT
 }
 
 var (
 	fileOpenCount       int32
-	waitForFdMu         sync.Mutex
 	errTooManyOpenFiles = errors.New(`Too many open database files.`)
 )
 
+type columnSchemaT struct {
+	Name string `db:"name"`
+	PK   int    `db:"pk"`
+}
+
+var _ = db.Database(&database{})
+
 const (
+	// If we try to open lots of sessions cgo will panic without a warning, this
+	// artificial limit was added to prevent that panic.
 	maxOpenFiles = 5
 )
 
-var (
-	_ = db.Database(&database{})
-	_ = db.Tx(&tx{})
-)
-
-type columnSchemaT struct {
-	Name string `db:"Name"`
-}
-
-func (d *database) prepareStatement(stmt *sqlgen.Statement) (p *sqlx.Stmt, query string, err error) {
-	if d.session == nil {
-		return nil, "", db.ErrNotConnected
-	}
-
-	pc, ok := d.cachedStatements.ReadRaw(stmt)
-
-	if ok {
-		ps := pc.(*cachedStatement)
-		p = ps.Stmt
-		query = ps.query
-	} else {
-		query = compileAndReplacePlaceholders(stmt)
-
-		if d.tx != nil {
-			p, err = d.tx.Preparex(query)
-		} else {
-			p, err = d.session.Preparex(query)
-		}
-
-		if err != nil {
-			return nil, query, err
-		}
-
-		d.cachedStatements.Write(stmt, &cachedStatement{p, query})
-	}
-
-	return p, query, nil
-}
-
-func compileAndReplacePlaceholders(stmt *sqlgen.Statement) (query string) {
-	buf := stmt.Compile(template.Template)
+// CompileAndReplacePlaceholders compiles the given statement into an string
+// and replaces each generic placeholder with the placeholder the driver
+// expects (if any).
+func (d *database) CompileAndReplacePlaceholders(stmt *sqlgen.Statement) (query string) {
+	buf := stmt.Compile(d.Template())
 
 	j := 1
 	for i := range buf {
@@ -125,300 +78,243 @@ func compileAndReplacePlaceholders(stmt *sqlgen.Statement) (query string) {
 	return query
 }
 
-// Driver returns the underlying *sqlx.DB instance.
-func (d *database) Driver() interface{} {
-	return d.session
+// Err translates some known errors into generic errors.
+func (d *database) Err(err error) error {
+	if err != nil {
+		if err == errTooManyOpenFiles {
+			return db.ErrTooManyClients
+		}
+	}
+	return err
 }
 
-// Open attempts to connect to the database server using already stored settings.
+// Open attempts to open a connection to the database server.
 func (d *database) Open() error {
-	var err error
+	var sess *sqlx.DB
 
-	// Before db.ConnectionURL we used a unified db.Settings struct. This
-	// condition checks for that type and provides backwards compatibility.
-	if settings, ok := d.connURL.(db.Settings); ok {
-
-		// User is providing a db.Settings struct, let's translate it into a
-		// ConnectionURL{}.
-		conn := ConnectionURL{
-			Database: settings.Database,
-		}
-
-		d.connURL = conn
-	}
-
-	openFn := func(d **database) (err error) {
+	openFn := func(sess **sqlx.DB) (err error) {
 		openFiles := atomic.LoadInt32(&fileOpenCount)
 
-		if openFiles > maxOpenFiles {
-			return errTooManyOpenFiles
+		if openFiles < maxOpenFiles {
+			*sess, err = sqlx.Open(`ql`, d.ConnectionURL().String())
+
+			if err == nil {
+				atomic.AddInt32(&fileOpenCount, 1)
+			}
+			return
 		}
 
-		(*d).session, err = sqlx.Open(`ql`, (*d).connURL.String())
+		return errTooManyOpenFiles
 
-		if err == nil {
-			atomic.AddInt32(&fileOpenCount, 1)
-		}
-		return
 	}
 
-	if err := waitForFreeFd(func() error { return openFn(&d) }); err != nil {
+	if err := d.WaitForConnection(func() error { return openFn(&sess) }); err != nil {
 		return err
 	}
 
-	d.session.Mapper = sqlutil.NewMapper()
-
-	d.cachedStatements = cache.NewCache()
-
-	d.collections = make(map[string]*table)
-
-	if d.schema == nil {
-		if err = d.populateSchema(); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return d.Bind(sess)
 }
 
-// Clone returns a cloned db.Database session, this is typically used for
-// transactions.
-func (d *database) Clone() (db.Database, error) {
-	return d.clone()
-}
-
-func (d *database) clone() (adapter *database, err error) {
-	clone := &database{
-		schema: d.schema,
-	}
-	if err := clone.Setup(d.connURL); err != nil {
-		return nil, err
-	}
-	return clone, nil
-}
-
-// Ping checks whether a connection to the database is still alive by pinging
-// it, establishing a connection if necessary.
-func (d *database) Ping() error {
-	return d.session.Ping()
-}
-
-// Close terminates the current database session.
-func (d *database) Close() error {
-	if d.session != nil {
-		if d.tx != nil && !d.tx.Done() {
-			d.tx.Rollback()
-		}
-		if err := d.session.Close(); err != nil {
-			return err
-		}
-		d.cachedStatements.Clear()
-		d.session = nil
-		if atomic.AddInt32(&fileOpenCount, -1) < 0 {
-			return errors.New(`Close() without Open()?`)
-		}
-	}
-	return nil
-}
-
-// C returns a collection interface.
-func (d *database) C(names ...string) db.Collection {
-	if len(names) == 0 {
-		return &adapter.NonExistentCollection{Err: db.ErrMissingCollectionName}
-	}
-
-	if c, ok := d.collections[sqlutil.HashTableNames(names)]; ok {
-		return c
-	}
-
-	c, err := d.Collection(names...)
-	if err != nil {
-		return &adapter.NonExistentCollection{Err: err}
-	}
-	return c
-}
-
-// Collection returns a table by name.
-func (d *database) Collection(names ...string) (db.Collection, error) {
-	var err error
-
-	if len(names) == 0 {
-		return nil, db.ErrMissingCollectionName
-	}
-
-	if d.tx != nil {
-		if d.tx.Done() {
-			return nil, sql.ErrTxDone
-		}
-	}
-
-	col := &table{database: d}
-	col.T.Tables = names
-	col.T.Mapper = d.session.Mapper
-
-	for _, name := range names {
-		chunks := strings.SplitN(name, ` `, 2)
-
-		if len(chunks) == 0 {
-			return nil, db.ErrMissingCollectionName
-		}
-
-		tableName := chunks[0]
-
-		if err := d.tableExists(tableName); err != nil {
-			return nil, err
-		}
-
-		if col.Columns, err = d.tableColumns(tableName); err != nil {
-			return nil, err
-		}
-	}
-
-	// Saving the collection for C().
-	d.collectionsMu.Lock()
-	d.collections[sqlutil.HashTableNames(names)] = col
-	d.collectionsMu.Unlock()
-
-	return col, nil
-}
-
-// Collections returns a list of non-system tables from the database.
-func (d *database) Collections() (collections []string, err error) {
-
-	tablesInSchema := len(d.schema.Tables)
-
-	// Is schema already populated?
-	if tablesInSchema > 0 {
-		// Pulling table names from schema.
-		return d.schema.Tables, nil
-	}
-
-	// Schema is empty.
-
-	// Querying table names.
-	stmt := &sqlgen.Statement{
-		Type:  sqlgen.Select,
-		Table: sqlgen.TableWithName(`__Table`),
-		Columns: sqlgen.JoinColumns(
-			sqlgen.ColumnWithName(`Name`),
-		),
-	}
-
-	// Executing statement.
-	var rows *sqlx.Rows
-	if rows, err = d.Query(stmt); err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	collections = []string{}
-
-	var name string
-
-	for rows.Next() {
-		// Getting table name.
-
-		if err = rows.Scan(&name); err != nil {
-			return nil, err
-		}
-
-		// Adding table entry to schema.
-		d.schema.AddTable(name)
-
-		// Adding table to collections array.
-		collections = append(collections, name)
-	}
-
-	return collections, nil
+// Setup configures the adapter.
+func (d *database) Setup(connURL db.ConnectionURL) error {
+	d.BaseDatabase = sqladapter.NewDatabase(d, connURL, template.Template())
+	return d.Open()
 }
 
 // Use changes the active database.
 func (d *database) Use(name string) (err error) {
 	var conn ConnectionURL
-
-	if conn, err = ParseURL(d.connURL.String()); err != nil {
+	if conn, err = ParseURL(d.ConnectionURL().String()); err != nil {
 		return err
 	}
-
 	conn.Database = name
+	if d.BaseDatabase != nil {
+		d.Close()
+	}
+	return d.Setup(conn)
+}
 
-	d.connURL = conn
+func (d *database) Close() error {
+	if d.BaseDatabase != nil {
+		if atomic.AddInt32(&fileOpenCount, -1) < 0 {
+			return errors.New(`Close() without Open()?`)
+		}
+		return d.BaseDatabase.Close()
+	}
+	return nil
+}
 
-	d.schema = nil
+// Clone creates a new database connection with the same settings as the
+// original.
+func (d *database) Clone() (db.Database, error) {
+	return d.clone()
+}
 
-	return d.Open()
+// NewTable returns a db.Collection.
+func (d *database) NewTable(name string) db.Collection {
+	return newTable(d, name)
+}
+
+// Collections returns a list of non-system tables from the database.
+func (d *database) Collections() (collections []string, err error) {
+
+	if len(d.Schema().Tables) == 0 {
+		q := d.Builder().Select("Name").
+			From("__Table")
+
+		iter := q.Iterator()
+		defer iter.Close()
+
+		if iter.Err() != nil {
+			return nil, iter.Err()
+		}
+
+		for iter.Next() {
+			var tableName string
+			if err := iter.Scan(&tableName); err != nil {
+				return nil, err
+			}
+			d.Schema().AddTable(tableName)
+		}
+	}
+
+	return d.Schema().Tables, nil
 }
 
 // Drop removes all tables from the current database.
 func (d *database) Drop() error {
-	return db.ErrUnsupported
-}
-
-// Setup stores database settings.
-func (d *database) Setup(conn db.ConnectionURL) error {
-	d.connURL = conn
-	return d.Open()
-}
-
-// Name returns the name of the database.
-func (d *database) Name() string {
-	return d.schema.Name
+	stmt := &sqlgen.Statement{
+		Type:     sqlgen.DropDatabase,
+		Database: sqlgen.DatabaseWithName(d.Schema().Name),
+	}
+	if _, err := d.Builder().Exec(stmt); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Transaction starts a transaction block and returns a db.Tx struct that can
 // be used to issue transactional queries.
 func (d *database) Transaction() (db.Tx, error) {
 	var err error
-	var clone *database
 	var sqlTx *sqlx.Tx
+	var clone *database
 
 	if clone, err = d.clone(); err != nil {
 		return nil, err
 	}
 
-	openFn := func(sqlTx **sqlx.Tx) (err error) {
-		*sqlTx, err = clone.session.Beginx()
+	connFn := func(sqlTx **sqlx.Tx) (err error) {
+		*sqlTx, err = clone.Session().Beginx()
 		return
 	}
 
-	if err := waitForFreeFd(func() error { return openFn(&sqlTx) }); err != nil {
+	if err := d.WaitForConnection(func() error { return connFn(&sqlTx) }); err != nil {
 		return nil, err
 	}
 
-	clone.tx = sqltx.New(sqlTx)
-	return &tx{Tx: clone.tx, database: clone}, nil
+	clone.BindTx(sqlTx)
+
+	return &sqltx.Database{Database: clone, Tx: clone.Tx()}, nil
 }
 
-// Exec compiles and executes a statement that does not return any rows.
-func (d *database) Exec(stmt *sqlgen.Statement, args ...interface{}) (sql.Result, error) {
-	var query string
-	var p *sqlx.Stmt
-	var err error
+// PopulateSchema looks up for the table info in the database and populates its
+// schema for internal use.
+func (d *database) PopulateSchema() (err error) {
+	var collections []string
 
-	if db.Debug {
-		var start, end int64
-		start = time.Now().UnixNano()
+	d.NewSchema()
 
-		defer func() {
-			end = time.Now().UnixNano()
-			sqlutil.Log(query, args, err, start, end)
-		}()
+	var connURL ConnectionURL
+	if connURL, err = ParseURL(d.ConnectionURL().String()); err != nil {
+		return err
 	}
 
-	if p, query, err = d.prepareStatement(stmt); err != nil {
-		return nil, err
+	d.Schema().Name = connURL.Database
+
+	if collections, err = d.Collections(); err != nil {
+		return err
 	}
 
-	if d.tx == nil {
-		var tx *sqlx.Tx
-		var res sql.Result
+	for i := range collections {
+		if _, err = d.Collection(collections[i]); err != nil {
+			return err
+		}
+	}
 
-		if tx, err = d.session.Beginx(); err != nil {
+	return err
+}
+
+// TableExists checks whether a table exists and returns an error in case it doesn't.
+func (d *database) TableExists(name string) error {
+	if d.Schema().HasTable(name) {
+		return nil
+	}
+
+	q := d.Builder().Select("Name").
+		From("__Table").
+		Where("Name == ?", name)
+
+	iter := q.Iterator()
+	defer iter.Close()
+
+	if iter.Next() {
+		var tableName string
+		if err := iter.Scan(&tableName); err != nil {
+			return err
+		}
+	} else {
+		return db.ErrCollectionDoesNotExist
+	}
+
+	return nil
+}
+
+// TableColumns returns all columns from the given table.
+func (d *database) TableColumns(tableName string) ([]string, error) {
+	s := d.Schema()
+
+	if len(s.Table(tableName).Columns) == 0 {
+
+		q := d.Builder().Select("Name").
+			From("__Column").
+			Where("TableName == ?", tableName)
+
+		var rows []struct {
+			Name string `db:"column_name"`
+		}
+
+		if err := q.Iterator().All(&rows); err != nil {
 			return nil, err
 		}
 
-		s := tx.Stmtx(p)
+		s.TableInfo[tableName].Columns = make([]string, 0, len(rows))
+
+		for i := range rows {
+			s.TableInfo[tableName].Columns = append(s.TableInfo[tableName].Columns, rows[i].Name)
+		}
+	}
+
+	return s.Table(tableName).Columns, nil
+}
+
+// TablePrimaryKey returns all primary keys from the given table.
+func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
+	return nil, nil
+}
+
+// Exec wraps the statement to execute around a transaction.
+func (d *database) Exec(stmt *sqlx.Stmt, args ...interface{}) (sql.Result, error) {
+	if d.Tx() == nil {
+		var tx *sqlx.Tx
+		var res sql.Result
+		var err error
+
+		if tx, err = d.Session().Beginx(); err != nil {
+			return nil, err
+		}
+
+		s := tx.Stmtx(stmt)
 
 		if res, err = s.Exec(args...); err != nil {
 			return nil, err
@@ -430,204 +326,14 @@ func (d *database) Exec(stmt *sqlgen.Statement, args ...interface{}) (sql.Result
 
 		return res, err
 	}
-
-	return p.Exec(args...)
+	return stmt.Exec(args...)
 }
 
-// Query compiles and executes a statement that returns rows.
-func (d *database) Query(stmt *sqlgen.Statement, args ...interface{}) (*sqlx.Rows, error) {
-	var query string
-	var p *sqlx.Stmt
-	var err error
-
-	if db.Debug {
-		var start, end int64
-		start = time.Now().UnixNano()
-
-		defer func() {
-			end = time.Now().UnixNano()
-			sqlutil.Log(query, args, err, start, end)
-		}()
-	}
-
-	if p, query, err = d.prepareStatement(stmt); err != nil {
+func (d *database) clone() (*database, error) {
+	clone := &database{}
+	clone.BaseDatabase = d.BaseDatabase.Clone(clone)
+	if err := clone.Open(); err != nil {
 		return nil, err
 	}
-
-	return p.Queryx(args...)
-}
-
-// QueryRow compiles and executes a statement that returns at most one row.
-func (d *database) QueryRow(stmt *sqlgen.Statement, args ...interface{}) (*sqlx.Row, error) {
-	var query string
-	var p *sqlx.Stmt
-	var err error
-
-	if db.Debug {
-		var start, end int64
-		start = time.Now().UnixNano()
-
-		defer func() {
-			end = time.Now().UnixNano()
-			sqlutil.Log(query, args, err, start, end)
-		}()
-	}
-
-	if p, query, err = d.prepareStatement(stmt); err != nil {
-		return nil, err
-	}
-
-	return p.QueryRowx(args...), nil
-}
-
-// populateSchema looks up for the table info in the database and populates its
-// schema for internal use.
-func (d *database) populateSchema() (err error) {
-	var collections []string
-
-	d.schema = schema.NewDatabaseSchema()
-
-	var conn ConnectionURL
-
-	if conn, err = ParseURL(d.connURL.String()); err != nil {
-		return err
-	}
-
-	d.schema.Name = conn.Database
-
-	// The Collections() call will populate schema if its nil.
-	if collections, err = d.Collections(); err != nil {
-		return err
-	}
-
-	for i := range collections {
-		// Populate each collection.
-		if _, err = d.Collection(collections[i]); err != nil {
-			return err
-		}
-	}
-
-	return err
-}
-
-func (d *database) tableExists(names ...string) error {
-	var stmt *sqlgen.Statement
-	var err error
-	var rows *sqlx.Rows
-
-	for i := range names {
-
-		if d.schema.HasTable(names[i]) {
-			// We already know this table exists.
-			continue
-		}
-
-		stmt = &sqlgen.Statement{
-			Type:  sqlgen.Select,
-			Table: sqlgen.TableWithName(`__Table`),
-			Columns: sqlgen.JoinColumns(
-				sqlgen.ColumnWithName(`Name`),
-			),
-			Where: sqlgen.WhereConditions(
-				&sqlgen.ColumnValue{
-					Column:   sqlgen.ColumnWithName(`Name`),
-					Operator: `==`,
-					Value:    sqlPlaceholder,
-				},
-			),
-		}
-
-		if rows, err = d.Query(stmt, names[i]); err != nil {
-			return db.ErrCollectionDoesNotExist
-		}
-
-		defer rows.Close()
-
-		if rows.Next() == false {
-			return db.ErrCollectionDoesNotExist
-		}
-	}
-
-	return nil
-}
-
-func (d *database) tableColumns(tableName string) ([]string, error) {
-
-	// Making sure this table is allocated.
-	tableSchema := d.schema.Table(tableName)
-
-	if len(tableSchema.Columns) > 0 {
-		return tableSchema.Columns, nil
-	}
-
-	stmt := &sqlgen.Statement{
-		Type:  sqlgen.Select,
-		Table: sqlgen.TableWithName(`__Column`),
-		Columns: sqlgen.JoinColumns(
-			sqlgen.ColumnWithName(`Name`),
-			sqlgen.ColumnWithName(`Type`),
-		),
-		Where: sqlgen.WhereConditions(
-			&sqlgen.ColumnValue{
-				Column:   sqlgen.ColumnWithName(`TableName`),
-				Operator: `==`,
-				Value:    sqlPlaceholder,
-			},
-		),
-	}
-
-	var rows *sqlx.Rows
-	var err error
-
-	if rows, err = d.Query(stmt, tableName); err != nil {
-		return nil, err
-	}
-
-	tableFields := []columnSchemaT{}
-
-	if err = sqlutil.FetchRows(rows, &tableFields); err != nil {
-		return nil, err
-	}
-
-	d.schema.TableInfo[tableName].Columns = make([]string, 0, len(tableFields))
-
-	for i := range tableFields {
-		d.schema.TableInfo[tableName].Columns = append(d.schema.TableInfo[tableName].Columns, tableFields[i].Name)
-	}
-
-	return d.schema.TableInfo[tableName].Columns, nil
-}
-
-// waitForFreeFd tries to execute the openFn function, if openFn
-// returns an error, then waitForFreeFd will keep trying until openFn
-// returns nil. Maximum waiting time is 5s after having acquired the lock.
-func waitForFreeFd(openFn func() error) error {
-	// This lock ensures first-come, first-served and prevents opening too many
-	// file descriptors.
-	waitForFdMu.Lock()
-	defer waitForFdMu.Unlock()
-
-	// Minimum waiting time.
-	waitTime := time.Millisecond * 10
-
-	// Waitig 5 seconds for a successful connection.
-	for timeStart := time.Now(); time.Now().Sub(timeStart) < time.Second*5; {
-		if err := openFn(); err != nil {
-			if err == errTooManyOpenFiles {
-				// Sleep and try again if, and only if, the server replied with a "too
-				// many clients" error.
-				time.Sleep(waitTime)
-				if waitTime < time.Millisecond*500 {
-					// Wait a bit more next time.
-					waitTime = waitTime * 2
-				}
-				continue
-			}
-			// Return any other error immediately.
-			return err
-		}
-		return nil
-	}
-
-	return db.ErrGivingUpTryingToConnect
+	return clone, nil
 }

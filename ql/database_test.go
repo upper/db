@@ -29,9 +29,6 @@ package ql
 // go test
 
 import (
-
-	//"reflect"
-	//"errors"
 	"math/rand"
 	"strings"
 	"sync"
@@ -40,7 +37,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"upper.io/db"
-	"upper.io/db/internal/sqlutil"
 )
 
 const (
@@ -51,7 +47,7 @@ const (
 	testTimeZone = "Canada/Eastern"
 )
 
-var settings = db.Settings{
+var settings = ConnectionURL{
 	Database: databaseName,
 }
 
@@ -139,24 +135,6 @@ func TestOpenFailed(t *testing.T) {
 		// Must fail.
 		t.Fatalf("Expecting an error.")
 	}
-}
-
-// Old settings must be compatible.
-func TestOldSettings(t *testing.T) {
-	var err error
-	var sess db.Database
-
-	oldSettings := db.Settings{
-		Database: databaseName,
-	}
-
-	// Opening database.
-	if sess, err = db.Open(Adapter, oldSettings); err != nil {
-		t.Fatal(err)
-	}
-
-	// Closing database.
-	sess.Close()
 }
 
 // Test USE
@@ -735,242 +713,6 @@ func TestRemove(t *testing.T) {
 	// Trying to remove the row.
 	if err = res.Remove(); err != nil {
 		t.Fatal(err)
-	}
-}
-
-// Attempts to use SQL raw statements.
-func TestRawRelations(t *testing.T) {
-	var sess db.Database
-	var err error
-
-	var artist db.Collection
-	var publication db.Collection
-	var review db.Collection
-
-	type artistT struct {
-		ID   int64  `db:"id,omitempty"`
-		Name string `db:"name"`
-	}
-
-	type publicationType struct {
-		ID       int64  `db:"id,omitempty"`
-		Title    string `db:"title"`
-		AuthorID int64  `db:"author_id"`
-	}
-
-	type reviewType struct {
-		ID            int64     `db:"id,omitempty"`
-		PublicationID int64     `db:"publication_id"`
-		Name          string    `db:"name"`
-		Comments      string    `db:"comments"`
-		Created       time.Time `db:"created"`
-	}
-
-	if sess, err = db.Open(Adapter, settings); err != nil {
-		t.Fatal(err)
-	}
-
-	defer sess.Close()
-
-	// Artist collection.
-	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = artist.Truncate(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Publication collection.
-	if publication, err = sess.Collection("publication"); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = publication.Truncate(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Review collection.
-	if review, err = sess.Collection("review"); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = review.Truncate(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Adding some artists.
-	var miyazakiID interface{}
-	miyazaki := artistT{Name: `Hayao Miyazaki`}
-	if miyazakiID, err = artist.Append(miyazaki); err != nil {
-		t.Fatal(err)
-	}
-	miyazaki.ID = miyazakiID.(int64)
-
-	var asimovID interface{}
-	asimov := artistT{Name: `Isaac Asimov`}
-	if asimovID, err = artist.Append(asimov); err != nil {
-		t.Fatal(err)
-	}
-
-	var marquezID interface{}
-	marquez := artistT{Name: `Gabriel García Márquez`}
-	if marquezID, err = artist.Append(marquez); err != nil {
-		t.Fatal(err)
-	}
-
-	// Adding some publications.
-	publication.Append(publicationType{
-		Title:    `Tonari no Totoro`,
-		AuthorID: miyazakiID.(int64),
-	})
-
-	publication.Append(publicationType{
-		Title:    `Howl's Moving Castle`,
-		AuthorID: miyazakiID.(int64),
-	})
-
-	publication.Append(publicationType{
-		Title:    `Ponyo`,
-		AuthorID: miyazakiID.(int64),
-	})
-
-	publication.Append(publicationType{
-		Title:    `Memoria de mis Putas Tristes`,
-		AuthorID: marquezID.(int64),
-	})
-
-	publication.Append(publicationType{
-		Title:    `El Coronel no tiene quien le escriba`,
-		AuthorID: marquezID.(int64),
-	})
-
-	publication.Append(publicationType{
-		Title:    `El Amor en los tiempos del Cólera`,
-		AuthorID: marquezID.(int64),
-	})
-
-	publication.Append(publicationType{
-		Title:    `I, Robot`,
-		AuthorID: asimovID.(int64),
-	})
-
-	var foundationID interface{}
-	foundationID, err = publication.Append(publicationType{
-		Title:    `Foundation`,
-		AuthorID: asimovID.(int64),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	publication.Append(publicationType{
-		Title:    `The Robots of Dawn`,
-		AuthorID: asimovID.(int64),
-	})
-
-	// Adding reviews for foundation.
-	review.Append(reviewType{
-		PublicationID: foundationID.(int64),
-		Name:          "John Doe",
-		Comments:      "I love The Foundation series.",
-		Created:       time.Now(),
-	})
-
-	review.Append(reviewType{
-		PublicationID: foundationID.(int64),
-		Name:          "Edr Pls",
-		Comments:      "The Foundation series made me fall in love with Isaac Asimov.",
-		Created:       time.Now(),
-	})
-
-	/*
-		// Won't work this way, see "Record id" part in
-		// http://godoc.org/github.com/cznic/ql
-
-		var artistPublication db.Collection
-		if artistPublication, err = sess.Collection(`artist AS a`, `publication AS p`); err != nil {
-			t.Fatal(err)
-		}
-
-		res := artistPublication.Find(
-			db.Raw{`a.id = p.author_id`},
-		).Select(
-			"p.id AS id",
-			"p.title as publication_title",
-			"a.name AS artist_name",
-		)
-
-		type artistPublicationType struct {
-			ID               int64  `db:"id"`
-			PublicationTitle string `db:"publication_title"`
-			ArtistName       string `db:"artist_name"`
-		}
-
-		all := []artistPublicationType{}
-
-		if err = res.All(&all); err != nil {
-			t.Fatal(err)
-		}
-
-		if len(all) != 9 {
-			t.Fatalf("Expecting some rows.")
-		}
-	*/
-
-}
-
-func TestRawQuery(t *testing.T) {
-	var sess db.Database
-	var rows *sqlx.Rows
-	var err error
-	var drv *sqlx.DB
-	var tx *sqlx.Tx
-
-	type publicationType struct {
-		ID       int64  `db:"id,omitempty"`
-		Title    string `db:"title"`
-		AuthorID int64  `db:"author_id"`
-	}
-
-	if sess, err = db.Open(Adapter, settings); err != nil {
-		t.Fatal(err)
-	}
-
-	defer sess.Close()
-
-	drv = sess.Driver().(*sqlx.DB)
-
-	if tx, err = drv.Beginx(); err != nil {
-		t.Fatal(err)
-	}
-
-	if rows, err = tx.Queryx(`
-		SELECT
-			p.id AS id,
-			p.title AS publication_title,
-			a.name AS artist_name
-		FROM
-			(SELECT id() AS id, name FROM artist) AS a,
-			(SELECT id() AS id, title, author_id FROM publication) AS p
-		WHERE
-			a.id == p.author_id
-	`); err != nil {
-		t.Fatal(err)
-	}
-
-	if err = tx.Commit(); err != nil {
-		t.Fatal(err)
-	}
-
-	var all []publicationType
-
-	if err = sqlutil.FetchRows(rows, &all); err != nil {
-		t.Fatal(err)
-	}
-
-	if len(all) != 9 {
-		t.Fatalf("Expecting some rows.")
 	}
 }
 
