@@ -123,7 +123,7 @@ func (d *database) Use(name string) (err error) {
 }
 
 func (d *database) Close() error {
-	if d.BaseDatabase != nil {
+	if d.Session() != nil {
 		if atomic.AddInt32(&fileOpenCount, -1) < 0 {
 			return errors.New(`Close() without Open()?`)
 		}

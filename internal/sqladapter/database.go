@@ -125,6 +125,10 @@ func (d *BaseDatabase) Ping() error {
 
 // Close terminates the current database session.
 func (d *BaseDatabase) Close() error {
+	defer func() {
+		d.sess = nil
+		d.tx = nil
+	}()
 	if d.sess != nil {
 		if d.tx != nil && !d.tx.Done() {
 			d.tx.Rollback()

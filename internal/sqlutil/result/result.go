@@ -147,9 +147,12 @@ func (r *Result) Count() (uint64, error) {
 	}{}
 
 	q := r.buildSelect()
-	q.Columns(db.Raw{"count(1) AS _t"}).Limit(1)
+	q.Columns(db.Raw{"count(1) AS _t"}).Limit(1).OrderBy(nil)
 
 	if err := q.Iterator().One(&counter); err != nil {
+		if err == db.ErrNoMoreRows {
+			return 0, nil
+		}
 		return 0, err
 	}
 
