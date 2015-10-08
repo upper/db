@@ -22,13 +22,14 @@
 package result
 
 import (
+	builder "upper.io/builder/meta"
 	"upper.io/db"
 )
 
 type Result struct {
-	b       db.QueryBuilder
+	b       builder.QueryBuilder
 	table   string
-	iter    db.Iterator
+	iter    builder.Iterator
 	limit   int
 	offset  int
 	fields  []interface{}
@@ -40,7 +41,7 @@ type Result struct {
 
 // NewResult creates and results a new result set on the given table, this set
 // is limited by the given sqlgen.Where conditions.
-func NewResult(b db.QueryBuilder, table string, conds []interface{}) *Result {
+func NewResult(b builder.QueryBuilder, table string, conds []interface{}) *Result {
 	return &Result{
 		b:     b,
 		table: table,
@@ -155,7 +156,7 @@ func (r *Result) Count() (uint64, error) {
 	return counter.Count, nil
 }
 
-func (r *Result) buildSelect() db.QuerySelector {
+func (r *Result) buildSelect() builder.Selector {
 	q := r.b.Select(r.fields...)
 
 	q.From(r.table)

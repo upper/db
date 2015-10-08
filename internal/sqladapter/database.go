@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"upper.io/builder"
+	sqlbuilder "upper.io/builder"
+	"upper.io/builder/meta"
 	"upper.io/builder/sqlgen"
 	"upper.io/cache"
 	"upper.io/db"
@@ -41,7 +42,7 @@ type BaseDatabase struct {
 	cachedStatements *cache.Cache
 	collections      map[string]db.Collection
 	collectionsMu    sync.Mutex
-	builder          db.QueryBuilder
+	builder          builder.QueryBuilder
 
 	template *sqlgen.Template
 }
@@ -58,7 +59,7 @@ func NewDatabase(partial PartialDatabase, connURL db.ConnectionURL, template *sq
 		template: template,
 	}
 
-	d.builder = builder.NewBuilder(d, d.template)
+	d.builder = sqlbuilder.NewBuilder(d, d.template)
 	d.cachedStatements = cache.NewCache()
 
 	return d
@@ -244,7 +245,7 @@ func (d *BaseDatabase) QueryRow(stmt *sqlgen.Statement, args ...interface{}) (*s
 }
 
 // Builder returns a custom query builder.
-func (d *BaseDatabase) Builder() db.QueryBuilder {
+func (d *BaseDatabase) Builder() builder.QueryBuilder {
 	return d.builder
 }
 

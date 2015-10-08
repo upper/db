@@ -43,6 +43,10 @@
 //	err = res.All(&people)
 package db
 
+import (
+	builder "upper.io/builder/meta"
+)
+
 // import "upper.io/db"
 
 // Cond is a map used to define conditions passed to `db.Collection.Find()` and
@@ -157,7 +161,7 @@ type Database interface {
 	Driver() interface{}
 
 	// Builder is an experimental interface
-	Builder() QueryBuilder
+	Builder() builder.QueryBuilder
 
 	// Open() attempts to stablish a connection with the database server, a
 	// previous call to Setup() is required.
