@@ -28,8 +28,8 @@ import (
 	"time"
 
 	"gopkg.in/mgo.v2"
+	builder "upper.io/builder/meta"
 	"upper.io/db"
-	"upper.io/db/internal/adapter"
 )
 
 // Adapter holds the name of the mongodb adapter.
@@ -184,17 +184,7 @@ func (s *Source) Collections() (cols []string, err error) {
 }
 
 // C returns a collection interface.
-func (s *Source) C(names ...string) db.Collection {
-	if len(names) == 0 {
-		return &adapter.NonExistentCollection{Err: db.ErrMissingCollectionName}
-	}
-
-	if len(names) > 1 {
-		return &adapter.NonExistentCollection{Err: db.ErrUnsupported}
-	}
-
-	name := names[0]
-
+func (s *Source) C(name string) db.Collection {
 	if col, ok := s.collections[name]; ok {
 		// We can safely ignore if the collection exists or not.
 		return col
@@ -205,21 +195,11 @@ func (s *Source) C(names ...string) db.Collection {
 }
 
 // Collection returns a collection by name.
-func (s *Source) Collection(names ...string) (db.Collection, error) {
+func (s *Source) Collection(name string) (db.Collection, error) {
 	var err error
-
-	if len(names) == 0 {
-		return nil, db.ErrMissingCollectionName
-	}
-
-	if len(names) > 1 {
-		return nil, db.ErrUnsupported
-	}
 
 	s.collectionsMu.Lock()
 	defer s.collectionsMu.Unlock()
-
-	name := names[0]
 
 	var col *Collection
 	var ok bool
@@ -263,4 +243,8 @@ func (s *Source) versionAtLeast(version ...int) bool {
 		}
 	}
 	return true
+}
+
+func (s *Source) Builder() builder.QueryBuilder {
+	return nil
 }

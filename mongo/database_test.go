@@ -542,12 +542,6 @@ func TestResultNonExistentCount(t *testing.T) {
 	if total != 0 {
 		t.Fatal("Counter should be zero")
 	}
-
-	_, err = sess.C("notartist", "neinnein").Find().Count()
-
-	if err != db.ErrUnsupported {
-		t.Fatal("MongoDB should not allow multiple collections.", err)
-	}
 }
 
 // This test uses and result and tries to fetch items one by one.

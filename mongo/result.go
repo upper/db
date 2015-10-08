@@ -32,7 +32,7 @@ import (
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db"
-	"upper.io/db/internal/sqlutil"
+	"upper.io/db/internal/debug"
 )
 
 // result represents a query result.
@@ -106,7 +106,7 @@ func (r *result) All(dst interface{}) (err error) {
 		start = time.Now().UnixNano()
 		defer func() {
 			end = time.Now().UnixNano()
-			sqlutil.Log(r.debugQuery(fmt.Sprintf("find(%s)", mustJSON(r.queryChunks.Conditions))), nil, err, start, end)
+			debug.Log(r.debugQuery(fmt.Sprintf("find(%s)", mustJSON(r.queryChunks.Conditions))), nil, err, start, end)
 		}()
 	}
 
@@ -141,7 +141,7 @@ func (r *result) One(dst interface{}) (err error) {
 		start = time.Now().UnixNano()
 		defer func() {
 			end = time.Now().UnixNano()
-			sqlutil.Log(r.debugQuery(fmt.Sprintf("findOne(%s)", mustJSON(r.queryChunks.Conditions))), nil, err, start, end)
+			debug.Log(r.debugQuery(fmt.Sprintf("findOne(%s)", mustJSON(r.queryChunks.Conditions))), nil, err, start, end)
 		}()
 	}
 
@@ -184,7 +184,7 @@ func (r *result) Remove() (err error) {
 		start = time.Now().UnixNano()
 		defer func() {
 			end = time.Now().UnixNano()
-			sqlutil.Log(r.debugQuery(fmt.Sprintf("remove(%s)", mustJSON(r.queryChunks.Conditions))), nil, err, start, end)
+			debug.Log(r.debugQuery(fmt.Sprintf("remove(%s)", mustJSON(r.queryChunks.Conditions))), nil, err, start, end)
 		}()
 	}
 
@@ -215,7 +215,7 @@ func (r *result) Update(src interface{}) (err error) {
 		start = time.Now().UnixNano()
 		defer func() {
 			end = time.Now().UnixNano()
-			sqlutil.Log(r.debugQuery(fmt.Sprintf("update(%s, %s)", mustJSON(r.queryChunks.Conditions), mustJSON(updateSet))), nil, err, start, end)
+			debug.Log(r.debugQuery(fmt.Sprintf("update(%s, %s)", mustJSON(r.queryChunks.Conditions), mustJSON(updateSet))), nil, err, start, end)
 		}()
 	}
 
@@ -271,7 +271,7 @@ func (r *result) Count() (total uint64, err error) {
 		start = time.Now().UnixNano()
 		defer func() {
 			end = time.Now().UnixNano()
-			sqlutil.Log(r.debugQuery(fmt.Sprintf("find(%s).count()", mustJSON(r.queryChunks.Conditions))), nil, err, start, end)
+			debug.Log(r.debugQuery(fmt.Sprintf("find(%s).count()", mustJSON(r.queryChunks.Conditions))), nil, err, start, end)
 		}()
 	}
 
