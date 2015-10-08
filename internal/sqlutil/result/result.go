@@ -147,7 +147,7 @@ func (r *Result) Count() (uint64, error) {
 	}{}
 
 	q := r.buildSelect()
-	q.Columns(db.Raw{"COUNT(1) AS _t"}).Limit(1)
+	q.Columns(db.Raw{"count(1) AS _t"}).Limit(1)
 
 	if err := q.Iterator().One(&counter); err != nil {
 		return 0, err

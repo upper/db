@@ -17,6 +17,10 @@ import (
 	"upper.io/db/internal/sqlutil/tx"
 )
 
+type HasExecStatement interface {
+	Exec(stmt *sqlx.Stmt, args ...interface{}) (sql.Result, error)
+}
+
 type PartialDatabase interface {
 	PopulateSchema() error
 	TableExists(name string) error
@@ -193,6 +197,10 @@ func (d *BaseDatabase) Exec(stmt *sqlgen.Statement, args ...interface{}) (sql.Re
 
 	if p, query, err = d.prepareStatement(stmt); err != nil {
 		return nil, err
+	}
+
+	if execer, ok := d.partial.(HasExecStatement); ok {
+		return execer.Exec(p, args...)
 	}
 
 	return p.Exec(args...)
