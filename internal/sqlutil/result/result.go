@@ -146,8 +146,11 @@ func (r *Result) Count() (uint64, error) {
 		Count uint64 `db:"_t"`
 	}{}
 
-	q := r.buildSelect()
-	q.Columns(db.Raw{"count(1) AS _t"}).Limit(1).OrderBy(nil)
+	q := r.b.Select(db.Raw{"count(1) AS _t"}).
+		From(r.table).
+		Where(r.conds...).
+		GroupBy(r.groupBy...).
+		Limit(1)
 
 	if err := q.Iterator().One(&counter); err != nil {
 		if err == db.ErrNoMoreRows {
