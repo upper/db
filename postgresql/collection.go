@@ -23,13 +23,11 @@ package postgresql
 
 import (
 	"database/sql"
-	"fmt"
-	"strings"
 
-	"upper.io/db"
 	"upper.io/builder"
-	"upper.io/db/internal/sqladapter"
 	"upper.io/builder/sqlgen"
+	"upper.io/db"
+	"upper.io/db/internal/sqladapter"
 )
 
 type table struct {
@@ -43,7 +41,6 @@ func (t *table) Truncate() error {
 	stmt := sqlgen.Statement{
 		Type:  sqlgen.Truncate,
 		Table: sqlgen.TableWithName(t.Name()),
-		Extra: sqlgen.Extra("RESTART IDENTITY"),
 	}
 
 	if _, err := t.Database().Builder().Exec(&stmt); err != nil {
@@ -86,7 +83,7 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 	}
 
 	// Asking the database to return the primary key after insertion.
-	q.Extra(fmt.Sprintf(`RETURNING "%s"`, strings.Join(pKey, `", "`)))
+	q.Returning(pKey...)
 
 	var keyMap map[string]interface{}
 	if err = q.Iterator().One(&keyMap); err != nil {
