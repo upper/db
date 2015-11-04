@@ -730,11 +730,11 @@ func TestFibonacci(t *testing.T) {
 			// Testing sort by function.
 			switch wrapper {
 			case `postgresql`:
-				res = res.Sort(db.Raw{`RANDOM()`})
+				res = res.Sort(db.Raw(`RANDOM()`))
 			case `sqlite`:
-				res = res.Sort(db.Raw{`RANDOM()`})
+				res = res.Sort(db.Raw(`RANDOM()`))
 			case `mysql`:
-				res = res.Sort(db.Raw{`RAND()`})
+				res = res.Sort(db.Raw(`RAND()`))
 			}
 
 			total, err = res.Count()
@@ -752,9 +752,9 @@ func TestFibonacci(t *testing.T) {
 
 			switch wrapper {
 			case `mongo`:
-				whereIn = db.Cond{"input": db.Func{"$in", []int{3, 5, 6, 7}}}
+				whereIn = db.Cond{"input": db.Func("$in", 3, 5, 6, 7)}
 			default:
-				whereIn = db.Cond{"input": db.Func{"IN", []int{3, 5, 6, 7}}}
+				whereIn = db.Cond{"input": db.Func("IN", 3, 5, 6, 7)}
 			}
 
 			res = col.Find(whereIn).Sort("input")

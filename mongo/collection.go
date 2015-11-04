@@ -30,6 +30,7 @@ import (
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	builder "upper.io/builder/meta"
 	"upper.io/db"
 )
 
@@ -106,8 +107,8 @@ func compileStatement(cond db.Cond) bson.M {
 		}
 
 		switch value := value.(type) {
-		case db.Func:
-			conds[chunks[0]] = bson.M{value.Name: value.Args}
+		case builder.Function:
+			conds[chunks[0]] = bson.M{value.Name(): value.Arguments()}
 		default:
 			if op == "" {
 				conds[chunks[0]] = value
@@ -154,7 +155,7 @@ func (col *Collection) compileConditions(term interface{}) interface{} {
 	case db.Cond:
 		return compileStatement(t)
 	case db.Constrainer:
-		return compileStatement(t.Constraint())
+		return compileStatement(t.Constraints())
 	}
 	return nil
 }

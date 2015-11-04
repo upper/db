@@ -849,7 +849,7 @@ func TestFunction(t *testing.T) {
 		t.Fatalf("One: %q", err)
 	}
 
-	res = artist.Find(db.Cond{"_id": db.Func{"$nin", []int{0, -1}}})
+	res = artist.Find(db.Cond{"_id": db.Func("$nin", 0, -1)})
 
 	if err = res.One(&rowS); err != nil {
 		t.Fatalf("One: %q", err)

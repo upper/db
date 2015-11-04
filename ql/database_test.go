@@ -83,7 +83,7 @@ type itemWithKey struct {
 	SomeVal string `db:"some_val"`
 }
 
-func (item itemWithKey) Constraint() db.Cond {
+func (item itemWithKey) Constraints() db.Cond {
 	cond := db.Cond{
 		"id()": item.ID,
 	}
@@ -311,8 +311,8 @@ func TestGroup(t *testing.T) {
 	// Testing GROUP BY
 	res := stats.Find().Select(
 		`numeric`,
-		db.Raw{`count(1) AS counter`},
-		db.Raw{`sum(value) AS total`},
+		db.Raw(`count(1) AS counter`),
+		db.Raw(`sum(value) AS total`),
 	).Group(`numeric`)
 
 	var results []map[string]interface{}
@@ -639,7 +639,7 @@ func TestFunction(t *testing.T) {
 	}
 
 	// Testing conditions
-	res = artist.Find(db.Cond{"id()": db.Func{"NOT IN", []int{0, -1}}})
+	res = artist.Find(db.Cond{"id() NOT": db.Func("IN", 0, -1)})
 
 	if err = res.One(&rowStruct); err != nil {
 		t.Fatal(err)
@@ -655,7 +655,7 @@ func TestFunction(t *testing.T) {
 
 	// Testing DISTINCT (function)
 	res = artist.Find().Select(
-		db.Func{`DISTINCT`, `name`},
+		db.Func(`DISTINCT`, `name`),
 	)
 
 	if err = res.One(&rowMap); err != nil {
@@ -672,7 +672,7 @@ func TestFunction(t *testing.T) {
 
 	// Testing DISTINCT (raw)
 	res = artist.Find().Select(
-		db.Raw{`DISTINCT(name)`},
+		db.Raw(`DISTINCT(name)`),
 	)
 
 	if err = res.One(&rowMap); err != nil {
