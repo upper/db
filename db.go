@@ -64,6 +64,14 @@ import (
 //	db.Cond { "age $lt": 18 }
 type Cond map[string]interface{}
 
+func (m Cond) Constraints() []builder.Constraint {
+	c := make([]builder.Constraint, 0, len(m))
+	for k, v := range m {
+		c = append(c, builder.NewConstraint(k, builder.OperatorDefault, v))
+	}
+	return c
+}
+
 // Func is a struct that represents database functions.
 //
 // Examples:
@@ -79,9 +87,21 @@ type Cond map[string]interface{}
 //
 //	// RTRIM("Hello   ")
 //	db.Func{"RTRIM", "Hello  "}
-type Func struct {
-	Name string
-	Args interface{}
+type dbFunc struct {
+	name string
+	args []interface{}
+}
+
+func (f *dbFunc) Arguments() []interface{} {
+	return f.args
+}
+
+func (f *dbFunc) Name() string {
+	return f.name
+}
+
+func Func(name string, args ...interface{}) builder.Function {
+	return &dbFunc{name: name, args: args}
 }
 
 // And is an array of interfaces that is used to join two or more expressions
@@ -104,11 +124,19 @@ type Func struct {
 // 		},
 // 		db.Cond{ "last_name": "Mouse" },
 // 	}
-type And []interface{}
+type And []builder.Constraints
 
 // And adds a new expression to an And conditions array.
-func (a And) And(exp ...interface{}) And {
-	return append(a, exp...)
+func (a And) And(t ...builder.Constraints) And {
+	return append(a, t...)
+}
+
+func (a And) Constraints() []builder.Constraints {
+	return a
+}
+
+func (a And) Operator() builder.ConstraintOperator {
+	return builder.OperatorAnd
 }
 
 // Or is an array of interfaced that is used to join two or more expressions
@@ -122,11 +150,19 @@ func (a And) And(exp ...interface{}) And {
 // 		db.Cond{"year": 2012},
 // 		db.Cond{"year": 1987},
 // 	}
-type Or []interface{}
+type Or []builder.Constraints
 
 // Or adds a new expression to an Or conditions array.
-func (o Or) Or(exp ...interface{}) Or {
-	return append(o, exp...)
+func (o Or) Or(t ...builder.Constraints) Or {
+	return append(o, t...)
+}
+
+func (o Or) Constraints() []builder.Constraints {
+	return o
+}
+
+func (o Or) Operator() builder.ConstraintOperator {
+	return builder.OperatorOr
 }
 
 // Raw holds chunks of data to be passed to the database without any filtering.
@@ -143,8 +179,8 @@ func (o Or) Or(exp ...interface{}) Or {
 //
 //	// SQL: SOUNDEX('Hello')
 //	Raw{"SOUNDEX('Hello')"}
-type Raw struct {
-	Value interface{}
+func Raw(s string) builder.RawValue {
+	return builder.RawString(s)
 }
 
 // Database is an interface that defines methods that must be provided by
@@ -332,26 +368,16 @@ type ConnectionURL interface {
 
 // Marshaler is the interface implemented by structs that can marshal
 // themselves into data suitable for storage.
-type Marshaler interface {
-	MarshalDB() (interface{}, error)
-}
+type Marshaler builder.Marshaler
 
 // Unmarshaler is the interface implemented by structs that can transform
 // themselves from storage data into a valid value.
-type Unmarshaler interface {
-	UnmarshalDB(interface{}) error
-}
+type Unmarshaler builder.Unmarshaler
 
 // IDSetter is the interface implemented by structs that can set their own ID
 // after calling Append().
 type IDSetter interface {
 	SetID(map[string]interface{}) error
-}
-
-// Constrainer is the interface implemented by structs that can delimit
-// themselves.
-type Constrainer interface {
-	Constraint() Cond
 }
 
 // Int64IDSetter implements a common pattern for setting int64 IDs.
@@ -377,3 +403,14 @@ type Uint64IDSetter interface {
 //
 //	UPPERIO_DB_DEBUG=1 ./go-program
 const EnvEnableDebug = `UPPERIO_DB_DEBUG`
+
+type Constrainer interface {
+	Constraints() Cond
+}
+
+var (
+	_ = builder.Constraints(Cond{})
+	_ = builder.Criteria(And{})
+	_ = builder.Criteria(Or{})
+	_ = builder.Function(&dbFunc{})
+)

@@ -23,15 +23,12 @@ package db
 
 import (
 	"errors"
+	builder "upper.io/builder/meta"
 )
 
 // Shared error messages.
 var (
-	ErrExpectingPointer        = errors.New(`Argument must be an address.`)
-	ErrExpectingSlicePointer   = errors.New(`Argument must be a slice address.`)
-	ErrExpectingSliceMapStruct = errors.New(`Argument must be a slice address of maps or structs.`)
-	ErrExpectingMapOrStruct    = errors.New(`Argument must be either a map or a struct.`)
-	ErrNoMoreRows              = errors.New(`There are no more rows in this result set.`)
+	ErrNoMoreRows              = builder.ErrNoMoreRows
 	ErrNotConnected            = errors.New(`You're currently not connected.`)
 	ErrMissingDatabaseName     = errors.New(`Missing database name.`)
 	ErrMissingCollectionName   = errors.New(`Missing collection name.`)

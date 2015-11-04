@@ -186,7 +186,7 @@ func (d *database) PopulateSchema() (err error) {
 
 	d.NewSchema()
 
-	q := d.Builder().Select(db.Raw{"CURRENT_DATABASE() AS name"})
+	q := d.Builder().Select(db.Raw("CURRENT_DATABASE() AS name"))
 
 	var dbName string
 

@@ -39,6 +39,16 @@ type Result struct {
 	conds   []interface{}
 }
 
+func filter(conds []interface{}) []interface{} {
+	for i := range conds {
+		switch v := conds[i].(type) {
+		case db.Constrainer:
+			conds[i] = v.Constraints()
+		}
+	}
+	return conds
+}
+
 // NewResult creates and results a new result set on the given table, this set
 // is limited by the given sqlgen.Where conditions.
 func NewResult(b builder.QueryBuilder, table string, conds []interface{}) *Result {
@@ -113,7 +123,7 @@ func (r *Result) Next(dst interface{}) (err error) {
 // Removes the matching items from the collection.
 func (r *Result) Remove() error {
 	q := r.b.DeleteFrom(r.table).
-		Where(r.conds...).
+		Where(filter(r.conds)...).
 		Limit(r.limit)
 
 	_, err := q.Exec()
@@ -133,7 +143,7 @@ func (r *Result) Close() error {
 func (r *Result) Update(values interface{}) error {
 	q := r.b.Update(r.table).
 		Set(values).
-		Where(r.conds...).
+		Where(filter(r.conds)...).
 		Limit(r.limit)
 
 	_, err := q.Exec()
@@ -146,9 +156,9 @@ func (r *Result) Count() (uint64, error) {
 		Count uint64 `db:"_t"`
 	}{}
 
-	q := r.b.Select(db.Raw{"count(1) AS _t"}).
+	q := r.b.Select(db.Raw("count(1) AS _t")).
 		From(r.table).
-		Where(r.conds...).
+		Where(filter(r.conds)...).
 		GroupBy(r.groupBy...).
 		Limit(1)
 
@@ -166,7 +176,7 @@ func (r *Result) buildSelect() builder.Selector {
 	q := r.b.Select(r.fields...)
 
 	q.From(r.table)
-	q.Where(r.conds...)
+	q.Where(filter(r.conds)...)
 	q.Limit(r.limit)
 	q.Offset(r.offset)
 
