@@ -816,8 +816,7 @@ func TestUpdate(t *testing.T) {
 
 }
 
-// Test database functions
-func TestFunction(t *testing.T) {
+func TestOperators(t *testing.T) {
 	var err error
 	var res db.Result
 
@@ -843,13 +842,7 @@ func TestFunction(t *testing.T) {
 		Name string
 	}{}
 
-	res = artist.Find(db.Cond{"_id $nin": []int{0, -1}})
-
-	if err = res.One(&rowS); err != nil {
-		t.Fatalf("One: %q", err)
-	}
-
-	res = artist.Find(db.Cond{"_id": db.Func("$nin", 0, -1)})
+	res = artist.Find(db.Cond{"_id NOT IN": []int{0, -1}})
 
 	if err = res.One(&rowS); err != nil {
 		t.Fatalf("One: %q", err)

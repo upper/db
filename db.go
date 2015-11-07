@@ -62,7 +62,21 @@ import (
 //
 //	Where age is lower than 18 (On MongoDB context).
 //	db.Cond { "age $lt": 18 }
-type Cond map[string]interface{}
+type Cond builder.M
+
+func (m Cond) Constraints() []builder.Constraint {
+	return builder.M(m).Constraints()
+}
+
+func (m Cond) Operator() builder.CompoundOperator {
+	return builder.M(m).Operator()
+}
+
+func (m Cond) Sentences() []builder.Compound {
+	return builder.M(m).Sentences()
+}
+
+/*map[string]interface{}
 
 func (m Cond) Constraints() []builder.Constraint {
 	c := make([]builder.Constraint, 0, len(m))
@@ -71,6 +85,7 @@ func (m Cond) Constraints() []builder.Constraint {
 	}
 	return c
 }
+*/
 
 // Func is a struct that represents database functions.
 //
@@ -124,20 +139,7 @@ func Func(name string, args ...interface{}) builder.Function {
 // 		},
 // 		db.Cond{ "last_name": "Mouse" },
 // 	}
-type And []builder.Constraints
-
-// And adds a new expression to an And conditions array.
-func (a And) And(t ...builder.Constraints) And {
-	return append(a, t...)
-}
-
-func (a And) Constraints() []builder.Constraints {
-	return a
-}
-
-func (a And) Operator() builder.ConstraintOperator {
-	return builder.OperatorAnd
-}
+var And = builder.And
 
 // Or is an array of interfaced that is used to join two or more expressions
 // under logical disjunction, it accepts `db.Cond{}`, `db.And{}`, `db.Raw{}`
@@ -150,20 +152,7 @@ func (a And) Operator() builder.ConstraintOperator {
 // 		db.Cond{"year": 2012},
 // 		db.Cond{"year": 1987},
 // 	}
-type Or []builder.Constraints
-
-// Or adds a new expression to an Or conditions array.
-func (o Or) Or(t ...builder.Constraints) Or {
-	return append(o, t...)
-}
-
-func (o Or) Constraints() []builder.Constraints {
-	return o
-}
-
-func (o Or) Operator() builder.ConstraintOperator {
-	return builder.OperatorOr
-}
+var Or = builder.Or
 
 // Raw holds chunks of data to be passed to the database without any filtering.
 // Use with care.
@@ -410,7 +399,6 @@ type Constrainer interface {
 
 var (
 	_ = builder.Constraints(Cond{})
-	_ = builder.Criteria(And{})
-	_ = builder.Criteria(Or{})
+	_ = builder.Compound(Cond{})
 	_ = builder.Function(&dbFunc{})
 )

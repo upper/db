@@ -23,6 +23,7 @@ package mongo
 
 import (
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 
@@ -88,11 +89,16 @@ func compileStatement(cond db.Cond) bson.M {
 		field = strings.TrimSpace(field)
 
 		chunks := strings.SplitN(field, ` `, 2)
+		log.Printf("chunks: %#v", chunks)
 
 		var op string
 
 		if len(chunks) > 1 {
 			switch chunks[1] {
+			case `IN`:
+				op = `$in`
+			case `NOT IN`:
+				op = `$nin`
 			case `>`:
 				op = `$gt`
 			case `<`:
@@ -106,15 +112,10 @@ func compileStatement(cond db.Cond) bson.M {
 			}
 		}
 
-		switch value := value.(type) {
-		case builder.Function:
-			conds[chunks[0]] = bson.M{value.Name(): value.Arguments()}
-		default:
-			if op == "" {
-				conds[chunks[0]] = value
-			} else {
-				conds[chunks[0]] = bson.M{op: value}
-			}
+		if op == "" {
+			conds[chunks[0]] = value
+		} else {
+			conds[chunks[0]] = bson.M{op: value}
 		}
 
 	}
@@ -138,24 +139,26 @@ func (col *Collection) compileConditions(term interface{}) interface{} {
 		if len(values) > 0 {
 			return values
 		}
-	case db.Or:
-		values := []interface{}{}
-		for i := range t {
-			values = append(values, col.compileConditions(t[i]))
-		}
-		condition := bson.M{`$or`: values}
-		return condition
-	case db.And:
-		values := []interface{}{}
-		for i := range t {
-			values = append(values, col.compileConditions(t[i]))
-		}
-		condition := bson.M{`$and`: values}
-		return condition
 	case db.Cond:
 		return compileStatement(t)
 	case db.Constrainer:
 		return compileStatement(t.Constraints())
+	case builder.Compound:
+		values := []interface{}{}
+
+		for _, s := range t.Sentences() {
+			values = append(values, col.compileConditions(s))
+		}
+
+		var op string
+		switch t.Operator() {
+		case builder.OperatorOr:
+			op = `$or`
+		default:
+			op = `$and`
+		}
+
+		return bson.M{op: values}
 	}
 	return nil
 }

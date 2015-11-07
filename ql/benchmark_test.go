@@ -607,11 +607,11 @@ func BenchmarkUpperFindAll(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		res := artist.Find(db.Or{
+		res := artist.Find(db.Or(
 			db.Cond{"name": artistN(i)},
 			db.Cond{"name": artistN(i + 1)},
 			db.Cond{"name": artistN(i + 2)},
-		})
+		))
 		if err = res.All(&items); err != nil {
 			b.Fatal(err)
 		}

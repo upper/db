@@ -718,13 +718,13 @@ func TestFibonacci(t *testing.T) {
 			// Testing sorting by function.
 			res = col.Find(
 				// 5, 6, 7, 3
-				db.Or{
-					db.And{
+				db.Or(
+					db.And(
 						db.Cond{"input >=": 5},
 						db.Cond{"input <=": 7},
-					},
+					),
 					db.Cond{"input": 3},
-				},
+				),
 			)
 
 			// Testing sort by function.
@@ -748,16 +748,7 @@ func TestFibonacci(t *testing.T) {
 			}
 
 			// Find() with IN/$in
-			var whereIn db.Cond
-
-			switch wrapper {
-			case `mongo`:
-				whereIn = db.Cond{"input": db.Func("$in", 3, 5, 6, 7)}
-			default:
-				whereIn = db.Cond{"input": db.Func("IN", 3, 5, 6, 7)}
-			}
-
-			res = col.Find(whereIn).Sort("input")
+			res = col.Find(db.Cond{"input IN": []int{3, 5, 6, 7}}).Sort("input")
 
 			total, err = res.Count()
 
@@ -794,13 +785,13 @@ func TestFibonacci(t *testing.T) {
 			// Find() with range
 			res = col.Find(
 				// 5, 6, 7, 3
-				db.Or{
-					db.And{
+				db.Or(
+					db.And(
 						db.Cond{"input >=": 5},
 						db.Cond{"input <=": 7},
-					},
+					),
 					db.Cond{"input": 3},
-				},
+				),
 			).Sort("-input")
 
 			if total, err = res.Count(); err != nil {
@@ -866,7 +857,7 @@ func TestFibonacci(t *testing.T) {
 				}
 
 				// Find() with empty expression
-				res1b := col.Find(db.Or{db.And{db.Cond{}, db.Cond{}}, db.Or{db.Cond{}}})
+				res1b := col.Find(db.Or(db.And(db.Cond{}, db.Cond{}), db.Or(db.Cond{})))
 				total, err = res1b.Count()
 
 				if total != 6 {
