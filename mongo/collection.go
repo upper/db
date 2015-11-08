@@ -23,7 +23,6 @@ package mongo
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 
@@ -89,7 +88,6 @@ func compileStatement(cond db.Cond) bson.M {
 		field = strings.TrimSpace(field)
 
 		chunks := strings.SplitN(field, ` `, 2)
-		log.Printf("chunks: %#v", chunks)
 
 		var op string
 
