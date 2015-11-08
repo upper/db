@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
+	"database/sql"
 	"upper.io/db"
 )
 
@@ -29,7 +29,7 @@ func connectAndAddFakeRows() (db.Database, error) {
 		return nil, err
 	}
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
 	if _, err = driver.Exec(`TRUNCATE TABLE "artist" RESTART IDENTITY`); err != nil {
 		return nil, err
@@ -56,7 +56,7 @@ func BenchmarkSQLAppend(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
 	if _, err = driver.Exec(`TRUNCATE TABLE "artist" RESTART IDENTITY`); err != nil {
 		b.Fatal(err)
@@ -83,7 +83,7 @@ func BenchmarkSQLAppendWithArgs(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
 	if _, err = driver.Exec(`TRUNCATE TABLE "artist" RESTART IDENTITY`); err != nil {
 		b.Fatal(err)
@@ -93,11 +93,11 @@ func BenchmarkSQLAppendWithArgs(b *testing.B) {
 		"Hayao Miyazaki",
 	}
 
-	var rows *sqlx.Rows
+	var rows *sql.Rows
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if rows, err = driver.Queryx(`INSERT INTO "artist" ("name") VALUES($1) RETURNING "id"`, args...); err != nil {
+		if rows, err = driver.Query(`INSERT INTO "artist" ("name") VALUES($1) RETURNING "id"`, args...); err != nil {
 			b.Fatal(err)
 		}
 		rows.Close()
@@ -116,7 +116,7 @@ func BenchmarkSQLPreparedAppend(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
 	if _, err = driver.Exec(`TRUNCATE TABLE "artist" RESTART IDENTITY`); err != nil {
 		b.Fatal(err)
@@ -148,13 +148,13 @@ func BenchmarkSQLPreparedAppendWithArgs(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
 	if _, err = driver.Exec(`TRUNCATE TABLE "artist"`); err != nil {
 		b.Fatal(err)
 	}
 
-	stmt, err := driver.Preparex(`INSERT INTO "artist" ("name") VALUES($1) RETURNING "id"`)
+	stmt, err := driver.Prepare(`INSERT INTO "artist" ("name") VALUES($1) RETURNING "id"`)
 
 	if err != nil {
 		b.Fatal(err)
@@ -164,11 +164,11 @@ func BenchmarkSQLPreparedAppendWithArgs(b *testing.B) {
 		"Hayao Miyazaki",
 	}
 
-	var rows *sqlx.Rows
+	var rows *sql.Rows
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if rows, err = stmt.Queryx(args...); err != nil {
+		if rows, err = stmt.Query(args...); err != nil {
 			b.Fatal(err)
 		}
 		rows.Close()
@@ -188,26 +188,26 @@ func BenchmarkSQLPreparedAppendWithVariableArgs(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
 	if _, err = driver.Exec(`TRUNCATE TABLE "artist"`); err != nil {
 		b.Fatal(err)
 	}
 
-	stmt, err := driver.Preparex(`INSERT INTO "artist" ("name") VALUES($1) RETURNING "id"`)
+	stmt, err := driver.Prepare(`INSERT INTO "artist" ("name") VALUES($1) RETURNING "id"`)
 
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	var rows *sqlx.Rows
+	var rows *sql.Rows
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		args := []interface{}{
 			fmt.Sprintf("Hayao Miyazaki %d", rand.Int()),
 		}
-		if rows, err = stmt.Queryx(args...); err != nil {
+		if rows, err = stmt.Query(args...); err != nil {
 			b.Fatal(err)
 		}
 		rows.Close()
@@ -220,7 +220,7 @@ func BenchmarkSQLPreparedAppendWithVariableArgs(b *testing.B) {
 func BenchmarkSQLPreparedAppendTransactionWithArgs(b *testing.B) {
 	var err error
 	var sess db.Database
-	var tx *sqlx.Tx
+	var tx *sql.Tx
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatal(err)
@@ -228,9 +228,9 @@ func BenchmarkSQLPreparedAppendTransactionWithArgs(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
-	if tx, err = driver.Beginx(); err != nil {
+	if tx, err = driver.Begin(); err != nil {
 		b.Fatal(err)
 	}
 
@@ -238,7 +238,7 @@ func BenchmarkSQLPreparedAppendTransactionWithArgs(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	stmt, err := tx.Preparex(`INSERT INTO "artist" ("name") VALUES($1) RETURNING "id"`)
+	stmt, err := tx.Prepare(`INSERT INTO "artist" ("name") VALUES($1) RETURNING "id"`)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -247,11 +247,11 @@ func BenchmarkSQLPreparedAppendTransactionWithArgs(b *testing.B) {
 		"Hayao Miyazaki",
 	}
 
-	var rows *sqlx.Rows
+	var rows *sql.Rows
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if rows, err = stmt.Queryx(args...); err != nil {
+		if rows, err = stmt.Query(args...); err != nil {
 			b.Fatal(err)
 		}
 		rows.Close()
@@ -417,13 +417,13 @@ func BenchmarkSQLSelect(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
-	var res *sqlx.Rows
+	var res *sql.Rows
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if res, err = driver.Queryx(`SELECT * FROM "artist" WHERE "name" = $1`, artistN(i)); err != nil {
+		if res, err = driver.Query(`SELECT * FROM "artist" WHERE "name" = $1`, artistN(i)); err != nil {
 			b.Fatal(err)
 		}
 		res.Close()
@@ -441,18 +441,18 @@ func BenchmarkSQLPreparedSelect(b *testing.B) {
 	}
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
-	stmt, err := driver.Preparex(`SELECT * FROM "artist" WHERE "name" = $1`)
+	stmt, err := driver.Prepare(`SELECT * FROM "artist" WHERE "name" = $1`)
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	var res *sqlx.Rows
+	var res *sql.Rows
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if res, err = stmt.Queryx(artistN(i)); err != nil {
+		if res, err = stmt.Query(artistN(i)); err != nil {
 			b.Fatal(err)
 		}
 		res.Close()
@@ -565,7 +565,7 @@ func BenchmarkSQLUpdate(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -586,7 +586,7 @@ func BenchmarkSQLPreparedUpdate(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
 	stmt, err := driver.Prepare(`UPDATE "artist" SET "name" = $1 WHERE "name" = $2`)
 	if err != nil {
@@ -644,7 +644,7 @@ func BenchmarkSQLDelete(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -664,7 +664,7 @@ func BenchmarkSQLPreparedDelete(b *testing.B) {
 	}
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
 	stmt, err := driver.Prepare(`DELETE FROM "artist" WHERE "name" = $1`)
 	if err != nil {

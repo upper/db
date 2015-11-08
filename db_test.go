@@ -31,7 +31,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db"
@@ -136,7 +135,7 @@ var setupFn = map[string]func(driver interface{}) error{
 		return errDriverErr
 	},
 	`postgresql`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sqlx.DB); ok {
+		if sqld, ok := driver.(*sql.DB); ok {
 			var err error
 
 			_, err = sqld.Exec(`DROP TABLE IF EXISTS "birthdays"`)
@@ -192,10 +191,10 @@ var setupFn = map[string]func(driver interface{}) error{
 
 			return nil
 		}
-		return fmt.Errorf("Expecting *sqlx.DB got %T (%#v).", driver, driver)
+		return fmt.Errorf("Expecting *sql.DB got %T (%#v).", driver, driver)
 	},
 	`mysql`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sqlx.DB); ok {
+		if sqld, ok := driver.(*sql.DB); ok {
 			var err error
 
 			_, err = sqld.Exec(`DROP TABLE IF EXISTS ` + "`" + `birthdays` + "`" + ``)
@@ -251,10 +250,10 @@ var setupFn = map[string]func(driver interface{}) error{
 
 			return nil
 		}
-		return fmt.Errorf("Expecting *sqlx.DB got %T (%#v).", driver, driver)
+		return fmt.Errorf("Expecting *sql.DB got %T (%#v).", driver, driver)
 	},
 	`sqlite`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sqlx.DB); ok {
+		if sqld, ok := driver.(*sql.DB); ok {
 			var err error
 
 			_, err = sqld.Exec(`DROP TABLE IF EXISTS "birthdays"`)
@@ -313,7 +312,7 @@ var setupFn = map[string]func(driver interface{}) error{
 		return errDriverErr
 	},
 	`ql`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sqlx.DB); ok {
+		if sqld, ok := driver.(*sql.DB); ok {
 			var err error
 			var tx *sql.Tx
 

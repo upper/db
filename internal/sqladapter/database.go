@@ -261,12 +261,12 @@ func (d *BaseDatabase) Builder() builder.QueryBuilder {
 	return d.builder
 }
 
-// Driver returns the underlying *sqlx.DB instance.
+// Driver returns the underlying *sql.DB or *sql.Tx instance.
 func (d *BaseDatabase) Driver() interface{} {
 	if d.tx != nil {
-		return d.tx.Tx
+		return d.tx.Tx.Tx
 	}
-	return d.sess
+	return d.sess.DB
 }
 
 func (d *BaseDatabase) prepareStatement(stmt *sqlgen.Statement) (p *sqlx.Stmt, query string, err error) {

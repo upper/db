@@ -34,7 +34,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"upper.io/db"
 )
 
@@ -1259,7 +1258,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	}
 
 	// Won't fail
-	sqlTx := tx.Driver().(*sqlx.Tx)
+	sqlTx := tx.Driver().(*sql.Tx)
 	if _, err = sqlTx.Exec(`INSERT INTO "artist" ("id", "name") VALUES($1, $2)`, 4, "Fourth"); err != nil {
 		t.Fatal(err)
 	}

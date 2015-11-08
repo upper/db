@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
+	"database/sql"
 	"upper.io/db"
 )
 
@@ -24,15 +24,15 @@ func artistN(i int) string {
 func connectAndAddFakeRows() (db.Database, error) {
 	var err error
 	var sess db.Database
-	var tx *sqlx.Tx
+	var tx *sql.Tx
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		return nil, err
 	}
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
-	if tx, err = driver.Beginx(); err != nil {
+	if tx, err = driver.Begin(); err != nil {
 		return nil, err
 	}
 
@@ -40,7 +40,7 @@ func connectAndAddFakeRows() (db.Database, error) {
 		return nil, err
 	}
 
-	stmt, err := tx.Preparex(`INSERT INTO artist (name) VALUES($1)`)
+	stmt, err := tx.Prepare(`INSERT INTO artist (name) VALUES($1)`)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func connectAndAddFakeRows() (db.Database, error) {
 func BenchmarkSQLAppend(b *testing.B) {
 	var err error
 	var sess db.Database
-	var tx *sqlx.Tx
+	var tx *sql.Tx
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatal(err)
@@ -71,9 +71,9 @@ func BenchmarkSQLAppend(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
-	if tx, err = driver.Beginx(); err != nil {
+	if tx, err = driver.Begin(); err != nil {
 		b.Fatal(err)
 	}
 	if _, err = tx.Exec(`TRUNCATE TABLE artist`); err != nil {
@@ -85,7 +85,7 @@ func BenchmarkSQLAppend(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if tx, err = driver.Beginx(); err != nil {
+		if tx, err = driver.Begin(); err != nil {
 			b.Fatal(err)
 		}
 		if _, err = tx.Exec(`INSERT INTO artist (name) VALUES("Hayao Miyazaki")`); err != nil {
@@ -103,7 +103,7 @@ func BenchmarkSQLAppend(b *testing.B) {
 func BenchmarkSQLAppendWithArgs(b *testing.B) {
 	var err error
 	var sess db.Database
-	var tx *sqlx.Tx
+	var tx *sql.Tx
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatal(err)
@@ -111,9 +111,9 @@ func BenchmarkSQLAppendWithArgs(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
-	if tx, err = driver.Beginx(); err != nil {
+	if tx, err = driver.Begin(); err != nil {
 		b.Fatal(err)
 	}
 	if _, err = tx.Exec(`TRUNCATE TABLE artist`); err != nil {
@@ -129,7 +129,7 @@ func BenchmarkSQLAppendWithArgs(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if tx, err = driver.Beginx(); err != nil {
+		if tx, err = driver.Begin(); err != nil {
 			b.Fatal(err)
 		}
 		if _, err = tx.Exec(`INSERT INTO artist (name) VALUES($1)`, args...); err != nil {
@@ -146,7 +146,7 @@ func BenchmarkSQLAppendWithArgs(b *testing.B) {
 func BenchmarkSQLPreparedAppend(b *testing.B) {
 	var err error
 	var sess db.Database
-	var tx *sqlx.Tx
+	var tx *sql.Tx
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatal(err)
@@ -154,9 +154,9 @@ func BenchmarkSQLPreparedAppend(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
-	if tx, err = driver.Beginx(); err != nil {
+	if tx, err = driver.Begin(); err != nil {
 		b.Fatal(err)
 	}
 	if _, err = tx.Exec(`TRUNCATE TABLE artist`); err != nil {
@@ -173,10 +173,10 @@ func BenchmarkSQLPreparedAppend(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if tx, err = driver.Beginx(); err != nil {
+		if tx, err = driver.Begin(); err != nil {
 			b.Fatal(err)
 		}
-		if _, err = tx.Stmtx(stmt).Exec(); err != nil {
+		if _, err = tx.Stmt(stmt).Exec(); err != nil {
 			b.Fatal(err)
 		}
 		if err = tx.Commit(); err != nil {
@@ -192,7 +192,7 @@ func BenchmarkSQLPreparedAppend(b *testing.B) {
 func BenchmarkSQLPreparedAppendWithArgs(b *testing.B) {
 	var err error
 	var sess db.Database
-	var tx *sqlx.Tx
+	var tx *sql.Tx
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatal(err)
@@ -200,9 +200,9 @@ func BenchmarkSQLPreparedAppendWithArgs(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
-	if tx, err = driver.Beginx(); err != nil {
+	if tx, err = driver.Begin(); err != nil {
 		b.Fatal(err)
 	}
 	if _, err = tx.Exec(`TRUNCATE TABLE artist`); err != nil {
@@ -223,10 +223,10 @@ func BenchmarkSQLPreparedAppendWithArgs(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if tx, err = driver.Beginx(); err != nil {
+		if tx, err = driver.Begin(); err != nil {
 			b.Fatal(err)
 		}
-		if _, err = tx.Stmtx(stmt).Exec(args...); err != nil {
+		if _, err = tx.Stmt(stmt).Exec(args...); err != nil {
 			b.Fatal(err)
 		}
 		if err = tx.Commit(); err != nil {
@@ -241,7 +241,7 @@ func BenchmarkSQLPreparedAppendWithArgs(b *testing.B) {
 func BenchmarkSQLPreparedAppendWithVariableArgs(b *testing.B) {
 	var err error
 	var sess db.Database
-	var tx *sqlx.Tx
+	var tx *sql.Tx
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatal(err)
@@ -249,9 +249,9 @@ func BenchmarkSQLPreparedAppendWithVariableArgs(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
-	if tx, err = driver.Beginx(); err != nil {
+	if tx, err = driver.Begin(); err != nil {
 		b.Fatal(err)
 	}
 	if _, err = tx.Exec(`TRUNCATE TABLE artist`); err != nil {
@@ -271,10 +271,10 @@ func BenchmarkSQLPreparedAppendWithVariableArgs(b *testing.B) {
 		args := []interface{}{
 			fmt.Sprintf("Hayao Miyazaki %d", rand.Int()),
 		}
-		if tx, err = driver.Beginx(); err != nil {
+		if tx, err = driver.Begin(); err != nil {
 			b.Fatal(err)
 		}
-		if _, err = tx.Stmtx(stmt).Exec(args...); err != nil {
+		if _, err = tx.Stmt(stmt).Exec(args...); err != nil {
 			b.Fatal(err)
 		}
 		if err = tx.Commit(); err != nil {
@@ -289,7 +289,7 @@ func BenchmarkSQLPreparedAppendWithVariableArgs(b *testing.B) {
 func BenchmarkSQLPreparedAppendTransactionWithArgs(b *testing.B) {
 	var err error
 	var sess db.Database
-	var tx *sqlx.Tx
+	var tx *sql.Tx
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		b.Fatal(err)
@@ -297,9 +297,9 @@ func BenchmarkSQLPreparedAppendTransactionWithArgs(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
-	if tx, err = driver.Beginx(); err != nil {
+	if tx, err = driver.Begin(); err != nil {
 		b.Fatal(err)
 	}
 
@@ -307,7 +307,7 @@ func BenchmarkSQLPreparedAppendTransactionWithArgs(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	stmt, err := tx.Preparex(`INSERT INTO artist (name) VALUES($1)`)
+	stmt, err := tx.Prepare(`INSERT INTO artist (name) VALUES($1)`)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -483,13 +483,13 @@ func BenchmarkSQLSelect(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
-	var rows *sqlx.Rows
+	var rows *sql.Rows
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if rows, err = driver.Queryx(`SELECT * FROM artist WHERE name == $1`, artistN(i)); err != nil {
+		if rows, err = driver.Query(`SELECT * FROM artist WHERE name == $1`, artistN(i)); err != nil {
 			b.Fatal(err)
 		}
 		rows.Close()
@@ -508,18 +508,18 @@ func BenchmarkSQLPreparedSelect(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
-	stmt, err := driver.Preparex(`SELECT * FROM artist WHERE name == $1`)
+	stmt, err := driver.Prepare(`SELECT * FROM artist WHERE name == $1`)
 	if err != nil {
 		b.Fatal(err)
 	}
 
-	var rows *sqlx.Rows
+	var rows *sql.Rows
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if rows, err = stmt.Queryx(artistN(i)); err != nil {
+		if rows, err = stmt.Query(artistN(i)); err != nil {
 			b.Fatal(err)
 		}
 		rows.Close()
@@ -625,7 +625,7 @@ func BenchmarkUpperFindAll(b *testing.B) {
 func BenchmarkSQLUpdate(b *testing.B) {
 	var err error
 	var sess db.Database
-	var tx *sqlx.Tx
+	var tx *sql.Tx
 
 	if sess, err = connectAndAddFakeRows(); err != nil {
 		b.Fatal(err)
@@ -633,11 +633,11 @@ func BenchmarkSQLUpdate(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if tx, err = driver.Beginx(); err != nil {
+		if tx, err = driver.Begin(); err != nil {
 			b.Fatal(err)
 		}
 		if _, err = tx.Exec(`UPDATE artist SET name = $1 WHERE name == $2`, updatedArtistN(i), artistN(i)); err != nil {
@@ -653,7 +653,7 @@ func BenchmarkSQLUpdate(b *testing.B) {
 func BenchmarkSQLPreparedUpdate(b *testing.B) {
 	var err error
 	var sess db.Database
-	var tx *sqlx.Tx
+	var tx *sql.Tx
 
 	if sess, err = connectAndAddFakeRows(); err != nil {
 		b.Fatal(err)
@@ -661,7 +661,7 @@ func BenchmarkSQLPreparedUpdate(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
 	stmt, err := driver.Prepare(`UPDATE artist SET name = $1 WHERE name == $2`)
 	if err != nil {
@@ -670,10 +670,10 @@ func BenchmarkSQLPreparedUpdate(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if tx, err = driver.Beginx(); err != nil {
+		if tx, err = driver.Begin(); err != nil {
 			b.Fatal(err)
 		}
-		if _, err = tx.Stmtx(stmt).Exec(updatedArtistN(i), artistN(i)); err != nil {
+		if _, err = tx.Stmt(stmt).Exec(updatedArtistN(i), artistN(i)); err != nil {
 			b.Fatal(err)
 		}
 		if err = tx.Commit(); err != nil {
@@ -718,7 +718,7 @@ func BenchmarkUpperUpdate(b *testing.B) {
 func BenchmarkSQLDelete(b *testing.B) {
 	var err error
 	var sess db.Database
-	var tx *sqlx.Tx
+	var tx *sql.Tx
 
 	if sess, err = connectAndAddFakeRows(); err != nil {
 		b.Fatal(err)
@@ -726,11 +726,11 @@ func BenchmarkSQLDelete(b *testing.B) {
 
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if tx, err = driver.Beginx(); err != nil {
+		if tx, err = driver.Begin(); err != nil {
 			b.Fatal(err)
 		}
 		if _, err = tx.Exec(`DELETE FROM artist WHERE name == $1`, artistN(i)); err != nil {
@@ -746,14 +746,14 @@ func BenchmarkSQLDelete(b *testing.B) {
 func BenchmarkSQLPreparedDelete(b *testing.B) {
 	var err error
 	var sess db.Database
-	var tx *sqlx.Tx
+	var tx *sql.Tx
 
 	if sess, err = connectAndAddFakeRows(); err != nil {
 		b.Fatal(err)
 	}
 	defer sess.Close()
 
-	driver := sess.Driver().(*sqlx.DB)
+	driver := sess.Driver().(*sql.DB)
 
 	stmt, err := driver.Prepare(`DELETE FROM artist WHERE name == $1`)
 	if err != nil {
@@ -762,10 +762,10 @@ func BenchmarkSQLPreparedDelete(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if tx, err = driver.Beginx(); err != nil {
+		if tx, err = driver.Begin(); err != nil {
 			b.Fatal(err)
 		}
-		if _, err = tx.Stmtx(stmt).Exec(artistN(i)); err != nil {
+		if _, err = tx.Stmt(stmt).Exec(artistN(i)); err != nil {
 			b.Fatal(err)
 		}
 		if err = tx.Commit(); err != nil {
