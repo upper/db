@@ -49,203 +49,180 @@ import (
 
 // import "upper.io/db"
 
-// Cond is a map used to define conditions passed to `db.Collection.Find()` and
-// `db.Result.Where()`.
+// Cond is a map that defines conditions that can be passed to
+// `db.Collection.Find()` and `db.Result.Where()`.
+//
+// Each entry of the map represents a condition (a column-value relation bound
+// by a comparison operator). The comparison operator is optional and can be
+// specified after the column name, if no comparison operator is provided the
+// equality is used.
 //
 // Examples:
 //
 //	// Where age equals 18.
-//	db.Cond { "age": 18 }
+//	db.Cond{"age": 18}
 //
-//	Where age is greater than or equal to 18.
-//	db.Cond { "age >=": 18 }
+//	// Where age is greater than or equal to 18.
+//	db.Cond{"age >=": 18}
 //
-//	Where age is lower than 18 (On MongoDB context).
-//	db.Cond { "age $lt": 18 }
+//	// Where id is in a list of ids.
+//	db.Cond{"id IN": []{1, 2, 3}}
+//
+//	// Where age is lower than 18 (mongodb-like operator).
+//	db.Cond{"age $lt": 18}
+//
+//  // Where age > 32 and age < 35
+//  db.Cond{"age >": 32, "age <": 35}
 type Cond builder.M
 
+// Constraints returns all the conditions on the map.
 func (m Cond) Constraints() []builder.Constraint {
 	return builder.M(m).Constraints()
 }
 
+// Operator returns the logical operator that joins the conditions (defaults to
+// "AND").
 func (m Cond) Operator() builder.CompoundOperator {
 	return builder.M(m).Operator()
 }
 
+// Sentences returns the map as a compound, so it can be used with Or() and
+// And().
 func (m Cond) Sentences() []builder.Compound {
 	return builder.M(m).Sentences()
 }
 
-/*map[string]interface{}
-
-func (m Cond) Constraints() []builder.Constraint {
-	c := make([]builder.Constraint, 0, len(m))
-	for k, v := range m {
-		c = append(c, builder.NewConstraint(k, builder.OperatorDefault, v))
-	}
-	return c
-}
-*/
-
-// Func is a struct that represents database functions.
+// Func represents a database function.
 //
 // Examples:
 //
 //	// MOD(29, 9)
-//	db.Func{"MOD", []int{29, 9}}
+//	db.Func("MOD", 29, 9)
 //
 //	// CONCAT("foo", "bar")
-//	db.Func{"CONCAT", []string{"foo", "bar"}}
+//	db.Func("CONCAT", "foo", "bar")
 //
 //	// NOW()
-//	db.Func{"NOW"}
+//	db.Func("NOW")
 //
-//	// RTRIM("Hello   ")
-//	db.Func{"RTRIM", "Hello  "}
-type dbFunc struct {
-	name string
-	args []interface{}
-}
-
-func (f *dbFunc) Arguments() []interface{} {
-	return f.args
-}
-
-func (f *dbFunc) Name() string {
-	return f.name
-}
-
+//	// RTRIM("Hello  ")
+//	db.Func("RTRIM", "Hello  ")
 func Func(name string, args ...interface{}) builder.Function {
 	return &dbFunc{name: name, args: args}
 }
 
-// And is an array of interfaces that is used to join two or more expressions
-// under logical conjunction, it accepts `db.Cond{}`, `db.Or{}`, `db.Raw{}` and
-// other `db.And{}` values.
+// And joins conditions under logical conjunction. Conditions can be
+// represented by db.Cond{}, db.Or() or db.And().
 //
 // Examples:
 //
-//	// SQL: name = "Peter" AND last_name = "Parker"
-//	db.And (
-// 		db.Cond { "name": "Peter" },
-// 		db.Cond { "last_name": "Parker "},
+//	// name = "Peter" AND last_name = "Parker"
+//	db.And(
+// 		db.Cond{"name": "Peter"},
+// 		db.Cond{"last_name": "Parker "},
 // 	)
 //
-//	// SQL: (name = "Peter" OR name = "Mickey") AND last_name = "Mouse"
-// 	db.And {
-// 		db.Or {
-// 			db.Cond{ "name": "Peter" },
-// 			db.Cond{ "name": "Mickey" },
-// 		},
-// 		db.Cond{ "last_name": "Mouse" },
-// 	}
+//	// (name = "Peter" OR name = "Mickey") AND last_name = "Mouse"
+// 	db.And(
+// 		db.Or(
+// 			db.Cond{"name": "Peter"},
+// 			db.Cond{"name": "Mickey"},
+// 		),
+// 		db.Cond{"last_name": "Mouse"},
+// 	)
 var And = builder.And
 
-// Or is an array of interfaced that is used to join two or more expressions
-// under logical disjunction, it accepts `db.Cond{}`, `db.And{}`, `db.Raw{}`
-// and other `db.Or{}` values.
+// Or joins conditions under logical disjunction. Conditions can be represented
+// by db.Cond{}, db.Or() or db.And().
 //
 // Example:
 //
-// 	// SQL: year = 2012 OR year = 1987
-// 	db.Or {
+// 	// year = 2012 OR year = 1987
+// 	db.Or(
 // 		db.Cond{"year": 2012},
 // 		db.Cond{"year": 1987},
-// 	}
+// 	)
 var Or = builder.Or
 
-// Raw holds chunks of data to be passed to the database without any filtering.
-// Use with care.
-//
-// When using `db.Raw{}`, the developer is responsible of providing a sanitized
-// instruction to the database.
-//
-// The `db.Raw{}` expression is allowed as element on `db.Cond{}`, `db.And{}`,
-// `db.Or{}` expressions and as argument on `db.Result.Select()` and
-// `db.Collection.Find()` methods.
+// Raw marks chunks of data as protected, so they pass directly to the query
+// without any filtering. Use with care.
 //
 // Example:
 //
-//	// SQL: SOUNDEX('Hello')
-//	Raw{"SOUNDEX('Hello')"}
+//	// SOUNDEX('Hello')
+//	Raw("SOUNDEX('Hello')")
 func Raw(s string) builder.RawValue {
 	return builder.RawString(s)
 }
 
-// Database is an interface that defines methods that must be provided by
+// Database is an interface that defines methods that must be satisfied by
 // database adapters.
 type Database interface {
-	// Driver() Returns the underlying driver the wrapper uses. As an
-	// `interface{}`.
+	// Driver returns the underlying driver the wrapper uses.
 	//
-	// In order to actually use the `interface{}` you must cast it to the known
-	// database driver type.
+	// In order to actually use the driver the `interface{}` value has to be
+	// casted to the appropriate type.
 	//
 	// Example:
-	//	internalSQLDriver := sess.Driver().(*sql.DB)
+	//  internalSQLDriver := sess.Driver().(*sql.DB)
 	Driver() interface{}
 
-	// Builder is an experimental interface
+	// Builder returns a query builder that can be used to execute advanced
+	// queries. Builder may not be defined for all database adapters, in that
+	// case the return value would be nil.
 	Builder() builder.QueryBuilder
 
-	// Open() attempts to stablish a connection with the database server, a
-	// previous call to Setup() is required.
+	// Open attempts to stablish a connection with the database manager, a
+	// previous call to `Setup()` is required.
 	Open() error
 
-	// Clone() duplicates the current database session. Returns an error if the
-	// clone could not be carried out.
+	// Clone duplicates the current database session. Returns an error if the
+	// clone did not succeed.
 	Clone() (Database, error)
 
-	// Ping() returns error if the database server cannot be reached.
+	// Ping returns an error if the database manager cannot be reached.
 	Ping() error
 
-	// Close() closes the currently active connection to the database.
+	// Close closes the currently active connection to the database.
 	Close() error
 
-	// C is a short-hand to Collection(). If the given collection does not exists
-	// subsequent calls to any Collection or Result method that expect the
-	// collection to exists will fail returning the original error a call to
-	// Collection() would have returned. The output of C() may be a cached
-	// collection value.
+	// C is a short-hand for `Collection()`. If the given collection does not
+	// exists subsequent calls to any `Collection{}` or `Result{}` method that
+	// expect the collection to exists will fail returning the original error a
+	// call to `Collection()` would have returned. The output of `C()` may be a
+	// cached collection value.
 	C(string) Collection
 
-	// Collection() returns a `db.Collection{}` struct by name. Some databases
-	// support collections of more than one source or table, refer to the
-	// documentation of the specific database adapter to see if using multiple
-	// sources is supported.
+	// Collection returns a `Collection{}` given a table name.
 	Collection(string) (Collection, error)
 
-	// Collections() returns the names of all non-system sources or tables within
-	// the active database.
+	// Collections returns the names of all non-system tables on the database.
 	Collections() ([]string, error)
 
-	// Use() attempts to connect to another database using the same connection
-	// settings. Similar to MySQL's `USE` instruction.
+	// Use attempts to connect to another database using the same connection
+	// settings.
 	Use(string) error
 
-	// Drop() drops the active database.
+	// Drop deletes all tables on the active database and drops the database.
 	Drop() error
 
-	// Setup() sets the database connection settings. In order to connect, a call
-	// to `db.Database.Open()` is required.
+	// Setup stores database connection settings.
 	Setup(ConnectionURL) error
 
-	// Name() returns the name of the active database.
+	// Name returns the name of the active database.
 	Name() string
 
-	// Transaction() starts a transaction block. Some databases do not support
+	// Transaction starts a transaction block. Some databases do not support
 	// transactions, refer to the documentation of the specific database adapter
 	// to see the current status on transactions.
 	Transaction() (Tx, error)
 }
 
-// Tx is an interface that provides the same methods that the `db.Database`
-// does, plus some other that help the user deal with database transactions. In
-// order to get a proper `db.Tx` interface the `db.Database.Transaction()`
-// method must be called on an already opened database session.
+// Tx is an interface that enhaces the `Database` interface with additional
+// methods for transactions.
 //
 // Example:
-//	...
+//	// [...]
 // 	if sess, err = db.Open(postgresql.Adapter, settings); err != nil {
 // 		log.Fatal(err)
 // 	}
@@ -259,96 +236,99 @@ type Database interface {
 // 	if artist, err = tx.Collection("artist"); err != nil {
 // 		log.Fatal(err)
 // 	}
-//	...
+//	// [...]
 type Tx interface {
 	Database
 
-	// Discards all the instructions issued during the transaction.
+	// Rollback discards all the instructions on the current transaction.
 	Rollback() error
 
-	// Verifies that all the instructions isssued during the transaction were
-	// executed.
+	// Commit commits the current transactions.
 	Commit() error
 }
 
-// Collection is an interface that defines methods for handling data sources or
-// tables.
+// Collection is an interface that defines methods useful for handling data
+// sources or tables.
 type Collection interface {
 
-	// Inserts a new item into the collection. Accepts a map or a struct as
-	// argument.
+	// Append inserts a new item into the collection. Accepts a map or a struct
+	// as argument.
 	Append(interface{}) (interface{}, error)
 
-	// Returns true if the collection exists.
+	// Exists returns true if the collection exists.
 	Exists() bool
 
-	// Sets a filter on the collection with the given conditions and returns a
-	// result set.
+	// Find returns a result set with the given filters.
 	Find(...interface{}) Result
 
-	// Removes all elements on the collection and resets the IDs.
+	// Truncate removes all elements on the collection and resets its IDs.
 	Truncate() error
 
-	// Returns the name of the collection.
+	// Name returns the name of the collection.
 	Name() string
 }
 
-// Result is an interface that defines methods for working with result sets.
+// Result is an interface that defines methods useful for working with result
+// sets.
 type Result interface {
 
-	// Limit() defines the maximum number of results in this set.
+	// Limit defines the maximum number of results in this set. It only has
+	// effect on `One()`, `All()` and `Next()`.
 	Limit(uint) Result
 
-	// Skip() ignores the first *n* results.
+	// Skip ignores the first *n* results. It only has effect on `One()`, `All()`
+	// and `Next()`.
 	Skip(uint) Result
 
-	// Sort() receives field names that define the order in which elements will
-	// be returned in a query, field names may be prefixed with a minus sign (-)
-	// indicating descending order; ascending order would be used by default.
+	// Sort receives field names that define the order in which elements will be
+	// returned in a query, field names may be prefixed with a minus sign (-)
+	// indicating descending order, ascending order will be used otherwise.
 	Sort(...interface{}) Result
 
-	// Select() defines specific fields to be fulfilled on results in this result
+	// Select defines specific columns to be returned from the elements of the
 	// set.
 	Select(...interface{}) Result
 
-	// Where() discards the initial filtering conditions and sets new ones.
+	// Where discards the initial filtering conditions and sets new ones.
 	Where(...interface{}) Result
 
-	// Group() is used to group results that have the same value in the same
-	// column or columns.
+	// Group is used to group results that have the same value in the same column
+	// or columns.
 	Group(...interface{}) Result
 
-	// Remove() deletes all items within the result set.
+	// Remove deletes all items within the result set. `Skip()` and `Limit()` are
+	// not honoured by `Remove()`.
 	Remove() error
 
-	// Update() modified all items within the result set. Receives an struct or
-	// an interface{}.
+	// Update modifies all items within the result set. `Skip()` and `Limit()`
+	// are not honoured by `Update()`.
 	Update(interface{}) error
 
-	// Count() returns the number of items that match the set conditions (Limit
-	// and Offset settings are excluded from this query).
+	// Count returns the number of items that match the set conditions. `Skip()`
+	// and `Limit()` are not honoured by `Count()`
 	Count() (uint64, error)
 
-	// Next() fetches the next result within the result set and dumps it into the
-	// given pointer to struct or pointer to map. You must manually call Close()
-	// after finishing using Next().
+	// Next fetches the next result within the result set and dumps it into the
+	// given pointer to struct or pointer to map. You must manually call
+	// `Close()` after finishing using `Next()`.
 	Next(interface{}) error
 
-	// One() fetches the first result within the result set and dumps it into the
-	// given pointer to struct or pointer to map. Then it calls Close() to free
-	// the result set.
+	// One fetches the first result within the result set and dumps it into the
+	// given pointer to struct or pointer to map. The result set is automatically
+	// closed after picking the element, so there is no need to call `Close()`
+	// manually.
 	One(interface{}) error
 
-	// All() fetches all results within the result set and dumps them into the
-	// given pointer to slice of maps or structs. Then it calls Close() to free
-	// the result set.
+	// All fetches all results within the result set and dumps them into the
+	// given pointer to slice of maps or structs.  The result set is
+	// automatically closed, so there is no need to call `Close()` manually.
 	All(interface{}) error
 
-	// Close() closes the result set.
+	// Close closes the result set.
 	Close() error
 }
 
-// ConnectionURL is the interface that defines methods for connection strings.
+// ConnectionURL represents a connection string
 type ConnectionURL interface {
 	// String returns the connection string that is going to be passed to the
 	// adapter.
@@ -363,23 +343,31 @@ type Marshaler builder.Marshaler
 // themselves from storage data into a valid value.
 type Unmarshaler builder.Unmarshaler
 
-// IDSetter is the interface implemented by structs that can set their own ID
-// after calling Append().
+// IDSetter defines methods to be implemented by structs tha can update their
+// own IDs.
 type IDSetter interface {
 	SetID(map[string]interface{}) error
 }
 
-// Int64IDSetter implements a common pattern for setting int64 IDs.
+// Constrainer defined methods to be implemented by structs that can set its
+// own constraints.
+type Constrainer interface {
+	Constraints() Cond
+}
+
+// Int64IDSetter defined methods to be implemented by structs that can update
+// their own int64 ID.
 type Int64IDSetter interface {
 	SetID(int64) error
 }
 
-// Uint64IDSetter implements a common pattern for setting uint64 IDs.
+// Uint64IDSetter defined methods to be implemented by structs that can update
+// their own uint64 ID.
 type Uint64IDSetter interface {
 	SetID(uint64) error
 }
 
-// EnvEnableDebug may be used by adapters to determine if the user has enabled
+// EnvEnableDebug can be used by adapters to determine if the user has enabled
 // debugging.
 //
 // If the user sets the `UPPERIO_DB_DEBUG` environment variable to a
@@ -393,12 +381,22 @@ type Uint64IDSetter interface {
 //	UPPERIO_DB_DEBUG=1 ./go-program
 const EnvEnableDebug = `UPPERIO_DB_DEBUG`
 
-type Constrainer interface {
-	Constraints() Cond
+type dbFunc struct {
+	name string
+	args []interface{}
+}
+
+func (f *dbFunc) Arguments() []interface{} {
+	return f.args
+}
+
+func (f *dbFunc) Name() string {
+	return f.name
 }
 
 var (
 	_ = builder.Constraints(Cond{})
 	_ = builder.Compound(Cond{})
+
 	_ = builder.Function(&dbFunc{})
 )

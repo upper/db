@@ -1,7 +1,5 @@
 # upper.io/db
 
-*V2 IS CURRENTLY IN DEVELOPMENT AND NOT YET READY TO USE*
-
 <center>
 <img src="https://upper.io/images/icon.svg" width="256" />
 </center>
@@ -77,10 +75,24 @@ This project is licensed under the terms of the **MIT License**.
 > OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 > WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-## Authors
+## Authors and contributors
 
-* [José Carlos Nieto](https://github.com/xiam)
-* [Peter Kieltyka](https://github.com/pkieltyka)
+* José Carlos Nieto <jose.carlos@menteslibres.net>
+* Peter Kieltyka <peter@pressly.com>
+* Maciej Lisiewski <maciej.lisiewski@gmail.com>
+* Paul Xue <paul.xue@pressly.com>
+* Max Hawkins <maxhawkins@google.com>
+* Kevin Darlington <kdarlington@gmail.com>
+* icattlecoder <icattlecoder@gmail.com>
+* Lars Buitinck <l.buitinck@esciencecenter.nl>
+* wei2912 <wei2912_support@hotmail.com>
+* rjmcguire <rjmcguire@gmail.com>
+* achun <achun.shx@qq.com>
+* Piotr "Orange" Zduniak <piotr@zduniak.net>
+* Max Hawkins <maxhawkins@gmail.com>
+* Julien Schmidt <github@julienschmidt.com>
+* Hiram J. Pérez <worg@linuxmail.org>
+* Aaron <aaron.l.france@gmail.com>
 
 [1]: https://upper.io/db
 [2]: http://golang.org
