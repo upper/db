@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	sqlbuilder "upper.io/builder"
-	"upper.io/builder/meta"
+	"upper.io/builder"
+	"upper.io/builder/sqlbuilder"
 	"upper.io/builder/sqlgen"
 	"upper.io/cache"
 	"upper.io/db"

@@ -23,7 +23,7 @@ package db
 
 import (
 	"errors"
-	builder "upper.io/builder/meta"
+	"upper.io/builder"
 )
 
 // Shared error messages.

@@ -22,7 +22,7 @@
 package result
 
 import (
-	builder "upper.io/builder/meta"
+	"upper.io/builder"
 	"upper.io/db"
 )
 

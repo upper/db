@@ -44,7 +44,7 @@
 package db
 
 import (
-	builder "upper.io/builder/meta"
+	"upper.io/builder"
 )
 
 // import "upper.io/db"

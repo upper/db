@@ -28,7 +28,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3" // SQLite3 driver.
-	"upper.io/builder"
+	"upper.io/builder/sqlbuilder"
 	"upper.io/builder/sqlgen"
 	template "upper.io/builder/template/sqlite"
 	"upper.io/db"
@@ -278,7 +278,7 @@ func (d *database) TableColumns(tableName string) ([]string, error) {
 
 		columns := []columnSchemaT{}
 
-		if err := builder.NewIterator(rows).All(&columns); err != nil {
+		if err := sqlbuilder.NewIterator(rows).All(&columns); err != nil {
 			return nil, err
 		}
 

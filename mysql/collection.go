@@ -24,7 +24,7 @@ package mysql
 import (
 	"database/sql"
 
-	"upper.io/builder"
+	"upper.io/builder/sqlbuilder"
 	"upper.io/builder/sqlgen"
 	"upper.io/db"
 	"upper.io/db/internal/sqladapter"
@@ -51,7 +51,7 @@ func (t *table) Truncate() error {
 
 // Append inserts an item (map or struct) into the collection.
 func (t *table) Append(item interface{}) (interface{}, error) {
-	columnNames, columnValues, err := builder.Map(item)
+	columnNames, columnValues, err := sqlbuilder.Map(item)
 	if err != nil {
 		return nil, err
 	}
