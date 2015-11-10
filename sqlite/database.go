@@ -26,7 +26,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/jmoiron/sqlx"
+	"database/sql"
 	_ "github.com/mattn/go-sqlite3" // SQLite3 driver.
 	"upper.io/builder/sqlbuilder"
 	"upper.io/builder/sqlgen"
@@ -78,13 +78,13 @@ func (d *database) Err(err error) error {
 
 // Open attempts to open a connection to the database server.
 func (d *database) Open() error {
-	var sess *sqlx.DB
+	var sess *sql.DB
 
-	openFn := func(sess **sqlx.DB) (err error) {
+	openFn := func(sess **sql.DB) (err error) {
 		openFiles := atomic.LoadInt32(&fileOpenCount)
 
 		if openFiles < maxOpenFiles {
-			*sess, err = sqlx.Open(`sqlite3`, d.ConnectionURL().String())
+			*sess, err = sql.Open(`sqlite3`, d.ConnectionURL().String())
 
 			if err == nil {
 				atomic.AddInt32(&fileOpenCount, 1)
@@ -186,15 +186,15 @@ func (d *database) Drop() error {
 // be used to issue transactional queries.
 func (d *database) Transaction() (db.Tx, error) {
 	var err error
-	var sqlTx *sqlx.Tx
+	var sqlTx *sql.Tx
 	var clone *database
 
 	if clone, err = d.clone(); err != nil {
 		return nil, err
 	}
 
-	connFn := func(sqlTx **sqlx.Tx) (err error) {
-		*sqlTx, err = clone.Session().Beginx()
+	connFn := func(sqlTx **sql.Tx) (err error) {
+		*sqlTx, err = clone.Session().Begin()
 		return
 	}
 

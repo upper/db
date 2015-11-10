@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jmoiron/sqlx"
+	"database/sql"
 	_ "github.com/lib/pq" // PostgreSQL driver.
 	"upper.io/builder/sqlgen"
 	template "upper.io/builder/template/postgresql"
@@ -75,10 +75,10 @@ func (d *database) Err(err error) error {
 
 // Open attempts to open a connection to the database server.
 func (d *database) Open() error {
-	var sess *sqlx.DB
+	var sess *sql.DB
 
-	connFn := func(sess **sqlx.DB) (err error) {
-		*sess, err = sqlx.Open("postgres", d.ConnectionURL().String())
+	connFn := func(sess **sql.DB) (err error) {
+		*sess, err = sql.Open("postgres", d.ConnectionURL().String())
 		return
 	}
 
@@ -158,15 +158,15 @@ func (d *database) Drop() error {
 // be used to issue transactional queries.
 func (d *database) Transaction() (db.Tx, error) {
 	var err error
-	var sqlTx *sqlx.Tx
+	var sqlTx *sql.Tx
 	var clone *database
 
 	if clone, err = d.clone(); err != nil {
 		return nil, err
 	}
 
-	connFn := func(sqlTx **sqlx.Tx) (err error) {
-		*sqlTx, err = clone.Session().Beginx()
+	connFn := func(sqlTx **sql.Tx) (err error) {
+		*sqlTx, err = clone.Session().Begin()
 		return
 	}
 

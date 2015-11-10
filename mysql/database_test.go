@@ -1056,8 +1056,8 @@ func TestTransactionsAndRollback(t *testing.T) {
 	}
 
 	// Won't fail
-	sqlxTx := tx.Driver().(*sql.Tx)
-	if _, err = sqlxTx.Exec("INSERT INTO `artist` (`id`, `name`) VALUES(?, ?)", 4, "Fourth"); err != nil {
+	sqlTx := tx.Driver().(*sql.Tx)
+	if _, err = sqlTx.Exec("INSERT INTO `artist` (`id`, `name`) VALUES(?, ?)", 4, "Fourth"); err != nil {
 		t.Fatal(err)
 	}
 

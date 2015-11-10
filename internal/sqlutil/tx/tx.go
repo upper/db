@@ -22,7 +22,7 @@
 package sqltx
 
 import (
-	"github.com/jmoiron/sqlx"
+	"database/sql"
 	"upper.io/db"
 )
 
@@ -32,11 +32,11 @@ type Database struct {
 }
 
 type Tx struct {
-	*sqlx.Tx
+	*sql.Tx
 	done bool
 }
 
-func New(tx *sqlx.Tx) *Tx {
+func New(tx *sql.Tx) *Tx {
 	return &Tx{Tx: tx}
 }
 

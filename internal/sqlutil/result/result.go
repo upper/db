@@ -27,7 +27,7 @@ import (
 )
 
 type Result struct {
-	b       builder.QueryBuilder
+	b       builder.Builder
 	table   string
 	iter    builder.Iterator
 	limit   int
@@ -51,7 +51,7 @@ func filter(conds []interface{}) []interface{} {
 
 // NewResult creates and results a new result set on the given table, this set
 // is limited by the given sqlgen.Where conditions.
-func NewResult(b builder.QueryBuilder, table string, conds []interface{}) *Result {
+func NewResult(b builder.Builder, table string, conds []interface{}) *Result {
 	return &Result{
 		b:     b,
 		table: table,

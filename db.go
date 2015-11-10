@@ -41,13 +41,11 @@
 //	var people []Person
 //	res = col.Find(db.Cond{"name": "Max"}).Limit(2).Sort("-input")
 //	err = res.All(&people)
-package db
+package db // import "upper.io/db"
 
 import (
 	"upper.io/builder"
 )
-
-// import "upper.io/db"
 
 // Cond is a map that defines conditions that can be passed to
 // `db.Collection.Find()` and `db.Result.Where()`.
@@ -170,7 +168,7 @@ type Database interface {
 	// Builder returns a query builder that can be used to execute advanced
 	// queries. Builder may not be defined for all database adapters, in that
 	// case the return value would be nil.
-	Builder() builder.QueryBuilder
+	Builder() builder.Builder
 
 	// Open attempts to stablish a connection with the database manager, a
 	// previous call to `Setup()` is required.

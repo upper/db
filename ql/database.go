@@ -28,7 +28,6 @@ import (
 	"sync/atomic"
 
 	_ "github.com/cznic/ql/driver" // QL driver
-	"github.com/jmoiron/sqlx"
 	"upper.io/builder/sqlgen"
 	template "upper.io/builder/template/ql"
 	"upper.io/db"
@@ -90,13 +89,13 @@ func (d *database) Err(err error) error {
 
 // Open attempts to open a connection to the database server.
 func (d *database) Open() error {
-	var sess *sqlx.DB
+	var sess *sql.DB
 
-	openFn := func(sess **sqlx.DB) (err error) {
+	openFn := func(sess **sql.DB) (err error) {
 		openFiles := atomic.LoadInt32(&fileOpenCount)
 
 		if openFiles < maxOpenFiles {
-			*sess, err = sqlx.Open(`ql`, d.ConnectionURL().String())
+			*sess, err = sql.Open(`ql`, d.ConnectionURL().String())
 
 			if err == nil {
 				atomic.AddInt32(&fileOpenCount, 1)
@@ -197,15 +196,15 @@ func (d *database) Drop() error {
 // be used to issue transactional queries.
 func (d *database) Transaction() (db.Tx, error) {
 	var err error
-	var sqlTx *sqlx.Tx
+	var sqlTx *sql.Tx
 	var clone *database
 
 	if clone, err = d.clone(); err != nil {
 		return nil, err
 	}
 
-	connFn := func(sqlTx **sqlx.Tx) (err error) {
-		*sqlTx, err = clone.Session().Beginx()
+	connFn := func(sqlTx **sql.Tx) (err error) {
+		*sqlTx, err = clone.Session().Begin()
 		return
 	}
 
@@ -304,17 +303,17 @@ func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
 }
 
 // Exec wraps the statement to execute around a transaction.
-func (d *database) Exec(stmt *sqlx.Stmt, args ...interface{}) (sql.Result, error) {
+func (d *database) Exec(stmt *sql.Stmt, args ...interface{}) (sql.Result, error) {
 	if d.Tx() == nil {
-		var tx *sqlx.Tx
+		var tx *sql.Tx
 		var res sql.Result
 		var err error
 
-		if tx, err = d.Session().Beginx(); err != nil {
+		if tx, err = d.Session().Begin(); err != nil {
 			return nil, err
 		}
 
-		s := tx.Stmtx(stmt)
+		s := tx.Stmt(stmt)
 
 		if res, err = s.Exec(args...); err != nil {
 			return nil, err

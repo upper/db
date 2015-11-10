@@ -88,7 +88,7 @@ func (s *Source) Ping() error {
 	return s.session.Ping()
 }
 
-// Driver returns the underlying *sqlx.DB instance.
+// Driver returns the underlying *mgo.Session instance.
 func (s *Source) Driver() interface{} {
 	return s.session
 }
@@ -245,6 +245,6 @@ func (s *Source) versionAtLeast(version ...int) bool {
 	return true
 }
 
-func (s *Source) Builder() builder.QueryBuilder {
+func (s *Source) Builder() builder.Builder {
 	return nil
 }

@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"upper.io/builder"
 	"upper.io/builder/sqlbuilder"
 	"upper.io/builder/sqlgen"
@@ -18,7 +17,7 @@ import (
 )
 
 type HasExecStatement interface {
-	Exec(stmt *sqlx.Stmt, args ...interface{}) (sql.Result, error)
+	Exec(stmt *sql.Stmt, args ...interface{}) (sql.Result, error)
 }
 
 type PartialDatabase interface {
@@ -38,7 +37,7 @@ type Database interface {
 
 type BaseDatabase struct {
 	partial PartialDatabase
-	sess    *sqlx.DB
+	sess    *sql.DB
 	tx      *sqltx.Tx
 
 	connURL          db.ConnectionURL
@@ -46,13 +45,13 @@ type BaseDatabase struct {
 	cachedStatements *cache.Cache
 	collections      map[string]db.Collection
 	collectionsMu    sync.Mutex
-	builder          builder.QueryBuilder
+	builder          builder.Builder
 
 	template *sqlgen.Template
 }
 
 type cachedStatement struct {
-	*sqlx.Stmt
+	*sql.Stmt
 	query string
 }
 
@@ -69,7 +68,7 @@ func NewDatabase(partial PartialDatabase, connURL db.ConnectionURL, template *sq
 	return d
 }
 
-func (d *BaseDatabase) Session() *sqlx.DB {
+func (d *BaseDatabase) Session() *sql.DB {
 	return d.sess
 }
 
@@ -77,7 +76,7 @@ func (d *BaseDatabase) Template() *sqlgen.Template {
 	return d.template
 }
 
-func (d *BaseDatabase) BindTx(tx *sqlx.Tx) {
+func (d *BaseDatabase) BindTx(tx *sql.Tx) {
 	d.tx = sqltx.New(tx)
 }
 
@@ -93,7 +92,7 @@ func (d *BaseDatabase) Schema() *schema.DatabaseSchema {
 	return d.schema
 }
 
-func (d *BaseDatabase) Bind(sess *sqlx.DB) error {
+func (d *BaseDatabase) Bind(sess *sql.DB) error {
 	d.sess = sess
 	return d.populate()
 }
@@ -186,7 +185,7 @@ func (d *BaseDatabase) Name() string {
 // Exec compiles and executes a statement that does not return any rows.
 func (d *BaseDatabase) Exec(stmt *sqlgen.Statement, args ...interface{}) (sql.Result, error) {
 	var query string
-	var p *sqlx.Stmt
+	var p *sql.Stmt
 	var err error
 
 	if db.Debug {
@@ -211,9 +210,9 @@ func (d *BaseDatabase) Exec(stmt *sqlgen.Statement, args ...interface{}) (sql.Re
 }
 
 // Query compiles and executes a statement that returns rows.
-func (d *BaseDatabase) Query(stmt *sqlgen.Statement, args ...interface{}) (*sqlx.Rows, error) {
+func (d *BaseDatabase) Query(stmt *sqlgen.Statement, args ...interface{}) (*sql.Rows, error) {
 	var query string
-	var p *sqlx.Stmt
+	var p *sql.Stmt
 	var err error
 
 	if db.Debug {
@@ -230,13 +229,13 @@ func (d *BaseDatabase) Query(stmt *sqlgen.Statement, args ...interface{}) (*sqlx
 		return nil, err
 	}
 
-	return p.Queryx(args...)
+	return p.Query(args...)
 }
 
 // QueryRow compiles and executes a statement that returns at most one row.
-func (d *BaseDatabase) QueryRow(stmt *sqlgen.Statement, args ...interface{}) (*sqlx.Row, error) {
+func (d *BaseDatabase) QueryRow(stmt *sqlgen.Statement, args ...interface{}) (*sql.Row, error) {
 	var query string
-	var p *sqlx.Stmt
+	var p *sql.Stmt
 	var err error
 
 	if db.Debug {
@@ -253,23 +252,23 @@ func (d *BaseDatabase) QueryRow(stmt *sqlgen.Statement, args ...interface{}) (*s
 		return nil, err
 	}
 
-	return p.QueryRowx(args...), nil
+	return p.QueryRow(args...), nil
 }
 
 // Builder returns a custom query builder.
-func (d *BaseDatabase) Builder() builder.QueryBuilder {
+func (d *BaseDatabase) Builder() builder.Builder {
 	return d.builder
 }
 
 // Driver returns the underlying *sql.DB or *sql.Tx instance.
 func (d *BaseDatabase) Driver() interface{} {
 	if d.tx != nil {
-		return d.tx.Tx.Tx
+		return d.tx.Tx
 	}
-	return d.sess.DB
+	return d.sess
 }
 
-func (d *BaseDatabase) prepareStatement(stmt *sqlgen.Statement) (p *sqlx.Stmt, query string, err error) {
+func (d *BaseDatabase) prepareStatement(stmt *sqlgen.Statement) (p *sql.Stmt, query string, err error) {
 	if d.sess == nil {
 		return nil, "", db.ErrNotConnected
 	}
@@ -284,9 +283,9 @@ func (d *BaseDatabase) prepareStatement(stmt *sqlgen.Statement) (p *sqlx.Stmt, q
 		query = d.partial.CompileAndReplacePlaceholders(stmt)
 
 		if d.tx != nil {
-			p, err = d.tx.Preparex(query)
+			p, err = d.tx.Prepare(query)
 		} else {
-			p, err = d.sess.Preparex(query)
+			p, err = d.sess.Prepare(query)
 		}
 
 		if err != nil {
