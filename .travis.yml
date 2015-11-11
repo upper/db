@@ -11,6 +11,7 @@ go:
   - 1.4.1
   - 1.4.2
   - 1.5
+  - 1.5.1
 
 addons:
   postgresql: "9.4"
@@ -25,7 +26,7 @@ install:
   - mv $PWD $GOPATH/src/upper.io/db
   - cd $GOPATH/src/upper.io/db
   - ls -la
-  - go get -v github.com/cznic/ql/ql       # ql command line util.
+  - go get -v github.com/cznic/ql/ql
   - go get -v -t -d
   - go get -v -t -d upper.io/db/mysql
   - go get -v -t -d upper.io/db/sqlite
@@ -33,8 +34,6 @@ install:
   - go get -v -t -d upper.io/db/mongo
   - go get -v -t -d upper.io/db/ql
   - go get -v github.com/jmoiron/sqlx
-#  - (cd $GOPATH/src/github.com/jmoiron/sqlx && git pull -a && git checkout ptrs) # temporal fix
-#  - (cd $GOPATH/src/github.com/jmoiron/sqlx && go build -a && go install)
   - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db
 
 before_script:
@@ -50,7 +49,7 @@ script:
   - go test -v .
   - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/mysql
   - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/postgresql
-# - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/ql # Temporarily skipping, see https://github.com/cznic/ql/issues/107
+# - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/ql # Temporarily skipping benchmark, see https://github.com/cznic/ql/issues/107
   - BENCHTIME=2s make test -C $GOPATH/src/upper.io/db/ql
   - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/sqlite
   - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/mongo

@@ -149,9 +149,7 @@ var Or = builder.Or
 //
 //	// SOUNDEX('Hello')
 //	Raw("SOUNDEX('Hello')")
-func Raw(s string) builder.RawValue {
-	return builder.RawString(s)
-}
+var Raw = builder.Raw
 
 // Database is an interface that defines methods that must be satisfied by
 // database adapters.
