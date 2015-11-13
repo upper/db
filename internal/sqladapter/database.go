@@ -62,10 +62,14 @@ func NewDatabase(partial PartialDatabase, connURL db.ConnectionURL, template *sq
 		template: template,
 	}
 
-	d.builder = sqlbuilder.NewBuilder(d, d.template)
+	d.builder, _ = sqlbuilder.New(d, d.t)
 	d.cachedStatements = cache.NewCache()
 
 	return d
+}
+
+func (d *BaseDatabase) t() *sqlgen.Template {
+	return d.template
 }
 
 func (d *BaseDatabase) Session() *sql.DB {
