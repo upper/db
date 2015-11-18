@@ -23,6 +23,7 @@ package db
 
 import (
 	"errors"
+
 	"upper.io/builder"
 )
 

@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"database/sql"
+
 	_ "github.com/go-sql-driver/mysql" // MySQL driver.
 	"upper.io/builder/sqlgen"
 	template "upper.io/builder/template/mysql"

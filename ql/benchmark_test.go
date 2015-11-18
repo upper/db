@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"database/sql"
+
 	"upper.io/db"
 )
 

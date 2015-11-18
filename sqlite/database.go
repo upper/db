@@ -27,6 +27,7 @@ import (
 	"sync/atomic"
 
 	"database/sql"
+
 	_ "github.com/mattn/go-sqlite3" // SQLite3 driver.
 	"upper.io/builder/sqlbuilder"
 	"upper.io/builder/sqlgen"

@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"database/sql"
+
 	_ "github.com/lib/pq" // PostgreSQL driver.
 	"upper.io/builder/sqlgen"
 	template "upper.io/builder/template/postgresql"
