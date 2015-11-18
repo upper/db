@@ -44,6 +44,7 @@
 package db // import "upper.io/db"
 
 import (
+	"reflect"
 	"upper.io/builder"
 )
 
@@ -106,6 +107,15 @@ func (m Cond) Sentences() []builder.Compound {
 //	// RTRIM("Hello  ")
 //	db.Func("RTRIM", "Hello  ")
 func Func(name string, args ...interface{}) builder.Function {
+	if len(args) == 1 {
+		if reflect.TypeOf(args[0]).Kind() == reflect.Slice {
+			iargs := make([]interface{}, len(args))
+			for i := range args {
+				iargs[i] = args[i]
+			}
+			args = iargs
+		}
+	}
 	return &dbFunc{name: name, args: args}
 }
 
