@@ -28,7 +28,7 @@ import (
 	"regexp"
 	"strings"
 
-	"upper.io/db"
+	"upper.io/db.v2"
 )
 
 var (

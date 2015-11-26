@@ -9,11 +9,11 @@ import (
 	"upper.io/builder/sqlbuilder"
 	"upper.io/builder/sqlgen"
 	"upper.io/cache"
-	"upper.io/db"
-	"upper.io/db/internal/adapter"
-	"upper.io/db/internal/debug"
-	"upper.io/db/internal/schema"
-	"upper.io/db/internal/sqlutil/tx"
+	"upper.io/db.v2"
+	"upper.io/db.v2/internal/adapter"
+	"upper.io/db.v2/internal/debug"
+	"upper.io/db.v2/internal/schema"
+	"upper.io/db.v2/internal/sqlutil/tx"
 )
 
 type HasExecStatement interface {

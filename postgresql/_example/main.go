@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"upper.io/db"            // Imports the main db package.
-	"upper.io/db/postgresql" // Imports the postgresql adapter.
+	"upper.io/db.v2"            // Imports the main db package.
+	"upper.io/db.v2/postgresql" // Imports the postgresql adapter.
 )
 
 var settings = postgresql.ConnectionURL{

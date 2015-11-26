@@ -24,7 +24,7 @@ package sqltx
 import (
 	"database/sql"
 
-	"upper.io/db"
+	"upper.io/db.v2"
 )
 
 type Database struct {

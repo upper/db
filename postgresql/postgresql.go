@@ -19,10 +19,10 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package postgresql // import "upper.io/db/postgresql"
+package postgresql // import "upper.io/db.v2/postgresql"
 
 import (
-	"upper.io/db"
+	"upper.io/db.v2"
 )
 
 // Adapter is the public name of the adapter.

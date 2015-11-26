@@ -29,9 +29,9 @@
 //
 // 	import(
 //		// Main package.
-// 		"upper.io/db"
+// 		"upper.io/db.v2"
 //		// PostgreSQL adapter.
-// 		"upper.io/db/postgresql"
+// 		"upper.io/db.v2/postgresql"
 // 	)
 //
 // `upper.io/db` is not an ORM and thus does not impose any hard restrictions
@@ -41,7 +41,7 @@
 //	var people []Person
 //	res = col.Find(db.Cond{"name": "Max"}).Limit(2).Sort("-input")
 //	err = res.All(&people)
-package db // import "upper.io/db"
+package db // import "upper.io/db.v2"
 
 import (
 	"reflect"

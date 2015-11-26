@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"upper.io/db"       // Imports the main db package.
-	"upper.io/db/mysql" // Improts the mysql adapter.
+	"upper.io/db.v2"       // Imports the main db package.
+	"upper.io/db.v2/mysql" // Improts the mysql adapter.
 )
 
 var settings = mysql.ConnectionURL{

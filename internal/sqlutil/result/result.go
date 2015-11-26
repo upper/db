@@ -23,7 +23,7 @@ package result
 
 import (
 	"upper.io/builder"
-	"upper.io/db"
+	"upper.io/db.v2"
 )
 
 type Result struct {

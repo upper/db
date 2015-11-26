@@ -34,7 +34,7 @@ import (
 	"testing"
 	"time"
 
-	"upper.io/db"
+	"upper.io/db.v2"
 )
 
 const (

@@ -32,12 +32,12 @@ import (
 	"time"
 
 	"gopkg.in/mgo.v2/bson"
-	"upper.io/db"
-	"upper.io/db/mongo"
-	"upper.io/db/mysql"
-	"upper.io/db/postgresql"
-	"upper.io/db/ql"
-	"upper.io/db/sqlite"
+	"upper.io/db.v2"
+	"upper.io/db.v2/mongo"
+	"upper.io/db.v2/mysql"
+	"upper.io/db.v2/postgresql"
+	"upper.io/db.v2/ql"
+	"upper.io/db.v2/sqlite"
 )
 
 var wrappers = []string{

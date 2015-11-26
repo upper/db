@@ -30,9 +30,9 @@ import (
 	_ "github.com/lib/pq" // PostgreSQL driver.
 	"upper.io/builder/sqlgen"
 	template "upper.io/builder/template/postgresql"
-	"upper.io/db"
-	"upper.io/db/internal/sqladapter"
-	"upper.io/db/internal/sqlutil/tx"
+	"upper.io/db.v2"
+	"upper.io/db.v2/internal/sqladapter"
+	"upper.io/db.v2/internal/sqlutil/tx"
 )
 
 type database struct {

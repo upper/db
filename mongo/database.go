@@ -19,7 +19,7 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package mongo // import "upper.io/db/mongo"
+package mongo // import "upper.io/db.v2/mongo"
 
 import (
 	"fmt"
@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"upper.io/builder"
-	"upper.io/db"
+	"upper.io/db.v2"
 )
 
 // Adapter holds the name of the mongodb adapter.
