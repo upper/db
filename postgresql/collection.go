@@ -23,104 +23,72 @@ package postgresql
 
 import (
 	"database/sql"
-	"fmt"
-	"strings"
 
-	"github.com/jmoiron/sqlx"
-	"upper.io/db"
-	"upper.io/db/util/sqlgen"
-	"upper.io/db/util/sqlutil"
-	"upper.io/db/util/sqlutil/result"
+	"upper.io/builder/sqlbuilder"
+	"upper.io/builder/sqlgen"
+	"upper.io/db.v2"
+	"upper.io/db.v2/internal/sqladapter"
 )
 
 type table struct {
-	sqlutil.T
-	*database
+	sqladapter.Collection
 }
 
 var _ = db.Collection(&table{})
 
-// Find creates a result set with the given conditions.
-func (t *table) Find(terms ...interface{}) db.Result {
-	where, arguments := template.ToWhereWithArguments(terms)
-	return result.NewResult(template, t, where, arguments)
-}
-
 // Truncate deletes all rows from the table.
 func (t *table) Truncate() error {
-	_, err := t.database.Exec(&sqlgen.Statement{
+	stmt := sqlgen.Statement{
 		Type:  sqlgen.Truncate,
-		Table: sqlgen.TableWithName(t.MainTableName()),
-	})
-
-	if err != nil {
-		return err
+		Table: sqlgen.TableWithName(t.Name()),
 	}
 
+	if _, err := t.Database().Builder().Exec(&stmt); err != nil {
+		return err
+	}
 	return nil
 }
 
 // Append inserts an item (map or struct) into the collection.
 func (t *table) Append(item interface{}) (interface{}, error) {
-
-	columnNames, columnValues, err := t.FieldValues(item)
-
-	if err != nil {
-		return nil, err
-	}
-
-	sqlgenCols, sqlgenVals, sqlgenArgs, err := template.ToColumnsValuesAndArguments(columnNames, columnValues)
-
+	columnNames, columnValues, err := sqlbuilder.Map(item)
 	if err != nil {
 		return nil, err
 	}
 
 	var pKey []string
-
-	if pKey, err = t.database.getPrimaryKey(t.MainTableName()); err != nil {
+	if pKey, err = t.Database().TablePrimaryKey(t.Name()); err != nil {
 		if err != sql.ErrNoRows {
-			// Can't tell primary key.
 			return nil, err
 		}
 	}
 
-	stmt := &sqlgen.Statement{
-		Type:    sqlgen.Insert,
-		Table:   sqlgen.TableWithName(t.MainTableName()),
-		Columns: sqlgenCols,
-		Values:  sqlgenVals,
-	}
+	q := t.Database().Builder().InsertInto(t.Name()).
+		Columns(columnNames...).
+		Values(columnValues...)
 
-	// No primary keys defined.
 	if len(pKey) == 0 {
+		// There is no primary key.
 		var res sql.Result
 
-		if res, err = t.database.Exec(stmt, sqlgenArgs...); err != nil {
+		if res, err = q.Exec(); err != nil {
 			return nil, err
 		}
 
-		// Attempt to use LastInsertId() (probably won't work, but the exec()
-		// succeeded, so the error from LastInsertId() is ignored).
+		// Attempt to use LastInsertId() (probably won't work, but the Exec()
+		// succeeded, so we can safely ignore the error from LastInsertId()).
 		lastID, _ := res.LastInsertId()
 
 		return lastID, nil
 	}
 
-	var rows *sqlx.Rows
+	// Asking the database to return the primary key after insertion.
+	q.Returning(pKey...)
 
-	// A primary key was found.
-	stmt.Extra = sqlgen.Extra(fmt.Sprintf(`RETURNING "%s"`, strings.Join(pKey, `", "`)))
-
-	if rows, err = t.database.Query(stmt, sqlgenArgs...); err != nil {
+	var keyMap map[string]interface{}
+	if err = q.Iterator().One(&keyMap); err != nil {
 		return nil, err
 	}
-
-	keyMap := map[string]interface{}{}
-	if err := sqlutil.FetchRow(rows, &keyMap); err != nil {
-		rows.Close()
-		return nil, err
-	}
-	rows.Close()
 
 	// Does the item satisfy the db.IDSetter interface?
 	if setter, ok := item.(db.IDSetter); ok {
@@ -154,19 +122,10 @@ func (t *table) Append(item interface{}) (interface{}, error) {
 		return id.(int64), nil
 	}
 
-	// More than one key, no interface matched, let's return a map.
+	// This was a compound key and no interface matched it, let's return a map.
 	return keyMap, nil
 }
 
-// Exists returns true if the collection exists.
-func (t *table) Exists() bool {
-	if err := t.database.tableExists(t.Tables...); err != nil {
-		return false
-	}
-	return true
-}
-
-// Name returns the name of the table or tables that form the collection.
-func (t *table) Name() string {
-	return strings.Join(t.Tables, `, `)
+func newTable(d *database, name string) *table {
+	return &table{sqladapter.NewCollection(d, name)}
 }

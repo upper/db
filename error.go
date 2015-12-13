@@ -23,15 +23,13 @@ package db
 
 import (
 	"errors"
+
+	"upper.io/builder"
 )
 
 // Shared error messages.
 var (
-	ErrExpectingPointer        = errors.New(`Argument must be an address.`)
-	ErrExpectingSlicePointer   = errors.New(`Argument must be a slice address.`)
-	ErrExpectingSliceMapStruct = errors.New(`Argument must be a slice address of maps or structs.`)
-	ErrExpectingMapOrStruct    = errors.New(`Argument must be either a map or a struct.`)
-	ErrNoMoreRows              = errors.New(`There are no more rows in this result set.`)
+	ErrNoMoreRows              = builder.ErrNoMoreRows
 	ErrNotConnected            = errors.New(`You're currently not connected.`)
 	ErrMissingDatabaseName     = errors.New(`Missing database name.`)
 	ErrMissingCollectionName   = errors.New(`Missing collection name.`)
@@ -51,6 +49,3 @@ var (
 	ErrTooManyClients          = errors.New(`Can't connect to database server: too many clients.`)
 	ErrGivingUpTryingToConnect = errors.New(`Giving up trying to connect: too many clients.`)
 )
-
-// Deprecated but kept for backwards compatibility. See: https://github.com/upper/db/issues/18
-var ErrCollectionDoesNotExists = ErrCollectionDoesNotExist

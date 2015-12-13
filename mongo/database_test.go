@@ -32,7 +32,7 @@ import (
 	"time"
 
 	"gopkg.in/mgo.v2/bson"
-	"upper.io/db"
+	"upper.io/db.v2"
 )
 
 // Wrapper settings.
@@ -542,12 +542,6 @@ func TestResultNonExistentCount(t *testing.T) {
 	if total != 0 {
 		t.Fatal("Counter should be zero")
 	}
-
-	_, err = sess.C("notartist", "neinnein").Find().Count()
-
-	if err != db.ErrUnsupported {
-		t.Fatal("MongoDB should not allow multiple collections.", err)
-	}
 }
 
 // This test uses and result and tries to fetch items one by one.
@@ -822,8 +816,7 @@ func TestUpdate(t *testing.T) {
 
 }
 
-// Test database functions
-func TestFunction(t *testing.T) {
+func TestOperators(t *testing.T) {
 	var err error
 	var res db.Result
 
@@ -849,13 +842,7 @@ func TestFunction(t *testing.T) {
 		Name string
 	}{}
 
-	res = artist.Find(db.Cond{"_id $nin": []int{0, -1}})
-
-	if err = res.One(&rowS); err != nil {
-		t.Fatalf("One: %q", err)
-	}
-
-	res = artist.Find(db.Cond{"_id": db.Func{"$nin", []int{0, -1}}})
+	res = artist.Find(db.Cond{"_id NOT IN": []int{0, -1}})
 
 	if err = res.One(&rowS); err != nil {
 		t.Fatalf("One: %q", err)

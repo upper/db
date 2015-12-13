@@ -26,7 +26,7 @@ import (
 	"net/url"
 	"strings"
 
-	"upper.io/db"
+	"upper.io/db.v2"
 )
 
 const defaultPort = 3306
@@ -97,6 +97,10 @@ func (c ConnectionURL) String() (s string) {
 	// Default options.
 	if _, ok := c.Options["charset"]; !ok {
 		c.Options["charset"] = "utf8"
+	}
+
+	if _, ok := c.Options["parseTime"]; !ok {
+		c.Options["parseTime"] = "true"
 	}
 
 	// Converting options into URL values.

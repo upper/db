@@ -28,7 +28,7 @@ import (
 	"unicode"
 
 	"github.com/lib/pq"
-	"upper.io/db"
+	"upper.io/db.v2"
 )
 
 // scanner implements a tokenizer for libpq-style option strings.

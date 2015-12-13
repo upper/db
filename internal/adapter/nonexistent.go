@@ -24,7 +24,7 @@ package adapter
 import (
 	"fmt"
 
-	"upper.io/db"
+	"upper.io/db.v2"
 )
 
 var (
@@ -100,6 +100,41 @@ func (r *NonExistentResult) Select(...interface{}) db.Result {
 
 // Where returns a NonExistentResult.
 func (r *NonExistentResult) Where(...interface{}) db.Result {
+	return r
+}
+
+// On returns a NonExistentResult.
+func (r *NonExistentResult) On(...interface{}) db.Result {
+	return r
+}
+
+// Join returns a NonExistentResult.
+func (r *NonExistentResult) Join(...interface{}) db.Result {
+	return r
+}
+
+// LeftJoin returns a NonExistentResult.
+func (r *NonExistentResult) LeftJoin(...interface{}) db.Result {
+	return r
+}
+
+// RightJoin returns a NonExistentResult.
+func (r *NonExistentResult) RightJoin(...interface{}) db.Result {
+	return r
+}
+
+// FullJoin returns a NonExistentResult.
+func (r *NonExistentResult) FullJoin(...interface{}) db.Result {
+	return r
+}
+
+// Using returns a NonExistentResult.
+func (r *NonExistentResult) Using(...interface{}) db.Result {
+	return r
+}
+
+// CrossJoin returns a NonExistentResult.
+func (r *NonExistentResult) CrossJoin(...interface{}) db.Result {
 	return r
 }
 

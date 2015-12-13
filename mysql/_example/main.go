@@ -6,13 +6,13 @@ import (
 	"os"
 	"time"
 
-	"upper.io/db"         // Imports the main db package.
-	_ "upper.io/db/mysql" // Improts the mysql adapter.
+	"upper.io/db.v2"       // Imports the main db package.
+	"upper.io/db.v2/mysql" // Improts the mysql adapter.
 )
 
-var settings = db.Settings{
+var settings = mysql.ConnectionURL{
 	Database: `upperio_tests`, // Database name.
-	Host:     `127.0.0.1`,
+	Address:  db.ParseAddress(`127.0.0.1`),
 	User:     `upperio_tests`,  // Database username.
 	Password: `upperio_secret`, // Database password.
 }
@@ -27,8 +27,8 @@ type Birthday struct {
 
 func main() {
 
-	if os.Getenv("TEST_HOST") != "" {
-		settings.Host = os.Getenv("TEST_HOST")
+	if addr := os.Getenv("TEST_HOST"); addr != "" {
+		settings.Address = db.ParseAddress(addr)
 	}
 
 	// Attemping to establish a connection to the database.

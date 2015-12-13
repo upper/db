@@ -19,37 +19,35 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package mysql
+package sqltx
 
 import (
-	"upper.io/db/util/sqlutil/tx"
+	"database/sql"
+
+	"upper.io/db.v2"
 )
 
-type tx struct {
-	*sqltx.Tx
-	*database
+type Database struct {
+	db.Database
+	*Tx
 }
 
-// Driver returns the current transaction session.
-func (t *tx) Driver() interface{} {
-	if t != nil && t.Tx != nil {
-		return t.Tx.Tx
-	}
-	return nil
+type Tx struct {
+	*sql.Tx
+	done bool
 }
 
-// Commit commits the current transaction.
-func (t *tx) Commit() error {
-	if err := t.Tx.Commit(); err != nil {
-		return err
-	}
-	return nil
+func New(tx *sql.Tx) *Tx {
+	return &Tx{Tx: tx}
 }
 
-// Rollback discards the current transaction.
-func (t *tx) Rollback() error {
-	if err := t.Tx.Rollback(); err != nil {
-		return err
+func (t *Tx) Done() bool {
+	return t.done
+}
+
+func (t *Tx) Commit() (err error) {
+	if err = t.Tx.Commit(); err == nil {
+		t.done = true
 	}
-	return nil
+	return err
 }

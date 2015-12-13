@@ -19,28 +19,65 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package sqltx
+package debug
 
 import (
-	"github.com/jmoiron/sqlx"
+	"fmt"
+	"log"
+	"os"
+	"regexp"
+	"strings"
+
+	"upper.io/db.v2"
 )
 
-type Tx struct {
-	*sqlx.Tx
-	done bool
-}
+var (
+	reInvisibleChars       = regexp.MustCompile(`[\s\r\n\t]+`)
+	reColumnCompareExclude = regexp.MustCompile(`[^a-zA-Z0-9]`)
+)
 
-func New(tx *sqlx.Tx) *Tx {
-	return &Tx{Tx: tx}
-}
-
-func (t *Tx) Done() bool {
-	return t.done
-}
-
-func (t *Tx) Commit() (err error) {
-	if err = t.Tx.Commit(); err == nil {
-		t.done = true
+func init() {
+	if os.Getenv(db.EnvEnableDebug) != "" {
+		db.Debug = true
 	}
-	return err
+}
+
+// Debug is used for printing SQL queries and arguments.
+type Debug struct {
+	SQL   string
+	Args  []interface{}
+	Err   error
+	Start int64
+	End   int64
+}
+
+// Print prints a debug message to stdlog.
+func (d *Debug) Print() {
+	d.SQL = reInvisibleChars.ReplaceAllString(d.SQL, ` `)
+	d.SQL = strings.TrimSpace(d.SQL)
+
+	s := make([]string, 0, 3)
+
+	if d.SQL != "" {
+		s = append(s, fmt.Sprintf(`Q: %s`, d.SQL))
+	}
+
+	if len(d.Args) > 0 {
+		s = append(s, fmt.Sprintf(`A: %v`, d.Args))
+	}
+
+	if d.Err != nil {
+		s = append(s, fmt.Sprintf(`E: %q`, d.Err))
+	}
+
+	s = append(s, fmt.Sprintf(`T: %0.5fs`, float64(d.End-d.Start)/float64(1e9)))
+
+	log.Printf("\n\t%s\n\n", strings.Join(s, "\n\t"))
+}
+
+func Log(query string, args []interface{}, err error, start int64, end int64) {
+	if db.Debug {
+		d := Debug{query, args, err, start, end}
+		d.Print()
+	}
 }

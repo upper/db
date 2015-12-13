@@ -19,53 +19,15 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package sqlite // import "upper.io/db/sqlite"
+package sqlite // import "upper.io/db.v2/sqlite"
 
 import (
-	"upper.io/cache"
-	"upper.io/db"
-	"upper.io/db/util/sqlgen"
-	"upper.io/db/util/sqlutil"
+	"upper.io/db.v2"
 )
 
 // Adapter is the public name of the adapter.
 const Adapter = `sqlite`
 
-var template *sqlutil.TemplateWithUtils
-
 func init() {
-	template = sqlutil.NewTemplateWithUtils(&sqlgen.Template{
-		ColumnSeparator:     adapterColumnSeparator,
-		IdentifierSeparator: adapterIdentifierSeparator,
-		IdentifierQuote:     adapterIdentifierQuote,
-		ValueSeparator:      adapterValueSeparator,
-		ValueQuote:          adapterValueQuote,
-		AndKeyword:          adapterAndKeyword,
-		OrKeyword:           adapterOrKeyword,
-		NotKeyword:          adapterNotKeyword,
-		DescKeyword:         adapterDescKeyword,
-		AscKeyword:          adapterAscKeyword,
-		DefaultOperator:     adapterDefaultOperator,
-		AssignmentOperator:  adapterAssignmentOperator,
-		ClauseGroup:         adapterClauseGroup,
-		ClauseOperator:      adapterClauseOperator,
-		ColumnValue:         adapterColumnValue,
-		TableAliasLayout:    adapterTableAliasLayout,
-		ColumnAliasLayout:   adapterColumnAliasLayout,
-		SortByColumnLayout:  adapterSortByColumnLayout,
-		WhereLayout:         adapterWhereLayout,
-		OrderByLayout:       adapterOrderByLayout,
-		InsertLayout:        adapterInsertLayout,
-		SelectLayout:        adapterSelectLayout,
-		UpdateLayout:        adapterUpdateLayout,
-		DeleteLayout:        adapterDeleteLayout,
-		TruncateLayout:      adapterTruncateLayout,
-		DropDatabaseLayout:  adapterDropDatabaseLayout,
-		DropTableLayout:     adapterDropTableLayout,
-		CountLayout:         adapterSelectCountLayout,
-		GroupByLayout:       adapterGroupByLayout,
-		Cache:               cache.NewCache(),
-	})
-
 	db.Register(Adapter, &database{})
 }

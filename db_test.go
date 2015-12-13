@@ -31,15 +31,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"upper.io/db"
-	"upper.io/db/mongo"
-	"upper.io/db/mysql"
-	"upper.io/db/postgresql"
-	"upper.io/db/ql"
-	"upper.io/db/sqlite"
+	"upper.io/db.v2"
+	"upper.io/db.v2/mongo"
+	"upper.io/db.v2/mysql"
+	"upper.io/db.v2/postgresql"
+	"upper.io/db.v2/ql"
+	"upper.io/db.v2/sqlite"
 )
 
 var wrappers = []string{
@@ -136,7 +135,7 @@ var setupFn = map[string]func(driver interface{}) error{
 		return errDriverErr
 	},
 	`postgresql`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sqlx.DB); ok {
+		if sqld, ok := driver.(*sql.DB); ok {
 			var err error
 
 			_, err = sqld.Exec(`DROP TABLE IF EXISTS "birthdays"`)
@@ -192,10 +191,10 @@ var setupFn = map[string]func(driver interface{}) error{
 
 			return nil
 		}
-		return fmt.Errorf("Expecting *sqlx.DB got %T (%#v).", driver, driver)
+		return fmt.Errorf("Expecting *sql.DB got %T (%#v).", driver, driver)
 	},
 	`mysql`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sqlx.DB); ok {
+		if sqld, ok := driver.(*sql.DB); ok {
 			var err error
 
 			_, err = sqld.Exec(`DROP TABLE IF EXISTS ` + "`" + `birthdays` + "`" + ``)
@@ -251,10 +250,10 @@ var setupFn = map[string]func(driver interface{}) error{
 
 			return nil
 		}
-		return fmt.Errorf("Expecting *sqlx.DB got %T (%#v).", driver, driver)
+		return fmt.Errorf("Expecting *sql.DB got %T (%#v).", driver, driver)
 	},
 	`sqlite`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sqlx.DB); ok {
+		if sqld, ok := driver.(*sql.DB); ok {
 			var err error
 
 			_, err = sqld.Exec(`DROP TABLE IF EXISTS "birthdays"`)
@@ -313,7 +312,7 @@ var setupFn = map[string]func(driver interface{}) error{
 		return errDriverErr
 	},
 	`ql`: func(driver interface{}) error {
-		if sqld, ok := driver.(*sqlx.DB); ok {
+		if sqld, ok := driver.(*sql.DB); ok {
 			var err error
 			var tx *sql.Tx
 
@@ -718,23 +717,23 @@ func TestFibonacci(t *testing.T) {
 			// Testing sorting by function.
 			res = col.Find(
 				// 5, 6, 7, 3
-				db.Or{
-					db.And{
+				db.Or(
+					db.And(
 						db.Cond{"input >=": 5},
 						db.Cond{"input <=": 7},
-					},
+					),
 					db.Cond{"input": 3},
-				},
+				),
 			)
 
 			// Testing sort by function.
 			switch wrapper {
 			case `postgresql`:
-				res = res.Sort(db.Raw{`RANDOM()`})
+				res = res.Sort(db.Raw(`RANDOM()`))
 			case `sqlite`:
-				res = res.Sort(db.Raw{`RANDOM()`})
+				res = res.Sort(db.Raw(`RANDOM()`))
 			case `mysql`:
-				res = res.Sort(db.Raw{`RAND()`})
+				res = res.Sort(db.Raw(`RAND()`))
 			}
 
 			total, err = res.Count()
@@ -748,16 +747,7 @@ func TestFibonacci(t *testing.T) {
 			}
 
 			// Find() with IN/$in
-			var whereIn db.Cond
-
-			switch wrapper {
-			case `mongo`:
-				whereIn = db.Cond{"input": db.Func{"$in", []int{3, 5, 6, 7}}}
-			default:
-				whereIn = db.Cond{"input": db.Func{"IN", []int{3, 5, 6, 7}}}
-			}
-
-			res = col.Find(whereIn).Sort("input")
+			res = col.Find(db.Cond{"input IN": []int{3, 5, 6, 7}}).Sort("input")
 
 			total, err = res.Count()
 
@@ -794,13 +784,13 @@ func TestFibonacci(t *testing.T) {
 			// Find() with range
 			res = col.Find(
 				// 5, 6, 7, 3
-				db.Or{
-					db.And{
+				db.Or(
+					db.And(
 						db.Cond{"input >=": 5},
 						db.Cond{"input <=": 7},
-					},
+					),
 					db.Cond{"input": 3},
-				},
+				),
 			).Sort("-input")
 
 			if total, err = res.Count(); err != nil {
@@ -866,7 +856,7 @@ func TestFibonacci(t *testing.T) {
 				}
 
 				// Find() with empty expression
-				res1b := col.Find(db.Or{db.And{db.Cond{}, db.Cond{}}, db.Or{db.Cond{}}})
+				res1b := col.Find(db.Or(db.And(db.Cond{}, db.Cond{}), db.Or(db.Cond{})))
 				total, err = res1b.Count()
 
 				if total != 6 {

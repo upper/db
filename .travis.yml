@@ -11,6 +11,8 @@ go:
   - 1.4.1
   - 1.4.2
   - 1.5
+  - 1.5.1
+  - 1.5.2
 
 addons:
   postgresql: "9.4"
@@ -22,20 +24,12 @@ env: GOARCH=amd64 TEST_HOST=127.0.0.1
 
 install:
   - mkdir -p $GOPATH/src/upper.io
-  - mv $PWD $GOPATH/src/upper.io/db
-  - cd $GOPATH/src/upper.io/db
+  - mv $PWD $GOPATH/src/upper.io/db.v2
+  - cd $GOPATH/src/upper.io/db.v2
   - ls -la
-  - go get -v github.com/cznic/ql/ql       # ql command line util.
-  - go get -v -t -d
-  - go get -v -t -d upper.io/db/mysql
-  - go get -v -t -d upper.io/db/sqlite
-  - go get -v -t -d upper.io/db/postgresql
-  - go get -v -t -d upper.io/db/mongo
-  - go get -v -t -d upper.io/db/ql
-  - go get -v github.com/jmoiron/sqlx
-#  - (cd $GOPATH/src/github.com/jmoiron/sqlx && git pull -a && git checkout ptrs) # temporal fix
-#  - (cd $GOPATH/src/github.com/jmoiron/sqlx && go build -a && go install)
-  - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db
+  - go get -v github.com/cznic/ql/ql
+  - go get -v -t -d ./...
+  - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db.v2
 
 before_script:
   - mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql
@@ -46,11 +40,10 @@ before_script:
   - (cd mongo/_dumps && make)
 
 script:
-  - cd $GOPATH/src/upper.io/db
-  - go test -v .
-  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/mysql
-  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/postgresql
-# - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/ql # Temporarily skipping, see https://github.com/cznic/ql/issues/107
-  - BENCHTIME=2s make test -C $GOPATH/src/upper.io/db/ql
-  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/sqlite
-  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/mongo
+  - go test -v upper.io/db.v2
+  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db.v2/mysql
+  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db.v2/postgresql
+# - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db.v2/ql # Temporarily skipping benchmark, see https://github.com/cznic/ql/issues/107
+  - BENCHTIME=2s make test -C $GOPATH/src/upper.io/db.v2/ql
+  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db.v2/sqlite
+  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db.v2/mongo
