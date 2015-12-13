@@ -7,7 +7,7 @@ import (
 
 	"gopkg.in/mgo.v2/bson"
 
-	"upper.io/db"
+	"upper.io/db.v2"
 )
 
 const (
@@ -69,7 +69,7 @@ func BenchmarkMgoAppend(b *testing.B) {
 	}
 }
 
-// BenchmarkUpperAppend benchmarks an insertion by upper.io/db.
+// BenchmarkUpperAppend benchmarks an insertion by upper.io/db.v2.
 func BenchmarkUpperAppend(b *testing.B) {
 
 	sess, err := db.Open(Adapter, settings)
@@ -98,7 +98,7 @@ func BenchmarkUpperAppend(b *testing.B) {
 	}
 }
 
-// BenchmarkUpperAppendVariableArgs benchmarks an insertion by upper.io/db
+// BenchmarkUpperAppendVariableArgs benchmarks an insertion by upper.io/db.v2
 // with variable parameters.
 func BenchmarkUpperAppendVariableArgs(b *testing.B) {
 
@@ -181,7 +181,7 @@ func BenchmarkMgoSelectAll(b *testing.B) {
 	}
 }
 
-// BenchmarkUpperFind benchmarks upper.io/db's One method.
+// BenchmarkUpperFind benchmarks upper.io/db.v2's One method.
 func BenchmarkUpperFind(b *testing.B) {
 	var err error
 	var sess db.Database
@@ -212,7 +212,7 @@ func BenchmarkUpperFind(b *testing.B) {
 	}
 }
 
-// BenchmarkUpperFindWithC benchmarks upper.io/db's One method.
+// BenchmarkUpperFindWithC benchmarks upper.io/db.v2's One method.
 func BenchmarkUpperFindWithC(b *testing.B) {
 	var err error
 	var sess db.Database
@@ -238,7 +238,7 @@ func BenchmarkUpperFindWithC(b *testing.B) {
 	}
 }
 
-// BenchmarkUpperFindAll benchmarks upper.io/db's All method.
+// BenchmarkUpperFindAll benchmarks upper.io/db.v2's All method.
 func BenchmarkUpperFindAll(b *testing.B) {
 	var err error
 	var sess db.Database
@@ -297,7 +297,7 @@ func BenchmarkMgoUpdate(b *testing.B) {
 	}
 }
 
-// BenchmarkUpperUpdate benchmarks upper.io/db's Update method.
+// BenchmarkUpperUpdate benchmarks upper.io/db.v2's Update method.
 func BenchmarkUpperUpdate(b *testing.B) {
 	var err error
 	var sess db.Database

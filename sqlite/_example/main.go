@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"upper.io/db"        // Imports the main db package.
-	"upper.io/db/sqlite" // Imports the sqlite adapter.
+	"upper.io/db.v2"        // Imports the main db package.
+	"upper.io/db.v2/sqlite" // Imports the sqlite adapter.
 )
 
 var settings = sqlite.ConnectionURL{

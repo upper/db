@@ -37,7 +37,7 @@ import (
 
 	"database/sql"
 
-	"upper.io/db"
+	"upper.io/db.v2"
 )
 
 const (
@@ -1020,7 +1020,7 @@ func TestDataTypes(t *testing.T) {
 
 // TestExhaustConnections simulates a "too many connections" situation
 // triggered by opening more transactions than available connections.
-// upper.io/db deals with this problem by waiting a bit more for the connection
+// upper.io/db.v2 deals with this problem by waiting a bit more for the connection
 // to be established.
 func TestExhaustConnections(t *testing.T) {
 	var err error

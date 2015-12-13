@@ -24,7 +24,7 @@ package adapter
 import (
 	"fmt"
 
-	"upper.io/db"
+	"upper.io/db.v2"
 )
 
 var (

@@ -29,9 +29,10 @@ import (
 
 	"encoding/json"
 
+	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"upper.io/db"
-	"upper.io/db/internal/debug"
+	"upper.io/db.v2"
+	"upper.io/db.v2/internal/debug"
 )
 
 // result represents a query result.

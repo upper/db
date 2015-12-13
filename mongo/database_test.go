@@ -32,7 +32,7 @@ import (
 	"time"
 
 	"gopkg.in/mgo.v2/bson"
-	"upper.io/db"
+	"upper.io/db.v2"
 )
 
 // Wrapper settings.

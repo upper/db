@@ -53,7 +53,7 @@ func Open(adapter string, conn ConnectionURL) (Database, error) {
 	if ok == false {
 		// Using panic instead of returning error because attemping to use an
 		// adapter that does not exists will never result in success.
-		panic(fmt.Sprintf(`Open: Unknown adapter %s. (see: https://upper.io/db#database-adapters)`, adapter))
+		panic(fmt.Sprintf(`Open: Unknown adapter %s. (see: https://upper.io/db.v2#database-adapters)`, adapter))
 	}
 
 	// Creating a new connection everytime Open() is called.

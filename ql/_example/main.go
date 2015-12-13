@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"upper.io/db"    // Imports the main db package.
-	"upper.io/db/ql" // Imports the ql adapter.
+	"upper.io/db.v2"    // Imports the main db package.
+	"upper.io/db.v2/ql" // Imports the ql adapter.
 )
 
 var settings = ql.ConnectionURL{
