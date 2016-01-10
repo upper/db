@@ -8,11 +8,11 @@ import (
 	"upper.io/builder"
 	"upper.io/builder/sqlbuilder"
 	"upper.io/builder/sqlgen"
-	"upper.io/cache"
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/adapter"
 	"upper.io/db.v2/internal/debug"
 	"upper.io/db.v2/internal/schema"
+	"upper.io/db.v2/internal/sqladapter/cache"
 	"upper.io/db.v2/internal/sqlutil/tx"
 )
 
