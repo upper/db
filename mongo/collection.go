@@ -30,7 +30,7 @@ import (
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"upper.io/builder"
+	"upper.io/db.v2/builder"
 	"upper.io/db.v2"
 )
 

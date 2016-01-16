@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"upper.io/builder"
-	"upper.io/builder/sqlbuilder"
-	"upper.io/builder/sqlgen"
+	"upper.io/db.v2/builder"
+	"upper.io/db.v2/builder/sqlbuilder"
+	"upper.io/db.v2/builder/sqlgen"
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/adapter"
 	"upper.io/db.v2/internal/debug"

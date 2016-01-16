@@ -6,7 +6,7 @@
 
 ## The `db` package
 
-![Upper.io](https://upper.io/db/res/general.png)
+![Upper.io](https://upper.io/db.v2/res/general.png)
 
 `upper.io/db` is a [Go][2] package that allows you to communicate with
 different databases through special *adapters* that wrap well-supported
@@ -33,18 +33,18 @@ stays out of your way.
 
 ## Supported databases
 
-![Adapters](https://upper.io/db/res/adapters.png)
+![Adapters](https://upper.io/db.v2/res/adapters.png)
 
 `upper.io/db` attempts to provide full compatiblity for [CRUD][2] operations
 across all its adapters. Some other operations (such *transactions*) are
 supported only with specific database adapters, such as MySQL, PostgreSQL and
 SQLite.
 
-* [MongoDB](https://upper.io/db/mongo) via [mgo](http://godoc.org/labix.org/v2/mgo)
-* [MySQL](https://upper.io/db/mysql) via [mysql](https://github.com/go-sql-driver/mysql)
-* [PostgreSQL](https://upper.io/db/postgresql) via [pq](https://github.com/lib/pq)
-* [QL](https://upper.io/db/ql) via [ql](https://github.com/cznic/ql)
-* [SQLite3](https://upper.io/db/sqlite) via [go-sqlite3](https://github.com/mattn/go-sqlite3)
+* [MongoDB](https://upper.io/db.v2/mongo) via [mgo](http://godoc.org/labix.org/v2/mgo)
+* [MySQL](https://upper.io/db.v2/mysql) via [mysql](https://github.com/go-sql-driver/mysql)
+* [PostgreSQL](https://upper.io/db.v2/postgresql) via [pq](https://github.com/lib/pq)
+* [QL](https://upper.io/db.v2/ql) via [ql](https://github.com/cznic/ql)
+* [SQLite3](https://upper.io/db.v2/sqlite) via [go-sqlite3](https://github.com/mattn/go-sqlite3)
 
 ## User documentation
 

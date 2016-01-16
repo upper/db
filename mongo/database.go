@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"gopkg.in/mgo.v2"
-	"upper.io/builder"
+	"upper.io/db.v2/builder"
 	"upper.io/db.v2"
 )
 

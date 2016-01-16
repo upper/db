@@ -46,7 +46,7 @@ package db // import "upper.io/db.v2"
 import (
 	"reflect"
 
-	"upper.io/builder"
+	"upper.io/db.v2/builder"
 )
 
 // Cond is a map that defines conditions that can be passed to

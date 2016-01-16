@@ -22,7 +22,7 @@
 package result
 
 import (
-	"upper.io/builder"
+	"upper.io/db.v2/builder"
 	"upper.io/db.v2"
 )
 

@@ -24,8 +24,8 @@ package postgresql
 import (
 	"database/sql"
 
-	"upper.io/builder/sqlbuilder"
-	"upper.io/builder/sqlgen"
+	"upper.io/db.v2/builder/sqlbuilder"
+	"upper.io/db.v2/builder/sqlgen"
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter"
 )
