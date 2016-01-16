@@ -28,8 +28,8 @@ import (
 	"sync/atomic"
 
 	_ "github.com/cznic/ql/driver" // QL driver
-	"upper.io/builder/sqlgen"
-	template "upper.io/builder/template/ql"
+	"upper.io/db.v2/builder/sqlgen"
+	template "upper.io/db.v2/builder/template/ql"
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter"
 	"upper.io/db.v2/internal/sqlutil/tx"

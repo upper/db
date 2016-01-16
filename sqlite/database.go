@@ -29,9 +29,9 @@ import (
 	"database/sql"
 
 	_ "github.com/mattn/go-sqlite3" // SQLite3 driver.
-	"upper.io/builder/sqlbuilder"
-	"upper.io/builder/sqlgen"
-	template "upper.io/builder/template/sqlite"
+	"upper.io/db.v2/builder/sqlbuilder"
+	"upper.io/db.v2/builder/sqlgen"
+	template "upper.io/db.v2/builder/template/sqlite"
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter"
 	"upper.io/db.v2/internal/sqlutil/tx"

@@ -24,7 +24,7 @@ package db
 import (
 	"errors"
 
-	"upper.io/builder"
+	"upper.io/db.v2/builder"
 )
 
 // Shared error messages.
