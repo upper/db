@@ -1,6 +1,7 @@
 package sqlgen
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -232,6 +233,27 @@ func BenchmarkCompileJoinNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		j := JoinConditions(&Join{
 			Table: TableWithName("countries c"),
+			On: OnConditions(
+				&ColumnValue{
+					Column:   &Column{Name: "p.country_id"},
+					Operator: "=",
+					Value:    NewValue(&Column{Name: "a.id"}),
+				},
+				&ColumnValue{
+					Column:   &Column{Name: "p.country_code"},
+					Operator: "=",
+					Value:    NewValue(&Column{Name: "a.code"}),
+				},
+			),
+		})
+		j.Compile(defaultTemplate)
+	}
+}
+
+func BenchmarkCompileJoinNoCache2(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		j := JoinConditions(&Join{
+			Table: TableWithName(fmt.Sprintf("countries c", i)),
 			On: OnConditions(
 				&ColumnValue{
 					Column:   &Column{Name: "p.country_id"},

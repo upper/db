@@ -1,13 +1,9 @@
 package sqlgen
 
-import (
-	"fmt"
-)
-
 // GroupBy represents a SQL's "group by" statement.
 type GroupBy struct {
 	Columns Fragment
-	hash    string
+	hash    MemHash
 }
 
 type groupByT struct {
@@ -16,12 +12,7 @@ type groupByT struct {
 
 // Hash returns a unique identifier.
 func (g *GroupBy) Hash() string {
-	if g.hash == "" {
-		if g.Columns != nil {
-			g.hash = fmt.Sprintf(`GroupBy(%s)`, g.Columns.Hash())
-		}
-	}
-	return g.hash
+	return g.hash.Hash(g)
 }
 
 // GroupByColumns creates and returns a GroupBy with the given column.

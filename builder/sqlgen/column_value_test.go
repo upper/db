@@ -1,7 +1,6 @@
 package sqlgen
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -11,7 +10,7 @@ func TestColumnValueHash(t *testing.T) {
 	c := &ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(1)}
 
 	s = c.Hash()
-	e = fmt.Sprintf(`ColumnValue{Name:%q, Operator:%q, Value:%q}`, c.Column.Hash(), c.Operator, c.Value.Hash())
+	e = `*sqlgen.ColumnValue.7841113954072405845`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -27,8 +26,7 @@ func TestColumnValuesHash(t *testing.T) {
 	)
 
 	s = c.Hash()
-
-	e = fmt.Sprintf(`ColumnValues{ColumnValues:{%s, %s}}`, c.ColumnValues[0].Hash(), c.ColumnValues[1].Hash())
+	e = `*sqlgen.ColumnValues.12182225587466517135`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)

@@ -2,8 +2,6 @@ package sqlgen
 
 import (
 	"reflect"
-	"strconv"
-	"strings"
 
 	"upper.io/db.v2/builder/cache"
 )
@@ -27,7 +25,7 @@ type Statement struct {
 
 	rawSQL string
 
-	hash string
+	hash MemHash
 }
 
 type statementT struct {
@@ -59,34 +57,13 @@ func getHash(h cache.Hashable) string {
 	return ""
 }
 
-// Hash returns a unique identifier.
+// Hash returns a unique identifier for the struct.
 func (s *Statement) Hash() string {
-	if s.hash == "" {
-		parts := strings.Join([]string{
-			strconv.Itoa(int(s.Type)),
-			getHash(s.Table),
-			getHash(s.Database),
-			strconv.Itoa(int(s.Limit)),
-			strconv.Itoa(int(s.Offset)),
-			getHash(s.Columns),
-			getHash(s.Values),
-			getHash(s.ColumnValues),
-			getHash(s.OrderBy),
-			getHash(s.GroupBy),
-			getHash(s.Where),
-			getHash(s.Joins),
-			getHash(s.Returning),
-			s.rawSQL,
-		}, ";")
-
-		s.hash = `Statement{` + parts + `}`
-	}
-	return s.hash
+	return s.hash.Hash(s)
 }
 
 // Compile transforms the Statement into an equivalent SQL query.
 func (s *Statement) Compile(layout *Template) (compiled string) {
-
 	if s.Type == rawSQL {
 		// No need to hit the cache.
 		return s.rawSQL

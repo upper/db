@@ -11,7 +11,7 @@ func TestDatabaseHash(t *testing.T) {
 	column := Database{Name: "users"}
 
 	s = column.Hash()
-	e = fmt.Sprintf(`Database{Name:"%s"}`, column.Name)
+	e = `*sqlgen.Database.16777957551305673389`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -48,6 +48,13 @@ func BenchmarkDatabaseCompile(b *testing.B) {
 func BenchmarkDatabaseCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		c := Database{Name: "name"}
+		c.Compile(defaultTemplate)
+	}
+}
+
+func BenchmarkDatabaseCompileNoCache2(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		c := Database{Name: fmt.Sprintf("name: %v", i)}
 		c.Compile(defaultTemplate)
 	}
 }

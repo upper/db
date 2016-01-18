@@ -1,7 +1,6 @@
 package sqlgen
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -37,7 +36,7 @@ func TestRawHash(t *testing.T) {
 	raw := &Raw{Value: "foo"}
 
 	s = raw.Hash()
-	e = fmt.Sprintf(`Raw{Value:"%s"}`, raw)
+	e = `*sqlgen.Raw.5772950988983410957`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)

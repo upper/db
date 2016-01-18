@@ -1,7 +1,6 @@
 package sqlgen
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -11,7 +10,7 @@ func TestColumnHash(t *testing.T) {
 	column := Column{Name: "role.name"}
 
 	s = column.Hash()
-	e = fmt.Sprintf(`Column{Name:"%s"}`, column.Name)
+	e = "*sqlgen.Column.5574933406985810060"
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
