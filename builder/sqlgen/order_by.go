@@ -19,7 +19,7 @@ const (
 type SortColumn struct {
 	Column Fragment
 	Order
-	hash string
+	hash MemHash
 }
 
 type sortColumnT struct {
@@ -30,13 +30,13 @@ type sortColumnT struct {
 // SortColumns represents the columns in an ORDER BY clause.
 type SortColumns struct {
 	Columns []Fragment
-	hash    string
+	hash    MemHash
 }
 
 // OrderBy represents an ORDER BY clause.
 type OrderBy struct {
 	SortColumns Fragment
-	hash        string
+	hash        MemHash
 }
 
 type orderByT struct {
@@ -53,12 +53,9 @@ func JoinWithOrderBy(sc *SortColumns) *OrderBy {
 	return &OrderBy{SortColumns: sc}
 }
 
-// Hash returns a unique identifier.
+// Hash returns a unique identifier for the struct.
 func (s *SortColumn) Hash() string {
-	if s.hash == "" {
-		s.hash = fmt.Sprintf(`SortColumn{Column:%s, Order:%s}`, s.Column.Hash(), s.Order.Hash())
-	}
-	return s.hash
+	return s.hash.Hash(s)
 }
 
 // Compile transforms the SortColumn into an equivalent SQL representation.
@@ -80,16 +77,9 @@ func (s *SortColumn) Compile(layout *Template) (compiled string) {
 	return
 }
 
-// Hash returns a unique identifier.
+// Hash returns a unique identifier for the struct.
 func (s *SortColumns) Hash() string {
-	if s.hash == "" {
-		h := make([]string, len(s.Columns))
-		for i := range s.Columns {
-			h[i] = s.Columns[i].Hash()
-		}
-		s.hash = fmt.Sprintf(`SortColumns(%s)`, strings.Join(h, `, `))
-	}
-	return s.hash
+	return s.hash.Hash(s)
 }
 
 // Compile transforms the SortColumns into an equivalent SQL representation.
@@ -112,14 +102,9 @@ func (s *SortColumns) Compile(layout *Template) (compiled string) {
 	return
 }
 
-// Hash returns a unique identifier.
+// Hash returns a unique identifier for the struct.
 func (s *OrderBy) Hash() string {
-	if s.hash == "" {
-		if s.SortColumns != nil {
-			s.hash = `OrderBy(` + s.SortColumns.Hash() + `)`
-		}
-	}
-	return s.hash
+	return s.hash.Hash(s)
 }
 
 // Compile transforms the SortColumn into an equivalent SQL representation.
@@ -142,14 +127,8 @@ func (s *OrderBy) Compile(layout *Template) (compiled string) {
 }
 
 // Hash returns a unique identifier.
-func (s Order) Hash() string {
-	switch s {
-	case Ascendent:
-		return `Order{ASC}`
-	case Descendent:
-		return `Order{DESC}`
-	}
-	return `Order{DEFAULT}`
+func (s *Order) Hash() string {
+	return fmt.Sprintf("%T.%d", s, uint8(*s))
 }
 
 // Compile transforms the SortColumn into an equivalent SQL representation.

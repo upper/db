@@ -10,19 +10,19 @@ import (
 // ValueGroups represents an array of value groups.
 type ValueGroups struct {
 	Values []*Values
-	hash   string
+	hash   MemHash
 }
 
 // Values represents an array of Value.
 type Values struct {
 	Values []Fragment
-	hash   string
+	hash   MemHash
 }
 
 // Value represents an escaped SQL value.
 type Value struct {
 	V    interface{}
-	hash string
+	hash MemHash
 }
 
 // NewValue creates and returns a Value.
@@ -35,19 +35,9 @@ func NewValueGroup(v ...Fragment) *Values {
 	return &Values{Values: v}
 }
 
-// Hash returns a unique identifier.
+// Hash returns a unique identifier for the struct.
 func (v *Value) Hash() string {
-	if v.hash == "" {
-		switch t := v.V.(type) {
-		case Fragment:
-			v.hash = `Value(` + t.Hash() + `)`
-		case string:
-			v.hash = `Value(` + t + `)`
-		default:
-			v.hash = fmt.Sprintf(`Value(%v)`, v.V)
-		}
-	}
-	return v.hash
+	return v.hash.Hash(v)
 }
 
 // Compile transforms the Value into an equivalent SQL representation.
@@ -83,16 +73,9 @@ func (v *Value) Value() (driver.Value, error) {
 }
 */
 
-// Hash returns a unique identifier.
+// Hash returns a unique identifier for the struct.
 func (vs *Values) Hash() string {
-	if vs.hash == "" {
-		hash := make([]string, len(vs.Values))
-		for i := range vs.Values {
-			hash[i] = vs.Values[i].Hash()
-		}
-		vs.hash = `Values(` + strings.Join(hash, `,`) + `)`
-	}
-	return vs.hash
+	return vs.hash.Hash(vs)
 }
 
 // Compile transforms the Values into an equivalent SQL representation.
@@ -125,17 +108,9 @@ func (vs Values) Value() (driver.Value, error) {
 }
 */
 
-// Hash returns a unique identifier.
+// Hash returns a unique identifier for the struct.
 func (vg *ValueGroups) Hash() string {
-	if vg.hash == "" {
-		l := len(vg.Values)
-		hashes := make([]string, l)
-		for i := 0; i < l; i++ {
-			hashes[i] = vg.Values[i].Hash()
-		}
-		vg.hash = fmt.Sprintf(`ValueGroups(%v)`, strings.Join(hashes, ", "))
-	}
-	return vg.hash
+	return vg.hash.Hash(vg)
 }
 
 // Compile transforms the ValueGroups into an equivalent SQL representation.

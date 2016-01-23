@@ -1,7 +1,6 @@
 package sqlgen
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -14,7 +13,7 @@ type And Where
 // Where represents an SQL WHERE clause.
 type Where struct {
 	Conditions []Fragment
-	hash       string
+	hash       MemHash
 }
 
 type conds struct {
@@ -36,16 +35,9 @@ func JoinWithAnd(conditions ...Fragment) *And {
 	return &And{Conditions: conditions}
 }
 
-// Hash returns a unique identifier.
+// Hash returns a unique identifier for the struct.
 func (w *Where) Hash() string {
-	if w.hash == "" {
-		hash := make([]string, len(w.Conditions))
-		for i := range w.Conditions {
-			hash[i] = w.Conditions[i].Hash()
-		}
-		w.hash = fmt.Sprintf(`Where{%s}`, strings.Join(hash, `, `))
-	}
-	return w.hash
+	return w.hash.Hash(w)
 }
 
 // Hash returns a unique identifier.

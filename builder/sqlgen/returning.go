@@ -1,24 +1,14 @@
 package sqlgen
 
-import (
-	"fmt"
-)
-
 // Returning represents a RETURNING clause.
 type Returning struct {
 	*Columns
-	hash string
+	hash MemHash
 }
 
-// Hash returns a unique identifier.
-func (r Returning) Hash() string {
-	if r.hash == "" {
-		s := r.Columns.Hash()
-		if s != "" {
-			r.hash = fmt.Sprintf("Returning{%s}", s)
-		}
-	}
-	return r.hash
+// Hash returns a unique identifier for the struct.
+func (r *Returning) Hash() string {
+	return r.hash.Hash(r)
 }
 
 // ReturningColumns creates and returns an array of Column.

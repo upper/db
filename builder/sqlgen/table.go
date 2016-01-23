@@ -1,7 +1,6 @@
 package sqlgen
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -13,7 +12,7 @@ type tableT struct {
 // Table struct represents a SQL table.
 type Table struct {
 	Name interface{}
-	hash string
+	hash MemHash
 }
 
 func quotedTableName(layout *Template, input string) string {
@@ -57,24 +56,7 @@ func TableWithName(name string) *Table {
 
 // Hash returns a string hash of the table value.
 func (t *Table) Hash() string {
-	if t.hash == "" {
-		var s string
-
-		switch v := t.Name.(type) {
-		case Fragment:
-			s = v.Hash()
-		case fmt.Stringer:
-			s = v.String()
-		case string:
-			s = v
-		default:
-			s = fmt.Sprintf("%v", t.Name)
-		}
-
-		t.hash = fmt.Sprintf(`Table{Name:%q}`, s)
-	}
-
-	return t.hash
+	return t.hash.Hash(t)
 }
 
 // Compile transforms a table struct into a SQL chunk.

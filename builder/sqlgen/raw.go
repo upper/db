@@ -11,7 +11,7 @@ var (
 // Raw represents a value that is meant to be used in a query without escaping.
 type Raw struct {
 	Value string // Value should not be modified after assigned.
-	hash  string
+	hash  MemHash
 }
 
 // RawValue creates and returns a new raw value.
@@ -19,12 +19,9 @@ func RawValue(v string) *Raw {
 	return &Raw{Value: v}
 }
 
-// Hash returns a unique identifier.
+// Hash returns a unique identifier for the struct.
 func (r *Raw) Hash() string {
-	if r.hash == "" {
-		r.hash = `Raw{Value:"` + r.Value + `"}`
-	}
-	return r.hash
+	return r.hash.Hash(r)
 }
 
 // Compile returns the raw value.

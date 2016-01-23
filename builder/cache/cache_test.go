@@ -23,8 +23,6 @@ package cache
 
 import (
 	"testing"
-	//"strconv"
-	//"unsafe"
 )
 
 var c *Cache
@@ -34,8 +32,7 @@ type cacheableT struct {
 }
 
 func (ct *cacheableT) Hash() string {
-	//return strconv.Itoa(int(uintptr(unsafe.Pointer(ct))))
-	return ct.Name
+	return Hash(ct)
 }
 
 var (
@@ -44,7 +41,6 @@ var (
 )
 
 func TestNewCache(t *testing.T) {
-
 	c = NewCache()
 	if c == nil {
 		t.Fatal("Expecting a new cache object.")

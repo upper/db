@@ -1,7 +1,6 @@
 package sqlgen
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -15,19 +14,12 @@ type innerJoinT struct {
 // Joins represents the union of different join conditions.
 type Joins struct {
 	Conditions []Fragment
-	hash       string
+	hash       MemHash
 }
 
-// Hash returns a unique identifier.
+// Hash returns a unique identifier for the struct.
 func (j *Joins) Hash() string {
-	if j.hash == "" {
-		hash := make([]string, len(j.Conditions))
-		for i := range j.Conditions {
-			hash[i] = j.Conditions[i].Hash()
-		}
-		j.hash = fmt.Sprintf(`Join{%s}`, strings.Join(hash, `, `))
-	}
-	return j.hash
+	return j.hash.Hash(j)
 }
 
 // Compile transforms the Where into an equivalent SQL representation.
@@ -68,22 +60,12 @@ type Join struct {
 	*Table
 	*On
 	*Using
-	hash string
+	hash MemHash
 }
 
-// Hash returns a unique string given a JOIN.
+// Hash returns a unique identifier for the struct.
 func (j *Join) Hash() string {
-	if j.hash == "" {
-		if j.Table != nil && j.Table.Hash() != "" {
-			j.hash = fmt.Sprintf(`Join{%s}`, strings.Join([]string{
-				j.Type,
-				j.Table.Hash(),
-				getHash(j.On),
-				getHash(j.Using),
-			}, ", "))
-		}
-	}
-	return j.hash
+	return j.hash.Hash(j)
 }
 
 // Compile transforms the Join into its equivalent SQL representation.
@@ -113,11 +95,7 @@ type On Where
 
 // Hash returns a unique identifier.
 func (o *On) Hash() string {
-	if o.hash == "" {
-		w := Where(*o)
-		o.hash = fmt.Sprintf(`On{%s}`, w.Hash())
-	}
-	return o.hash
+	return o.hash.Hash(o)
 }
 
 // Compile transforms the On into an equivalent SQL representation.
@@ -146,11 +124,7 @@ type usingT struct {
 
 // Hash returns a unique identifier.
 func (u *Using) Hash() string {
-	if u.hash == "" {
-		c := Columns(*u)
-		u.hash = fmt.Sprintf(`Using{%s}`, c.Hash())
-	}
-	return u.hash
+	return u.hash.Hash(u)
 }
 
 // Compile transforms the Using into an equivalent SQL representation.
