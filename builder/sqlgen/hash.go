@@ -16,8 +16,9 @@ type MemHash struct {
 }
 
 func (h *MemHash) Hash(i interface{}) string {
-	if s := h.v.Load(); s != nil {
-		return s.(string)
+	v := h.v.Load()
+	if r, ok := v.(string); ok && r != "" {
+		return r
 	}
 	s := reflect.TypeOf(i).String() + "." + cache.Hash(i)
 	h.v.Store(s)
@@ -25,5 +26,5 @@ func (h *MemHash) Hash(i interface{}) string {
 }
 
 func (h *MemHash) Reset() {
-	h.v.Store(nil)
+	h.v.Store("")
 }
