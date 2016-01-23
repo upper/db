@@ -1,26 +1,18 @@
 package sqlgen
 
 import (
-	"fmt"
 	"strings"
 )
 
 // Columns represents an array of Column.
 type Columns struct {
 	Columns []Fragment
-	hash    string
+	hash    MemHash
 }
 
 // Hash returns a unique identifier.
 func (c *Columns) Hash() string {
-	if c.hash == "" {
-		s := make([]string, len(c.Columns))
-		for i := range c.Columns {
-			s[i] = c.Columns[i].Hash()
-		}
-		c.hash = fmt.Sprintf("Columns{Columns:{%s}}", strings.Join(s, ", "))
-	}
-	return c.hash
+	return c.hash.Hash(c)
 }
 
 // JoinColumns creates and returns an array of Column.

@@ -13,7 +13,7 @@ type columnT struct {
 // Column represents a SQL column.
 type Column struct {
 	Name interface{}
-	hash string
+	hash MemHash
 }
 
 // ColumnWithName creates and returns a Column with the given name.
@@ -21,31 +21,13 @@ func ColumnWithName(name string) *Column {
 	return &Column{Name: name}
 }
 
-// Hash returns a unique identifier.
+// Hash returns a unique identifier for the struct.
 func (c *Column) Hash() string {
-	if c.hash == "" {
-		var s string
-
-		switch t := c.Name.(type) {
-		case Fragment:
-			s = t.Hash()
-		case fmt.Stringer:
-			s = t.String()
-		case string:
-			s = t
-		default:
-			s = fmt.Sprintf("%v", c.Name)
-		}
-
-		c.hash = fmt.Sprintf(`Column{Name:%q}`, s)
-	}
-
-	return c.hash
+	return c.hash.Hash(c)
 }
 
 // Compile transforms the ColumnValue into an equivalent SQL representation.
 func (c *Column) Compile(layout *Template) (compiled string) {
-
 	if z, ok := layout.Read(c); ok {
 		return z
 	}

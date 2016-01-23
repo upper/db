@@ -22,7 +22,10 @@
 package cache
 
 import (
+	"fmt"
+	"github.com/mitchellh/hashstructure"
 	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -93,4 +96,13 @@ func (c *Cache) Clear() {
 	c.mu.Lock()
 	c.cache = make(map[string]interface{})
 	c.mu.Unlock()
+}
+
+// Hash returns a hash of the given struct.
+func Hash(v interface{}) string {
+	q, err := hashstructure.Hash(v, nil)
+	if err != nil {
+		panic(fmt.Sprintf("Could not hash struct: ", err.Error()))
+	}
+	return strconv.FormatUint(q, 10)
 }

@@ -1,13 +1,9 @@
 package sqlgen
 
-import (
-	"fmt"
-)
-
 // Database represents a SQL database.
 type Database struct {
 	Name string
-	hash string
+	hash MemHash
 }
 
 // DatabaseWithName returns a Database with the given name.
@@ -15,12 +11,9 @@ func DatabaseWithName(name string) *Database {
 	return &Database{Name: name}
 }
 
-// Hash returns a unique identifier.
+// Hash returns a unique identifier for the struct.
 func (d *Database) Hash() string {
-	if d.hash == "" {
-		d.hash = fmt.Sprintf(`Database{Name:%q}`, d.Name)
-	}
-	return d.hash
+	return d.hash.Hash(d)
 }
 
 // Compile transforms the Database into an equivalent SQL representation.
