@@ -38,7 +38,7 @@ before_script:
   - (cd postgresql/_dumps && make)
   - (cd sqlite/_dumps && make)
   - (cd ql/_dumps && make)
-  - (cd mongo/_dumps && make)
+#  - (cd mongo/_dumps && make)
 
 script:
   - go test -v upper.io/db.v2
@@ -47,4 +47,4 @@ script:
 # - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db.v2/ql # Temporarily skipping benchmark, see https://github.com/cznic/ql/issues/107
   - BENCHTIME=2s make test -C $GOPATH/src/upper.io/db.v2/ql
   - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db.v2/sqlite
-  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db.v2/mongo
+#  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db.v2/mongo
