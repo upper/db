@@ -14,13 +14,6 @@ env:
 
 install:
   - sudo apt-get install bzr
-  # - go get github.com/cznic/ql/ql # ql command line util.
-  # - go install github.com/cznic/ql/ql # ql command line util.
-  # - go get upper.io/db.v1/mongo
-  # - go get upper.io/db.v1/mysql
-  # - go get upper.io/db.v1/postgresql
-  # - go get upper.io/db.v1/sqlite
-  # - go get upper.io/db.v1/ql
   - rm -rf $HOME/gopath/src/upper.io
   - mkdir -p $HOME/gopath/src/upper.io
   - rsync -az $TRAVIS_BUILD_DIR/ $HOME/gopath/src/upper.io/db.v1/
@@ -36,10 +29,15 @@ before_script:
   - cat mysql/_dumps/structs.sql | mysql -uupperio -pupperio upperio_tests
   - cat postgresql/_dumps/setup.sql | psql -U postgres
   - cat postgresql/_dumps/structs.sql | PGPASSWORD="upperio" psql -U upperio upperio_tests
-  - mongo upperio_tests --eval 'db.addUser("upperio", "upperio")'
+  - mongo upperio_tests --eval 'db.addUser("upperio_secret", "upperio_tests")'
   # - cat ql/_dumps/structs.sql | $GOPATH/bin/ql -db ql/_dumps/test.db
 
 script:
   - cd $HOME/gopath/src/upper.io/db.v1
   - go version
   - go test -v -host 127.0.0.1
+  - go test -v -host 127.0.0.1 postgresql
+  - go test -v -host 127.0.0.1 mysql
+  - go test -v -host 127.0.0.1 mongo
+  - go test -v -host 127.0.0.1 ql
+  - go test -v -host 127.0.0.1 sqlite
