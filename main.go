@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2014 The upper.io/db authors. All rights reserved.
+// Copyright (c) 2012-2016 The upper.io/db.v1 authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,26 +22,27 @@
 // Package db provides a single interface for interacting with different data
 // sources through the use of adapters that wrap well-known database drivers.
 //
-// As of today, `upper.io/db` fully supports MySQL, PostgreSQL and SQLite (CRUD
+// As of today, `upper.io/db.v1` fully supports MySQL, PostgreSQL and SQLite (CRUD
 // + Transactions) and provides partial support for MongoDB and QL (CRUD only).
 //
 // Usage:
 //
 // 	import(
 //		// Main package.
-// 		"upper.io/db"
+// 		"upper.io/db.v1"
 //		// PostgreSQL adapter.
-// 		"upper.io/db/postgresql"
+// 		"upper.io/db.v1/postgresql"
 // 	)
 //
-// `upper.io/db` is not an ORM and thus does not impose any hard restrictions
+// `upper.io/db.v1` is not an ORM and thus does not impose any hard restrictions
 // on data structures:
 //
 //	// This code works the same for all supported databases.
 //	var people []Person
 //	res = col.Find(db.Cond{"name": "Max"}).Limit(2).Sort("-input")
 //	err = res.All(&people)
-package db // import "upper.io/db"
+// package db // import "upper.io/db" // This is going to be mandatory on 10st Apr, 2016.
+package db
 
 // Cond is a map used to define conditions passed to `db.Collection.Find()` and
 // `db.Result.Where()`.

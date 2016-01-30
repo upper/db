@@ -19,21 +19,21 @@ install:
   # - go get github.com/cznic/ql/ql # ql command line util.
   # - go install github.com/cznic/ql/ql # ql command line util.
   - go get -t -d
-  # - go get upper.io/db/mongo
-  # - go get upper.io/db/mysql
-  # - go get upper.io/db/postgresql
-  # - go get upper.io/db/sqlite
-  # - go get upper.io/db/ql
+  # - go get upper.io/db.v1/mongo
+  # - go get upper.io/db.v1/mysql
+  # - go get upper.io/db.v1/postgresql
+  # - go get upper.io/db.v1/sqlite
+  # - go get upper.io/db.v1/ql
 
 services:
   - mongodb
 
 before_script:
-  - rm -rf $HOME/gopath/src/upper.io/db
+  - rm -rf $HOME/gopath/src/upper.io/db.v1
   - mkdir -p $HOME/gopath/src/upper.io
   - mv $HOME/gopath/src/github.com/upper/db $HOME/gopath/src/upper.io
-  - cd $HOME/gopath/src/upper.io/db
-  - export TRAVIS_BUILD_DIR=$HOME/gopath/src/upper.io/db
+  - cd $HOME/gopath/src/upper.io/db.v1
+  - export TRAVIS_BUILD_DIR=$HOME/gopath/src/upper.io/db.v1
   - cat mysql/_dumps/setup.sql | mysql -uroot
   - cat mysql/_dumps/structs.sql | mysql -uupperio -pupperio upperio_tests
   - cat postgresql/_dumps/setup.sql | psql -U postgres
@@ -42,6 +42,6 @@ before_script:
   # - cat ql/_dumps/structs.sql | $GOPATH/bin/ql -db ql/_dumps/test.db
 
 script:
-  - cd $HOME/gopath/src/upper.io/db
+  - cd $HOME/gopath/src/upper.io/db.v1
   - go version
   - go test -host 127.0.0.1

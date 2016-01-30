@@ -1,7 +1,7 @@
 package sqlgen
 
 import (
-	"upper.io/cache"
+	"upper.io/db.v1/util/cache"
 )
 
 type Template struct {

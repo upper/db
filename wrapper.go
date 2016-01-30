@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2014 The upper.io/db authors. All rights reserved.
+// Copyright (c) 2012-2016 The upper.io/db.v1 authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -53,7 +53,7 @@ func Open(adapter string, conn ConnectionURL) (Database, error) {
 	if ok == false {
 		// Using panic instead of returning error because attemping to use an
 		// adapter that does not exists will never result in success.
-		panic(fmt.Sprintf(`Open: Unknown adapter %s. (see: https://upper.io/db#database-adapters)`, adapter))
+		panic(fmt.Sprintf(`Open: Unknown adapter %s. (see: https://upper.io/db.v1#database-adapters)`, adapter))
 	}
 
 	// Creating a new connection everytime Open() is called.
