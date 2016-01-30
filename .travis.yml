@@ -16,23 +16,22 @@ install:
   - sudo apt-get install bzr
   # - go get github.com/cznic/ql/ql # ql command line util.
   # - go install github.com/cznic/ql/ql # ql command line util.
-  - go get -v -d ./...
-  - go get -v -t -d ./...
   # - go get upper.io/db.v1/mongo
   # - go get upper.io/db.v1/mysql
   # - go get upper.io/db.v1/postgresql
   # - go get upper.io/db.v1/sqlite
   # - go get upper.io/db.v1/ql
+  - rm -rf $HOME/gopath/src/upper.io
+  - mkdir -p $HOME/gopath/src/upper.io
+  - rsync -az $TRAVIS_BUILD_DIR/ $HOME/gopath/src/upper.io/db.v1/
+  - export TRAVIS_BUILD_DIR=$HOME/gopath/src/upper.io/db.v1
+  - cd $TRAVIS_BUILD_DIR
+  - go get ./...
 
 services:
   - mongodb
 
 before_script:
-  - rm -rf $HOME/gopath/src/upper.io/db.v1
-  - mkdir -p $HOME/gopath/src/upper.io
-  - mv $HOME/gopath/src/github.com/upper/db $HOME/gopath/src/upper.io/db.v1
-  - cd $HOME/gopath/src/upper.io/db.v1
-  - export TRAVIS_BUILD_DIR=$HOME/gopath/src/upper.io/db.v1
   - cat mysql/_dumps/setup.sql | mysql -uroot
   - cat mysql/_dumps/structs.sql | mysql -uupperio -pupperio upperio_tests
   - cat postgresql/_dumps/setup.sql | psql -U postgres
