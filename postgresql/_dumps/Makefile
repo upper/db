@@ -1,2 +1,4 @@
+TEST_HOST ?= localhost
+
 all:
-	cat structs.sql | PGPASSWORD="upperio" psql -Uupperio upperio_tests -htestserver.local
+	cat structs.sql | PGPASSWORD="upperio_secret" psql -Uupperio_tests upperio_tests -h$(TEST_HOST)

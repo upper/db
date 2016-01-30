@@ -47,8 +47,8 @@ import (
 
 const (
 	database = "upperio_tests"
-	username = "upperio"
-	password = "upperio"
+	username = "upperio_tests"
+	password = "upperio_secret"
 )
 
 var settings = ConnectionURL{
@@ -57,7 +57,7 @@ var settings = ConnectionURL{
 	Password: password,
 }
 
-var host = flag.String("host", "testserver.local", "Testing server address.")
+var host = flag.String("host", "localhost", "Testing server address.")
 
 // Structure for testing conversions and datatypes.
 type testValuesStruct struct {

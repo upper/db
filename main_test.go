@@ -78,20 +78,20 @@ func init() {
 		`mongo`: &db.Settings{
 			Database: `upperio_tests`,
 			Host:     *host,
-			User:     `upperio`,
-			Password: `upperio`,
+			User:     `upperio_tests`,
+			Password: `upperio_secret`,
 		},
 		`mysql`: &db.Settings{
 			Database: `upperio_tests`,
 			Host:     *host,
-			User:     `upperio`,
-			Password: `upperio`,
+			User:     `upperio_tests`,
+			Password: `upperio_secret`,
 		},
 		`postgresql`: &db.Settings{
 			Database: `upperio_tests`,
 			Host:     *host,
-			User:     `upperio`,
-			Password: `upperio`,
+			User:     `upperio_tests`,
+			Password: `upperio_secret`,
 		},
 		`ql`: &db.Settings{
 			Database: `file://upperio_test.ql`,
