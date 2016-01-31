@@ -19,6 +19,7 @@ install:
   - rsync -az $TRAVIS_BUILD_DIR/ $HOME/gopath/src/upper.io/db.v1/
   - export TRAVIS_BUILD_DIR=$HOME/gopath/src/upper.io/db.v1
   - cd $TRAVIS_BUILD_DIR
+  - go get -v github.com/cznic/ql/ql
   - go get ./...
 
 services:
