@@ -20,12 +20,12 @@ addons:
 
 env: GOARCH=amd64 TEST_HOST=127.0.0.1
 
- addons:
-    apt:
-      packages:
-        - libgearman-dev
-        - libsvm-dev
-        - re2c
+addons:
+  apt:
+    packages:
+      - libgearman-dev
+      - libsvm-dev
+      - re2c
 
 install:
   - mkdir -p $GOPATH/src/upper.io
@@ -43,11 +43,11 @@ before_script:
   - ${PWD}/mongodb-linux-x86_64-3.2.1/bin/mongod --dbpath /tmp/data --bind_ip 127.0.0.1 --auth &> /dev/null &
   - until nc -z localhost 27017; do echo Waiting for MongoDB; sleep 1; done
   - mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql
-  - (cd mysql/_dumps && make)
-  - (cd postgresql/_dumps && make)
-  - (cd sqlite/_dumps && make)
-  - (cd ql/_dumps && make)
-#  - (cd mongo/_dumps && make)
+  - make -C mysql/_dumps
+  - make -C postgresql/_dumps
+  - make -C sqlite/_dumps
+  - make -C ql/_dumps
+  - make -C mongo/_dumps
 
 script:
   - go test -v upper.io/db.v2
@@ -56,4 +56,4 @@ script:
 # - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db.v2/ql # Temporarily skipping benchmark, see https://github.com/cznic/ql/issues/107
   - BENCHTIME=2s make test -C $GOPATH/src/upper.io/db.v2/ql
   - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db.v2/sqlite
-#  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db.v2/mongo
+  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db.v2/mongo
