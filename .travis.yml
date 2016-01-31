@@ -36,8 +36,8 @@ script:
   - cd $HOME/gopath/src/upper.io/db.v1
   - go version
   - go test -v -host 127.0.0.1
-  - go test -v -host 127.0.0.1 postgresql
-  - go test -v -host 127.0.0.1 mysql
-  - go test -v -host 127.0.0.1 mongo
-  - go test -v -host 127.0.0.1 ql
-  - go test -v -host 127.0.0.1 sqlite
+  - go test -v -host 127.0.0.1 upper.io/db.v1/postgresql
+  - go test -v -host 127.0.0.1 upper.io/db.v1/mysql
+  - go test -v -host 127.0.0.1 upper.io/db.v1/mongo
+  - go test -v upper.io/db.v1/ql
+  - go test -v upper.io/db.v1/sqlite
