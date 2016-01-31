@@ -10,6 +10,7 @@ go:
   - 1.4
   - 1.4.1
   - 1.4.2
+  - 1.4.3
   - 1.5
   - 1.5.1
   - 1.5.2
@@ -31,17 +32,11 @@ install:
   - mkdir -p $GOPATH/src/upper.io
   - mv $PWD $GOPATH/src/upper.io/db.v2
   - cd $GOPATH/src/upper.io/db.v2
-  - ls -la
   - go get -v github.com/cznic/ql/ql
   - go get -v -t -d ./...
   - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db.v2
 
 before_script:
-  - wget http://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.2.1.tgz -O /tmp/mongodb.tgz
-  - tar -xvf /tmp/mongodb.tgz
-  - mkdir /tmp/data
-  - ${PWD}/mongodb-linux-x86_64-3.2.1/bin/mongod --dbpath /tmp/data --bind_ip 127.0.0.1 --auth &> /dev/null &
-  - until nc -z localhost 27017; do echo Waiting for MongoDB; sleep 1; done
   - mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql
   - make -C mysql/_dumps
   - make -C postgresql/_dumps
