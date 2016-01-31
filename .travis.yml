@@ -25,12 +25,11 @@ services:
   - mongodb
 
 before_script:
-  - cat mysql/_dumps/setup.sql | mysql -uroot
-  - cat mysql/_dumps/structs.sql | mysql -uupperio -pupperio upperio_tests
-  - cat postgresql/_dumps/setup.sql | psql -U postgres
-  - cat postgresql/_dumps/structs.sql | PGPASSWORD="upperio" psql -U upperio upperio_tests
-  - mongo upperio_tests --eval 'db.addUser("upperio_secret", "upperio_tests")'
-  # - cat ql/_dumps/structs.sql | $GOPATH/bin/ql -db ql/_dumps/test.db
+  - make -C mysql/_dumps
+  - make -C postgresql/_dumps
+  - make -C mongo/_dumps
+  - make -C ql/_dumps
+  - make -C sqlite/_dumps
 
 script:
   - cd $HOME/gopath/src/upper.io/db.v1
