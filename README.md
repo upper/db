@@ -1,23 +1,26 @@
-# upper.io/db [![Build Status](https://travis-ci.org/upper/db.svg?branch=master)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/upper.io/db?status.svg)](https://godoc.org/upper.io/db)
+# upper.io/db [![Build Status](https://travis-ci.org/upper/db.svg?branch=v2)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/upper.io/db?status.svg)](https://godoc.org/upper.io/db.v2)
 
 <center>
-<img src="https://upper.io/images/icon.svg" width="256" />
+<img src="https://upper.io/db.v2/images/icon.svg" width="256" />
 </center>
 
 ## The `db` package
 
 ![Upper.io](https://upper.io/db.v2/res/general.png)
 
-`upper.io/db` is a [Go][2] package that allows you to communicate with
-different databases through special *adapters* that wrap well-supported
-database drivers.
+`db` is a [Go][2] package that allows you to communicate with different
+databases through special *adapters* that wrap well-supported database drivers.
 
-## Is `upper.io/db` an ORM?
+```
+go get -u upper.io/db.v2
+```
 
-`upper.io/db` is not an ORM in the sense that it does not tell you how to
-design your application or how to validate your data. Instead of trying to
-lecture you, `db` focuses on being a easy to user tool that helps you dealing
-with common database operations.
+## Is `db` an ORM?
+
+`db` is not an ORM in the sense that it does not tell you how to design your
+application or how to validate your data. Instead of trying to lecture you,
+`db` focuses on being a easy to user tool that helps you dealing with common
+database operations.
 
 ```go
 var people []Person
@@ -28,17 +31,15 @@ err = res.All(&people)
 ...
 ```
 
-`upper.io/db` can be considered a really basic non-magical ORM that rather
-stays out of your way.
+`db` can be considered a non-opinionated ORM that rather stays out of your way.
 
 ## Supported databases
 
 ![Adapters](https://upper.io/db.v2/res/adapters.png)
 
-`upper.io/db` attempts to provide full compatiblity for [CRUD][2] operations
-across all its adapters. Some other operations (such *transactions*) are
-supported only with specific database adapters, such as MySQL, PostgreSQL and
-SQLite.
+`db` attempts to provide full compatiblity for [CRUD][2] operations across all
+its adapters. Some other operations (such *transactions*) are supported only
+with specific database adapters, such as MySQL, PostgreSQL and SQLite.
 
 * [MongoDB](https://upper.io/db.v2/mongo) via [mgo](http://godoc.org/labix.org/v2/mgo)
 * [MySQL](https://upper.io/db.v2/mysql) via [mysql](https://github.com/go-sql-driver/mysql)
@@ -48,7 +49,7 @@ SQLite.
 
 ## User documentation
 
-See documentation for users at [upper.io/db][1].
+See documentation for users at [upper.io/db.v2][1].
 
 ## License
 
@@ -94,6 +95,6 @@ This project is licensed under the terms of the **MIT License**.
 * Hiram J. Pérez <worg@linuxmail.org>
 * Aaron <aaron.l.france@gmail.com>
 
-[1]: https://upper.io/db
+[1]: https://upper.io/db.v2
 [2]: http://golang.org
 [3]: http://en.wikipedia.org/wiki/Create,_read,_update_and_delete
