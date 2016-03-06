@@ -23,11 +23,11 @@ package cache
 
 import (
 	"fmt"
-	"github.com/mitchellh/hashstructure"
 	"math/rand"
 	"strconv"
 	"sync"
 	"time"
+	"upper.io/db.v2/builder/cache/hashstructure"
 )
 
 const (
