@@ -13,20 +13,19 @@ go:
   - 1.5.3
   - 1.6
 
-addons:
-  postgresql: "9.4"
-
 services:
   - mongodb
   - mysql
   - postgresql
 
 addons:
+  postgresql: "9.4"
   apt:
     sources:
     - mongodb-3.0-precise
     packages:
     - mongodb-org-server
+    - mongodb-org
 
 env: GOARCH=amd64 TEST_HOST=127.0.0.1
 
