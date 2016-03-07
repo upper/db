@@ -11,6 +11,7 @@ require-client:
 	fi
 
 reset-db: require-client
+	$(MAKE) reset-db -C _dumps
 
 test: reset-db
 	go test -v

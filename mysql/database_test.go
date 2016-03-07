@@ -150,7 +150,7 @@ func init() {
 		host = "localhost"
 	}
 
-	settings.Address = db.ParseAddress(host)
+	settings.Host = host
 }
 
 // Attempts to open an empty datasource.
@@ -158,7 +158,7 @@ func SkipTestOpenFailed(t *testing.T) {
 	var err error
 
 	// Attempt to open an empty database.
-	if _, err = db.Open(Adapter, db.Settings{}); err == nil {
+	if _, err = db.Open(Adapter, ConnectionURL{}); err == nil {
 		// Must fail.
 		t.Fatalf("Expecting an error.")
 	}
@@ -167,10 +167,10 @@ func SkipTestOpenFailed(t *testing.T) {
 // Attempts to open an empty datasource.
 func SkipTestOpenWithWrongData(t *testing.T) {
 	var err error
-	var rightSettings, wrongSettings db.Settings
+	var rightSettings, wrongSettings ConnectionURL
 
 	// Attempt to open with safe settings.
-	rightSettings = db.Settings{
+	rightSettings = ConnectionURL{
 		Database: databaseName,
 		Host:     host,
 		User:     username,
@@ -184,7 +184,7 @@ func SkipTestOpenWithWrongData(t *testing.T) {
 	}
 
 	// Attempt to open with wrong password.
-	wrongSettings = db.Settings{
+	wrongSettings = ConnectionURL{
 		Database: databaseName,
 		Host:     host,
 		User:     username,
@@ -196,7 +196,7 @@ func SkipTestOpenWithWrongData(t *testing.T) {
 	}
 
 	// Attempt to open with wrong database.
-	wrongSettings = db.Settings{
+	wrongSettings = ConnectionURL{
 		Database: "fail",
 		Host:     host,
 		User:     username,
@@ -208,7 +208,7 @@ func SkipTestOpenWithWrongData(t *testing.T) {
 	}
 
 	// Attempt to open with wrong username.
-	wrongSettings = db.Settings{
+	wrongSettings = ConnectionURL{
 		Database: databaseName,
 		Host:     host,
 		User:     "fail",

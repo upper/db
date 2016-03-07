@@ -22,14 +22,13 @@
 package mongo // import "upper.io/db.v2/mongo"
 
 import (
-	"fmt"
 	"strings"
 	"sync"
 	"time"
 
 	"gopkg.in/mgo.v2"
-	"upper.io/db.v2/builder"
 	"upper.io/db.v2"
+	"upper.io/db.v2/builder"
 )
 
 // Adapter holds the name of the mongodb adapter.
@@ -97,32 +96,6 @@ func (s *Source) Driver() interface{} {
 // settings.
 func (s *Source) Open() error {
 	var err error
-
-	// Before db.ConnectionURL we used a unified db.Settings struct. This
-	// condition checks for that type and provides backwards compatibility.
-	if settings, ok := s.connURL.(db.Settings); ok {
-		var addr string
-
-		if settings.Host != "" {
-			if settings.Port > 0 {
-				addr = fmt.Sprintf("%s:%d", settings.Host, settings.Port)
-			} else {
-				addr = settings.Host
-			}
-		} else {
-			addr = settings.Socket
-		}
-
-		conn := ConnectionURL{
-			User:     settings.User,
-			Password: settings.Password,
-			Address:  db.ParseAddress(addr),
-			Database: settings.Database,
-		}
-
-		// Replace original s.connURL
-		s.connURL = conn
-	}
 
 	if s.session, err = mgo.DialWithTimeout(s.connURL.String(), connTimeout); err != nil {
 		return err

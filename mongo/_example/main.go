@@ -6,11 +6,11 @@ import (
 	"os"
 	"time"
 
-	"upper.io/db.v2"         // Imports the main db package.
-	_ "upper.io/db.v2/mongo" // Imports the mongo adapter.
+	"upper.io/db.v2"       // Imports the main db package.
+	"upper.io/db.v2/mongo" // Imports the mongo adapter.
 )
 
-var settings = db.Settings{
+var settings = mongo.ConnectionURL{
 	Database: `upperio_tests`, // Database name.
 	Host:     `127.0.0.1`,     // Using TCP.
 }

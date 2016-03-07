@@ -12,7 +12,7 @@ import (
 
 var settings = postgresql.ConnectionURL{
 	Database: `upperio_tests`, // Database name.
-	Address:  db.ParseAddress(`127.0.0.1`),
+	Host:     `127.0.0.1`,
 	User:     `upperio_tests`,  // Database username.
 	Password: `upperio_secret`, // Database password.
 }
@@ -28,7 +28,7 @@ type Birthday struct {
 func main() {
 
 	if addr := os.Getenv("TEST_HOST"); addr != "" {
-		settings.Address = db.ParseAddress(addr)
+		settings.Host = addr
 	}
 
 	// Attemping to establish a connection to the database.

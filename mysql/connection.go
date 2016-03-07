@@ -23,13 +23,11 @@ package mysql
 
 import (
 	"errors"
+	"fmt"
+	"net"
 	"net/url"
 	"strings"
-
-	"upper.io/db.v2"
 )
-
-const defaultPort = 3306
 
 // From https://github.com/go-sql-driver/mysql/blob/master/utils.go
 var (
@@ -53,7 +51,8 @@ type ConnectionURL struct {
 	User     string
 	Password string
 	Database string
-	Address  db.Address
+	Host     string
+	Socket   string
 	Options  map[string]string
 }
 
@@ -74,16 +73,15 @@ func (c ConnectionURL) String() (s string) {
 	}
 
 	// Adding protocol and address
-	if c.Address != nil {
-		if f, err := c.Address.Path(); err == nil {
-			s = s + "unix(" + f + ")"
-		} else {
-			if _, err := c.Address.Port(); err != nil {
-				s = s + "tcp(" + c.Address.String() + ":3306)"
-			} else {
-				s = s + "tcp(" + c.Address.String() + ")"
-			}
+	if c.Socket != "" {
+		s = s + fmt.Sprintf("unix(%s)", c.Socket)
+	} else if c.Host != "" {
+		host, port, err := net.SplitHostPort(c.Host)
+		if err != nil {
+			host = c.Host
+			port = "3306"
 		}
+		s = s + fmt.Sprintf("tcp(%s:%s)", host, port)
 	}
 
 	// Adding database
@@ -130,9 +128,9 @@ func ParseURL(s string) (conn ConnectionURL, err error) {
 	conn.Password = cfg.passwd
 
 	if cfg.net == "unix" {
-		conn.Address = db.Socket(cfg.addr)
+		conn.Socket = cfg.addr
 	} else if cfg.net == "tcp" {
-		conn.Address = db.ParseAddress(cfg.addr)
+		conn.Host = cfg.addr
 	}
 
 	conn.Database = cfg.dbname

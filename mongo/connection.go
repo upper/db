@@ -25,22 +25,15 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
-
-	"upper.io/db.v2"
 )
 
 const connectionScheme = `mongodb`
-
-// cluster is an array of hosts or sockets.
-type cluster struct {
-	address []db.Address
-}
 
 // ConnectionURL implements a MongoDB connection struct.
 type ConnectionURL struct {
 	User     string
 	Password string
-	Address  db.Address
+	Host     string
 	Database string
 	Options  map[string]string
 }
@@ -78,62 +71,12 @@ func (c ConnectionURL) String() (s string) {
 	u := url.URL{
 		Scheme:   connectionScheme,
 		Path:     c.Database,
+		Host:     c.Host,
 		User:     userInfo,
 		RawQuery: vv.Encode(),
 	}
 
-	if c.Address != nil {
-		u.Host = c.Address.String()
-	}
-
 	return u.String()
-}
-
-// String returns the string representation of the cluster struct.
-func (c cluster) String() string {
-	l := len(c.address)
-
-	addresses := make([]string, 0, l)
-	for i := 0; i < l; i++ {
-		addresses = append(addresses, c.address[i].String())
-	}
-	return strings.Join(addresses, ",")
-}
-
-// Host is undefined in a cluster struct.
-func (c cluster) Host() (string, error) {
-	return "", db.ErrUndefined
-}
-
-// Port is undefined in a cluster struct.
-func (c cluster) Port() (uint, error) {
-	return 0, db.ErrUndefined
-}
-
-// Path is undefined in a cluster struct.
-func (c cluster) Path() (string, error) {
-	return "", db.ErrUndefined
-}
-
-// Cluster returns the array of addresses in a cluster struct.
-func (c cluster) Cluster() ([]db.Address, error) {
-	return c.address, nil
-}
-
-// Cluster converts the given Address structures into a cluster structure.
-func Cluster(addresses ...db.Address) cluster {
-	return cluster{address: addresses}
-}
-
-// ParseCluster parses s into a cluster structure.
-func ParseCluster(s string) (c cluster) {
-	var hosts []string
-	hosts = strings.Split(s, ",")
-	l := len(hosts)
-	for i := 0; i < l; i++ {
-		c.address = append(c.address, db.ParseAddress(hosts[i]))
-	}
-	return
 }
 
 // ParseURL parses s into a ConnectionURL struct.
@@ -148,8 +91,7 @@ func ParseURL(s string) (conn ConnectionURL, err error) {
 		return conn, err
 	}
 
-	// Parsing host.
-	conn.Address = db.ParseAddress(u.Host)
+	conn.Host = u.Host
 
 	// Deleting / from start of the string.
 	conn.Database = strings.Trim(u.Path, "/")
