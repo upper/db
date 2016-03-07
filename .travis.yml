@@ -25,7 +25,7 @@ addons:
     - mongodb-3.0-precise
     packages:
     - mongodb-org-server
-    - mongodb-org
+    - mongodb-org-shell
 
 env: GOARCH=amd64 TEST_HOST=127.0.0.1
 
