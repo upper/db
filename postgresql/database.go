@@ -23,6 +23,7 @@ package postgresql
 
 import (
 	"database/sql"
+	"errors"
 	"strconv"
 	"strings"
 	"sync"
@@ -71,7 +72,7 @@ type columnSchemaT struct {
 }
 
 func (d *database) prepareStatement(stmt *sqlgen.Statement) (p *sqlx.Stmt, query string, err error) {
-	if d.session == nil {
+	if d.session == nil && d.tx == nil {
 		return nil, "", db.ErrNotConnected
 	}
 
@@ -123,8 +124,6 @@ func (d *database) Driver() interface{} {
 
 // Open attempts to connect to the database server using already stored settings.
 func (d *database) Open() error {
-	var err error
-
 	// Before db.ConnectionURL we used a unified db.Settings struct. This
 	// condition checks for that type and provides backwards compatibility.
 	if settings, ok := d.connURL.(db.Settings); ok {
@@ -142,8 +141,10 @@ func (d *database) Open() error {
 		d.connURL = conn
 	}
 
+	var session *sqlx.DB
+
 	connFn := func(d **database) (err error) {
-		(*d).session, err = sqlx.Open(`postgres`, (*d).connURL.String())
+		session, err = sqlx.Open(`postgres`, (*d).connURL.String())
 		return
 	}
 
@@ -151,18 +152,9 @@ func (d *database) Open() error {
 		return err
 	}
 
-	d.session.Mapper = sqlutil.NewMapper()
-
-	d.cachedStatements = cache.NewCache()
-
-	d.collections = make(map[string]*table)
-
-	if d.schema == nil {
-		if err = d.populateSchema(); err != nil {
-			return err
-		}
+	if err := d.wrapSession(session); err != nil {
+		return err
 	}
-
 	return nil
 }
 
@@ -233,7 +225,12 @@ func (d *database) Collection(names ...string) (db.Collection, error) {
 
 	col := &table{database: d}
 	col.T.Tables = names
-	col.T.Mapper = d.session.Mapper
+
+	if d.session != nil {
+		col.T.Mapper = d.session.Mapper
+	} else {
+		col.T.Mapper = d.tx.Mapper
+	}
 
 	for _, name := range names {
 		chunks := strings.SplitN(name, ` `, 2)
@@ -341,6 +338,52 @@ func (d *database) Drop() error {
 		Database: sqlgen.DatabaseWithName(d.schema.Name),
 	})
 	return err
+}
+
+func (d *database) wrapSession(sess interface{}) error {
+	switch v := sess.(type) {
+	case *sqlx.Tx:
+		d.session, d.tx = nil, sqltx.New(v)
+	case *sqlx.DB:
+		d.session, d.tx = v, nil
+		d.session.Mapper = sqlutil.NewMapper()
+	default:
+		return errors.New("Could not wrap session.")
+	}
+
+	d.cachedStatements = cache.NewCache()
+
+	d.collections = make(map[string]*table)
+	if d.schema == nil {
+		if err := d.populateSchema(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func NewSession(dbsess interface{}) (db.Database, error) {
+	d := &database{}
+
+	switch v := dbsess.(type) {
+	case *sqlx.DB, *sqlx.Tx:
+		// Skip
+	case *sql.DB:
+		// Wrap session.
+		dbsess = sqlx.NewDb(v, `postgres`)
+	case *sql.Tx:
+		// Wrap transaction.
+		dbsess = &sqlx.Tx{Tx: v, Mapper: sqlutil.NewMapper()}
+	default:
+		return nil, errors.New("Unknown session type.")
+	}
+
+	err := d.wrapSession(dbsess)
+	if err != nil {
+		return nil, err
+	}
+	return d, nil
 }
 
 // Setup stores database settings.
