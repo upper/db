@@ -128,11 +128,11 @@ func init() {
 		host = "localhost"
 	}
 
-	settings.Address = db.ParseAddress(host)
+	settings.Host = host
 }
 
 func SkipTestOpenFailed(t *testing.T) {
-	_, err := db.Open(Adapter, db.Settings{})
+	_, err := db.Open(Adapter, ConnectionURL{})
 
 	if err != nil {
 		t.Errorf(err.Error())
@@ -142,10 +142,10 @@ func SkipTestOpenFailed(t *testing.T) {
 // Attempts to open an empty datasource.
 func TestOpenWithWrongData(t *testing.T) {
 	var err error
-	var rightSettings, wrongSettings db.Settings
+	var rightSettings, wrongSettings ConnectionURL
 
 	// Attempt to open with safe settings.
-	rightSettings = db.Settings{
+	rightSettings = ConnectionURL{
 		Database: database,
 		Host:     host,
 		User:     username,
@@ -159,7 +159,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	}
 
 	// Attempt to open with wrong password.
-	wrongSettings = db.Settings{
+	wrongSettings = ConnectionURL{
 		Database: database,
 		Host:     host,
 		User:     username,
@@ -171,7 +171,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	}
 
 	// Attempt to open with wrong database.
-	wrongSettings = db.Settings{
+	wrongSettings = ConnectionURL{
 		Database: "fail",
 		Host:     host,
 		User:     username,
@@ -183,7 +183,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	}
 
 	// Attempt to open with wrong username.
-	wrongSettings = db.Settings{
+	wrongSettings = ConnectionURL{
 		Database: database,
 		Host:     host,
 		User:     "fail",
@@ -193,27 +193,6 @@ func TestOpenWithWrongData(t *testing.T) {
 	if _, err = db.Open(Adapter, wrongSettings); err == nil {
 		t.Fatalf("Expecting an error.")
 	}
-}
-
-// Old settings must be compatible.
-func TestOldSettings(t *testing.T) {
-	var err error
-	var sess db.Database
-
-	oldSettings := db.Settings{
-		Database: database,
-		User:     username,
-		Password: password,
-		Host:     settings.Address.String(),
-	}
-
-	// Opening database.
-	if sess, err = db.Open(Adapter, oldSettings); err != nil {
-		t.Fatal(err)
-	}
-
-	// Closing database.
-	sess.Close()
 }
 
 // Test USE

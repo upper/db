@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2015 The upper.io/db authors. All rights reserved.
+// Copyright (c) 2012-present The upper.io/db authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -23,12 +23,11 @@ package postgresql
 
 import (
 	"fmt"
-	"strconv"
+	"net"
 	"strings"
 	"unicode"
 
 	"github.com/lib/pq"
-	"upper.io/db.v2"
 )
 
 // scanner implements a tokenizer for libpq-style option strings.
@@ -83,7 +82,8 @@ const connectionScheme = `postgres`
 type ConnectionURL struct {
 	User     string
 	Password string
-	Address  db.Address
+	Host     string
+	Socket   string
 	Database string
 	Options  map[string]string
 }
@@ -103,14 +103,24 @@ func (c ConnectionURL) String() (s string) {
 		u = append(u, "password="+escaper.Replace(c.Password))
 	}
 
-	if c.Address != nil {
-		if h, err := c.Address.Host(); err == nil {
-			u = append(u, "host="+escaper.Replace(h))
+	if c.Host != "" {
+		host, port, err := net.SplitHostPort(c.Host)
+		if err == nil {
+			if host == "" {
+				host = "127.0.0.1"
+			}
+			if port == "" {
+				port = "5432"
+			}
+			u = append(u, "host="+escaper.Replace(host))
+			u = append(u, "port="+escaper.Replace(port))
+		} else {
+			u = append(u, "host="+escaper.Replace(c.Host))
 		}
+	}
 
-		if p, err := c.Address.Port(); err == nil {
-			u = append(u, "port="+strconv.Itoa(int(p)))
-		}
+	if c.Socket != "" {
+		u = append(u, "host="+escaper.Replace(c.Socket))
 	}
 
 	if c.Database != "" {
@@ -157,12 +167,11 @@ func ParseURL(s string) (u ConnectionURL, err error) {
 	u.Password = o.Get("password")
 
 	h := o.Get("host")
-	p, _ := strconv.Atoi(o.Get("port"))
 
-	if p > 0 {
-		u.Address = db.HostPort(h, uint(p))
+	if strings.HasPrefix(h, "/") {
+		u.Socket = h
 	} else {
-		u.Address = db.Host(h)
+		u.Host = h
 	}
 
 	u.Database = o.Get("dbname")

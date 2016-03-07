@@ -1,12 +1,11 @@
 sudo: false
 
+notifications:
+  email: false
+
 language: go
 
 go:
-#  - 1.3
-#  - 1.3.1
-#  - 1.3.2
-#  - 1.3.3
   - 1.4
   - 1.4.1
   - 1.4.2
@@ -15,14 +14,21 @@ go:
   - 1.5.1
   - 1.5.2
   - 1.5.3
-
-addons:
-  postgresql: "9.4"
+  - 1.6
 
 services:
   - mongodb
   - mysql
   - postgresql
+
+addons:
+  postgresql: "9.4"
+  apt:
+    sources:
+    - mongodb-3.0-precise
+    packages:
+    - mongodb-org-server
+    - mongodb-org-shell
 
 env: GOARCH=amd64 TEST_HOST=127.0.0.1
 
@@ -36,17 +42,6 @@ install:
 
 before_script:
   - mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql
-  - make -C mysql/_dumps
-  - make -C postgresql/_dumps
-  - make -C sqlite/_dumps
-  - make -C ql/_dumps
-  - make -C mongo/_dumps
 
 script:
-  - go test -v upper.io/db.v2
-  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db.v2/mysql
-  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db.v2/postgresql
-# - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db.v2/ql # Temporarily skipping benchmark, see https://github.com/cznic/ql/issues/107
-  - BENCHTIME=2s make test -C $GOPATH/src/upper.io/db.v2/ql
-  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db.v2/sqlite
-  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db.v2/mongo
+  - make test

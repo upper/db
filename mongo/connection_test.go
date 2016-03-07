@@ -23,8 +23,6 @@ package mongo
 
 import (
 	"testing"
-
-	"upper.io/db.v2"
 )
 
 func TestConnectionURL(t *testing.T) {
@@ -54,21 +52,21 @@ func TestConnectionURL(t *testing.T) {
 	c.Password = "pass"
 
 	// Setting host.
-	c.Address = db.Host("localhost")
+	c.Host = "localhost"
 
 	if c.String() != "mongodb://user:pass@localhost/myfilename?cache=foobar&mode=ro" {
 		t.Fatal(`Test failed, got:`, c.String())
 	}
 
 	// Setting host and port.
-	c.Address = db.HostPort("localhost", 27017)
+	c.Host = "localhost:27017"
 
 	if c.String() != "mongodb://user:pass@localhost:27017/myfilename?cache=foobar&mode=ro" {
 		t.Fatal(`Test failed, got:`, c.String())
 	}
 
 	// Setting cluster.
-	c.Address = Cluster(db.Host("localhost"), db.Host("1.2.3.4"), db.HostPort("example.org", 1234))
+	c.Host = "localhost,1.2.3.4,example.org:1234"
 
 	if c.String() != "mongodb://user:pass@localhost,1.2.3.4,example.org:1234/myfilename?cache=foobar&mode=ro" {
 		t.Fatal(`Test failed, got:`, c.String())
@@ -124,7 +122,7 @@ func TestParseConnectionURL(t *testing.T) {
 		t.Fatal("Expecting password.")
 	}
 
-	if u.Address.String() != "localhost,1.2.3.4,example.org:1234" {
+	if u.Host != "localhost,1.2.3.4,example.org:1234" {
 		t.Fatal("Expecting host.")
 	}
 

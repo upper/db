@@ -132,7 +132,7 @@ func TestOpenFailed(t *testing.T) {
 	var err error
 
 	// Attempt to open an empty database.
-	if _, err = db.Open(Adapter, db.Settings{}); err == nil {
+	if _, err = db.Open(Adapter, ConnectionURL{}); err == nil {
 		// Must fail.
 		t.Fatalf("Expecting an error.")
 	}

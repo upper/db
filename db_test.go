@@ -81,13 +81,13 @@ func init() {
 		},
 		`mongo`: &mongo.ConnectionURL{
 			Database: `upperio_tests`,
-			Address:  db.Host(host),
+			Host:     host,
 			User:     `upperio_tests`,
 			Password: `upperio_secret`,
 		},
 		`mysql`: &mysql.ConnectionURL{
 			Database: `upperio_tests`,
-			Address:  db.Host(host),
+			Host:     host,
 			User:     `upperio_tests`,
 			Password: `upperio_secret`,
 			Options: map[string]string{
@@ -96,7 +96,7 @@ func init() {
 		},
 		`postgresql`: &postgresql.ConnectionURL{
 			Database: `upperio_tests`,
-			Address:  db.Host(host),
+			Host:     host,
 			User:     `upperio_tests`,
 			Password: `upperio_secret`,
 			Options: map[string]string{
