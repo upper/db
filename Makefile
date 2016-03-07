@@ -1,7 +1,7 @@
 reset-db:
-	make -C postgresql/_dumps all && \
-	make -C mysql/_dumps all && \
-	make -C mongo/_dumps all
+	$(MAKE) reset-db -C postgresql && \
+	$(MAKE) reset-db -C mysql && \
+	$(MAKE) reset-db -C mongo
 
 test: reset-db
 	go test ./... -v
