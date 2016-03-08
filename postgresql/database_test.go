@@ -1304,43 +1304,24 @@ func TestRawRelations(t *testing.T) {
 }
 
 func TestWrapSession(t *testing.T) {
-	dbsess, err := sql.Open("postgres", settings.String())
+	sess, err := db.Open(Adapter, settings)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	sess, err := NewSession(dbsess)
+	defer sess.Close()
+
+	tx, err := sess.Driver().(*sqlx.DB).DB.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	all, err := sess.Collections()
+	sessTx, err := sess.WithSession(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(all) < 1 {
-		t.Fatal("Expecting a collection.")
-	}
-}
-
-func TestWrapTransaction(t *testing.T) {
-	dbsess, err := sql.Open("postgres", settings.String())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tx, err := dbsess.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sess, err := NewSession(tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	all, err := sess.Collections()
+	all, err := sessTx.Collections()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1348,7 +1329,6 @@ func TestWrapTransaction(t *testing.T) {
 	if len(all) < 1 {
 		t.Fatal("Expecting a collection.")
 	}
-
 }
 
 func TestRawQuery(t *testing.T) {

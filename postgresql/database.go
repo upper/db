@@ -71,6 +71,33 @@ type columnSchemaT struct {
 	DataType string `db:"data_type"`
 }
 
+func (d *database) WithSession(sess interface{}) (db.Database, error) {
+	clone := &database{
+		schema: d.schema,
+	}
+
+	mapper := sqlutil.NewMapper()
+
+	switch v := sess.(type) {
+	case *sql.DB:
+		clone.session = sqlx.NewDb(v, "postgresql")
+		clone.session.Mapper = mapper
+	case *sql.Tx:
+		tx := &sqlx.Tx{Tx: v, Mapper: mapper}
+		clone.tx = sqltx.New(tx)
+	}
+
+	clone.cachedStatements = cache.NewCache()
+	clone.collections = make(map[string]*table)
+
+	if clone.schema == nil {
+		if err := clone.populateSchema(); err != nil {
+			return nil, err
+		}
+	}
+	return clone, nil
+}
+
 func (d *database) prepareStatement(stmt *sqlgen.Statement) (p *sqlx.Stmt, query string, err error) {
 	if d.session == nil && d.tx == nil {
 		return nil, "", db.ErrNotConnected
@@ -361,29 +388,6 @@ func (d *database) wrapSession(sess interface{}) error {
 	}
 
 	return nil
-}
-
-func NewSession(dbsess interface{}) (db.Database, error) {
-	d := &database{}
-
-	switch v := dbsess.(type) {
-	case *sqlx.DB, *sqlx.Tx:
-		// Skip
-	case *sql.DB:
-		// Wrap session.
-		dbsess = sqlx.NewDb(v, `postgres`)
-	case *sql.Tx:
-		// Wrap transaction.
-		dbsess = &sqlx.Tx{Tx: v, Mapper: sqlutil.NewMapper()}
-	default:
-		return nil, errors.New("Unknown session type.")
-	}
-
-	err := d.wrapSession(dbsess)
-	if err != nil {
-		return nil, err
-	}
-	return d, nil
 }
 
 // Setup stores database settings.

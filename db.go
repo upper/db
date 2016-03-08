@@ -205,6 +205,10 @@ type Database interface {
 	// transactions, refer to the documentation of the specific database adapter
 	// to see the current status on transactions.
 	Transaction() (Tx, error)
+
+	// WithSession returns a clone of the session on the given sess context. sess
+	// can be a sql.DB or sql.Tx.
+	WithSession(sess interface{}) (Database, error)
 }
 
 // Tx is an interface that provides the same methods that the `db.Database`
