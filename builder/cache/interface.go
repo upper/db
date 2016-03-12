@@ -27,6 +27,8 @@ type Hashable interface {
 	Hash() string
 }
 
-// Cacheable type is deprecated but kept for backwards compatibiity. Will be
-// removed soon.
-type Cacheable Hashable
+// HasOnPurge type is (optionally) implemented by cache objects to clean after
+// themselves.
+type HasOnPurge interface {
+	OnPurge()
+}
