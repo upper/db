@@ -5,14 +5,14 @@ import (
 	"sync"
 	"time"
 
+	"upper.io/db.v2"
 	"upper.io/db.v2/builder"
+	"upper.io/db.v2/builder/cache"
 	"upper.io/db.v2/builder/sqlbuilder"
 	"upper.io/db.v2/builder/sqlgen"
-	"upper.io/db.v2"
 	"upper.io/db.v2/internal/adapter"
 	"upper.io/db.v2/internal/debug"
 	"upper.io/db.v2/internal/schema"
-	"upper.io/db.v2/builder/cache"
 	"upper.io/db.v2/internal/sqlutil/tx"
 )
 
@@ -53,6 +53,10 @@ type BaseDatabase struct {
 type cachedStatement struct {
 	*sql.Stmt
 	query string
+}
+
+func (c *cachedStatement) OnPurge() {
+	c.Stmt.Close()
 }
 
 func NewDatabase(partial PartialDatabase, connURL db.ConnectionURL, template *sqlgen.Template) *BaseDatabase {
@@ -136,7 +140,7 @@ func (d *BaseDatabase) Close() error {
 		if d.tx != nil && !d.tx.Done() {
 			d.tx.Rollback()
 		}
-		d.cachedStatements.Clear()
+		d.cachedStatements.Clear() // Closes prepared statements as well.
 		return d.sess.Close()
 	}
 	return nil

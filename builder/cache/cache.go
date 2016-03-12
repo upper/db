@@ -120,6 +120,11 @@ func (c *Cache) Write(h Hashable, value interface{}) {
 // it can be claimed by the garbage collector.
 func (c *Cache) Clear() {
 	c.mu.Lock()
+	for _, el := range c.cache {
+		if p, ok := el.Value.(*item).value.(HasOnPurge); ok {
+			p.OnPurge()
+		}
+	}
 	c.cache = make(map[string]*list.Element)
 	c.li.Init()
 	c.mu.Unlock()
