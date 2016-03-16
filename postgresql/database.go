@@ -95,6 +95,11 @@ func (d *database) WithSession(sess interface{}) (db.Database, error) {
 			return nil, err
 		}
 	}
+
+	if _, ok := sess.(*sql.Tx); ok {
+		return &tx{Tx: clone.tx, database: clone}, nil
+	}
+
 	return clone, nil
 }
 
