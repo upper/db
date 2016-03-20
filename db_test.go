@@ -549,18 +549,9 @@ func TestSimpleCRUD(t *testing.T) {
 				BornUT: timeType{born},
 			}
 
-			col, err := sess.Collection(`birthdays`)
-
-			if err != nil {
-				if wrapper == `mongo` && err == db.ErrCollectionDoesNotExist {
-					// Expected error with mongodb.
-				} else {
-					t.Fatalf(`Could not use collection with wrapper %s: %q`, wrapper, err)
-				}
-			}
+			col := sess.Collection(`birthdays`)
 
 			var id interface{}
-
 			if id, err = col.Append(controlItem); err != nil {
 				t.Fatalf(`Could not append item with wrapper %s: %q`, wrapper, err)
 			}
@@ -693,16 +684,7 @@ func TestFibonacci(t *testing.T) {
 			}
 			defer sess.Close()
 
-			var col db.Collection
-			col, err = sess.Collection("fibonacci")
-
-			if err != nil {
-				if wrapper == `mongo` && err == db.ErrCollectionDoesNotExist {
-					// Expected error with mongodb.
-				} else {
-					t.Fatalf(`Could not use collection with wrapper %s: %q`, wrapper, err)
-				}
-			}
+			col := sess.Collection("fibonacci")
 
 			// Adding some items.
 			var i uint64
@@ -962,16 +944,7 @@ func TestEven(t *testing.T) {
 			}
 			defer sess.Close()
 
-			var col db.Collection
-			col, err = sess.Collection("is_even")
-
-			if err != nil {
-				if wrapper == `mongo` && err == db.ErrCollectionDoesNotExist {
-					// Expected error with mongodb.
-				} else {
-					t.Fatalf(`Could not use collection with wrapper %s: %q`, wrapper, err)
-				}
-			}
+			col := sess.Collection("is_even")
 
 			// Adding some items.
 			var i int
@@ -1067,7 +1040,6 @@ func TestEven(t *testing.T) {
 
 func TestExplicitAndDefaultMapping(t *testing.T) {
 	var err error
-	var col db.Collection
 	var sess db.Database
 	var res db.Result
 
@@ -1087,13 +1059,7 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 
 			defer sess.Close()
 
-			if col, err = sess.Collection("CaSe_TesT"); err != nil {
-				if wrapper == `mongo` && err == db.ErrCollectionDoesNotExist {
-					// Nothing, this is expected.
-				} else {
-					t.Fatal(err)
-				}
-			}
+			col := sess.Collection("CaSe_TesT")
 
 			if err = col.Truncate(); err != nil {
 				if wrapper == `mongo` {

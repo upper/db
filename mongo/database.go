@@ -156,21 +156,8 @@ func (s *Source) Collections() (cols []string, err error) {
 	return cols, nil
 }
 
-// C returns a collection interface.
-func (s *Source) C(name string) db.Collection {
-	if col, ok := s.collections[name]; ok {
-		// We can safely ignore if the collection exists or not.
-		return col
-	}
-
-	c, _ := s.Collection(name)
-	return c
-}
-
 // Collection returns a collection by name.
-func (s *Source) Collection(name string) (db.Collection, error) {
-	var err error
-
+func (s *Source) Collection(name string) db.Collection {
 	s.collectionsMu.Lock()
 	defer s.collectionsMu.Unlock()
 
@@ -185,11 +172,7 @@ func (s *Source) Collection(name string) (db.Collection, error) {
 		s.collections[name] = col
 	}
 
-	if !col.Exists() {
-		err = db.ErrCollectionDoesNotExist
-	}
-
-	return col, err
+	return col
 }
 
 func (s *Source) versionAtLeast(version ...int) bool {

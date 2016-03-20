@@ -80,10 +80,7 @@ func BenchmarkUpperAppend(b *testing.B) {
 
 	defer sess.Close()
 
-	artist, err := sess.Collection("artist")
-	if err != nil {
-		b.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	artist.Truncate()
 
@@ -110,10 +107,7 @@ func BenchmarkUpperAppendVariableArgs(b *testing.B) {
 
 	defer sess.Close()
 
-	artist, err := sess.Collection("artist")
-	if err != nil {
-		b.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	artist.Truncate()
 
@@ -193,10 +187,7 @@ func BenchmarkUpperFind(b *testing.B) {
 
 	defer sess.Close()
 
-	artist, err := sess.Collection("artist")
-	if err != nil {
-		b.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	type artistType struct {
 		Name string `bson:"name"`
@@ -207,32 +198,6 @@ func BenchmarkUpperFind(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		res := artist.Find(db.Cond{"name": artistN(i)})
-		if err = res.One(&item); err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-// BenchmarkUpperFindWithC benchmarks upper.io/db.v2's One method.
-func BenchmarkUpperFindWithC(b *testing.B) {
-	var err error
-	var sess db.Database
-
-	if sess, err = connectAndAddFakeRows(); err != nil {
-		b.Fatal(err)
-	}
-
-	defer sess.Close()
-
-	type artistType struct {
-		Name string `db:"name"`
-	}
-
-	var item artistType
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		res := sess.C("artist").Find(db.Cond{"name": artistN(i)})
 		if err = res.One(&item); err != nil {
 			b.Fatal(err)
 		}
@@ -250,10 +215,7 @@ func BenchmarkUpperFindAll(b *testing.B) {
 
 	defer sess.Close()
 
-	artist, err := sess.Collection("artist")
-	if err != nil {
-		b.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	type artistType struct {
 		Name string `bson:"name"`
@@ -309,10 +271,7 @@ func BenchmarkUpperUpdate(b *testing.B) {
 
 	defer sess.Close()
 
-	artist, err := sess.Collection("artist")
-	if err != nil {
-		b.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	type artistType struct {
 		Name string `bson:"name"`
@@ -362,10 +321,7 @@ func BenchmarkUpperRemove(b *testing.B) {
 
 	defer sess.Close()
 
-	artist, err := sess.Collection("artist")
-	if err != nil {
-		b.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -389,10 +345,7 @@ func BenchmarkUpperGetCollection(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := sess.Collection("artist")
-		if err != nil {
-			b.Fatal(err)
-		}
+		sess.Collection("artist")
 	}
 }
 
@@ -409,6 +362,6 @@ func BenchmarkUpperC(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		sess.C("artist")
+		sess.Collection("artist")
 	}
 }

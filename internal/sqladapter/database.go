@@ -10,7 +10,6 @@ import (
 	"upper.io/db.v2/builder/cache"
 	"upper.io/db.v2/builder/sqlbuilder"
 	"upper.io/db.v2/builder/sqlgen"
-	"upper.io/db.v2/internal/adapter"
 	"upper.io/db.v2/internal/debug"
 	"upper.io/db.v2/internal/schema"
 	"upper.io/db.v2/internal/sqlutil/tx"
@@ -92,8 +91,9 @@ func (d *BaseDatabase) Tx() *sqltx.Tx {
 	return d.tx
 }
 
-func (d *BaseDatabase) NewSchema() {
+func (d *BaseDatabase) NewSchema() *schema.DatabaseSchema {
 	d.schema = schema.NewDatabaseSchema()
+	return d.schema
 }
 
 func (d *BaseDatabase) Schema() *schema.DatabaseSchema {
@@ -146,39 +146,19 @@ func (d *BaseDatabase) Close() error {
 	return nil
 }
 
-// C returns a collection interface.
-func (d *BaseDatabase) C(name string) db.Collection {
+// Collection returns a Collection given a name.
+func (d *BaseDatabase) Collection(name string) db.Collection {
+	d.collectionsMu.Lock()
 	if c, ok := d.collections[name]; ok {
+		d.collectionsMu.Unlock()
 		return c
 	}
 
-	c, err := d.Collection(name)
-	if err != nil {
-		return &adapter.NonExistentCollection{Err: err}
-	}
-
-	return c
-}
-
-// Collection returns the table that matches the given name.
-func (d *BaseDatabase) Collection(name string) (db.Collection, error) {
-	if d.tx != nil {
-		if d.tx.Done() {
-			return nil, sql.ErrTxDone
-		}
-	}
-
-	if err := d.partial.TableExists(name); err != nil {
-		return nil, err
-	}
-
 	col := d.partial.NewTable(name)
-
-	d.collectionsMu.Lock()
 	d.collections[name] = col
 	d.collectionsMu.Unlock()
 
-	return col, nil
+	return col
 }
 
 func (d *BaseDatabase) ConnectionURL() db.ConnectionURL {
@@ -187,7 +167,7 @@ func (d *BaseDatabase) ConnectionURL() db.ConnectionURL {
 
 // Name returns the name of the database.
 func (d *BaseDatabase) Name() string {
-	return d.schema.Name
+	return d.schema.Name()
 }
 
 // Exec compiles and executes a statement that does not return any rows.

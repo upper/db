@@ -223,31 +223,11 @@ func SkipTestOpenWithWrongData(t *testing.T) {
 	}
 }
 
-// Test Use
-func TestUse(t *testing.T) {
-	var err error
-	var sess db.Database
-
-	// Opening database, no error expected.
-	if sess, err = db.Open(Adapter, settings); err != nil {
-		t.Fatal(err)
-	}
-
-	// Connecting to another database, error expected.
-	if err = sess.Use("Another database"); err == nil {
-		t.Fatal("This database should not exist!")
-	}
-
-	// Closing connection.
-	sess.Close()
-}
-
 // Attempts to get all collections and truncate each one of them.
 func TestTruncate(t *testing.T) {
 	var err error
 	var sess db.Database
 	var collections []string
-	var col db.Collection
 
 	// Opening database.
 	if sess, err = db.Open(Adapter, settings); err != nil {
@@ -270,12 +250,10 @@ func TestTruncate(t *testing.T) {
 	for _, name := range collections {
 
 		// Getting a collection.
-		if col, err = sess.Collection(name); err != nil {
-			t.Fatal(err)
-		}
+		col := sess.Collection(name)
 
 		// Table must exists before we can use it.
-		if col.Exists() == true {
+		if col.Exists() {
 			// Truncating the table.
 			if err = col.Truncate(); err != nil {
 				t.Fatal(err)
@@ -292,10 +270,7 @@ func TestSetCursorError(t *testing.T) {
 	}
 	defer sess.Close()
 
-	artist, err := sess.Collection("artist")
-	if err != nil {
-		t.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	// trigger Postgres error. "" is not an int.
 	res := artist.Find(db.Cond{"id": ""})
@@ -322,9 +297,7 @@ func TestAppend(t *testing.T) {
 
 	defer sess.Close()
 
-	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatal(err)
-	}
+	artist = sess.Collection("artist")
 
 	// Attempt to append a map.
 	itemMap := map[string]string{
@@ -408,9 +381,7 @@ func TestResultCount(t *testing.T) {
 	defer sess.Close()
 
 	// We should close the database when it's no longer in use.
-	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatal(err)
-	}
+	artist = sess.Collection("artist")
 
 	// Defining a set with no conditions.
 	res = artist.Find()
@@ -435,10 +406,10 @@ func TestResultNonExistentCount(t *testing.T) {
 
 	defer sess.Close()
 
-	total, err := sess.C("notartist").Find().Count()
+	total, err := sess.Collection("notartist").Find().Count()
 
-	if err != db.ErrCollectionDoesNotExist {
-		t.Fatal("Expecting a specific error, got", err)
+	if err == nil {
+		t.Fatal("Expecting an error")
 	}
 
 	if total != 0 {
@@ -451,7 +422,6 @@ func TestResultFetch(t *testing.T) {
 	var err error
 	var res db.Result
 	var sess db.Database
-	var artist db.Collection
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatal(err)
@@ -459,9 +429,7 @@ func TestResultFetch(t *testing.T) {
 
 	defer sess.Close()
 
-	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	// Dumping into a map.
 	rowMap := map[string]interface{}{}
@@ -583,7 +551,6 @@ func TestResultFetch(t *testing.T) {
 func TestResultFetchOne(t *testing.T) {
 	var err error
 	var sess db.Database
-	var artist db.Collection
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatal(err)
@@ -591,9 +558,7 @@ func TestResultFetchOne(t *testing.T) {
 
 	defer sess.Close()
 
-	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	// Fetching one struct
 	var someArtist artistType
@@ -627,7 +592,6 @@ func TestResultFetchOne(t *testing.T) {
 func TestResultFetchAll(t *testing.T) {
 	var err error
 	var sess db.Database
-	var artist db.Collection
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatal(err)
@@ -635,9 +599,7 @@ func TestResultFetchAll(t *testing.T) {
 
 	defer sess.Close()
 
-	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	// Fetching all artists into struct
 	artists := []artistType{}
@@ -698,9 +660,7 @@ func TestInlineStructs(t *testing.T) {
 
 	defer sess.Close()
 
-	if review, err = sess.Collection("review"); err != nil {
-		t.Fatal(err)
-	}
+	review = sess.Collection("review")
 
 	if err = review.Truncate(); err != nil {
 		t.Fatal(err)
@@ -742,7 +702,6 @@ func TestInlineStructs(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	var err error
 	var sess db.Database
-	var artist db.Collection
 
 	if sess, err = db.Open(Adapter, settings); err != nil {
 		t.Fatal(err)
@@ -750,9 +709,7 @@ func TestUpdate(t *testing.T) {
 
 	defer sess.Close()
 
-	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	// Defining destination struct
 	value := struct {
@@ -859,9 +816,7 @@ func TestFunction(t *testing.T) {
 
 	defer sess.Close()
 
-	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatal(err)
-	}
+	artist = sess.Collection("artist")
 
 	rowStruct := struct {
 		ID   uint64
@@ -957,9 +912,7 @@ func TestNullableFields(t *testing.T) {
 
 	var test testType
 
-	if col, err = sess.Collection(`data_types`); err != nil {
-		t.Fatal(err)
-	}
+	col = sess.Collection(`data_types`)
 
 	if err = col.Truncate(); err != nil {
 		t.Fatal(err)
@@ -1044,9 +997,7 @@ func TestGroup(t *testing.T) {
 
 	defer sess.Close()
 
-	if stats, err = sess.Collection("stats_test"); err != nil {
-		t.Fatal(err)
-	}
+	stats = sess.Collection("stats_test")
 
 	// Truncating table.
 	if err = stats.Truncate(); err != nil {
@@ -1092,9 +1043,7 @@ func TestRemove(t *testing.T) {
 
 	defer sess.Close()
 
-	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatal(err)
-	}
+	artist = sess.Collection("artist")
 
 	// Getting the artist with id = 1
 	res = artist.Find(db.Cond{"id": 1})
@@ -1122,10 +1071,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var artist db.Collection
-	if artist, err = tx.Collection("artist"); err != nil {
-		t.Fatal(err)
-	}
+	artist := tx.Collection("artist")
 
 	if err = artist.Truncate(); err != nil {
 		t.Fatal(err)
@@ -1141,7 +1087,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	}
 
 	// An attempt to use the same transaction must fail.
-	if _, err = tx.Collection("artist"); err == nil {
+	if err = tx.Commit(); err == nil {
 		t.Fatalf("Illegal, transaction has already been commited.")
 	}
 
@@ -1152,9 +1098,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if artist, err = tx.Collection("artist"); err != nil {
-		t.Fatal(err)
-	}
+	artist = tx.Collection("artist")
 
 	// Won't fail.
 	if _, err = artist.Append(artistType{2, "Second"}); err != nil {
@@ -1180,9 +1124,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	}
 
 	// Let's verify we still have one element.
-	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatal(err)
-	}
+	artist = sess.Collection("artist")
 
 	var count uint64
 	if count, err = artist.Find().Count(); err != nil {
@@ -1200,9 +1142,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if artist, err = tx.Collection("artist"); err != nil {
-		t.Fatal(err)
-	}
+	artist = tx.Collection("artist")
 
 	// Won't fail.
 	if _, err = artist.Append(artistType{2, "Second"}); err != nil {
@@ -1224,9 +1164,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	}
 
 	// Let's verify we still have one element.
-	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatal(err)
-	}
+	artist = sess.Collection("artist")
 
 	if count, err = artist.Find().Count(); err != nil {
 		t.Fatal(err)
@@ -1243,9 +1181,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if artist, err = tx.Collection("artist"); err != nil {
-		t.Fatal(err)
-	}
+	artist = tx.Collection("artist")
 
 	// Won't fail.
 	if _, err = artist.Append(artistType{2, "Second"}); err != nil {
@@ -1272,9 +1208,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	}
 
 	// Let's verify we have 4 rows.
-	if artist, err = sess.Collection("artist"); err != nil {
-		t.Fatal(err)
-	}
+	artist = sess.Collection("artist")
 
 	if count, err = artist.Find().Count(); err != nil {
 		t.Fatal(err)
@@ -1298,9 +1232,7 @@ func TestCompositeKeys(t *testing.T) {
 
 	defer sess.Close()
 
-	if compositeKeys, err = sess.Collection("composite_keys"); err != nil {
-		t.Fatal(err)
-	}
+	compositeKeys = sess.Collection("composite_keys")
 
 	n := rand.Intn(100000)
 
@@ -1353,9 +1285,7 @@ func TestDataTypes(t *testing.T) {
 	defer sess.Close()
 
 	// Getting a pointer to the "data_types" collection.
-	if dataTypes, err = sess.Collection("data_types"); err != nil {
-		t.Fatal(err)
-	}
+	dataTypes = sess.Collection("data_types")
 
 	// Removing all data.
 	if err = dataTypes.Truncate(); err != nil {
@@ -1411,9 +1341,7 @@ func TestOptionTypes(t *testing.T) {
 
 	defer sess.Close()
 
-	if optionTypes, err = sess.Collection("option_types"); err != nil {
-		t.Fatal(err)
-	}
+	optionTypes = sess.Collection("option_types")
 
 	if err = optionTypes.Truncate(); err != nil {
 		t.Fatal(err)
@@ -1616,9 +1544,7 @@ func TestOptionTypeJsonbStruct(t *testing.T) {
 
 	defer sess.Close()
 
-	if optionTypes, err = sess.Collection("option_types"); err != nil {
-		t.Fatal(err)
-	}
+	optionTypes = sess.Collection("option_types")
 
 	if err = optionTypes.Truncate(); err != nil {
 		t.Fatal(err)

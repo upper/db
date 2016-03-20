@@ -261,10 +261,7 @@ func BenchmarkUpperAppend(b *testing.B) {
 
 	defer sess.Close()
 
-	artist, err := sess.Collection("artist")
-	if err != nil {
-		b.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	artist.Truncate()
 
@@ -291,10 +288,7 @@ func BenchmarkUpperAppendVariableArgs(b *testing.B) {
 
 	defer sess.Close()
 
-	artist, err := sess.Collection("artist")
-	if err != nil {
-		b.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	artist.Truncate()
 
@@ -327,10 +321,7 @@ func BenchmarkUpperAppendTransaction(b *testing.B) {
 	}
 	defer tx.Close()
 
-	var artist db.Collection
-	if artist, err = tx.Collection("artist"); err != nil {
-		b.Fatal(err)
-	}
+	artist := tx.Collection("artist")
 
 	if err = artist.Truncate(); err != nil {
 		b.Fatal(err)
@@ -370,10 +361,7 @@ func BenchmarkUpperAppendTransactionWithMap(b *testing.B) {
 	}
 	defer tx.Close()
 
-	var artist db.Collection
-	if artist, err = tx.Collection("artist"); err != nil {
-		b.Fatal(err)
-	}
+	artist := tx.Collection("artist")
 
 	if err = artist.Truncate(); err != nil {
 		b.Fatal(err)
@@ -459,10 +447,7 @@ func BenchmarkUpperFind(b *testing.B) {
 
 	defer sess.Close()
 
-	artist, err := sess.Collection("artist")
-	if err != nil {
-		b.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	type artistType struct {
 		Name string `db:"name"`
@@ -473,32 +458,6 @@ func BenchmarkUpperFind(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		res := artist.Find(db.Cond{"name": artistN(i)})
-		if err = res.One(&item); err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-// BenchmarkUpperFindWithC benchmarks upper.io/db.v2's One method.
-func BenchmarkUpperFindWithC(b *testing.B) {
-	var err error
-	var sess db.Database
-
-	if sess, err = connectAndAddFakeRows(); err != nil {
-		b.Fatal(err)
-	}
-
-	defer sess.Close()
-
-	type artistType struct {
-		Name string `db:"name"`
-	}
-
-	var item artistType
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		res := sess.C("artist").Find(db.Cond{"name": artistN(i)})
 		if err = res.One(&item); err != nil {
 			b.Fatal(err)
 		}
@@ -516,10 +475,7 @@ func BenchmarkUpperFindAll(b *testing.B) {
 
 	defer sess.Close()
 
-	artist, err := sess.Collection("artist")
-	if err != nil {
-		b.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	type artistType struct {
 		Name string `db:"name"`
@@ -601,10 +557,7 @@ func BenchmarkUpperUpdate(b *testing.B) {
 
 	defer sess.Close()
 
-	artist, err := sess.Collection("artist")
-	if err != nil {
-		b.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	type artistType struct {
 		Name string `db:"name"`
@@ -679,10 +632,7 @@ func BenchmarkUpperRemove(b *testing.B) {
 
 	defer sess.Close()
 
-	artist, err := sess.Collection("artist")
-	if err != nil {
-		b.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -706,27 +656,7 @@ func BenchmarkUpperGetCollection(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := sess.Collection("artist")
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-// BenchmarkUpperC
-func BenchmarkUpperC(b *testing.B) {
-	var err error
-	var sess db.Database
-
-	if sess, err = db.Open(Adapter, settings); err != nil {
-		b.Fatal(err)
-	}
-
-	defer sess.Close()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		sess.C("artist")
+		sess.Collection("artist")
 	}
 }
 
@@ -749,10 +679,7 @@ func BenchmarkUpperCommitManyTransactions(b *testing.B) {
 			b.Fatal(err)
 		}
 
-		var artist db.Collection
-		if artist, err = tx.Collection("artist"); err != nil {
-			b.Fatal(err)
-		}
+		artist := tx.Collection("artist")
 
 		if err = artist.Truncate(); err != nil {
 			b.Fatal(err)
@@ -793,10 +720,7 @@ func BenchmarkUpperRollbackManyTransactions(b *testing.B) {
 			b.Fatal(err)
 		}
 
-		var artist db.Collection
-		if artist, err = tx.Collection("artist"); err != nil {
-			b.Fatal(err)
-		}
+		artist := tx.Collection("artist")
 
 		if err = artist.Truncate(); err != nil {
 			b.Fatal(err)
