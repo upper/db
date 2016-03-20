@@ -22,6 +22,7 @@
 package cache
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -83,9 +84,17 @@ func BenchmarkReadNonExistentValue(b *testing.B) {
 	}
 }
 
-func BenchmarkWriteValue(b *testing.B) {
+func BenchmarkWriteSameValue(b *testing.B) {
 	z := NewCache()
 	for i := 0; i < b.N; i++ {
+		z.Write(&key, value)
+	}
+}
+
+func BenchmarkWriteNewValue(b *testing.B) {
+	z := NewCache()
+	for i := 0; i < b.N; i++ {
+		key := cacheableT{fmt.Sprintf("item-%d", i)}
 		z.Write(&key, value)
 	}
 }

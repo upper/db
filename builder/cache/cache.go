@@ -22,71 +22,97 @@
 package cache
 
 import (
+	"container/list"
+	"errors"
 	"fmt"
-	"math/rand"
 	"strconv"
 	"sync"
-	"time"
 	"upper.io/db.v2/builder/cache/hashstructure"
 )
 
-const (
-	maxCachedObjects    = 1024 * 8
-	mapCleanDivisor     = 1000
-	mapCleanProbability = 1
-)
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
+const defaultCapacity = 128
 
 // Cache holds a map of volatile key -> values.
 type Cache struct {
-	cache map[string]interface{}
+	cache map[string]*list.Element
+	li    *list.List
+	cap   int
 	mu    sync.RWMutex
 }
 
-// NewCache initializes a new caching space.
-func NewCache() (c *Cache) {
-	return &Cache{
-		cache: make(map[string]interface{}),
-	}
+type item struct {
+	key   string
+	value interface{}
 }
 
-// Read attempts to retrieve a cached value from memory. If the value does not
-// exists returns an empty string and false.
-func (c *Cache) Read(ob Hashable) (string, bool) {
-	c.mu.RLock()
-	data, ok := c.cache[ob.Hash()]
-	c.mu.RUnlock()
+// NewCacheWithCapacity initializes a new caching space with the given
+// capacity.
+func NewCacheWithCapacity(cap int) (*Cache, error) {
+	if cap < 1 {
+		return nil, errors.New("Capacity must be greater than zero.")
+	}
+	return &Cache{
+		cache: make(map[string]*list.Element),
+		li:    list.New(),
+		cap:   cap,
+	}, nil
+}
 
-	if ok {
-		if s, ok := data.(string); ok {
+// NewCache initializes a new caching space with default settings.
+func NewCache() *Cache {
+	c, err := NewCacheWithCapacity(defaultCapacity)
+	if err != nil {
+		panic(err.Error()) // Should never happen as we're not providing a negative defaultCapacity.
+	}
+	return c
+}
+
+// Read attempts to retrieve a cached value as a string, if the value does not
+// exists returns an empty string and false.
+func (c *Cache) Read(h Hashable) (string, bool) {
+	if v, ok := c.ReadRaw(h); ok {
+		if s, ok := v.(string); ok {
 			return s, true
 		}
 	}
-
 	return "", false
 }
 
-func (c *Cache) ReadRaw(ob Hashable) (interface{}, bool) {
+// ReadRaw attempts to retrieve a cached value as an interface{}, if the value
+// does not exists returns nil and false.
+func (c *Cache) ReadRaw(h Hashable) (interface{}, bool) {
 	c.mu.RLock()
-	data, ok := c.cache[ob.Hash()]
+	data, ok := c.cache[h.Hash()]
 	c.mu.RUnlock()
-	return data, ok
+	if ok {
+		return data.Value.(*item).value, true
+	}
+	return nil, false
 }
 
 // Write stores a value in memory. If the value already exists its overwritten.
-func (c *Cache) Write(ob Hashable, v interface{}) {
-
-	if maxCachedObjects > 0 && maxCachedObjects < len(c.cache) {
-		c.Clear()
-	} else if rand.Intn(mapCleanDivisor) <= mapCleanProbability {
-		c.Clear()
-	}
+func (c *Cache) Write(h Hashable, value interface{}) {
+	key := h.Hash()
 
 	c.mu.Lock()
-	c.cache[ob.Hash()] = v
+
+	if el, ok := c.cache[key]; ok {
+		el.Value.(*item).value = value
+		c.li.MoveToFront(el)
+		c.mu.Unlock()
+		return
+	}
+
+	c.cache[key] = c.li.PushFront(&item{key, value})
+
+	if c.li.Len() > c.cap {
+		el := c.li.Remove(c.li.Back())
+		delete(c.cache, el.(*item).key)
+		if p, ok := el.(*item).value.(HasOnPurge); ok {
+			p.OnPurge()
+		}
+	}
+
 	c.mu.Unlock()
 }
 
@@ -94,7 +120,13 @@ func (c *Cache) Write(ob Hashable, v interface{}) {
 // it can be claimed by the garbage collector.
 func (c *Cache) Clear() {
 	c.mu.Lock()
-	c.cache = make(map[string]interface{})
+	for _, el := range c.cache {
+		if p, ok := el.Value.(*item).value.(HasOnPurge); ok {
+			p.OnPurge()
+		}
+	}
+	c.cache = make(map[string]*list.Element)
+	c.li.Init()
 	c.mu.Unlock()
 }
 
