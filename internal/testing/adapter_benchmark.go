@@ -370,7 +370,7 @@ func BenchmarkSQLInsert(b *testing.B) {
 func BenchmarkDBRInsert(b *testing.B) {
 	var err error
 
-	conn, err := dbr.Open("postgres", settings.String(), nil)
+	conn, err := dbr.Open(Adapter, settings.String(), nil)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -425,7 +425,7 @@ func BenchmarkSQLInsertWithArgs(b *testing.B) {
 func BenchmarkDBRInsertWithArgs(b *testing.B) {
 	var err error
 
-	conn, err := dbr.Open("postgres", settings.String(), nil)
+	conn, err := dbr.Open(Adapter, settings.String(), nil)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -516,7 +516,7 @@ func BenchmarkSQLPreparedInsertWithArguments(b *testing.B) {
 func BenchmarkDBRPreparedInsertWithArguments(b *testing.B) {
 	var err error
 
-	conn, err := dbr.Open("postgres", settings.String(), nil)
+	conn, err := dbr.Open(Adapter, settings.String(), nil)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -583,7 +583,7 @@ func BenchmarkSQLPreparedInsertWithVariableArgs(b *testing.B) {
 func BenchmarkDBRPreparedInsertWithVariableArgs(b *testing.B) {
 	var err error
 
-	conn, err := dbr.Open("postgres", settings.String(), nil)
+	conn, err := dbr.Open(Adapter, settings.String(), nil)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -692,7 +692,7 @@ func BenchmarkDBRSelect(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	conn, err := dbr.Open("postgres", settings.String(), nil)
+	conn, err := dbr.Open(Adapter, settings.String(), nil)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -746,7 +746,7 @@ func BenchmarkDBRPreparedSelect(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	conn, err := dbr.Open("postgres", settings.String(), nil)
+	conn, err := dbr.Open(Adapter, settings.String(), nil)
 	if err != nil {
 		b.Fatal(err)
 	}

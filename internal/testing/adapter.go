@@ -47,8 +47,6 @@ func (item itemWithKey) Constraints() db.Cond {
 func TestMain(m *testing.M) {
 	flag.Parse()
 
-	config()
-
 	if err := tearUp(); err != nil {
 		log.Fatal("tearUp", err)
 	}
@@ -105,10 +103,12 @@ func TestExpectCursorError(t *testing.T) {
 	artist := sess.Collection("artist")
 
 	res := artist.Find(db.Cond{"id": "X"})
-	c, err := res.Count()
-
-	assert.Error(t, err)
+	c, _ := res.Count()
 	assert.Equal(t, uint64(0), c)
+
+	var item map[string]interface{}
+	err := res.One(&item)
+	assert.Error(t, err)
 }
 
 func TestAppendToArtistsTable(t *testing.T) {
@@ -339,7 +339,7 @@ func TestInlineStructs(t *testing.T) {
 	type reviewTypeDetails struct {
 		Name     string    `db:"name"`
 		Comments string    `db:"comments"`
-		Created  time.Time `db:"created"`
+		Created  time.Time `db:"created,omitempty"`
 	}
 
 	type reviewType struct {
@@ -364,6 +364,12 @@ func TestInlineStructs(t *testing.T) {
 		},
 	}
 
+	if Adapter == "mysql" {
+		rec.Details.Created = time.Date(2016, time.January, 1, 2, 3, 4, 0, time.UTC)
+	} else {
+		rec.Details.Created = time.Date(2016, time.January, 1, 2, 3, 4, 0, time.FixedZone("", 0))
+	}
+
 	id, err := review.Append(rec)
 	assert.NoError(t, err)
 	assert.NotZero(t, id.(int64))
@@ -374,10 +380,7 @@ func TestInlineStructs(t *testing.T) {
 	err = review.Find().One(&recChk)
 	assert.NoError(t, err)
 
-	assert.NotZero(t, recChk.Details.Name)
-
-	assert.Equal(t, recChk.ID, rec.ID)
-	assert.Equal(t, recChk.Details.Name, rec.Details.Name)
+	assert.Equal(t, recChk, rec)
 }
 
 func TestUpdate(t *testing.T) {
@@ -813,8 +816,14 @@ func TestDataTypes(t *testing.T) {
 	loc, err := time.LoadLocation(testTimeZone)
 	assert.NoError(t, err)
 
-	ts := time.Date(2011, 7, 28, 1, 2, 3, 0, loc)                    // timestamp with time zone
-	tnz := time.Date(2012, 7, 28, 1, 2, 3, 0, time.FixedZone("", 0)) // timestamp without time zone
+	ts := time.Date(2011, 7, 28, 1, 2, 3, 0, loc) // timestamp with time zone
+
+	var tnz time.Time
+	if Adapter == "mysql" {
+		tnz = time.Date(2012, 7, 28, 1, 2, 3, 0, time.UTC) // timestamp without time zone
+	} else {
+		tnz = time.Date(2012, 7, 28, 1, 2, 3, 0, time.FixedZone("", 0)) // timestamp without time zone
+	}
 
 	testValues := testValuesStruct{
 		1, 1, 1, 1, 1,
@@ -848,209 +857,10 @@ func TestDataTypes(t *testing.T) {
 
 	// Copy the default date (this value is set by the database)
 	testValues.DateD = item.DateD
+	item.Date = item.Date.In(loc)
 
 	// The original value and the test subject must match.
 	assert.Equal(t, testValues, item)
-}
-
-func TestOptionTypes(t *testing.T) {
-	sess := mustOpen()
-	defer sess.Close()
-
-	optionTypes := sess.Collection("option_types")
-	err := optionTypes.Truncate()
-	assert.NoError(t, err)
-
-	// TODO: lets do some benchmarking on these auto-wrapped option types..
-
-	// TODO: add nullable jsonb field mapped to a []string
-
-	// A struct with wrapped option types defined in the struct tags
-	// for postgres string array and jsonb types
-	type optionType struct {
-		ID       int64                  `db:"id,omitempty"`
-		Name     string                 `db:"name"`
-		Tags     []string               `db:"tags,stringarray"`
-		Settings map[string]interface{} `db:"settings,jsonb"`
-	}
-
-	// Item 1
-	item1 := optionType{
-		Name:     "Food",
-		Tags:     []string{"toronto", "pizza"},
-		Settings: map[string]interface{}{"a": 1, "b": 2},
-	}
-
-	id, err := optionTypes.Append(item1)
-	assert.NoError(t, err)
-
-	if pk, ok := id.(int64); !ok || pk == 0 {
-		t.Fatalf("Expecting an ID.")
-	}
-
-	var item1Chk optionType
-	err = optionTypes.Find(db.Cond{"id": id}).One(&item1Chk)
-	assert.NoError(t, err)
-
-	assert.Equal(t, float64(1), item1Chk.Settings["a"])
-	assert.Equal(t, "toronto", item1Chk.Tags[0])
-
-	// Item 1 B
-	item1b := &optionType{
-		Name:     "Golang",
-		Tags:     []string{"love", "it"},
-		Settings: map[string]interface{}{"go": 1, "lang": 2},
-	}
-
-	id, err = optionTypes.Append(item1b)
-	assert.NoError(t, err)
-
-	if pk, ok := id.(int64); !ok || pk == 0 {
-		t.Fatalf("Expecting an ID.")
-	}
-
-	var item1bChk optionType
-	err = optionTypes.Find(db.Cond{"id": id}).One(&item1bChk)
-	assert.NoError(t, err)
-
-	assert.Equal(t, float64(1), item1bChk.Settings["go"])
-	assert.Equal(t, "love", item1bChk.Tags[0])
-
-	// Item 1 C
-	item1c := &optionType{
-		Name: "Sup", Tags: []string{}, Settings: map[string]interface{}{},
-	}
-
-	id, err = optionTypes.Append(item1c)
-	assert.NoError(t, err)
-
-	if pk, ok := id.(int64); !ok || pk == 0 {
-		t.Fatalf("Expecting an ID.")
-	}
-
-	var item1cChk optionType
-	err = optionTypes.Find(db.Cond{"id": id}).One(&item1cChk)
-	assert.NoError(t, err)
-
-	assert.Zero(t, len(item1cChk.Tags))
-	assert.Zero(t, len(item1cChk.Settings))
-
-	// An option type to pointer jsonb field
-	type optionType2 struct {
-		ID       int64                   `db:"id,omitempty"`
-		Name     string                  `db:"name"`
-		Tags     []string                `db:"tags,stringarray"`
-		Settings *map[string]interface{} `db:"settings,jsonb"`
-	}
-
-	item2 := optionType2{
-		Name: "JS", Tags: []string{"hi", "bye"}, Settings: nil,
-	}
-
-	id, err = optionTypes.Append(item2)
-	assert.NoError(t, err)
-
-	if pk, ok := id.(int64); !ok || pk == 0 {
-		t.Fatalf("Expecting an ID.")
-	}
-
-	var item2Chk optionType2
-	res := optionTypes.Find(db.Cond{"id": id})
-	err = res.One(&item2Chk)
-	assert.NoError(t, err)
-
-	assert.Equal(t, id.(int64), item2Chk.ID)
-
-	assert.Equal(t, item2Chk.Name, item2.Name)
-
-	assert.Equal(t, item2Chk.Tags[0], item2.Tags[0])
-	assert.Equal(t, len(item2Chk.Tags), len(item2.Tags))
-
-	// Update the value
-	m := map[string]interface{}{}
-	m["lang"] = "javascript"
-	m["num"] = 31337
-	item2.Settings = &m
-	err = res.Update(item2)
-	assert.NoError(t, err)
-
-	err = res.One(&item2Chk)
-	assert.NoError(t, err)
-
-	assert.Equal(t, float64(31337), (*item2Chk.Settings)["num"].(float64))
-
-	assert.Equal(t, "javascript", (*item2Chk.Settings)["lang"])
-
-	// An option type to pointer string array field
-	type optionType3 struct {
-		ID       int64                  `db:"id,omitempty"`
-		Name     string                 `db:"name"`
-		Tags     *[]string              `db:"tags,stringarray"`
-		Settings map[string]interface{} `db:"settings,jsonb"`
-	}
-
-	item3 := optionType3{
-		Name:     "Julia",
-		Tags:     nil,
-		Settings: map[string]interface{}{"girl": true, "lang": true},
-	}
-
-	id, err = optionTypes.Append(item3)
-	assert.NoError(t, err)
-
-	if pk, ok := id.(int64); !ok || pk == 0 {
-		t.Fatalf("Expecting an ID.")
-	}
-
-	var item3Chk optionType2
-	err = optionTypes.Find(db.Cond{"id": id}).One(&item3Chk)
-	assert.NoError(t, err)
-}
-
-func TestOptionTypeJsonbStruct(t *testing.T) {
-	sess := mustOpen()
-	defer sess.Close()
-
-	optionTypes := sess.Collection("option_types")
-
-	err := optionTypes.Truncate()
-	assert.NoError(t, err)
-
-	// A struct with wrapped option types defined in the struct tags
-	// for postgres string array and jsonb types
-	type Settings struct {
-		Name string `json:"name"`
-		Num  int64  `json:"num"`
-	}
-
-	type OptionType struct {
-		ID       int64    `db:"id,omitempty"`
-		Name     string   `db:"name"`
-		Tags     []string `db:"tags,stringarray"`
-		Settings Settings `db:"settings,jsonb"`
-	}
-
-	item1 := &OptionType{
-		Name:     "Hi",
-		Tags:     []string{"aah", "ok"},
-		Settings: Settings{Name: "a", Num: 123},
-	}
-
-	id, err := optionTypes.Append(item1)
-	assert.NoError(t, err)
-
-	if pk, ok := id.(int64); !ok || pk == 0 {
-		t.Fatalf("Expecting an ID.")
-	}
-
-	var item1Chk OptionType
-	err = optionTypes.Find(db.Cond{"id": id}).One(&item1Chk)
-	assert.NoError(t, err)
-
-	assert.Equal(t, 2, len(item1Chk.Tags))
-	assert.Equal(t, "aah", item1Chk.Tags[0])
-	assert.Equal(t, "a", item1Chk.Settings.Name)
-	assert.Equal(t, int64(123), item1Chk.Settings.Num)
 }
 
 func TestExhaustConnectionPool(t *testing.T) {
