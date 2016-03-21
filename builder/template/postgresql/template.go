@@ -144,7 +144,7 @@ const (
 	`
 
 	adapterTruncateLayout = `
-		DELETE FROM {{.Table}}
+		TRUNCATE TABLE {{.Table}} RESTART IDENTITY
 	`
 
 	adapterDropDatabaseLayout = `
