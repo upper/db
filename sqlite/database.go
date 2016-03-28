@@ -29,10 +29,10 @@ import (
 	"database/sql"
 
 	_ "github.com/mattn/go-sqlite3" // SQLite3 driver.
+	"upper.io/db.v2"
 	"upper.io/db.v2/builder/sqlbuilder"
 	"upper.io/db.v2/builder/sqlgen"
 	template "upper.io/db.v2/builder/template/sqlite"
-	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter"
 	"upper.io/db.v2/internal/sqlutil/tx"
 )
@@ -146,36 +146,29 @@ func (d *database) NewTable(name string) db.Collection {
 
 // Collections returns a list of non-system tables from the database.
 func (d *database) Collections() (collections []string, err error) {
+	q := d.Builder().Select("tbl_name").
+		From("sqlite_master").
+		Where("type = ?", "table")
 
-	if len(d.Schema().Tables) == 0 {
-		q := d.Builder().Select("tbl_name").
-			From("sqlite_master").
-			Where("type = ?", "table")
+	iter := q.Iterator()
+	defer iter.Close()
 
-		iter := q.Iterator()
-		defer iter.Close()
-
-		if iter.Err() != nil {
-			return nil, iter.Err()
+	for iter.Next() {
+		var tableName string
+		if err := iter.Scan(&tableName); err != nil {
+			return nil, err
 		}
-
-		for iter.Next() {
-			var tableName string
-			if err := iter.Scan(&tableName); err != nil {
-				return nil, err
-			}
-			d.Schema().AddTable(tableName)
-		}
+		collections = append(collections, tableName)
 	}
 
-	return d.Schema().Tables, nil
+	return collections, nil
 }
 
 // Drop removes all tables from the current database.
 func (d *database) Drop() error {
 	stmt := &sqlgen.Statement{
 		Type:     sqlgen.DropDatabase,
-		Database: sqlgen.DatabaseWithName(d.Schema().Name),
+		Database: sqlgen.DatabaseWithName(d.Schema().Name()),
 	}
 	if _, err := d.Builder().Exec(stmt); err != nil {
 		return err
@@ -211,36 +204,20 @@ func (d *database) Transaction() (db.Tx, error) {
 // PopulateSchema looks up for the table info in the database and populates its
 // schema for internal use.
 func (d *database) PopulateSchema() (err error) {
-	var collections []string
-
-	d.NewSchema()
+	schema := d.NewSchema()
 
 	var connURL ConnectionURL
 	if connURL, err = ParseURL(d.ConnectionURL().String()); err != nil {
 		return err
 	}
 
-	d.Schema().Name = connURL.Database
+	schema.SetName(connURL.Database)
 
-	if collections, err = d.Collections(); err != nil {
-		return err
-	}
-
-	for i := range collections {
-		if _, err = d.Collection(collections[i]); err != nil {
-			return err
-		}
-	}
-
-	return err
+	return nil
 }
 
 // TableExists checks whether a table exists and returns an error in case it doesn't.
 func (d *database) TableExists(name string) error {
-	if d.Schema().HasTable(name) {
-		return nil
-	}
-
 	q := d.Builder().Select("tbl_name").
 		From("sqlite_master").
 		Where("type = 'table' AND tbl_name = ?", name)
@@ -249,77 +226,62 @@ func (d *database) TableExists(name string) error {
 	defer iter.Close()
 
 	if iter.Next() {
-		var tableName string
-		if err := iter.Scan(&tableName); err != nil {
+		var name string
+		if err := iter.Scan(&name); err != nil {
 			return err
 		}
-	} else {
-		return db.ErrCollectionDoesNotExist
+		return nil
 	}
-
-	return nil
-}
-
-// TableColumns returns all columns from the given table.
-func (d *database) TableColumns(tableName string) ([]string, error) {
-	s := d.Schema()
-
-	if len(s.Table(tableName).Columns) == 0 {
-
-		stmt := sqlgen.RawSQL(fmt.Sprintf(`PRAGMA TABLE_INFO('%s')`, tableName))
-
-		rows, err := d.Builder().Query(stmt)
-		if err != nil {
-			return nil, err
-		}
-
-		if d.columns == nil {
-			d.columns = make(map[string][]columnSchemaT)
-		}
-
-		columns := []columnSchemaT{}
-
-		if err := sqlbuilder.NewIterator(rows).All(&columns); err != nil {
-			return nil, err
-		}
-
-		d.columns[tableName] = columns
-
-		s.TableInfo[tableName].Columns = make([]string, 0, len(columns))
-
-		for _, col := range d.columns[tableName] {
-			s.TableInfo[tableName].Columns = append(s.TableInfo[tableName].Columns, col.Name)
-		}
-	}
-
-	return s.Table(tableName).Columns, nil
+	return db.ErrCollectionDoesNotExist
 }
 
 // TablePrimaryKey returns all primary keys from the given table.
 func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
 	tableSchema := d.Schema().Table(tableName)
 
-	d.TableColumns(tableName)
+	pk := tableSchema.PrimaryKeys()
+	if pk != nil {
+		return pk, nil
+	}
+
+	pk = []string{}
+
+	stmt := sqlgen.RawSQL(fmt.Sprintf(`PRAGMA TABLE_INFO('%s')`, tableName))
+
+	rows, err := d.Builder().Query(stmt)
+	if err != nil {
+		return nil, err
+	}
+
+	if d.columns == nil {
+		d.columns = make(map[string][]columnSchemaT)
+	}
+
+	columns := []columnSchemaT{}
+
+	if err := sqlbuilder.NewIterator(rows).All(&columns); err != nil {
+		return nil, err
+	}
 
 	maxValue := -1
 
-	for i := range d.columns[tableName] {
-		if d.columns[tableName][i].PK > 0 && d.columns[tableName][i].PK > maxValue {
-			maxValue = d.columns[tableName][i].PK
+	for _, column := range columns {
+		if column.PK > 0 && column.PK > maxValue {
+			maxValue = column.PK
 		}
 	}
 
 	if maxValue > 0 {
-		tableSchema.PrimaryKey = make([]string, maxValue)
-
-		for i := range d.columns[tableName] {
-			if d.columns[tableName][i].PK > 0 {
-				tableSchema.PrimaryKey[d.columns[tableName][i].PK-1] = d.columns[tableName][i].Name
+		for _, column := range columns {
+			if column.PK > 0 {
+				pk = append(pk, column.Name)
 			}
 		}
 	}
 
-	return tableSchema.PrimaryKey, nil
+	tableSchema.SetPrimaryKeys(pk)
+
+	return pk, nil
 }
 
 func (d *database) clone() (*database, error) {

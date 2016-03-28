@@ -239,10 +239,7 @@ func TestTruncate(t *testing.T) {
 	for _, name := range collections {
 
 		// Pointing the collection.
-		col, err := sess.Collection(name)
-		if err != nil {
-			t.Fatal(err)
-		}
+		col := sess.Collection(name)
 
 		// The collection may ot may not exists.
 		exists := col.Exists()
@@ -276,14 +273,7 @@ func TestAppend(t *testing.T) {
 	defer sess.Close()
 
 	// Getting a pointer to the "artist" collection.
-	artist, err := sess.Collection("artist")
-
-	if err != nil {
-		// We can use the collection even if it does not exists.
-		if err != db.ErrCollectionDoesNotExist {
-			t.Fatal(err)
-		}
-	}
+	artist := sess.Collection("artist")
 
 	// Appending a map.
 	id, err = artist.Append(map[string]string{
@@ -423,7 +413,7 @@ func TestResultCount(t *testing.T) {
 	defer sess.Close()
 
 	// We should close the database when it's no longer in use.
-	artist, _ := sess.Collection("artist")
+	artist := sess.Collection("artist")
 
 	res = artist.Find()
 
@@ -457,18 +447,10 @@ func TestGroup(t *testing.T) {
 
 	defer sess.Close()
 
-	if stats, err = sess.Collection("statsTest"); err != nil {
-		if err != db.ErrCollectionDoesNotExist {
-			t.Fatal(err)
-		}
-	}
+	stats = sess.Collection("statsTest")
 
 	// Truncating table.
-	if err == nil {
-		if err = stats.Truncate(); err != nil {
-			t.Fatal(err)
-		}
-	}
+	stats.Truncate()
 
 	// Adding row append.
 	for i := 0; i < 1000; i++ {
@@ -512,7 +494,7 @@ func TestResultNonExistentCount(t *testing.T) {
 
 	defer sess.Close()
 
-	total, err := sess.C("notartist").Find().Count()
+	total, err := sess.Collection("notartist").Find().Count()
 
 	if err != nil {
 		t.Fatal("MongoDB should not care about a non-existent collecton.", err)
@@ -539,11 +521,7 @@ func TestResultFetch(t *testing.T) {
 	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
-	artist, err := sess.Collection("artist")
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	// Testing map
 	res = artist.Find()
@@ -709,11 +687,7 @@ func TestUpdate(t *testing.T) {
 	defer sess.Close()
 
 	// Getting a pointer to the "artist" collection.
-	artist, err := sess.Collection("artist")
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	// Value
 	value := struct {
@@ -810,11 +784,7 @@ func TestOperators(t *testing.T) {
 	defer sess.Close()
 
 	// Getting a pointer to the "artist" collection.
-	artist, err := sess.Collection("artist")
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	rowS := struct {
 		ID   uint64
@@ -846,11 +816,7 @@ func TestRemove(t *testing.T) {
 	defer sess.Close()
 
 	// Getting a pointer to the "artist" collection.
-	artist, err := sess.Collection("artist")
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	artist := sess.Collection("artist")
 
 	// Getting the first artist.
 	res := artist.Find(db.Cond{"_id $ne": nil}).Limit(1)
@@ -889,11 +855,7 @@ func TestSetterAndConstrainer(t *testing.T) {
 
 	defer sess.Close()
 
-	if compositeKeys, err = sess.Collection("composite_keys"); err != nil {
-		if err != db.ErrCollectionDoesNotExist {
-			t.Fatal(err)
-		}
-	}
+	compositeKeys = sess.Collection("composite_keys")
 
 	//n := rand.Intn(100000)
 
@@ -953,8 +915,7 @@ func TestDataTypes(t *testing.T) {
 	defer sess.Close()
 
 	// Getting a pointer to the "data_types" collection.
-	dataTypes, err := sess.Collection("data_types")
-	dataTypes.Truncate()
+	dataTypes := sess.Collection("data_types")
 
 	// Appending our test subject.
 	id, err := dataTypes.Append(testValues)

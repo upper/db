@@ -27,9 +27,9 @@ import (
 	"database/sql"
 
 	_ "github.com/go-sql-driver/mysql" // MySQL driver.
+	"upper.io/db.v2"
 	"upper.io/db.v2/builder/sqlgen"
 	template "upper.io/db.v2/builder/template/mysql"
-	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter"
 	"upper.io/db.v2/internal/sqlutil/tx"
 )
@@ -107,31 +107,29 @@ func (d *database) NewTable(name string) db.Collection {
 // Collections returns a list of non-system tables from the database.
 func (d *database) Collections() (collections []string, err error) {
 
-	if len(d.Schema().Tables) == 0 {
-		q := d.Builder().Select("table_name").
-			From("information_schema.tables").
-			Where("table_schema = ?", d.Schema().Name)
+	q := d.Builder().Select("table_name").
+		From("information_schema.tables").
+		Where("table_schema = ?", d.Schema().Name())
 
-		iter := q.Iterator()
-		defer iter.Close()
+	iter := q.Iterator()
+	defer iter.Close()
 
-		for iter.Next() {
-			var tableName string
-			if err := iter.Scan(&tableName); err != nil {
-				return nil, err
-			}
-			d.Schema().AddTable(tableName)
+	for iter.Next() {
+		var tableName string
+		if err := iter.Scan(&tableName); err != nil {
+			return nil, err
 		}
+		collections = append(collections, tableName)
 	}
 
-	return d.Schema().Tables, nil
+	return collections, nil
 }
 
 // Drop removes all tables from the current database.
 func (d *database) Drop() error {
 	stmt := &sqlgen.Statement{
 		Type:     sqlgen.DropDatabase,
-		Database: sqlgen.DatabaseWithName(d.Schema().Name),
+		Database: sqlgen.DatabaseWithName(d.Schema().Name()),
 	}
 	if _, err := d.Builder().Exec(stmt); err != nil {
 		return err
@@ -166,105 +164,52 @@ func (d *database) Transaction() (db.Tx, error) {
 
 // PopulateSchema looks up for the table info in the database and populates its
 // schema for internal use.
-func (d *database) PopulateSchema() (err error) {
-	var collections []string
-
-	d.NewSchema()
+func (d *database) PopulateSchema() error {
+	schema := d.NewSchema()
 
 	q := d.Builder().Select(db.Raw("DATABASE() AS name"))
-
-	var dbName string
 
 	iter := q.Iterator()
 	defer iter.Close()
 
 	if iter.Next() {
-		if err := iter.Scan(&dbName); err != nil {
-			return err
-		}
-	} else {
-		return iter.Err()
-	}
-
-	d.Schema().Name = dbName
-
-	if collections, err = d.Collections(); err != nil {
+		var name string
+		err := iter.Scan(&name)
+		schema.SetName(name)
 		return err
 	}
-
-	for i := range collections {
-		if _, err = d.Collection(collections[i]); err != nil {
-			return err
-		}
-	}
-
-	return err
+	return iter.Err()
 }
 
 // TableExists checks whether a table exists and returns an error in case it doesn't.
 func (d *database) TableExists(name string) error {
-	if d.Schema().HasTable(name) {
-		return nil
-	}
-
 	q := d.Builder().Select("table_name").
 		From("information_schema.tables").
-		Where("table_schema = ? AND table_name = ?", d.Schema().Name, name)
+		Where("table_schema = ? AND table_name = ?", d.Schema().Name(), name)
 
 	iter := q.Iterator()
 	defer iter.Close()
 
 	if iter.Next() {
-		var tableName string
-		if err := iter.Scan(&tableName); err != nil {
+		var name string
+		if err := iter.Scan(&name); err != nil {
 			return err
 		}
-	} else {
-		return db.ErrCollectionDoesNotExist
+		return nil
 	}
-
-	return nil
-}
-
-// TableColumns returns all columns from the given table.
-func (d *database) TableColumns(tableName string) ([]string, error) {
-	s := d.Schema()
-
-	if len(s.Table(tableName).Columns) == 0 {
-
-		q := d.Builder().Select("column_name").
-			From("information_schema.columns").
-			Where("table_schema = ? AND table_name = ?", d.Schema().Name, tableName)
-
-		var rows []struct {
-			Name string `db:"column_name"`
-		}
-
-		if err := q.Iterator().All(&rows); err != nil {
-			return nil, err
-		}
-
-		s.TableInfo[tableName].Columns = make([]string, 0, len(rows))
-
-		for i := range rows {
-			s.TableInfo[tableName].Columns = append(s.TableInfo[tableName].Columns, rows[i].Name)
-		}
-	}
-
-	return s.Table(tableName).Columns, nil
+	return db.ErrCollectionDoesNotExist
 }
 
 // TablePrimaryKey returns all primary keys from the given table.
 func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
-	s := d.Schema()
+	tableSchema := d.Schema().Table(tableName)
 
-	ts := s.Table(tableName)
-
-	if len(ts.PrimaryKey) != 0 {
-		return ts.PrimaryKey, nil
+	pk := tableSchema.PrimaryKeys()
+	if pk != nil {
+		return pk, nil
 	}
 
-	ts.PrimaryKey = make([]string, 0, 1)
+	pk = []string{}
 
 	q := d.Builder().Select("k.column_name").
 		From("information_schema.table_constraints AS t").
@@ -274,21 +219,23 @@ func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
 			t.constraint_type = 'primary key'
 			AND t.table_schema = ?
 			AND t.table_name = ?
-		`, d.Schema().Name, tableName).
+		`, d.Schema().Name(), tableName).
 		OrderBy("k.ordinal_position")
 
 	iter := q.Iterator()
 	defer iter.Close()
 
 	for iter.Next() {
-		var pKey string
-		if err := iter.Scan(&pKey); err != nil {
+		var k string
+		if err := iter.Scan(&k); err != nil {
 			return nil, err
 		}
-		ts.PrimaryKey = append(ts.PrimaryKey, pKey)
+		pk = append(pk, k)
 	}
 
-	return ts.PrimaryKey, nil
+	tableSchema.SetPrimaryKeys(pk)
+
+	return pk, nil
 }
 
 func (d *database) clone() (*database, error) {

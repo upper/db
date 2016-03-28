@@ -28,9 +28,9 @@ import (
 	"sync/atomic"
 
 	_ "github.com/cznic/ql/driver" // QL driver
+	"upper.io/db.v2"
 	"upper.io/db.v2/builder/sqlgen"
 	template "upper.io/db.v2/builder/template/ql"
-	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter"
 	"upper.io/db.v2/internal/sqlutil/tx"
 )
@@ -156,35 +156,32 @@ func (d *database) NewTable(name string) db.Collection {
 
 // Collections returns a list of non-system tables from the database.
 func (d *database) Collections() (collections []string, err error) {
+	q := d.Builder().Select("Name").
+		From("__Table")
 
-	if len(d.Schema().Tables) == 0 {
-		q := d.Builder().Select("Name").
-			From("__Table")
+	iter := q.Iterator()
+	defer iter.Close()
 
-		iter := q.Iterator()
-		defer iter.Close()
-
-		if iter.Err() != nil {
-			return nil, iter.Err()
-		}
-
-		for iter.Next() {
-			var tableName string
-			if err := iter.Scan(&tableName); err != nil {
-				return nil, err
-			}
-			d.Schema().AddTable(tableName)
-		}
+	if iter.Err() != nil {
+		return nil, iter.Err()
 	}
 
-	return d.Schema().Tables, nil
+	for iter.Next() {
+		var tableName string
+		if err := iter.Scan(&tableName); err != nil {
+			return nil, err
+		}
+		collections = append(collections, tableName)
+	}
+
+	return collections, nil
 }
 
 // Drop removes all tables from the current database.
 func (d *database) Drop() error {
 	stmt := &sqlgen.Statement{
 		Type:     sqlgen.DropDatabase,
-		Database: sqlgen.DatabaseWithName(d.Schema().Name),
+		Database: sqlgen.DatabaseWithName(d.Schema().Name()),
 	}
 	if _, err := d.Builder().Exec(stmt); err != nil {
 		return err
@@ -220,36 +217,20 @@ func (d *database) Transaction() (db.Tx, error) {
 // PopulateSchema looks up for the table info in the database and populates its
 // schema for internal use.
 func (d *database) PopulateSchema() (err error) {
-	var collections []string
-
-	d.NewSchema()
+	schema := d.NewSchema()
 
 	var connURL ConnectionURL
 	if connURL, err = ParseURL(d.ConnectionURL().String()); err != nil {
 		return err
 	}
 
-	d.Schema().Name = connURL.Database
+	schema.SetName(connURL.Database)
 
-	if collections, err = d.Collections(); err != nil {
-		return err
-	}
-
-	for i := range collections {
-		if _, err = d.Collection(collections[i]); err != nil {
-			return err
-		}
-	}
-
-	return err
+	return nil
 }
 
 // TableExists checks whether a table exists and returns an error in case it doesn't.
 func (d *database) TableExists(name string) error {
-	if d.Schema().HasTable(name) {
-		return nil
-	}
-
 	q := d.Builder().Select("Name").
 		From("__Table").
 		Where("Name == ?", name)
@@ -258,43 +239,13 @@ func (d *database) TableExists(name string) error {
 	defer iter.Close()
 
 	if iter.Next() {
-		var tableName string
-		if err := iter.Scan(&tableName); err != nil {
+		var name string
+		if err := iter.Scan(&name); err != nil {
 			return err
 		}
-	} else {
-		return db.ErrCollectionDoesNotExist
+		return nil
 	}
-
-	return nil
-}
-
-// TableColumns returns all columns from the given table.
-func (d *database) TableColumns(tableName string) ([]string, error) {
-	s := d.Schema()
-
-	if len(s.Table(tableName).Columns) == 0 {
-
-		q := d.Builder().Select("Name").
-			From("__Column").
-			Where("TableName == ?", tableName)
-
-		var rows []struct {
-			Name string `db:"column_name"`
-		}
-
-		if err := q.Iterator().All(&rows); err != nil {
-			return nil, err
-		}
-
-		s.TableInfo[tableName].Columns = make([]string, 0, len(rows))
-
-		for i := range rows {
-			s.TableInfo[tableName].Columns = append(s.TableInfo[tableName].Columns, rows[i].Name)
-		}
-	}
-
-	return s.Table(tableName).Columns, nil
+	return db.ErrCollectionDoesNotExist
 }
 
 // TablePrimaryKey returns all primary keys from the given table.

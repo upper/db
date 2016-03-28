@@ -22,52 +22,74 @@
 // Package schema provides basic information on relational database schemas.
 package schema
 
+import (
+	"sync"
+)
+
 // DatabaseSchema represents a collection of tables.
 type DatabaseSchema struct {
-	Name      string
-	Alias     string
-	Tables    []string
-	TableInfo map[string]*TableSchema
+	name   string
+	tables map[string]*TableSchema
+
+	mu sync.RWMutex
 }
 
 // TableSchema represents a single table.
 type TableSchema struct {
-	PrimaryKey []string
-	Alias      string
-	Columns    []string
+	pk []string
+
+	mu sync.RWMutex
 }
 
 // NewDatabaseSchema creates and returns a database schema.
 func NewDatabaseSchema() *DatabaseSchema {
-	schema := new(DatabaseSchema)
-	schema.Tables = []string{}
-	schema.TableInfo = make(map[string]*TableSchema)
-	return schema
+	s := &DatabaseSchema{
+		tables: make(map[string]*TableSchema),
+	}
+	return s
 }
 
-// AddTable adds a table into the database schema. If the table does not exists
-// it is created before being added.
-func (d *DatabaseSchema) AddTable(name string) {
-	if _, ok := d.TableInfo[name]; !ok {
-		table := new(TableSchema)
-		table.PrimaryKey = []string{}
-		table.Columns = []string{}
-		d.TableInfo[name] = table
-		d.Tables = append(d.Tables, name)
-	}
+// Name returns the name of the database.
+func (s *DatabaseSchema) Name() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.name
+}
+
+// Set name sets the name of the database.
+func (s *DatabaseSchema) SetName(name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.name = name
 }
 
 // Table retrives a table from the schema.
-func (d *DatabaseSchema) Table(name string) *TableSchema {
-	d.AddTable(name)
-	return d.TableInfo[name]
+func (s *DatabaseSchema) Table(name string) *TableSchema {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, ok := s.tables[name]; !ok {
+		s.tables[name] = &TableSchema{}
+	}
+
+	return s.tables[name]
 }
 
-// HasTable returns true if the given table is already defined within the
-// schema.
-func (d *DatabaseSchema) HasTable(name string) bool {
-	if _, ok := d.TableInfo[name]; ok {
-		return true
+func (t *TableSchema) SetPrimaryKeys(pk []string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if len(pk) == 0 {
+		t.pk = []string{} // if nil or empty array
+		return
 	}
-	return false
+
+	t.pk = pk
+}
+
+func (t *TableSchema) PrimaryKeys() []string {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	return t.pk
 }

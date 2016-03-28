@@ -193,15 +193,12 @@ type Database interface {
 	// Close closes the currently active connection to the database.
 	Close() error
 
-	// C is a short-hand for `Collection()`. If the given collection does not
-	// exists subsequent calls to any `Collection{}` or `Result{}` method that
-	// expect the collection to exists will fail returning the original error a
-	// call to `Collection()` would have returned. The output of `C()` may be a
-	// cached collection value.
-	C(string) Collection
-
-	// Collection returns a `Collection{}` given a table name.
-	Collection(string) (Collection, error)
+	// Collection returns a Collection given a table name. The collection may or
+	// may not exists and that could be an error when querying depending on the
+	// database you're working with, MongoDB does not care but SQL databases do
+	// care. If you want to know if a Collection exists use the Exists() method
+	// on a Collection.
+	Collection(string) Collection
 
 	// Collections returns the names of all non-system tables on the database.
 	Collections() ([]string, error)
