@@ -19,12 +19,10 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package mysql
+package sqlite
 
 import (
 	"database/sql"
-	"fmt"
-	"os"
 )
 
 const (
@@ -32,87 +30,77 @@ const (
 )
 
 var settings = ConnectionURL{
-	Database: "upperio_tests",
-	User:     "upperio_tests",
-	Password: "upperio_secret",
-	Host:     "localhost",
-	Options: map[string]string{
-		// See https://github.com/go-sql-driver/mysql/issues/9
-		"parseTime": "true",
-		// Might require you to use mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p mysql
-		"time_zone": fmt.Sprintf(`"%s"`, testTimeZone),
-	},
+	Database: "_dumps/gotest.sqlite3.db",
 }
 
 func tearUp() error {
-	if host := os.Getenv("TEST_HOST"); host != "" {
-		settings.Host = host
-	}
-
 	sess := mustOpen()
 	defer sess.Close()
 
 	batch := []string{
+		`PRAGMA foreign_keys=OFF`,
+
+		`BEGIN TRANSACTION`,
+
 		`DROP TABLE IF EXISTS artist`,
 
 		`CREATE TABLE artist (
-			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-			PRIMARY KEY(id),
-			name VARCHAR(60)
+			id integer primary key,
+			name varchar(60)
 		)`,
 
 		`DROP TABLE IF EXISTS publication`,
 
 		`CREATE TABLE publication (
-			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-			PRIMARY KEY(id),
-			title VARCHAR(80),
-			author_id BIGINT(20)
+			id integer primary key,
+			title varchar(80),
+			author_id integer
 		)`,
 
 		`DROP TABLE IF EXISTS review`,
 
 		`CREATE TABLE review (
-			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-			PRIMARY KEY(id),
-			publication_id BIGINT(20),
-			name VARCHAR(80),
-			comments TEXT,
-			created DATETIME NOT NULL
+			id integer primary key,
+			publication_id integer,
+			name varchar(80),
+			comments text,
+			created datetime
 		)`,
 
 		`DROP TABLE IF EXISTS data_types`,
 
 		`CREATE TABLE data_types (
-			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-			PRIMARY KEY(id),
-			_uint INT(10) UNSIGNED DEFAULT 0,
-			_uint8 INT(10) UNSIGNED DEFAULT 0,
-			_uint16 INT(10) UNSIGNED DEFAULT 0,
-			_uint32 INT(10) UNSIGNED DEFAULT 0,
-			_uint64 INT(10) UNSIGNED DEFAULT 0,
-			_int INT(10) DEFAULT 0,
-			_int8 INT(10) DEFAULT 0,
-			_int16 INT(10) DEFAULT 0,
-			_int32 INT(10) DEFAULT 0,
-			_int64 INT(10) DEFAULT 0,
-			_float32 DECIMAL(10,6),
-			_float64 DECIMAL(10,6),
-			_bool TINYINT(1),
-			_string text,
-			_date TIMESTAMP NULL,
-			_nildate DATETIME NULL,
-			_ptrdate DATETIME NULL,
-			_defaultdate TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			_time BIGINT UNSIGNED NOT NULL DEFAULT 0
+			id integer primary key,
+		 _uint integer,
+		 _uintptr integer,
+		 _uint8 integer,
+		 _uint16 int,
+		 _uint32 int,
+		 _uint64 int,
+		 _int integer,
+		 _int8 integer,
+		 _int16 integer,
+		 _int32 integer,
+		 _int64 integer,
+		 _float32 real,
+		 _float64 real,
+		 _byte integer,
+		 _rune integer,
+		 _bool integer,
+		 _string text,
+		 _date datetime,
+		 _nildate datetime,
+		 _ptrdate datetime,
+		 _defaultdate datetime default current_timestamp,
+		 _time text
 		)`,
 
 		`DROP TABLE IF EXISTS stats_test`,
 
 		`CREATE TABLE stats_test (
-			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY(id),
-			` + "`numeric`" + ` INT(10),
-			` + "`value`" + ` INT(10)
+			id integer primary key,
+			numeric integer,
+			value integer
 		)`,
 
 		`DROP TABLE IF EXISTS composite_keys`,
@@ -123,6 +111,8 @@ func tearUp() error {
 			some_val VARCHAR(255) default '',
 			primary key (code, user_id)
 		)`,
+
+		`COMMIT`,
 	}
 
 	for _, s := range batch {
@@ -135,4 +125,4 @@ func tearUp() error {
 	return nil
 }
 
-//go:generate bash -c "sed s/ADAPTER/mysql/g ../internal/testing/adapter.go.tpl > generated_test.go"
+//go:generate bash -c "sed s/ADAPTER/sqlite/g ../internal/testing/adapter.go.tpl > generated_test.go"

@@ -9,4 +9,4 @@ const (
 	deleteArtistWhereName                      = "DELETE FROM `artis` WHERE `name` = $1"
 )
 
-//go:generate bash -c "sed s/ADAPTER/mysql/g ../internal/testing/adapter_benchmark.go > generated_benchmark_test.go"
+//go:generate bash -c "sed s/ADAPTER/mysql/g ../internal/testing/adapter_benchmark.go.tpl > generated_benchmark_test.go"

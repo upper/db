@@ -102,12 +102,22 @@ func TestExpectCursorError(t *testing.T) {
 
 	artist := sess.Collection("artist")
 
-	res := artist.Find(db.Cond{"id": "X"})
-	c, _ := res.Count()
+	var cond db.Cond
+
+	switch Adapter {
+	case "ql":
+		cond = db.Cond{"id()": -1}
+	default:
+		cond = db.Cond{"id": 0}
+	}
+
+	res := artist.Find(cond)
+	c, err := res.Count()
 	assert.Equal(t, uint64(0), c)
+	assert.NoError(t, err)
 
 	var item map[string]interface{}
-	err := res.One(&item)
+	err = res.One(&item)
 	assert.Error(t, err)
 }
 
@@ -166,7 +176,9 @@ func TestAppendToArtistsTable(t *testing.T) {
 
 	_, err = artist.Append(&itemStruct3)
 	assert.NoError(t, err)
-	assert.NotZero(t, itemStruct3.id)
+	if Adapter != "ql" {
+		assert.NotZero(t, itemStruct3.id)
+	}
 
 	// Counting elements, must be exactly 4 elements.
 	count, err := artist.Find().Count()
@@ -195,14 +207,18 @@ func TestGetOneResult(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.NotZero(t, someArtist.Name)
-	assert.NotZero(t, someArtist.ID)
+	if Adapter != "ql" {
+		assert.NotZero(t, someArtist.ID)
+	}
 
 	// Fetching a pointer to a pointer.
 	var someArtistObj *artistType
 	err = artist.Find().Limit(1).One(&someArtistObj)
 	assert.NoError(t, err)
 	assert.NotZero(t, someArtist.Name)
-	assert.NotZero(t, someArtist.ID)
+	if Adapter != "ql" {
+		assert.NotZero(t, someArtist.ID)
+	}
 }
 
 func TestGetResultsOneByOne(t *testing.T) {
@@ -214,6 +230,10 @@ func TestGetResultsOneByOne(t *testing.T) {
 	rowMap := map[string]interface{}{}
 
 	res := artist.Find()
+
+	if Adapter == "ql" {
+		res = res.Select("id() as id", "name")
+	}
 
 	for {
 		err := res.Next(&rowMap)
@@ -245,6 +265,10 @@ func TestGetResultsOneByOne(t *testing.T) {
 
 	res = artist.Find()
 
+	if Adapter == "ql" {
+		res = res.Select("id() as id", "name")
+	}
+
 	for {
 		err := res.Next(&rowStruct2)
 		if err == db.ErrNoMoreRows {
@@ -266,6 +290,11 @@ func TestGetResultsOneByOne(t *testing.T) {
 	allRowsMap := []map[string]interface{}{}
 
 	res = artist.Find()
+
+	if Adapter == "ql" {
+		res.Select("id() as id")
+	}
+
 	err = res.All(&allRowsMap)
 	assert.NoError(t, err)
 	assert.Equal(t, 4, len(allRowsMap))
@@ -283,6 +312,11 @@ func TestGetResultsOneByOne(t *testing.T) {
 	}{}
 
 	res = artist.Find()
+
+	if Adapter == "ql" {
+		res.Select("id() as id")
+	}
+
 	if err = res.All(&allRowsStruct); err != nil {
 		t.Fatal(err)
 	}
@@ -300,6 +334,10 @@ func TestGetResultsOneByOne(t *testing.T) {
 	}{}
 
 	res = artist.Find()
+
+	if Adapter == "ql" {
+		res.Select("id() as id", "name")
+	}
 
 	err = res.All(&allRowsStruct2)
 	assert.NoError(t, err)
@@ -319,7 +357,13 @@ func TestGetAllResults(t *testing.T) {
 
 	// Fetching all artists into struct
 	artists := []artistType{}
-	err := artist.Find().All(&artists)
+
+	res := artist.Find()
+	if Adapter == "ql" {
+		res.Select("id() as id", "name")
+	}
+
+	err := res.All(&artists)
 	assert.NoError(t, err)
 	assert.NotZero(t, len(artists))
 
@@ -328,7 +372,11 @@ func TestGetAllResults(t *testing.T) {
 
 	// Fetching all artists into struct objects
 	artistObjs := []*artistType{}
-	err = artist.Find().All(&artistObjs)
+	res = artist.Find()
+	if Adapter == "ql" {
+		res.Select("id() as id", "name")
+	}
+	err = res.All(&artistObjs)
 	assert.NoError(t, err)
 	assert.NotZero(t, len(artistObjs))
 	assert.NotZero(t, artistObjs[0].Name)
@@ -339,7 +387,7 @@ func TestInlineStructs(t *testing.T) {
 	type reviewTypeDetails struct {
 		Name     string    `db:"name"`
 		Comments string    `db:"comments"`
-		Created  time.Time `db:"created,omitempty"`
+		Created  time.Time `db:"created"`
 	}
 
 	type reviewType struct {
@@ -364,10 +412,10 @@ func TestInlineStructs(t *testing.T) {
 		},
 	}
 
-	if Adapter == "mysql" {
-		rec.Details.Created = time.Date(2016, time.January, 1, 2, 3, 4, 0, time.UTC)
-	} else {
+	if Adapter == "postgresql" {
 		rec.Details.Created = time.Date(2016, time.January, 1, 2, 3, 4, 0, time.FixedZone("", 0))
+	} else {
+		rec.Details.Created = time.Date(2016, time.January, 1, 2, 3, 4, 0, time.UTC)
 	}
 
 	id, err := review.Append(rec)
@@ -377,10 +425,16 @@ func TestInlineStructs(t *testing.T) {
 	rec.ID = id.(int64)
 
 	var recChk reviewType
-	err = review.Find().One(&recChk)
+	res := review.Find()
+	if Adapter == "ql" {
+		res.Select("id() as id", "publication_id", "comments", "name", "created")
+	}
+	err = res.One(&recChk)
 	assert.NoError(t, err)
+	log.Printf("rec: %#v", rec.Details.Created)
+	log.Printf("recChj: %#v", recChk.Details.Created)
 
-	assert.Equal(t, recChk, rec)
+	assert.Equal(t, rec, recChk)
 }
 
 func TestUpdate(t *testing.T) {
@@ -396,7 +450,11 @@ func TestUpdate(t *testing.T) {
 	}{}
 
 	// Getting the first artist.
-	res := artist.Find(db.Cond{"id !=": 0}).Limit(1)
+	cond := db.Cond{"id !=": 0}
+	if Adapter == "ql" {
+		cond = db.Cond{"id() !=": 0}
+	}
+	res := artist.Find(cond).Limit(1)
 
 	err := res.One(&value)
 	assert.NoError(t, err)
@@ -472,7 +530,11 @@ func TestFunction(t *testing.T) {
 	}{}
 
 	artist := sess.Collection("artist")
-	res := artist.Find(db.Cond{"id NOT IN": []int{0, -1}})
+	cond := db.Cond{"id NOT IN": []int{0, -1}}
+	if Adapter == "ql" {
+		cond = db.Cond{"id() NOT IN": []int{0, -1}}
+	}
+	res := artist.Find(cond)
 
 	err := res.One(&rowStruct)
 	assert.NoError(t, err)
@@ -482,7 +544,11 @@ func TestFunction(t *testing.T) {
 	assert.Equal(t, uint64(4), total)
 
 	// Testing conditions
-	res = artist.Find(db.Cond{"id NOT": db.Func("IN", 0, -1)})
+	cond = db.Cond{"id NOT": db.Func("IN", 0, -1)}
+	if Adapter == "ql" {
+		cond = db.Cond{"id() NOT": db.Func("IN", 0, -1)}
+	}
+	res = artist.Find(cond)
 
 	err = res.One(&rowStruct)
 	assert.NoError(t, err)
@@ -546,7 +612,11 @@ func TestNullableFields(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Testing fetching of invalid nulls.
-	err = col.Find(db.Cond{"id": id}).One(&test)
+	cond := db.Cond{"id": id}
+	if Adapter == "ql" {
+		cond = db.Cond{"id()": id}
+	}
+	err = col.Find(cond).One(&test)
 	assert.NoError(t, err)
 
 	assert.False(t, test.NullInt64Test.Valid)
@@ -565,7 +635,11 @@ func TestNullableFields(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Testing fetching of valid nulls.
-	err = col.Find(db.Cond{"id": id}).One(&test)
+	cond = db.Cond{"id": id}
+	if Adapter == "ql" {
+		cond = db.Cond{"id()": id}
+	}
+	err = col.Find(cond).One(&test)
 	assert.NoError(t, err)
 
 	assert.True(t, test.NullInt64Test.Valid)
@@ -597,8 +671,8 @@ func TestGroup(t *testing.T) {
 	// Testing GROUP BY
 	res := stats.Find().Select(
 		"numeric",
-		db.Raw("COUNT(1) AS counter"),
-		db.Raw("SUM(value) AS total"),
+		db.Raw("count(1) AS counter"),
+		db.Raw("sum(value) AS total"),
 	).Group("numeric")
 
 	var results []map[string]interface{}
@@ -615,7 +689,11 @@ func TestRemove(t *testing.T) {
 
 	artist := sess.Collection("artist")
 
-	res := artist.Find(db.Cond{"id": 1})
+	cond := db.Cond{"id": 1}
+	if Adapter == "ql" {
+		cond = db.Cond{"id()": 1}
+	}
+	res := artist.Find(cond)
 
 	total, err := res.Count()
 	assert.NoError(t, err)
@@ -630,6 +708,11 @@ func TestRemove(t *testing.T) {
 }
 
 func TestCompositeKeys(t *testing.T) {
+	if Adapter == "ql" {
+		t.Logf("Unsupported, skipped")
+		return
+	}
+
 	sess := mustOpen()
 	defer sess.Close()
 
@@ -659,6 +742,11 @@ func TestCompositeKeys(t *testing.T) {
 
 // Attempts to test database transactions.
 func TestTransactionsAndRollback(t *testing.T) {
+	if Adapter == "ql" {
+		t.Logf("Skipped.")
+		return
+	}
+
 	sess := mustOpen()
 	defer sess.Close()
 
@@ -776,6 +864,11 @@ func TestTransactionsAndRollback(t *testing.T) {
 }
 
 func TestDataTypes(t *testing.T) {
+	if Adapter == "ql" {
+		t.Logf("Skipped.")
+		return
+	}
+
 	type testValuesStruct struct {
 		Uint   uint   `db:"_uint"`
 		Uint8  uint8  `db:"_uint8"`
@@ -819,10 +912,10 @@ func TestDataTypes(t *testing.T) {
 	ts := time.Date(2011, 7, 28, 1, 2, 3, 0, loc) // timestamp with time zone
 
 	var tnz time.Time
-	if Adapter == "mysql" {
-		tnz = time.Date(2012, 7, 28, 1, 2, 3, 0, time.UTC) // timestamp without time zone
-	} else {
+	if Adapter == "postgresql" {
 		tnz = time.Date(2012, 7, 28, 1, 2, 3, 0, time.FixedZone("", 0)) // timestamp without time zone
+	} else {
+		tnz = time.Date(2012, 7, 28, 1, 2, 3, 0, time.UTC) // timestamp without time zone
 	}
 
 	testValues := testValuesStruct{
@@ -842,7 +935,11 @@ func TestDataTypes(t *testing.T) {
 	assert.NotNil(t, id)
 
 	// Defining our set.
-	res := dataTypes.Find(db.Cond{"id": id})
+	cond := db.Cond{"id": id}
+	if Adapter == "ql" {
+		cond = db.Cond{"id()": id}
+	}
+	res := dataTypes.Find(cond)
 
 	count, err := res.Count()
 	assert.NoError(t, err)
@@ -864,6 +961,11 @@ func TestDataTypes(t *testing.T) {
 }
 
 func TestExhaustConnectionPool(t *testing.T) {
+	if Adapter == "ql" {
+		t.Logf("Skipped.")
+		return
+	}
+
 	sess := mustOpen()
 	defer sess.Close()
 
