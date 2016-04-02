@@ -85,16 +85,16 @@ func (t *table) InsertReturning(item interface{}) error {
 
 	id, err := col.Insert(item)
 	if err != nil {
-		goto rollback
+		goto cancel
 	}
 	if id == nil {
 		err = fmt.Errorf("Insertion did not return any ID, aborted.")
-		goto rollback
+		goto cancel
 	}
 
 	res = col.Find(id)
 	if err = res.One(item); err != nil {
-		goto rollback
+		goto cancel
 	}
 
 	if tx, ok := sess.(db.Tx); ok {
@@ -104,7 +104,10 @@ func (t *table) InsertReturning(item interface{}) error {
 	}
 	return err
 
-rollback:
+cancel:
+	// This goto label should only be used when we got an error within a
+	// transaction and we don't want to continue.
+
 	if tx, ok := sess.(db.Tx); ok {
 		// This is only executed if t.Database() was **not** a transaction and if
 		// sess was created with sess.Transaction().
