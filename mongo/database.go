@@ -56,10 +56,10 @@ func (s *Source) Name() string {
 	return s.name
 }
 
-// Setup stores database settings and opens a connection to a database.
-func (s *Source) Setup(connURL db.ConnectionURL) error {
+// Open attempts to connect to the database.
+func (s *Source) Open(connURL db.ConnectionURL) error {
 	s.connURL = connURL
-	return s.Open()
+	return s.open()
 }
 
 // Clone returns a cloned db.Database session.
@@ -92,9 +92,7 @@ func (s *Source) Driver() interface{} {
 	return s.session
 }
 
-// Open attempts to connect to the database server using already stored
-// settings.
-func (s *Source) Open() error {
+func (s *Source) open() error {
 	var err error
 
 	if s.session, err = mgo.DialWithTimeout(s.connURL.String(), connTimeout); err != nil {

@@ -49,11 +49,10 @@ func Register(name string, adapter Database) {
 func Open(adapter string, conn ConnectionURL) (Database, error) {
 
 	driver, ok := wrappers[adapter]
-
-	if ok == false {
+	if !ok {
 		// Using panic instead of returning error because attemping to use an
 		// adapter that does not exists will never result in success.
-		panic(fmt.Sprintf(`Open: Unknown adapter %s. (see: https://upper.io/db.v2#database-adapters)`, adapter))
+		panic(fmt.Sprintf(`db.Open: Unknown adapter %s. (see: https://upper.io/db.v2#database-adapters)`, adapter))
 	}
 
 	// Creating a new connection everytime Open() is called.
@@ -61,7 +60,7 @@ func Open(adapter string, conn ConnectionURL) (Database, error) {
 	newAdapter := reflect.New(driverType).Interface().(Database)
 
 	// Setting up the connection.
-	if err := newAdapter.Setup(conn); err != nil {
+	if err := newAdapter.Open(conn); err != nil {
 		return nil, err
 	}
 

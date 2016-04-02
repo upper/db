@@ -18,7 +18,6 @@ reset-db: require-client
 
 test: reset-db generate
 	go test -v
-	$(MAKE) -C _example
 
 bench: reset-db generate
 	go test -v -bench=. -benchtime=$(BENCHTIME) -benchmem -test.parallel=1 -short -cpu 1

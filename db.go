@@ -179,9 +179,8 @@ type Database interface {
 	// case the return value would be nil.
 	Builder() builder.Builder
 
-	// Open attempts to stablish a connection with the database manager, a
-	// previous call to `Setup()` is required.
-	Open() error
+	// Open attempts to stablish a connection with a database manager.
+	Open(ConnectionURL) error
 
 	// Clone duplicates the current database session. Returns an error if the
 	// clone did not succeed.
@@ -202,9 +201,6 @@ type Database interface {
 
 	// Collections returns the names of all non-system tables on the database.
 	Collections() ([]string, error)
-
-	// Setup stores database connection settings.
-	Setup(ConnectionURL) error
 
 	// Name returns the name of the active database.
 	Name() string
