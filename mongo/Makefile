@@ -10,6 +10,8 @@ require-client:
 		exit 1; \
 	fi
 
+generate:
+
 reset-db: require-client
 	$(MAKE) reset-db -C _dumps
 
