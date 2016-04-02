@@ -120,19 +120,6 @@ func (d *database) Setup(connURL db.ConnectionURL) error {
 	return d.Open()
 }
 
-// Use changes the active database.
-func (d *database) Use(name string) (err error) {
-	var conn ConnectionURL
-	if conn, err = ParseURL(d.ConnectionURL().String()); err != nil {
-		return err
-	}
-	conn.Database = name
-	if d.BaseDatabase != nil {
-		d.Close()
-	}
-	return d.Setup(conn)
-}
-
 func (d *database) Close() error {
 	if d.BaseDatabase != nil {
 		if atomic.AddInt32(&fileOpenCount, -1) < 0 {
@@ -175,18 +162,6 @@ func (d *database) Collections() (collections []string, err error) {
 	}
 
 	return collections, nil
-}
-
-// Drop removes all tables from the current database.
-func (d *database) Drop() error {
-	stmt := &sqlgen.Statement{
-		Type:     sqlgen.DropDatabase,
-		Database: sqlgen.DatabaseWithName(d.Schema().Name()),
-	}
-	if _, err := d.Builder().Exec(stmt); err != nil {
-		return err
-	}
-	return nil
 }
 
 // Transaction starts a transaction block and returns a db.Tx struct that can

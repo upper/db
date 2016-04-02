@@ -195,25 +195,6 @@ func TestOpenWithWrongData(t *testing.T) {
 	}
 }
 
-// Test USE
-func TestUse(t *testing.T) {
-	var err error
-	var sess db.Database
-
-	// Opening database, no error expected.
-	if sess, err = db.Open(Adapter, settings); err != nil {
-		t.Fatal(err)
-	}
-
-	// Connecting to another database, error expected.
-	if err = sess.Use("."); err == nil {
-		t.Fatal("This is not a database")
-	}
-
-	// Closing connection.
-	sess.Close()
-}
-
 // Truncates all collections.
 func TestTruncate(t *testing.T) {
 

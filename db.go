@@ -203,13 +203,6 @@ type Database interface {
 	// Collections returns the names of all non-system tables on the database.
 	Collections() ([]string, error)
 
-	// Use attempts to connect to another database using the same connection
-	// settings.
-	Use(string) error
-
-	// Drop deletes all tables on the active database and drops the database.
-	Drop() error
-
 	// Setup stores database connection settings.
 	Setup(ConnectionURL) error
 

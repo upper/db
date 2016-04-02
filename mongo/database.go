@@ -115,27 +115,6 @@ func (s *Source) Close() error {
 	return nil
 }
 
-// Use changes the active database.
-func (s *Source) Use(database string) (err error) {
-	var conn ConnectionURL
-
-	if conn, err = ParseURL(s.connURL.String()); err != nil {
-		return err
-	}
-
-	conn.Database = database
-
-	s.connURL = conn
-
-	return s.Open()
-}
-
-// Drop drops the current database.
-func (s *Source) Drop() error {
-	err := s.database.DropDatabase()
-	return err
-}
-
 // Collections returns a list of non-system tables from the database.
 func (s *Source) Collections() (cols []string, err error) {
 	var rawcols []string
