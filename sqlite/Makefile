@@ -9,12 +9,15 @@ require-client:
 		exit 1; \
 	fi
 
+generate:
+	go generate
+
 reset-db: require-client
 	$(MAKE) reset-db -C _dumps
 
-test: reset-db
+test: reset-db generate
 	go test -v
 	$(MAKE) -C _example
 
-bench: reset-db
+bench: reset-db generate
 	go test -v -test.bench=. -test.benchtime=$(BENCHTIME) -benchmem

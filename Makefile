@@ -1,9 +1,10 @@
-reset-db:
-	$(MAKE) reset-db -C postgresql && \
-	$(MAKE) reset-db -C mysql && \
-	$(MAKE) reset-db -C ql && \
-	$(MAKE) reset-db -C sqlite && \
-	$(MAKE) reset-db -C mongo
+setup-test:
+	$(MAKE) reset-db generate -C postgresql && \
+	$(MAKE) reset-db generate -C mysql && \
+	$(MAKE) reset-db generate -C ql && \
+	$(MAKE) reset-db generate -C sqlite && \
+	$(MAKE) reset-db generate -C mongo && \
+	go get -d -t -v ./...
 
-test: reset-db
+test: setup-test
 	go test ./... -v
