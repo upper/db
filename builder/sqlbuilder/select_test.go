@@ -88,6 +88,11 @@ func TestSelectSpecific(t *testing.T) {
 	)
 
 	assert.Equal(
+		`SELECT * FROM "artist" WHERE (name = $1)`,
+		b.SelectAllFrom("artist").Where("name = ?", []byte("hello")).String(),
+	)
+
+	assert.Equal(
 		`SELECT * FROM "artist" WHERE ("id" IN ($1, $2, $3, $4))`,
 		b.SelectAllFrom("artist").Where(`"id" IN ?`, []int{1, 9, 8, 7}).String(),
 	)

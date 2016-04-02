@@ -21,27 +21,10 @@ type artistType struct {
 	Name string `db:"name"`
 }
 
-type artistWithInt64Key struct {
-	id   int64
-	Name string `db:"name"`
-}
-
-func (artist *artistWithInt64Key) SetID(id int64) error {
-	artist.id = id
-	return nil
-}
-
-type itemWithKey struct {
+type itemWithCompoundKey struct {
 	Code    string `db:"code"`
 	UserID  string `db:"user_id"`
 	SomeVal string `db:"some_val"`
-}
-
-func (item itemWithKey) Constraints() db.Cond {
-	return db.Cond{
-		"code":    item.Code,
-		"user_id": item.UserID,
-	}
 }
 
 func TestMain(m *testing.M) {
@@ -121,11 +104,144 @@ func TestExpectCursorError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestInsertReturning(t *testing.T) {
+	sess := mustOpen()
+	defer sess.Close()
+
+	artist := sess.Collection("artist")
+
+	err := artist.Truncate()
+	assert.NoError(t, err)
+
+	itemMap := map[string]string{
+		"name": "Ozzie",
+	}
+	assert.Zero(t, itemMap["id"], "Must be zero before inserting")
+	err = artist.InsertReturning(&itemMap)
+	assert.NoError(t, err)
+	assert.NotZero(t, itemMap["id"], "Must not be zero after inserting")
+
+	itemStruct := struct {
+		ID int `db:"id,omitempty"`
+		Name string `db:"name"`
+	}{
+		0,
+		"Flea",
+	}
+	assert.Zero(t, itemStruct.ID, "Must be zero before inserting")
+	err = artist.InsertReturning(&itemStruct)
+	assert.NoError(t, err)
+	assert.NotZero(t, itemStruct.ID, "Must not be zero after inserting")
+
+	count, err := artist.Find().Count()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(2), count, "Expecting 2 elements")
+
+	itemStruct2 := struct {
+		ID int `db:"id,omitempty"`
+		Name string `db:"name"`
+	}{
+		0,
+		"Slash",
+	}
+	assert.Zero(t, itemStruct2.ID, "Must be zero before inserting")
+	err = artist.InsertReturning(itemStruct2)
+	assert.Error(t, err, "Should not happen, using a pointer should be enforced")
+	assert.Zero(t, itemStruct2.ID, "Must still be zero because there was no insertion")
+
+	itemMap2 := map[string]string{
+		"name": "Janus",
+	}
+	assert.Zero(t, itemMap2["id"], "Must be zero before inserting")
+	err = artist.InsertReturning(itemMap2)
+	assert.Error(t, err, "Should not happen, using a pointer should be enforced")
+	assert.Zero(t, itemMap2["id"], "Must still be zero because there was no insertion")
+
+	// Counting elements, must be exactly 2 elements.
+	count, err = artist.Find().Count()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(2), count, "Expecting 2 elements")
+}
+
+func TestInsertReturningWithinTransaction(t *testing.T) {
+	sess := mustOpen()
+	defer sess.Close()
+
+	err := sess.Collection("artist").Truncate()
+	assert.NoError(t, err)
+
+	tx, err := sess.Transaction()
+	assert.NoError(t, err)
+
+	artist := tx.Collection("artist")
+
+	itemMap := map[string]string{
+		"name": "Ozzie",
+	}
+	assert.Zero(t, itemMap["id"], "Must be zero before inserting")
+	err = artist.InsertReturning(&itemMap)
+	assert.NoError(t, err)
+	assert.NotZero(t, itemMap["id"], "Must not be zero after inserting")
+
+	itemStruct := struct {
+		ID int `db:"id,omitempty"`
+		Name string `db:"name"`
+	}{
+		0,
+		"Flea",
+	}
+	assert.Zero(t, itemStruct.ID, "Must be zero before inserting")
+	err = artist.InsertReturning(&itemStruct)
+	assert.NoError(t, err)
+	assert.NotZero(t, itemStruct.ID, "Must not be zero after inserting")
+
+	count, err := artist.Find().Count()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(2), count, "Expecting 2 elements")
+
+	itemStruct2 := struct {
+		ID int `db:"id,omitempty"`
+		Name string `db:"name"`
+	}{
+		0,
+		"Slash",
+	}
+	assert.Zero(t, itemStruct2.ID, "Must be zero before inserting")
+	err = artist.InsertReturning(itemStruct2)
+	assert.Error(t, err, "Should not happen, using a pointer should be enforced")
+	assert.Zero(t, itemStruct2.ID, "Must still be zero because there was no insertion")
+
+	itemMap2 := map[string]string{
+		"name": "Janus",
+	}
+	assert.Zero(t, itemMap2["id"], "Must be zero before inserting")
+	err = artist.InsertReturning(itemMap2)
+	assert.Error(t, err, "Should not happen, using a pointer should be enforced")
+	assert.Zero(t, itemMap2["id"], "Must still be zero because there was no insertion")
+
+	// Counting elements, must be exactly 2 elements.
+	count, err = artist.Find().Count()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(2), count, "Expecting 2 elements")
+
+	// Rolling back everything
+	err = tx.Rollback()
+	assert.NoError(t, err)
+
+	// Expecting no elements.
+	count, err = sess.Collection("artist").Find().Count()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(0), count, "Expecting 0 elements, everything was rolled back!")
+}
+
 func TestInsertIntoArtistsTable(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()
 
 	artist := sess.Collection("artist")
+
+	err := artist.Truncate()
+	assert.NoError(t, err)
 
 	itemMap := map[string]string{
 		"name": "Ozzie",
@@ -170,14 +286,14 @@ func TestInsertIntoArtistsTable(t *testing.T) {
 	}
 
 	// Attempt to append and update a private key
-	itemStruct3 := artistWithInt64Key{
+	itemStruct3 := artistType{
 		Name: "Janus",
 	}
 
-	_, err = artist.Insert(&itemStruct3)
+	id, err = artist.Insert(&itemStruct3)
 	assert.NoError(t, err)
 	if Adapter != "ql" {
-		assert.NotZero(t, itemStruct3.id)
+		assert.NotZero(t, id)
 	}
 
 	// Counting elements, must be exactly 4 elements.
@@ -720,21 +836,21 @@ func TestCompositeKeys(t *testing.T) {
 
 	n := rand.Intn(100000)
 
-	item := itemWithKey{
+	item := itemWithCompoundKey{
 		"ABCDEF",
 		strconv.Itoa(n),
 		"Some value",
 	}
 
-	_, err := compositeKeys.Insert(&item)
+	id, err := compositeKeys.Insert(&item)
 	assert.NoError(t, err)
+	assert.NotZero(t, id)
 
-	// Using constrainer interface.
-	var item2 itemWithKey
+	var item2 itemWithCompoundKey
 	assert.NotEqual(t, item2.SomeVal, item.SomeVal)
 
-	res := compositeKeys.Find(item)
-	err = res.One(&item2)
+	// Finding by ID
+	err = compositeKeys.Find(id).One(&item2)
 	assert.NoError(t, err)
 
 	assert.Equal(t, item2.SomeVal, item.SomeVal)
