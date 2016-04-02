@@ -168,7 +168,7 @@ func TestOptionTypes(t *testing.T) {
 		Settings: map[string]interface{}{"a": 1, "b": 2},
 	}
 
-	id, err := optionTypes.Append(item1)
+	id, err := optionTypes.Insert(item1)
 	assert.NoError(t, err)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
@@ -189,7 +189,7 @@ func TestOptionTypes(t *testing.T) {
 		Settings: map[string]interface{}{"go": 1, "lang": 2},
 	}
 
-	id, err = optionTypes.Append(item1b)
+	id, err = optionTypes.Insert(item1b)
 	assert.NoError(t, err)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
@@ -208,7 +208,7 @@ func TestOptionTypes(t *testing.T) {
 		Name: "Sup", Tags: []string{}, Settings: map[string]interface{}{},
 	}
 
-	id, err = optionTypes.Append(item1c)
+	id, err = optionTypes.Insert(item1c)
 	assert.NoError(t, err)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
@@ -234,7 +234,7 @@ func TestOptionTypes(t *testing.T) {
 		Name: "JS", Tags: []string{"hi", "bye"}, Settings: nil,
 	}
 
-	id, err = optionTypes.Append(item2)
+	id, err = optionTypes.Insert(item2)
 	assert.NoError(t, err)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
@@ -282,7 +282,7 @@ func TestOptionTypes(t *testing.T) {
 		Settings: map[string]interface{}{"girl": true, "lang": true},
 	}
 
-	id, err = optionTypes.Append(item3)
+	id, err = optionTypes.Insert(item3)
 	assert.NoError(t, err)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
@@ -323,7 +323,7 @@ func TestOptionTypeJsonbStruct(t *testing.T) {
 		Settings: Settings{Name: "a", Num: 123},
 	}
 
-	id, err := optionTypes.Append(item1)
+	id, err := optionTypes.Insert(item1)
 	assert.NoError(t, err)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {

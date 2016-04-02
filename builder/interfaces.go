@@ -556,7 +556,7 @@ func (c *C) Sentences() []Compound {
 	return c.conds
 }
 
-func (c *C) Append(a ...Compound) *C {
+func (c *C) Insert(a ...Compound) *C {
 	c.conds = append(c.conds, a...)
 	return c
 }
@@ -582,7 +582,7 @@ func Or(conds ...Compound) *Union {
 
 // Or adds more terms to the compound.
 func (o *Union) Or(conds ...Compound) *Union {
-	o.C.Append(conds...)
+	o.C.Insert(conds...)
 	return o
 }
 
@@ -603,7 +603,7 @@ func And(conds ...Compound) *Intersection {
 
 // And adds more terms to the compound.
 func (a *Intersection) And(conds ...Compound) *Intersection {
-	a.C.Append(conds...)
+	a.C.Insert(conds...)
 	return a
 }
 

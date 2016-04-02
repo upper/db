@@ -54,8 +54,8 @@ func JoinColumnValues(values ...Fragment) *ColumnValues {
 	return &ColumnValues{ColumnValues: values}
 }
 
-// Append adds a column to the columns array.
-func (c *ColumnValues) Append(values ...Fragment) *ColumnValues {
+// Insert adds a column to the columns array.
+func (c *ColumnValues) Insert(values ...Fragment) *ColumnValues {
 	for _, f := range values {
 		c.ColumnValues = append(c.ColumnValues, f)
 	}

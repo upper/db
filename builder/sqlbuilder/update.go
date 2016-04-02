@@ -30,11 +30,11 @@ func (qu *updater) Set(terms ...interface{}) builder.Updater {
 				Value:    sqlPlaceholder,
 			}
 		}
-		qu.columnValues.Append(cvs...)
+		qu.columnValues.Insert(cvs...)
 		qu.arguments = append(qu.arguments, vv...)
 	} else if len(terms) > 1 {
 		cv, arguments := qu.builder.t.ToColumnValues(terms)
-		qu.columnValues.Append(cv.ColumnValues...)
+		qu.columnValues.Insert(cv.ColumnValues...)
 		qu.arguments = append(qu.arguments, arguments...)
 	}
 

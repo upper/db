@@ -50,8 +50,8 @@ type NonExistentResult struct {
 	Err error
 }
 
-// Append returns error.
-func (c *NonExistentCollection) Append(interface{}) (interface{}, error) {
+// Insert returns error.
+func (c *NonExistentCollection) Insert(interface{}) (interface{}, error) {
 	return nil, err(c.Err)
 }
 

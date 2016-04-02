@@ -552,7 +552,7 @@ func TestSimpleCRUD(t *testing.T) {
 			col := sess.Collection(`birthdays`)
 
 			var id interface{}
-			if id, err = col.Append(controlItem); err != nil {
+			if id, err = col.Insert(controlItem); err != nil {
 				t.Fatalf(`Could not append item with wrapper %s: %q`, wrapper, err)
 			}
 
@@ -690,7 +690,7 @@ func TestFibonacci(t *testing.T) {
 			var i uint64
 			for i = 0; i < 10; i++ {
 				item := fibonacci{Input: i, Output: fib(i)}
-				_, err = col.Append(item)
+				_, err = col.Insert(item)
 				if err != nil {
 					t.Fatalf(`Could not append item with wrapper %s: %q`, wrapper, err)
 				}
@@ -950,7 +950,7 @@ func TestEven(t *testing.T) {
 			var i int
 			for i = 1; i < 100; i++ {
 				item := oddEven{Input: i, IsEven: even(i)}
-				_, err = col.Append(item)
+				_, err = col.Insert(item)
 				if err != nil {
 					t.Fatalf(`Could not append item with wrapper %s: %q`, wrapper, err)
 				}
@@ -1074,7 +1074,7 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 				CaseTest: "Hello!",
 			}
 
-			if _, err = col.Append(testE); err != nil {
+			if _, err = col.Insert(testE); err != nil {
 				t.Fatal(err)
 			}
 
@@ -1103,7 +1103,7 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 				Case_TEST: "World!",
 			}
 
-			if _, err = col.Append(testN); err != nil {
+			if _, err = col.Insert(testN); err != nil {
 				t.Fatal(err)
 			}
 
