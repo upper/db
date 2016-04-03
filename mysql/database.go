@@ -58,8 +58,7 @@ func (d *database) Err(err error) error {
 	return err
 }
 
-// Open attempts to open a connection to the database server.
-func (d *database) Open() error {
+func (d *database) open() error {
 	var sess *sql.DB
 
 	connFn := func(sess **sql.DB) (err error) {
@@ -74,10 +73,10 @@ func (d *database) Open() error {
 	return d.Bind(sess)
 }
 
-// Setup configures the adapter.
-func (d *database) Setup(connURL db.ConnectionURL) error {
+// Open attempts to open a connection to the database server.
+func (d *database) Open(connURL db.ConnectionURL) error {
 	d.BaseDatabase = sqladapter.NewDatabase(d, connURL, template.Template())
-	return d.Open()
+	return d.open()
 }
 
 // Clone creates a new database connection with the same settings as the
@@ -216,7 +215,7 @@ func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
 func (d *database) clone() (*database, error) {
 	clone := &database{}
 	clone.BaseDatabase = d.BaseDatabase.Clone(clone)
-	if err := clone.Open(); err != nil {
+	if err := clone.open(); err != nil {
 		return nil, err
 	}
 	return clone, nil
