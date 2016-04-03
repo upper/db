@@ -55,6 +55,11 @@ func (c *NonExistentCollection) Insert(interface{}) (interface{}, error) {
 	return nil, err(c.Err)
 }
 
+// InsertReturning returns error.
+func (c *NonExistentCollection) InsertReturning(interface{}) error {
+	return err(c.Err)
+}
+
 // Exists returns false.
 func (c *NonExistentCollection) Exists() bool {
 	return false

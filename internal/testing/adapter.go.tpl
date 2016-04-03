@@ -375,7 +375,7 @@ func TestGetResultsOneByOne(t *testing.T) {
 
 	// Dumping into a tagged struct.
 	rowStruct2 := struct {
-		Value1 uint64 `db:"id"`
+		Value1 int64 `db:"id"`
 		Value2 string `db:"name"`
 	}{}
 
@@ -423,7 +423,7 @@ func TestGetResultsOneByOne(t *testing.T) {
 
 	// Dumping into a slice of structs.
 	allRowsStruct := []struct {
-		ID   uint64 `db:"id,omitempty"`
+		ID   int64 `db:"id,omitempty"`
 		Name string `db:"name"`
 	}{}
 
@@ -445,7 +445,7 @@ func TestGetResultsOneByOne(t *testing.T) {
 
 	// Dumping into a slice of tagged structs.
 	allRowsStruct2 := []struct {
-		Value1 uint64 `db:"id"`
+		Value1 int64 `db:"id"`
 		Value2 string `db:"name"`
 	}{}
 
@@ -561,7 +561,7 @@ func TestUpdate(t *testing.T) {
 
 	// Defining destination struct
 	value := struct {
-		ID   uint64 `db:"id,omitempty"`
+		ID   int64 `db:"id,omitempty"`
 		Name string `db:"name"`
 	}{}
 
@@ -574,6 +574,8 @@ func TestUpdate(t *testing.T) {
 
 	err := res.One(&value)
 	assert.NoError(t, err)
+
+	res = artist.Find(value.ID)
 
 	// Updating set with a map
 	rowMap := map[string]interface{}{
@@ -641,7 +643,7 @@ func TestFunction(t *testing.T) {
 	defer sess.Close()
 
 	rowStruct := struct {
-		ID   uint64
+		ID   int64
 		Name string
 	}{}
 
@@ -804,16 +806,11 @@ func TestRemove(t *testing.T) {
 	defer sess.Close()
 
 	artist := sess.Collection("artist")
-
-	cond := db.Cond{"id": 1}
-	if Adapter == "ql" {
-		cond = db.Cond{"id()": 1}
-	}
-	res := artist.Find(cond)
+	res := artist.Find()
 
 	total, err := res.Count()
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(1), total)
+	assert.Equal(t, uint64(4), total)
 
 	err = res.Remove()
 	assert.NoError(t, err)
