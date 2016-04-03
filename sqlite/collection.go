@@ -23,10 +23,12 @@ package sqlite
 
 import (
 	"database/sql"
+	"fmt"
+	"reflect"
 
+	"upper.io/db.v2"
 	"upper.io/db.v2/builder/sqlbuilder"
 	"upper.io/db.v2/builder/sqlgen"
-	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter"
 )
 
@@ -47,6 +49,71 @@ func (t *table) Truncate() error {
 		return err
 	}
 	return nil
+}
+
+func (t *table) Find(conds ...interface{}) db.Result {
+	if len(conds) == 1 {
+		if id, ok := conds[0].(int64); ok { // ID type.
+			conds[0] = db.Cond{
+				"id": id,
+			}
+		}
+	}
+	return t.Collection.Find(conds...)
+}
+
+// InsertReturning inserts an item and updates the variable.
+func (t *table) InsertReturning(item interface{}) error {
+	if reflect.TypeOf(item).Kind() != reflect.Ptr {
+		return fmt.Errorf("Expecting a pointer to map or string but got %T", item)
+	}
+
+	sess := db.Database(t.Database())
+
+	if currTx := sess.(*database).BaseDatabase.Tx(); currTx == nil {
+		// Not within a transaction, let's create one.
+		tx, err := sess.Transaction()
+		if err != nil {
+			return err
+		}
+		sess = tx
+	}
+
+	var res db.Result
+
+	col := sess.Collection(t.Name())
+
+	id, err := col.Insert(item)
+	if err != nil {
+		goto cancel
+	}
+	if id == nil {
+		err = fmt.Errorf("Insertion did not return any ID, aborted.")
+		goto cancel
+	}
+
+	res = col.Find(id)
+	if err = res.One(item); err != nil {
+		goto cancel
+	}
+
+	if tx, ok := sess.(db.Tx); ok {
+		// This is only executed if t.Database() was **not** a transaction and if
+		// sess was created with sess.Transaction().
+		return tx.Commit()
+	}
+	return err
+
+cancel:
+	// This goto label should only be used when we got an error within a
+	// transaction and we don't want to continue.
+
+	if tx, ok := sess.(db.Tx); ok {
+		// This is only executed if t.Database() was **not** a transaction and if
+		// sess was created with sess.Transaction().
+		tx.Rollback()
+	}
+	return err
 }
 
 // Insert inserts an item (map or struct) into the collection.
@@ -76,24 +143,12 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 	if len(pKey) <= 1 {
 		// Attempt to use LastInsertId() to get our ID.
 		id, _ := res.LastInsertId()
-		if id > 0 {
-			if setter, ok := item.(db.Int64IDSetter); ok {
-				if err := setter.SetID(id); err != nil {
-					return nil, err
-				}
-			}
-			if setter, ok := item.(db.Uint64IDSetter); ok {
-				if err := setter.SetID(uint64(id)); err != nil {
-					return nil, err
-				}
-			}
-		}
 		return id, nil
 	}
 
 	// There is no "RETURNING" in SQLite, so we have to return the values that
 	// were given for constructing the composite key.
-	keyMap := make(map[string]interface{})
+	keyMap := db.Cond{}
 
 	for i := range columnNames {
 		for j := 0; j < len(pKey); j++ {
@@ -101,14 +156,6 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 				keyMap[pKey[j]] = columnValues[i]
 			}
 		}
-	}
-
-	// Does the item satisfy the db.IDSetter interface?
-	if setter, ok := item.(db.IDSetter); ok {
-		if err := setter.SetID(keyMap); err != nil {
-			return nil, err
-		}
-		return nil, nil
 	}
 
 	// Backwards compatibility (int64).

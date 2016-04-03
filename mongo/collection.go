@@ -30,8 +30,8 @@ import (
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"upper.io/db.v2/builder"
 	"upper.io/db.v2"
+	"upper.io/db.v2/builder"
 )
 
 // Collection represents a mongodb collection.
@@ -139,8 +139,6 @@ func (col *Collection) compileConditions(term interface{}) interface{} {
 		}
 	case db.Cond:
 		return compileStatement(t)
-	case db.Constrainer:
-		return compileStatement(t.Constraints())
 	case builder.Compound:
 		values := []interface{}{}
 
@@ -209,6 +207,10 @@ func (col *Collection) Truncate() error {
 	return nil
 }
 
+func (col *Collection) InsertReturning(item interface{}) error {
+	return db.ErrUnsupported
+}
+
 // Insert inserts an item (map or struct) into the collection.
 func (col *Collection) Insert(item interface{}) (interface{}, error) {
 	var err error
@@ -230,13 +232,6 @@ func (col *Collection) Insert(item interface{}) (interface{}, error) {
 		if err = col.collection.Update(bson.M{"_id": id}, item); err != nil {
 			// Cleanup allocated ID
 			col.collection.Remove(bson.M{"_id": id})
-			return nil, err
-		}
-	}
-
-	// Does the item satisfy the db.ID interface?
-	if setter, ok := item.(db.IDSetter); ok {
-		if err := setter.SetID(map[string]interface{}{"_id": id}); err != nil {
 			return nil, err
 		}
 	}
