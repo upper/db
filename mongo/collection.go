@@ -209,8 +209,8 @@ func (col *Collection) Truncate() error {
 	return nil
 }
 
-// Append inserts an item (map or struct) into the collection.
-func (col *Collection) Append(item interface{}) (interface{}, error) {
+// Insert inserts an item (map or struct) into the collection.
+func (col *Collection) Insert(item interface{}) (interface{}, error) {
 	var err error
 
 	id := getID(item)

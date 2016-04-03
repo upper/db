@@ -244,9 +244,9 @@ type Tx interface {
 // sources or tables.
 type Collection interface {
 
-	// Append inserts a new item into the collection. Accepts a map or a struct
+	// Insert inserts a new item into the collection. Accepts a map or a struct
 	// as argument.
-	Append(interface{}) (interface{}, error)
+	Insert(interface{}) (interface{}, error)
 
 	// Exists returns true if the collection exists.
 	Exists() bool

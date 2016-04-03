@@ -121,7 +121,7 @@ func TestExpectCursorError(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestAppendToArtistsTable(t *testing.T) {
+func TestInsertIntoArtistsTable(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()
 
@@ -131,7 +131,7 @@ func TestAppendToArtistsTable(t *testing.T) {
 		"name": "Ozzie",
 	}
 
-	id, err := artist.Append(itemMap)
+	id, err := artist.Insert(itemMap)
 	assert.NoError(t, err)
 	assert.NotNil(t, id)
 
@@ -146,7 +146,7 @@ func TestAppendToArtistsTable(t *testing.T) {
 		"Flea",
 	}
 
-	id, err = artist.Append(itemStruct)
+	id, err = artist.Insert(itemStruct)
 	assert.NoError(t, err)
 	assert.NotNil(t, id)
 
@@ -161,7 +161,7 @@ func TestAppendToArtistsTable(t *testing.T) {
 		"Slash",
 	}
 
-	id, err = artist.Append(itemStruct2)
+	id, err = artist.Insert(itemStruct2)
 	assert.NoError(t, err)
 	assert.NotNil(t, id)
 
@@ -174,7 +174,7 @@ func TestAppendToArtistsTable(t *testing.T) {
 		Name: "Janus",
 	}
 
-	_, err = artist.Append(&itemStruct3)
+	_, err = artist.Insert(&itemStruct3)
 	assert.NoError(t, err)
 	if Adapter != "ql" {
 		assert.NotZero(t, itemStruct3.id)
@@ -418,7 +418,7 @@ func TestInlineStructs(t *testing.T) {
 		rec.Details.Created = time.Date(2016, time.January, 1, 2, 3, 4, 0, time.UTC)
 	}
 
-	id, err := review.Append(rec)
+	id, err := review.Insert(rec)
 	assert.NoError(t, err)
 	assert.NotZero(t, id.(int64))
 
@@ -608,7 +608,7 @@ func TestNullableFields(t *testing.T) {
 		NullBoolTest:    sql.NullBool{false, false},
 	}
 
-	id, err := col.Append(testType{})
+	id, err := col.Insert(testType{})
 	assert.NoError(t, err)
 
 	// Testing fetching of invalid nulls.
@@ -631,7 +631,7 @@ func TestNullableFields(t *testing.T) {
 		NullBoolTest:    sql.NullBool{false, true},
 	}
 
-	id, err = col.Append(test)
+	id, err = col.Insert(test)
 	assert.NoError(t, err)
 
 	// Testing fetching of valid nulls.
@@ -664,7 +664,7 @@ func TestGroup(t *testing.T) {
 	// Adding row append.
 	for i := 0; i < 100; i++ {
 		numeric, value := rand.Intn(5), rand.Intn(100)
-		_, err := stats.Append(statsType{numeric, value})
+		_, err := stats.Insert(statsType{numeric, value})
 		assert.NoError(t, err)
 	}
 
@@ -726,7 +726,7 @@ func TestCompositeKeys(t *testing.T) {
 		"Some value",
 	}
 
-	_, err := compositeKeys.Append(&item)
+	_, err := compositeKeys.Insert(&item)
 	assert.NoError(t, err)
 
 	// Using constrainer interface.
@@ -759,7 +759,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Simple transaction
-	_, err = artist.Append(artistType{1, "First"})
+	_, err = artist.Insert(artistType{1, "First"})
 	assert.NoError(t, err)
 
 	err = tx.Commit()
@@ -777,15 +777,15 @@ func TestTransactionsAndRollback(t *testing.T) {
 
 	artist = tx.Collection("artist")
 
-	_, err = artist.Append(artistType{2, "Second"})
+	_, err = artist.Insert(artistType{2, "Second"})
 	assert.NoError(t, err)
 
 	// Won't fail.
-	_, err = artist.Append(artistType{3, "Third"})
+	_, err = artist.Insert(artistType{3, "Third"})
 	assert.NoError(t, err)
 
 	// Will fail.
-	_, err = artist.Append(artistType{1, "Duplicated"})
+	_, err = artist.Insert(artistType{1, "Duplicated"})
 	assert.Error(t, err)
 
 	err = tx.Rollback()
@@ -811,11 +811,11 @@ func TestTransactionsAndRollback(t *testing.T) {
 	artist = tx.Collection("artist")
 
 	// Won't fail.
-	_, err = artist.Append(artistType{2, "Second"})
+	_, err = artist.Insert(artistType{2, "Second"})
 	assert.NoError(t, err)
 
 	// Won't fail.
-	_, err = artist.Append(artistType{3, "Third"})
+	_, err = artist.Insert(artistType{3, "Third"})
 	assert.NoError(t, err)
 
 	// Then rollback for no reason.
@@ -842,11 +842,11 @@ func TestTransactionsAndRollback(t *testing.T) {
 	artist = tx.Collection("artist")
 
 	// Won't fail.
-	_, err = artist.Append(artistType{2, "Second"})
+	_, err = artist.Insert(artistType{2, "Second"})
 	assert.NoError(t, err)
 
 	// Won't fail.
-	_, err = artist.Append(artistType{3, "Third"})
+	_, err = artist.Insert(artistType{3, "Third"})
 	assert.NoError(t, err)
 
 	err = tx.Commit()
@@ -905,7 +905,7 @@ func TestDataTypes(t *testing.T) {
 	err := dataTypes.Truncate()
 	assert.NoError(t, err)
 
-	// Appending our test subject.
+	// Inserting our test subject.
 	loc, err := time.LoadLocation(testTimeZone)
 	assert.NoError(t, err)
 
@@ -930,7 +930,7 @@ func TestDataTypes(t *testing.T) {
 		nil,
 		int64(time.Second * time.Duration(7331)),
 	}
-	id, err := dataTypes.Append(testValues)
+	id, err := dataTypes.Insert(testValues)
 	assert.NoError(t, err)
 	assert.NotNil(t, id)
 

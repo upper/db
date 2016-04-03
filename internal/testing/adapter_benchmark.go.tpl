@@ -44,7 +44,7 @@ func connectAndAddFakeRows() (db.Database, error) {
 
 	for i := 0; i < testRows; i++ {
 		value := valueT{artistN(i)}
-		if _, err := sess.Collection("artist").Append(value); err != nil {
+		if _, err := sess.Collection("artist").Insert(value); err != nil {
 			return nil, err
 		}
 	}
@@ -52,7 +52,7 @@ func connectAndAddFakeRows() (db.Database, error) {
 	return sess, nil
 }
 
-func BenchmarkUpperAppend(b *testing.B) {
+func BenchmarkUpperInsert(b *testing.B) {
 	sess := mustOpen()
 	defer sess.Close()
 
@@ -65,13 +65,13 @@ func BenchmarkUpperAppend(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := artist.Append(item); err != nil {
+		if _, err := artist.Insert(item); err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func BenchmarkUpperAppendVariableArgs(b *testing.B) {
+func BenchmarkUpperInsertVariableArgs(b *testing.B) {
 	sess := mustOpen()
 	defer sess.Close()
 
@@ -83,13 +83,13 @@ func BenchmarkUpperAppendVariableArgs(b *testing.B) {
 		item := struct {
 			Name string `db:"name"`
 		}{fmt.Sprintf("Hayao Miyazaki %d", rand.Int())}
-		if _, err := artist.Append(item); err != nil {
+		if _, err := artist.Insert(item); err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func BenchmarkUpperAppendTransaction(b *testing.B) {
+func BenchmarkUpperInsertTransaction(b *testing.B) {
 	sess := mustOpen()
 	defer sess.Close()
 
@@ -111,7 +111,7 @@ func BenchmarkUpperAppendTransaction(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err = artist.Append(item); err != nil {
+		if _, err = artist.Insert(item); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -121,7 +121,7 @@ func BenchmarkUpperAppendTransaction(b *testing.B) {
 	}
 }
 
-func BenchmarkUpperAppendTransactionWithMap(b *testing.B) {
+func BenchmarkUpperInsertTransactionWithMap(b *testing.B) {
 	sess := mustOpen()
 	defer sess.Close()
 
@@ -143,7 +143,7 @@ func BenchmarkUpperAppendTransactionWithMap(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err = artist.Append(item); err != nil {
+		if _, err = artist.Insert(item); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -291,7 +291,7 @@ func BenchmarkUpperCommitManyTransactions(b *testing.B) {
 			Name string `db:"name"`
 		}{"Hayao Miyazaki"}
 
-		if _, err = artist.Append(item); err != nil {
+		if _, err = artist.Insert(item); err != nil {
 			b.Fatal(err)
 		}
 
@@ -329,7 +329,7 @@ func BenchmarkUpperRollbackManyTransactions(b *testing.B) {
 			Name string `db:"name"`
 		}{"Hayao Miyazaki"}
 
-		if _, err = artist.Append(item); err != nil {
+		if _, err = artist.Insert(item); err != nil {
 			b.Fatal(err)
 		}
 

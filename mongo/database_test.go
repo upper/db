@@ -238,7 +238,7 @@ func TestTruncate(t *testing.T) {
 }
 
 // This test appends some data into the "artist" table.
-func TestAppend(t *testing.T) {
+func TestInsert(t *testing.T) {
 
 	var err error
 	var id interface{}
@@ -256,13 +256,13 @@ func TestAppend(t *testing.T) {
 	// Getting a pointer to the "artist" collection.
 	artist := sess.Collection("artist")
 
-	// Appending a map.
-	id, err = artist.Append(map[string]string{
+	// Inserting a map.
+	id, err = artist.Insert(map[string]string{
 		"name": "Ozzie",
 	})
 
 	if err != nil {
-		t.Fatalf("Append(): %s", err.Error())
+		t.Fatalf("Insert(): %s", err.Error())
 	}
 
 	if id == nil {
@@ -277,8 +277,8 @@ func TestAppend(t *testing.T) {
 		t.Fatalf("Expecting a valid bson.ObjectId.")
 	}
 
-	// Appending a struct.
-	id, err = artist.Append(struct {
+	// Inserting a struct.
+	id, err = artist.Insert(struct {
 		Name string
 	}{
 		"Flea",
@@ -296,8 +296,8 @@ func TestAppend(t *testing.T) {
 		t.Fatalf("Expecting a valid bson.ObjectId.")
 	}
 
-	// Appending a struct (using tags to specify the field name).
-	id, err = artist.Append(struct {
+	// Inserting a struct (using tags to specify the field name).
+	id, err = artist.Insert(struct {
 		ArtistName string `bson:"name"`
 	}{
 		"Slash",
@@ -315,8 +315,8 @@ func TestAppend(t *testing.T) {
 		t.Fatalf("Expecting a valid bson.ObjectId.")
 	}
 
-	// Appending a pointer to a struct
-	id, err = artist.Append(&struct {
+	// Inserting a pointer to a struct
+	id, err = artist.Insert(&struct {
 		ArtistName string `bson:"name"`
 	}{
 		"Metallica",
@@ -334,8 +334,8 @@ func TestAppend(t *testing.T) {
 		t.Fatalf("Expecting a valid bson.ObjectId.")
 	}
 
-	// Appending a pointer to a map
-	id, err = artist.Append(&map[string]string{
+	// Inserting a pointer to a map
+	id, err = artist.Insert(&map[string]string{
 		"name": "Freddie",
 	})
 
@@ -356,7 +356,7 @@ func TestAppend(t *testing.T) {
 		Name: "Janus",
 	}
 
-	if _, err = artist.Append(&itemStruct3); err != nil {
+	if _, err = artist.Insert(&itemStruct3); err != nil {
 		t.Fatal(err)
 	}
 
@@ -436,7 +436,7 @@ func TestGroup(t *testing.T) {
 	// Adding row append.
 	for i := 0; i < 1000; i++ {
 		numeric, value := rand.Intn(10), rand.Intn(100)
-		if _, err = stats.Append(statsT{numeric, value}); err != nil {
+		if _, err = stats.Insert(statsT{numeric, value}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -846,7 +846,7 @@ func TestSetterAndConstrainer(t *testing.T) {
 		SomeVal: "Some value",
 	}
 
-	if id, err = compositeKeys.Append(&item); err != nil {
+	if id, err = compositeKeys.Insert(&item); err != nil {
 		t.Fatal(err)
 	}
 
@@ -898,8 +898,8 @@ func TestDataTypes(t *testing.T) {
 	// Getting a pointer to the "data_types" collection.
 	dataTypes := sess.Collection("data_types")
 
-	// Appending our test subject.
-	id, err := dataTypes.Append(testValues)
+	// Inserting our test subject.
+	id, err := dataTypes.Insert(testValues)
 
 	if err != nil {
 		t.Fatal(err)

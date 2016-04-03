@@ -108,7 +108,7 @@ func (c ConnectionURL) String() (s string) {
 		vv.Set(k, v)
 	}
 
-	// Appending options.
+	// Inserting options.
 	if p := vv.Encode(); p != "" {
 		s = s + "?" + p
 	}

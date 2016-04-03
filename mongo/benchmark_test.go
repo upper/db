@@ -46,7 +46,7 @@ func connectAndAddFakeRows() (db.Database, error) {
 	return sess, nil
 }
 
-func BenchmarkMgoAppend(b *testing.B) {
+func BenchmarkMgoInsert(b *testing.B) {
 	var err error
 	var sess db.Database
 
@@ -70,8 +70,8 @@ func BenchmarkMgoAppend(b *testing.B) {
 	}
 }
 
-// BenchmarkUpperAppend benchmarks an insertion by upper.io/db.v2.
-func BenchmarkUpperAppend(b *testing.B) {
+// BenchmarkUpperInsert benchmarks an insertion by upper.io/db.v2.
+func BenchmarkUpperInsert(b *testing.B) {
 
 	sess, err := db.Open(Adapter, settings)
 	if err != nil {
@@ -90,15 +90,15 @@ func BenchmarkUpperAppend(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err = artist.Append(item); err != nil {
+		if _, err = artist.Insert(item); err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-// BenchmarkUpperAppendVariableArgs benchmarks an insertion by upper.io/db.v2
+// BenchmarkUpperInsertVariableArgs benchmarks an insertion by upper.io/db.v2
 // with variable parameters.
-func BenchmarkUpperAppendVariableArgs(b *testing.B) {
+func BenchmarkUpperInsertVariableArgs(b *testing.B) {
 
 	sess, err := db.Open(Adapter, settings)
 	if err != nil {
@@ -116,7 +116,7 @@ func BenchmarkUpperAppendVariableArgs(b *testing.B) {
 		item := struct {
 			Name string `bson:"name"`
 		}{fmt.Sprintf("Hayao Miyazaki %d", rand.Int())}
-		if _, err = artist.Append(item); err != nil {
+		if _, err = artist.Insert(item); err != nil {
 			b.Fatal(err)
 		}
 	}

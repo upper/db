@@ -49,8 +49,8 @@ func (t *table) Truncate() error {
 	return nil
 }
 
-// Append inserts an item (map or struct) into the collection.
-func (t *table) Append(item interface{}) (interface{}, error) {
+// Insert inserts an item (map or struct) into the collection.
+func (t *table) Insert(item interface{}) (interface{}, error) {
 	columnNames, columnValues, err := sqlbuilder.Map(item)
 	if err != nil {
 		return nil, err
