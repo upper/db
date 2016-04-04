@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jmoiron/sqlx/reflectx"
 	"upper.io/db.v2/builder/expr"
+	"upper.io/db.v2/builder/reflectx"
 )
 
 type hasStatement interface {
