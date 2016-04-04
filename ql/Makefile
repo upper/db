@@ -1,3 +1,5 @@
+SHELL := bash
+
 DB_NAME ?= ql-test.db
 
 BENCHTIME ?= 5s
