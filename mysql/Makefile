@@ -32,7 +32,7 @@ reset-db: require-client
 	SQL="" && \
 	SQL+="DROP DATABASE IF EXISTS $(DB_NAME);" && \
 	SQL+="CREATE DATABASE $(DB_NAME);" && \
-	SQL+="GRANT ALL PRIVILEGES ON $(DB_NAME).* TO $(DB_USERNAME)@'%' IDENTIFIED BY '$(DB_PASSWORD)';" && \
+	SQL+="GRANT ALL PRIVILEGES ON $(DB_NAME).* TO $(DB_USERNAME) IDENTIFIED BY '$(DB_PASSWORD)';" && \
 	mysql -uroot -h"$(DB_HOST)" -P$(DB_PORT) <<< $$SQL
 
 test: reset-db generate
