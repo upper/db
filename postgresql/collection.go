@@ -24,9 +24,9 @@ package postgresql
 import (
 	"database/sql"
 
-	"upper.io/db.v2/builder/sqlbuilder"
-	"upper.io/db.v2/builder/sqlgen"
 	"upper.io/db.v2"
+	"upper.io/db.v2/builder"
+	"upper.io/db.v2/builder/sqlgen"
 	"upper.io/db.v2/internal/sqladapter"
 )
 
@@ -51,7 +51,7 @@ func (t *table) Truncate() error {
 
 // Insert inserts an item (map or struct) into the collection.
 func (t *table) Insert(item interface{}) (interface{}, error) {
-	columnNames, columnValues, err := sqlbuilder.Map(item)
+	columnNames, columnValues, err := builder.Map(item)
 	if err != nil {
 		return nil, err
 	}

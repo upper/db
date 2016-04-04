@@ -30,9 +30,7 @@ import (
 	_ "github.com/cznic/ql/driver" // QL driver
 	"upper.io/db.v2"
 	"upper.io/db.v2/builder/sqlgen"
-	template "upper.io/db.v2/builder/template/ql"
 	"upper.io/db.v2/internal/sqladapter"
-	"upper.io/db.v2/internal/sqlutil/tx"
 )
 
 type database struct {
@@ -115,7 +113,7 @@ func (d *database) open() error {
 
 // Open attempts to open a connection to the database server.
 func (d *database) Open(connURL db.ConnectionURL) error {
-	d.BaseDatabase = sqladapter.NewDatabase(d, connURL, template.Template())
+	d.BaseDatabase = sqladapter.NewDatabase(d, connURL, template())
 	return d.open()
 }
 
@@ -185,7 +183,7 @@ func (d *database) Transaction() (db.Tx, error) {
 
 	clone.BindTx(sqlTx)
 
-	return &sqltx.Database{Database: clone, Tx: clone.Tx()}, nil
+	return &sqladapter.TxDatabase{Database: clone, Tx: clone.Tx()}, nil
 }
 
 // PopulateSchema looks up for the table info in the database and populates its

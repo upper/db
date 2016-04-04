@@ -8,11 +8,8 @@ import (
 	"upper.io/db.v2"
 	"upper.io/db.v2/builder"
 	"upper.io/db.v2/builder/cache"
-	"upper.io/db.v2/builder/sqlbuilder"
 	"upper.io/db.v2/builder/sqlgen"
-	"upper.io/db.v2/internal/debug"
-	"upper.io/db.v2/internal/schema"
-	"upper.io/db.v2/internal/sqlutil/tx"
+	"upper.io/db.v2/internal/logger"
 )
 
 type HasExecStatement interface {
@@ -37,10 +34,10 @@ type Database interface {
 type BaseDatabase struct {
 	partial PartialDatabase
 	sess    *sql.DB
-	tx      *sqltx.Tx
+	tx      *Tx
 
 	connURL          db.ConnectionURL
-	schema           *schema.DatabaseSchema
+	schema           *DatabaseSchema
 	cachedStatements *cache.Cache
 	collections      map[string]db.Collection
 	collectionsMu    sync.Mutex
@@ -65,7 +62,7 @@ func NewDatabase(partial PartialDatabase, connURL db.ConnectionURL, template *sq
 		template: template,
 	}
 
-	d.builder, _ = sqlbuilder.New(d, d.t)
+	d.builder, _ = builder.New(d, d.t)
 	d.cachedStatements = cache.NewCache()
 
 	return d
@@ -83,20 +80,20 @@ func (d *BaseDatabase) Template() *sqlgen.Template {
 	return d.template
 }
 
-func (d *BaseDatabase) BindTx(tx *sql.Tx) {
-	d.tx = sqltx.New(tx)
+func (d *BaseDatabase) BindTx(t *sql.Tx) {
+	d.tx = newTx(t)
 }
 
-func (d *BaseDatabase) Tx() *sqltx.Tx {
+func (d *BaseDatabase) Tx() *Tx {
 	return d.tx
 }
 
-func (d *BaseDatabase) NewSchema() *schema.DatabaseSchema {
-	d.schema = schema.NewDatabaseSchema()
+func (d *BaseDatabase) NewSchema() *DatabaseSchema {
+	d.schema = NewDatabaseSchema()
 	return d.schema
 }
 
-func (d *BaseDatabase) Schema() *schema.DatabaseSchema {
+func (d *BaseDatabase) Schema() *DatabaseSchema {
 	return d.schema
 }
 
@@ -167,7 +164,7 @@ func (d *BaseDatabase) ConnectionURL() db.ConnectionURL {
 
 // Name returns the name of the database.
 func (d *BaseDatabase) Name() string {
-	return d.schema.Name()
+	return d.Name()
 }
 
 // Exec compiles and executes a statement that does not return any rows.
@@ -182,7 +179,7 @@ func (d *BaseDatabase) Exec(stmt *sqlgen.Statement, args ...interface{}) (sql.Re
 
 		defer func() {
 			end = time.Now().UnixNano()
-			debug.Log(query, args, err, start, end)
+			logger.Log(query, args, err, start, end)
 		}()
 	}
 
@@ -209,7 +206,7 @@ func (d *BaseDatabase) Query(stmt *sqlgen.Statement, args ...interface{}) (*sql.
 
 		defer func() {
 			end = time.Now().UnixNano()
-			debug.Log(query, args, err, start, end)
+			logger.Log(query, args, err, start, end)
 		}()
 	}
 
@@ -232,7 +229,7 @@ func (d *BaseDatabase) QueryRow(stmt *sqlgen.Statement, args ...interface{}) (*s
 
 		defer func() {
 			end = time.Now().UnixNano()
-			debug.Log(query, args, err, start, end)
+			logger.Log(query, args, err, start, end)
 		}()
 	}
 

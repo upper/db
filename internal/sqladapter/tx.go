@@ -19,65 +19,35 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package ql
+package sqladapter
 
 import (
 	"database/sql"
 
 	"upper.io/db.v2"
-	"upper.io/db.v2/builder"
-	"upper.io/db.v2/builder/sqlgen"
-	"upper.io/db.v2/internal/sqladapter"
 )
 
-type table struct {
-	sqladapter.Collection
+type TxDatabase struct {
+	db.Database
+	*Tx
 }
 
-var _ = db.Collection(&table{})
-
-// Truncate deletes all rows from the table.
-func (t *table) Truncate() error {
-	stmt := sqlgen.Statement{
-		Type:  sqlgen.Truncate,
-		Table: sqlgen.TableWithName(t.Name()),
-	}
-
-	if _, err := t.Database().Builder().Exec(&stmt); err != nil {
-		return err
-	}
-	return nil
+type Tx struct {
+	*sql.Tx
+	done bool
 }
 
-// Insert inserts an item (map or struct) into the collection.
-func (t *table) Insert(item interface{}) (interface{}, error) {
-	columnNames, columnValues, err := builder.Map(item)
-	if err != nil {
-		return nil, err
-	}
-
-	q := t.Database().Builder().InsertInto(t.Name()).
-		Columns(columnNames...).
-		Values(columnValues...)
-
-	var res sql.Result
-	if res, err = q.Exec(); err != nil {
-		return nil, err
-	}
-
-	var id int64
-	id, _ = res.LastInsertId()
-
-	// Does the item satisfy the db.ID interface?
-	if setter, ok := item.(db.IDSetter); ok {
-		if err := setter.SetID(map[string]interface{}{"id": id}); err != nil {
-			return nil, err
-		}
-	}
-
-	return id, nil
+func newTx(tx *sql.Tx) *Tx {
+	return &Tx{Tx: tx}
 }
 
-func newTable(d *database, name string) *table {
-	return &table{sqladapter.NewCollection(d, name)}
+func (t *Tx) Done() bool {
+	return t.done
+}
+
+func (t *Tx) Commit() (err error) {
+	if err = t.Tx.Commit(); err == nil {
+		t.done = true
+	}
+	return err
 }

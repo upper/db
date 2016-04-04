@@ -340,4 +340,4 @@ func TestOptionTypeJsonbStruct(t *testing.T) {
 	assert.Equal(t, int64(123), item1Chk.Settings.Num)
 }
 
-//go:generate bash -c "sed s/ADAPTER/postgresql/g ../internal/testing/adapter.go.tpl > generated_test.go"
+//go:generate bash -c "sed s/ADAPTER/postgresql/g ../internal/sqladapter/testing/adapter.go.tpl > generated_test.go"

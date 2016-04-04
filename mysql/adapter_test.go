@@ -135,4 +135,4 @@ func tearUp() error {
 	return nil
 }
 
-//go:generate bash -c "sed s/ADAPTER/mysql/g ../internal/testing/adapter.go.tpl > generated_test.go"
+//go:generate bash -c "sed s/ADAPTER/mysql/g ../internal/sqladapter/testing/adapter.go.tpl > generated_test.go"
