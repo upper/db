@@ -30,7 +30,7 @@ addons:
     - mongodb-org-server
     - mongodb-org-shell
 
-env: GOARCH=amd64 DB_HOST=127.0.0.1 DB_USER=user DB_PASSWORD=pass DB_NAME=testdb
+env: GOARCH=amd64 DB_HOST=127.0.0.1
 
 install:
   - mkdir -p $GOPATH/src/upper.io
