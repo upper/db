@@ -23,6 +23,7 @@ package ql
 
 import (
 	"database/sql"
+	"os"
 )
 
 const (
@@ -30,7 +31,7 @@ const (
 )
 
 var settings = ConnectionURL{
-	Database: "_dumps/test.db",
+	Database: os.Getenv("DB_NAME"),
 }
 
 func tearUp() error {

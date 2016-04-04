@@ -35,18 +35,12 @@ import (
 	"upper.io/db.v2"
 )
 
-// Wrapper settings.
-const (
-	database = "upperio_tests"
-	username = "upperio_tests"
-	password = "upperio_secret"
-)
-
 // Global settings for tests.
 var settings = ConnectionURL{
-	Database: database,
-	User:     username,
-	Password: password,
+	Database: os.Getenv("DB_NAME"),
+	User:     os.Getenv("DB_USERNAME"),
+	Password: os.Getenv("DB_PASSWORD"),
+	Host:     os.Getenv("DB_HOST") + ":" + os.Getenv("DB_PORT"),
 }
 
 var host string
@@ -123,20 +117,6 @@ func init() {
 		&t,
 		time.Second * time.Duration(7331),
 	}
-
-	if host = os.Getenv("TEST_HOST"); host == "" {
-		host = "localhost"
-	}
-
-	settings.Host = host
-}
-
-func SkipTestOpenFailed(t *testing.T) {
-	_, err := db.Open(Adapter, ConnectionURL{})
-
-	if err != nil {
-		t.Errorf(err.Error())
-	}
 }
 
 // Attempts to open an empty datasource.
@@ -146,10 +126,10 @@ func TestOpenWithWrongData(t *testing.T) {
 
 	// Attempt to open with safe settings.
 	rightSettings = ConnectionURL{
-		Database: database,
-		Host:     host,
-		User:     username,
-		Password: password,
+		Database: settings.Database,
+		Host:     settings.Host,
+		User:     settings.User,
+		Password: settings.Password,
 	}
 
 	// Attempt to open an empty database.
@@ -160,9 +140,9 @@ func TestOpenWithWrongData(t *testing.T) {
 
 	// Attempt to open with wrong password.
 	wrongSettings = ConnectionURL{
-		Database: database,
-		Host:     host,
-		User:     username,
+		Database: settings.Database,
+		Host:     settings.Host,
+		User:     settings.User,
 		Password: "fail",
 	}
 
@@ -173,9 +153,9 @@ func TestOpenWithWrongData(t *testing.T) {
 	// Attempt to open with wrong database.
 	wrongSettings = ConnectionURL{
 		Database: "fail",
-		Host:     host,
-		User:     username,
-		Password: password,
+		Host:     settings.Host,
+		User:     settings.User,
+		Password: settings.Password,
 	}
 
 	if _, err = db.Open(Adapter, wrongSettings); err == nil {
@@ -184,10 +164,10 @@ func TestOpenWithWrongData(t *testing.T) {
 
 	// Attempt to open with wrong username.
 	wrongSettings = ConnectionURL{
-		Database: database,
-		Host:     host,
+		Database: settings.Database,
+		Host:     settings.Host,
 		User:     "fail",
-		Password: password,
+		Password: settings.Password,
 	}
 
 	if _, err = db.Open(Adapter, wrongSettings); err == nil {

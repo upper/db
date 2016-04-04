@@ -5,13 +5,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"upper.io/db.v2/builder"
-	"upper.io/db.v2/builder/sqlbuilder"
 )
 
 func TestTemplateSelect(t *testing.T) {
 
-	testTemplate := Template()
-	b := sqlbuilder.NewBuilderWithTemplate(testTemplate)
+	testTemplate := template()
+	b := builder.NewBuilderWithTemplate(testTemplate)
 	assert := assert.New(t)
 
 	assert.Equal(
@@ -149,8 +148,8 @@ func TestTemplateSelect(t *testing.T) {
 }
 
 func TestTemplateInsert(t *testing.T) {
-	testTemplate := Template()
-	b := sqlbuilder.NewBuilderWithTemplate(testTemplate)
+	testTemplate := template()
+	b := builder.NewBuilderWithTemplate(testTemplate)
 	assert := assert.New(t)
 
 	assert.Equal(
@@ -192,8 +191,8 @@ func TestTemplateInsert(t *testing.T) {
 }
 
 func TestTemplateUpdate(t *testing.T) {
-	testTemplate := Template()
-	b := sqlbuilder.NewBuilderWithTemplate(testTemplate)
+	testTemplate := template()
+	b := builder.NewBuilderWithTemplate(testTemplate)
 	assert := assert.New(t)
 
 	assert.Equal(
@@ -235,8 +234,8 @@ func TestTemplateUpdate(t *testing.T) {
 }
 
 func TestTemplateDelete(t *testing.T) {
-	testTemplate := Template()
-	b := sqlbuilder.NewBuilderWithTemplate(testTemplate)
+	testTemplate := template()
+	b := builder.NewBuilderWithTemplate(testTemplate)
 	assert := assert.New(t)
 
 	assert.Equal(

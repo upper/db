@@ -1,20 +1,24 @@
-#BENCHTIME ?= 10s
-BENCHTIME := 1s
+DB_NAME ?= ql-test.db
+
+BENCHTIME ?= 5s
+
+export DB_NAME
 
 build:
 	go build && go install
 
 require-client:
-	if [ -z "$$(which ql)" ]; then \
+	@if [ -z "$$(which ql)" ]; then \
 		echo 'Missing "ql" command. Please install the QL cli tool and try again.' && \
 		exit 1; \
 	fi
 
 generate:
-	go generate
+	go generate && \
+	go get -d -t -v ./...
 
 reset-db: require-client
-	$(MAKE) reset-db -C _dumps
+	rm -f $(DB_NAME)
 
 test: reset-db generate
 	go test -v

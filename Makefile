@@ -1,10 +1,13 @@
-setup-test:
-	$(MAKE) reset-db generate -C postgresql && \
-	$(MAKE) reset-db generate -C mysql && \
-	$(MAKE) reset-db generate -C ql && \
-	$(MAKE) reset-db generate -C sqlite && \
-	$(MAKE) reset-db generate -C mongo && \
-	go get -d -t -v ./...
+DB_HOST ?= 127.0.0.1
 
-test: setup-test
-	go test ./... -v
+export DB_HOST
+
+test:
+	go test -v ./builder/... && \
+	go test -v ./internal/... && \
+	$(MAKE) test -C postgresql && \
+	$(MAKE) test -C mysql && \
+	$(MAKE) test -C sqlite && \
+	$(MAKE) test -C ql && \
+	$(MAKE) test -C mongo && \
+	go test -v

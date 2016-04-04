@@ -32,10 +32,10 @@ const (
 )
 
 var settings = ConnectionURL{
-	Database: "upperio_tests",
-	User:     "upperio_tests",
-	Password: "upperio_secret",
-	Host:     "localhost",
+	Database: os.Getenv("DB_NAME"),
+	User:     os.Getenv("DB_USERNAME"),
+	Password: os.Getenv("DB_PASSWORD"),
+	Host:     os.Getenv("DB_HOST") + ":" + os.Getenv("DB_PORT"),
 	Options: map[string]string{
 		// See https://github.com/go-sql-driver/mysql/issues/9
 		"parseTime": "true",
@@ -45,10 +45,6 @@ var settings = ConnectionURL{
 }
 
 func tearUp() error {
-	if host := os.Getenv("TEST_HOST"); host != "" {
-		settings.Host = host
-	}
-
 	sess := mustOpen()
 	defer sess.Close()
 

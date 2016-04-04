@@ -9,7 +9,7 @@ import (
 
 func TestTemplateSelect(t *testing.T) {
 
-	testTemplate := Template()
+	testTemplate := template()
 	b := builder.NewBuilderWithTemplate(testTemplate)
 	assert := assert.New(t)
 
@@ -148,7 +148,7 @@ func TestTemplateSelect(t *testing.T) {
 }
 
 func TestTemplateInsert(t *testing.T) {
-	testTemplate := Template()
+	testTemplate := template()
 	b := builder.NewBuilderWithTemplate(testTemplate)
 	assert := assert.New(t)
 
@@ -191,7 +191,7 @@ func TestTemplateInsert(t *testing.T) {
 }
 
 func TestTemplateUpdate(t *testing.T) {
-	testTemplate := Template()
+	testTemplate := template()
 	b := builder.NewBuilderWithTemplate(testTemplate)
 	assert := assert.New(t)
 
@@ -234,7 +234,7 @@ func TestTemplateUpdate(t *testing.T) {
 }
 
 func TestTemplateDelete(t *testing.T) {
-	testTemplate := Template()
+	testTemplate := template()
 	b := builder.NewBuilderWithTemplate(testTemplate)
 	assert := assert.New(t)
 
