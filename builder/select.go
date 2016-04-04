@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"upper.io/db.v2/builder/sqlgen"
+	"upper.io/db.v2/builder/expr"
 )
 
 type selectMode uint8
@@ -21,13 +21,13 @@ type selector struct {
 	mode      selectMode
 	builder   *sqlBuilder
 	table     string
-	where     *sqlgen.Where
-	groupBy   *sqlgen.GroupBy
-	orderBy   sqlgen.OrderBy
-	limit     sqlgen.Limit
-	offset    sqlgen.Offset
-	columns   *sqlgen.Columns
-	joins     []*sqlgen.Join
+	where     *expr.Where
+	groupBy   *expr.GroupBy
+	orderBy   expr.OrderBy
+	limit     expr.Limit
+	offset    expr.Offset
+	columns   *expr.Columns
+	joins     []*expr.Join
 	arguments []interface{}
 	err       error
 }
@@ -43,7 +43,7 @@ func (qs *selector) Columns(columns ...interface{}) Selector {
 		qs.err = err
 		return qs
 	}
-	qs.columns = sqlgen.JoinColumns(f...)
+	qs.columns = expr.JoinColumns(f...)
 	return qs
 }
 
@@ -60,41 +60,41 @@ func (qs *selector) Where(terms ...interface{}) Selector {
 }
 
 func (qs *selector) GroupBy(columns ...interface{}) Selector {
-	var fragments []sqlgen.Fragment
+	var fragments []expr.Fragment
 	fragments, qs.err = columnFragments(qs.builder.t, columns)
 	if fragments != nil {
-		qs.groupBy = sqlgen.GroupByColumns(fragments...)
+		qs.groupBy = expr.GroupByColumns(fragments...)
 	}
 	return qs
 }
 
 func (qs *selector) OrderBy(columns ...interface{}) Selector {
-	var sortColumns sqlgen.SortColumns
+	var sortColumns expr.SortColumns
 
 	for i := range columns {
-		var sort *sqlgen.SortColumn
+		var sort *expr.SortColumn
 
 		switch value := columns[i].(type) {
 		case RawValue:
-			sort = &sqlgen.SortColumn{
-				Column: sqlgen.RawValue(value.String()),
+			sort = &expr.SortColumn{
+				Column: expr.RawValue(value.String()),
 			}
 		case string:
 			if strings.HasPrefix(value, "-") {
-				sort = &sqlgen.SortColumn{
-					Column: sqlgen.ColumnWithName(value[1:]),
-					Order:  sqlgen.Descendent,
+				sort = &expr.SortColumn{
+					Column: expr.ColumnWithName(value[1:]),
+					Order:  expr.Descendent,
 				}
 			} else {
 				chunks := strings.SplitN(value, " ", 2)
 
-				order := sqlgen.Ascendent
+				order := expr.Ascendent
 				if len(chunks) > 1 && strings.ToUpper(chunks[1]) == "DESC" {
-					order = sqlgen.Descendent
+					order = expr.Descendent
 				}
 
-				sort = &sqlgen.SortColumn{
-					Column: sqlgen.ColumnWithName(chunks[0]),
+				sort = &expr.SortColumn{
+					Column: expr.ColumnWithName(chunks[0]),
 					Order:  order,
 				}
 			}
@@ -126,13 +126,13 @@ func (qs *selector) Using(columns ...interface{}) Selector {
 		return qs
 	}
 
-	lastJoin.Using = sqlgen.UsingColumns(fragments...)
+	lastJoin.Using = expr.UsingColumns(fragments...)
 	return qs
 }
 
 func (qs *selector) pushJoin(t string, tables []interface{}) Selector {
 	if qs.joins == nil {
-		qs.joins = []*sqlgen.Join{}
+		qs.joins = []*expr.Join{}
 	}
 
 	tableNames := make([]string, len(tables))
@@ -141,9 +141,9 @@ func (qs *selector) pushJoin(t string, tables []interface{}) Selector {
 	}
 
 	qs.joins = append(qs.joins,
-		&sqlgen.Join{
+		&expr.Join{
 			Type:  t,
-			Table: sqlgen.TableWithName(strings.Join(tableNames, ", ")),
+			Table: expr.TableWithName(strings.Join(tableNames, ", ")),
 		},
 	)
 
@@ -184,7 +184,7 @@ func (qs *selector) On(terms ...interface{}) Selector {
 	}
 
 	w, a := qs.builder.t.ToWhereWithArguments(terms)
-	o := sqlgen.On(w)
+	o := expr.On(w)
 	lastJoin.On = &o
 
 	qs.arguments = append(qs.arguments, a...)
@@ -192,23 +192,23 @@ func (qs *selector) On(terms ...interface{}) Selector {
 }
 
 func (qs *selector) Limit(n int) Selector {
-	qs.limit = sqlgen.Limit(n)
+	qs.limit = expr.Limit(n)
 	return qs
 }
 
 func (qs *selector) Offset(n int) Selector {
-	qs.offset = sqlgen.Offset(n)
+	qs.offset = expr.Offset(n)
 	return qs
 }
 
-func (qs *selector) statement() *sqlgen.Statement {
-	return &sqlgen.Statement{
-		Type:    sqlgen.Select,
-		Table:   sqlgen.TableWithName(qs.table),
+func (qs *selector) statement() *expr.Statement {
+	return &expr.Statement{
+		Type:    expr.Select,
+		Table:   expr.TableWithName(qs.table),
 		Columns: qs.columns,
 		Limit:   qs.limit,
 		Offset:  qs.offset,
-		Joins:   sqlgen.JoinConditions(qs.joins...),
+		Joins:   expr.JoinConditions(qs.joins...),
 		Where:   qs.where,
 		OrderBy: &qs.orderBy,
 		GroupBy: qs.groupBy,

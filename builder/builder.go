@@ -11,16 +11,16 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx/reflectx"
-	"upper.io/db.v2/builder/sqlgen"
+	"upper.io/db.v2/builder/expr"
 )
 
 type hasStatement interface {
-	statement() *sqlgen.Statement
+	statement() *expr.Statement
 }
 
 type stringer struct {
 	i hasStatement
-	t *sqlgen.Template
+	t *expr.Template
 }
 
 type iterator struct {
@@ -39,39 +39,39 @@ var (
 )
 
 var (
-	sqlPlaceholder = sqlgen.RawValue(`?`)
+	sqlPlaceholder = expr.RawValue(`?`)
 )
 
-type sqlgenDB interface {
-	Query(stmt *sqlgen.Statement, args ...interface{}) (*sql.Rows, error)
-	QueryRow(stmt *sqlgen.Statement, args ...interface{}) (*sql.Row, error)
-	Exec(stmt *sqlgen.Statement, args ...interface{}) (sql.Result, error)
+type exprDB interface {
+	Query(stmt *expr.Statement, args ...interface{}) (*sql.Rows, error)
+	QueryRow(stmt *expr.Statement, args ...interface{}) (*sql.Row, error)
+	Exec(stmt *expr.Statement, args ...interface{}) (sql.Result, error)
 }
 
 type sqlBuilder struct {
-	sess sqlgenDB
+	sess exprDB
 	t    *templateWithUtils
 }
 
 // New returns a query builder that is bound to the given database session.
-func New(sess interface{}, t func() *sqlgen.Template) (Builder, error) {
+func New(sess interface{}, t func() *expr.Template) (Builder, error) {
 	tt := t()
 	switch v := sess.(type) {
 	case *sql.DB:
 		sess = newSqlgenProxy(v, tt)
-	case sqlgenDB:
+	case exprDB:
 		// OK!
 	default:
 		// There should be no way this error is ignored.
 		panic(fmt.Sprintf("Unkown source type: %T", sess))
 	}
 	return &sqlBuilder{
-		sess: sess.(sqlgenDB),
+		sess: sess.(exprDB),
 		t:    newTemplateWithUtils(tt),
 	}, nil
 }
 
-func NewBuilderWithTemplate(t *sqlgen.Template) Builder {
+func NewBuilderWithTemplate(t *expr.Template) Builder {
 	return &sqlBuilder{
 		t: newTemplateWithUtils(t),
 	}
@@ -95,10 +95,10 @@ func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) Iterator {
 
 func (b *sqlBuilder) Exec(query interface{}, args ...interface{}) (sql.Result, error) {
 	switch q := query.(type) {
-	case *sqlgen.Statement:
+	case *expr.Statement:
 		return b.sess.Exec(q, args...)
 	case string:
-		return b.sess.Exec(sqlgen.RawSQL(q), args...)
+		return b.sess.Exec(expr.RawSQL(q), args...)
 	default:
 		return nil, fmt.Errorf("Unsupported query type %T.", query)
 	}
@@ -106,10 +106,10 @@ func (b *sqlBuilder) Exec(query interface{}, args ...interface{}) (sql.Result, e
 
 func (b *sqlBuilder) Query(query interface{}, args ...interface{}) (*sql.Rows, error) {
 	switch q := query.(type) {
-	case *sqlgen.Statement:
+	case *expr.Statement:
 		return b.sess.Query(q, args...)
 	case string:
-		return b.sess.Query(sqlgen.RawSQL(q), args...)
+		return b.sess.Query(expr.RawSQL(q), args...)
 	default:
 		return nil, fmt.Errorf("Unsupported query type %T.", query)
 	}
@@ -117,10 +117,10 @@ func (b *sqlBuilder) Query(query interface{}, args ...interface{}) (*sql.Rows, e
 
 func (b *sqlBuilder) QueryRow(query interface{}, args ...interface{}) (*sql.Row, error) {
 	switch q := query.(type) {
-	case *sqlgen.Statement:
+	case *expr.Statement:
 		return b.sess.QueryRow(q, args...)
 	case string:
-		return b.sess.QueryRow(sqlgen.RawSQL(q), args...)
+		return b.sess.QueryRow(expr.RawSQL(q), args...)
 	default:
 		return nil, fmt.Errorf("Unsupported query type %T.", query)
 	}
@@ -169,7 +169,7 @@ func (b *sqlBuilder) Update(table string) Updater {
 	qu := &updater{
 		builder:      b,
 		table:        table,
-		columnValues: &sqlgen.ColumnValues{},
+		columnValues: &expr.ColumnValues{},
 	}
 
 	qu.stringer = &stringer{qu, b.t.Template}
@@ -257,9 +257,9 @@ func Map(item interface{}) ([]string, []interface{}, error) {
 	return fv.fields, fv.values, nil
 }
 
-func columnFragments(template *templateWithUtils, columns []interface{}) ([]sqlgen.Fragment, error) {
+func columnFragments(template *templateWithUtils, columns []interface{}) ([]expr.Fragment, error) {
 	l := len(columns)
-	f := make([]sqlgen.Fragment, l)
+	f := make([]expr.Fragment, l)
 
 	for i := 0; i < l; i++ {
 		switch v := columns[i].(type) {
@@ -275,15 +275,15 @@ func columnFragments(template *templateWithUtils, columns []interface{}) ([]sqlg
 				}
 				s = fmt.Sprintf(`%s(%s)`, v.Name(), strings.Join(ss, `, `))
 			}
-			f[i] = sqlgen.RawValue(s)
+			f[i] = expr.RawValue(s)
 		case RawValue:
-			f[i] = sqlgen.RawValue(v.String())
-		case sqlgen.Fragment:
+			f[i] = expr.RawValue(v.String())
+		case expr.Fragment:
 			f[i] = v
 		case string:
-			f[i] = sqlgen.ColumnWithName(v)
+			f[i] = expr.ColumnWithName(v)
 		case interface{}:
-			f[i] = sqlgen.ColumnWithName(fmt.Sprintf("%v", v))
+			f[i] = expr.ColumnWithName(fmt.Sprintf("%v", v))
 		default:
 			return nil, fmt.Errorf("Unexpected argument type %T for Select() argument.", v)
 		}
@@ -301,7 +301,7 @@ func (s *stringer) String() string {
 	return ""
 }
 
-func (s *stringer) compileAndReplacePlaceholders(stmt *sqlgen.Statement) (query string) {
+func (s *stringer) compileAndReplacePlaceholders(stmt *expr.Statement) (query string) {
 	buf := stmt.Compile(s.t)
 
 	j := 1
@@ -416,31 +416,31 @@ func (fv *fieldValue) Less(i, j int) bool {
 	return fv.fields[i] < fv.fields[j]
 }
 
-type sqlgenProxy struct {
+type exprProxy struct {
 	db *sql.DB
-	t  *sqlgen.Template
+	t  *expr.Template
 }
 
-func newSqlgenProxy(db *sql.DB, t *sqlgen.Template) *sqlgenProxy {
-	return &sqlgenProxy{db: db, t: t}
+func newSqlgenProxy(db *sql.DB, t *expr.Template) *exprProxy {
+	return &exprProxy{db: db, t: t}
 }
 
-func (p *sqlgenProxy) Exec(stmt *sqlgen.Statement, args ...interface{}) (sql.Result, error) {
+func (p *exprProxy) Exec(stmt *expr.Statement, args ...interface{}) (sql.Result, error) {
 	s := stmt.Compile(p.t)
 	return p.db.Exec(s, args...)
 }
 
-func (p *sqlgenProxy) Query(stmt *sqlgen.Statement, args ...interface{}) (*sql.Rows, error) {
+func (p *exprProxy) Query(stmt *expr.Statement, args ...interface{}) (*sql.Rows, error) {
 	s := stmt.Compile(p.t)
 	return p.db.Query(s, args...)
 }
 
-func (p *sqlgenProxy) QueryRow(stmt *sqlgen.Statement, args ...interface{}) (*sql.Row, error) {
+func (p *exprProxy) QueryRow(stmt *expr.Statement, args ...interface{}) (*sql.Row, error) {
 	s := stmt.Compile(p.t)
 	return p.db.QueryRow(s, args...), nil
 }
 
 var (
 	_ = Builder(&sqlBuilder{})
-	_ = sqlgenDB(&sqlgenProxy{})
+	_ = exprDB(&exprProxy{})
 )

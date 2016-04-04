@@ -8,7 +8,7 @@ import (
 	"upper.io/db.v2"
 	"upper.io/db.v2/builder"
 	"upper.io/db.v2/builder/cache"
-	"upper.io/db.v2/builder/sqlgen"
+	"upper.io/db.v2/builder/expr"
 	"upper.io/db.v2/internal/logger"
 )
 
@@ -21,7 +21,7 @@ type PartialDatabase interface {
 	TableExists(name string) error
 	TablePrimaryKey(name string) ([]string, error)
 	NewTable(name string) db.Collection
-	CompileAndReplacePlaceholders(stmt *sqlgen.Statement) (query string)
+	CompileAndReplacePlaceholders(stmt *expr.Statement) (query string)
 	Err(in error) (out error)
 }
 
@@ -43,7 +43,7 @@ type BaseDatabase struct {
 	collectionsMu    sync.Mutex
 	builder          builder.Builder
 
-	template *sqlgen.Template
+	template *expr.Template
 }
 
 type cachedStatement struct {
@@ -55,7 +55,7 @@ func (c *cachedStatement) OnPurge() {
 	c.Stmt.Close()
 }
 
-func NewDatabase(partial PartialDatabase, connURL db.ConnectionURL, template *sqlgen.Template) *BaseDatabase {
+func NewDatabase(partial PartialDatabase, connURL db.ConnectionURL, template *expr.Template) *BaseDatabase {
 	d := &BaseDatabase{
 		partial:  partial,
 		connURL:  connURL,
@@ -68,7 +68,7 @@ func NewDatabase(partial PartialDatabase, connURL db.ConnectionURL, template *sq
 	return d
 }
 
-func (d *BaseDatabase) t() *sqlgen.Template {
+func (d *BaseDatabase) t() *expr.Template {
 	return d.template
 }
 
@@ -76,7 +76,7 @@ func (d *BaseDatabase) Session() *sql.DB {
 	return d.sess
 }
 
-func (d *BaseDatabase) Template() *sqlgen.Template {
+func (d *BaseDatabase) Template() *expr.Template {
 	return d.template
 }
 
@@ -168,7 +168,7 @@ func (d *BaseDatabase) Name() string {
 }
 
 // Exec compiles and executes a statement that does not return any rows.
-func (d *BaseDatabase) Exec(stmt *sqlgen.Statement, args ...interface{}) (sql.Result, error) {
+func (d *BaseDatabase) Exec(stmt *expr.Statement, args ...interface{}) (sql.Result, error) {
 	var query string
 	var p *sql.Stmt
 	var err error
@@ -195,7 +195,7 @@ func (d *BaseDatabase) Exec(stmt *sqlgen.Statement, args ...interface{}) (sql.Re
 }
 
 // Query compiles and executes a statement that returns rows.
-func (d *BaseDatabase) Query(stmt *sqlgen.Statement, args ...interface{}) (*sql.Rows, error) {
+func (d *BaseDatabase) Query(stmt *expr.Statement, args ...interface{}) (*sql.Rows, error) {
 	var query string
 	var p *sql.Stmt
 	var err error
@@ -218,7 +218,7 @@ func (d *BaseDatabase) Query(stmt *sqlgen.Statement, args ...interface{}) (*sql.
 }
 
 // QueryRow compiles and executes a statement that returns at most one row.
-func (d *BaseDatabase) QueryRow(stmt *sqlgen.Statement, args ...interface{}) (*sql.Row, error) {
+func (d *BaseDatabase) QueryRow(stmt *expr.Statement, args ...interface{}) (*sql.Row, error) {
 	var query string
 	var p *sql.Stmt
 	var err error
@@ -253,7 +253,7 @@ func (d *BaseDatabase) Driver() interface{} {
 	return d.sess
 }
 
-func (d *BaseDatabase) prepareStatement(stmt *sqlgen.Statement) (p *sql.Stmt, query string, err error) {
+func (d *BaseDatabase) prepareStatement(stmt *expr.Statement) (p *sql.Stmt, query string, err error) {
 	if d.sess == nil {
 		return nil, "", db.ErrNotConnected
 	}

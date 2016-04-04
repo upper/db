@@ -3,7 +3,7 @@ package builder
 import (
 	"database/sql"
 
-	"upper.io/db.v2/builder/sqlgen"
+	"upper.io/db.v2/builder/expr"
 )
 
 type deleter struct {
@@ -11,7 +11,7 @@ type deleter struct {
 	builder   *sqlBuilder
 	table     string
 	limit     int
-	where     *sqlgen.Where
+	where     *expr.Where
 	arguments []interface{}
 }
 
@@ -31,10 +31,10 @@ func (qd *deleter) Exec() (sql.Result, error) {
 	return qd.builder.sess.Exec(qd.statement(), qd.arguments...)
 }
 
-func (qd *deleter) statement() *sqlgen.Statement {
-	stmt := &sqlgen.Statement{
-		Type:  sqlgen.Delete,
-		Table: sqlgen.TableWithName(qd.table),
+func (qd *deleter) statement() *expr.Statement {
+	stmt := &expr.Statement{
+		Type:  expr.Delete,
+		Table: expr.TableWithName(qd.table),
 	}
 
 	if qd.Where != nil {
@@ -42,7 +42,7 @@ func (qd *deleter) statement() *sqlgen.Statement {
 	}
 
 	if qd.limit != 0 {
-		stmt.Limit = sqlgen.Limit(qd.limit)
+		stmt.Limit = expr.Limit(qd.limit)
 	}
 
 	return stmt

@@ -1,7 +1,6 @@
-package builder
+package expr
 
 import (
-	"upper.io/db.v2/builder/expr"
 	"upper.io/db.v2/builder/cache"
 )
 
@@ -98,6 +97,12 @@ const (
     DELETE
       FROM {{.Table}}
       {{.Where}}
+    {{if .Limit}}
+      LIMIT {{.Limit}}
+    {{end}}
+    {{if .Offset}}
+      OFFSET {{.Offset}}
+    {{end}}
 	`
 	defaultUpdateLayout = `
 		UPDATE
@@ -152,7 +157,7 @@ const (
 	`
 )
 
-var testTemplate = expr.Template{
+var defaultTemplate = &Template{
 	ColumnSeparator:     defaultColumnSeparator,
 	IdentifierSeparator: defaultIdentifierSeparator,
 	IdentifierQuote:     defaultIdentifierQuote,

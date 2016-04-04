@@ -26,7 +26,7 @@ import (
 
 	"upper.io/db.v2"
 	"upper.io/db.v2/builder"
-	"upper.io/db.v2/builder/sqlgen"
+	"upper.io/db.v2/builder/expr"
 	"upper.io/db.v2/internal/sqladapter"
 )
 
@@ -38,9 +38,9 @@ var _ = db.Collection(&table{})
 
 // Truncate deletes all rows from the table.
 func (t *table) Truncate() error {
-	stmt := sqlgen.Statement{
-		Type:  sqlgen.Truncate,
-		Table: sqlgen.TableWithName(t.Name()),
+	stmt := expr.Statement{
+		Type:  expr.Truncate,
+		Table: expr.TableWithName(t.Name()),
 	}
 
 	if _, err := t.Database().Builder().Exec(&stmt); err != nil {

@@ -29,7 +29,7 @@ import (
 
 	_ "github.com/cznic/ql/driver" // QL driver
 	"upper.io/db.v2"
-	"upper.io/db.v2/builder/sqlgen"
+	"upper.io/db.v2/builder/expr"
 	"upper.io/db.v2/internal/sqladapter"
 )
 
@@ -59,7 +59,7 @@ const (
 // CompileAndReplacePlaceholders compiles the given statement into an string
 // and replaces each generic placeholder with the placeholder the driver
 // expects (if any).
-func (d *database) CompileAndReplacePlaceholders(stmt *sqlgen.Statement) (query string) {
+func (d *database) CompileAndReplacePlaceholders(stmt *expr.Statement) (query string) {
 	buf := stmt.Compile(d.Template())
 
 	j := 1

@@ -23,7 +23,7 @@ package sqlite
 
 import (
 	"upper.io/db.v2/builder/cache"
-	"upper.io/db.v2/builder/sqlgen"
+	"upper.io/db.v2/builder/expr"
 )
 
 const (
@@ -167,8 +167,8 @@ const (
 	`
 )
 
-func template() *sqlgen.Template {
-	return &sqlgen.Template{
+func template() *expr.Template {
+	return &expr.Template{
 		ColumnSeparator:     adapterColumnSeparator,
 		IdentifierSeparator: adapterIdentifierSeparator,
 		IdentifierQuote:     adapterIdentifierQuote,

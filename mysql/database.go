@@ -28,7 +28,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql" // MySQL driver.
 	"upper.io/db.v2"
-	"upper.io/db.v2/builder/sqlgen"
+	"upper.io/db.v2/builder/expr"
 	"upper.io/db.v2/internal/sqladapter"
 )
 
@@ -41,7 +41,7 @@ var _ = db.Database(&database{})
 // CompileAndReplacePlaceholders compiles the given statement into an string
 // and replaces each generic placeholder with the placeholder the driver
 // expects (if any).
-func (d *database) CompileAndReplacePlaceholders(stmt *sqlgen.Statement) (query string) {
+func (d *database) CompileAndReplacePlaceholders(stmt *expr.Statement) (query string) {
 	return stmt.Compile(d.Template())
 }
 

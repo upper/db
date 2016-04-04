@@ -3,25 +3,25 @@ package builder
 import (
 	"database/sql"
 
-	"upper.io/db.v2/builder/sqlgen"
+	"upper.io/db.v2/builder/expr"
 )
 
 type inserter struct {
 	*stringer
 	builder   *sqlBuilder
 	table     string
-	values    []*sqlgen.Values
-	returning []sqlgen.Fragment
-	columns   []sqlgen.Fragment
+	values    []*expr.Values
+	returning []expr.Fragment
+	columns   []expr.Fragment
 	arguments []interface{}
 	extra     string
 }
 
-func (qi *inserter) columnsToFragments(dst *[]sqlgen.Fragment, columns []string) error {
+func (qi *inserter) columnsToFragments(dst *[]expr.Fragment, columns []string) error {
 	l := len(columns)
-	f := make([]sqlgen.Fragment, l)
+	f := make([]expr.Fragment, l)
 	for i := 0; i < l; i++ {
-		f[i] = sqlgen.ColumnWithName(columns[i])
+		f[i] = expr.ColumnWithName(columns[i])
 	}
 	*dst = append(*dst, f...)
 	return nil
@@ -70,32 +70,32 @@ func (qi *inserter) Values(values ...interface{}) Inserter {
 		qi.arguments = append(qi.arguments, values...)
 
 		l := len(values)
-		placeholders := make([]sqlgen.Fragment, l)
+		placeholders := make([]expr.Fragment, l)
 		for i := 0; i < l; i++ {
-			placeholders[i] = sqlgen.RawValue(`?`)
+			placeholders[i] = expr.RawValue(`?`)
 		}
-		qi.values = append(qi.values, sqlgen.NewValueGroup(placeholders...))
+		qi.values = append(qi.values, expr.NewValueGroup(placeholders...))
 	}
 
 	return qi
 }
 
-func (qi *inserter) statement() *sqlgen.Statement {
-	stmt := &sqlgen.Statement{
-		Type:  sqlgen.Insert,
-		Table: sqlgen.TableWithName(qi.table),
+func (qi *inserter) statement() *expr.Statement {
+	stmt := &expr.Statement{
+		Type:  expr.Insert,
+		Table: expr.TableWithName(qi.table),
 	}
 
 	if len(qi.values) > 0 {
-		stmt.Values = sqlgen.JoinValueGroups(qi.values...)
+		stmt.Values = expr.JoinValueGroups(qi.values...)
 	}
 
 	if len(qi.columns) > 0 {
-		stmt.Columns = sqlgen.JoinColumns(qi.columns...)
+		stmt.Columns = expr.JoinColumns(qi.columns...)
 	}
 
 	if len(qi.returning) > 0 {
-		stmt.Returning = sqlgen.ReturningColumns(qi.returning...)
+		stmt.Returning = expr.ReturningColumns(qi.returning...)
 	}
 
 	return stmt

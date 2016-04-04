@@ -5,27 +5,27 @@ import (
 	"reflect"
 	"strings"
 
-	"upper.io/db.v2/builder/sqlgen"
+	"upper.io/db.v2/builder/expr"
 )
 
 var (
-	sqlNull            = sqlgen.RawValue(`NULL`)
+	sqlNull            = expr.RawValue(`NULL`)
 	sqlIsOperator      = `IS`
 	sqlInOperator      = `IN`
 	sqlDefaultOperator = `=`
 )
 
 type templateWithUtils struct {
-	*sqlgen.Template
+	*expr.Template
 }
 
-func newTemplateWithUtils(template *sqlgen.Template) *templateWithUtils {
+func newTemplateWithUtils(template *expr.Template) *templateWithUtils {
 	return &templateWithUtils{template}
 }
 
-// ToWhereWithArguments converts the given parameters into a sqlgen.Where
+// ToWhereWithArguments converts the given parameters into a expr.Where
 // value.
-func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where sqlgen.Where, args []interface{}) {
+func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where expr.Where, args []interface{}) {
 	args = []interface{}{}
 
 	switch t := term.(type) {
@@ -52,7 +52,7 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where sqlge
 						}
 					}
 
-					where.Conditions = []sqlgen.Fragment{sqlgen.RawValue(s)}
+					where.Conditions = []expr.Fragment{expr.RawValue(s)}
 				} else {
 					var val interface{}
 					key := s
@@ -93,7 +93,7 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where sqlge
 		}
 		return
 	case Compound:
-		var cond sqlgen.Where
+		var cond expr.Where
 
 		for _, c := range t.Sentences() {
 			w, v := tu.ToWhereWithArguments(c)
@@ -105,13 +105,13 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where sqlge
 		}
 
 		if len(cond.Conditions) > 0 {
-			var frag sqlgen.Fragment
+			var frag expr.Fragment
 			switch t.Operator() {
 			case OperatorNone, OperatorAnd:
-				q := sqlgen.And(cond)
+				q := expr.And(cond)
 				frag = &q
 			case OperatorOr:
-				q := sqlgen.Or(cond)
+				q := expr.Or(cond)
 				frag = &q
 			default:
 				panic(fmt.Sprintf("Unknown type %T", t))
@@ -160,8 +160,8 @@ func (tu *templateWithUtils) ToInterfaceArguments(value interface{}) (args []int
 	return args
 }
 
-// ToColumnValues converts the given conditions into a sqlgen.ColumnValues struct.
-func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv sqlgen.ColumnValues, args []interface{}) {
+// ToColumnValues converts the given conditions into a expr.ColumnValues struct.
+func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv expr.ColumnValues, args []interface{}) {
 	args = []interface{}{}
 
 	switch t := term.(type) {
@@ -179,10 +179,10 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv sqlgen.ColumnV
 			column = chunks[0]
 			format := strings.TrimSpace(chunks[1])
 
-			columnValue := sqlgen.ColumnValue{
-				Column:   sqlgen.ColumnWithName(column),
+			columnValue := expr.ColumnValue{
+				Column:   expr.ColumnWithName(column),
 				Operator: "=",
-				Value:    sqlgen.RawValue(format),
+				Value:    expr.RawValue(format),
 			}
 
 			ps := strings.Count(format, "?")
@@ -199,13 +199,13 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv sqlgen.ColumnV
 		}
 		return cv, args
 	case Constraint:
-		columnValue := sqlgen.ColumnValue{}
+		columnValue := expr.ColumnValue{}
 
 		// Guessing operator from input, or using a default one.
 		column := strings.TrimSpace(t.Key())
 		chunks := strings.SplitN(column, ` `, 2)
 
-		columnValue.Column = sqlgen.ColumnWithName(chunks[0])
+		columnValue.Column = expr.ColumnWithName(chunks[0])
 
 		if len(chunks) > 1 {
 			columnValue.Operator = chunks[1]
@@ -217,10 +217,10 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv sqlgen.ColumnV
 
 			if v == nil {
 				// A function with no arguments.
-				columnValue.Value = sqlgen.RawValue(fmt.Sprintf(`%s()`, value.Name()))
+				columnValue.Value = expr.RawValue(fmt.Sprintf(`%s()`, value.Name()))
 			} else {
 				// A function with one or more arguments.
-				columnValue.Value = sqlgen.RawValue(fmt.Sprintf(`%s(?%s)`, value.Name(), strings.Repeat(`, ?`, len(v)-1)))
+				columnValue.Value = expr.RawValue(fmt.Sprintf(`%s(?%s)`, value.Name(), strings.Repeat(`, ?`, len(v)-1)))
 			}
 
 			args = append(args, v...)
@@ -236,7 +236,7 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv sqlgen.ColumnV
 			} else {
 				if len(v) > 1 || reflect.TypeOf(value).Kind() == reflect.Slice {
 					// Array value given.
-					columnValue.Value = sqlgen.RawValue(fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1)))
+					columnValue.Value = expr.RawValue(fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1)))
 					if columnValue.Operator == "" {
 						columnValue.Operator = sqlInOperator
 					}
@@ -273,28 +273,28 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv sqlgen.ColumnV
 }
 
 // ToColumnsValuesAndArguments maps the given columnNames and columnValues into
-// sqlgen's Columns and Values, it also extracts and returns query arguments.
-func (tu *templateWithUtils) ToColumnsValuesAndArguments(columnNames []string, columnValues []interface{}) (*sqlgen.Columns, *sqlgen.Values, []interface{}, error) {
+// expr's Columns and Values, it also extracts and returns query arguments.
+func (tu *templateWithUtils) ToColumnsValuesAndArguments(columnNames []string, columnValues []interface{}) (*expr.Columns, *expr.Values, []interface{}, error) {
 	var arguments []interface{}
 
-	columns := new(sqlgen.Columns)
+	columns := new(expr.Columns)
 
-	columns.Columns = make([]sqlgen.Fragment, 0, len(columnNames))
+	columns.Columns = make([]expr.Fragment, 0, len(columnNames))
 	for i := range columnNames {
-		columns.Columns = append(columns.Columns, sqlgen.ColumnWithName(columnNames[i]))
+		columns.Columns = append(columns.Columns, expr.ColumnWithName(columnNames[i]))
 	}
 
-	values := new(sqlgen.Values)
+	values := new(expr.Values)
 
 	arguments = make([]interface{}, 0, len(columnValues))
-	values.Values = make([]sqlgen.Fragment, 0, len(columnValues))
+	values.Values = make([]expr.Fragment, 0, len(columnValues))
 
 	for i := range columnValues {
 		switch v := columnValues[i].(type) {
-		case *sqlgen.Value:
+		case *expr.Value:
 			// Adding value.
 			values.Values = append(values.Values, v)
-		case sqlgen.Value:
+		case expr.Value:
 			// Adding value.
 			values.Values = append(values.Values, &v)
 		default:

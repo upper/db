@@ -3,16 +3,16 @@ package builder
 import (
 	"database/sql"
 
-	"upper.io/db.v2/builder/sqlgen"
+	"upper.io/db.v2/builder/expr"
 )
 
 type updater struct {
 	*stringer
 	builder      *sqlBuilder
 	table        string
-	columnValues *sqlgen.ColumnValues
+	columnValues *expr.ColumnValues
 	limit        int
-	where        *sqlgen.Where
+	where        *expr.Where
 	arguments    []interface{}
 }
 
@@ -20,11 +20,11 @@ func (qu *updater) Set(terms ...interface{}) Updater {
 	if len(terms) == 1 {
 		ff, vv, _ := Map(terms[0])
 
-		cvs := make([]sqlgen.Fragment, len(ff))
+		cvs := make([]expr.Fragment, len(ff))
 
 		for i := range ff {
-			cvs[i] = &sqlgen.ColumnValue{
-				Column:   sqlgen.ColumnWithName(ff[i]),
+			cvs[i] = &expr.ColumnValue{
+				Column:   expr.ColumnWithName(ff[i]),
 				Operator: qu.builder.t.AssignmentOperator,
 				Value:    sqlPlaceholder,
 			}
@@ -56,10 +56,10 @@ func (qu *updater) Limit(limit int) Updater {
 	return qu
 }
 
-func (qu *updater) statement() *sqlgen.Statement {
-	stmt := &sqlgen.Statement{
-		Type:         sqlgen.Update,
-		Table:        sqlgen.TableWithName(qu.table),
+func (qu *updater) statement() *expr.Statement {
+	stmt := &expr.Statement{
+		Type:         expr.Update,
+		Table:        expr.TableWithName(qu.table),
 		ColumnValues: qu.columnValues,
 	}
 
@@ -68,7 +68,7 @@ func (qu *updater) statement() *sqlgen.Statement {
 	}
 
 	if qu.limit != 0 {
-		stmt.Limit = sqlgen.Limit(qu.limit)
+		stmt.Limit = expr.Limit(qu.limit)
 	}
 
 	return stmt
