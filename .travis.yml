@@ -36,6 +36,7 @@ install:
   - mkdir -p $GOPATH/src/upper.io
   - mv $PWD $GOPATH/src/upper.io/db.v2
   - cd $GOPATH/src/upper.io/db.v2
+  - go get -t -v -d ./...
   - go get -v github.com/cznic/ql/ql
   - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db.v2
 
