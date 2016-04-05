@@ -23,6 +23,7 @@ package sqlite
 
 import (
 	"database/sql"
+	"os"
 )
 
 const (
@@ -30,7 +31,7 @@ const (
 )
 
 var settings = ConnectionURL{
-	Database: "_dumps/gotest.sqlite3.db",
+	Database: os.Getenv("DB_NAME"),
 }
 
 func tearUp() error {
@@ -125,4 +126,4 @@ func tearUp() error {
 	return nil
 }
 
-//go:generate bash -c "sed s/ADAPTER/sqlite/g ../internal/testing/adapter.go.tpl > generated_test.go"
+//go:generate bash -c "sed s/ADAPTER/sqlite/g ../internal/sqladapter/testing/adapter.go.tpl > generated_test.go"

@@ -1,19 +1,26 @@
-BENCHTIME ?= 10s
+SHELL := bash
+
+DB_NAME ?= sqlite3-test.db
+
+BENCHTIME ?= 5s
+
+export DB_NAME
 
 build:
 	go build && go install
 
 require-client:
-	if [ -z "$$(which sqlite3)" ]; then \
+	@if [ -z "$$(which sqlite3)" ]; then \
 		echo 'Missing "sqlite3" command. Please install SQLite3 and try again.' && \
 		exit 1; \
 	fi
 
 generate:
-	go generate
+	go generate && \
+	go get -d -t -v ./...
 
 reset-db: require-client
-	$(MAKE) reset-db -C _dumps
+	rm -f $(DB_NAME)
 
 test: reset-db generate
 	go test -v

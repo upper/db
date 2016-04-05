@@ -27,8 +27,8 @@ import (
 	"reflect"
 
 	"upper.io/db.v2"
-	"upper.io/db.v2/builder/sqlbuilder"
-	"upper.io/db.v2/builder/sqlgen"
+	"upper.io/db.v2/builder"
+	"upper.io/db.v2/builder/exql"
 	"upper.io/db.v2/internal/sqladapter"
 )
 
@@ -40,9 +40,9 @@ var _ = db.Collection(&table{})
 
 // Truncate deletes all rows from the table.
 func (t *table) Truncate() error {
-	stmt := sqlgen.Statement{
-		Type:  sqlgen.Truncate,
-		Table: sqlgen.TableWithName(t.Name()),
+	stmt := exql.Statement{
+		Type:  exql.Truncate,
+		Table: exql.TableWithName(t.Name()),
 	}
 
 	if _, err := t.Database().Builder().Exec(&stmt); err != nil {
@@ -118,7 +118,7 @@ cancel:
 
 // Insert inserts an item (map or struct) into the collection.
 func (t *table) Insert(item interface{}) (interface{}, error) {
-	columnNames, columnValues, err := sqlbuilder.Map(item)
+	columnNames, columnValues, err := builder.Map(item)
 	if err != nil {
 		return nil, err
 	}

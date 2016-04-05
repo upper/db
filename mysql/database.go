@@ -28,10 +28,8 @@ import (
 
 	_ "github.com/go-sql-driver/mysql" // MySQL driver.
 	"upper.io/db.v2"
-	"upper.io/db.v2/builder/sqlgen"
-	template "upper.io/db.v2/builder/template/mysql"
+	"upper.io/db.v2/builder/exql"
 	"upper.io/db.v2/internal/sqladapter"
-	"upper.io/db.v2/internal/sqlutil/tx"
 )
 
 type database struct {
@@ -43,7 +41,7 @@ var _ = db.Database(&database{})
 // CompileAndReplacePlaceholders compiles the given statement into an string
 // and replaces each generic placeholder with the placeholder the driver
 // expects (if any).
-func (d *database) CompileAndReplacePlaceholders(stmt *sqlgen.Statement) (query string) {
+func (d *database) CompileAndReplacePlaceholders(stmt *exql.Statement) (query string) {
 	return stmt.Compile(d.Template())
 }
 
@@ -75,7 +73,7 @@ func (d *database) open() error {
 
 // Open attempts to open a connection to the database server.
 func (d *database) Open(connURL db.ConnectionURL) error {
-	d.BaseDatabase = sqladapter.NewDatabase(d, connURL, template.Template())
+	d.BaseDatabase = sqladapter.NewDatabase(d, connURL, template())
 	return d.open()
 }
 
@@ -133,7 +131,7 @@ func (d *database) Transaction() (db.Tx, error) {
 
 	clone.BindTx(sqlTx)
 
-	return &sqltx.Database{Database: clone, Tx: clone.Tx()}, nil
+	return &sqladapter.TxDatabase{Database: clone, Tx: clone.Tx()}, nil
 }
 
 // PopulateSchema looks up for the table info in the database and populates its

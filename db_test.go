@@ -64,12 +64,12 @@ func init() {
 	// Getting settings from the environment.
 
 	var host string
-	if host = os.Getenv("TEST_HOST"); host == "" {
+	if host = os.Getenv("DB_HOST"); host == "" {
 		host = "localhost"
 	}
 
 	var wrapper string
-	if wrapper = os.Getenv("TEST_WRAPPER"); wrapper == "" {
+	if wrapper = os.Getenv("WRAPPER"); wrapper == "" {
 		wrapper = testAllWrappers
 	}
 
@@ -77,7 +77,7 @@ func init() {
 
 	settings = map[string]db.ConnectionURL{
 		`sqlite`: &sqlite.ConnectionURL{
-			Database: `upperio_tests.db`,
+			Database: `sqlite3-test.db`,
 		},
 		`mongo`: &mongo.ConnectionURL{
 			Database: `upperio_tests`,
@@ -104,7 +104,7 @@ func init() {
 			},
 		},
 		`ql`: &ql.ConnectionURL{
-			Database: `upperio_test.ql`,
+			Database: `ql-test.db`,
 		},
 	}
 
