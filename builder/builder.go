@@ -10,17 +10,17 @@ import (
 	"strconv"
 	"strings"
 
-	"upper.io/db.v2/builder/expr"
+	"upper.io/db.v2/builder/exql"
 	"upper.io/db.v2/builder/reflectx"
 )
 
 type hasStatement interface {
-	statement() *expr.Statement
+	statement() *exql.Statement
 }
 
 type stringer struct {
 	i hasStatement
-	t *expr.Template
+	t *exql.Template
 }
 
 type iterator struct {
@@ -39,13 +39,13 @@ var (
 )
 
 var (
-	sqlPlaceholder = expr.RawValue(`?`)
+	sqlPlaceholder = exql.RawValue(`?`)
 )
 
 type exprDB interface {
-	Query(stmt *expr.Statement, args ...interface{}) (*sql.Rows, error)
-	QueryRow(stmt *expr.Statement, args ...interface{}) (*sql.Row, error)
-	Exec(stmt *expr.Statement, args ...interface{}) (sql.Result, error)
+	Query(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error)
+	QueryRow(stmt *exql.Statement, args ...interface{}) (*sql.Row, error)
+	Exec(stmt *exql.Statement, args ...interface{}) (sql.Result, error)
 }
 
 type sqlBuilder struct {
@@ -54,7 +54,7 @@ type sqlBuilder struct {
 }
 
 // New returns a query builder that is bound to the given database session.
-func New(sess interface{}, t func() *expr.Template) (Builder, error) {
+func New(sess interface{}, t func() *exql.Template) (Builder, error) {
 	tt := t()
 	switch v := sess.(type) {
 	case *sql.DB:
@@ -71,7 +71,7 @@ func New(sess interface{}, t func() *expr.Template) (Builder, error) {
 	}, nil
 }
 
-func NewBuilderWithTemplate(t *expr.Template) Builder {
+func NewBuilderWithTemplate(t *exql.Template) Builder {
 	return &sqlBuilder{
 		t: newTemplateWithUtils(t),
 	}
@@ -95,10 +95,10 @@ func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) Iterator {
 
 func (b *sqlBuilder) Exec(query interface{}, args ...interface{}) (sql.Result, error) {
 	switch q := query.(type) {
-	case *expr.Statement:
+	case *exql.Statement:
 		return b.sess.Exec(q, args...)
 	case string:
-		return b.sess.Exec(expr.RawSQL(q), args...)
+		return b.sess.Exec(exql.RawSQL(q), args...)
 	default:
 		return nil, fmt.Errorf("Unsupported query type %T.", query)
 	}
@@ -106,10 +106,10 @@ func (b *sqlBuilder) Exec(query interface{}, args ...interface{}) (sql.Result, e
 
 func (b *sqlBuilder) Query(query interface{}, args ...interface{}) (*sql.Rows, error) {
 	switch q := query.(type) {
-	case *expr.Statement:
+	case *exql.Statement:
 		return b.sess.Query(q, args...)
 	case string:
-		return b.sess.Query(expr.RawSQL(q), args...)
+		return b.sess.Query(exql.RawSQL(q), args...)
 	default:
 		return nil, fmt.Errorf("Unsupported query type %T.", query)
 	}
@@ -117,10 +117,10 @@ func (b *sqlBuilder) Query(query interface{}, args ...interface{}) (*sql.Rows, e
 
 func (b *sqlBuilder) QueryRow(query interface{}, args ...interface{}) (*sql.Row, error) {
 	switch q := query.(type) {
-	case *expr.Statement:
+	case *exql.Statement:
 		return b.sess.QueryRow(q, args...)
 	case string:
-		return b.sess.QueryRow(expr.RawSQL(q), args...)
+		return b.sess.QueryRow(exql.RawSQL(q), args...)
 	default:
 		return nil, fmt.Errorf("Unsupported query type %T.", query)
 	}
@@ -169,7 +169,7 @@ func (b *sqlBuilder) Update(table string) Updater {
 	qu := &updater{
 		builder:      b,
 		table:        table,
-		columnValues: &expr.ColumnValues{},
+		columnValues: &exql.ColumnValues{},
 	}
 
 	qu.stringer = &stringer{qu, b.t.Template}
@@ -257,9 +257,9 @@ func Map(item interface{}) ([]string, []interface{}, error) {
 	return fv.fields, fv.values, nil
 }
 
-func columnFragments(template *templateWithUtils, columns []interface{}) ([]expr.Fragment, error) {
+func columnFragments(template *templateWithUtils, columns []interface{}) ([]exql.Fragment, error) {
 	l := len(columns)
-	f := make([]expr.Fragment, l)
+	f := make([]exql.Fragment, l)
 
 	for i := 0; i < l; i++ {
 		switch v := columns[i].(type) {
@@ -275,15 +275,15 @@ func columnFragments(template *templateWithUtils, columns []interface{}) ([]expr
 				}
 				s = fmt.Sprintf(`%s(%s)`, v.Name(), strings.Join(ss, `, `))
 			}
-			f[i] = expr.RawValue(s)
+			f[i] = exql.RawValue(s)
 		case RawValue:
-			f[i] = expr.RawValue(v.String())
-		case expr.Fragment:
+			f[i] = exql.RawValue(v.String())
+		case exql.Fragment:
 			f[i] = v
 		case string:
-			f[i] = expr.ColumnWithName(v)
+			f[i] = exql.ColumnWithName(v)
 		case interface{}:
-			f[i] = expr.ColumnWithName(fmt.Sprintf("%v", v))
+			f[i] = exql.ColumnWithName(fmt.Sprintf("%v", v))
 		default:
 			return nil, fmt.Errorf("Unexpected argument type %T for Select() argument.", v)
 		}
@@ -301,7 +301,7 @@ func (s *stringer) String() string {
 	return ""
 }
 
-func (s *stringer) compileAndReplacePlaceholders(stmt *expr.Statement) (query string) {
+func (s *stringer) compileAndReplacePlaceholders(stmt *exql.Statement) (query string) {
 	buf := stmt.Compile(s.t)
 
 	j := 1
@@ -418,24 +418,24 @@ func (fv *fieldValue) Less(i, j int) bool {
 
 type exprProxy struct {
 	db *sql.DB
-	t  *expr.Template
+	t  *exql.Template
 }
 
-func newSqlgenProxy(db *sql.DB, t *expr.Template) *exprProxy {
+func newSqlgenProxy(db *sql.DB, t *exql.Template) *exprProxy {
 	return &exprProxy{db: db, t: t}
 }
 
-func (p *exprProxy) Exec(stmt *expr.Statement, args ...interface{}) (sql.Result, error) {
+func (p *exprProxy) Exec(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
 	s := stmt.Compile(p.t)
 	return p.db.Exec(s, args...)
 }
 
-func (p *exprProxy) Query(stmt *expr.Statement, args ...interface{}) (*sql.Rows, error) {
+func (p *exprProxy) Query(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
 	s := stmt.Compile(p.t)
 	return p.db.Query(s, args...)
 }
 
-func (p *exprProxy) QueryRow(stmt *expr.Statement, args ...interface{}) (*sql.Row, error) {
+func (p *exprProxy) QueryRow(stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
 	s := stmt.Compile(p.t)
 	return p.db.QueryRow(s, args...), nil
 }

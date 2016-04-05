@@ -3,7 +3,7 @@ package builder
 import (
 	"database/sql"
 
-	"upper.io/db.v2/builder/expr"
+	"upper.io/db.v2/builder/exql"
 )
 
 type deleter struct {
@@ -11,7 +11,7 @@ type deleter struct {
 	builder   *sqlBuilder
 	table     string
 	limit     int
-	where     *expr.Where
+	where     *exql.Where
 	arguments []interface{}
 }
 
@@ -31,10 +31,10 @@ func (qd *deleter) Exec() (sql.Result, error) {
 	return qd.builder.sess.Exec(qd.statement(), qd.arguments...)
 }
 
-func (qd *deleter) statement() *expr.Statement {
-	stmt := &expr.Statement{
-		Type:  expr.Delete,
-		Table: expr.TableWithName(qd.table),
+func (qd *deleter) statement() *exql.Statement {
+	stmt := &exql.Statement{
+		Type:  exql.Delete,
+		Table: exql.TableWithName(qd.table),
 	}
 
 	if qd.Where != nil {
@@ -42,7 +42,7 @@ func (qd *deleter) statement() *expr.Statement {
 	}
 
 	if qd.limit != 0 {
-		stmt.Limit = expr.Limit(qd.limit)
+		stmt.Limit = exql.Limit(qd.limit)
 	}
 
 	return stmt

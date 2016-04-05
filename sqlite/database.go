@@ -31,7 +31,7 @@ import (
 	_ "github.com/mattn/go-sqlite3" // SQLite3 driver.
 	"upper.io/db.v2"
 	"upper.io/db.v2/builder"
-	"upper.io/db.v2/builder/expr"
+	"upper.io/db.v2/builder/exql"
 	"upper.io/db.v2/internal/sqladapter"
 )
 
@@ -61,7 +61,7 @@ const (
 // CompileAndReplacePlaceholders compiles the given statement into an string
 // and replaces each generic placeholder with the placeholder the driver
 // expects (if any).
-func (d *database) CompileAndReplacePlaceholders(stmt *expr.Statement) (query string) {
+func (d *database) CompileAndReplacePlaceholders(stmt *exql.Statement) (query string) {
 	return stmt.Compile(d.Template())
 }
 
@@ -218,7 +218,7 @@ func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
 
 	pk = []string{}
 
-	stmt := expr.RawSQL(fmt.Sprintf(`PRAGMA TABLE_INFO('%s')`, tableName))
+	stmt := exql.RawSQL(fmt.Sprintf(`PRAGMA TABLE_INFO('%s')`, tableName))
 
 	rows, err := d.Builder().Query(stmt)
 	if err != nil {

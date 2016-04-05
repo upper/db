@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"upper.io/db.v2/builder/expr"
+	"upper.io/db.v2/builder/exql"
 )
 
 type selectMode uint8
@@ -21,13 +21,13 @@ type selector struct {
 	mode      selectMode
 	builder   *sqlBuilder
 	table     string
-	where     *expr.Where
-	groupBy   *expr.GroupBy
-	orderBy   expr.OrderBy
-	limit     expr.Limit
-	offset    expr.Offset
-	columns   *expr.Columns
-	joins     []*expr.Join
+	where     *exql.Where
+	groupBy   *exql.GroupBy
+	orderBy   exql.OrderBy
+	limit     exql.Limit
+	offset    exql.Offset
+	columns   *exql.Columns
+	joins     []*exql.Join
 	arguments []interface{}
 	err       error
 }
@@ -43,7 +43,7 @@ func (qs *selector) Columns(columns ...interface{}) Selector {
 		qs.err = err
 		return qs
 	}
-	qs.columns = expr.JoinColumns(f...)
+	qs.columns = exql.JoinColumns(f...)
 	return qs
 }
 
@@ -60,41 +60,41 @@ func (qs *selector) Where(terms ...interface{}) Selector {
 }
 
 func (qs *selector) GroupBy(columns ...interface{}) Selector {
-	var fragments []expr.Fragment
+	var fragments []exql.Fragment
 	fragments, qs.err = columnFragments(qs.builder.t, columns)
 	if fragments != nil {
-		qs.groupBy = expr.GroupByColumns(fragments...)
+		qs.groupBy = exql.GroupByColumns(fragments...)
 	}
 	return qs
 }
 
 func (qs *selector) OrderBy(columns ...interface{}) Selector {
-	var sortColumns expr.SortColumns
+	var sortColumns exql.SortColumns
 
 	for i := range columns {
-		var sort *expr.SortColumn
+		var sort *exql.SortColumn
 
 		switch value := columns[i].(type) {
 		case RawValue:
-			sort = &expr.SortColumn{
-				Column: expr.RawValue(value.String()),
+			sort = &exql.SortColumn{
+				Column: exql.RawValue(value.String()),
 			}
 		case string:
 			if strings.HasPrefix(value, "-") {
-				sort = &expr.SortColumn{
-					Column: expr.ColumnWithName(value[1:]),
-					Order:  expr.Descendent,
+				sort = &exql.SortColumn{
+					Column: exql.ColumnWithName(value[1:]),
+					Order:  exql.Descendent,
 				}
 			} else {
 				chunks := strings.SplitN(value, " ", 2)
 
-				order := expr.Ascendent
+				order := exql.Ascendent
 				if len(chunks) > 1 && strings.ToUpper(chunks[1]) == "DESC" {
-					order = expr.Descendent
+					order = exql.Descendent
 				}
 
-				sort = &expr.SortColumn{
-					Column: expr.ColumnWithName(chunks[0]),
+				sort = &exql.SortColumn{
+					Column: exql.ColumnWithName(chunks[0]),
 					Order:  order,
 				}
 			}
@@ -126,13 +126,13 @@ func (qs *selector) Using(columns ...interface{}) Selector {
 		return qs
 	}
 
-	lastJoin.Using = expr.UsingColumns(fragments...)
+	lastJoin.Using = exql.UsingColumns(fragments...)
 	return qs
 }
 
 func (qs *selector) pushJoin(t string, tables []interface{}) Selector {
 	if qs.joins == nil {
-		qs.joins = []*expr.Join{}
+		qs.joins = []*exql.Join{}
 	}
 
 	tableNames := make([]string, len(tables))
@@ -141,9 +141,9 @@ func (qs *selector) pushJoin(t string, tables []interface{}) Selector {
 	}
 
 	qs.joins = append(qs.joins,
-		&expr.Join{
+		&exql.Join{
 			Type:  t,
-			Table: expr.TableWithName(strings.Join(tableNames, ", ")),
+			Table: exql.TableWithName(strings.Join(tableNames, ", ")),
 		},
 	)
 
@@ -184,7 +184,7 @@ func (qs *selector) On(terms ...interface{}) Selector {
 	}
 
 	w, a := qs.builder.t.ToWhereWithArguments(terms)
-	o := expr.On(w)
+	o := exql.On(w)
 	lastJoin.On = &o
 
 	qs.arguments = append(qs.arguments, a...)
@@ -192,23 +192,23 @@ func (qs *selector) On(terms ...interface{}) Selector {
 }
 
 func (qs *selector) Limit(n int) Selector {
-	qs.limit = expr.Limit(n)
+	qs.limit = exql.Limit(n)
 	return qs
 }
 
 func (qs *selector) Offset(n int) Selector {
-	qs.offset = expr.Offset(n)
+	qs.offset = exql.Offset(n)
 	return qs
 }
 
-func (qs *selector) statement() *expr.Statement {
-	return &expr.Statement{
-		Type:    expr.Select,
-		Table:   expr.TableWithName(qs.table),
+func (qs *selector) statement() *exql.Statement {
+	return &exql.Statement{
+		Type:    exql.Select,
+		Table:   exql.TableWithName(qs.table),
 		Columns: qs.columns,
 		Limit:   qs.limit,
 		Offset:  qs.offset,
-		Joins:   expr.JoinConditions(qs.joins...),
+		Joins:   exql.JoinConditions(qs.joins...),
 		Where:   qs.where,
 		OrderBy: &qs.orderBy,
 		GroupBy: qs.groupBy,

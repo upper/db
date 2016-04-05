@@ -23,7 +23,7 @@ package sqlite
 
 import (
 	"upper.io/db.v2/builder/cache"
-	"upper.io/db.v2/builder/expr"
+	"upper.io/db.v2/builder/exql"
 )
 
 const (
@@ -167,8 +167,8 @@ const (
 	`
 )
 
-func template() *expr.Template {
-	return &expr.Template{
+func template() *exql.Template {
+	return &exql.Template{
 		ColumnSeparator:     adapterColumnSeparator,
 		IdentifierSeparator: adapterIdentifierSeparator,
 		IdentifierQuote:     adapterIdentifierQuote,

@@ -50,7 +50,7 @@ func filter(conds []interface{}) []interface{} {
 }
 
 // NewResult creates and results a new result set on the given table, this set
-// is limited by the given expr.Where conditions.
+// is limited by the given exql.Where conditions.
 func NewResult(b builder.Builder, table string, conds []interface{}) *Result {
 	return &Result{
 		b:     b,

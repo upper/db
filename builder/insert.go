@@ -3,25 +3,25 @@ package builder
 import (
 	"database/sql"
 
-	"upper.io/db.v2/builder/expr"
+	"upper.io/db.v2/builder/exql"
 )
 
 type inserter struct {
 	*stringer
 	builder   *sqlBuilder
 	table     string
-	values    []*expr.Values
-	returning []expr.Fragment
-	columns   []expr.Fragment
+	values    []*exql.Values
+	returning []exql.Fragment
+	columns   []exql.Fragment
 	arguments []interface{}
 	extra     string
 }
 
-func (qi *inserter) columnsToFragments(dst *[]expr.Fragment, columns []string) error {
+func (qi *inserter) columnsToFragments(dst *[]exql.Fragment, columns []string) error {
 	l := len(columns)
-	f := make([]expr.Fragment, l)
+	f := make([]exql.Fragment, l)
 	for i := 0; i < l; i++ {
-		f[i] = expr.ColumnWithName(columns[i])
+		f[i] = exql.ColumnWithName(columns[i])
 	}
 	*dst = append(*dst, f...)
 	return nil
@@ -70,32 +70,32 @@ func (qi *inserter) Values(values ...interface{}) Inserter {
 		qi.arguments = append(qi.arguments, values...)
 
 		l := len(values)
-		placeholders := make([]expr.Fragment, l)
+		placeholders := make([]exql.Fragment, l)
 		for i := 0; i < l; i++ {
-			placeholders[i] = expr.RawValue(`?`)
+			placeholders[i] = exql.RawValue(`?`)
 		}
-		qi.values = append(qi.values, expr.NewValueGroup(placeholders...))
+		qi.values = append(qi.values, exql.NewValueGroup(placeholders...))
 	}
 
 	return qi
 }
 
-func (qi *inserter) statement() *expr.Statement {
-	stmt := &expr.Statement{
-		Type:  expr.Insert,
-		Table: expr.TableWithName(qi.table),
+func (qi *inserter) statement() *exql.Statement {
+	stmt := &exql.Statement{
+		Type:  exql.Insert,
+		Table: exql.TableWithName(qi.table),
 	}
 
 	if len(qi.values) > 0 {
-		stmt.Values = expr.JoinValueGroups(qi.values...)
+		stmt.Values = exql.JoinValueGroups(qi.values...)
 	}
 
 	if len(qi.columns) > 0 {
-		stmt.Columns = expr.JoinColumns(qi.columns...)
+		stmt.Columns = exql.JoinColumns(qi.columns...)
 	}
 
 	if len(qi.returning) > 0 {
-		stmt.Returning = expr.ReturningColumns(qi.returning...)
+		stmt.Returning = exql.ReturningColumns(qi.returning...)
 	}
 
 	return stmt

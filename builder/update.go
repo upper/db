@@ -3,16 +3,16 @@ package builder
 import (
 	"database/sql"
 
-	"upper.io/db.v2/builder/expr"
+	"upper.io/db.v2/builder/exql"
 )
 
 type updater struct {
 	*stringer
 	builder      *sqlBuilder
 	table        string
-	columnValues *expr.ColumnValues
+	columnValues *exql.ColumnValues
 	limit        int
-	where        *expr.Where
+	where        *exql.Where
 	arguments    []interface{}
 }
 
@@ -20,11 +20,11 @@ func (qu *updater) Set(terms ...interface{}) Updater {
 	if len(terms) == 1 {
 		ff, vv, _ := Map(terms[0])
 
-		cvs := make([]expr.Fragment, len(ff))
+		cvs := make([]exql.Fragment, len(ff))
 
 		for i := range ff {
-			cvs[i] = &expr.ColumnValue{
-				Column:   expr.ColumnWithName(ff[i]),
+			cvs[i] = &exql.ColumnValue{
+				Column:   exql.ColumnWithName(ff[i]),
 				Operator: qu.builder.t.AssignmentOperator,
 				Value:    sqlPlaceholder,
 			}
@@ -56,10 +56,10 @@ func (qu *updater) Limit(limit int) Updater {
 	return qu
 }
 
-func (qu *updater) statement() *expr.Statement {
-	stmt := &expr.Statement{
-		Type:         expr.Update,
-		Table:        expr.TableWithName(qu.table),
+func (qu *updater) statement() *exql.Statement {
+	stmt := &exql.Statement{
+		Type:         exql.Update,
+		Table:        exql.TableWithName(qu.table),
 		ColumnValues: qu.columnValues,
 	}
 
@@ -68,7 +68,7 @@ func (qu *updater) statement() *expr.Statement {
 	}
 
 	if qu.limit != 0 {
-		stmt.Limit = expr.Limit(qu.limit)
+		stmt.Limit = exql.Limit(qu.limit)
 	}
 
 	return stmt

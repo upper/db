@@ -5,27 +5,27 @@ import (
 	"reflect"
 	"strings"
 
-	"upper.io/db.v2/builder/expr"
+	"upper.io/db.v2/builder/exql"
 )
 
 var (
-	sqlNull            = expr.RawValue(`NULL`)
+	sqlNull            = exql.RawValue(`NULL`)
 	sqlIsOperator      = `IS`
 	sqlInOperator      = `IN`
 	sqlDefaultOperator = `=`
 )
 
 type templateWithUtils struct {
-	*expr.Template
+	*exql.Template
 }
 
-func newTemplateWithUtils(template *expr.Template) *templateWithUtils {
+func newTemplateWithUtils(template *exql.Template) *templateWithUtils {
 	return &templateWithUtils{template}
 }
 
-// ToWhereWithArguments converts the given parameters into a expr.Where
+// ToWhereWithArguments converts the given parameters into a exql.Where
 // value.
-func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where expr.Where, args []interface{}) {
+func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where exql.Where, args []interface{}) {
 	args = []interface{}{}
 
 	switch t := term.(type) {
@@ -52,7 +52,7 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where expr.
 						}
 					}
 
-					where.Conditions = []expr.Fragment{expr.RawValue(s)}
+					where.Conditions = []exql.Fragment{exql.RawValue(s)}
 				} else {
 					var val interface{}
 					key := s
@@ -93,7 +93,7 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where expr.
 		}
 		return
 	case Compound:
-		var cond expr.Where
+		var cond exql.Where
 
 		for _, c := range t.Sentences() {
 			w, v := tu.ToWhereWithArguments(c)
@@ -105,13 +105,13 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where expr.
 		}
 
 		if len(cond.Conditions) > 0 {
-			var frag expr.Fragment
+			var frag exql.Fragment
 			switch t.Operator() {
 			case OperatorNone, OperatorAnd:
-				q := expr.And(cond)
+				q := exql.And(cond)
 				frag = &q
 			case OperatorOr:
-				q := expr.Or(cond)
+				q := exql.Or(cond)
 				frag = &q
 			default:
 				panic(fmt.Sprintf("Unknown type %T", t))
@@ -160,8 +160,8 @@ func (tu *templateWithUtils) ToInterfaceArguments(value interface{}) (args []int
 	return args
 }
 
-// ToColumnValues converts the given conditions into a expr.ColumnValues struct.
-func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv expr.ColumnValues, args []interface{}) {
+// ToColumnValues converts the given conditions into a exql.ColumnValues struct.
+func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv exql.ColumnValues, args []interface{}) {
 	args = []interface{}{}
 
 	switch t := term.(type) {
@@ -179,10 +179,10 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv expr.ColumnVal
 			column = chunks[0]
 			format := strings.TrimSpace(chunks[1])
 
-			columnValue := expr.ColumnValue{
-				Column:   expr.ColumnWithName(column),
+			columnValue := exql.ColumnValue{
+				Column:   exql.ColumnWithName(column),
 				Operator: "=",
-				Value:    expr.RawValue(format),
+				Value:    exql.RawValue(format),
 			}
 
 			ps := strings.Count(format, "?")
@@ -199,13 +199,13 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv expr.ColumnVal
 		}
 		return cv, args
 	case Constraint:
-		columnValue := expr.ColumnValue{}
+		columnValue := exql.ColumnValue{}
 
 		// Guessing operator from input, or using a default one.
 		column := strings.TrimSpace(t.Key())
 		chunks := strings.SplitN(column, ` `, 2)
 
-		columnValue.Column = expr.ColumnWithName(chunks[0])
+		columnValue.Column = exql.ColumnWithName(chunks[0])
 
 		if len(chunks) > 1 {
 			columnValue.Operator = chunks[1]
@@ -217,10 +217,10 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv expr.ColumnVal
 
 			if v == nil {
 				// A function with no arguments.
-				columnValue.Value = expr.RawValue(fmt.Sprintf(`%s()`, value.Name()))
+				columnValue.Value = exql.RawValue(fmt.Sprintf(`%s()`, value.Name()))
 			} else {
 				// A function with one or more arguments.
-				columnValue.Value = expr.RawValue(fmt.Sprintf(`%s(?%s)`, value.Name(), strings.Repeat(`, ?`, len(v)-1)))
+				columnValue.Value = exql.RawValue(fmt.Sprintf(`%s(?%s)`, value.Name(), strings.Repeat(`, ?`, len(v)-1)))
 			}
 
 			args = append(args, v...)
@@ -236,7 +236,7 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv expr.ColumnVal
 			} else {
 				if len(v) > 1 || reflect.TypeOf(value).Kind() == reflect.Slice {
 					// Array value given.
-					columnValue.Value = expr.RawValue(fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1)))
+					columnValue.Value = exql.RawValue(fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1)))
 					if columnValue.Operator == "" {
 						columnValue.Operator = sqlInOperator
 					}
@@ -274,27 +274,27 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv expr.ColumnVal
 
 // ToColumnsValuesAndArguments maps the given columnNames and columnValues into
 // expr's Columns and Values, it also extracts and returns query arguments.
-func (tu *templateWithUtils) ToColumnsValuesAndArguments(columnNames []string, columnValues []interface{}) (*expr.Columns, *expr.Values, []interface{}, error) {
+func (tu *templateWithUtils) ToColumnsValuesAndArguments(columnNames []string, columnValues []interface{}) (*exql.Columns, *exql.Values, []interface{}, error) {
 	var arguments []interface{}
 
-	columns := new(expr.Columns)
+	columns := new(exql.Columns)
 
-	columns.Columns = make([]expr.Fragment, 0, len(columnNames))
+	columns.Columns = make([]exql.Fragment, 0, len(columnNames))
 	for i := range columnNames {
-		columns.Columns = append(columns.Columns, expr.ColumnWithName(columnNames[i]))
+		columns.Columns = append(columns.Columns, exql.ColumnWithName(columnNames[i]))
 	}
 
-	values := new(expr.Values)
+	values := new(exql.Values)
 
 	arguments = make([]interface{}, 0, len(columnValues))
-	values.Values = make([]expr.Fragment, 0, len(columnValues))
+	values.Values = make([]exql.Fragment, 0, len(columnValues))
 
 	for i := range columnValues {
 		switch v := columnValues[i].(type) {
-		case *expr.Value:
+		case *exql.Value:
 			// Adding value.
 			values.Values = append(values.Values, v)
-		case expr.Value:
+		case exql.Value:
 			// Adding value.
 			values.Values = append(values.Values, &v)
 		default:
