@@ -2,7 +2,6 @@ package sqladapter
 
 import (
 	"upper.io/db.v2"
-	"upper.io/db.v2/internal/sqlutil/result"
 )
 
 type Collection interface {
@@ -37,7 +36,7 @@ func (c *BaseCollection) Exists() bool {
 
 // Find creates a result set with the given conditions.
 func (c *BaseCollection) Find(conds ...interface{}) db.Result {
-	return result.NewResult(c.Database().Builder(), c.Name(), conds)
+	return NewResult(c.Database().Builder(), c.Name(), conds)
 }
 
 // Database returns the database session that backs the collection.

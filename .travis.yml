@@ -30,12 +30,13 @@ addons:
     - mongodb-org-server
     - mongodb-org-shell
 
-env: GOARCH=amd64 TEST_HOST=127.0.0.1
+env: GOARCH=amd64 DB_HOST=127.0.0.1
 
 install:
   - mkdir -p $GOPATH/src/upper.io
   - mv $PWD $GOPATH/src/upper.io/db.v2
   - cd $GOPATH/src/upper.io/db.v2
+  - go get -t -v -d ./...
   - go get -v github.com/cznic/ql/ql
   - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db.v2
 

@@ -8,7 +8,7 @@ import (
 )
 
 var settings = postgresql.ConnectionURL{
-	Address:  db.Host("demo.upper.io"),
+	Host:     "demo.upper.io",
 	Database: "booktown",
 	User:     "demouser",
 	Password: "demop4ss",
@@ -29,10 +29,7 @@ func main() {
 
 	defer sess.Close()
 
-	booksCol, err := sess.Collection("books")
-	if err != nil {
-		log.Fatalf("sess.Collection(): %q\n", err)
-	}
+	booksCol := sess.Collection("books")
 
 	var books []Book
 	err = booksCol.Find().All(&books)

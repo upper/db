@@ -23,6 +23,7 @@ package ql
 
 import (
 	"database/sql"
+	"os"
 )
 
 const (
@@ -30,7 +31,7 @@ const (
 )
 
 var settings = ConnectionURL{
-	Database: "_dumps/test.db",
+	Database: os.Getenv("DB_NAME"),
 }
 
 func tearUp() error {
@@ -122,4 +123,4 @@ func tearUp() error {
 	return nil
 }
 
-//go:generate bash -c "sed s/ADAPTER/ql/g ../internal/testing/adapter.go.tpl > generated_test.go"
+//go:generate bash -c "sed s/ADAPTER/ql/g ../internal/sqladapter/testing/adapter.go.tpl > generated_test.go"
