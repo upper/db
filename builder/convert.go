@@ -142,6 +142,10 @@ func (tu *templateWithUtils) ToInterfaceArguments(value interface{}) (args []int
 	case reflect.Slice:
 		var i, total int
 
+		if v.Type().Elem().Kind() == reflect.Uint8 {
+			return []interface{}{string(value.([]byte))}
+		}
+
 		total = v.Len()
 		if total > 0 {
 			args = make([]interface{}, total)

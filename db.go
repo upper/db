@@ -244,9 +244,19 @@ type Tx interface {
 // sources or tables.
 type Collection interface {
 
-	// Insert inserts a new item into the collection. Accepts a map or a struct
-	// as argument.
+	// Insert inserts a new item into the collection, it accepts a map or a
+	// struct as argument and returns the ID of the newly added element. The type
+	// of this ID depends on the database adapter. The ID returned by Insert()
+	// can be passed directly to Find() to find the recently added element.
+	//
+	// Insert does not alter the passed element.
 	Insert(interface{}) (interface{}, error)
+
+	// InsertReturning is like Insert() but it updates the passed pointer to map
+	// or struct with the newly inserted element. This is all done atomically
+	// within a transaction. If the database does not support transactions this
+	// method returns db.ErrUnsupported.
+	InsertReturning(interface{}) error
 
 	// Exists returns true if the collection exists.
 	Exists() bool
@@ -335,30 +345,6 @@ type Marshaler builder.Marshaler
 // Unmarshaler is the interface implemented by structs that can transform
 // themselves from storage data into a valid value.
 type Unmarshaler builder.Unmarshaler
-
-// IDSetter defines methods to be implemented by structs tha can update their
-// own IDs.
-type IDSetter interface {
-	SetID(map[string]interface{}) error
-}
-
-// Constrainer defined methods to be implemented by structs that can set its
-// own constraints.
-type Constrainer interface {
-	Constraints() Cond
-}
-
-// Int64IDSetter defined methods to be implemented by structs that can update
-// their own int64 ID.
-type Int64IDSetter interface {
-	SetID(int64) error
-}
-
-// Uint64IDSetter defined methods to be implemented by structs that can update
-// their own uint64 ID.
-type Uint64IDSetter interface {
-	SetID(uint64) error
-}
 
 // EnvEnableDebug can be used by adapters to determine if the user has enabled
 // debugging.
