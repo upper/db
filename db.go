@@ -44,10 +44,60 @@
 package db // import "upper.io/db.v2"
 
 import (
+	"fmt"
 	"reflect"
-
-	"upper.io/db.v2/builder"
 )
+
+// Constraint interface represents a condition.
+type Constraint interface {
+	Key() interface{}
+	Value() interface{}
+}
+
+// Constraints interface provides the Constraints() method.
+type Constraints interface {
+	Constraints() []Constraint
+}
+
+// Compound represents a compound statement created by joining constraints.
+type Compound interface {
+	Sentences() []Compound
+	Operator() CompoundOperator
+}
+
+// CompoundOperator represents the operator of a compound.
+type CompoundOperator uint
+
+// Compound operators.
+const (
+	OperatorNone = CompoundOperator(iota)
+	OperatorAnd
+	OperatorOr
+)
+
+// RawValue interface represents values that can bypass SQL filters. Use with
+// care.
+type RawValue interface {
+	fmt.Stringer
+}
+
+// Function interface defines methods for representing database functions.
+type Function interface {
+	Arguments() []interface{}
+	Name() string
+}
+
+// Marshaler is the interface implemented by structs that can marshal
+// themselves into data suitable for storage.
+type Marshaler interface {
+	MarshalDB() (interface{}, error)
+}
+
+// Unmarshaler is the interface implemented by structs that can transform
+// themselves from storage data into a valid value.
+type Unmarshaler interface {
+	UnmarshalDB(interface{}) error
+}
 
 // Cond is a map that defines conditions that can be passed to
 // `db.Collection.Find()` and `db.Result.Where()`.
@@ -73,23 +123,109 @@ import (
 //
 //  // Where age > 32 and age < 35
 //  db.Cond{"age >": 32, "age <": 35}
-type Cond builder.M
+type Cond map[interface{}]interface{}
 
-// Constraints returns all the conditions on the map.
-func (m Cond) Constraints() []builder.Constraint {
-	return builder.M(m).Constraints()
+// Constraints returns each one of the map records as a constraint.
+func (c Cond) Constraints() []Constraint {
+	z := make([]Constraint, 0, len(c))
+	for k, v := range c {
+		z = append(z, NewConstraint(k, v))
+	}
+	return z
 }
 
-// Operator returns the logical operator that joins the conditions (defaults to
-// "AND").
-func (m Cond) Operator() builder.CompoundOperator {
-	return builder.M(m).Operator()
+// Sentences returns each one of the map records as a compound.
+func (c Cond) Sentences() []Compound {
+	z := make([]Compound, 0, len(c))
+	for k, v := range c {
+		z = append(z, Cond{k: v})
+	}
+	return z
 }
 
-// Sentences returns the map as a compound, so it can be used with Or() and
-// And().
-func (m Cond) Sentences() []builder.Compound {
-	return builder.M(m).Sentences()
+// Operator returns the default compound operator.
+func (c Cond) Operator() CompoundOperator {
+	return OperatorNone
+}
+
+// rawValue implements RawValue
+type rawValue struct {
+	v string
+}
+
+func (r rawValue) String() string {
+	return r.v
+}
+
+type compound struct {
+	conds []Compound
+}
+
+func newCompound(c ...Compound) *compound {
+	return &compound{c}
+}
+
+func (c *compound) Sentences() []Compound {
+	return c.conds
+}
+
+func (c *compound) Operator() CompoundOperator {
+	return OperatorNone
+}
+
+func (c *compound) push(a ...Compound) *compound {
+	c.conds = append(c.conds, a...)
+	return c
+}
+
+// Union represents a compound joined by OR.
+type Union struct {
+	*compound
+}
+
+// Or adds more terms to the compound.
+func (o *Union) Or(conds ...Compound) *Union {
+	o.compound.push(conds...)
+	return o
+}
+
+// Operator returns the OR operator.
+func (o *Union) Operator() CompoundOperator {
+	return OperatorOr
+}
+
+// And adds more terms to the compound.
+func (a *Intersection) And(conds ...Compound) *Intersection {
+	a.compound.push(conds...)
+	return a
+}
+
+// Intersection represents a compound joined by AND.
+type Intersection struct {
+	*compound
+}
+
+// Operator returns the AND operator.
+func (a *Intersection) Operator() CompoundOperator {
+	return OperatorAnd
+}
+
+type constraint struct {
+	k interface{}
+	v interface{}
+}
+
+func (c constraint) Key() interface{} {
+	return c.k
+}
+
+func (c constraint) Value() interface{} {
+	return c.v
+}
+
+// NewConstraint creates a condition
+func NewConstraint(key interface{}, value interface{}) Constraint {
+	return constraint{k: key, v: value}
 }
 
 // Func represents a database function.
@@ -107,7 +243,7 @@ func (m Cond) Sentences() []builder.Compound {
 //
 //	// RTRIM("Hello  ")
 //	db.Func("RTRIM", "Hello  ")
-func Func(name string, args ...interface{}) builder.Function {
+func Func(name string, args ...interface{}) Function {
 	if len(args) == 1 {
 		if reflect.TypeOf(args[0]).Kind() == reflect.Slice {
 			iargs := make([]interface{}, len(args))
@@ -118,6 +254,19 @@ func Func(name string, args ...interface{}) builder.Function {
 		}
 	}
 	return &dbFunc{name: name, args: args}
+}
+
+type dbFunc struct {
+	name string
+	args []interface{}
+}
+
+func (f *dbFunc) Arguments() []interface{} {
+	return f.args
+}
+
+func (f *dbFunc) Name() string {
+	return f.name
 }
 
 // And joins conditions under logical conjunction. Conditions can be
@@ -139,7 +288,9 @@ func Func(name string, args ...interface{}) builder.Function {
 // 		),
 // 		db.Cond{"last_name": "Mouse"},
 // 	)
-var And = builder.And
+func And(conds ...Compound) *Intersection {
+	return &Intersection{compound: newCompound(conds...)}
+}
 
 // Or joins conditions under logical disjunction. Conditions can be represented
 // by db.Cond{}, db.Or() or db.And().
@@ -151,7 +302,9 @@ var And = builder.And
 // 		db.Cond{"year": 2012},
 // 		db.Cond{"year": 1987},
 // 	)
-var Or = builder.Or
+func Or(conds ...Compound) *Union {
+	return &Union{compound: newCompound(conds...)}
+}
 
 // Raw marks chunks of data as protected, so they pass directly to the query
 // without any filtering. Use with care.
@@ -160,7 +313,9 @@ var Or = builder.Or
 //
 //	// SOUNDEX('Hello')
 //	Raw("SOUNDEX('Hello')")
-var Raw = builder.Raw
+func Raw(s string) RawValue {
+	return rawValue{v: s}
+}
 
 // Database is an interface that defines methods that must be satisfied by
 // database adapters.
@@ -173,11 +328,6 @@ type Database interface {
 	// Example:
 	//  internalSQLDriver := sess.Driver().(*sql.DB)
 	Driver() interface{}
-
-	// Builder returns a query builder that can be used to execute advanced
-	// queries. Builder may not be defined for all database adapters, in that
-	// case the return value would be nil.
-	Builder() builder.Builder
 
 	// Open attempts to stablish a connection with a database manager.
 	Open(ConnectionURL) error
@@ -328,38 +478,6 @@ type ConnectionURL interface {
 	String() string
 }
 
-// Marshaler is the interface implemented by structs that can marshal
-// themselves into data suitable for storage.
-type Marshaler builder.Marshaler
-
-// Unmarshaler is the interface implemented by structs that can transform
-// themselves from storage data into a valid value.
-type Unmarshaler builder.Unmarshaler
-
-// IDSetter defines methods to be implemented by structs tha can update their
-// own IDs.
-type IDSetter interface {
-	SetID(map[string]interface{}) error
-}
-
-// Constrainer defined methods to be implemented by structs that can set its
-// own constraints.
-type Constrainer interface {
-	Constraints() Cond
-}
-
-// Int64IDSetter defined methods to be implemented by structs that can update
-// their own int64 ID.
-type Int64IDSetter interface {
-	SetID(int64) error
-}
-
-// Uint64IDSetter defined methods to be implemented by structs that can update
-// their own uint64 ID.
-type Uint64IDSetter interface {
-	SetID(uint64) error
-}
-
 // EnvEnableDebug can be used by adapters to determine if the user has enabled
 // debugging.
 //
@@ -374,22 +492,10 @@ type Uint64IDSetter interface {
 //	UPPERIO_DB_DEBUG=1 ./go-program
 const EnvEnableDebug = `UPPERIO_DB_DEBUG`
 
-type dbFunc struct {
-	name string
-	args []interface{}
-}
-
-func (f *dbFunc) Arguments() []interface{} {
-	return f.args
-}
-
-func (f *dbFunc) Name() string {
-	return f.name
-}
-
 var (
-	_ = builder.Constraints(Cond{})
-	_ = builder.Compound(Cond{})
-
-	_ = builder.Function(&dbFunc{})
+	_ = Function(&dbFunc{})
+	_ = Constraints(Cond{})
+	_ = Compound(Cond{})
+	_ = Constraint(&constraint{})
+	_ = RawValue(&rawValue{})
 )

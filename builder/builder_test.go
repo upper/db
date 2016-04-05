@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"upper.io/db.v2"
 )
 
 func TestSelect(t *testing.T) {
@@ -13,7 +14,7 @@ func TestSelect(t *testing.T) {
 
 	assert.Equal(
 		`SELECT DATE()`,
-		b.Select(Func("DATE")).String(),
+		b.Select(db.Func("DATE")).String(),
 	)
 
 	assert.Equal(
@@ -23,31 +24,44 @@ func TestSelect(t *testing.T) {
 
 	assert.Equal(
 		`SELECT DISTINCT(name) FROM "artist"`,
-		b.Select(Func("DISTINCT", "name")).From("artist").String(),
+		b.Select(db.Func("DISTINCT", "name")).From("artist").String(),
 	)
 
 	assert.Equal(
+		`SELECT * FROM "artist" WHERE (1 = $1)`,
+		b.Select().From("artist").Where(db.Cond{1: 1}).String(),
+	)
+
+	// TODO: handle this case
+	/*
+		assert.Equal(
+			`SELECT * FROM "artist" WHERE ($1 = ANY("column"))`, // search_term = ANY(name)
+			b.Select().From("artist").Where(db.Cond{1: db.Func("ANY", db.Raw("column"))}).String(), // ??
+		)
+	*/
+
+	assert.Equal(
 		`SELECT * FROM "artist" WHERE ("id" NOT IN ($1, $2))`,
-		b.Select().From("artist").Where(M{"id NOT IN": []int{0, -1}}).String(),
+		b.Select().From("artist").Where(db.Cond{"id NOT IN": []int{0, -1}}).String(),
 	)
 
 	assert.Equal(
 		`SELECT * FROM "artist" WHERE ("id" NOT IN ($1))`,
-		b.Select().From("artist").Where(M{"id NOT IN": []int{-1}}).String(),
+		b.Select().From("artist").Where(db.Cond{"id NOT IN": []int{-1}}).String(),
 	)
 
 	assert.Equal(
 		`SELECT * FROM "artist" WHERE ("id" IN ($1, $2))`,
-		b.Select().From("artist").Where(M{"id IN": []int{0, -1}}).String(),
+		b.Select().From("artist").Where(db.Cond{"id IN": []int{0, -1}}).String(),
 	)
 
 	assert.Equal(
 		`SELECT * FROM "artist" WHERE (("id" = $1 OR "id" = $2 OR "id" = $3))`,
 		b.Select().From("artist").Where(
-			Or(
-				M{"id": 1},
-				M{"id": 2},
-				M{"id": 3},
+			db.Or(
+				db.Cond{"id": 1},
+				db.Cond{"id": 2},
+				db.Cond{"id": 3},
 			),
 		).String(),
 	)
@@ -55,15 +69,15 @@ func TestSelect(t *testing.T) {
 	assert.Equal(
 		`SELECT * FROM "artist" WHERE ((("id" = $1 OR "id" = $2 OR "id" IS NULL) OR ("name" = $3 OR "name" = $4)))`,
 		b.Select().From("artist").Where(
-			Or(
-				Or(
-					M{"id": 1},
-					M{"id": 2},
-					M{"id IS": nil},
+			db.Or(
+				db.Or(
+					db.Cond{"id": 1},
+					db.Cond{"id": 2},
+					db.Cond{"id IS": nil},
 				),
-				Or(
-					M{"name": "John"},
-					M{"name": "Peter"},
+				db.Or(
+					db.Cond{"name": "John"},
+					db.Cond{"name": "Peter"},
 				),
 			),
 		).String(),
@@ -72,22 +86,22 @@ func TestSelect(t *testing.T) {
 	assert.Equal(
 		`SELECT * FROM "artist" WHERE ((("id" = $1 OR "id" = $2 OR "id" = $3 OR "id" = $4) AND ("name" = $5 AND "last_name" = $6) AND "age" > $7))`,
 		b.Select().From("artist").Where(
-			And(
-				Or(
-					M{"id": 1},
-					M{"id": 2},
-					M{"id": 3},
+			db.And(
+				db.Or(
+					db.Cond{"id": 1},
+					db.Cond{"id": 2},
+					db.Cond{"id": 3},
 				).Or(
-					M{"id": 4},
+					db.Cond{"id": 4},
 				),
-				Or(),
-				And(
-					M{"name": "John"},
-					M{"last_name": "Smith"},
+				db.Or(),
+				db.And(
+					db.Cond{"name": "John"},
+					db.Cond{"last_name": "Smith"},
 				),
-				And(),
+				db.And(),
 			).And(
-				M{"age >": "20"},
+				db.Cond{"age >": "20"},
 			),
 		).String(),
 	)
@@ -217,7 +231,7 @@ func TestSelect(t *testing.T) {
 
 	assert.Equal(
 		`SELECT DATE()`,
-		b.Select(Raw("DATE()")).String(),
+		b.Select(db.Raw("DATE()")).String(),
 	)
 }
 
@@ -279,21 +293,21 @@ func TestUpdate(t *testing.T) {
 
 	assert.Equal(
 		`UPDATE "artist" SET "name" = $1 WHERE ("id" < $2)`,
-		b.Update("artist").Set(map[string]string{"name": "Artist"}).Where(M{"id <": 5}).String(),
+		b.Update("artist").Set(map[string]string{"name": "Artist"}).Where(db.Cond{"id <": 5}).String(),
 	)
 
 	assert.Equal(
 		`UPDATE "artist" SET "name" = $1 WHERE ("id" < $2)`,
 		b.Update("artist").Set(struct {
 			Nombre string `db:"name"`
-		}{"Artist"}).Where(M{"id <": 5}).String(),
+		}{"Artist"}).Where(db.Cond{"id <": 5}).String(),
 	)
 
 	assert.Equal(
 		`UPDATE "artist" SET "name" = $1, "last_name" = $2 WHERE ("id" < $3)`,
 		b.Update("artist").Set(struct {
 			Nombre string `db:"name"`
-		}{"Artist"}).Set(map[string]string{"last_name": "Foo"}).Where(M{"id <": 5}).String(),
+		}{"Artist"}).Set(map[string]string{"last_name": "Foo"}).Where(db.Cond{"id <": 5}).String(),
 	)
 
 	assert.Equal(
@@ -429,14 +443,14 @@ func BenchmarkUpdate3(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		bt.Update("artist").Set(struct {
 			Nombre string `db:"name"`
-		}{"Artist"}).Set(map[string]string{"last_name": "Foo"}).Where(M{"id <": 5}).String()
+		}{"Artist"}).Set(map[string]string{"last_name": "Foo"}).Where(db.Cond{"id <": 5}).String()
 	}
 }
 
 func BenchmarkUpdate4(b *testing.B) {
 	bt := NewBuilderWithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
-		bt.Update("artist").Set(map[string]string{"name": "Artist"}).Where(M{"id <": 5}).String()
+		bt.Update("artist").Set(map[string]string{"name": "Artist"}).Where(db.Cond{"id <": 5}).String()
 	}
 }
 

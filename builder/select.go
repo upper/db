@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"upper.io/db.v2"
 	"upper.io/db.v2/builder/exql"
 )
 
@@ -75,7 +76,7 @@ func (qs *selector) OrderBy(columns ...interface{}) Selector {
 		var sort *exql.SortColumn
 
 		switch value := columns[i].(type) {
-		case RawValue:
+		case db.RawValue:
 			sort = &exql.SortColumn{
 				Column: exql.RawValue(value.String()),
 			}

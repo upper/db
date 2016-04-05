@@ -23,13 +23,11 @@ package db
 
 import (
 	"errors"
-
-	"upper.io/db.v2/builder"
 )
 
 // Shared error messages.
 var (
-	ErrNoMoreRows              = builder.ErrNoMoreRows
+	ErrNoMoreRows              = errors.New(`No more rows in this result set.`)
 	ErrNotConnected            = errors.New(`You're currently not connected.`)
 	ErrMissingDatabaseName     = errors.New(`Missing database name.`)
 	ErrMissingCollectionName   = errors.New(`Missing collection name.`)

@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 
+	"upper.io/db.v2"
 	"upper.io/db.v2/builder/exql"
 )
 
@@ -63,7 +64,7 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where exql.
 						val = t[1]
 					}
 
-					cv, v := tu.ToColumnValues(NewConstraint(key, val))
+					cv, v := tu.ToColumnValues(db.NewConstraint(key, val))
 
 					args = append(args, v...)
 					for i := range cv.ColumnValues {
@@ -82,7 +83,7 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where exql.
 			where.Conditions = append(where.Conditions, w.Conditions...)
 		}
 		return
-	case Constraints:
+	case db.Constraints:
 		for _, c := range t.Constraints() {
 			w, v := tu.ToWhereWithArguments(c)
 			if len(w.Conditions) == 0 {
@@ -92,7 +93,7 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where exql.
 			where.Conditions = append(where.Conditions, w.Conditions...)
 		}
 		return
-	case Compound:
+	case db.Compound:
 		var cond exql.Where
 
 		for _, c := range t.Sentences() {
@@ -107,10 +108,10 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where exql.
 		if len(cond.Conditions) > 0 {
 			var frag exql.Fragment
 			switch t.Operator() {
-			case OperatorNone, OperatorAnd:
+			case db.OperatorNone, db.OperatorAnd:
 				q := exql.And(cond)
 				frag = &q
-			case OperatorOr:
+			case db.OperatorOr:
 				q := exql.Or(cond)
 				frag = &q
 			default:
@@ -120,7 +121,7 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where exql.
 		}
 
 		return
-	case Constraint:
+	case db.Constraint:
 		cv, v := tu.ToColumnValues(t)
 		args = append(args, v...)
 		where.Conditions = append(where.Conditions, cv.ColumnValues...)
@@ -198,21 +199,22 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv exql.ColumnVal
 			cv.ColumnValues = append(cv.ColumnValues, &columnValue)
 		}
 		return cv, args
-	case Constraint:
+	case db.Constraint:
 		columnValue := exql.ColumnValue{}
 
 		// Guessing operator from input, or using a default one.
-		column := strings.TrimSpace(t.Key())
-		chunks := strings.SplitN(column, ` `, 2)
-
-		columnValue.Column = exql.ColumnWithName(chunks[0])
-
-		if len(chunks) > 1 {
-			columnValue.Operator = chunks[1]
+		if column, ok := t.Key().(string); ok {
+			chunks := strings.SplitN(strings.TrimSpace(column), ` `, 2)
+			columnValue.Column = exql.ColumnWithName(chunks[0])
+			if len(chunks) > 1 {
+				columnValue.Operator = chunks[1]
+			}
+		} else {
+			columnValue.Column = exql.RawValue(fmt.Sprintf("%v", t.Key()))
 		}
 
 		switch value := t.Value().(type) {
-		case Function:
+		case db.Function:
 			v := tu.ToInterfaceArguments(value.Arguments())
 
 			if v == nil {
@@ -260,7 +262,7 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv exql.ColumnVal
 		cv.ColumnValues = append(cv.ColumnValues, &columnValue)
 
 		return cv, args
-	case Constraints:
+	case db.Constraints:
 		for _, c := range t.Constraints() {
 			p, q := tu.ToColumnValues(c)
 			cv.ColumnValues = append(cv.ColumnValues, p.ColumnValues...)

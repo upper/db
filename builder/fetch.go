@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"reflect"
 
+	"upper.io/db.v2"
 	"upper.io/db.v2/builder/reflectx"
 )
 
@@ -176,8 +177,7 @@ func fetchResult(itemT reflect.Type, rows *sql.Rows, columns []string) (reflect.
 				f := reflectx.FieldByIndexes(item, fi.Index)
 				values[i] = f.Addr().Interface()
 			}
-
-			if u, ok := values[i].(Unmarshaler); ok {
+			if u, ok := values[i].(db.Unmarshaler); ok {
 				values[i] = scanner{u}
 			}
 		}

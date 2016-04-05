@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"upper.io/db.v2"
 	"upper.io/db.v2/builder/exql"
 	"upper.io/db.v2/builder/reflectx"
 )
@@ -263,7 +264,7 @@ func columnFragments(template *templateWithUtils, columns []interface{}) ([]exql
 
 	for i := 0; i < l; i++ {
 		switch v := columns[i].(type) {
-		case Function:
+		case db.Function:
 			var s string
 			a := template.ToInterfaceArguments(v.Arguments())
 			if len(a) == 0 {
@@ -276,7 +277,7 @@ func columnFragments(template *templateWithUtils, columns []interface{}) ([]exql
 				s = fmt.Sprintf(`%s(%s)`, v.Name(), strings.Join(ss, `, `))
 			}
 			f[i] = exql.RawValue(s)
-		case RawValue:
+		case db.RawValue:
 			f[i] = exql.RawValue(v.String())
 		case exql.Fragment:
 			f[i] = v
@@ -394,7 +395,7 @@ func (iter *iterator) Close() (err error) {
 }
 
 func marshal(v interface{}) (interface{}, error) {
-	if m, isMarshaler := v.(Marshaler); isMarshaler {
+	if m, isMarshaler := v.(db.Marshaler); isMarshaler {
 		var err error
 		if v, err = m.MarshalDB(); err != nil {
 			return nil, err
