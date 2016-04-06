@@ -22,6 +22,7 @@
 package postgresql
 
 import (
+	"log"
 	"strconv"
 	"strings"
 
@@ -29,15 +30,25 @@ import (
 
 	_ "github.com/lib/pq" // PostgreSQL driver.
 	"upper.io/db.v2"
+	"upper.io/db.v2/builder"
 	"upper.io/db.v2/builder/exql"
 	"upper.io/db.v2/internal/sqladapter"
 )
 
 type database struct {
 	*sqladapter.BaseDatabase
+	builder.Builder
 }
 
 var _ = db.Database(&database{})
+
+func Open(settings db.ConnectionURL) (db.Database, error) {
+	d := &database{}
+	if err := d.Open(settings); err != nil {
+		return nil, err
+	}
+	return d, nil
+}
 
 // CompileAndReplacePlaceholders compiles the given statement into an string
 // and replaces each generic placeholder with the placeholder the driver
@@ -81,6 +92,12 @@ func (d *database) open() error {
 		return err
 	}
 
+	b, err := builder.New(d.BaseDatabase, template)
+	if err != nil {
+		return err
+	}
+	d.Builder = b
+
 	return d.Bind(sess)
 }
 
@@ -108,7 +125,7 @@ func (d *database) NewTable(name string) db.Collection {
 
 // Collections returns a list of non-system tables from the database.
 func (d *database) Collections() (collections []string, err error) {
-	q := d.Builder().Select("table_name").
+	q := d.Builder.Select("table_name").
 		From("information_schema.tables").
 		Where("table_schema = ?", "public")
 
@@ -156,7 +173,7 @@ func (d *database) Transaction() (db.Tx, error) {
 func (d *database) PopulateSchema() error {
 	schema := d.NewSchema()
 
-	q := d.Builder().Select(db.Raw("CURRENT_DATABASE() AS name"))
+	q := d.Builder.Select(db.Raw("CURRENT_DATABASE() AS name"))
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -172,7 +189,7 @@ func (d *database) PopulateSchema() error {
 
 // TableExists checks whether a table exists and returns an error in case it doesn't.
 func (d *database) TableExists(name string) error {
-	q := d.Builder().Select("table_name").
+	q := d.Builder.Select("table_name").
 		From("information_schema.tables").
 		Where("table_catalog = ? AND table_name = ?", d.Schema().Name(), name)
 
@@ -199,8 +216,9 @@ func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
 	}
 
 	pk = []string{}
+	log.Printf("BUILDER??: %v", d.Builder)
 
-	q := d.Builder().Select("pg_attribute.attname AS pkey").
+	q := d.Builder.Select("pg_attribute.attname AS pkey").
 		From("pg_index", "pg_class", "pg_attribute").
 		Where(`
 			pg_class.oid = '"` + tableName + `"'::regclass
@@ -229,6 +247,7 @@ func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
 func (d *database) clone() (*database, error) {
 	clone := &database{}
 	clone.BaseDatabase = d.BaseDatabase.Clone(clone)
+
 	if err := clone.open(); err != nil {
 		return nil, err
 	}

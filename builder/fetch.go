@@ -58,7 +58,7 @@ func fetchRow(rows *sql.Rows, dst interface{}) error {
 		if err = rows.Err(); err != nil {
 			return err
 		}
-		return ErrNoMoreRows
+		return db.ErrNoMoreRows
 	}
 
 	itemT := itemV.Type()

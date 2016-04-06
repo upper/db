@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"upper.io/db.v2"
-	"upper.io/db.v2/builder"
 	"upper.io/db.v2/builder/cache"
 	"upper.io/db.v2/builder/exql"
 	"upper.io/db.v2/internal/logger"
@@ -41,7 +40,6 @@ type BaseDatabase struct {
 	cachedStatements *cache.Cache
 	collections      map[string]db.Collection
 	collectionsMu    sync.Mutex
-	builder          builder.Builder
 
 	template *exql.Template
 }
@@ -62,7 +60,6 @@ func NewDatabase(partial PartialDatabase, connURL db.ConnectionURL, template *ex
 		template: template,
 	}
 
-	d.builder, _ = builder.New(d, d.t)
 	d.cachedStatements = cache.NewCache()
 
 	return d
@@ -238,11 +235,6 @@ func (d *BaseDatabase) QueryRow(stmt *exql.Statement, args ...interface{}) (*sql
 	}
 
 	return p.QueryRow(args...), nil
-}
-
-// Builder returns a custom query builder.
-func (d *BaseDatabase) Builder() builder.Builder {
-	return d.builder
 }
 
 // Driver returns the underlying *sql.DB or *sql.Tx instance.

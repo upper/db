@@ -23,6 +23,8 @@ package postgresql
 
 import (
 	"database/sql"
+	"fmt"
+	"reflect"
 
 	"upper.io/db.v2"
 	"upper.io/db.v2/builder"
@@ -32,6 +34,7 @@ import (
 
 type table struct {
 	sqladapter.Collection
+	d *database
 }
 
 var _ = db.Collection(&table{})
@@ -43,10 +46,75 @@ func (t *table) Truncate() error {
 		Table: exql.TableWithName(t.Name()),
 	}
 
-	if _, err := t.Database().Builder().Exec(&stmt); err != nil {
+	if _, err := t.d.Builder.Exec(&stmt); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (t *table) Find(conds ...interface{}) db.Result {
+	if len(conds) == 1 {
+		if id, ok := conds[0].(int64); ok { // ID type.
+			conds[0] = db.Cond{
+				"id": id,
+			}
+		}
+	}
+	return sqladapter.NewResult(t.d.Builder, t.Name(), conds)
+}
+
+// InsertReturning inserts an item and updates the variable.
+func (t *table) InsertReturning(item interface{}) error {
+	if reflect.TypeOf(item).Kind() != reflect.Ptr {
+		return fmt.Errorf("Expecting a pointer to map or string but got %T", item)
+	}
+
+	sess := db.Database(t.d)
+
+	if currTx := t.d.BaseDatabase.Tx(); currTx == nil {
+		// Not within a transaction, let's create one.
+		tx, err := sess.Transaction()
+		if err != nil {
+			return err
+		}
+		sess = tx
+	}
+
+	var res db.Result
+
+	col := sess.Collection(t.Name())
+
+	id, err := col.Insert(item)
+	if err != nil {
+		goto cancel
+	}
+	if id == nil {
+		err = fmt.Errorf("Insertion did not return any ID, aborted.")
+		goto cancel
+	}
+
+	res = col.Find(id)
+	if err = res.One(item); err != nil {
+		goto cancel
+	}
+
+	if tx, ok := sess.(db.Tx); ok {
+		// This is only executed if t.Database() was **not** a transaction and if
+		// sess was created with sess.Transaction().
+		return tx.Commit()
+	}
+	return err
+
+cancel:
+	// This goto label should only be used when we got an error within a
+	// transaction and we don't want to continue.
+
+	if tx, ok := sess.(db.Tx); ok {
+		// This is only executed if t.Database() was **not** a transaction and if
+		// sess was created with sess.Transaction().
+		tx.Rollback()
+	}
+	return err
 }
 
 // Insert inserts an item (map or struct) into the collection.
@@ -63,7 +131,7 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 		}
 	}
 
-	q := t.Database().Builder().InsertInto(t.Name()).
+	q := t.d.InsertInto(t.Name()).
 		Columns(columnNames...).
 		Values(columnValues...)
 
@@ -85,41 +153,14 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 	// Asking the database to return the primary key after insertion.
 	q.Returning(pKey...)
 
-	var keyMap map[string]interface{}
+	var keyMap db.Cond
 	if err = q.Iterator().One(&keyMap); err != nil {
 		return nil, err
 	}
 
-	// Does the item satisfy the db.IDSetter interface?
-	if setter, ok := item.(db.IDSetter); ok {
-		if err := setter.SetID(keyMap); err != nil {
-			return nil, err
-		}
-		return nil, nil
-	}
-
 	// The IDSetter interface does not match, look for another interface match.
 	if len(keyMap) == 1 {
-		id := keyMap[pKey[0]]
-
-		// Matches db.Int64IDSetter
-		if setter, ok := item.(db.Int64IDSetter); ok {
-			if err = setter.SetID(id.(int64)); err != nil {
-				return nil, err
-			}
-			return nil, nil
-		}
-
-		// Matches db.Uint64IDSetter
-		if setter, ok := item.(db.Uint64IDSetter); ok {
-			if err = setter.SetID(uint64(id.(int64))); err != nil {
-				return nil, err
-			}
-			return nil, nil
-		}
-
-		// No interface matched, falling back to old behaviour.
-		return id.(int64), nil
+		return keyMap[pKey[0]], nil
 	}
 
 	// This was a compound key and no interface matched it, let's return a map.
@@ -127,5 +168,5 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 }
 
 func newTable(d *database, name string) *table {
-	return &table{sqladapter.NewCollection(d, name)}
+	return &table{Collection: sqladapter.NewCollection(d, name), d: d}
 }

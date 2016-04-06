@@ -40,12 +40,6 @@ type Result struct {
 }
 
 func filter(conds []interface{}) []interface{} {
-	for i := range conds {
-		switch v := conds[i].(type) {
-		case db.Constrainer:
-			conds[i] = v.Constraints()
-		}
-	}
 	return conds
 }
 

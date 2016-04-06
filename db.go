@@ -394,9 +394,19 @@ type Tx interface {
 // sources or tables.
 type Collection interface {
 
-	// Insert inserts a new item into the collection. Accepts a map or a struct
-	// as argument.
+	// Insert inserts a new item into the collection, it accepts a map or a
+	// struct as argument and returns the ID of the newly added element. The type
+	// of this ID depends on the database adapter. The ID returned by Insert()
+	// can be passed directly to Find() to find the recently added element.
+	//
+	// Insert does not alter the passed element.
 	Insert(interface{}) (interface{}, error)
+
+	// InsertReturning is like Insert() but it updates the passed pointer to map
+	// or struct with the newly inserted element. This is all done atomically
+	// within a transaction. If the database does not support transactions this
+	// method returns db.ErrUnsupported.
+	InsertReturning(interface{}) error
 
 	// Exists returns true if the collection exists.
 	Exists() bool
