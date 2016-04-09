@@ -22,7 +22,6 @@
 package postgresql
 
 import (
-	"log"
 	"strconv"
 	"strings"
 
@@ -36,25 +35,54 @@ import (
 )
 
 type database struct {
-	*sqladapter.BaseDatabase
-	builder.Builder
+	sqladapter.BaseDatabase
+	b       builder.Builder
+	connURL db.ConnectionURL
 }
 
 var _ = db.Database(&database{})
 
+func newDatabase(settings db.ConnectionURL) (*database, error) {
+	d := &database{
+		connURL: settings,
+	}
+
+	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
+
+	b, err := builder.New(d.BaseDatabase, template)
+	if err != nil {
+		return nil, err
+	}
+
+	d.b = b
+
+	return d, nil
+}
+
 func Open(settings db.ConnectionURL) (db.Database, error) {
-	d := &database{}
+	d, err := newDatabase(settings)
+	if err != nil {
+		return nil, err
+	}
 	if err := d.Open(settings); err != nil {
 		return nil, err
 	}
 	return d, nil
 }
 
+func (d *database) ConnectionURL() db.ConnectionURL {
+	return d.connURL
+}
+
+func (d *database) Builder() builder.Builder {
+	return d.b
+}
+
 // CompileAndReplacePlaceholders compiles the given statement into an string
 // and replaces each generic placeholder with the placeholder the driver
 // expects (if any).
 func (d *database) CompileAndReplacePlaceholders(stmt *exql.Statement) (query string) {
-	buf := stmt.Compile(d.Template())
+	buf := stmt.Compile(template())
 
 	j := 1
 	for i := range buf {
@@ -80,25 +108,24 @@ func (d *database) Err(err error) error {
 	return err
 }
 
+func (d *database) Template() *exql.Template {
+	return template()
+}
+
 func (d *database) open() error {
-	var sess *sql.DB
-
-	connFn := func(sess **sql.DB) (err error) {
-		*sess, err = sql.Open("postgres", d.ConnectionURL().String())
-		return
-	}
-
-	if err := d.WaitForConnection(func() error { return connFn(&sess) }); err != nil {
+	connFn := func() error {
+		sess, err := sql.Open("postgres", d.ConnectionURL().String())
+		if err == nil {
+			return d.BaseDatabase.BindSession(sess)
+		}
 		return err
 	}
 
-	b, err := builder.New(d.BaseDatabase, template)
-	if err != nil {
+	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
 		return err
 	}
-	d.Builder = b
 
-	return d.Bind(sess)
+	return nil
 }
 
 // Open attempts to open a connection to the database server.
@@ -106,9 +133,6 @@ func (d *database) Open(connURL db.ConnectionURL) error {
 	if connURL == nil {
 		return db.ErrMissingConnURL
 	}
-
-	d.BaseDatabase = sqladapter.NewDatabase(d, connURL, template())
-
 	return d.open()
 }
 
@@ -125,7 +149,7 @@ func (d *database) NewTable(name string) db.Collection {
 
 // Collections returns a list of non-system tables from the database.
 func (d *database) Collections() (collections []string, err error) {
-	q := d.Builder.Select("table_name").
+	q := d.Builder().Select("table_name").
 		From("information_schema.tables").
 		Where("table_schema = ?", "public")
 
@@ -146,34 +170,32 @@ func (d *database) Collections() (collections []string, err error) {
 // Transaction starts a transaction block and returns a db.Tx struct that can
 // be used to issue transactional queries.
 func (d *database) Transaction() (db.Tx, error) {
-	var err error
-	var sqlTx *sql.Tx
-	var clone *database
-
-	if clone, err = d.clone(); err != nil {
+	clone, err := d.clone()
+	if err != nil {
 		return nil, err
 	}
 
-	connFn := func(sqlTx **sql.Tx) (err error) {
-		*sqlTx, err = clone.Session().Begin()
-		return
+	connFn := func() error {
+		sqlTx, err := clone.BaseDatabase.Session().Begin()
+		if err == nil {
+			return clone.BindTx(sqlTx)
+		}
+		return err
 	}
 
-	if err := d.WaitForConnection(func() error { return connFn(&sqlTx) }); err != nil {
+	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
 		return nil, err
 	}
 
-	clone.BindTx(sqlTx)
-
-	return &sqladapter.TxDatabase{Database: clone, Tx: clone.Tx()}, nil
+	return clone, nil
 }
 
 // PopulateSchema looks up for the table info in the database and populates its
 // schema for internal use.
 func (d *database) PopulateSchema() error {
-	schema := d.NewSchema()
+	schema := d.BaseDatabase.NewSchema()
 
-	q := d.Builder.Select(db.Raw("CURRENT_DATABASE() AS name"))
+	q := d.Builder().Select(db.Raw("CURRENT_DATABASE() AS name"))
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -189,7 +211,7 @@ func (d *database) PopulateSchema() error {
 
 // TableExists checks whether a table exists and returns an error in case it doesn't.
 func (d *database) TableExists(name string) error {
-	q := d.Builder.Select("table_name").
+	q := d.Builder().Select("table_name").
 		From("information_schema.tables").
 		Where("table_catalog = ? AND table_name = ?", d.Schema().Name(), name)
 
@@ -216,9 +238,8 @@ func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
 	}
 
 	pk = []string{}
-	log.Printf("BUILDER??: %v", d.Builder)
 
-	q := d.Builder.Select("pg_attribute.attname AS pkey").
+	q := d.Builder().Select("pg_attribute.attname AS pkey").
 		From("pg_index", "pg_class", "pg_attribute").
 		Where(`
 			pg_class.oid = '"` + tableName + `"'::regclass
@@ -245,11 +266,14 @@ func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
 }
 
 func (d *database) clone() (*database, error) {
-	clone := &database{}
-	clone.BaseDatabase = d.BaseDatabase.Clone(clone)
+	clone, err := newDatabase(d.connURL)
+	if err != nil {
+		return nil, err
+	}
 
 	if err := clone.open(); err != nil {
 		return nil, err
 	}
+
 	return clone, nil
 }

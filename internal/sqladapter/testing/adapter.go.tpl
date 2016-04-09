@@ -46,12 +46,12 @@ func mustOpen() db.Database {
 }
 
 func TestOpenMustFail(t *testing.T) {
-	_, err := db.Open(Adapter, ConnectionURL{})
+	_, err := Open(ConnectionURL{})
 	assert.Error(t, err)
 }
 
 func TestOpenMustSucceed(t *testing.T) {
-	sess, err := db.Open(Adapter, settings)
+	sess, err := Open(settings)
 	assert.NoError(t, err)
 	assert.NotNil(t, sess)
 
@@ -60,7 +60,7 @@ func TestOpenMustSucceed(t *testing.T) {
 }
 
 func TestTruncateAllCollections(t *testing.T) {
-	sess, err := db.Open(Adapter, settings)
+	sess, err := Open(settings)
 	assert.NoError(t, err)
 	defer sess.Close()
 
@@ -1111,8 +1111,8 @@ func TestExhaustConnectionPool(t *testing.T) {
 
 			t.Logf("Tx %d: OK (waiting time: %v)", i, time.Now().Sub(start))
 
-			// Let's suppose that we do some complex stuff and that the transaction
-			// lasts 3 seconds.
+			// Let's suppose that we do a bunch of complex stuff and that the
+			// transaction lasts 3 seconds.
 			time.Sleep(time.Second * 3)
 
 			if err := tx.Close(); err != nil {

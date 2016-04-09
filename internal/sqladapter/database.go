@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"upper.io/db.v2"
+	"upper.io/db.v2/builder"
 	"upper.io/db.v2/builder/cache"
 	"upper.io/db.v2/builder/exql"
 	"upper.io/db.v2/internal/logger"
@@ -22,18 +23,38 @@ type PartialDatabase interface {
 	NewTable(name string) db.Collection
 	CompileAndReplacePlaceholders(stmt *exql.Statement) (query string)
 	Err(in error) (out error)
+	Builder() builder.Builder
+	Transaction() (db.Tx, error)
+	Clone() (db.Database, error)
+	Collections() ([]string, error)
+	Open(db.ConnectionURL) error
 }
 
-type Database interface {
-	db.Database
-	TableExists(name string) error
-	TablePrimaryKey(name string) ([]string, error)
+type BaseDatabase interface {
+	PartialDatabase
+	BaseTx
+
+	WaitForConnection(func() error) error
+	Close() error
+	Ping() error
+	Collection(string) db.Collection
+	Name() string
+	Driver() interface{}
+	Session() *sql.DB
+	Tx() BaseTx
+
+	BindSession(*sql.DB) error
+	BindTx(*sql.Tx) error
+
+	NewSchema() *DatabaseSchema
+	Schema() *DatabaseSchema
 }
 
-type BaseDatabase struct {
-	partial PartialDatabase
-	sess    *sql.DB
-	tx      *Tx
+type baseDatabase struct {
+	PartialDatabase
+	BaseTx
+
+	sess *sql.DB
 
 	connURL          db.ConnectionURL
 	schema           *DatabaseSchema
@@ -53,11 +74,9 @@ func (c *cachedStatement) OnPurge() {
 	c.Stmt.Close()
 }
 
-func NewDatabase(partial PartialDatabase, connURL db.ConnectionURL, template *exql.Template) *BaseDatabase {
-	d := &BaseDatabase{
-		partial:  partial,
-		connURL:  connURL,
-		template: template,
+func NewBaseDatabase(p PartialDatabase) BaseDatabase {
+	d := &baseDatabase{
+		PartialDatabase: p,
 	}
 
 	d.cachedStatements = cache.NewCache()
@@ -65,46 +84,46 @@ func NewDatabase(partial PartialDatabase, connURL db.ConnectionURL, template *ex
 	return d
 }
 
-func (d *BaseDatabase) t() *exql.Template {
+func (d *baseDatabase) t() *exql.Template {
 	return d.template
 }
 
-func (d *BaseDatabase) Session() *sql.DB {
+func (d *baseDatabase) Session() *sql.DB {
 	return d.sess
 }
 
-func (d *BaseDatabase) Template() *exql.Template {
+func (d *baseDatabase) Template() *exql.Template {
 	return d.template
 }
 
-func (d *BaseDatabase) BindTx(t *sql.Tx) {
-	d.tx = newTx(t)
+func (d *baseDatabase) BindTx(t *sql.Tx) error {
+	d.BaseTx = newTx(t)
+	return nil
 }
 
-func (d *BaseDatabase) Tx() *Tx {
-	return d.tx
+func (d *baseDatabase) Tx() BaseTx {
+	return d.BaseTx
 }
 
-func (d *BaseDatabase) NewSchema() *DatabaseSchema {
+func (d *baseDatabase) NewSchema() *DatabaseSchema {
 	d.schema = NewDatabaseSchema()
 	return d.schema
 }
 
-func (d *BaseDatabase) Schema() *DatabaseSchema {
+func (d *baseDatabase) Schema() *DatabaseSchema {
 	return d.schema
 }
 
-func (d *BaseDatabase) Bind(sess *sql.DB) error {
+func (d *baseDatabase) BindSession(sess *sql.DB) error {
 	d.sess = sess
 	return d.populate()
 }
 
-func (d *BaseDatabase) populate() error {
-
+func (d *baseDatabase) populate() error {
 	d.collections = make(map[string]db.Collection)
 
 	if d.schema == nil {
-		if err := d.partial.PopulateSchema(); err != nil {
+		if err := d.PartialDatabase.PopulateSchema(); err != nil {
 			return err
 		}
 	}
@@ -112,27 +131,29 @@ func (d *BaseDatabase) populate() error {
 	return nil
 }
 
-func (d *BaseDatabase) Clone(partial PartialDatabase) *BaseDatabase {
-	clone := NewDatabase(partial, d.connURL, d.template)
+/*
+func (d *baseDatabase) xClone(partial PartialDatabase) *baseDatabase {
+	clone := NewBaseDatabase(partial, d.connURL, d.template)
 	clone.schema = d.schema
 	return clone
 }
+*/
 
 // Ping checks whether a connection to the database is still alive by pinging
 // it, establishing a connection if necessary.
-func (d *BaseDatabase) Ping() error {
+func (d *baseDatabase) Ping() error {
 	return d.sess.Ping()
 }
 
 // Close terminates the current database session.
-func (d *BaseDatabase) Close() error {
+func (d *baseDatabase) Close() error {
 	defer func() {
 		d.sess = nil
-		d.tx = nil
+		d.BaseTx = nil
 	}()
 	if d.sess != nil {
-		if d.tx != nil && !d.tx.Done() {
-			d.tx.Rollback()
+		if d.Tx() != nil && !d.Tx().Done() {
+			d.Tx().Rollback()
 		}
 		d.cachedStatements.Clear() // Closes prepared statements as well.
 		return d.sess.Close()
@@ -141,31 +162,33 @@ func (d *BaseDatabase) Close() error {
 }
 
 // Collection returns a Collection given a name.
-func (d *BaseDatabase) Collection(name string) db.Collection {
+func (d *baseDatabase) Collection(name string) db.Collection {
 	d.collectionsMu.Lock()
 	if c, ok := d.collections[name]; ok {
 		d.collectionsMu.Unlock()
 		return c
 	}
 
-	col := d.partial.NewTable(name)
+	col := d.PartialDatabase.NewTable(name)
 	d.collections[name] = col
 	d.collectionsMu.Unlock()
 
 	return col
 }
 
-func (d *BaseDatabase) ConnectionURL() db.ConnectionURL {
+/*
+func (d *baseDatabase) ConnectionURL() db.ConnectionURL {
 	return d.connURL
 }
+*/
 
 // Name returns the name of the database.
-func (d *BaseDatabase) Name() string {
+func (d *baseDatabase) Name() string {
 	return d.Name()
 }
 
 // Exec compiles and executes a statement that does not return any rows.
-func (d *BaseDatabase) Exec(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
+func (d *baseDatabase) Exec(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
 	var query string
 	var p *sql.Stmt
 	var err error
@@ -184,7 +207,7 @@ func (d *BaseDatabase) Exec(stmt *exql.Statement, args ...interface{}) (sql.Resu
 		return nil, err
 	}
 
-	if execer, ok := d.partial.(HasExecStatement); ok {
+	if execer, ok := d.PartialDatabase.(HasExecStatement); ok {
 		return execer.Exec(p, args...)
 	}
 
@@ -192,7 +215,7 @@ func (d *BaseDatabase) Exec(stmt *exql.Statement, args ...interface{}) (sql.Resu
 }
 
 // Query compiles and executes a statement that returns rows.
-func (d *BaseDatabase) Query(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
+func (d *baseDatabase) Query(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
 	var query string
 	var p *sql.Stmt
 	var err error
@@ -215,7 +238,7 @@ func (d *BaseDatabase) Query(stmt *exql.Statement, args ...interface{}) (*sql.Ro
 }
 
 // QueryRow compiles and executes a statement that returns at most one row.
-func (d *BaseDatabase) QueryRow(stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
+func (d *baseDatabase) QueryRow(stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
 	var query string
 	var p *sql.Stmt
 	var err error
@@ -238,14 +261,14 @@ func (d *BaseDatabase) QueryRow(stmt *exql.Statement, args ...interface{}) (*sql
 }
 
 // Driver returns the underlying *sql.DB or *sql.Tx instance.
-func (d *BaseDatabase) Driver() interface{} {
-	if d.tx != nil {
-		return d.tx.Tx
+func (d *baseDatabase) Driver() interface{} {
+	if tx := d.Tx(); tx != nil {
+		return tx.(*baseTx).Tx
 	}
 	return d.sess
 }
 
-func (d *BaseDatabase) prepareStatement(stmt *exql.Statement) (p *sql.Stmt, query string, err error) {
+func (d *baseDatabase) prepareStatement(stmt *exql.Statement) (p *sql.Stmt, query string, err error) {
 	if d.sess == nil {
 		return nil, "", db.ErrNotConnected
 	}
@@ -257,10 +280,10 @@ func (d *BaseDatabase) prepareStatement(stmt *exql.Statement) (p *sql.Stmt, quer
 		p = ps.Stmt
 		query = ps.query
 	} else {
-		query = d.partial.CompileAndReplacePlaceholders(stmt)
+		query = d.PartialDatabase.CompileAndReplacePlaceholders(stmt)
 
-		if d.tx != nil {
-			p, err = d.tx.Prepare(query)
+		if d.Tx() != nil {
+			p, err = d.Tx().(*baseTx).Prepare(query)
 		} else {
 			p, err = d.sess.Prepare(query)
 		}
@@ -280,7 +303,7 @@ var waitForConnMu sync.Mutex
 // waitForConnection tries to execute the connectFn function, if connectFn
 // returns an error, then waitForConnection will keep trying until connectFn
 // returns nil. Maximum waiting time is 5s after having acquired the lock.
-func (d *BaseDatabase) WaitForConnection(connectFn func() error) error {
+func (d *baseDatabase) WaitForConnection(connectFn func() error) error {
 	// This lock ensures first-come, first-served and prevents opening too many
 	// file descriptors.
 	waitForConnMu.Lock()
@@ -292,7 +315,7 @@ func (d *BaseDatabase) WaitForConnection(connectFn func() error) error {
 	// Waitig 5 seconds for a successful connection.
 	for timeStart := time.Now(); time.Now().Sub(timeStart) < time.Second*5; {
 		if err := connectFn(); err != nil {
-			if d.partial.Err(err) == db.ErrTooManyClients {
+			if d.PartialDatabase.Err(err) == db.ErrTooManyClients {
 				// Sleep and try again if, and only if, the server replied with a "too
 				// many clients" error.
 				time.Sleep(waitTime)

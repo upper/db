@@ -23,31 +23,37 @@ package sqladapter
 
 import (
 	"database/sql"
-
-	"upper.io/db.v2"
 )
 
 type TxDatabase struct {
-	db.Database
-	*Tx
+	BaseDatabase
+	*baseTx
 }
 
-type Tx struct {
+type BaseTx interface {
+	Commit() error
+	Rollback() error
+	Done() bool
+}
+
+type baseTx struct {
 	*sql.Tx
 	done bool
 }
 
-func newTx(tx *sql.Tx) *Tx {
-	return &Tx{Tx: tx}
+func newTx(tx *sql.Tx) BaseTx {
+	return &baseTx{Tx: tx}
 }
 
-func (t *Tx) Done() bool {
+func (t *baseTx) Done() bool {
 	return t.done
 }
 
-func (t *Tx) Commit() (err error) {
+func (t *baseTx) Commit() (err error) {
 	if err = t.Tx.Commit(); err == nil {
 		t.done = true
 	}
 	return err
 }
+
+var _ = BaseTx(&baseTx{})
