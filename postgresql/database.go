@@ -573,8 +573,10 @@ func (d *database) tableExists(names ...string) error {
 			return db.ErrCollectionDoesNotExist
 		}
 
-		if !rows.Next() {
-			rows.Close()
+		tExists := rows.Next()
+		rows.Close()
+
+		if !tExists {
 			return db.ErrCollectionDoesNotExist
 		}
 	}
