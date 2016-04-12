@@ -87,8 +87,13 @@ func (d *database) WithSession(sess interface{}) (db.Database, error) {
 		clone.tx = sqltx.New(tx)
 	}
 
-	clone.cachedStatements = cache.NewCache()
-	clone.collections = make(map[string]*table)
+	d.collectionsMu.Lock()
+	clone.cachedStatements = d.cachedStatements
+	clone.collections = d.collections
+	d.collectionsMu.Unlock()
+	if clone.collections == nil {
+		clone.collections = make(map[string]*table)
+	}
 
 	if clone.schema == nil {
 		if err := clone.populateSchema(); err != nil {
