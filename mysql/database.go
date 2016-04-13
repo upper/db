@@ -29,7 +29,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql" // MySQL driver.
 	"github.com/jmoiron/sqlx"
-	"upper.io/cache"
+	"upper.io/db/builder/cache"
 	"upper.io/db"
 	"upper.io/db/util/adapter"
 	"upper.io/db/util/schema"

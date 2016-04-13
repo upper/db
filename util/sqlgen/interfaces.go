@@ -1,7 +1,7 @@
 package sqlgen
 
 import (
-	"upper.io/cache"
+	"upper.io/db/builder/cache"
 )
 
 type Fragment interface {
