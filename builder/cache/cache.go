@@ -95,11 +95,11 @@ func (c *Cache) Write(h Hashable, value interface{}) {
 	key := h.Hash()
 
 	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	if el, ok := c.cache[key]; ok {
 		el.Value.(*item).value = value
 		c.li.MoveToFront(el)
-		c.mu.Unlock()
 		return
 	}
 
@@ -112,14 +112,13 @@ func (c *Cache) Write(h Hashable, value interface{}) {
 			p.OnPurge()
 		}
 	}
-
-	c.mu.Unlock()
 }
 
 // Clear generates a new memory space, leaving the old memory unreferenced, so
 // it can be claimed by the garbage collector.
 func (c *Cache) Clear() {
 	c.mu.Lock()
+	defer c.mu.Unlock()
 	for _, el := range c.cache {
 		if p, ok := el.Value.(*item).value.(HasOnPurge); ok {
 			p.OnPurge()
@@ -127,7 +126,6 @@ func (c *Cache) Clear() {
 	}
 	c.cache = make(map[string]*list.Element)
 	c.li.Init()
-	c.mu.Unlock()
 }
 
 // Hash returns a hash of the given struct.
