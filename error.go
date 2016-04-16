@@ -47,4 +47,5 @@ var (
 	ErrTooManyClients          = errors.New(`Can't connect to database server: too many clients.`)
 	ErrGivingUpTryingToConnect = errors.New(`Giving up trying to connect: too many clients.`)
 	ErrMissingConnURL          = errors.New(`Missing DSN`)
+	ErrNotImplemented          = errors.New(`Call not implemented`)
 )

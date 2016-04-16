@@ -75,12 +75,7 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	var pKey []string
-	if pKey, err = t.d.TablePrimaryKey(t.Name()); err != nil {
-		if err != sql.ErrNoRows {
-			return nil, err
-		}
-	}
+	pKey := t.BaseCollection.PrimaryKeys()
 
 	q := t.d.Builder().InsertInto(t.Name()).
 		Columns(columnNames...).

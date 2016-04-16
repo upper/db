@@ -40,7 +40,13 @@ type database struct {
 	connURL db.ConnectionURL
 }
 
-var _ = db.Database(&database{})
+type Database interface {
+	sqladapter.Database
+}
+
+var (
+	_ = sqladapter.Database(&database{})
+)
 
 func newDatabase(settings db.ConnectionURL) (*database, error) {
 	d := &database{
@@ -59,7 +65,7 @@ func newDatabase(settings db.ConnectionURL) (*database, error) {
 	return d, nil
 }
 
-func Open(settings db.ConnectionURL) (db.Database, error) {
+func Open(settings db.ConnectionURL) (Database, error) {
 	d, err := newDatabase(settings)
 	if err != nil {
 		return nil, err
@@ -78,10 +84,10 @@ func (d *database) Builder() builder.Builder {
 	return d.b
 }
 
-// CompileAndReplacePlaceholders compiles the given statement into an string
+// CompileStatement compiles the given statement into an string
 // and replaces each generic placeholder with the placeholder the driver
 // expects (if any).
-func (d *database) CompileAndReplacePlaceholders(stmt *exql.Statement) (query string) {
+func (d *database) CompileStatement(stmt *exql.Statement) (query string) {
 	buf := stmt.Compile(template())
 
 	j := 1
@@ -142,8 +148,8 @@ func (d *database) Clone() (db.Database, error) {
 	return d.clone()
 }
 
-// NewTable returns a db.Collection.
-func (d *database) NewTable(name string) db.Collection {
+// NewCollection returns a db.Collection.
+func (d *database) NewCollection(name string) db.Collection {
 	return newTable(d, name)
 }
 
@@ -190,11 +196,7 @@ func (d *database) Transaction() (db.Tx, error) {
 	return clone, nil
 }
 
-// PopulateSchema looks up for the table info in the database and populates its
-// schema for internal use.
-func (d *database) PopulateSchema() error {
-	schema := d.BaseDatabase.NewSchema()
-
+func (d *database) FindDatabaseName() (string, error) {
 	q := d.Builder().Select(db.Raw("CURRENT_DATABASE() AS name"))
 
 	iter := q.Iterator()
@@ -203,17 +205,17 @@ func (d *database) PopulateSchema() error {
 	if iter.Next() {
 		var name string
 		err := iter.Scan(&name)
-		schema.SetName(name)
-		return err
+		return name, err
 	}
-	return iter.Err()
+
+	return "", iter.Err()
 }
 
 // TableExists checks whether a table exists and returns an error in case it doesn't.
 func (d *database) TableExists(name string) error {
 	q := d.Builder().Select("table_name").
 		From("information_schema.tables").
-		Where("table_catalog = ? AND table_name = ?", d.Schema().Name(), name)
+		Where("table_catalog = ? AND table_name = ?", d.BaseDatabase.Name(), name)
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -228,17 +230,7 @@ func (d *database) TableExists(name string) error {
 	return db.ErrCollectionDoesNotExist
 }
 
-// TablePrimaryKey returns all primary keys from the given table.
-func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
-	tableSchema := d.Schema().Table(tableName)
-
-	pk := tableSchema.PrimaryKeys()
-	if pk != nil {
-		return pk, nil
-	}
-
-	pk = []string{}
-
+func (d *database) FindTablePrimaryKeys(tableName string) ([]string, error) {
 	q := d.Builder().Select("pg_attribute.attname AS pkey").
 		From("pg_index", "pg_class", "pg_attribute").
 		Where(`
@@ -252,6 +244,8 @@ func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
 	iter := q.Iterator()
 	defer iter.Close()
 
+	pk := []string{}
+
 	for iter.Next() {
 		var k string
 		if err := iter.Scan(&k); err != nil {
@@ -259,8 +253,6 @@ func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
 		}
 		pk = append(pk, k)
 	}
-
-	tableSchema.SetPrimaryKeys(pk)
 
 	return pk, nil
 }

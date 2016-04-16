@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func mustOpen() db.Database {
+func mustOpen() Database {
 	sess, err := Open(settings)
 	if err != nil {
 		panic(err.Error())
@@ -1068,20 +1068,18 @@ func TestDataTypes(t *testing.T) {
 	assert.Equal(t, testValues, item)
 }
 
-/*
 func TestBuilder(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()
 
-	var all map[string]interface{}
+	var all []map[string]interface{}
 
-	iter := sess.SelectAllFrom("artist")
+	iter := sess.Builder().SelectAllFrom("artist").Iterator()
 	err := iter.All(&all)
 
 	assert.NoError(t, err)
 	assert.NotZero(t, all)
 }
-*/
 
 func TestExhaustConnectionPool(t *testing.T) {
 	if Adapter == "ql" {

@@ -26,7 +26,7 @@ import (
 	"upper.io/db.v2/builder"
 )
 
-type Result struct {
+type result struct {
 	b       builder.Builder
 	table   string
 	iter    builder.Iterator
@@ -45,8 +45,8 @@ func filter(conds []interface{}) []interface{} {
 
 // NewResult creates and results a new result set on the given table, this set
 // is limited by the given exql.Where conditions.
-func NewResult(b builder.Builder, table string, conds []interface{}) *Result {
-	return &Result{
+func NewResult(b builder.Builder, table string, conds []interface{}) *result {
+	return &result{
 		b:     b,
 		table: table,
 		conds: conds,
@@ -54,27 +54,27 @@ func NewResult(b builder.Builder, table string, conds []interface{}) *Result {
 }
 
 // Sets conditions for reducing the working set.
-func (r *Result) Where(conds ...interface{}) db.Result {
+func (r *result) Where(conds ...interface{}) db.Result {
 	r.conds = conds
 	return r
 }
 
 // Determines the maximum limit of results to be returned.
-func (r *Result) Limit(n uint) db.Result {
+func (r *result) Limit(n uint) db.Result {
 	r.limit = int(n)
 	return r
 }
 
 // Determines how many documents will be skipped before starting to grab
 // results.
-func (r *Result) Skip(n uint) db.Result {
+func (r *result) Skip(n uint) db.Result {
 	r.offset = int(n)
 	return r
 }
 
 // Used to group results that have the same value in the same column or
 // columns.
-func (r *Result) Group(fields ...interface{}) db.Result {
+func (r *result) Group(fields ...interface{}) db.Result {
 	r.groupBy = fields
 	return r
 }
@@ -82,29 +82,29 @@ func (r *Result) Group(fields ...interface{}) db.Result {
 // Determines sorting of results according to the provided names. Fields may be
 // prefixed by - (minus) which means descending order, ascending order would be
 // used otherwise.
-func (r *Result) Sort(fields ...interface{}) db.Result {
+func (r *result) Sort(fields ...interface{}) db.Result {
 	r.orderBy = fields
 	return r
 }
 
 // Retrieves only the given fields.
-func (r *Result) Select(fields ...interface{}) db.Result {
+func (r *result) Select(fields ...interface{}) db.Result {
 	r.fields = fields
 	return r
 }
 
 // Dumps all results into a pointer to an slice of structs or maps.
-func (r *Result) All(dst interface{}) error {
+func (r *result) All(dst interface{}) error {
 	return r.buildSelect().Iterator().All(dst)
 }
 
 // Fetches only one result from the resultset.
-func (r *Result) One(dst interface{}) error {
+func (r *result) One(dst interface{}) error {
 	return r.buildSelect().Iterator().One(dst)
 }
 
 // Fetches the next result from the resultset.
-func (r *Result) Next(dst interface{}) (err error) {
+func (r *result) Next(dst interface{}) (err error) {
 	if r.iter == nil {
 		r.iter = r.buildSelect().Iterator()
 	}
@@ -115,7 +115,7 @@ func (r *Result) Next(dst interface{}) (err error) {
 }
 
 // Removes the matching items from the collection.
-func (r *Result) Remove() error {
+func (r *result) Remove() error {
 	q := r.b.DeleteFrom(r.table).
 		Where(filter(r.conds)...).
 		Limit(r.limit)
@@ -125,7 +125,7 @@ func (r *Result) Remove() error {
 }
 
 // Closes the result set.
-func (r *Result) Close() error {
+func (r *result) Close() error {
 	if r.iter != nil {
 		return r.iter.Close()
 	}
@@ -134,7 +134,7 @@ func (r *Result) Close() error {
 
 // Updates matching items from the collection with values of the given map or
 // struct.
-func (r *Result) Update(values interface{}) error {
+func (r *result) Update(values interface{}) error {
 	q := r.b.Update(r.table).
 		Set(values).
 		Where(filter(r.conds)...).
@@ -145,7 +145,7 @@ func (r *Result) Update(values interface{}) error {
 }
 
 // Counts the elements within the main conditions of the set.
-func (r *Result) Count() (uint64, error) {
+func (r *result) Count() (uint64, error) {
 	counter := struct {
 		Count uint64 `db:"_t"`
 	}{}
@@ -166,7 +166,7 @@ func (r *Result) Count() (uint64, error) {
 	return counter.Count, nil
 }
 
-func (r *Result) buildSelect() builder.Selector {
+func (r *result) buildSelect() builder.Selector {
 	q := r.b.Select(r.fields...)
 
 	q.From(r.table)

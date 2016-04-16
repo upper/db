@@ -2,8 +2,8 @@ package sqladapter
 
 import (
 	"fmt"
-	"log"
 	"reflect"
+	"sync"
 	"upper.io/db.v2"
 	"upper.io/db.v2/builder/exql"
 )
@@ -20,15 +20,31 @@ type BaseCollection interface {
 	Find(conds ...interface{}) db.Result
 	Truncate() error
 	InsertReturning(interface{}) error
+	PrimaryKeys() []string
 }
 
 type baseCollection struct {
 	p PartialCollection
+
+	mu sync.Mutex
+
+	pk []string
 }
 
 // NewCollection returns a collection with basic methods.
 func NewBaseCollection(p PartialCollection) BaseCollection {
-	return &baseCollection{p: p}
+	c := &baseCollection{p: p}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.pk, _ = c.p.Database().FindTablePrimaryKeys(c.p.Name())
+
+	return c
+}
+
+func (c *baseCollection) PrimaryKeys() []string {
+	return c.pk
 }
 
 func (c *baseCollection) Find(conds ...interface{}) db.Result {
@@ -57,7 +73,6 @@ func (c *baseCollection) InsertReturning(item interface{}) error {
 	inTx := false
 
 	if currTx := c.p.Database().Tx(); currTx != nil {
-		log.Printf("GOT TRANS")
 		tx = c.p.Database()
 		inTx = true
 	} else {
@@ -67,7 +82,6 @@ func (c *baseCollection) InsertReturning(item interface{}) error {
 		if err != nil {
 			return err
 		}
-		log.Printf("NO TRANS")
 	}
 
 	var res db.Result
@@ -91,7 +105,6 @@ func (c *baseCollection) InsertReturning(item interface{}) error {
 	if !inTx {
 		// This is only executed if t.Database() was **not** a transaction and if
 		// sess was created with sess.Transaction().
-		log.Printf("COMITTED")
 		return tx.Commit()
 	}
 	return err
@@ -103,7 +116,6 @@ cancel:
 	if !inTx {
 		// This is only executed if t.Database() was **not** a transaction and if
 		// sess was created with sess.Transaction().
-		log.Printf("ROLLED BACK")
 		tx.Rollback()
 	}
 	return err

@@ -16,12 +16,20 @@ type HasExecStatement interface {
 	Exec(stmt *sql.Stmt, args ...interface{}) (sql.Result, error)
 }
 
+type Database interface {
+	db.Database
+	Builder() builder.Builder
+}
+
 type PartialDatabase interface {
-	PopulateSchema() error
 	TableExists(name string) error
-	TablePrimaryKey(name string) ([]string, error)
-	NewTable(name string) db.Collection
-	CompileAndReplacePlaceholders(stmt *exql.Statement) (query string)
+
+	FindDatabaseName() (string, error)
+	FindTablePrimaryKeys(name string) ([]string, error)
+
+	NewCollection(name string) db.Collection
+	CompileStatement(stmt *exql.Statement) (query string)
+
 	Err(in error) (out error)
 	Builder() builder.Builder
 	Transaction() (db.Tx, error)
@@ -35,32 +43,30 @@ type BaseDatabase interface {
 	BaseTx
 
 	WaitForConnection(func() error) error
+	Name() string
 	Close() error
 	Ping() error
 	Collection(string) db.Collection
-	Name() string
 	Driver() interface{}
-	Session() *sql.DB
-	Tx() BaseTx
 
 	BindSession(*sql.DB) error
-	BindTx(*sql.Tx) error
+	Session() *sql.DB
 
-	NewSchema() *DatabaseSchema
-	Schema() *DatabaseSchema
+	BindTx(*sql.Tx) error
+	Tx() BaseTx
 }
 
 type baseDatabase struct {
 	PartialDatabase
 	BaseTx
 
+	mu sync.Mutex
+
+	name string
 	sess *sql.DB
 
-	connURL          db.ConnectionURL
-	schema           *DatabaseSchema
-	cachedStatements *cache.Cache
-	collections      map[string]db.Collection
-	collectionsMu    sync.Mutex
+	cachedStatements  *cache.Cache
+	cachedCollections *cache.Cache
 
 	template *exql.Template
 }
@@ -76,71 +82,55 @@ func (c *cachedStatement) OnPurge() {
 
 func NewBaseDatabase(p PartialDatabase) BaseDatabase {
 	d := &baseDatabase{
-		PartialDatabase: p,
+		PartialDatabase:   p,
+		cachedCollections: cache.NewCache(),
+		cachedStatements:  cache.NewCache(),
 	}
 
-	d.cachedStatements = cache.NewCache()
-
 	return d
-}
-
-func (d *baseDatabase) t() *exql.Template {
-	return d.template
 }
 
 func (d *baseDatabase) Session() *sql.DB {
 	return d.sess
 }
 
-func (d *baseDatabase) Template() *exql.Template {
-	return d.template
-}
-
 func (d *baseDatabase) BindTx(t *sql.Tx) error {
 	d.BaseTx = newTx(t)
-	return nil
+	return d.Ping()
 }
 
 func (d *baseDatabase) Tx() BaseTx {
 	return d.BaseTx
 }
 
-func (d *baseDatabase) NewSchema() *DatabaseSchema {
-	d.schema = NewDatabaseSchema()
-	return d.schema
-}
+func (d *baseDatabase) Name() string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
-func (d *baseDatabase) Schema() *DatabaseSchema {
-	return d.schema
+	if d.name == "" {
+		d.name, _ = d.PartialDatabase.FindDatabaseName()
+	}
+
+	return d.name
 }
 
 func (d *baseDatabase) BindSession(sess *sql.DB) error {
 	d.sess = sess
-	return d.populate()
-}
 
-func (d *baseDatabase) populate() error {
-	d.collections = make(map[string]db.Collection)
-
-	if d.schema == nil {
-		if err := d.PartialDatabase.PopulateSchema(); err != nil {
-			return err
-		}
+	if err := d.Ping(); err != nil {
+		return err
 	}
+
+	name, err := d.PartialDatabase.FindDatabaseName()
+	if err != nil {
+		return err
+	}
+	d.name = name
 
 	return nil
 }
 
-/*
-func (d *baseDatabase) xClone(partial PartialDatabase) *baseDatabase {
-	clone := NewBaseDatabase(partial, d.connURL, d.template)
-	clone.schema = d.schema
-	return clone
-}
-*/
-
-// Ping checks whether a connection to the database is still alive by pinging
-// it, establishing a connection if necessary.
+// Ping checks whether a connection to the database is alive by pinging it.
 func (d *baseDatabase) Ping() error {
 	return d.sess.Ping()
 }
@@ -163,28 +153,20 @@ func (d *baseDatabase) Close() error {
 
 // Collection returns a Collection given a name.
 func (d *baseDatabase) Collection(name string) db.Collection {
-	d.collectionsMu.Lock()
-	if c, ok := d.collections[name]; ok {
-		d.collectionsMu.Unlock()
-		return c
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	h := cache.String(name)
+
+	ccol, ok := d.cachedCollections.ReadRaw(h)
+	if ok {
+		return ccol.(db.Collection)
 	}
 
-	col := d.PartialDatabase.NewTable(name)
-	d.collections[name] = col
-	d.collectionsMu.Unlock()
+	col := d.PartialDatabase.NewCollection(name)
+	d.cachedCollections.Write(h, col)
 
 	return col
-}
-
-/*
-func (d *baseDatabase) ConnectionURL() db.ConnectionURL {
-	return d.connURL
-}
-*/
-
-// Name returns the name of the database.
-func (d *baseDatabase) Name() string {
-	return d.Name()
 }
 
 // Exec compiles and executes a statement that does not return any rows.
@@ -268,7 +250,10 @@ func (d *baseDatabase) Driver() interface{} {
 	return d.sess
 }
 
-func (d *baseDatabase) prepareStatement(stmt *exql.Statement) (p *sql.Stmt, query string, err error) {
+// prepareStatement converts a *exql.Statement representation into an actual
+// *sql.Stmt.  This method will attempt to used a cached prepared statement, if
+// available.
+func (d *baseDatabase) prepareStatement(stmt *exql.Statement) (*sql.Stmt, string, error) {
 	if d.sess == nil {
 		return nil, "", db.ErrNotConnected
 	}
@@ -276,33 +261,38 @@ func (d *baseDatabase) prepareStatement(stmt *exql.Statement) (p *sql.Stmt, quer
 	pc, ok := d.cachedStatements.ReadRaw(stmt)
 
 	if ok {
+		// The statement was cached.
 		ps := pc.(*cachedStatement)
-		p = ps.Stmt
-		query = ps.query
-	} else {
-		query = d.PartialDatabase.CompileAndReplacePlaceholders(stmt)
-
-		if d.Tx() != nil {
-			p, err = d.Tx().(*baseTx).Prepare(query)
-		} else {
-			p, err = d.sess.Prepare(query)
-		}
-
-		if err != nil {
-			return nil, query, err
-		}
-
-		d.cachedStatements.Write(stmt, &cachedStatement{p, query})
+		return ps.Stmt, ps.query, nil
 	}
+
+	// Plain SQL query.
+	query := d.PartialDatabase.CompileStatement(stmt)
+
+	var p *sql.Stmt
+	var err error
+
+	if d.Tx() != nil {
+		p, err = d.Tx().(*baseTx).Prepare(query)
+	} else {
+		p, err = d.sess.Prepare(query)
+	}
+
+	if err != nil {
+		return nil, query, err
+	}
+
+	d.cachedStatements.Write(stmt, &cachedStatement{p, query})
 
 	return p, query, nil
 }
 
 var waitForConnMu sync.Mutex
 
-// waitForConnection tries to execute the connectFn function, if connectFn
-// returns an error, then waitForConnection will keep trying until connectFn
-// returns nil. Maximum waiting time is 5s after having acquired the lock.
+// WaitForConnection tries to execute the given connectFn function, if
+// connectFn returns an error, then WaitForConnection will keep trying until
+// connectFn returns nil. Maximum waiting time is 5s after having acquired the
+// lock.
 func (d *baseDatabase) WaitForConnection(connectFn func() error) error {
 	// This lock ensures first-come, first-served and prevents opening too many
 	// file descriptors.
@@ -333,3 +323,46 @@ func (d *baseDatabase) WaitForConnection(connectFn func() error) error {
 
 	return db.ErrGivingUpTryingToConnect
 }
+
+// The methods below here complete the db.Database interface.
+
+func (d *baseDatabase) TableExists(name string) error {
+	return db.ErrNotImplemented
+}
+
+func (d *baseDatabase) FindDatabaseName() (string, error) {
+	return "", db.ErrNotImplemented
+}
+
+func (d *baseDatabase) FindTablePrimaryKeys(string) ([]string, error) {
+	return nil, db.ErrNotImplemented
+}
+
+func (d *baseDatabase) NewCollection(name string) db.Collection {
+	return nil
+}
+
+func (d *baseDatabase) Err(in error) error {
+	return in
+}
+
+func (c *baseDatabase) Open(db.ConnectionURL) error {
+	return db.ErrNotImplemented
+}
+
+func (c *baseDatabase) Clone() (db.Database, error) {
+	return nil, db.ErrNotImplemented
+}
+
+func (c *baseDatabase) Collections() ([]string, error) {
+	return nil, db.ErrNotImplemented
+}
+
+func (c *baseDatabase) Transaction() (db.Tx, error) {
+	return nil, db.ErrNotImplemented
+}
+
+var (
+	_ = db.Database(&baseDatabase{})
+	_ = Database(&baseDatabase{})
+)
