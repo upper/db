@@ -23,114 +23,68 @@ package mysql
 
 import (
 	"database/sql"
-	"fmt"
-	"reflect"
+	"log"
 
 	"upper.io/db.v2"
 	"upper.io/db.v2/builder"
-	"upper.io/db.v2/builder/exql"
 	"upper.io/db.v2/internal/sqladapter"
 )
 
+// table is the actual implementation of a collection.
 type table struct {
-	sqladapter.Collection
+	sqladapter.BaseCollection // Leveraged by sqladapter
+
+	d    *database
+	name string
 }
 
-var _ = db.Collection(&table{})
+var (
+	_ = sqladapter.Collection(&table{})
+	_ = db.Collection(&table{})
+)
 
-// Truncate deletes all rows from the table.
-func (t *table) Truncate() error {
-	stmt := exql.Statement{
-		Type:  exql.Truncate,
-		Table: exql.TableWithName(t.Name()),
+// newTable binds *table with sqladapter.
+func newTable(d *database, name string) *table {
+	t := &table{
+		name: name,
+		d:    d,
 	}
-
-	if _, err := t.Database().Builder().Exec(&stmt); err != nil {
-		return err
-	}
-	return nil
+	t.BaseCollection = sqladapter.NewBaseCollection(t)
+	return t
 }
 
-func (t *table) Find(conds ...interface{}) db.Result {
+func (t *table) Name() string {
+	return t.name
+}
+
+func (t *table) Database() sqladapter.Database {
+	return t.d
+}
+
+func (t *table) Conds(conds ...interface{}) []interface{} {
 	if len(conds) == 1 {
-		if id, ok := conds[0].(int64); ok { // ID type.
-			conds[0] = db.Cond{
-				"id": id,
-			}
+		switch id := conds[0].(type) {
+		case int64:
+			conds[0] = db.Cond{"id": id}
+		case int:
+			conds[0] = db.Cond{"id": id}
+		default:
 		}
 	}
-	return t.Collection.Find(conds...)
-}
-
-// InsertReturning inserts an item and updates the variable.
-func (t *table) InsertReturning(item interface{}) error {
-	if reflect.TypeOf(item).Kind() != reflect.Ptr {
-		return fmt.Errorf("Expecting a pointer to map or string but got %T", item)
-	}
-
-	sess := db.Database(t.Database())
-
-	if currTx := sess.(*database).BaseDatabase.Tx(); currTx == nil {
-		// Not within a transaction, let's create one.
-		tx, err := sess.Transaction()
-		if err != nil {
-			return err
-		}
-		sess = tx
-	}
-
-	var res db.Result
-
-	col := sess.Collection(t.Name())
-
-	id, err := col.Insert(item)
-	if err != nil {
-		goto cancel
-	}
-	if id == nil {
-		err = fmt.Errorf("Insertion did not return any ID, aborted.")
-		goto cancel
-	}
-
-	res = col.Find(id)
-	if err = res.One(item); err != nil {
-		goto cancel
-	}
-
-	if tx, ok := sess.(db.Tx); ok {
-		// This is only executed if t.Database() was **not** a transaction and if
-		// sess was created with sess.Transaction().
-		return tx.Commit()
-	}
-	return err
-
-cancel:
-	// This goto label should only be used when we got an error within a
-	// transaction and we don't want to continue.
-
-	if tx, ok := sess.(db.Tx); ok {
-		// This is only executed if t.Database() was **not** a transaction and if
-		// sess was created with sess.Transaction().
-		tx.Rollback()
-	}
-	return err
+	return conds
 }
 
 // Insert inserts an item (map or struct) into the collection.
 func (t *table) Insert(item interface{}) (interface{}, error) {
+	log.Printf("GOT INSERT :%#v", item)
 	columnNames, columnValues, err := builder.Map(item)
 	if err != nil {
 		return nil, err
 	}
 
-	var pKey []string
-	if pKey, err = t.Database().TablePrimaryKey(t.Name()); err != nil {
-		if err != sql.ErrNoRows {
-			return nil, err
-		}
-	}
+	pKey := t.BaseCollection.PrimaryKeys()
 
-	q := t.Database().Builder().InsertInto(t.Name()).
+	q := t.d.InsertInto(t.Name()).
 		Columns(columnNames...).
 		Values(columnValues...)
 
@@ -139,15 +93,14 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	// We have a single key.
 	if len(pKey) <= 1 {
-		// Attempt to use LastInsertId() to get our ID.
-		id, _ := res.LastInsertId()
-		return id, nil
+		// Attempt to use LastInsertId() (probably won't work, but the Exec()
+		// succeeded, so we can safely ignore the error from LastInsertId()).
+		lastID, _ := res.LastInsertId()
+
+		return lastID, nil
 	}
 
-	// There is no "RETURNING" in MySQL, so we have to return the values that
-	// were given for constructing the composite key.
 	keyMap := db.Cond{}
 
 	for i := range columnNames {
@@ -158,16 +111,5 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 		}
 	}
 
-	// Backwards compatibility (int64).
-	if len(keyMap) == 1 {
-		if numericID, ok := keyMap[pKey[0]].(int64); ok {
-			return numericID, nil
-		}
-	}
-
 	return keyMap, nil
-}
-
-func newTable(d *database, name string) *table {
-	return &table{sqladapter.NewCollection(d, name)}
 }
