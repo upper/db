@@ -145,6 +145,7 @@ func (h *hash) Hash() string {
 	return h.name
 }
 
+// String returns a Hashable that produces a hash equal to the given string.
 func String(s string) Hashable {
 	return &hash{s}
 }

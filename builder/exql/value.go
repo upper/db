@@ -10,19 +10,19 @@ import (
 // ValueGroups represents an array of value groups.
 type ValueGroups struct {
 	Values []*Values
-	hash   MemHash
+	hash   hash
 }
 
 // Values represents an array of Value.
 type Values struct {
 	Values []Fragment
-	hash   MemHash
+	hash   hash
 }
 
 // Value represents an escaped SQL value.
 type Value struct {
 	V    interface{}
-	hash MemHash
+	hash hash
 }
 
 // NewValue creates and returns a Value.

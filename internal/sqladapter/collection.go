@@ -31,8 +31,8 @@ type BaseCollection interface {
 	PrimaryKeys() []string
 }
 
-// baseCollection is the implementation of Collection.
-type baseCollection struct {
+// collection is the implementation of Collection.
+type collection struct {
 	p PartialCollection
 
 	mu sync.Mutex
@@ -40,9 +40,9 @@ type baseCollection struct {
 	pk []string
 }
 
-// NewCollection returns a collection with basic methods.
+// NewBaseCollection returns a collection with basic methods.
 func NewBaseCollection(p PartialCollection) BaseCollection {
-	c := &baseCollection{p: p}
+	c := &collection{p: p}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -53,12 +53,12 @@ func NewBaseCollection(p PartialCollection) BaseCollection {
 }
 
 // PrimaryKeys returns the collection's primary keys, if any.
-func (c *baseCollection) PrimaryKeys() []string {
+func (c *collection) PrimaryKeys() []string {
 	return c.pk
 }
 
 // Find creates a result set with the given conditions.
-func (c *baseCollection) Find(conds ...interface{}) db.Result {
+func (c *collection) Find(conds ...interface{}) db.Result {
 	return NewResult(
 		c.p.Database(),
 		c.p.Name(),
@@ -67,7 +67,7 @@ func (c *baseCollection) Find(conds ...interface{}) db.Result {
 }
 
 // Exists returns true if the collection exists.
-func (c *baseCollection) Exists() bool {
+func (c *collection) Exists() bool {
 	if err := c.p.Database().TableExists(c.p.Name()); err != nil {
 		return false
 	}
@@ -75,7 +75,7 @@ func (c *baseCollection) Exists() bool {
 }
 
 // InsertReturning inserts an item and updates the given variable reference.
-func (c *baseCollection) InsertReturning(item interface{}) error {
+func (c *collection) InsertReturning(item interface{}) error {
 	if reflect.TypeOf(item).Kind() != reflect.Ptr {
 		return fmt.Errorf("Expecting a pointer to map or string but got %T", item)
 	}
@@ -133,7 +133,7 @@ cancel:
 }
 
 // Truncate deletes all rows from the table.
-func (c *baseCollection) Truncate() error {
+func (c *collection) Truncate() error {
 	stmt := exql.Statement{
 		Type:  exql.Truncate,
 		Table: exql.TableWithName(c.p.Name()),

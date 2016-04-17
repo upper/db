@@ -11,7 +11,7 @@ var (
 // Raw represents a value that is meant to be used in a query without escaping.
 type Raw struct {
 	Value string // Value should not be modified after assigned.
-	hash  MemHash
+	hash  hash
 }
 
 // RawValue creates and returns a new raw value.

@@ -64,7 +64,7 @@ type BaseDatabase interface {
 
 // NewBaseDatabase provides a BaseDatabase given a PartialDatabase
 func NewBaseDatabase(p PartialDatabase) BaseDatabase {
-	d := &baseDatabase{
+	d := &database{
 		PartialDatabase:   p,
 		cachedCollections: cache.NewCache(),
 		cachedStatements:  cache.NewCache(),
@@ -72,9 +72,9 @@ func NewBaseDatabase(p PartialDatabase) BaseDatabase {
 	return d
 }
 
-// baseDatabase is the actual implementation of Database and joins methods from
+// database is the actual implementation of Database and joins methods from
 // BaseDatabase and PartialDatabase
-type baseDatabase struct {
+type database struct {
 	PartialDatabase
 	baseTx BaseTx
 
@@ -90,24 +90,24 @@ type baseDatabase struct {
 }
 
 // Session returns the underlying *sql.DB
-func (d *baseDatabase) Session() *sql.DB {
+func (d *database) Session() *sql.DB {
 	return d.sess
 }
 
-// BindTx binds a *sql.Tx into *baseDatabase
-func (d *baseDatabase) BindTx(t *sql.Tx) error {
+// BindTx binds a *sql.Tx into *database
+func (d *database) BindTx(t *sql.Tx) error {
 	d.baseTx = newTx(t)
 	return d.Ping()
 }
 
 // Tx returns a BaseTx, which, if not nil, means that this session is within a
 // transaction
-func (d *baseDatabase) Tx() BaseTx {
+func (d *database) Tx() BaseTx {
 	return d.baseTx
 }
 
 // Name returns the database named
-func (d *baseDatabase) Name() string {
+func (d *database) Name() string {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -118,8 +118,8 @@ func (d *baseDatabase) Name() string {
 	return d.name
 }
 
-// BindSession binds a *sql.DB into *baseDatabase
-func (d *baseDatabase) BindSession(sess *sql.DB) error {
+// BindSession binds a *sql.DB into *database
+func (d *database) BindSession(sess *sql.DB) error {
 	d.sess = sess
 
 	if err := d.Ping(); err != nil {
@@ -137,12 +137,12 @@ func (d *baseDatabase) BindSession(sess *sql.DB) error {
 
 // Ping checks whether a connection to the database is still alive by pinging
 // it
-func (d *baseDatabase) Ping() error {
+func (d *database) Ping() error {
 	return d.sess.Ping()
 }
 
 // Close terminates the current database session
-func (d *baseDatabase) Close() error {
+func (d *database) Close() error {
 	defer func() {
 		d.sess = nil
 		d.baseTx = nil
@@ -158,7 +158,7 @@ func (d *baseDatabase) Close() error {
 }
 
 // Collection returns a db.Collection given a name. Results are cached.
-func (d *baseDatabase) Collection(name string) db.Collection {
+func (d *database) Collection(name string) db.Collection {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -177,7 +177,7 @@ func (d *baseDatabase) Collection(name string) db.Collection {
 
 // ExecStatement compiles and executes a statement that does not return any
 // rows.
-func (d *baseDatabase) ExecStatement(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
+func (d *database) ExecStatement(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
 	var query string
 	var p *sql.Stmt
 	var err error
@@ -204,7 +204,7 @@ func (d *baseDatabase) ExecStatement(stmt *exql.Statement, args ...interface{}) 
 }
 
 // QueryStatement compiles and executes a statement that returns rows.
-func (d *baseDatabase) QueryStatement(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
+func (d *database) QueryStatement(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
 	var query string
 	var p *sql.Stmt
 	var err error
@@ -228,7 +228,7 @@ func (d *baseDatabase) QueryStatement(stmt *exql.Statement, args ...interface{})
 
 // QueryRowStatement compiles and executes a statement that returns at most one
 // row.
-func (d *baseDatabase) QueryRowStatement(stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
+func (d *database) QueryRowStatement(stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
 	var query string
 	var p *sql.Stmt
 	var err error
@@ -251,7 +251,7 @@ func (d *baseDatabase) QueryRowStatement(stmt *exql.Statement, args ...interface
 }
 
 // Driver returns the underlying *sql.DB or *sql.Tx instance.
-func (d *baseDatabase) Driver() interface{} {
+func (d *database) Driver() interface{} {
 	if tx := d.Tx(); tx != nil {
 		// A transaction
 		return tx.(*sqlTx).Tx
@@ -262,7 +262,7 @@ func (d *baseDatabase) Driver() interface{} {
 // prepareStatement converts a *exql.Statement representation into an actual
 // *sql.Stmt.  This method will attempt to used a cached prepared statement, if
 // available.
-func (d *baseDatabase) prepareStatement(stmt *exql.Statement) (*sql.Stmt, string, error) {
+func (d *database) prepareStatement(stmt *exql.Statement) (*sql.Stmt, string, error) {
 	if d.sess == nil {
 		return nil, "", db.ErrNotConnected
 	}
@@ -302,7 +302,7 @@ var waitForConnMu sync.Mutex
 // connectFn returns an error, then WaitForConnection will keep trying until
 // connectFn returns nil. Maximum waiting time is 5s after having acquired the
 // lock.
-func (d *baseDatabase) WaitForConnection(connectFn func() error) error {
+func (d *database) WaitForConnection(connectFn func() error) error {
 	// This lock ensures first-come, first-served and prevents opening too many
 	// file descriptors.
 	waitForConnMu.Lock()
@@ -340,45 +340,45 @@ func (d *baseDatabase) WaitForConnection(connectFn func() error) error {
 // The methods below here complete the db.Database interface.
 
 /*
-func (d *baseDatabase) TableExists(name string) error {
+func (d *database) TableExists(name string) error {
 	return db.ErrNotImplemented
 }
 
-func (d *baseDatabase) FindDatabaseName() (string, error) {
+func (d *database) FindDatabaseName() (string, error) {
 	return "", db.ErrNotImplemented
 }
 
-func (d *baseDatabase) FindTablePrimaryKeys(string) ([]string, error) {
+func (d *database) FindTablePrimaryKeys(string) ([]string, error) {
 	return nil, db.ErrNotImplemented
 }
 
-func (d *baseDatabase) NewLocalCollection(name string) db.Collection {
+func (d *database) NewLocalCollection(name string) db.Collection {
 	return nil
 }
 
-func (d *baseDatabase) Err(in error) error {
+func (d *database) Err(in error) error {
 	return in
 }
 
-func (c *baseDatabase) Open(db.ConnectionURL) error {
+func (c *database) Open(db.ConnectionURL) error {
 	return db.ErrNotImplemented
 }
 
-func (c *baseDatabase) Clone() (db.Database, error) {
+func (c *database) Clone() (db.Database, error) {
 	return nil, db.ErrNotImplemented
 }
 
-func (c *baseDatabase) Collections() ([]string, error) {
+func (c *database) Collections() ([]string, error) {
 	return nil, db.ErrNotImplemented
 }
 
-func (c *baseDatabase) Transaction() (db.Tx, error) {
+func (c *database) Transaction() (db.Tx, error) {
 	return nil, db.ErrNotImplemented
 }
 */
 
 var (
-	_ = db.Database(&baseDatabase{})
+	_ = db.Database(&database{})
 )
 
 // ReplaceWithDollarSign turns a SQL statament with '?' placeholders into

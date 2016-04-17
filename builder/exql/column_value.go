@@ -9,7 +9,7 @@ type ColumnValue struct {
 	Column   Fragment
 	Operator string
 	Value    Fragment
-	hash     MemHash
+	hash     hash
 }
 
 type columnValueT struct {
@@ -46,7 +46,7 @@ func (c *ColumnValue) Compile(layout *Template) (compiled string) {
 // ColumnValues represents an array of ColumnValue
 type ColumnValues struct {
 	ColumnValues []Fragment
-	hash         MemHash
+	hash         hash
 }
 
 // JoinColumnValues returns an array of ColumnValue

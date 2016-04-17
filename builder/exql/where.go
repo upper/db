@@ -13,7 +13,7 @@ type And Where
 // Where represents an SQL WHERE clause.
 type Where struct {
 	Conditions []Fragment
-	hash       MemHash
+	hash       hash
 }
 
 type conds struct {

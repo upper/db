@@ -25,7 +25,7 @@ type Statement struct {
 
 	rawSQL string
 
-	hash MemHash
+	hash hash
 }
 
 type statementT struct {

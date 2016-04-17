@@ -26,11 +26,13 @@ import (
 	"sync/atomic"
 )
 
+// Tx represents a database session within a transaction.
 type Tx interface {
 	Database
 	BaseTx
 }
 
+// BaseTx defines methods to be implemented by a transaction.
 type BaseTx interface {
 	Commit() error
 	Rollback() error
@@ -42,6 +44,7 @@ type txWrapper struct {
 	BaseTx
 }
 
+// NewTx creates a database session within a transaction.
 func NewTx(db Database) Tx {
 	return &txWrapper{
 		Database: db,

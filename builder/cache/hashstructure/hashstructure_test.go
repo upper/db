@@ -36,7 +36,7 @@ func TestHash_identity(t *testing.T) {
 		// We run the test 100 times to try to tease out variability
 		// in the runtime in terms of ordering.
 		valuelist := make([]uint64, 100)
-		for i, _ := range valuelist {
+		for i := range valuelist {
 			v, err := Hash(tc, nil)
 			if err != nil {
 				t.Fatalf("Error: %s\n\n%#v", err, tc)

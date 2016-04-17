@@ -3,7 +3,7 @@ package exql
 // Returning represents a RETURNING clause.
 type Returning struct {
 	*Columns
-	hash MemHash
+	hash hash
 }
 
 // Hash returns a unique identifier for the struct.

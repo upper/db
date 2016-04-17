@@ -71,19 +71,14 @@ func New(sess interface{}, t *exql.Template) (Builder, error) {
 	}, nil
 }
 
+// NewBuilderWithTemplate returns a builder that is based on the given template.
 func NewBuilderWithTemplate(t *exql.Template) Builder {
 	return &sqlBuilder{
 		t: newTemplateWithUtils(t),
 	}
 }
 
-// func (b *Builder) Iterator(query interface{}, args ...interface{}) Iterator {
-// 	rows, err := b.Query(query, args...)
-// 	return &iterator{rows, err}
-// }
-
 // NewIterator creates an iterator using the given *sql.Rows.
-
 func NewIterator(rows *sql.Rows) Iterator {
 	return &iterator{rows, nil}
 }

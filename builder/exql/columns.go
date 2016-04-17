@@ -7,7 +7,7 @@ import (
 // Columns represents an array of Column.
 type Columns struct {
 	Columns []Fragment
-	hash    MemHash
+	hash    hash
 }
 
 // Hash returns a unique identifier.
