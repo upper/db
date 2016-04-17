@@ -3,7 +3,6 @@ package sqladapter
 import (
 	"fmt"
 	"reflect"
-	"sync"
 	"upper.io/db.v2"
 	"upper.io/db.v2/builder/exql"
 )
@@ -33,22 +32,14 @@ type BaseCollection interface {
 
 // collection is the implementation of Collection.
 type collection struct {
-	p PartialCollection
-
-	mu sync.Mutex
-
+	p  PartialCollection
 	pk []string
 }
 
 // NewBaseCollection returns a collection with basic methods.
 func NewBaseCollection(p PartialCollection) BaseCollection {
 	c := &collection{p: p}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	c.pk, _ = c.p.Database().FindTablePrimaryKeys(c.p.Name())
-
 	return c
 }
 

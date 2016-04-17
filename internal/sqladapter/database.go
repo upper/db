@@ -78,7 +78,8 @@ type database struct {
 	PartialDatabase
 	baseTx BaseTx
 
-	mu sync.Mutex
+	collectionMu sync.Mutex
+	databaseMu   sync.Mutex
 
 	name string
 	sess *sql.DB
@@ -112,8 +113,8 @@ func (d *database) Tx() BaseTx {
 
 // Name returns the database named
 func (d *database) Name() string {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.databaseMu.Lock()
+	defer d.databaseMu.Unlock()
 
 	if d.name == "" {
 		d.name, _ = d.PartialDatabase.FindDatabaseName()
@@ -163,8 +164,8 @@ func (d *database) Close() error {
 
 // Collection returns a db.Collection given a name. Results are cached.
 func (d *database) Collection(name string) db.Collection {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.collectionMu.Lock()
+	defer d.collectionMu.Unlock()
 
 	h := cache.String(name)
 
