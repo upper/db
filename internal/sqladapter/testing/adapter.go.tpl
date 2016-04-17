@@ -172,6 +172,7 @@ func TestInsertReturningWithinTransaction(t *testing.T) {
 
 	tx, err := sess.Transaction()
 	assert.NoError(t, err)
+	defer tx.Close()
 
 	artist := tx.Collection("artist")
 
@@ -542,8 +543,6 @@ func TestInlineStructs(t *testing.T) {
 	}
 	err = res.One(&recChk)
 	assert.NoError(t, err)
-	log.Printf("rec: %#v", rec.Details.Created)
-	log.Printf("recChj: %#v", recChk.Details.Created)
 
 	assert.Equal(t, rec, recChk)
 }
@@ -1074,25 +1073,29 @@ func TestBuilder(t *testing.T) {
 
 	var all []map[string]interface{}
 
-	iter := sess.SelectAllFrom("artist").Iterator()
-	err := iter.All(&all)
-
+	err := sess.Collection("artist").Truncate()
 	assert.NoError(t, err)
-	assert.NotZero(t, all)
 
-	/*
-	clone, err := sess.Clone()
-	iter = clone.SelectAllFrom("artist").Iterator()
+	_, err = sess.InsertInto("artist").Values(struct{
+		Name string `db:"name"`
+	}{"Rinko Kikuchi"}).Exec()
+	assert.NoError(t, err)
+
+	iter := sess.SelectAllFrom("artist").Iterator()
 	err = iter.All(&all)
 
 	assert.NoError(t, err)
 	assert.NotZero(t, all)
-	*/
 
 	tx, err := sess.Transaction()
-	iter = tx.SelectAllFrom("artist").Iterator()
-	err = iter.All(&all)
+	assert.NoError(t, err)
+	assert.NotZero(t, tx)
+	defer tx.Close()
 
+	iter = tx.SelectAllFrom("artist").Iterator()
+	assert.NotZero(t, iter)
+
+	err = iter.All(&all)
 	assert.NoError(t, err)
 	assert.NotZero(t, all)
 }

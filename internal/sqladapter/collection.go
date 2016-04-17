@@ -81,6 +81,7 @@ func (c *collection) InsertReturning(item interface{}) error {
 		// Not within a transaction, let's create one.
 		var err error
 		tx, err = c.p.Database().NewLocalTransaction()
+		defer tx.Close()
 		if err != nil {
 			return err
 		}

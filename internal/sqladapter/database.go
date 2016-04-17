@@ -13,6 +13,11 @@ import (
 	"upper.io/db.v2/internal/logger"
 )
 
+// HasCleanUp
+type HasCleanUp interface {
+	CleanUp() error
+}
+
 // HasExecStatement allows the adapter to have its own exec statement.
 type HasExecStatement interface {
 	ExecStatement(stmt *sql.Stmt, args ...interface{}) (sql.Result, error)
@@ -157,6 +162,9 @@ func (d *database) Close() error {
 			d.Tx().Rollback()
 		}
 		d.cachedStatements.Clear() // Closes prepared statements as well.
+		if cleaner, ok := d.PartialDatabase.(HasCleanUp); ok {
+			cleaner.CleanUp()
+		}
 		return d.sess.Close()
 	}
 	return nil

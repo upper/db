@@ -92,6 +92,14 @@ func Open(settings db.ConnectionURL) (Database, error) {
 	return d, nil
 }
 
+// CleanUp cleans up the session.
+func (d *database) CleanUp() error {
+	if atomic.AddInt32(&fileOpenCount, -1) < 0 {
+		return errors.New(`Close() without Open()?`)
+	}
+	return nil
+}
+
 // ConnectionURL returns this database's ConnectionURL.
 func (d *database) ConnectionURL() db.ConnectionURL {
 	return d.connURL
@@ -140,7 +148,11 @@ func (d *database) open() error {
 		if openFiles < maxOpenFiles {
 			sess, err := sql.Open("sqlite3", d.ConnectionURL().String())
 			if err == nil {
-				return d.BaseDatabase.BindSession(sess)
+				if err := d.BaseDatabase.BindSession(sess); err != nil {
+					return err
+				}
+				atomic.AddInt32(&fileOpenCount, 1)
+				return nil
 			}
 			return err
 		}

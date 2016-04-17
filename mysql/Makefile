@@ -36,7 +36,7 @@ reset-db: require-client
 	mysql -uroot -h"$(DB_HOST)" -P$(DB_PORT) <<< $$SQL
 
 test: reset-db generate
-	go test -v
+	go test -v -race
 
 bench: reset-db generate
 	go test -v -test.bench=. -test.benchtime=$(BENCHTIME) -benchmem
