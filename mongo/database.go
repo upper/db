@@ -52,9 +52,12 @@ func init() {
 }
 
 // Open stablishes a new connection to a SQL server.
-func Open(settings db.ConnectionURL) (Database, error) {
+func Open(settings db.ConnectionURL) (db.Database, error) {
 	d := &Source{}
-	return d.Open(settings)
+	if err := d.Open(settings); err != nil {
+		return nil, err
+	}
+	return d, nil
 }
 
 func (s *Source) ConnectionURL() db.ConnectionURL {
