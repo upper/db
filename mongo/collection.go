@@ -31,7 +31,6 @@ import (
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db.v2"
-	"upper.io/db.v2/builder"
 )
 
 // Collection represents a mongodb collection.
@@ -83,9 +82,9 @@ func compileStatement(cond db.Cond) bson.M {
 	conds := bson.M{}
 
 	// Walking over conditions
-	for field, value := range cond {
+	for fieldI, value := range cond {
 		// Removing leading or trailing spaces.
-		field = strings.TrimSpace(field)
+		field := strings.TrimSpace(fmt.Sprintf("%v", fieldI))
 
 		chunks := strings.SplitN(field, ` `, 2)
 
@@ -139,7 +138,7 @@ func (col *Collection) compileConditions(term interface{}) interface{} {
 		}
 	case db.Cond:
 		return compileStatement(t)
-	case builder.Compound:
+	case db.Compound:
 		values := []interface{}{}
 
 		for _, s := range t.Sentences() {
@@ -148,7 +147,7 @@ func (col *Collection) compileConditions(term interface{}) interface{} {
 
 		var op string
 		switch t.Operator() {
-		case builder.OperatorOr:
+		case db.OperatorOr:
 			op = `$or`
 		default:
 			op = `$and`
