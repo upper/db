@@ -23,7 +23,7 @@ reset-db: require-client
 	rm -f $(DB_NAME)
 
 test: reset-db generate
-	go test -v
+	go test -v -race
 
 bench: reset-db generate
 	go test -v -bench=. -benchtime=$(BENCHTIME) -benchmem -test.parallel=1 -short -cpu 1

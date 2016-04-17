@@ -23,18 +23,38 @@ package ql
 
 import (
 	"database/sql"
-	"fmt"
-	"reflect"
 
 	"upper.io/db.v2"
 	"upper.io/db.v2/builder"
-	"upper.io/db.v2/builder/exql"
 	"upper.io/db.v2/internal/sqladapter"
 )
 
+// table is the actual implementation of a collection.
+type table struct {
+	sqladapter.BaseCollection // Leveraged by sqladapter
+
+	d    *database
+	name string
+}
+
+var (
+	_ = sqladapter.Collection(&table{})
+	_ = db.Collection(&table{})
+)
+
+// newTable binds *table with sqladapter.
+func newTable(d *database, name string) *table {
+	t := &table{
+		name: name,
+		d:    d,
+	}
+	t.BaseCollection = sqladapter.NewBaseCollection(t)
+	return t
+}
+
 type resultProxy struct {
 	db.Result
-	col db.Collection
+	t *table
 }
 
 func (r *resultProxy) Select(fields ...interface{}) db.Result {
@@ -43,9 +63,9 @@ func (r *resultProxy) Select(fields ...interface{}) db.Result {
 			var columns []struct {
 				Name string `db:"Name"`
 			}
-			err := r.col.(*table).Database().Builder().Select("Name").
+			err := r.t.d.Builder.Select("Name").
 				From("__Column").
-				Where("TableName", r.col.Name()).
+				Where("TableName", r.t.Name()).
 				Iterator().All(&columns)
 			if err == nil {
 				fields = make([]interface{}, 0, len(columns)+1)
@@ -59,98 +79,34 @@ func (r *resultProxy) Select(fields ...interface{}) db.Result {
 	return r.Result.Select(fields...)
 }
 
-type table struct {
-	sqladapter.Collection
+func (t *table) Name() string {
+	return t.name
 }
 
-var _ = db.Collection(&table{})
-
-// Truncate deletes all rows from the table.
-func (t *table) Truncate() error {
-	stmt := exql.Statement{
-		Type:  exql.Truncate,
-		Table: exql.TableWithName(t.Name()),
-	}
-
-	if _, err := t.Database().Builder().Exec(&stmt); err != nil {
-		return err
-	}
-	return nil
+func (t *table) Database() sqladapter.Database {
+	return t.d
 }
 
-// InsertReturning inserts an item and updates the variable.
-func (t *table) InsertReturning(item interface{}) error {
-	if reflect.TypeOf(item).Kind() != reflect.Ptr {
-		return fmt.Errorf("Expecting a pointer to map or string but got %T", item)
-	}
-
-	sess := db.Database(t.Database())
-
-	if currTx := sess.(*database).BaseDatabase.Tx(); currTx == nil {
-		// Not within a transaction, let's create one.
-		tx, err := sess.Transaction()
-		if err != nil {
-			return err
+func (t *table) Conds(conds ...interface{}) []interface{} {
+	if len(conds) == 1 {
+		switch id := conds[0].(type) {
+		case uint64:
+			conds[0] = db.Cond{"id()": id}
+		case int64:
+			conds[0] = db.Cond{"id()": id}
+		case int:
+			conds[0] = db.Cond{"id()": id}
+		default:
 		}
-		sess = tx
 	}
-
-	var res db.Result
-
-	col := sess.Collection(t.Name())
-
-	id, err := col.Insert(item)
-	if err != nil {
-		goto cancel
-	}
-	if id == nil {
-		err = fmt.Errorf("Insertion did not return any ID, aborted.")
-		goto cancel
-	}
-
-	res = col.Find(id)
-	if err = res.One(item); err != nil {
-		goto cancel
-	}
-
-	if tx, ok := sess.(db.Tx); ok {
-		// This is only executed if t.Database() was **not** a transaction and if
-		// sess was created with sess.Transaction().
-		return tx.Commit()
-	}
-	return err
-
-cancel:
-	// This goto label should only be used when we got an error within a
-	// transaction and we don't want to continue.
-
-	if tx, ok := sess.(db.Tx); ok {
-		// This is only executed if t.Database() was **not** a transaction and if
-		// sess was created with sess.Transaction().
-		tx.Rollback()
-	}
-	return err
+	return conds
 }
 
 func (t *table) Find(conds ...interface{}) db.Result {
-	if len(conds) == 1 {
-		if id, ok := conds[0].(uint64); ok { // ID type.
-			conds[0] = db.Cond{
-				"id()": id,
-			}
-		}
-		if id, ok := conds[0].(int64); ok { // ID type.
-			conds[0] = db.Cond{
-				"id()": id,
-			}
-		}
-		if id, ok := conds[0].(int); ok { // ID type.
-			conds[0] = db.Cond{
-				"id()": id,
-			}
-		}
+	res := &resultProxy{
+		Result: t.BaseCollection.Find(conds...),
+		t:      t,
 	}
-	res := &resultProxy{t.Collection.Find(conds...), t}
 	return res.Select("*")
 }
 
@@ -161,7 +117,9 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	q := t.Database().Builder().InsertInto(t.Name()).
+	pKey := t.BaseCollection.PrimaryKeys()
+
+	q := t.d.InsertInto(t.Name()).
 		Columns(columnNames...).
 		Values(columnValues...)
 
@@ -170,11 +128,23 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	var id int64
-	id, _ = res.LastInsertId()
-	return id, nil
-}
+	if len(pKey) <= 1 {
+		// Attempt to use LastInsertId() (probably won't work, but the Exec()
+		// succeeded, so we can safely ignore the error from LastInsertId()).
+		lastID, _ := res.LastInsertId()
 
-func newTable(d *database, name string) *table {
-	return &table{sqladapter.NewCollection(d, name)}
+		return lastID, nil
+	}
+
+	keyMap := db.Cond{}
+
+	for i := range columnNames {
+		for j := 0; j < len(pKey); j++ {
+			if pKey[j] == columnNames[i] {
+				keyMap[pKey[j]] = columnValues[i]
+			}
+		}
+	}
+
+	return keyMap, nil
 }
