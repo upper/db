@@ -89,6 +89,10 @@ type database struct {
 	template *exql.Template
 }
 
+var (
+	_ = db.Database(&database{})
+)
+
 // Session returns the underlying *sql.DB
 func (d *database) Session() *sql.DB {
 	return d.sess
@@ -336,50 +340,6 @@ func (d *database) WaitForConnection(connectFn func() error) error {
 
 	return db.ErrGivingUpTryingToConnect
 }
-
-// The methods below here complete the db.Database interface.
-
-/*
-func (d *database) TableExists(name string) error {
-	return db.ErrNotImplemented
-}
-
-func (d *database) FindDatabaseName() (string, error) {
-	return "", db.ErrNotImplemented
-}
-
-func (d *database) FindTablePrimaryKeys(string) ([]string, error) {
-	return nil, db.ErrNotImplemented
-}
-
-func (d *database) NewLocalCollection(name string) db.Collection {
-	return nil
-}
-
-func (d *database) Err(in error) error {
-	return in
-}
-
-func (c *database) Open(db.ConnectionURL) error {
-	return db.ErrNotImplemented
-}
-
-func (c *database) Clone() (db.Database, error) {
-	return nil, db.ErrNotImplemented
-}
-
-func (c *database) Collections() ([]string, error) {
-	return nil, db.ErrNotImplemented
-}
-
-func (c *database) Transaction() (db.Tx, error) {
-	return nil, db.ErrNotImplemented
-}
-*/
-
-var (
-	_ = db.Database(&database{})
-)
 
 // ReplaceWithDollarSign turns a SQL statament with '?' placeholders into
 // dollar placeholders, like $1, $2, ..., $n
