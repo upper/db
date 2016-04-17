@@ -22,11 +22,10 @@
 package sqlite
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"sync/atomic"
-
-	"database/sql"
 
 	_ "github.com/mattn/go-sqlite3" // SQLite3 driver.
 	"upper.io/db.v2"
@@ -35,102 +34,89 @@ import (
 	"upper.io/db.v2/internal/sqladapter"
 )
 
+// Database represents a SQL database.
+type Database interface {
+	db.Database
+	builder.Builder
+
+	Transaction() (Tx, error)
+}
+
+// database is the actual implementation of Database
 type database struct {
-	*sqladapter.BaseDatabase
-	columns map[string][]columnSchemaT
+	sqladapter.BaseDatabase // Leveraged by sqladapter
+	builder.Builder
+
+	connURL db.ConnectionURL
 }
 
 var (
 	fileOpenCount       int32
-	errTooManyOpenFiles = errors.New(`Too many open database files.`)
+	errTooManyOpenFiles       = errors.New(`Too many open database files.`)
+	maxOpenFiles        int32 = 100
 )
 
-type columnSchemaT struct {
-	Name string `db:"name"`
-	PK   int    `db:"pk"`
-}
-
-var _ = db.Database(&database{})
-
-const (
-	// If we try to open lots of sessions cgo will panic without a warning, this
-	// artificial limit was added to prevent that panic.
-	maxOpenFiles = 100
+var (
+	_ = sqladapter.Database(&database{})
+	_ = db.Database(&database{})
 )
 
-// CompileAndReplacePlaceholders compiles the given statement into an string
-// and replaces each generic placeholder with the placeholder the driver
-// expects (if any).
-func (d *database) CompileAndReplacePlaceholders(stmt *exql.Statement) (query string) {
-	return stmt.Compile(d.Template())
-}
+// newDatabase binds *database with sqladapter and the SQL builer.
+func newDatabase(settings db.ConnectionURL) (*database, error) {
+	d := &database{
+		connURL: settings,
+	}
 
-// Err translates some known errors into generic errors.
-func (d *database) Err(err error) error {
+	// Binding with sqladapter's logic.
+	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
+
+	// Binding with builder.
+	b, err := builder.New(d.BaseDatabase, template)
 	if err != nil {
-		if err == errTooManyOpenFiles {
-			return db.ErrTooManyClients
-		}
+		return nil, err
 	}
-	return err
+	d.Builder = b
+
+	return d, nil
 }
 
-func (d *database) open() error {
-	var sess *sql.DB
-
-	openFn := func(sess **sql.DB) (err error) {
-		openFiles := atomic.LoadInt32(&fileOpenCount)
-
-		if openFiles < maxOpenFiles {
-			*sess, err = sql.Open(`sqlite3`, d.ConnectionURL().String())
-
-			if err == nil {
-				atomic.AddInt32(&fileOpenCount, 1)
-			}
-			return
-		}
-
-		return errTooManyOpenFiles
-
+// Open stablishes a new connection to a SQL server.
+func Open(settings db.ConnectionURL) (Database, error) {
+	d, err := newDatabase(settings)
+	if err != nil {
+		return nil, err
 	}
-
-	if err := d.WaitForConnection(func() error { return openFn(&sess) }); err != nil {
-		return err
+	if err := d.Open(settings); err != nil {
+		return nil, err
 	}
+	return d, nil
+}
 
-	return d.Bind(sess)
+// ConnectionURL returns this database's ConnectionURL.
+func (d *database) ConnectionURL() db.ConnectionURL {
+	return d.connURL
 }
 
 // Open attempts to open a connection to the database server.
 func (d *database) Open(connURL db.ConnectionURL) error {
-	d.BaseDatabase = sqladapter.NewDatabase(d, connURL, template())
+	if connURL == nil {
+		return db.ErrMissingConnURL
+	}
 	return d.open()
 }
 
-func (d *database) Close() error {
-	if d.Session() != nil {
-		if atomic.AddInt32(&fileOpenCount, -1) < 0 {
-			return errors.New(`Close() without Open()?`)
-		}
-		return d.BaseDatabase.Close()
+// Transaction starts a transaction block.
+func (d *database) Transaction() (Tx, error) {
+	nTx, err := d.NewLocalTransaction()
+	if err != nil {
+		return nil, err
 	}
-	return nil
-}
-
-// Clone creates a new database connection with the same settings as the
-// original.
-func (d *database) Clone() (db.Database, error) {
-	return d.clone()
-}
-
-// NewTable returns a db.Collection.
-func (d *database) NewTable(name string) db.Collection {
-	return newTable(d, name)
+	return &tx{Tx: nTx}, nil
 }
 
 // Collections returns a list of non-system tables from the database.
 func (d *database) Collections() (collections []string, err error) {
-	q := d.Builder().Select("tbl_name").
+	q := d.Builder.Select("tbl_name").
 		From("sqlite_master").
 		Where("type = ?", "table")
 
@@ -148,49 +134,95 @@ func (d *database) Collections() (collections []string, err error) {
 	return collections, nil
 }
 
-// Transaction starts a transaction block and returns a db.Tx struct that can
-// be used to issue transactional queries.
-func (d *database) Transaction() (db.Tx, error) {
-	var err error
-	var sqlTx *sql.Tx
-	var clone *database
-
-	if clone, err = d.clone(); err != nil {
-		return nil, err
+func (d *database) open() error {
+	openFn := func() error {
+		openFiles := atomic.LoadInt32(&fileOpenCount)
+		if openFiles < maxOpenFiles {
+			sess, err := sql.Open("sqlite3", d.ConnectionURL().String())
+			if err == nil {
+				return d.BaseDatabase.BindSession(sess)
+			}
+			return err
+		}
+		return errTooManyOpenFiles
 	}
 
-	connFn := func(sqlTx **sql.Tx) (err error) {
-		*sqlTx, err = clone.Session().Begin()
-		return
-	}
-
-	if err := d.WaitForConnection(func() error { return connFn(&sqlTx) }); err != nil {
-		return nil, err
-	}
-
-	clone.BindTx(sqlTx)
-
-	return &sqladapter.TxDatabase{Database: clone, Tx: clone.Tx()}, nil
-}
-
-// PopulateSchema looks up for the table info in the database and populates its
-// schema for internal use.
-func (d *database) PopulateSchema() (err error) {
-	schema := d.NewSchema()
-
-	var connURL ConnectionURL
-	if connURL, err = ParseURL(d.ConnectionURL().String()); err != nil {
+	if err := d.BaseDatabase.WaitForConnection(openFn); err != nil {
 		return err
 	}
-
-	schema.SetName(connURL.Database)
 
 	return nil
 }
 
-// TableExists checks whether a table exists and returns an error in case it doesn't.
+func (d *database) clone() (*database, error) {
+	clone, err := newDatabase(d.connURL)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := clone.open(); err != nil {
+		return nil, err
+	}
+
+	return clone, nil
+}
+
+// CompileStatement allows sqladapter to compile the given statement into the
+// format SQLite expects.
+func (d *database) CompileStatement(stmt *exql.Statement) string {
+	return stmt.Compile(template)
+}
+
+// Err allows sqladapter to translate some known errors into generic errors.
+func (d *database) Err(err error) error {
+	if err != nil {
+		if err == errTooManyOpenFiles {
+			return db.ErrTooManyClients
+		}
+	}
+	return err
+}
+
+// NewLocalCollection allows sqladapter create a local db.Collection.
+func (d *database) NewLocalCollection(name string) db.Collection {
+	return newTable(d, name)
+}
+
+// NewLocalTransaction allows sqladapter start a transaction block.
+func (d *database) NewLocalTransaction() (sqladapter.Tx, error) {
+	clone, err := d.clone()
+	if err != nil {
+		return nil, err
+	}
+
+	openFn := func() error {
+		sqlTx, err := clone.BaseDatabase.Session().Begin()
+		if err == nil {
+			return clone.BindTx(sqlTx)
+		}
+		return err
+	}
+
+	if err := d.BaseDatabase.WaitForConnection(openFn); err != nil {
+		return nil, err
+	}
+
+	return sqladapter.NewTx(clone), nil
+}
+
+// FindDatabaseName allows sqladapter look up the database's name.
+func (d *database) FindDatabaseName() (string, error) {
+	connURL, err := ParseURL(d.ConnectionURL().String())
+	if err != nil {
+		return "", err
+	}
+	return connURL.Database, nil
+}
+
+// TableExists allows sqladapter check whether a table exists and returns an
+// error in case it doesn't.
 func (d *database) TableExists(name string) error {
-	q := d.Builder().Select("tbl_name").
+	q := d.Builder.Select("tbl_name").
 		From("sqlite_master").
 		Where("type = 'table' AND tbl_name = ?", name)
 
@@ -207,29 +239,21 @@ func (d *database) TableExists(name string) error {
 	return db.ErrCollectionDoesNotExist
 }
 
-// TablePrimaryKey returns all primary keys from the given table.
-func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
-	tableSchema := d.Schema().Table(tableName)
+// FindTablePrimaryKeys allows sqladapter find a table's primary keys.
+func (d *database) FindTablePrimaryKeys(tableName string) ([]string, error) {
+	pk := make([]string, 0, 1)
 
-	pk := tableSchema.PrimaryKeys()
-	if pk != nil {
-		return pk, nil
-	}
+	stmt := exql.RawSQL(fmt.Sprintf("PRAGMA TABLE_INFO('%s')", tableName))
 
-	pk = []string{}
-
-	stmt := exql.RawSQL(fmt.Sprintf(`PRAGMA TABLE_INFO('%s')`, tableName))
-
-	rows, err := d.Builder().Query(stmt)
+	rows, err := d.Builder.Query(stmt)
 	if err != nil {
 		return nil, err
 	}
 
-	if d.columns == nil {
-		d.columns = make(map[string][]columnSchemaT)
-	}
-
-	columns := []columnSchemaT{}
+	columns := []struct {
+		Name string `db:"name"`
+		PK   int    `db:"pk"`
+	}{}
 
 	if err := builder.NewIterator(rows).All(&columns); err != nil {
 		return nil, err
@@ -251,16 +275,5 @@ func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
 		}
 	}
 
-	tableSchema.SetPrimaryKeys(pk)
-
 	return pk, nil
-}
-
-func (d *database) clone() (*database, error) {
-	clone := &database{}
-	clone.BaseDatabase = d.BaseDatabase.Clone(clone)
-	if err := clone.open(); err != nil {
-		return nil, err
-	}
-	return clone, nil
 }
