@@ -1074,8 +1074,24 @@ func TestBuilder(t *testing.T) {
 
 	var all []map[string]interface{}
 
-	iter := sess.Builder().SelectAllFrom("artist").Iterator()
+	iter := sess.SelectAllFrom("artist").Iterator()
 	err := iter.All(&all)
+
+	assert.NoError(t, err)
+	assert.NotZero(t, all)
+
+	/*
+	clone, err := sess.Clone()
+	iter = clone.SelectAllFrom("artist").Iterator()
+	err = iter.All(&all)
+
+	assert.NoError(t, err)
+	assert.NotZero(t, all)
+	*/
+
+	tx, err := sess.Transaction()
+	iter = tx.SelectAllFrom("artist").Iterator()
+	err = iter.All(&all)
 
 	assert.NoError(t, err)
 	assert.NotZero(t, all)

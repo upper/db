@@ -334,7 +334,7 @@ type Database interface {
 
 	// Clone duplicates the current database session. Returns an error if the
 	// clone did not succeed.
-	Clone() (Database, error)
+	// Clone() (Database, error)
 
 	// Ping returns an error if the database manager cannot be reached.
 	Ping() error
@@ -355,10 +355,7 @@ type Database interface {
 	// Name returns the name of the active database.
 	Name() string
 
-	// Transaction starts a transaction block. Some databases do not support
-	// transactions, refer to the documentation of the specific database adapter
-	// to see the current status on transactions.
-	Transaction() (Tx, error)
+	ConnectionURL() ConnectionURL
 }
 
 // Tx is an interface that enhaces the `Database` interface with additional

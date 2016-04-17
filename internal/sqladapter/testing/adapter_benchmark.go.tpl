@@ -254,7 +254,7 @@ func BenchmarkUpperRemove(b *testing.B) {
 
 // BenchmarkUpperGetCollection
 func BenchmarkUpperGetCollection(b *testing.B) {
-	sess, err := db.Open(Adapter, settings)
+	sess, err := Open(settings)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -267,7 +267,7 @@ func BenchmarkUpperGetCollection(b *testing.B) {
 }
 
 func BenchmarkUpperCommitManyTransactions(b *testing.B) {
-	sess, err := db.Open(Adapter, settings)
+	sess, err := Open(settings)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -276,7 +276,7 @@ func BenchmarkUpperCommitManyTransactions(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		var tx db.Tx
+		var tx Tx
 		if tx, err = sess.Transaction(); err != nil {
 			b.Fatal(err)
 		}
@@ -305,7 +305,7 @@ func BenchmarkUpperCommitManyTransactions(b *testing.B) {
 
 // BenchmarkUpperRollbackManyTransactions benchmarks
 func BenchmarkUpperRollbackManyTransactions(b *testing.B) {
-	sess, err := db.Open(Adapter, settings)
+	sess, err := Open(settings)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -347,7 +347,7 @@ func BenchmarkSQLInsert(b *testing.B) {
 	var err error
 	var sess db.Database
 
-	if sess, err = db.Open(Adapter, settings); err != nil {
+	if sess, err = Open(settings); err != nil {
 		b.Fatal(err)
 	}
 
@@ -395,7 +395,7 @@ func BenchmarkSQLInsertWithArgs(b *testing.B) {
 	var err error
 	var sess db.Database
 
-	if sess, err = db.Open(Adapter, settings); err != nil {
+	if sess, err = Open(settings); err != nil {
 		b.Fatal(err)
 	}
 
@@ -457,7 +457,7 @@ func BenchmarkSQLPreparedInsertNoArguments(b *testing.B) {
 	var err error
 	var sess db.Database
 
-	if sess, err = db.Open(Adapter, settings); err != nil {
+	if sess, err = Open(settings); err != nil {
 		b.Fatal(err)
 	}
 
@@ -621,7 +621,7 @@ func BenchmarkSQLPreparedInsertTransactionWithArgs(b *testing.B) {
 	var sess db.Database
 	var tx *sql.Tx
 
-	if sess, err = db.Open(Adapter, settings); err != nil {
+	if sess, err = Open(settings); err != nil {
 		b.Fatal(err)
 	}
 

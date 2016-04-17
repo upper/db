@@ -22,7 +22,6 @@
 package postgresql
 
 import (
-	"strconv"
 	"strings"
 
 	"database/sql"
@@ -34,37 +33,47 @@ import (
 	"upper.io/db.v2/internal/sqladapter"
 )
 
-type database struct {
-	sqladapter.BaseDatabase
-	b       builder.Builder
-	connURL db.ConnectionURL
+// Database represents a SQL database.
+type Database interface {
+	db.Database
+	builder.Builder
+
+	Transaction() (Tx, error)
 }
 
-type Database interface {
-	sqladapter.Database
+// database is the actual implementation of Database
+type database struct {
+	sqladapter.BaseDatabase // Leveraged by sqladapter
+	builder.Builder
+
+	connURL db.ConnectionURL
 }
 
 var (
 	_ = sqladapter.Database(&database{})
+	_ = db.Database(&database{})
 )
 
+// newDatabase binds *database with sqladapter and the SQL builer.
 func newDatabase(settings db.ConnectionURL) (*database, error) {
 	d := &database{
 		connURL: settings,
 	}
 
+	// Binding with sqladapter's logic.
 	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
 
+	// Binding with builder.
 	b, err := builder.New(d.BaseDatabase, template)
 	if err != nil {
 		return nil, err
 	}
-
-	d.b = b
+	d.Builder = b
 
 	return d, nil
 }
 
+// Open stablishes a new connection to a SQL server.
 func Open(settings db.ConnectionURL) (Database, error) {
 	d, err := newDatabase(settings)
 	if err != nil {
@@ -76,46 +85,46 @@ func Open(settings db.ConnectionURL) (Database, error) {
 	return d, nil
 }
 
+// ConnectionURL returns this database's ConnectionURL.
 func (d *database) ConnectionURL() db.ConnectionURL {
 	return d.connURL
 }
 
-func (d *database) Builder() builder.Builder {
-	return d.b
-}
-
-// CompileStatement compiles the given statement into an string
-// and replaces each generic placeholder with the placeholder the driver
-// expects (if any).
-func (d *database) CompileStatement(stmt *exql.Statement) (query string) {
-	buf := stmt.Compile(template())
-
-	j := 1
-	for i := range buf {
-		if buf[i] == '?' {
-			query = query + "$" + strconv.Itoa(j)
-			j++
-		} else {
-			query = query + string(buf[i])
-		}
+// Open attempts to open a connection to the database server.
+func (d *database) Open(connURL db.ConnectionURL) error {
+	if connURL == nil {
+		return db.ErrMissingConnURL
 	}
-
-	return query
+	return d.open()
 }
 
-// Err translates some known errors into generic errors.
-func (d *database) Err(err error) error {
+// Transaction starts a transaction block.
+func (d *database) Transaction() (Tx, error) {
+	nTx, err := d.NewLocalTransaction()
 	if err != nil {
-		s := err.Error()
-		if strings.Contains(s, `too many clients`) || strings.Contains(s, `remaining connection slots are reserved`) {
-			return db.ErrTooManyClients
-		}
+		return nil, err
 	}
-	return err
+	return &tx{Tx: nTx}, nil
 }
 
-func (d *database) Template() *exql.Template {
-	return template()
+// Collections returns a list of non-system tables from the database.
+func (d *database) Collections() (collections []string, err error) {
+	q := d.Builder.Select("table_name").
+		From("information_schema.tables").
+		Where("table_schema = ?", "public")
+
+	iter := q.Iterator()
+	defer iter.Close()
+
+	for iter.Next() {
+		var tableName string
+		if err := iter.Scan(&tableName); err != nil {
+			return nil, err
+		}
+		collections = append(collections, tableName)
+	}
+
+	return collections, nil
 }
 
 func (d *database) open() error {
@@ -134,48 +143,43 @@ func (d *database) open() error {
 	return nil
 }
 
-// Open attempts to open a connection to the database server.
-func (d *database) Open(connURL db.ConnectionURL) error {
-	if connURL == nil {
-		return db.ErrMissingConnURL
+func (d *database) clone() (*database, error) {
+	clone, err := newDatabase(d.connURL)
+	if err != nil {
+		return nil, err
 	}
-	return d.open()
+
+	if err := clone.open(); err != nil {
+		return nil, err
+	}
+
+	return clone, nil
 }
 
-// Clone creates a new database connection with the same settings as the
-// original.
-func (d *database) Clone() (db.Database, error) {
-	return d.clone()
+// CompileStatement allows sqladapter to compile the given statement into the
+// format PostgreSQL expects.
+func (d *database) CompileStatement(stmt *exql.Statement) string {
+	return sqladapter.ReplaceWithDollarSign(stmt.Compile(template))
 }
 
-// NewCollection returns a db.Collection.
-func (d *database) NewCollection(name string) db.Collection {
+// Err allows sqladapter to translate some known errors into generic errors.
+func (d *database) Err(err error) error {
+	if err != nil {
+		s := err.Error()
+		if strings.Contains(s, `too many clients`) || strings.Contains(s, `remaining connection slots are reserved`) {
+			return db.ErrTooManyClients
+		}
+	}
+	return err
+}
+
+// NewLocalCollection allows sqladapter create a local db.Collection.
+func (d *database) NewLocalCollection(name string) db.Collection {
 	return newTable(d, name)
 }
 
-// Collections returns a list of non-system tables from the database.
-func (d *database) Collections() (collections []string, err error) {
-	q := d.Builder().Select("table_name").
-		From("information_schema.tables").
-		Where("table_schema = ?", "public")
-
-	iter := q.Iterator()
-	defer iter.Close()
-
-	for iter.Next() {
-		var tableName string
-		if err := iter.Scan(&tableName); err != nil {
-			return nil, err
-		}
-		collections = append(collections, tableName)
-	}
-
-	return collections, nil
-}
-
-// Transaction starts a transaction block and returns a db.Tx struct that can
-// be used to issue transactional queries.
-func (d *database) Transaction() (db.Tx, error) {
+// NewLocalTransaction allows sqladapter start a transaction block.
+func (d *database) NewLocalTransaction() (sqladapter.Tx, error) {
 	clone, err := d.clone()
 	if err != nil {
 		return nil, err
@@ -193,11 +197,12 @@ func (d *database) Transaction() (db.Tx, error) {
 		return nil, err
 	}
 
-	return clone, nil
+	return sqladapter.NewTx(clone), nil
 }
 
+// FindDatabaseName allows sqladapter look up the database's name.
 func (d *database) FindDatabaseName() (string, error) {
-	q := d.Builder().Select(db.Raw("CURRENT_DATABASE() AS name"))
+	q := d.Builder.Select(db.Raw("CURRENT_DATABASE() AS name"))
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -211,9 +216,10 @@ func (d *database) FindDatabaseName() (string, error) {
 	return "", iter.Err()
 }
 
-// TableExists checks whether a table exists and returns an error in case it doesn't.
+// TableExists allows sqladapter check whether a table exists and returns an
+// error in case it doesn't.
 func (d *database) TableExists(name string) error {
-	q := d.Builder().Select("table_name").
+	q := d.Builder.Select("table_name").
 		From("information_schema.tables").
 		Where("table_catalog = ? AND table_name = ?", d.BaseDatabase.Name(), name)
 
@@ -230,8 +236,9 @@ func (d *database) TableExists(name string) error {
 	return db.ErrCollectionDoesNotExist
 }
 
+// FindTablePrimaryKeys allows sqladapter find a table's primary keys.
 func (d *database) FindTablePrimaryKeys(tableName string) ([]string, error) {
-	q := d.Builder().Select("pg_attribute.attname AS pkey").
+	q := d.Builder.Select("pg_attribute.attname AS pkey").
 		From("pg_index", "pg_class", "pg_attribute").
 		Where(`
 			pg_class.oid = '"` + tableName + `"'::regclass
@@ -255,17 +262,4 @@ func (d *database) FindTablePrimaryKeys(tableName string) ([]string, error) {
 	}
 
 	return pk, nil
-}
-
-func (d *database) clone() (*database, error) {
-	clone, err := newDatabase(d.connURL)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := clone.open(); err != nil {
-		return nil, err
-	}
-
-	return clone, nil
 }

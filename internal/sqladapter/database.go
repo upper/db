@@ -2,6 +2,7 @@ package sqladapter
 
 import (
 	"database/sql"
+	"strconv"
 	"sync"
 	"time"
 
@@ -13,41 +14,40 @@ import (
 )
 
 type HasExecStatement interface {
-	Exec(stmt *sql.Stmt, args ...interface{}) (sql.Result, error)
+	ExecStatement(stmt *sql.Stmt, args ...interface{}) (sql.Result, error)
 }
 
 type Database interface {
-	db.Database
-	Builder() builder.Builder
+	PartialDatabase
+	BaseDatabase
 }
 
 type PartialDatabase interface {
+	builder.Builder
+
 	TableExists(name string) error
 
 	FindDatabaseName() (string, error)
 	FindTablePrimaryKeys(name string) ([]string, error)
 
-	NewCollection(name string) db.Collection
+	NewLocalCollection(name string) db.Collection
 	CompileStatement(stmt *exql.Statement) (query string)
+	ConnectionURL() db.ConnectionURL
 
 	Err(in error) (out error)
-	Builder() builder.Builder
-	Transaction() (db.Tx, error)
-	Clone() (db.Database, error)
+	NewLocalTransaction() (Tx, error)
 	Collections() ([]string, error)
 	Open(db.ConnectionURL) error
 }
 
 type BaseDatabase interface {
-	PartialDatabase
-	BaseTx
-
 	WaitForConnection(func() error) error
 	Name() string
 	Close() error
 	Ping() error
 	Collection(string) db.Collection
 	Driver() interface{}
+	//Transaction() (db.Tx, error)
 
 	BindSession(*sql.DB) error
 	Session() *sql.DB
@@ -58,7 +58,7 @@ type BaseDatabase interface {
 
 type baseDatabase struct {
 	PartialDatabase
-	BaseTx
+	baseTx BaseTx
 
 	mu sync.Mutex
 
@@ -90,17 +90,27 @@ func NewBaseDatabase(p PartialDatabase) BaseDatabase {
 	return d
 }
 
+/*
+func (d *baseDatabase) Transaction() (db.Tx, error) {
+	nTx, err := d.NewLocalTransaction()
+	if err != nil {
+		return nil, err
+	}
+	return newTxWrapper(nTx), nil
+}
+*/
+
 func (d *baseDatabase) Session() *sql.DB {
 	return d.sess
 }
 
 func (d *baseDatabase) BindTx(t *sql.Tx) error {
-	d.BaseTx = newTx(t)
+	d.baseTx = newTx(t)
 	return d.Ping()
 }
 
 func (d *baseDatabase) Tx() BaseTx {
-	return d.BaseTx
+	return d.baseTx
 }
 
 func (d *baseDatabase) Name() string {
@@ -139,7 +149,7 @@ func (d *baseDatabase) Ping() error {
 func (d *baseDatabase) Close() error {
 	defer func() {
 		d.sess = nil
-		d.BaseTx = nil
+		d.baseTx = nil
 	}()
 	if d.sess != nil {
 		if d.Tx() != nil && !d.Tx().Done() {
@@ -163,14 +173,14 @@ func (d *baseDatabase) Collection(name string) db.Collection {
 		return ccol.(db.Collection)
 	}
 
-	col := d.PartialDatabase.NewCollection(name)
+	col := d.PartialDatabase.NewLocalCollection(name)
 	d.cachedCollections.Write(h, col)
 
 	return col
 }
 
-// Exec compiles and executes a statement that does not return any rows.
-func (d *baseDatabase) Exec(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
+// ExecStatement compiles and executes a statement that does not return any rows.
+func (d *baseDatabase) ExecStatement(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
 	var query string
 	var p *sql.Stmt
 	var err error
@@ -190,14 +200,14 @@ func (d *baseDatabase) Exec(stmt *exql.Statement, args ...interface{}) (sql.Resu
 	}
 
 	if execer, ok := d.PartialDatabase.(HasExecStatement); ok {
-		return execer.Exec(p, args...)
+		return execer.ExecStatement(p, args...)
 	}
 
 	return p.Exec(args...)
 }
 
-// Query compiles and executes a statement that returns rows.
-func (d *baseDatabase) Query(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
+// QueryStatement compiles and executes a statement that returns rows.
+func (d *baseDatabase) QueryStatement(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
 	var query string
 	var p *sql.Stmt
 	var err error
@@ -219,8 +229,8 @@ func (d *baseDatabase) Query(stmt *exql.Statement, args ...interface{}) (*sql.Ro
 	return p.Query(args...)
 }
 
-// QueryRow compiles and executes a statement that returns at most one row.
-func (d *baseDatabase) QueryRow(stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
+// QueryRowStatement compiles and executes a statement that returns at most one row.
+func (d *baseDatabase) QueryRowStatement(stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
 	var query string
 	var p *sql.Stmt
 	var err error
@@ -326,6 +336,7 @@ func (d *baseDatabase) WaitForConnection(connectFn func() error) error {
 
 // The methods below here complete the db.Database interface.
 
+/*
 func (d *baseDatabase) TableExists(name string) error {
 	return db.ErrNotImplemented
 }
@@ -338,7 +349,7 @@ func (d *baseDatabase) FindTablePrimaryKeys(string) ([]string, error) {
 	return nil, db.ErrNotImplemented
 }
 
-func (d *baseDatabase) NewCollection(name string) db.Collection {
+func (d *baseDatabase) NewLocalCollection(name string) db.Collection {
 	return nil
 }
 
@@ -361,8 +372,28 @@ func (c *baseDatabase) Collections() ([]string, error) {
 func (c *baseDatabase) Transaction() (db.Tx, error) {
 	return nil, db.ErrNotImplemented
 }
+*/
 
 var (
 	_ = db.Database(&baseDatabase{})
-	_ = Database(&baseDatabase{})
 )
+
+func ReplaceWithDollarSign(in string) string {
+	buf := []byte(in)
+	out := make([]byte, 0, len(buf))
+
+	i, j, k, t := 0, 1, 0, len(buf)
+
+	for i < t {
+		if buf[i] == '?' {
+			out = append(out, buf[k:i]...)
+			out = append(out, []byte("$"+strconv.Itoa(j))...)
+			k = i + 1
+			j++
+		}
+		i++
+	}
+	out = append(out, buf[k:i]...)
+
+	return string(out)
+}

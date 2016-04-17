@@ -8,8 +8,13 @@ import (
 	"upper.io/db.v2/builder/exql"
 )
 
+type Collection interface {
+	PartialCollection
+	BaseCollection
+}
+
 type PartialCollection interface {
-	Database() BaseDatabase
+	Database() Database
 	Name() string
 	Conds(...interface{}) []interface{}
 	Insert(interface{}) (interface{}, error)
@@ -49,7 +54,7 @@ func (c *baseCollection) PrimaryKeys() []string {
 
 func (c *baseCollection) Find(conds ...interface{}) db.Result {
 	return NewResult(
-		c.p.Database().Builder(),
+		c.p.Database(),
 		c.p.Name(),
 		c.p.Conds(conds...),
 	)
@@ -69,16 +74,16 @@ func (c *baseCollection) InsertReturning(item interface{}) error {
 		return fmt.Errorf("Expecting a pointer to map or string but got %T", item)
 	}
 
-	var tx db.Tx
+	var tx Tx
 	inTx := false
 
 	if currTx := c.p.Database().Tx(); currTx != nil {
-		tx = c.p.Database()
+		tx = newTxWrapper(c.p.Database())
 		inTx = true
 	} else {
 		// Not within a transaction, let's create one.
 		var err error
-		tx, err = c.p.Database().Transaction()
+		tx, err = c.p.Database().NewLocalTransaction()
 		if err != nil {
 			return err
 		}
@@ -127,7 +132,7 @@ func (c *baseCollection) Truncate() error {
 		Type:  exql.Truncate,
 		Table: exql.TableWithName(c.p.Name()),
 	}
-	if _, err := c.p.Database().Builder().Exec(&stmt); err != nil {
+	if _, err := c.p.Database().Exec(&stmt); err != nil {
 		return err
 	}
 	return nil

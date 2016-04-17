@@ -29,15 +29,20 @@ import (
 	"upper.io/db.v2/internal/sqladapter"
 )
 
+// table is the actual implementation of a collection.
 type table struct {
-	sqladapter.BaseCollection
+	sqladapter.BaseCollection // Leveraged by sqladapter
 
 	d    *database
 	name string
 }
 
-var _ = db.Collection(&table{})
+var (
+	_ = sqladapter.Collection(&table{})
+	_ = db.Collection(&table{})
+)
 
+// newTable binds *table with sqladapter.
 func newTable(d *database, name string) *table {
 	t := &table{
 		name: name,
@@ -51,7 +56,7 @@ func (t *table) Name() string {
 	return t.name
 }
 
-func (t *table) Database() sqladapter.BaseDatabase {
+func (t *table) Database() sqladapter.Database {
 	return t.d
 }
 
@@ -77,7 +82,7 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 
 	pKey := t.BaseCollection.PrimaryKeys()
 
-	q := t.d.Builder().InsertInto(t.Name()).
+	q := t.d.InsertInto(t.Name()).
 		Columns(columnNames...).
 		Values(columnValues...)
 

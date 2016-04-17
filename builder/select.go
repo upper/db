@@ -217,14 +217,14 @@ func (qs *selector) statement() *exql.Statement {
 }
 
 func (qs *selector) Query() (*sql.Rows, error) {
-	return qs.builder.sess.Query(qs.statement(), qs.arguments...)
+	return qs.builder.sess.QueryStatement(qs.statement(), qs.arguments...)
 }
 
 func (qs *selector) QueryRow() (*sql.Row, error) {
-	return qs.builder.sess.QueryRow(qs.statement(), qs.arguments...)
+	return qs.builder.sess.QueryRowStatement(qs.statement(), qs.arguments...)
 }
 
 func (qs *selector) Iterator() Iterator {
-	rows, err := qs.builder.sess.Query(qs.statement(), qs.arguments...)
+	rows, err := qs.builder.sess.QueryStatement(qs.statement(), qs.arguments...)
 	return &iterator{rows, err}
 }

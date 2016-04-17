@@ -23,7 +23,16 @@ package sqladapter
 
 import (
 	"database/sql"
+	//"upper.io/db.v2/builder"
+	//"upper.io/db.v2"
 )
+
+type Tx interface {
+	Database
+	BaseTx
+	//db.Commiter
+	//db.Tx
+}
 
 type TxDatabase struct {
 	BaseDatabase
@@ -34,6 +43,25 @@ type BaseTx interface {
 	Commit() error
 	Rollback() error
 	Done() bool
+}
+
+type txWrapper struct {
+	Database
+	BaseTx
+}
+
+func NewTx(db Database) Tx {
+	return &txWrapper{
+		Database: db,
+		BaseTx:   db.Tx(),
+	}
+}
+
+func newTxWrapper(db Database) Tx {
+	return &txWrapper{
+		Database: db,
+		BaseTx:   db.Tx(),
+	}
 }
 
 type baseTx struct {
@@ -56,4 +84,6 @@ func (t *baseTx) Commit() (err error) {
 	return err
 }
 
-var _ = BaseTx(&baseTx{})
+var (
+	_ = BaseTx(&baseTx{})
+)
