@@ -59,17 +59,6 @@ func newDatabase(settings db.ConnectionURL) (*database, error) {
 	d := &database{
 		connURL: settings,
 	}
-
-	// Binding with sqladapter's logic.
-	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
-
-	// Binding with builder.
-	b, err := builder.New(d.BaseDatabase, template)
-	if err != nil {
-		return nil, err
-	}
-	d.Builder = b
-
 	return d, nil
 }
 
@@ -95,6 +84,7 @@ func (d *database) Open(connURL db.ConnectionURL) error {
 	if connURL == nil {
 		return db.ErrMissingConnURL
 	}
+	d.connURL = connURL
 	return d.open()
 }
 
@@ -128,6 +118,16 @@ func (d *database) Collections() (collections []string, err error) {
 }
 
 func (d *database) open() error {
+	// Binding with sqladapter's logic.
+	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
+
+	// Binding with builder.
+	b, err := builder.New(d.BaseDatabase, template)
+	if err != nil {
+		return err
+	}
+	d.Builder = b
+
 	connFn := func() error {
 		sess, err := sql.Open("postgres", d.ConnectionURL().String())
 		if err == nil {
