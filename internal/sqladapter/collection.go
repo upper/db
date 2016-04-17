@@ -8,11 +8,13 @@ import (
 	"upper.io/db.v2/builder/exql"
 )
 
+// Collection represents a SQL table.
 type Collection interface {
 	PartialCollection
 	BaseCollection
 }
 
+// PartialCollection defines methods to be implemented by the adapter.
 type PartialCollection interface {
 	Database() Database
 	Name() string
@@ -20,6 +22,7 @@ type PartialCollection interface {
 	Insert(interface{}) (interface{}, error)
 }
 
+// BaseCollection defines methods that are implemented by sqladapter.
 type BaseCollection interface {
 	Exists() bool
 	Find(conds ...interface{}) db.Result
@@ -28,6 +31,7 @@ type BaseCollection interface {
 	PrimaryKeys() []string
 }
 
+// baseCollection is the implementation of Collection.
 type baseCollection struct {
 	p PartialCollection
 
@@ -48,10 +52,12 @@ func NewBaseCollection(p PartialCollection) BaseCollection {
 	return c
 }
 
+// PrimaryKeys returns the collection's primary keys, if any.
 func (c *baseCollection) PrimaryKeys() []string {
 	return c.pk
 }
 
+// Find creates a result set with the given conditions.
 func (c *baseCollection) Find(conds ...interface{}) db.Result {
 	return NewResult(
 		c.p.Database(),
@@ -68,7 +74,7 @@ func (c *baseCollection) Exists() bool {
 	return true
 }
 
-// InsertReturning inserts an item and updates the variable.
+// InsertReturning inserts an item and updates the given variable reference.
 func (c *baseCollection) InsertReturning(item interface{}) error {
 	if reflect.TypeOf(item).Kind() != reflect.Ptr {
 		return fmt.Errorf("Expecting a pointer to map or string but got %T", item)

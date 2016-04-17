@@ -166,7 +166,7 @@ func (d *database) CompileStatement(stmt *exql.Statement) string {
 func (d *database) Err(err error) error {
 	if err != nil {
 		s := err.Error()
-		if strings.Contains(s, `too many clients`) || strings.Contains(s, `remaining connection slots are reserved`) {
+		if strings.Contains(s, `too many clients`) || strings.Contains(s, `remaining connection slots are reserved`) || strings.Contains(s, `too many open`) {
 			return db.ErrTooManyClients
 		}
 	}

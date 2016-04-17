@@ -23,26 +23,18 @@ package sqladapter
 
 import (
 	"database/sql"
-	//"upper.io/db.v2/builder"
-	//"upper.io/db.v2"
+	"sync/atomic"
 )
 
 type Tx interface {
 	Database
 	BaseTx
-	//db.Commiter
-	//db.Tx
-}
-
-type TxDatabase struct {
-	BaseDatabase
-	*baseTx
 }
 
 type BaseTx interface {
 	Commit() error
 	Rollback() error
-	Done() bool
+	Commited() bool
 }
 
 type txWrapper struct {
@@ -64,26 +56,30 @@ func newTxWrapper(db Database) Tx {
 	}
 }
 
-type baseTx struct {
+type sqlTx struct {
 	*sql.Tx
-	done bool
+	commited atomic.Value
 }
 
 func newTx(tx *sql.Tx) BaseTx {
-	return &baseTx{Tx: tx}
+	return &sqlTx{Tx: tx}
 }
 
-func (t *baseTx) Done() bool {
-	return t.done
+func (t *sqlTx) Commited() bool {
+	commited := t.commited.Load()
+	if commited != nil {
+		return true
+	}
+	return false
 }
 
-func (t *baseTx) Commit() (err error) {
+func (t *sqlTx) Commit() (err error) {
 	if err = t.Tx.Commit(); err == nil {
-		t.done = true
+		t.commited.Store(struct{}{})
 	}
 	return err
 }
 
 var (
-	_ = BaseTx(&baseTx{})
+	_ = BaseTx(&sqlTx{})
 )

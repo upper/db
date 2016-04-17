@@ -13,17 +13,23 @@ import (
 	"upper.io/db.v2/internal/logger"
 )
 
+// HasExecStatement allows the adapter to have its own exec statement.
 type HasExecStatement interface {
 	ExecStatement(stmt *sql.Stmt, args ...interface{}) (sql.Result, error)
 }
 
+// Database represents a SQL database.
 type Database interface {
 	PartialDatabase
 	BaseDatabase
 }
 
+// PartialDatabase defines all the methods an adapter must provide.
 type PartialDatabase interface {
 	builder.Builder
+
+	Collections() ([]string, error)
+	Open(db.ConnectionURL) error
 
 	TableExists(name string) error
 
@@ -36,18 +42,18 @@ type PartialDatabase interface {
 
 	Err(in error) (out error)
 	NewLocalTransaction() (Tx, error)
-	Collections() ([]string, error)
-	Open(db.ConnectionURL) error
 }
 
+// BaseDatabase defines the methods provided by sqladapter that do not have to
+// be implemented by adapters.
 type BaseDatabase interface {
-	WaitForConnection(func() error) error
 	Name() string
 	Close() error
 	Ping() error
 	Collection(string) db.Collection
 	Driver() interface{}
-	//Transaction() (db.Tx, error)
+
+	WaitForConnection(func() error) error
 
 	BindSession(*sql.DB) error
 	Session() *sql.DB
@@ -56,6 +62,18 @@ type BaseDatabase interface {
 	Tx() BaseTx
 }
 
+// NewBaseDatabase provides a BaseDatabase given a PartialDatabase
+func NewBaseDatabase(p PartialDatabase) BaseDatabase {
+	d := &baseDatabase{
+		PartialDatabase:   p,
+		cachedCollections: cache.NewCache(),
+		cachedStatements:  cache.NewCache(),
+	}
+	return d
+}
+
+// baseDatabase is the actual implementation of Database and joins methods from
+// BaseDatabase and PartialDatabase
 type baseDatabase struct {
 	PartialDatabase
 	baseTx BaseTx
@@ -71,48 +89,24 @@ type baseDatabase struct {
 	template *exql.Template
 }
 
-type cachedStatement struct {
-	*sql.Stmt
-	query string
-}
-
-func (c *cachedStatement) OnPurge() {
-	c.Stmt.Close()
-}
-
-func NewBaseDatabase(p PartialDatabase) BaseDatabase {
-	d := &baseDatabase{
-		PartialDatabase:   p,
-		cachedCollections: cache.NewCache(),
-		cachedStatements:  cache.NewCache(),
-	}
-
-	return d
-}
-
-/*
-func (d *baseDatabase) Transaction() (db.Tx, error) {
-	nTx, err := d.NewLocalTransaction()
-	if err != nil {
-		return nil, err
-	}
-	return newTxWrapper(nTx), nil
-}
-*/
-
+// Session returns the underlying *sql.DB
 func (d *baseDatabase) Session() *sql.DB {
 	return d.sess
 }
 
+// BindTx binds a *sql.Tx into *baseDatabase
 func (d *baseDatabase) BindTx(t *sql.Tx) error {
 	d.baseTx = newTx(t)
 	return d.Ping()
 }
 
+// Tx returns a BaseTx, which, if not nil, means that this session is within a
+// transaction
 func (d *baseDatabase) Tx() BaseTx {
 	return d.baseTx
 }
 
+// Name returns the database named
 func (d *baseDatabase) Name() string {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -124,6 +118,7 @@ func (d *baseDatabase) Name() string {
 	return d.name
 }
 
+// BindSession binds a *sql.DB into *baseDatabase
 func (d *baseDatabase) BindSession(sess *sql.DB) error {
 	d.sess = sess
 
@@ -140,19 +135,20 @@ func (d *baseDatabase) BindSession(sess *sql.DB) error {
 	return nil
 }
 
-// Ping checks whether a connection to the database is alive by pinging it.
+// Ping checks whether a connection to the database is still alive by pinging
+// it
 func (d *baseDatabase) Ping() error {
 	return d.sess.Ping()
 }
 
-// Close terminates the current database session.
+// Close terminates the current database session
 func (d *baseDatabase) Close() error {
 	defer func() {
 		d.sess = nil
 		d.baseTx = nil
 	}()
 	if d.sess != nil {
-		if d.Tx() != nil && !d.Tx().Done() {
+		if d.Tx() != nil && !d.Tx().Commited() {
 			d.Tx().Rollback()
 		}
 		d.cachedStatements.Clear() // Closes prepared statements as well.
@@ -161,7 +157,7 @@ func (d *baseDatabase) Close() error {
 	return nil
 }
 
-// Collection returns a Collection given a name.
+// Collection returns a db.Collection given a name. Results are cached.
 func (d *baseDatabase) Collection(name string) db.Collection {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -179,7 +175,8 @@ func (d *baseDatabase) Collection(name string) db.Collection {
 	return col
 }
 
-// ExecStatement compiles and executes a statement that does not return any rows.
+// ExecStatement compiles and executes a statement that does not return any
+// rows.
 func (d *baseDatabase) ExecStatement(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
 	var query string
 	var p *sql.Stmt
@@ -229,7 +226,8 @@ func (d *baseDatabase) QueryStatement(stmt *exql.Statement, args ...interface{})
 	return p.Query(args...)
 }
 
-// QueryRowStatement compiles and executes a statement that returns at most one row.
+// QueryRowStatement compiles and executes a statement that returns at most one
+// row.
 func (d *baseDatabase) QueryRowStatement(stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
 	var query string
 	var p *sql.Stmt
@@ -255,7 +253,8 @@ func (d *baseDatabase) QueryRowStatement(stmt *exql.Statement, args ...interface
 // Driver returns the underlying *sql.DB or *sql.Tx instance.
 func (d *baseDatabase) Driver() interface{} {
 	if tx := d.Tx(); tx != nil {
-		return tx.(*baseTx).Tx
+		// A transaction
+		return tx.(*sqlTx).Tx
 	}
 	return d.sess
 }
@@ -283,7 +282,7 @@ func (d *baseDatabase) prepareStatement(stmt *exql.Statement) (*sql.Stmt, string
 	var err error
 
 	if d.Tx() != nil {
-		p, err = d.Tx().(*baseTx).Prepare(query)
+		p, err = d.Tx().(*sqlTx).Prepare(query)
 	} else {
 		p, err = d.sess.Prepare(query)
 	}
@@ -314,21 +313,25 @@ func (d *baseDatabase) WaitForConnection(connectFn func() error) error {
 
 	// Waitig 5 seconds for a successful connection.
 	for timeStart := time.Now(); time.Now().Sub(timeStart) < time.Second*5; {
-		if err := connectFn(); err != nil {
-			if d.PartialDatabase.Err(err) == db.ErrTooManyClients {
-				// Sleep and try again if, and only if, the server replied with a "too
-				// many clients" error.
-				time.Sleep(waitTime)
-				if waitTime < time.Millisecond*500 {
-					// Wait a bit more next time.
-					waitTime = waitTime * 2
-				}
-				continue
-			}
-			// Return any other error immediately.
-			return err
+		err := connectFn()
+		if err == nil {
+			return nil // Connected!
 		}
-		return nil
+
+		// Only attempt to reconnect if the error is too many clients.
+		if d.PartialDatabase.Err(err) == db.ErrTooManyClients {
+			// Sleep and try again if, and only if, the server replied with a "too
+			// many clients" error.
+			time.Sleep(waitTime)
+			if waitTime < time.Millisecond*500 {
+				// Wait a bit more next time.
+				waitTime = waitTime * 2
+			}
+			continue
+		}
+
+		// Return any other error immediately.
+		return err
 	}
 
 	return db.ErrGivingUpTryingToConnect
@@ -378,6 +381,8 @@ var (
 	_ = db.Database(&baseDatabase{})
 )
 
+// ReplaceWithDollarSign turns a SQL statament with '?' placeholders into
+// dollar placeholders, like $1, $2, ..., $n
 func ReplaceWithDollarSign(in string) string {
 	buf := []byte(in)
 	out := make([]byte, 0, len(buf))
