@@ -44,9 +44,9 @@ var (
 )
 
 type exprDB interface {
-	QueryStatement(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error)
-	QueryRowStatement(stmt *exql.Statement, args ...interface{}) (*sql.Row, error)
-	ExecStatement(stmt *exql.Statement, args ...interface{}) (sql.Result, error)
+	StatementQuery(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error)
+	StatementQueryRow(stmt *exql.Statement, args ...interface{}) (*sql.Row, error)
+	StatementExec(stmt *exql.Statement, args ...interface{}) (sql.Result, error)
 }
 
 type sqlBuilder struct {
@@ -91,9 +91,9 @@ func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) Iterator {
 func (b *sqlBuilder) Exec(query interface{}, args ...interface{}) (sql.Result, error) {
 	switch q := query.(type) {
 	case *exql.Statement:
-		return b.sess.ExecStatement(q, args...)
+		return b.sess.StatementExec(q, args...)
 	case string:
-		return b.sess.ExecStatement(exql.RawSQL(q), args...)
+		return b.sess.StatementExec(exql.RawSQL(q), args...)
 	default:
 		return nil, fmt.Errorf("Unsupported query type %T.", query)
 	}
@@ -102,9 +102,9 @@ func (b *sqlBuilder) Exec(query interface{}, args ...interface{}) (sql.Result, e
 func (b *sqlBuilder) Query(query interface{}, args ...interface{}) (*sql.Rows, error) {
 	switch q := query.(type) {
 	case *exql.Statement:
-		return b.sess.QueryStatement(q, args...)
+		return b.sess.StatementQuery(q, args...)
 	case string:
-		return b.sess.QueryStatement(exql.RawSQL(q), args...)
+		return b.sess.StatementQuery(exql.RawSQL(q), args...)
 	default:
 		return nil, fmt.Errorf("Unsupported query type %T.", query)
 	}
@@ -113,9 +113,9 @@ func (b *sqlBuilder) Query(query interface{}, args ...interface{}) (*sql.Rows, e
 func (b *sqlBuilder) QueryRow(query interface{}, args ...interface{}) (*sql.Row, error) {
 	switch q := query.(type) {
 	case *exql.Statement:
-		return b.sess.QueryRowStatement(q, args...)
+		return b.sess.StatementQueryRow(q, args...)
 	case string:
-		return b.sess.QueryRowStatement(exql.RawSQL(q), args...)
+		return b.sess.StatementQueryRow(exql.RawSQL(q), args...)
 	default:
 		return nil, fmt.Errorf("Unsupported query type %T.", query)
 	}
@@ -420,17 +420,17 @@ func newSqlgenProxy(db *sql.DB, t *exql.Template) *exprProxy {
 	return &exprProxy{db: db, t: t}
 }
 
-func (p *exprProxy) ExecStatement(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
+func (p *exprProxy) StatementExec(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
 	s := stmt.Compile(p.t)
 	return p.db.Exec(s, args...)
 }
 
-func (p *exprProxy) QueryStatement(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
+func (p *exprProxy) StatementQuery(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
 	s := stmt.Compile(p.t)
 	return p.db.Query(s, args...)
 }
 
-func (p *exprProxy) QueryRowStatement(stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
+func (p *exprProxy) StatementQueryRow(stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
 	s := stmt.Compile(p.t)
 	return p.db.QueryRow(s, args...), nil
 }

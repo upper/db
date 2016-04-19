@@ -33,19 +33,19 @@ func (qi *inserter) Returning(columns ...string) Inserter {
 }
 
 func (qi *inserter) Exec() (sql.Result, error) {
-	return qi.builder.sess.ExecStatement(qi.statement(), qi.arguments...)
+	return qi.builder.sess.StatementExec(qi.statement(), qi.arguments...)
 }
 
 func (qi *inserter) Query() (*sql.Rows, error) {
-	return qi.builder.sess.QueryStatement(qi.statement(), qi.arguments...)
+	return qi.builder.sess.StatementQuery(qi.statement(), qi.arguments...)
 }
 
 func (qi *inserter) QueryRow() (*sql.Row, error) {
-	return qi.builder.sess.QueryRowStatement(qi.statement(), qi.arguments...)
+	return qi.builder.sess.StatementQueryRow(qi.statement(), qi.arguments...)
 }
 
 func (qi *inserter) Iterator() Iterator {
-	rows, err := qi.builder.sess.QueryStatement(qi.statement(), qi.arguments...)
+	rows, err := qi.builder.sess.StatementQuery(qi.statement(), qi.arguments...)
 	return &iterator{rows, err}
 }
 

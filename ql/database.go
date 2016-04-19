@@ -193,8 +193,8 @@ func (d *database) Err(err error) error {
 	return err
 }
 
-// ExecStatement wraps the statement to execute around a transaction.
-func (d *database) ExecStatement(stmt *sql.Stmt, args ...interface{}) (sql.Result, error) {
+// StatementExec wraps the statement to execute around a transaction.
+func (d *database) StatementExec(stmt *sql.Stmt, args ...interface{}) (sql.Result, error) {
 	if d.BaseDatabase.Tx() == nil {
 		var tx *sql.Tx
 		var res sql.Result

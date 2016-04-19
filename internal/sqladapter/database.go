@@ -18,9 +18,9 @@ type HasCleanUp interface {
 	CleanUp() error
 }
 
-// HasExecStatement allows the adapter to have its own exec statement.
-type HasExecStatement interface {
-	ExecStatement(stmt *sql.Stmt, args ...interface{}) (sql.Result, error)
+// HasStatementExec allows the adapter to have its own exec statement.
+type HasStatementExec interface {
+	StatementExec(stmt *sql.Stmt, args ...interface{}) (sql.Result, error)
 }
 
 // Database represents a SQL database.
@@ -188,9 +188,9 @@ func (d *database) Collection(name string) db.Collection {
 	return col
 }
 
-// ExecStatement compiles and executes a statement that does not return any
+// StatementExec compiles and executes a statement that does not return any
 // rows.
-func (d *database) ExecStatement(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
+func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
 	var query string
 	var p *sql.Stmt
 	var err error
@@ -209,15 +209,15 @@ func (d *database) ExecStatement(stmt *exql.Statement, args ...interface{}) (sql
 		return nil, err
 	}
 
-	if execer, ok := d.PartialDatabase.(HasExecStatement); ok {
-		return execer.ExecStatement(p, args...)
+	if execer, ok := d.PartialDatabase.(HasStatementExec); ok {
+		return execer.StatementExec(p, args...)
 	}
 
 	return p.Exec(args...)
 }
 
-// QueryStatement compiles and executes a statement that returns rows.
-func (d *database) QueryStatement(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
+// StatementQuery compiles and executes a statement that returns rows.
+func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
 	var query string
 	var p *sql.Stmt
 	var err error
@@ -239,9 +239,9 @@ func (d *database) QueryStatement(stmt *exql.Statement, args ...interface{}) (*s
 	return p.Query(args...)
 }
 
-// QueryRowStatement compiles and executes a statement that returns at most one
+// StatementQueryRow compiles and executes a statement that returns at most one
 // row.
-func (d *database) QueryRowStatement(stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
+func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
 	var query string
 	var p *sql.Stmt
 	var err error
