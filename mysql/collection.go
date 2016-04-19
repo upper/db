@@ -23,7 +23,6 @@ package mysql
 
 import (
 	"database/sql"
-	"log"
 
 	"upper.io/db.v2"
 	"upper.io/db.v2/builder"
@@ -76,7 +75,6 @@ func (t *table) Conds(conds ...interface{}) []interface{} {
 
 // Insert inserts an item (map or struct) into the collection.
 func (t *table) Insert(item interface{}) (interface{}, error) {
-	log.Printf("GOT INSERT :%#v", item)
 	columnNames, columnValues, err := builder.Map(item)
 	if err != nil {
 		return nil, err
