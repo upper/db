@@ -4,7 +4,12 @@
 <img src="https://upper.io/images/icon.svg" width="256" />
 </center>
 
-[![Build Status](https://travis-ci.org/upper/db.svg?branch=master)](https://travis-ci.org/upper/db)
+[![GoDoc Widget]][GoDoc] [![Travis Widget]][Travis]
+
+[GoDoc]: https://godoc.org/upper.io/db
+[GoDoc Widget]: https://godoc.org/upper.io/db?status.svg
+[Travis]: https://travis-ci.org/upper/db
+[Travis Widget]: https://travis-ci.org/upper/db.svg?branch=master
 
 ## The `db` package
 
