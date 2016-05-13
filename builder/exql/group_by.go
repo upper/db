@@ -3,7 +3,7 @@ package exql
 // GroupBy represents a SQL's "group by" statement.
 type GroupBy struct {
 	Columns Fragment
-	hash    MemHash
+	hash    hash
 }
 
 type groupByT struct {

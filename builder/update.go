@@ -48,7 +48,7 @@ func (qu *updater) Where(terms ...interface{}) Updater {
 }
 
 func (qu *updater) Exec() (sql.Result, error) {
-	return qu.builder.sess.Exec(qu.statement(), qu.arguments...)
+	return qu.builder.sess.StatementExec(qu.statement(), qu.arguments...)
 }
 
 func (qu *updater) Limit(limit int) Updater {

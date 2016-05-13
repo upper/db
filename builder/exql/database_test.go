@@ -11,7 +11,7 @@ func TestDatabaseHash(t *testing.T) {
 	column := Database{Name: "users"}
 
 	s = column.Hash()
-	e = `*exql.Database.16777957551305673389`
+	e = `*exql.Database:16777957551305673389`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)

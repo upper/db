@@ -19,7 +19,7 @@ const (
 type SortColumn struct {
 	Column Fragment
 	Order
-	hash MemHash
+	hash hash
 }
 
 type sortColumnT struct {
@@ -30,13 +30,13 @@ type sortColumnT struct {
 // SortColumns represents the columns in an ORDER BY clause.
 type SortColumns struct {
 	Columns []Fragment
-	hash    MemHash
+	hash    hash
 }
 
 // OrderBy represents an ORDER BY clause.
 type OrderBy struct {
 	SortColumns Fragment
-	hash        MemHash
+	hash        hash
 }
 
 type orderByT struct {

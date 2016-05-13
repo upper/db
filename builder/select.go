@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"upper.io/db.v2"
 	"upper.io/db.v2/builder/exql"
 )
 
@@ -75,7 +76,7 @@ func (qs *selector) OrderBy(columns ...interface{}) Selector {
 		var sort *exql.SortColumn
 
 		switch value := columns[i].(type) {
-		case RawValue:
+		case db.RawValue:
 			sort = &exql.SortColumn{
 				Column: exql.RawValue(value.String()),
 			}
@@ -216,14 +217,14 @@ func (qs *selector) statement() *exql.Statement {
 }
 
 func (qs *selector) Query() (*sql.Rows, error) {
-	return qs.builder.sess.Query(qs.statement(), qs.arguments...)
+	return qs.builder.sess.StatementQuery(qs.statement(), qs.arguments...)
 }
 
 func (qs *selector) QueryRow() (*sql.Row, error) {
-	return qs.builder.sess.QueryRow(qs.statement(), qs.arguments...)
+	return qs.builder.sess.StatementQueryRow(qs.statement(), qs.arguments...)
 }
 
 func (qs *selector) Iterator() Iterator {
-	rows, err := qs.builder.sess.Query(qs.statement(), qs.arguments...)
+	rows, err := qs.builder.sess.StatementQuery(qs.statement(), qs.arguments...)
 	return &iterator{rows, err}
 }

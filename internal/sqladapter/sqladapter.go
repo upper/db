@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2015 The upper.io/db authors. All rights reserved.
+// Copyright (c) 2012-present The upper.io/db authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -19,70 +19,5 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Package sqladapter provides common logic for SQL adapters.
 package sqladapter
-
-import (
-	"database/sql"
-	"sync/atomic"
-)
-
-// Tx represents a database session within a transaction.
-type Tx interface {
-	Database
-	BaseTx
-}
-
-// BaseTx defines methods to be implemented by a transaction.
-type BaseTx interface {
-	Commit() error
-	Rollback() error
-	Commited() bool
-}
-
-type txWrapper struct {
-	Database
-	BaseTx
-}
-
-// NewTx creates a database session within a transaction.
-func NewTx(db Database) Tx {
-	return &txWrapper{
-		Database: db,
-		BaseTx:   db.Tx(),
-	}
-}
-
-func newTxWrapper(db Database) Tx {
-	return &txWrapper{
-		Database: db,
-		BaseTx:   db.Tx(),
-	}
-}
-
-type sqlTx struct {
-	*sql.Tx
-	commited atomic.Value
-}
-
-func newTx(tx *sql.Tx) BaseTx {
-	return &sqlTx{Tx: tx}
-}
-
-func (t *sqlTx) Commited() bool {
-	commited := t.commited.Load()
-	if commited != nil {
-		return true
-	}
-	return false
-}
-
-func (t *sqlTx) Commit() (err error) {
-	if err = t.Tx.Commit(); err == nil {
-		t.commited.Store(struct{}{})
-	}
-	return err
-}
-
-var (
-	_ = BaseTx(&sqlTx{})
-)

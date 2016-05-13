@@ -22,66 +22,61 @@
 package postgresql
 
 import (
-	"strconv"
 	"strings"
 
 	"database/sql"
 
 	_ "github.com/lib/pq" // PostgreSQL driver.
 	"upper.io/db.v2"
+	"upper.io/db.v2/builder"
 	"upper.io/db.v2/builder/exql"
 	"upper.io/db.v2/internal/sqladapter"
 )
 
+// Database represents a SQL database.
+type Database interface {
+	db.Database
+	builder.Builder
+
+	Transaction() (Tx, error)
+}
+
+// database is the actual implementation of Database
 type database struct {
-	*sqladapter.BaseDatabase
+	sqladapter.BaseDatabase // Leveraged by sqladapter
+	builder.Builder
+
+	connURL db.ConnectionURL
 }
 
-var _ = db.Database(&database{})
+var (
+	_ = sqladapter.Database(&database{})
+	_ = db.Database(&database{})
+)
 
-// CompileAndReplacePlaceholders compiles the given statement into an string
-// and replaces each generic placeholder with the placeholder the driver
-// expects (if any).
-func (d *database) CompileAndReplacePlaceholders(stmt *exql.Statement) (query string) {
-	buf := stmt.Compile(d.Template())
-
-	j := 1
-	for i := range buf {
-		if buf[i] == '?' {
-			query = query + "$" + strconv.Itoa(j)
-			j++
-		} else {
-			query = query + string(buf[i])
-		}
+// newDatabase binds *database with sqladapter and the SQL builer.
+func newDatabase(settings db.ConnectionURL) (*database, error) {
+	d := &database{
+		connURL: settings,
 	}
-
-	return query
+	return d, nil
 }
 
-// Err translates some known errors into generic errors.
-func (d *database) Err(err error) error {
+// Open stablishes a new connection to a SQL server.
+func Open(settings db.ConnectionURL) (Database, error) {
+	d, err := newDatabase(settings)
 	if err != nil {
-		s := err.Error()
-		if strings.Contains(s, `too many clients`) || strings.Contains(s, `remaining connection slots are reserved`) {
-			return db.ErrTooManyClients
-		}
+		return nil, err
 	}
-	return err
+	if err := d.Open(settings); err != nil {
+		return nil, err
+	}
+	return d, nil
 }
 
-func (d *database) open() error {
-	var sess *sql.DB
-
-	connFn := func(sess **sql.DB) (err error) {
-		*sess, err = sql.Open("postgres", d.ConnectionURL().String())
-		return
-	}
-
-	if err := d.WaitForConnection(func() error { return connFn(&sess) }); err != nil {
-		return err
-	}
-
-	return d.Bind(sess)
+// ConnectionURL returns this database's ConnectionURL.
+func (d *database) ConnectionURL() db.ConnectionURL {
+	return d.connURL
 }
 
 // Open attempts to open a connection to the database server.
@@ -89,26 +84,22 @@ func (d *database) Open(connURL db.ConnectionURL) error {
 	if connURL == nil {
 		return db.ErrMissingConnURL
 	}
-
-	d.BaseDatabase = sqladapter.NewDatabase(d, connURL, template())
-
+	d.connURL = connURL
 	return d.open()
 }
 
-// Clone creates a new database connection with the same settings as the
-// original.
-func (d *database) Clone() (db.Database, error) {
-	return d.clone()
-}
-
-// NewTable returns a db.Collection.
-func (d *database) NewTable(name string) db.Collection {
-	return newTable(d, name)
+// Transaction starts a transaction block.
+func (d *database) Transaction() (Tx, error) {
+	nTx, err := d.NewLocalTransaction()
+	if err != nil {
+		return nil, err
+	}
+	return &tx{Tx: nTx}, nil
 }
 
 // Collections returns a list of non-system tables from the database.
 func (d *database) Collections() (collections []string, err error) {
-	q := d.Builder().Select("table_name").
+	q := d.Builder.Select("table_name").
 		From("information_schema.tables").
 		Where("table_schema = ?", "public")
 
@@ -126,37 +117,92 @@ func (d *database) Collections() (collections []string, err error) {
 	return collections, nil
 }
 
-// Transaction starts a transaction block and returns a db.Tx struct that can
-// be used to issue transactional queries.
-func (d *database) Transaction() (db.Tx, error) {
-	var err error
-	var sqlTx *sql.Tx
-	var clone *database
+func (d *database) open() error {
+	// Binding with sqladapter's logic.
+	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
 
-	if clone, err = d.clone(); err != nil {
-		return nil, err
+	// Binding with builder.
+	b, err := builder.New(d.BaseDatabase, template)
+	if err != nil {
+		return err
+	}
+	d.Builder = b
+
+	connFn := func() error {
+		sess, err := sql.Open("postgres", d.ConnectionURL().String())
+		if err == nil {
+			return d.BaseDatabase.BindSession(sess)
+		}
+		return err
 	}
 
-	connFn := func(sqlTx **sql.Tx) (err error) {
-		*sqlTx, err = clone.Session().Begin()
-		return
+	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
+		return err
 	}
 
-	if err := d.WaitForConnection(func() error { return connFn(&sqlTx) }); err != nil {
-		return nil, err
-	}
-
-	clone.BindTx(sqlTx)
-
-	return &sqladapter.TxDatabase{Database: clone, Tx: clone.Tx()}, nil
+	return nil
 }
 
-// PopulateSchema looks up for the table info in the database and populates its
-// schema for internal use.
-func (d *database) PopulateSchema() error {
-	schema := d.NewSchema()
+func (d *database) clone() (*database, error) {
+	clone, err := newDatabase(d.connURL)
+	if err != nil {
+		return nil, err
+	}
 
-	q := d.Builder().Select(db.Raw("CURRENT_DATABASE() AS name"))
+	if err := clone.open(); err != nil {
+		return nil, err
+	}
+
+	return clone, nil
+}
+
+// CompileStatement allows sqladapter to compile the given statement into the
+// format PostgreSQL expects.
+func (d *database) CompileStatement(stmt *exql.Statement) string {
+	return sqladapter.ReplaceWithDollarSign(stmt.Compile(template))
+}
+
+// Err allows sqladapter to translate some known errors into generic errors.
+func (d *database) Err(err error) error {
+	if err != nil {
+		s := err.Error()
+		if strings.Contains(s, `too many clients`) || strings.Contains(s, `remaining connection slots are reserved`) || strings.Contains(s, `too many open`) {
+			return db.ErrTooManyClients
+		}
+	}
+	return err
+}
+
+// NewLocalCollection allows sqladapter create a local db.Collection.
+func (d *database) NewLocalCollection(name string) db.Collection {
+	return newTable(d, name)
+}
+
+// NewLocalTransaction allows sqladapter start a transaction block.
+func (d *database) NewLocalTransaction() (sqladapter.Tx, error) {
+	clone, err := d.clone()
+	if err != nil {
+		return nil, err
+	}
+
+	connFn := func() error {
+		sqlTx, err := clone.BaseDatabase.Session().Begin()
+		if err == nil {
+			return clone.BindTx(sqlTx)
+		}
+		return err
+	}
+
+	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
+		return nil, err
+	}
+
+	return sqladapter.NewTx(clone), nil
+}
+
+// FindDatabaseName allows sqladapter look up the database's name.
+func (d *database) FindDatabaseName() (string, error) {
+	q := d.Builder.Select(db.Raw("CURRENT_DATABASE() AS name"))
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -164,17 +210,18 @@ func (d *database) PopulateSchema() error {
 	if iter.Next() {
 		var name string
 		err := iter.Scan(&name)
-		schema.SetName(name)
-		return err
+		return name, err
 	}
-	return iter.Err()
+
+	return "", iter.Err()
 }
 
-// TableExists checks whether a table exists and returns an error in case it doesn't.
+// TableExists allows sqladapter check whether a table exists and returns an
+// error in case it doesn't.
 func (d *database) TableExists(name string) error {
-	q := d.Builder().Select("table_name").
+	q := d.Builder.Select("table_name").
 		From("information_schema.tables").
-		Where("table_catalog = ? AND table_name = ?", d.Schema().Name(), name)
+		Where("table_catalog = ? AND table_name = ?", d.BaseDatabase.Name(), name)
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -189,18 +236,9 @@ func (d *database) TableExists(name string) error {
 	return db.ErrCollectionDoesNotExist
 }
 
-// TablePrimaryKey returns all primary keys from the given table.
-func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
-	tableSchema := d.Schema().Table(tableName)
-
-	pk := tableSchema.PrimaryKeys()
-	if pk != nil {
-		return pk, nil
-	}
-
-	pk = []string{}
-
-	q := d.Builder().Select("pg_attribute.attname AS pkey").
+// FindTablePrimaryKeys allows sqladapter find a table's primary keys.
+func (d *database) FindTablePrimaryKeys(tableName string) ([]string, error) {
+	q := d.Builder.Select("pg_attribute.attname AS pkey").
 		From("pg_index", "pg_class", "pg_attribute").
 		Where(`
 			pg_class.oid = '"` + tableName + `"'::regclass
@@ -213,6 +251,8 @@ func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
 	iter := q.Iterator()
 	defer iter.Close()
 
+	pk := []string{}
+
 	for iter.Next() {
 		var k string
 		if err := iter.Scan(&k); err != nil {
@@ -221,16 +261,5 @@ func (d *database) TablePrimaryKey(tableName string) ([]string, error) {
 		pk = append(pk, k)
 	}
 
-	tableSchema.SetPrimaryKeys(pk)
-
 	return pk, nil
-}
-
-func (d *database) clone() (*database, error) {
-	clone := &database{}
-	clone.BaseDatabase = d.BaseDatabase.Clone(clone)
-	if err := clone.open(); err != nil {
-		return nil, err
-	}
-	return clone, nil
 }

@@ -34,10 +34,10 @@ const defaultCapacity = 128
 
 // Cache holds a map of volatile key -> values.
 type Cache struct {
-	cache map[string]*list.Element
-	li    *list.List
-	cap   int
-	mu    sync.RWMutex
+	cache    map[string]*list.Element
+	li       *list.List
+	capacity int
+	mu       sync.RWMutex
 }
 
 type item struct {
@@ -47,14 +47,14 @@ type item struct {
 
 // NewCacheWithCapacity initializes a new caching space with the given
 // capacity.
-func NewCacheWithCapacity(cap int) (*Cache, error) {
-	if cap < 1 {
+func NewCacheWithCapacity(capacity int) (*Cache, error) {
+	if capacity < 1 {
 		return nil, errors.New("Capacity must be greater than zero.")
 	}
 	return &Cache{
-		cache: make(map[string]*list.Element),
-		li:    list.New(),
-		cap:   cap,
+		cache:    make(map[string]*list.Element),
+		li:       list.New(),
+		capacity: capacity,
 	}, nil
 }
 
@@ -95,31 +95,30 @@ func (c *Cache) Write(h Hashable, value interface{}) {
 	key := h.Hash()
 
 	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	if el, ok := c.cache[key]; ok {
 		el.Value.(*item).value = value
 		c.li.MoveToFront(el)
-		c.mu.Unlock()
 		return
 	}
 
 	c.cache[key] = c.li.PushFront(&item{key, value})
 
-	if c.li.Len() > c.cap {
+	if c.li.Len() > c.capacity {
 		el := c.li.Remove(c.li.Back())
 		delete(c.cache, el.(*item).key)
 		if p, ok := el.(*item).value.(HasOnPurge); ok {
 			p.OnPurge()
 		}
 	}
-
-	c.mu.Unlock()
 }
 
 // Clear generates a new memory space, leaving the old memory unreferenced, so
 // it can be claimed by the garbage collector.
 func (c *Cache) Clear() {
 	c.mu.Lock()
+	defer c.mu.Unlock()
 	for _, el := range c.cache {
 		if p, ok := el.Value.(*item).value.(HasOnPurge); ok {
 			p.OnPurge()
@@ -127,7 +126,6 @@ func (c *Cache) Clear() {
 	}
 	c.cache = make(map[string]*list.Element)
 	c.li.Init()
-	c.mu.Unlock()
 }
 
 // Hash returns a hash of the given struct.
@@ -137,4 +135,17 @@ func Hash(v interface{}) string {
 		panic(fmt.Sprintf("Could not hash struct: ", err.Error()))
 	}
 	return strconv.FormatUint(q, 10)
+}
+
+type hash struct {
+	name string
+}
+
+func (h *hash) Hash() string {
+	return h.name
+}
+
+// String returns a Hashable that produces a hash equal to the given string.
+func String(s string) Hashable {
+	return &hash{s}
 }

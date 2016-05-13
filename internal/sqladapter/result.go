@@ -26,6 +26,7 @@ import (
 	"upper.io/db.v2/builder"
 )
 
+// Result represents a delimited set of items bound by a condition.
 type Result struct {
 	b       builder.Builder
 	table   string
@@ -40,16 +41,10 @@ type Result struct {
 }
 
 func filter(conds []interface{}) []interface{} {
-	for i := range conds {
-		switch v := conds[i].(type) {
-		case db.Constrainer:
-			conds[i] = v.Constraints()
-		}
-	}
 	return conds
 }
 
-// NewResult creates and results a new result set on the given table, this set
+// NewResult creates and Results a new Result set on the given table, this set
 // is limited by the given exql.Where conditions.
 func NewResult(b builder.Builder, table string, conds []interface{}) *Result {
 	return &Result{
@@ -59,57 +54,57 @@ func NewResult(b builder.Builder, table string, conds []interface{}) *Result {
 	}
 }
 
-// Sets conditions for reducing the working set.
+// Where sets conditions for the result set.
 func (r *Result) Where(conds ...interface{}) db.Result {
 	r.conds = conds
 	return r
 }
 
-// Determines the maximum limit of results to be returned.
+// Limit determines the maximum limit of Results to be returned.
 func (r *Result) Limit(n uint) db.Result {
 	r.limit = int(n)
 	return r
 }
 
-// Determines how many documents will be skipped before starting to grab
-// results.
+// Skip determines how many documents will be skipped before starting to grab
+// Results.
 func (r *Result) Skip(n uint) db.Result {
 	r.offset = int(n)
 	return r
 }
 
-// Used to group results that have the same value in the same column or
-// columns.
+// Group is used to group Results that have the same value in the same column
+// or columns.
 func (r *Result) Group(fields ...interface{}) db.Result {
 	r.groupBy = fields
 	return r
 }
 
-// Determines sorting of results according to the provided names. Fields may be
-// prefixed by - (minus) which means descending order, ascending order would be
-// used otherwise.
+// Sort determines sorting of Results according to the provided names. Fields
+// may be prefixed by - (minus) which means descending order, ascending order
+// would be used otherwise.
 func (r *Result) Sort(fields ...interface{}) db.Result {
 	r.orderBy = fields
 	return r
 }
 
-// Retrieves only the given fields.
+// Select determines which fields to return.
 func (r *Result) Select(fields ...interface{}) db.Result {
 	r.fields = fields
 	return r
 }
 
-// Dumps all results into a pointer to an slice of structs or maps.
+// All dumps all Results into a pointer to an slice of structs or maps.
 func (r *Result) All(dst interface{}) error {
 	return r.buildSelect().Iterator().All(dst)
 }
 
-// Fetches only one result from the resultset.
+// One fetches only one Result from the set.
 func (r *Result) One(dst interface{}) error {
 	return r.buildSelect().Iterator().One(dst)
 }
 
-// Fetches the next result from the resultset.
+// Next fetches the next Result from the set.
 func (r *Result) Next(dst interface{}) (err error) {
 	if r.iter == nil {
 		r.iter = r.buildSelect().Iterator()
@@ -120,7 +115,7 @@ func (r *Result) Next(dst interface{}) (err error) {
 	return nil
 }
 
-// Removes the matching items from the collection.
+// Remove deletes all matching items from the collection.
 func (r *Result) Remove() error {
 	q := r.b.DeleteFrom(r.table).
 		Where(filter(r.conds)...).
@@ -130,7 +125,7 @@ func (r *Result) Remove() error {
 	return err
 }
 
-// Closes the result set.
+// Close closes the Result set.
 func (r *Result) Close() error {
 	if r.iter != nil {
 		return r.iter.Close()
@@ -138,8 +133,8 @@ func (r *Result) Close() error {
 	return nil
 }
 
-// Updates matching items from the collection with values of the given map or
-// struct.
+// Update updates matching items from the collection with values of the given
+// map or struct.
 func (r *Result) Update(values interface{}) error {
 	q := r.b.Update(r.table).
 		Set(values).
@@ -150,7 +145,7 @@ func (r *Result) Update(values interface{}) error {
 	return err
 }
 
-// Counts the elements within the main conditions of the set.
+// Count counts the elements on the set.
 func (r *Result) Count() (uint64, error) {
 	counter := struct {
 		Count uint64 `db:"_t"`

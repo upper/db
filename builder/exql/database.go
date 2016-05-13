@@ -3,7 +3,7 @@ package exql
 // Database represents a SQL database.
 type Database struct {
 	Name string
-	hash MemHash
+	hash hash
 }
 
 // DatabaseWithName returns a Database with the given name.

@@ -14,7 +14,7 @@ type innerJoinT struct {
 // Joins represents the union of different join conditions.
 type Joins struct {
 	Conditions []Fragment
-	hash       MemHash
+	hash       hash
 }
 
 // Hash returns a unique identifier for the struct.
@@ -60,7 +60,7 @@ type Join struct {
 	*Table
 	*On
 	*Using
-	hash MemHash
+	hash hash
 }
 
 // Hash returns a unique identifier for the struct.

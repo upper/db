@@ -19,70 +19,29 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package sqladapter
+package ql
 
 import (
-	"database/sql"
-	"sync/atomic"
+	"upper.io/db.v2"
+	"upper.io/db.v2/internal/sqladapter"
 )
 
-// Tx represents a database session within a transaction.
+// Tx represents a transaction.
 type Tx interface {
 	Database
-	BaseTx
-}
 
-// BaseTx defines methods to be implemented by a transaction.
-type BaseTx interface {
 	Commit() error
 	Rollback() error
-	Commited() bool
 }
 
-type txWrapper struct {
-	Database
-	BaseTx
-}
-
-// NewTx creates a database session within a transaction.
-func NewTx(db Database) Tx {
-	return &txWrapper{
-		Database: db,
-		BaseTx:   db.Tx(),
-	}
-}
-
-func newTxWrapper(db Database) Tx {
-	return &txWrapper{
-		Database: db,
-		BaseTx:   db.Tx(),
-	}
-}
-
-type sqlTx struct {
-	*sql.Tx
-	commited atomic.Value
-}
-
-func newTx(tx *sql.Tx) BaseTx {
-	return &sqlTx{Tx: tx}
-}
-
-func (t *sqlTx) Commited() bool {
-	commited := t.commited.Load()
-	if commited != nil {
-		return true
-	}
-	return false
-}
-
-func (t *sqlTx) Commit() (err error) {
-	if err = t.Tx.Commit(); err == nil {
-		t.commited.Store(struct{}{})
-	}
-	return err
+type tx struct {
+	sqladapter.Tx
 }
 
 var (
-	_ = BaseTx(&sqlTx{})
+	_ = db.Tx(&tx{})
 )
+
+func (t *tx) Transaction() (Tx, error) {
+	return t, db.ErrAlreadyWithinTransaction
+}

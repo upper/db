@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"upper.io/db.v2"
 	"upper.io/db.v2/builder/exql"
 	"upper.io/db.v2/builder/reflectx"
 )
@@ -43,9 +44,9 @@ var (
 )
 
 type exprDB interface {
-	Query(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error)
-	QueryRow(stmt *exql.Statement, args ...interface{}) (*sql.Row, error)
-	Exec(stmt *exql.Statement, args ...interface{}) (sql.Result, error)
+	StatementQuery(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error)
+	StatementQueryRow(stmt *exql.Statement, args ...interface{}) (*sql.Row, error)
+	StatementExec(stmt *exql.Statement, args ...interface{}) (sql.Result, error)
 }
 
 type sqlBuilder struct {
@@ -54,11 +55,10 @@ type sqlBuilder struct {
 }
 
 // New returns a query builder that is bound to the given database session.
-func New(sess interface{}, t func() *exql.Template) (Builder, error) {
-	tt := t()
+func New(sess interface{}, t *exql.Template) (Builder, error) {
 	switch v := sess.(type) {
 	case *sql.DB:
-		sess = newSqlgenProxy(v, tt)
+		sess = newSqlgenProxy(v, t)
 	case exprDB:
 		// OK!
 	default:
@@ -67,23 +67,18 @@ func New(sess interface{}, t func() *exql.Template) (Builder, error) {
 	}
 	return &sqlBuilder{
 		sess: sess.(exprDB),
-		t:    newTemplateWithUtils(tt),
+		t:    newTemplateWithUtils(t),
 	}, nil
 }
 
+// NewBuilderWithTemplate returns a builder that is based on the given template.
 func NewBuilderWithTemplate(t *exql.Template) Builder {
 	return &sqlBuilder{
 		t: newTemplateWithUtils(t),
 	}
 }
 
-// func (b *Builder) Iterator(query interface{}, args ...interface{}) Iterator {
-// 	rows, err := b.Query(query, args...)
-// 	return &iterator{rows, err}
-// }
-
 // NewIterator creates an iterator using the given *sql.Rows.
-
 func NewIterator(rows *sql.Rows) Iterator {
 	return &iterator{rows, nil}
 }
@@ -96,9 +91,9 @@ func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) Iterator {
 func (b *sqlBuilder) Exec(query interface{}, args ...interface{}) (sql.Result, error) {
 	switch q := query.(type) {
 	case *exql.Statement:
-		return b.sess.Exec(q, args...)
+		return b.sess.StatementExec(q, args...)
 	case string:
-		return b.sess.Exec(exql.RawSQL(q), args...)
+		return b.sess.StatementExec(exql.RawSQL(q), args...)
 	default:
 		return nil, fmt.Errorf("Unsupported query type %T.", query)
 	}
@@ -107,9 +102,9 @@ func (b *sqlBuilder) Exec(query interface{}, args ...interface{}) (sql.Result, e
 func (b *sqlBuilder) Query(query interface{}, args ...interface{}) (*sql.Rows, error) {
 	switch q := query.(type) {
 	case *exql.Statement:
-		return b.sess.Query(q, args...)
+		return b.sess.StatementQuery(q, args...)
 	case string:
-		return b.sess.Query(exql.RawSQL(q), args...)
+		return b.sess.StatementQuery(exql.RawSQL(q), args...)
 	default:
 		return nil, fmt.Errorf("Unsupported query type %T.", query)
 	}
@@ -118,9 +113,9 @@ func (b *sqlBuilder) Query(query interface{}, args ...interface{}) (*sql.Rows, e
 func (b *sqlBuilder) QueryRow(query interface{}, args ...interface{}) (*sql.Row, error) {
 	switch q := query.(type) {
 	case *exql.Statement:
-		return b.sess.QueryRow(q, args...)
+		return b.sess.StatementQueryRow(q, args...)
 	case string:
-		return b.sess.QueryRow(exql.RawSQL(q), args...)
+		return b.sess.StatementQueryRow(exql.RawSQL(q), args...)
 	default:
 		return nil, fmt.Errorf("Unsupported query type %T.", query)
 	}
@@ -263,7 +258,7 @@ func columnFragments(template *templateWithUtils, columns []interface{}) ([]exql
 
 	for i := 0; i < l; i++ {
 		switch v := columns[i].(type) {
-		case Function:
+		case db.Function:
 			var s string
 			a := template.ToInterfaceArguments(v.Arguments())
 			if len(a) == 0 {
@@ -276,7 +271,7 @@ func columnFragments(template *templateWithUtils, columns []interface{}) ([]exql
 				s = fmt.Sprintf(`%s(%s)`, v.Name(), strings.Join(ss, `, `))
 			}
 			f[i] = exql.RawValue(s)
-		case RawValue:
+		case db.RawValue:
 			f[i] = exql.RawValue(v.String())
 		case exql.Fragment:
 			f[i] = v
@@ -394,7 +389,7 @@ func (iter *iterator) Close() (err error) {
 }
 
 func marshal(v interface{}) (interface{}, error) {
-	if m, isMarshaler := v.(Marshaler); isMarshaler {
+	if m, isMarshaler := v.(db.Marshaler); isMarshaler {
 		var err error
 		if v, err = m.MarshalDB(); err != nil {
 			return nil, err
@@ -425,17 +420,17 @@ func newSqlgenProxy(db *sql.DB, t *exql.Template) *exprProxy {
 	return &exprProxy{db: db, t: t}
 }
 
-func (p *exprProxy) Exec(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
+func (p *exprProxy) StatementExec(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
 	s := stmt.Compile(p.t)
 	return p.db.Exec(s, args...)
 }
 
-func (p *exprProxy) Query(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
+func (p *exprProxy) StatementQuery(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
 	s := stmt.Compile(p.t)
 	return p.db.Query(s, args...)
 }
 
-func (p *exprProxy) QueryRow(stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
+func (p *exprProxy) StatementQueryRow(stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
 	s := stmt.Compile(p.t)
 	return p.db.QueryRow(s, args...), nil
 }

@@ -51,6 +51,19 @@ func init() {
 	db.Register(Adapter, &Source{})
 }
 
+// Open stablishes a new connection to a SQL server.
+func Open(settings db.ConnectionURL) (db.Database, error) {
+	d := &Source{}
+	if err := d.Open(settings); err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+func (s *Source) ConnectionURL() db.ConnectionURL {
+	return s.connURL
+}
+
 // Name returns the name of the database.
 func (s *Source) Name() string {
 	return s.name

@@ -73,6 +73,7 @@ func (m *message) Print() {
 	log.Printf("\n\t%s\n\n", strings.Join(s, "\n\t"))
 }
 
+// Log prints the given query to stdout in readable format.
 func Log(query string, args []interface{}, err error, start int64, end int64) {
 	if db.Debug {
 		m := message{query, args, err, start, end}

@@ -12,7 +12,7 @@ type tableT struct {
 // Table struct represents a SQL table.
 type Table struct {
 	Name interface{}
-	hash MemHash
+	hash hash
 }
 
 func quotedTableName(layout *Template, input string) string {

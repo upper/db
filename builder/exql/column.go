@@ -13,7 +13,7 @@ type columnT struct {
 // Column represents a SQL column.
 type Column struct {
 	Name interface{}
-	hash MemHash
+	hash hash
 }
 
 // ColumnWithName creates and returns a Column with the given name.

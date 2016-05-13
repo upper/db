@@ -26,27 +26,88 @@ import (
 
 	"upper.io/db.v2"
 	"upper.io/db.v2/builder"
-	"upper.io/db.v2/builder/exql"
 	"upper.io/db.v2/internal/sqladapter"
 )
 
+// table is the actual implementation of a collection.
 type table struct {
-	sqladapter.Collection
+	sqladapter.BaseCollection // Leveraged by sqladapter
+
+	d    *database
+	name string
 }
 
-var _ = db.Collection(&table{})
+var (
+	_ = sqladapter.Collection(&table{})
+	_ = db.Collection(&table{})
+)
 
-// Truncate deletes all rows from the table.
-func (t *table) Truncate() error {
-	stmt := exql.Statement{
-		Type:  exql.Truncate,
-		Table: exql.TableWithName(t.Name()),
+// newTable binds *table with sqladapter.
+func newTable(d *database, name string) *table {
+	t := &table{
+		name: name,
+		d:    d,
 	}
+	t.BaseCollection = sqladapter.NewBaseCollection(t)
+	return t
+}
 
-	if _, err := t.Database().Builder().Exec(&stmt); err != nil {
-		return err
+type resultProxy struct {
+	db.Result
+	t *table
+}
+
+func (r *resultProxy) Select(fields ...interface{}) db.Result {
+	if len(fields) == 1 {
+		if s, ok := fields[0].(string); ok && s == "*" {
+			var columns []struct {
+				Name string `db:"Name"`
+			}
+			err := r.t.d.Builder.Select("Name").
+				From("__Column").
+				Where("TableName", r.t.Name()).
+				Iterator().All(&columns)
+			if err == nil {
+				fields = make([]interface{}, 0, len(columns)+1)
+				fields = append(fields, "id() as id")
+				for _, column := range columns {
+					fields = append(fields, column.Name)
+				}
+			}
+		}
 	}
-	return nil
+	return r.Result.Select(fields...)
+}
+
+func (t *table) Name() string {
+	return t.name
+}
+
+func (t *table) Database() sqladapter.Database {
+	return t.d
+}
+
+func (t *table) Conds(conds ...interface{}) []interface{} {
+	if len(conds) == 1 {
+		switch id := conds[0].(type) {
+		case uint64:
+			conds[0] = db.Cond{"id()": id}
+		case int64:
+			conds[0] = db.Cond{"id()": id}
+		case int:
+			conds[0] = db.Cond{"id()": id}
+		default:
+		}
+	}
+	return conds
+}
+
+func (t *table) Find(conds ...interface{}) db.Result {
+	res := &resultProxy{
+		Result: t.BaseCollection.Find(conds...),
+		t:      t,
+	}
+	return res.Select("*")
 }
 
 // Insert inserts an item (map or struct) into the collection.
@@ -56,7 +117,9 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	q := t.Database().Builder().InsertInto(t.Name()).
+	pKey := t.BaseCollection.PrimaryKeys()
+
+	q := t.d.InsertInto(t.Name()).
 		Columns(columnNames...).
 		Values(columnValues...)
 
@@ -65,19 +128,23 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	var id int64
-	id, _ = res.LastInsertId()
+	if len(pKey) <= 1 {
+		// Attempt to use LastInsertId() (probably won't work, but the Exec()
+		// succeeded, so we can safely ignore the error from LastInsertId()).
+		lastID, _ := res.LastInsertId()
 
-	// Does the item satisfy the db.ID interface?
-	if setter, ok := item.(db.IDSetter); ok {
-		if err := setter.SetID(map[string]interface{}{"id": id}); err != nil {
-			return nil, err
+		return lastID, nil
+	}
+
+	keyMap := db.Cond{}
+
+	for i := range columnNames {
+		for j := 0; j < len(pKey); j++ {
+			if pKey[j] == columnNames[i] {
+				keyMap[pKey[j]] = columnValues[i]
+			}
 		}
 	}
 
-	return id, nil
-}
-
-func newTable(d *database, name string) *table {
-	return &table{sqladapter.NewCollection(d, name)}
+	return keyMap, nil
 }

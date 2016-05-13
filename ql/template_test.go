@@ -4,13 +4,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"upper.io/db.v2"
 	"upper.io/db.v2/builder"
 )
 
 func TestTemplateSelect(t *testing.T) {
-
-	testTemplate := template()
-	b := builder.NewBuilderWithTemplate(testTemplate)
+	b := builder.NewBuilderWithTemplate(template)
 	assert := assert.New(t)
 
 	assert.Equal(
@@ -143,13 +142,12 @@ func TestTemplateSelect(t *testing.T) {
 
 	assert.Equal(
 		"SELECT DATE()",
-		b.Select(builder.Raw("DATE()")).String(),
+		b.Select(db.Raw("DATE()")).String(),
 	)
 }
 
 func TestTemplateInsert(t *testing.T) {
-	testTemplate := template()
-	b := builder.NewBuilderWithTemplate(testTemplate)
+	b := builder.NewBuilderWithTemplate(template)
 	assert := assert.New(t)
 
 	assert.Equal(
@@ -191,8 +189,7 @@ func TestTemplateInsert(t *testing.T) {
 }
 
 func TestTemplateUpdate(t *testing.T) {
-	testTemplate := template()
-	b := builder.NewBuilderWithTemplate(testTemplate)
+	b := builder.NewBuilderWithTemplate(template)
 	assert := assert.New(t)
 
 	assert.Equal(
@@ -207,21 +204,21 @@ func TestTemplateUpdate(t *testing.T) {
 
 	assert.Equal(
 		"UPDATE artist SET name = $1 WHERE (id < $2)",
-		b.Update("artist").Set(map[string]string{"name": "Artist"}).Where(builder.M{"id <": 5}).String(),
+		b.Update("artist").Set(map[string]string{"name": "Artist"}).Where(db.Cond{"id <": 5}).String(),
 	)
 
 	assert.Equal(
 		"UPDATE artist SET name = $1 WHERE (id < $2)",
 		b.Update("artist").Set(struct {
 			Nombre string `db:"name"`
-		}{"Artist"}).Where(builder.M{"id <": 5}).String(),
+		}{"Artist"}).Where(db.Cond{"id <": 5}).String(),
 	)
 
 	assert.Equal(
 		"UPDATE artist SET name = $1, last_name = $2 WHERE (id < $3)",
 		b.Update("artist").Set(struct {
 			Nombre string `db:"name"`
-		}{"Artist"}).Set(map[string]string{"last_name": "Foo"}).Where(builder.M{"id <": 5}).String(),
+		}{"Artist"}).Set(map[string]string{"last_name": "Foo"}).Where(db.Cond{"id <": 5}).String(),
 	)
 
 	assert.Equal(
@@ -234,8 +231,7 @@ func TestTemplateUpdate(t *testing.T) {
 }
 
 func TestTemplateDelete(t *testing.T) {
-	testTemplate := template()
-	b := builder.NewBuilderWithTemplate(testTemplate)
+	b := builder.NewBuilderWithTemplate(template)
 	assert := assert.New(t)
 
 	assert.Equal(

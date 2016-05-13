@@ -28,10 +28,11 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"upper.io/db.v2"
 )
 
 type scanner struct {
-	v Unmarshaler
+	v db.Unmarshaler
 }
 
 func (u scanner) Scan(v interface{}) error {
