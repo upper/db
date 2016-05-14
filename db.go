@@ -424,16 +424,16 @@ type Result interface {
 
 	// Limit defines the maximum number of results in this set. It only has
 	// effect on `One()`, `All()` and `Next()`.
-	Limit(uint) Result
+	Limit(int) Result
 
-	// Skip ignores the first *n* results. It only has effect on `One()`, `All()`
+	// Offset ignores the first *n* results. It only has effect on `One()`, `All()`
 	// and `Next()`.
-	Skip(uint) Result
+	Offset(int) Result
 
-	// Sort receives field names that define the order in which elements will be
+	// OrderBy receives field names that define the order in which elements will be
 	// returned in a query, field names may be prefixed with a minus sign (-)
 	// indicating descending order, ascending order will be used otherwise.
-	Sort(...interface{}) Result
+	OrderBy(...interface{}) Result
 
 	// Select defines specific columns to be returned from the elements of the
 	// set.
@@ -446,15 +446,15 @@ type Result interface {
 	// or columns.
 	Group(...interface{}) Result
 
-	// Remove deletes all items within the result set. `Skip()` and `Limit()` are
+	// Remove deletes all items within the result set. `Offset()` and `Limit()` are
 	// not honoured by `Remove()`.
 	Remove() error
 
-	// Update modifies all items within the result set. `Skip()` and `Limit()`
+	// Update modifies all items within the result set. `Offset()` and `Limit()`
 	// are not honoured by `Update()`.
 	Update(interface{}) error
 
-	// Count returns the number of items that match the set conditions. `Skip()`
+	// Count returns the number of items that match the set conditions. `Offset()`
 	// and `Limit()` are not honoured by `Count()`
 	Count() (uint64, error)
 

@@ -711,11 +711,11 @@ func TestFibonacci(t *testing.T) {
 			// Testing sort by function.
 			switch wrapper {
 			case `postgresql`:
-				res = res.Sort(db.Raw(`RANDOM()`))
+				res = res.OrderBy(db.Raw(`RANDOM()`))
 			case `sqlite`:
-				res = res.Sort(db.Raw(`RANDOM()`))
+				res = res.OrderBy(db.Raw(`RANDOM()`))
 			case `mysql`:
-				res = res.Sort(db.Raw(`RAND()`))
+				res = res.OrderBy(db.Raw(`RAND()`))
 			}
 
 			total, err = res.Count()
@@ -729,7 +729,7 @@ func TestFibonacci(t *testing.T) {
 			}
 
 			// Find() with IN/$in
-			res = col.Find(db.Cond{"input IN": []int{3, 5, 6, 7}}).Sort("input")
+			res = col.Find(db.Cond{"input IN": []int{3, 5, 6, 7}}).OrderBy("input")
 
 			total, err = res.Count()
 
@@ -741,7 +741,7 @@ func TestFibonacci(t *testing.T) {
 				t.Fatalf(`Expecting a count of 4.`)
 			}
 
-			res = res.Skip(1).Limit(2)
+			res = res.Offset(1).Limit(2)
 
 			for {
 				var item fibonacci
@@ -773,7 +773,7 @@ func TestFibonacci(t *testing.T) {
 					),
 					db.Cond{"input": 3},
 				),
-			).Sort("-input")
+			).OrderBy("-input")
 
 			if total, err = res.Count(); err != nil {
 				t.Fatalf(`%s: %q`, wrapper, err)
@@ -784,7 +784,7 @@ func TestFibonacci(t *testing.T) {
 			}
 
 			// Skipping.
-			res = res.Skip(1).Limit(2)
+			res = res.Offset(1).Limit(2)
 
 			for {
 				var item fibonacci

@@ -61,15 +61,15 @@ func (r *Result) Where(conds ...interface{}) db.Result {
 }
 
 // Limit determines the maximum limit of Results to be returned.
-func (r *Result) Limit(n uint) db.Result {
-	r.limit = int(n)
+func (r *Result) Limit(n int) db.Result {
+	r.limit = n
 	return r
 }
 
-// Skip determines how many documents will be skipped before starting to grab
+// Offset determines how many documents will be skipped before starting to grab
 // Results.
-func (r *Result) Skip(n uint) db.Result {
-	r.offset = int(n)
+func (r *Result) Offset(n int) db.Result {
+	r.offset = n
 	return r
 }
 
@@ -80,10 +80,10 @@ func (r *Result) Group(fields ...interface{}) db.Result {
 	return r
 }
 
-// Sort determines sorting of Results according to the provided names. Fields
+// OrderBy determines sorting of Results according to the provided names. Fields
 // may be prefixed by - (minus) which means descending order, ascending order
 // would be used otherwise.
-func (r *Result) Sort(fields ...interface{}) db.Result {
+func (r *Result) OrderBy(fields ...interface{}) db.Result {
 	r.orderBy = fields
 	return r
 }
