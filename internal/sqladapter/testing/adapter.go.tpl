@@ -85,16 +85,7 @@ func TestExpectCursorError(t *testing.T) {
 
 	artist := sess.Collection("artist")
 
-	var cond db.Cond
-
-	switch Adapter {
-	case "ql":
-		cond = db.Cond{"id()": -1}
-	default:
-		cond = db.Cond{"id": 0}
-	}
-
-	res := artist.Find(cond)
+	res := artist.Find(-1)
 	c, err := res.Count()
 	assert.Equal(t, uint64(0), c)
 	assert.NoError(t, err)
@@ -294,7 +285,7 @@ func TestInsertIntoArtistsTable(t *testing.T) {
 	id, err = artist.Insert(&itemStruct3)
 	assert.NoError(t, err)
 	if Adapter != "ql" {
-		assert.NotZero(t, id)
+		assert.NotZero(t, id) // QL always inserts an ID.
 	}
 
 	// Counting elements, must be exactly 4 elements.
@@ -402,7 +393,6 @@ func TestGetResultsOneByOne(t *testing.T) {
 	allRowsMap := []map[string]interface{}{}
 
 	res = artist.Find()
-
 	if Adapter == "ql" {
 		res.Select("id() as id")
 	}
@@ -424,7 +414,6 @@ func TestGetResultsOneByOne(t *testing.T) {
 	}{}
 
 	res = artist.Find()
-
 	if Adapter == "ql" {
 		res.Select("id() as id")
 	}
@@ -446,7 +435,6 @@ func TestGetResultsOneByOne(t *testing.T) {
 	}{}
 
 	res = artist.Find()
-
 	if Adapter == "ql" {
 		res.Select("id() as id", "name")
 	}
@@ -724,11 +712,7 @@ func TestNullableFields(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Testing fetching of invalid nulls.
-	cond := db.Cond{"id": id}
-	if Adapter == "ql" {
-		cond = db.Cond{"id()": id}
-	}
-	err = col.Find(cond).One(&test)
+	err = col.Find(id).One(&test)
 	assert.NoError(t, err)
 
 	assert.False(t, test.NullInt64Test.Valid)
@@ -747,11 +731,7 @@ func TestNullableFields(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Testing fetching of valid nulls.
-	cond = db.Cond{"id": id}
-	if Adapter == "ql" {
-		cond = db.Cond{"id()": id}
-	}
-	err = col.Find(cond).One(&test)
+	err = col.Find(id).One(&test)
 	assert.NoError(t, err)
 
 	assert.True(t, test.NullInt64Test.Valid)

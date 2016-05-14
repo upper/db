@@ -25,7 +25,7 @@ import (
 	"upper.io/db.v2"
 )
 
-const sqlDriver = `sqlite`
+const sqlDriver = `ql`
 
 // Adapter is the public name of the adapter.
 const Adapter = sqlDriver
