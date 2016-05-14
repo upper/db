@@ -42,6 +42,6 @@ var (
 	_ = db.Tx(&tx{})
 )
 
-func (t *tx) Transaction() (Tx, error) {
+func (t *tx) NewTransaction() (Tx, error) {
 	return t, db.ErrAlreadyWithinTransaction
 }

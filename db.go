@@ -368,7 +368,7 @@ type Database interface {
 // 	}
 //
 // 	var tx db.Tx
-// 	if tx, err = sess.Transaction(); err != nil {
+// 	if tx, err = sess.NewTransaction(); err != nil {
 // 		log.Fatal(err)
 // 	}
 //

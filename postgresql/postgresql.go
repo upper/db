@@ -25,6 +25,8 @@ import (
 	"upper.io/db.v2"
 )
 
+const sqlDriver = `postgres`
+
 // Adapter is the public name of the adapter.
 const Adapter = `postgresql`
 

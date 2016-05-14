@@ -38,7 +38,7 @@ type Database interface {
 	db.Database
 	builder.Builder
 
-	Transaction() (Tx, error)
+	NewTransaction() (Tx, error)
 }
 
 // database is the actual implementation of Database
@@ -88,8 +88,8 @@ func (d *database) Open(connURL db.ConnectionURL) error {
 	return d.open()
 }
 
-// Transaction starts a transaction block.
-func (d *database) Transaction() (Tx, error) {
+// NewTransaction starts a transaction block.
+func (d *database) NewTransaction() (Tx, error) {
 	nTx, err := d.NewLocalTransaction()
 	if err != nil {
 		return nil, err
