@@ -64,22 +64,22 @@ func (r *result) Where(terms ...interface{}) db.Result {
 }
 
 // Limit determines the maximum limit of results to be returned.
-func (r *result) Limit(n uint) db.Result {
-	r.queryChunks.Limit = int(n)
+func (r *result) Limit(n int) db.Result {
+	r.queryChunks.Limit = n
 	return r
 }
 
-// Skip determines how many documents will be skipped before starting to grab
+// Offset determines how many documents will be skipped before starting to grab
 // results.
-func (r *result) Skip(n uint) db.Result {
-	r.queryChunks.Offset = int(n)
+func (r *result) Offset(n int) db.Result {
+	r.queryChunks.Offset = n
 	return r
 }
 
-// Sort determines sorting of results according to the provided names. Fields
+// OrderBy determines sorting of results according to the provided names. Fields
 // may be prefixed by - (minus) which means descending order, ascending order
 // would be used otherwise.
-func (r *result) Sort(fields ...interface{}) db.Result {
+func (r *result) OrderBy(fields ...interface{}) db.Result {
 	ss := make([]string, len(fields))
 	for i, field := range fields {
 		ss[i] = fmt.Sprintf(`%v`, field)
