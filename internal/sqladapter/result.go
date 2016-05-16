@@ -115,8 +115,8 @@ func (r *Result) Next(dst interface{}) (err error) {
 	return nil
 }
 
-// Remove deletes all matching items from the collection.
-func (r *Result) Remove() error {
+// Delete deletes all matching items from the collection.
+func (r *Result) Delete() error {
 	q := r.b.DeleteFrom(r.table).
 		Where(filter(r.conds)...).
 		Limit(r.limit)

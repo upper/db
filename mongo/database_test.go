@@ -762,7 +762,7 @@ func TestOperators(t *testing.T) {
 }
 
 // This test tries to remove some previously added rows.
-func TestRemove(t *testing.T) {
+func TestDelete(t *testing.T) {
 
 	var err error
 
@@ -795,7 +795,7 @@ func TestRemove(t *testing.T) {
 	res = artist.Find(db.Cond{"_id": first.ID})
 
 	// Trying to remove the row.
-	err = res.Remove()
+	err = res.Delete()
 
 	if err != nil {
 		t.Fatal(err)
