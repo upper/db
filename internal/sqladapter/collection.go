@@ -107,7 +107,7 @@ func (c *collection) InsertReturning(item interface{}) error {
 
 	if !inTx {
 		// This is only executed if t.Database() was **not** a transaction and if
-		// sess was created with sess.Transaction().
+		// sess was created with sess.NewTransaction().
 		return tx.Commit()
 	}
 	return err
@@ -118,7 +118,7 @@ cancel:
 
 	if !inTx {
 		// This is only executed if t.Database() was **not** a transaction and if
-		// sess was created with sess.Transaction().
+		// sess was created with sess.NewTransaction().
 		tx.Rollback()
 	}
 	return err

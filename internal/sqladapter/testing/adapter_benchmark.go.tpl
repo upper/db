@@ -93,7 +93,7 @@ func BenchmarkUpperInsertTransaction(b *testing.B) {
 	sess := mustOpen()
 	defer sess.Close()
 
-	tx, err := sess.Transaction()
+	tx, err := sess.NewTransaction()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func BenchmarkUpperInsertTransactionWithMap(b *testing.B) {
 	sess := mustOpen()
 	defer sess.Close()
 
-	tx, err := sess.Transaction()
+	tx, err := sess.NewTransaction()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -277,7 +277,7 @@ func BenchmarkUpperCommitManyTransactions(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		var tx Tx
-		if tx, err = sess.Transaction(); err != nil {
+		if tx, err = sess.NewTransaction(); err != nil {
 			b.Fatal(err)
 		}
 
@@ -315,7 +315,7 @@ func BenchmarkUpperRollbackManyTransactions(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		var tx db.Tx
-		if tx, err = sess.Transaction(); err != nil {
+		if tx, err = sess.NewTransaction(); err != nil {
 			b.Fatal(err)
 		}
 
@@ -370,7 +370,7 @@ func BenchmarkSQLInsert(b *testing.B) {
 func BenchmarkDBRInsert(b *testing.B) {
 	var err error
 
-	conn, err := dbr.Open(Adapter, settings.String(), nil)
+	conn, err := dbr.Open(sqlDriver, settings.String(), nil)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -425,7 +425,7 @@ func BenchmarkSQLInsertWithArgs(b *testing.B) {
 func BenchmarkDBRInsertWithArgs(b *testing.B) {
 	var err error
 
-	conn, err := dbr.Open(Adapter, settings.String(), nil)
+	conn, err := dbr.Open(sqlDriver, settings.String(), nil)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -516,7 +516,7 @@ func BenchmarkSQLPreparedInsertWithArguments(b *testing.B) {
 func BenchmarkDBRPreparedInsertWithArguments(b *testing.B) {
 	var err error
 
-	conn, err := dbr.Open(Adapter, settings.String(), nil)
+	conn, err := dbr.Open(sqlDriver, settings.String(), nil)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -583,7 +583,7 @@ func BenchmarkSQLPreparedInsertWithVariableArgs(b *testing.B) {
 func BenchmarkDBRPreparedInsertWithVariableArgs(b *testing.B) {
 	var err error
 
-	conn, err := dbr.Open(Adapter, settings.String(), nil)
+	conn, err := dbr.Open(sqlDriver, settings.String(), nil)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -692,7 +692,7 @@ func BenchmarkDBRSelect(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	conn, err := dbr.Open(Adapter, settings.String(), nil)
+	conn, err := dbr.Open(sqlDriver, settings.String(), nil)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -746,7 +746,7 @@ func BenchmarkDBRPreparedSelect(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	conn, err := dbr.Open(Adapter, settings.String(), nil)
+	conn, err := dbr.Open(sqlDriver, settings.String(), nil)
 	if err != nil {
 		b.Fatal(err)
 	}

@@ -25,8 +25,10 @@ import (
 	"upper.io/db.v2"
 )
 
+const sqlDriver = `mysql`
+
 // Adapter is the public name of the adapter.
-const Adapter = `mysql`
+const Adapter = sqlDriver
 
 func init() {
 	db.Register(Adapter, &database{})

@@ -85,16 +85,7 @@ func TestExpectCursorError(t *testing.T) {
 
 	artist := sess.Collection("artist")
 
-	var cond db.Cond
-
-	switch Adapter {
-	case "ql":
-		cond = db.Cond{"id()": -1}
-	default:
-		cond = db.Cond{"id": 0}
-	}
-
-	res := artist.Find(cond)
+	res := artist.Find(-1)
 	c, err := res.Count()
 	assert.Equal(t, uint64(0), c)
 	assert.NoError(t, err)
@@ -170,7 +161,7 @@ func TestInsertReturningWithinTransaction(t *testing.T) {
 	err := sess.Collection("artist").Truncate()
 	assert.NoError(t, err)
 
-	tx, err := sess.Transaction()
+	tx, err := sess.NewTransaction()
 	assert.NoError(t, err)
 	defer tx.Close()
 
@@ -294,7 +285,7 @@ func TestInsertIntoArtistsTable(t *testing.T) {
 	id, err = artist.Insert(&itemStruct3)
 	assert.NoError(t, err)
 	if Adapter != "ql" {
-		assert.NotZero(t, id)
+		assert.NotZero(t, id) // QL always inserts an ID.
 	}
 
 	// Counting elements, must be exactly 4 elements.
@@ -402,7 +393,6 @@ func TestGetResultsOneByOne(t *testing.T) {
 	allRowsMap := []map[string]interface{}{}
 
 	res = artist.Find()
-
 	if Adapter == "ql" {
 		res.Select("id() as id")
 	}
@@ -424,7 +414,6 @@ func TestGetResultsOneByOne(t *testing.T) {
 	}{}
 
 	res = artist.Find()
-
 	if Adapter == "ql" {
 		res.Select("id() as id")
 	}
@@ -446,7 +435,6 @@ func TestGetResultsOneByOne(t *testing.T) {
 	}{}
 
 	res = artist.Find()
-
 	if Adapter == "ql" {
 		res.Select("id() as id", "name")
 	}
@@ -724,11 +712,7 @@ func TestNullableFields(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Testing fetching of invalid nulls.
-	cond := db.Cond{"id": id}
-	if Adapter == "ql" {
-		cond = db.Cond{"id()": id}
-	}
-	err = col.Find(cond).One(&test)
+	err = col.Find(id).One(&test)
 	assert.NoError(t, err)
 
 	assert.False(t, test.NullInt64Test.Valid)
@@ -747,11 +731,7 @@ func TestNullableFields(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Testing fetching of valid nulls.
-	cond = db.Cond{"id": id}
-	if Adapter == "ql" {
-		cond = db.Cond{"id()": id}
-	}
-	err = col.Find(cond).One(&test)
+	err = col.Find(id).One(&test)
 	assert.NoError(t, err)
 
 	assert.True(t, test.NullInt64Test.Valid)
@@ -858,7 +838,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	defer sess.Close()
 
 	// Simple transaction that should not fail.
-	tx, err := sess.Transaction()
+	tx, err := sess.NewTransaction()
 	assert.NoError(t, err)
 
 	artist := tx.Collection("artist")
@@ -880,7 +860,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Use another transaction.
-	tx, err = sess.Transaction()
+	tx, err = sess.NewTransaction()
 
 	artist = tx.Collection("artist")
 
@@ -912,7 +892,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Attempt to add some rows.
-	tx, err = sess.Transaction()
+	tx, err = sess.NewTransaction()
 	assert.NoError(t, err)
 
 	artist = tx.Collection("artist")
@@ -943,7 +923,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Attempt to add some rows.
-	tx, err = sess.Transaction()
+	tx, err = sess.NewTransaction()
 	assert.NoError(t, err)
 
 	artist = tx.Collection("artist")
@@ -1087,7 +1067,7 @@ func TestBuilder(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotZero(t, all)
 
-	tx, err := sess.Transaction()
+	tx, err := sess.NewTransaction()
 	assert.NoError(t, err)
 	assert.NotZero(t, tx)
 	defer tx.Close()
@@ -1121,7 +1101,7 @@ func TestExhaustConnectionPool(t *testing.T) {
 			start := time.Now()
 
 			// Requesting a new transaction session.
-			tx, err := sess.Transaction()
+			tx, err := sess.NewTransaction()
 			if err != nil {
 				t.Fatal(err)
 			}

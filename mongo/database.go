@@ -88,9 +88,9 @@ func (s *Source) Clone() (db.Database, error) {
 	return clone, nil
 }
 
-// Transaction should support transactions, but it doesn't as MongoDB
+// NewTransaction should support transactions, but it doesn't as MongoDB
 // currently does not support them.
-func (s *Source) Transaction() (db.Tx, error) {
+func (s *Source) NewTransaction() (db.Tx, error) {
 	return nil, db.ErrUnsupported
 }
 
