@@ -310,8 +310,8 @@ func BenchmarkMgoDelete(b *testing.B) {
 	}
 }
 
-// BenchmarkUpperRemove benchmarks
-func BenchmarkUpperRemove(b *testing.B) {
+// BenchmarkUpperDelete benchmarks
+func BenchmarkUpperDelete(b *testing.B) {
 	var err error
 	var sess db.Database
 
@@ -326,7 +326,7 @@ func BenchmarkUpperRemove(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		res := artist.Find(db.Cond{"name": artistN(i)})
-		if err = res.Remove(); err != nil {
+		if err = res.Delete(); err != nil {
 			b.Fatal(err)
 		}
 	}

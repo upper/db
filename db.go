@@ -446,9 +446,9 @@ type Result interface {
 	// or columns.
 	Group(...interface{}) Result
 
-	// Remove deletes all items within the result set. `Offset()` and `Limit()` are
-	// not honoured by `Remove()`.
-	Remove() error
+	// Delete deletes all items within the result set. `Offset()` and `Limit()` are
+	// not honoured by `Delete()`.
+	Delete() error
 
 	// Update modifies all items within the result set. `Offset()` and `Limit()`
 	// are not honoured by `Update()`.

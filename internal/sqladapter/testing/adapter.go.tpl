@@ -775,7 +775,7 @@ func TestGroup(t *testing.T) {
 	assert.Equal(t, 5, len(results))
 }
 
-func TestRemove(t *testing.T) {
+func TestDelete(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()
 
@@ -786,7 +786,7 @@ func TestRemove(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(4), total)
 
-	err = res.Remove()
+	err = res.Delete()
 	assert.NoError(t, err)
 
 	total, err = res.Count()

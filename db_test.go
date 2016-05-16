@@ -638,7 +638,7 @@ func TestSimpleCRUD(t *testing.T) {
 				t.Fatalf("Struct is different with wrapper %s.", wrapper)
 			}
 
-			err = res.Remove()
+			err = res.Delete()
 
 			if err != nil {
 				t.Fatalf(`Could not remove with wrapper %s: %q`, wrapper, err)
@@ -806,7 +806,7 @@ func TestFibonacci(t *testing.T) {
 				}
 			}
 
-			if err = res.Remove(); err != nil {
+			if err = res.Delete(); err != nil {
 				t.Fatalf(`%s: %q`, wrapper, err)
 			}
 
@@ -974,7 +974,7 @@ func TestEven(t *testing.T) {
 				}
 			}
 
-			if err = res.Remove(); err != nil {
+			if err = res.Delete(); err != nil {
 				t.Fatalf(`Could not remove with wrapper %s: %q`, wrapper, err)
 			}
 

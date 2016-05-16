@@ -177,8 +177,8 @@ func (r *result) Next(dst interface{}) error {
 	return nil
 }
 
-// Remove deletes the matching items from the collection.
-func (r *result) Remove() (err error) {
+// Delete remove the matching items from the collection.
+func (r *result) Delete() (err error) {
 	if db.Debug {
 		var start, end int64
 		start = time.Now().UnixNano()
