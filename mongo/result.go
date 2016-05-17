@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"encoding/json"
@@ -40,11 +41,30 @@ type result struct {
 	c           *Collection
 	queryChunks *chunks
 	iter        *mgo.Iter
+	errMu       sync.RWMutex
+	err         error
 }
 
 var (
 	errUnknownSortValue = errors.New(`Unknown sort value "%s".`)
 )
+
+func (r *result) setErr(err error) error {
+	r.errMu.Lock()
+	defer r.errMu.Unlock()
+
+	if err != nil {
+		r.err = err
+	}
+	return err
+}
+
+func (r *result) Err() error {
+	r.errMu.RLock()
+	defer r.errMu.RUnlock()
+
+	return r.err
+}
 
 // setCursor creates a *mgo.Iter we can use in Next(), All() or One().
 func (r *result) setCursor() error {
@@ -86,6 +106,11 @@ func (r *result) OrderBy(fields ...interface{}) db.Result {
 	}
 	r.queryChunks.Sort = ss
 	return r
+}
+
+// String satisfies fmt.Stringer
+func (r *result) String() string {
+	return fmt.Sprintf("%v", r.queryChunks)
 }
 
 // Select marks the specific fields the user wants to retrieve.
@@ -145,36 +170,25 @@ func (r *result) One(dst interface{}) (err error) {
 		}()
 	}
 
-	err = r.Next(dst)
-
-	if err != nil {
-		return err
+	defer r.Close()
+	if !r.Next(dst) {
+		return r.Err()
 	}
-
-	r.Close()
-
 	return nil
 }
 
 // Next fetches the next result from the resultset.
-func (r *result) Next(dst interface{}) error {
+func (r *result) Next(dst interface{}) bool {
 	err := r.setCursor()
-
 	if err != nil {
-		return err
+		r.setErr(err)
+		return false
 	}
-
-	success := r.iter.Next(dst)
-
-	if success == false {
-		err := r.iter.Err()
-		if err == nil {
-			return db.ErrNoMoreRows
-		}
-		return err
+	if !r.iter.Next(dst) {
+		r.setErr(err)
+		return false
 	}
-
-	return nil
+	return true
 }
 
 // Delete remove the matching items from the collection.

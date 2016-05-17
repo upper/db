@@ -343,21 +343,17 @@ func TestGetResultsOneByOne(t *testing.T) {
 		res = res.Select("id() as id", "name")
 	}
 
-	for {
-		err := res.Next(&rowMap)
-		if err == db.ErrNoMoreRows {
-			break
-		}
+	err := res.Err()
+	assert.NoError(t, err)
 
-		if err != nil {
-			t.Fatal(err)
-		}
-
+	for res.Next(&rowMap) {
 		assert.NotZero(t, rowMap["id"])
 		assert.NotZero(t, rowMap["name"])
 	}
+	err = res.Err()
+	assert.Equal(t, db.ErrNoMoreRows, err)
 
-	err := res.Close()
+	err = res.Close()
 	assert.NoError(t, err)
 
 	// Dumping into a tagged struct.
@@ -372,19 +368,12 @@ func TestGetResultsOneByOne(t *testing.T) {
 		res = res.Select("id() as id", "name")
 	}
 
-	for {
-		err := res.Next(&rowStruct2)
-		if err == db.ErrNoMoreRows {
-			break
-		}
-
-		if err != nil {
-			t.Fatal(err)
-		}
-
+	for res.Next(&rowStruct2) {
 		assert.NotZero(t, rowStruct2.Value1)
 		assert.NotZero(t, rowStruct2.Value2)
 	}
+	err = res.Err()
+	assert.Equal(t, db.ErrNoMoreRows, err)
 
 	err = res.Close()
 	assert.NoError(t, err)
