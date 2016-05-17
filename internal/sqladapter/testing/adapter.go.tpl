@@ -1061,8 +1061,16 @@ func TestBuilder(t *testing.T) {
 	}{"Rinko Kikuchi"}).Exec()
 	assert.NoError(t, err)
 
+	// Using explicit iterator.
 	iter := sess.SelectAllFrom("artist").Iterator()
 	err = iter.All(&all)
+
+	assert.NoError(t, err)
+	assert.NotZero(t, all)
+
+	// Using implicit iterator.
+	q := sess.SelectAllFrom("artist")
+	err = q.All(&all)
 
 	assert.NoError(t, err)
 	assert.NotZero(t, all)
@@ -1072,10 +1080,10 @@ func TestBuilder(t *testing.T) {
 	assert.NotZero(t, tx)
 	defer tx.Close()
 
-	iter = tx.SelectAllFrom("artist").Iterator()
+	q = tx.SelectAllFrom("artist")
 	assert.NotZero(t, iter)
 
-	err = iter.All(&all)
+	err = q.All(&all)
 	assert.NoError(t, err)
 	assert.NotZero(t, all)
 }

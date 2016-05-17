@@ -228,3 +228,11 @@ func (qs *selector) Iterator() Iterator {
 	rows, err := qs.builder.sess.StatementQuery(qs.statement(), qs.arguments...)
 	return &iterator{rows, err}
 }
+
+func (qs *selector) All(destSlice interface{}) error {
+	return qs.Iterator().All(destSlice)
+}
+
+func (qs *selector) One(dest interface{}) error {
+	return qs.Iterator().All(dest)
+}
