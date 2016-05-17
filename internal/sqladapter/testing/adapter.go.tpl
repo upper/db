@@ -351,7 +351,7 @@ func TestGetResultsOneByOne(t *testing.T) {
 		assert.NotZero(t, rowMap["name"])
 	}
 	err = res.Err()
-	assert.Equal(t, db.ErrNoMoreRows, err)
+	assert.NoError(t, err)
 
 	err = res.Close()
 	assert.NoError(t, err)
@@ -373,7 +373,7 @@ func TestGetResultsOneByOne(t *testing.T) {
 		assert.NotZero(t, rowStruct2.Value2)
 	}
 	err = res.Err()
-	assert.Equal(t, db.ErrNoMoreRows, err)
+	assert.NoError(t, err)
 
 	err = res.Close()
 	assert.NoError(t, err)

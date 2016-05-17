@@ -743,24 +743,20 @@ func TestFibonacci(t *testing.T) {
 
 			res = res.Offset(1).Limit(2)
 
-			for {
-				var item fibonacci
-				err = res.Next(&item)
-				if err == nil {
-					switch item.Input {
-					case 5:
-					case 6:
-						if fib(item.Input) != item.Output {
-							t.Fatalf(`Unexpected value in item with wrapper %s.`, wrapper)
-						}
-					default:
-						t.Fatalf(`Unexpected item: %v with wrapper %s.`, item, wrapper)
+			var item fibonacci
+			for res.Next(&item) {
+				switch item.Input {
+				case 5:
+				case 6:
+					if fib(item.Input) != item.Output {
+						t.Fatalf(`Unexpected value in item with wrapper %s.`, wrapper)
 					}
-				} else if err == db.ErrNoMoreRows {
-					break
-				} else {
-					t.Fatalf(`%s: %q`, wrapper, err)
+				default:
+					t.Fatalf(`Unexpected item: %v with wrapper %s.`, item, wrapper)
 				}
+			}
+			if err := res.Err(); err != nil {
+				t.Fatalf(`%s: %q`, wrapper, err)
 			}
 
 			// Find() with range
@@ -786,24 +782,20 @@ func TestFibonacci(t *testing.T) {
 			// Skipping.
 			res = res.Offset(1).Limit(2)
 
-			for {
-				var item fibonacci
-				err = res.Next(&item)
-				if err == nil {
-					switch item.Input {
-					case 5:
-					case 6:
-						if fib(item.Input) != item.Output {
-							t.Fatalf(`Unexpected value in item with wrapper %s.`, wrapper)
-						}
-					default:
-						t.Fatalf(`Unexpected item: %v with wrapper %s.`, item, wrapper)
+			var item2 fibonacci
+			for res.Next(&item2) {
+				switch item2.Input {
+				case 5:
+				case 6:
+					if fib(item2.Input) != item2.Output {
+						t.Fatalf(`Unexpected value in item2 with wrapper %s.`, wrapper)
 					}
-				} else if err == db.ErrNoMoreRows {
-					break
-				} else {
-					t.Fatalf(`%s: %q`, wrapper, err)
+				default:
+					t.Fatalf(`Unexpected item2: %v with wrapper %s.`, item2, wrapper)
 				}
+			}
+			if err := res.Err(); err != nil {
+				t.Fatalf(`%s: %q`, wrapper, err)
 			}
 
 			if err = res.Delete(); err != nil {
@@ -959,19 +951,14 @@ func TestEven(t *testing.T) {
 			// Retrieving items
 			res := col.Find(db.Cond{"is_even": true})
 
-			for {
-				var item oddEven
-				err = res.Next(&item)
-				if err != nil {
-					if err == db.ErrNoMoreRows {
-						break
-					} else {
-						t.Fatalf(`%s: %v`, wrapper, err)
-					}
-				}
+			var item oddEven
+			for res.Next(&item) {
 				if item.Input%2 != 0 {
 					t.Fatalf("Expecting even numbers with wrapper %s. Got: %v\n", wrapper, item)
 				}
+			}
+			if err := res.Err(); err != nil {
+				t.Fatalf(`%s: %q`, wrapper, err)
 			}
 
 			if err = res.Delete(); err != nil {
@@ -980,58 +967,43 @@ func TestEven(t *testing.T) {
 
 			res = col.Find()
 
-			for {
-				// Testing named inputs (using tags).
-				var item struct {
-					Value uint `db:"input" bson:"input"` // The "bson" tag is required by mgo.
-				}
-				err = res.Next(&item)
-				if err != nil {
-					if err == db.ErrNoMoreRows {
-						break
-					} else {
-						t.Fatalf(`%s: %v`, wrapper, err)
-					}
-				}
-				if item.Value%2 == 0 {
-					t.Fatalf("Expecting odd numbers only with wrapper %s. Got: %v\n", wrapper, item)
+			// Testing named inputs (using tags).
+			var item2 struct {
+				Value uint `db:"input" bson:"input"` // The "bson" tag is required by mgo.
+			}
+			for res.Next(&item2) {
+				if item2.Value%2 == 0 {
+					t.Fatalf("Expecting odd numbers only with wrapper %s. Got: %v\n", wrapper, item2)
 				}
 			}
+			if err := res.Err(); err != nil {
+				t.Fatalf(`%s: %q`, wrapper, err)
+			}
 
-			for {
-				// Testing inline tag.
-				var item struct {
-					oddEven `db:",inline" bson:",inline"`
+			// Testing inline tag.
+			var item3 struct {
+				oddEven `db:",inline" bson:",inline"`
+			}
+			for res.Next(&item3) {
+				if item3.Input%2 == 0 {
+					t.Fatalf("Expecting odd numbers only with wrapper %s. Got: %v\n", wrapper, item3)
 				}
-				err = res.Next(&item)
-				if err != nil {
-					if err == db.ErrNoMoreRows {
-						break
-					} else {
-						t.Fatalf(`%s: %v`, wrapper, err)
-					}
-				}
-				if item.Input%2 == 0 {
-					t.Fatalf("Expecting odd numbers only with wrapper %s. Got: %v\n", wrapper, item)
-				}
+			}
+			if err := res.Err(); err != nil {
+				t.Fatalf(`%s: %q`, wrapper, err)
 			}
 
 			// Testing omision tag.
-			for {
-				var item struct {
-					Value uint `db:"-"`
+			var item4 struct {
+				Value uint `db:"-"`
+			}
+			for res.Next(&item4) {
+				if item4.Value != 0 {
+					t.Fatalf("Expecting no data with wrapper %s. Got: %v\n", wrapper, item4)
 				}
-				err = res.Next(&item)
-				if err != nil {
-					if err == db.ErrNoMoreRows {
-						break
-					} else {
-						t.Fatalf(`%s: %v`, wrapper, err)
-					}
-				}
-				if item.Value != 0 {
-					t.Fatalf("Expecting no data with wrapper %s. Got: %v\n", wrapper, item)
-				}
+			}
+			if err := res.Err(); err != nil {
+				t.Fatalf(`%s: %q`, wrapper, err)
 			}
 		}
 	}

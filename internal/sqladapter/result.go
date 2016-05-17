@@ -145,8 +145,9 @@ func (r *Result) Next(dst interface{}) bool {
 	if r.iter.Next(dst) {
 		return true
 	}
-	err := r.iter.Err()
-	r.setErr(err)
+	if err := r.iter.Err(); err != db.ErrNoMoreRows {
+		r.setErr(err)
+	}
 	return false
 }
 
