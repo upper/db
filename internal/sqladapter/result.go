@@ -22,6 +22,8 @@
 package sqladapter
 
 import (
+	"sync"
+
 	"upper.io/db.v2"
 	"upper.io/db.v2/builder"
 )
@@ -38,6 +40,9 @@ type Result struct {
 	orderBy []interface{}
 	groupBy []interface{}
 	conds   []interface{}
+	err     error
+	errMu   sync.RWMutex
+	iterMu  sync.Mutex
 }
 
 func filter(conds []interface{}) []interface{} {
@@ -52,6 +57,24 @@ func NewResult(b builder.Builder, table string, conds []interface{}) *Result {
 		table: table,
 		conds: conds,
 	}
+}
+
+func (r *Result) setErr(err error) error {
+	r.errMu.Lock()
+	defer r.errMu.Unlock()
+
+	if err != nil {
+		r.err = err
+	}
+	return err
+}
+
+// Err returns the last error that has happened with the result set,
+// nil otherwise
+func (r *Result) Err() error {
+	r.errMu.RLock()
+	defer r.errMu.RUnlock()
+	return r.err
 }
 
 // Where sets conditions for the result set.
@@ -94,25 +117,38 @@ func (r *Result) Select(fields ...interface{}) db.Result {
 	return r
 }
 
+// String satisfies fmt.Stringer
+func (r *Result) String() string {
+	return r.buildSelect().String()
+}
+
 // All dumps all Results into a pointer to an slice of structs or maps.
 func (r *Result) All(dst interface{}) error {
-	return r.buildSelect().Iterator().All(dst)
+	err := r.buildSelect().Iterator().All(dst)
+	return r.setErr(err)
 }
 
 // One fetches only one Result from the set.
 func (r *Result) One(dst interface{}) error {
-	return r.buildSelect().Iterator().One(dst)
+	err := r.buildSelect().Iterator().One(dst)
+	return r.setErr(err)
 }
 
 // Next fetches the next Result from the set.
-func (r *Result) Next(dst interface{}) (err error) {
+func (r *Result) Next(dst interface{}) bool {
+	r.iterMu.Lock()
+	defer r.iterMu.Unlock()
+
 	if r.iter == nil {
 		r.iter = r.buildSelect().Iterator()
 	}
-	if !r.iter.Next(dst) {
-		return r.iter.Err()
+	if r.iter.Next(dst) {
+		return true
 	}
-	return nil
+	if err := r.iter.Err(); err != db.ErrNoMoreRows {
+		r.setErr(err)
+	}
+	return false
 }
 
 // Delete deletes all matching items from the collection.
@@ -122,13 +158,13 @@ func (r *Result) Delete() error {
 		Limit(r.limit)
 
 	_, err := q.Exec()
-	return err
+	return r.setErr(err)
 }
 
 // Close closes the Result set.
 func (r *Result) Close() error {
 	if r.iter != nil {
-		return r.iter.Close()
+		return r.setErr(r.iter.Close())
 	}
 	return nil
 }
@@ -142,7 +178,7 @@ func (r *Result) Update(values interface{}) error {
 		Limit(r.limit)
 
 	_, err := q.Exec()
-	return err
+	return r.setErr(err)
 }
 
 // Count counts the elements on the set.
@@ -161,7 +197,7 @@ func (r *Result) Count() (uint64, error) {
 		if err == db.ErrNoMoreRows {
 			return 0, nil
 		}
-		return 0, err
+		return 0, r.setErr(err)
 	}
 
 	return counter.Count, nil

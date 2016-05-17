@@ -343,21 +343,17 @@ func TestGetResultsOneByOne(t *testing.T) {
 		res = res.Select("id() as id", "name")
 	}
 
-	for {
-		err := res.Next(&rowMap)
-		if err == db.ErrNoMoreRows {
-			break
-		}
+	err := res.Err()
+	assert.NoError(t, err)
 
-		if err != nil {
-			t.Fatal(err)
-		}
-
+	for res.Next(&rowMap) {
 		assert.NotZero(t, rowMap["id"])
 		assert.NotZero(t, rowMap["name"])
 	}
+	err = res.Err()
+	assert.NoError(t, err)
 
-	err := res.Close()
+	err = res.Close()
 	assert.NoError(t, err)
 
 	// Dumping into a tagged struct.
@@ -372,19 +368,12 @@ func TestGetResultsOneByOne(t *testing.T) {
 		res = res.Select("id() as id", "name")
 	}
 
-	for {
-		err := res.Next(&rowStruct2)
-		if err == db.ErrNoMoreRows {
-			break
-		}
-
-		if err != nil {
-			t.Fatal(err)
-		}
-
+	for res.Next(&rowStruct2) {
 		assert.NotZero(t, rowStruct2.Value1)
 		assert.NotZero(t, rowStruct2.Value2)
 	}
+	err = res.Err()
+	assert.NoError(t, err)
 
 	err = res.Close()
 	assert.NoError(t, err)
@@ -1061,8 +1050,16 @@ func TestBuilder(t *testing.T) {
 	}{"Rinko Kikuchi"}).Exec()
 	assert.NoError(t, err)
 
-	iter := sess.SelectAllFrom("artist").Iterator()
+	// Using explicit iterator.
+	iter := sess.SelectFrom("artist").Iterator()
 	err = iter.All(&all)
+
+	assert.NoError(t, err)
+	assert.NotZero(t, all)
+
+	// Using implicit iterator.
+	q := sess.SelectFrom("artist")
+	err = q.All(&all)
 
 	assert.NoError(t, err)
 	assert.NotZero(t, all)
@@ -1072,10 +1069,10 @@ func TestBuilder(t *testing.T) {
 	assert.NotZero(t, tx)
 	defer tx.Close()
 
-	iter = tx.SelectAllFrom("artist").Iterator()
+	q = tx.SelectFrom("artist")
 	assert.NotZero(t, iter)
 
-	err = iter.All(&all)
+	err = q.All(&all)
 	assert.NoError(t, err)
 	assert.NotZero(t, all)
 }

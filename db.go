@@ -421,6 +421,8 @@ type Collection interface {
 // Result is an interface that defines methods useful for working with result
 // sets.
 type Result interface {
+	// String satisfies fmt.Stringer
+	String() string
 
 	// Limit defines the maximum number of results in this set. It only has
 	// effect on `One()`, `All()` and `Next()`.
@@ -461,18 +463,22 @@ type Result interface {
 	// Next fetches the next result within the result set and dumps it into the
 	// given pointer to struct or pointer to map. You must manually call
 	// `Close()` after finishing using `Next()`.
-	Next(interface{}) error
+	Next(ptrToStruct interface{}) bool
+
+	// Err returns the last error that has happened with the result set, nil
+	// otherwise.
+	Err() error
 
 	// One fetches the first result within the result set and dumps it into the
 	// given pointer to struct or pointer to map. The result set is automatically
 	// closed after picking the element, so there is no need to call `Close()`
 	// manually.
-	One(interface{}) error
+	One(ptrToStruct interface{}) error
 
 	// All fetches all results within the result set and dumps them into the
 	// given pointer to slice of maps or structs.  The result set is
 	// automatically closed, so there is no need to call `Close()` manually.
-	All(interface{}) error
+	All(sliceOfStructs interface{}) error
 
 	// Close closes the result set.
 	Close() error

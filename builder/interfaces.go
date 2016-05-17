@@ -41,13 +41,13 @@ type Builder interface {
 	//  q := builder.Select("first_name", "last_name").From("people").Where(...)
 	Select(columns ...interface{}) Selector
 
-	// SelectAllFrom creates a Selector that selects all columns (like SELECT *)
+	// SelectFrom creates a Selector that selects all columns (like SELECT *)
 	// from the given table.
 	//
 	// Example:
 	//
-	//  q := builder.SelectAllFrom("people").Where(...)
-	SelectAllFrom(table string) Selector
+	//  q := builder.SelectFrom("people").Where(...)
+	SelectFrom(table string) Selector
 
 	// InsertInto prepares an returns a Inserter that points at the given table.
 	//
@@ -279,6 +279,9 @@ type Selector interface {
 	// results.
 	Getter
 
+	// Fetcher provides methods to retrieve and map results.
+	Fetcher
+
 	// fmt.Stringer provides `String() string`, you can use `String()` to compile
 	// the `Selector` into a string.
 	fmt.Stringer
@@ -383,16 +386,16 @@ type Getter interface {
 	QueryRow() (*sql.Row, error)
 }
 
-// Iterator provides methods for iterating over query results.
-type Iterator interface {
+type Fetcher interface {
 	// All dumps all the results into the given slice, All() expects a pointer to
 	// slice of maps or structs.
 	//
 	// The behaviour of One() extends to each one of the results.
-	All(destslice interface{}) error
+	All(destSlice interface{}) error
 
-	// One maps the row that is in the current query cursor to the given interface,
-	// which can be a pointer to either a map or a struct.
+	// One maps the row that is in the current query cursor into the
+	// given interface, which can be a pointer to either a map or a
+	// struct.
 	//
 	// If dest is a pointer to map, each one of the columns will create a new map
 	// key and the values of the result will be set as values for the keys.
@@ -404,6 +407,12 @@ type Iterator interface {
 	// a `db` tag which defines the column mapping. The value of the result will
 	// be set as the value of the field.
 	One(dest interface{}) error
+}
+
+// Iterator provides methods for iterating over query results.
+type Iterator interface {
+	// Fetcher provides methods to retrieve and map results.
+	Fetcher
 
 	// Scan dumps the current result into the given pointer variable pointers.
 	Scan(dest ...interface{}) error

@@ -15,7 +15,7 @@ func TestTemplateSelect(t *testing.T) {
 
 	assert.Equal(
 		`SELECT * FROM "artist"`,
-		b.SelectAllFrom("artist").String(),
+		b.SelectFrom("artist").String(),
 	)
 
 	assert.Equal(
@@ -60,12 +60,12 @@ func TestTemplateSelect(t *testing.T) {
 
 	assert.Equal(
 		`SELECT * FROM "artist" WHERE ("name" = $1)`,
-		b.SelectAllFrom("artist").Where("name", "Haruki").String(),
+		b.SelectFrom("artist").Where("name", "Haruki").String(),
 	)
 
 	assert.Equal(
 		`SELECT * FROM "artist" WHERE (name LIKE $1)`,
-		b.SelectAllFrom("artist").Where("name LIKE ?", `%F%`).String(),
+		b.SelectFrom("artist").Where("name LIKE ?", `%F%`).String(),
 	)
 
 	assert.Equal(
@@ -75,22 +75,22 @@ func TestTemplateSelect(t *testing.T) {
 
 	assert.Equal(
 		`SELECT * FROM "artist" WHERE ("id" > $1)`,
-		b.SelectAllFrom("artist").Where("id >", 2).String(),
+		b.SelectFrom("artist").Where("id >", 2).String(),
 	)
 
 	assert.Equal(
 		`SELECT * FROM "artist" WHERE (id <= 2 AND name != $1)`,
-		b.SelectAllFrom("artist").Where("id <= 2 AND name != ?", "A").String(),
+		b.SelectFrom("artist").Where("id <= 2 AND name != ?", "A").String(),
 	)
 
 	assert.Equal(
 		`SELECT * FROM "artist" WHERE ("id" IN ($1, $2, $3, $4))`,
-		b.SelectAllFrom("artist").Where("id IN", []int{1, 9, 8, 7}).String(),
+		b.SelectFrom("artist").Where("id IN", []int{1, 9, 8, 7}).String(),
 	)
 
 	assert.Equal(
 		`SELECT * FROM "artist" WHERE (name IS NOT NULL)`,
-		b.SelectAllFrom("artist").Where("name IS NOT NULL").String(),
+		b.SelectFrom("artist").Where("name IS NOT NULL").String(),
 	)
 
 	assert.Equal(
@@ -105,27 +105,27 @@ func TestTemplateSelect(t *testing.T) {
 
 	assert.Equal(
 		`SELECT * FROM "artist" AS "a" JOIN "publication" AS "p" ON (p.author_id = a.id) LIMIT 1`,
-		b.SelectAllFrom("artist a").Join("publication p").On("p.author_id = a.id").Limit(1).String(),
+		b.SelectFrom("artist a").Join("publication p").On("p.author_id = a.id").Limit(1).String(),
 	)
 
 	assert.Equal(
 		`SELECT * FROM "artist" AS "a" JOIN "publication" AS "p" ON (p.author_id = a.id) WHERE ("a"."id" = $1) LIMIT 1`,
-		b.SelectAllFrom("artist a").Join("publication p").On("p.author_id = a.id").Where("a.id", 2).Limit(1).String(),
+		b.SelectFrom("artist a").Join("publication p").On("p.author_id = a.id").Where("a.id", 2).Limit(1).String(),
 	)
 
 	assert.Equal(
 		`SELECT * FROM "artist" JOIN "publication" AS "p" ON (p.author_id = a.id) WHERE (a.id = 2) LIMIT 1`,
-		b.SelectAllFrom("artist").Join("publication p").On("p.author_id = a.id").Where("a.id = 2").Limit(1).String(),
+		b.SelectFrom("artist").Join("publication p").On("p.author_id = a.id").Where("a.id = 2").Limit(1).String(),
 	)
 
 	assert.Equal(
 		`SELECT * FROM "artist" AS "a" JOIN "publication" AS "p" ON (p.title LIKE $1 OR p.title LIKE $2) WHERE (a.id = $3) LIMIT 1`,
-		b.SelectAllFrom("artist a").Join("publication p").On("p.title LIKE ? OR p.title LIKE ?", "%Totoro%", "%Robot%").Where("a.id = ?", 2).Limit(1).String(),
+		b.SelectFrom("artist a").Join("publication p").On("p.title LIKE ? OR p.title LIKE ?", "%Totoro%", "%Robot%").Where("a.id = ?", 2).Limit(1).String(),
 	)
 
 	assert.Equal(
 		`SELECT * FROM "artist" AS "a" LEFT JOIN "publication" AS "p1" ON (p1.id = a.id) RIGHT JOIN "publication" AS "p2" ON (p2.id = a.id)`,
-		b.SelectAllFrom("artist a").
+		b.SelectFrom("artist a").
 			LeftJoin("publication p1").On("p1.id = a.id").
 			RightJoin("publication p2").On("p2.id = a.id").
 			String(),
@@ -133,12 +133,12 @@ func TestTemplateSelect(t *testing.T) {
 
 	assert.Equal(
 		`SELECT * FROM "artist" CROSS JOIN "publication"`,
-		b.SelectAllFrom("artist").CrossJoin("publication").String(),
+		b.SelectFrom("artist").CrossJoin("publication").String(),
 	)
 
 	assert.Equal(
 		`SELECT * FROM "artist" JOIN "publication" USING ("id")`,
-		b.SelectAllFrom("artist").Join("publication").Using("id").String(),
+		b.SelectFrom("artist").Join("publication").Using("id").String(),
 	)
 
 	assert.Equal(

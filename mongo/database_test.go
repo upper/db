@@ -489,30 +489,19 @@ func TestResultFetch(t *testing.T) {
 
 	rowM := map[string]interface{}{}
 
-	for {
-		err = res.Next(&rowM)
-
-		if err == db.ErrNoMoreRows {
-			// No more rowMs left.
-			break
+	for res.Next(&rowM) {
+		if rowM["_id"] == nil {
+			t.Fatalf("Expecting an ID.")
+		}
+		if _, ok := rowM["_id"].(bson.ObjectId); ok != true {
+			t.Fatalf("Expecting a bson.ObjectId.")
 		}
 
-		if err == nil {
-			if rowM["_id"] == nil {
-				t.Fatalf("Expecting an ID.")
-			}
-			if _, ok := rowM["_id"].(bson.ObjectId); ok != true {
-				t.Fatalf("Expecting a bson.ObjectId.")
-			}
-
-			if rowM["_id"].(bson.ObjectId).Valid() != true {
-				t.Fatalf("Expecting a valid bson.ObjectId.")
-			}
-			if name, ok := rowM["name"].(string); !ok || name == "" {
-				t.Fatalf("Expecting a name.")
-			}
-		} else {
-			t.Fatal(err)
+		if rowM["_id"].(bson.ObjectId).Valid() != true {
+			t.Fatalf("Expecting a valid bson.ObjectId.")
+		}
+		if name, ok := rowM["name"].(string); !ok || name == "" {
+			t.Fatalf("Expecting a name.")
 		}
 	}
 
@@ -526,23 +515,12 @@ func TestResultFetch(t *testing.T) {
 
 	res = artist.Find()
 
-	for {
-		err = res.Next(&rowS)
-
-		if err == db.ErrNoMoreRows {
-			// No more rowS' left.
-			break
+	for res.Next(&rowS) {
+		if rowS.ID.Valid() == false {
+			t.Fatalf("Expecting a not null ID.")
 		}
-
-		if err == nil {
-			if rowS.ID.Valid() == false {
-				t.Fatalf("Expecting a not null ID.")
-			}
-			if rowS.Name == "" {
-				t.Fatalf("Expecting a name.")
-			}
-		} else {
-			t.Fatal(err)
+		if rowS.Name == "" {
+			t.Fatalf("Expecting a name.")
 		}
 	}
 
@@ -556,23 +534,12 @@ func TestResultFetch(t *testing.T) {
 
 	res = artist.Find()
 
-	for {
-		err = res.Next(&rowT)
-
-		if err == db.ErrNoMoreRows {
-			// No more rowT's left.
-			break
+	for res.Next(&rowT) {
+		if rowT.Value1.Valid() == false {
+			t.Fatalf("Expecting a not null ID.")
 		}
-
-		if err == nil {
-			if rowT.Value1.Valid() == false {
-				t.Fatalf("Expecting a not null ID.")
-			}
-			if rowT.Value2 == "" {
-				t.Fatalf("Expecting a name.")
-			}
-		} else {
-			t.Fatal(err)
+		if rowT.Value2 == "" {
+			t.Fatalf("Expecting a name.")
 		}
 	}
 
