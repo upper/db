@@ -94,6 +94,11 @@ func (r *Result) Select(fields ...interface{}) db.Result {
 	return r
 }
 
+// String satisfies fmt.Stringer
+func (r *Result) String() string {
+	return r.buildSelect().String()
+}
+
 // All dumps all Results into a pointer to an slice of structs or maps.
 func (r *Result) All(dst interface{}) error {
 	return r.buildSelect().Iterator().All(dst)

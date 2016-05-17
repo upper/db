@@ -421,6 +421,8 @@ type Collection interface {
 // Result is an interface that defines methods useful for working with result
 // sets.
 type Result interface {
+	// String satisfies fmt.Stringer
+	String() string
 
 	// Limit defines the maximum number of results in this set. It only has
 	// effect on `One()`, `All()` and `Next()`.
