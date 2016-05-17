@@ -121,7 +121,7 @@ func (b *sqlBuilder) QueryRow(query interface{}, args ...interface{}) (*sql.Row,
 	}
 }
 
-func (b *sqlBuilder) SelectAllFrom(table string) Selector {
+func (b *sqlBuilder) SelectFrom(table string) Selector {
 	qs := &selector{
 		builder: b,
 		table:   table,

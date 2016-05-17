@@ -41,13 +41,13 @@ type Builder interface {
 	//  q := builder.Select("first_name", "last_name").From("people").Where(...)
 	Select(columns ...interface{}) Selector
 
-	// SelectAllFrom creates a Selector that selects all columns (like SELECT *)
+	// SelectFrom creates a Selector that selects all columns (like SELECT *)
 	// from the given table.
 	//
 	// Example:
 	//
-	//  q := builder.SelectAllFrom("people").Where(...)
-	SelectAllFrom(table string) Selector
+	//  q := builder.SelectFrom("people").Where(...)
+	SelectFrom(table string) Selector
 
 	// InsertInto prepares an returns a Inserter that points at the given table.
 	//
