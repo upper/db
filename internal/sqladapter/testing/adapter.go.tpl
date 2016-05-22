@@ -564,6 +564,49 @@ func TestUpdate(t *testing.T) {
 	// Verifying.
 	assert.Equal(t, value.Name, rowMap["name"])
 
+	if Adapter != "ql" {
+
+		// Updating using raw
+		if err = res.Update(map[string]interface{}{"name": db.Raw("LOWER(name)")}); err != nil {
+			t.Fatal(err)
+		}
+
+		// Pulling it again.
+		err = res.One(&value)
+		assert.NoError(t, err)
+
+		// Verifying.
+		assert.Equal(t, value.Name, strings.ToLower(rowMap["name"].(string)))
+
+		// Updating using raw
+		if err = res.Update(struct {
+			Name db.RawValue `db:"name"`
+		}{db.Raw(`UPPER(name)`)}); err != nil {
+			t.Fatal(err)
+		}
+
+		// Pulling it again.
+		err = res.One(&value)
+		assert.NoError(t, err)
+
+		// Verifying.
+		assert.Equal(t, value.Name, strings.ToUpper(rowMap["name"].(string)))
+
+		// Updating using raw
+		if err = res.Update(struct {
+			Name db.Function `db:"name"`
+		}{db.Func("LOWER", db.Raw("name"))}); err != nil {
+			t.Fatal(err)
+		}
+
+		// Pulling it again.
+		err = res.One(&value)
+		assert.NoError(t, err)
+
+		// Verifying.
+		assert.Equal(t, value.Name, strings.ToLower(rowMap["name"].(string)))
+	}
+
 	// Updating set with a struct
 	rowStruct := struct {
 		Name string `db:"name"`

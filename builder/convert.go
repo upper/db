@@ -131,6 +131,28 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where exql.
 	panic(fmt.Sprintf("Unknown condition type %T", term))
 }
 
+func (tu *templateWithUtils) PlaceholderValue(in interface{}) (exql.Fragment, []interface{}) {
+	switch t := in.(type) {
+	case db.RawValue:
+		return exql.RawValue(t.String()), nil
+	case db.Function:
+		fnName := t.Name()
+		fnArgs := []interface{}{}
+
+		args := tu.ToInterfaceArguments(t.Arguments())
+		fragments := []string{}
+		for i := range args {
+			frag, args := tu.PlaceholderValue(args[i])
+			fragments = append(fragments, frag.Compile(tu.Template))
+			fnArgs = append(fnArgs, args...)
+		}
+		return exql.RawValue(fnName + `(` + strings.Join(fragments, `, `) + `)`), fnArgs
+	default:
+		// Value must be escaped.
+		return sqlPlaceholder, []interface{}{in}
+	}
+}
+
 // ToInterfaceArguments converts the given value into an array of interfaces.
 func (tu *templateWithUtils) ToInterfaceArguments(value interface{}) (args []interface{}) {
 	if value == nil {
