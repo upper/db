@@ -20,17 +20,26 @@ func (qu *updater) Set(terms ...interface{}) Updater {
 	if len(terms) == 1 {
 		ff, vv, _ := Map(terms[0])
 
-		cvs := make([]exql.Fragment, len(ff))
+		cvs := make([]exql.Fragment, 0, len(ff))
+		args := make([]interface{}, 0, len(vv))
 
 		for i := range ff {
-			cvs[i] = &exql.ColumnValue{
+			cv := &exql.ColumnValue{
 				Column:   exql.ColumnWithName(ff[i]),
 				Operator: qu.builder.t.AssignmentOperator,
-				Value:    sqlPlaceholder,
 			}
+
+			var localArgs []interface{}
+			cv.Value, localArgs = qu.builder.t.PlaceholderValue(vv[i])
+
+			args = append(args, localArgs...)
+			cvs = append(cvs, cv)
 		}
+
+		args = append(args, qu.arguments...)
+
 		qu.columnValues.Insert(cvs...)
-		qu.arguments = append(qu.arguments, vv...)
+		qu.arguments = append(qu.arguments, args...)
 	} else if len(terms) > 1 {
 		cv, arguments := qu.builder.t.ToColumnValues(terms)
 		qu.columnValues.Insert(cv.ColumnValues...)
