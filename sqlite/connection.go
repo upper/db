@@ -58,11 +58,6 @@ func (c ConnectionURL) String() (s string) {
 		c.Options = map[string]string{}
 	}
 
-	// Using cache=shared by default.
-	if _, ok := c.Options["cache"]; !ok {
-		c.Options["cache"] = "shared"
-	}
-
 	// Converting options into URL values.
 	for k, v := range c.Options {
 		vv.Set(k, v)

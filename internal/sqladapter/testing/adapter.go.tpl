@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"flag"
 	"log"
+	"fmt"
 	"math/rand"
 	"os"
 	"strconv"
@@ -929,7 +930,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = tx.Rollback()
-	assert.Error(t, err, "Already commited")
+	assert.Error(t, err, "Already committed")
 
 	// Let's verify we have 3 rows.
 	artist = sess.Collection("artist")
@@ -1083,38 +1084,103 @@ func TestExhaustConnectionPool(t *testing.T) {
 		return
 	}
 
+	var tMu sync.Mutex
+	tFatal := func(err error) {
+		tMu.Lock()
+		defer tMu.Unlock()
+		t.Fatal(err)
+	}
+
+	tLogf := func(format string, args... interface{}) {
+		tMu.Lock()
+		defer tMu.Unlock()
+		t.Logf(format, args...)
+	}
+
 	sess := mustOpen()
 	defer sess.Close()
 
 	var wg sync.WaitGroup
 	for i := 0; i < 300; i++ {
-		wg.Add(1)
-		t.Logf("Tx %d: Pending", i)
+		tLogf("Tx %d: Pending", i)
 
-		go func(t *testing.T, wg *sync.WaitGroup, i int) {
-			var tx db.Tx
+		wg.Add(1)
+		go func(wg *sync.WaitGroup, i int) {
 			defer wg.Done()
 
-			start := time.Now()
-
 			// Requesting a new transaction session.
+			start := time.Now()
 			tx, err := sess.NewTransaction()
 			if err != nil {
-				t.Fatal(err)
+				tFatal(err)
 			}
-
-			t.Logf("Tx %d: OK (waiting time: %v)", i, time.Now().Sub(start))
+			tLogf("Tx %d: OK (time to connect: %v)", i, time.Now().Sub(start))
 
 			// Let's suppose that we do a bunch of complex stuff and that the
 			// transaction lasts 3 seconds.
 			time.Sleep(time.Second * 3)
 
-			if err := tx.Close(); err != nil {
-				t.Fatal(err)
+			switch i%7 {
+			case 0:
+				var account map[string]interface{}
+				if err := tx.Collection("artist").Find().One(&account); err != nil {
+					tFatal(err)
+				}
+				if err := tx.Commit(); err != nil {
+					tFatal(err)
+				}
+				tLogf("Tx %d: Committed", i)
+			case 1:
+				if _, err := tx.DeleteFrom("artist").Exec(); err != nil {
+					tFatal(err)
+				}
+				if err := tx.Rollback(); err != nil {
+					tFatal(err)
+				}
+				tLogf("Tx %d: Rolled back", i)
+			case 2:
+				if err := tx.Close(); err != nil {
+					tFatal(err)
+				}
+				tLogf("Tx %d: Closed", i)
+			case 3:
+				var account map[string]interface{}
+				if err := tx.Collection("artist").Find().One(&account); err != nil {
+					tFatal(err)
+				}
+				if err := tx.Commit(); err != nil {
+					tFatal(err)
+				}
+				if err := tx.Close(); err != nil {
+					tFatal(err)
+				}
+				tLogf("Tx %d: Committed and closed", i)
+			case 4:
+				if err := tx.Rollback(); err != nil {
+					tFatal(err)
+				}
+				if err := tx.Close(); err != nil {
+					tFatal(err)
+				}
+				tLogf("Tx %d: Rolled back and closed", i)
+			case 5:
+				if err := tx.Close(); err != nil {
+					tFatal(err)
+				}
+				if err := tx.Commit(); err == nil {
+					tFatal(fmt.Errorf("Error expected"))
+				}
+				tLogf("Tx %d: Closed and committed", i)
+			case 6:
+				if err := tx.Close(); err != nil {
+					tFatal(err)
+				}
+				if err := tx.Rollback(); err == nil {
+					tFatal(fmt.Errorf("Error expected"))
+				}
+				tLogf("Tx %d: Closed and rolled back", i)
 			}
-
-			t.Logf("Tx %d: Done", i)
-		}(t, &wg, i)
+		}(&wg, i)
 	}
 
 	wg.Wait()
