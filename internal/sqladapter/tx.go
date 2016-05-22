@@ -36,7 +36,7 @@ type Tx interface {
 type BaseTx interface {
 	Commit() error
 	Rollback() error
-	Commited() bool
+	Committed() bool
 }
 
 type txWrapper struct {
@@ -61,16 +61,16 @@ func newTxWrapper(db Database) Tx {
 
 type sqlTx struct {
 	*sql.Tx
-	commited atomic.Value
+	committed atomic.Value
 }
 
 func newTx(tx *sql.Tx) BaseTx {
 	return &sqlTx{Tx: tx}
 }
 
-func (t *sqlTx) Commited() bool {
-	commited := t.commited.Load()
-	if commited != nil {
+func (t *sqlTx) Committed() bool {
+	committed := t.committed.Load()
+	if committed != nil {
 		return true
 	}
 	return false
@@ -78,9 +78,19 @@ func (t *sqlTx) Commited() bool {
 
 func (t *sqlTx) Commit() (err error) {
 	if err = t.Tx.Commit(); err == nil {
-		t.commited.Store(struct{}{})
+		t.committed.Store(struct{}{})
 	}
 	return err
+}
+
+func (t *txWrapper) Commit() error {
+	defer t.Database.Close()
+	return t.BaseTx.Commit()
+}
+
+func (t *txWrapper) Rollback() error {
+	defer t.Database.Close()
+	return t.BaseTx.Rollback()
 }
 
 var (

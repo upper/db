@@ -86,8 +86,9 @@ type database struct {
 	collectionMu sync.Mutex
 	databaseMu   sync.Mutex
 
-	name string
-	sess *sql.DB
+	name   string
+	sess   *sql.DB
+	sessMu sync.Mutex
 
 	cachedStatements  *cache.Cache
 	cachedCollections *cache.Cache
@@ -106,7 +107,9 @@ func (d *database) Session() *sql.DB {
 
 // BindTx binds a *sql.Tx into *database
 func (d *database) BindTx(t *sql.Tx) error {
+	d.sessMu.Lock()
 	d.baseTx = newTx(t)
+	defer d.sessMu.Unlock()
 	return d.Ping()
 }
 
@@ -130,7 +133,9 @@ func (d *database) Name() string {
 
 // BindSession binds a *sql.DB into *database
 func (d *database) BindSession(sess *sql.DB) error {
+	d.sessMu.Lock()
 	d.sess = sess
+	d.sessMu.Unlock()
 
 	if err := d.Ping(); err != nil {
 		return err
@@ -154,11 +159,13 @@ func (d *database) Ping() error {
 // Close terminates the current database session
 func (d *database) Close() error {
 	defer func() {
+		d.sessMu.Lock()
 		d.sess = nil
 		d.baseTx = nil
+		d.sessMu.Unlock()
 	}()
 	if d.sess != nil {
-		if d.Tx() != nil && !d.Tx().Commited() {
+		if d.Tx() != nil && !d.Tx().Committed() {
 			d.Tx().Rollback()
 		}
 		d.cachedStatements.Clear() // Closes prepared statements as well.
