@@ -40,7 +40,7 @@ func TestConnectionURL(t *testing.T) {
 
 	absoluteName, _ := filepath.Abs(c.Database)
 
-	if c.String() != "file://"+absoluteName+"?cache=shared" {
+	if c.String() != "file://"+absoluteName {
 		t.Fatal(`Test failed, got:`, c.String())
 	}
 
