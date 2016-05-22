@@ -79,6 +79,7 @@ const (
 // care.
 type RawValue interface {
 	fmt.Stringer
+	Raw() string
 }
 
 // Function interface defines methods for representing database functions.
@@ -153,8 +154,12 @@ type rawValue struct {
 	v string
 }
 
-func (r rawValue) String() string {
+func (r rawValue) Raw() string {
 	return r.v
+}
+
+func (r rawValue) String() string {
+	return r.Raw()
 }
 
 type compound struct {
