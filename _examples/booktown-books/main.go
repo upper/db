@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 
-	"upper.io/db.v2"
 	"upper.io/db.v2/postgresql"
 )
 
@@ -22,11 +21,10 @@ type Book struct {
 }
 
 func main() {
-	sess, err := db.Open("postgresql", settings)
+	sess, err := postgresql.Open(settings)
 	if err != nil {
 		log.Fatalf("db.Open(): %q\n", err)
 	}
-
 	defer sess.Close()
 
 	booksCol := sess.Collection("books")
