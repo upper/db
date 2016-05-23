@@ -15,7 +15,7 @@ sources such as PostgreSQL, MySQL, SQLite, QL and MongoDB.
 ## User documentation
 
 This is the source code repository, see examples and documentation at
-[upper.io/db.v2][1].
+[beta.upper.io/db.v2][1].
 
 ## Demo
 
@@ -63,6 +63,25 @@ func main() {
 }
 ```
 
+```
+go run _examples/booktown-books/main.go
+2016/05/23 18:08:03 Book 0: main.Book{ID:7808, Title:"The Shining", AuthorID:4156, SubjectID:9}
+2016/05/23 18:08:03 Book 1: main.Book{ID:4513, Title:"Dune", AuthorID:1866, SubjectID:15}
+2016/05/23 18:08:03 Book 2: main.Book{ID:4267, Title:"2001: A Space Odyssey", AuthorID:2001, SubjectID:15}
+2016/05/23 18:08:03 Book 3: main.Book{ID:1608, Title:"The Cat in the Hat", AuthorID:1809, SubjectID:2}
+2016/05/23 18:08:03 Book 4: main.Book{ID:1590, Title:"Bartholomew and the Oobleck", AuthorID:1809, SubjectID:2}
+2016/05/23 18:08:03 Book 5: main.Book{ID:25908, Title:"Franklin in the Dark", AuthorID:15990, SubjectID:2}
+2016/05/23 18:08:03 Book 6: main.Book{ID:1501, Title:"Goodnight Moon", AuthorID:2031, SubjectID:2}
+2016/05/23 18:08:03 Book 7: main.Book{ID:190, Title:"Little Women", AuthorID:16, SubjectID:6}
+2016/05/23 18:08:03 Book 8: main.Book{ID:1234, Title:"The Velveteen Rabbit", AuthorID:25041, SubjectID:3}
+2016/05/23 18:08:03 Book 9: main.Book{ID:2038, Title:"Dynamic Anatomy", AuthorID:1644, SubjectID:0}
+2016/05/23 18:08:03 Book 10: main.Book{ID:156, Title:"The Tell-Tale Heart", AuthorID:115, SubjectID:9}
+2016/05/23 18:08:03 Book 11: main.Book{ID:41473, Title:"Programming Python", AuthorID:7805, SubjectID:4}
+2016/05/23 18:08:03 Book 12: main.Book{ID:41477, Title:"Learning Python", AuthorID:7805, SubjectID:4}
+2016/05/23 18:08:03 Book 13: main.Book{ID:41478, Title:"Perl Cookbook", AuthorID:7806, SubjectID:4}
+2016/05/23 18:08:03 Book 14: main.Book{ID:41472, Title:"Practical PostgreSQL", AuthorID:1212, SubjectID:4}
+```
+
 ## License
 
 This project is licensed under the terms of the **MIT License**.
@@ -107,6 +126,6 @@ This project is licensed under the terms of the **MIT License**.
 * Hiram J. Pérez <worg@linuxmail.org>
 * Aaron <aaron.l.france@gmail.com>
 
-[1]: https://upper.io/db.v2
+[1]: http://beta.upper.io/db.v2
 [2]: http://golang.org
 [3]: http://en.wikipedia.org/wiki/Create,_read,_update_and_delete
