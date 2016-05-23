@@ -1,4 +1,4 @@
-# upper.io/db [![Build Status](https://travis-ci.org/upper/db.svg?branch=v2)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/upper.io/db.v2?status.svg)](https://godoc.org/upper.io/db.v2)
+# upper.io/db.v2 [![Build Status](https://travis-ci.org/upper/db.svg?branch=v2)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/upper.io/db.v2?status.svg)](https://godoc.org/upper.io/db.v2)
 
 <center>
 <img src="http://beta.upper.io/db.v2/images/gopher.svg" width="256" />
@@ -9,6 +9,10 @@
 The `upper.io/db.v2` package for [Go][2]  is a non-opinionated database access
 layer for Go that provides a common interface to work with different data
 sources such as PostgreSQL, MySQL, SQLite, QL and MongoDB.
+
+```
+go get upper.io/db.v2
+```
 
 ![upper.io](http://beta.upper.io/db.v2/res/general.png)
 
