@@ -1,4 +1,4 @@
-# upper.io/db.v2
+# upper.io/db.v2 [![Build Status](https://travis-ci.org/upper/db.svg?branch=v2)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/upper.io/db.v2?status.svg)](https://godoc.org/upper.io/db.v2)
 
 <center>
 <img src="http://beta.upper.io/db.v2/images/gopher.svg" width="256" />
@@ -21,19 +21,17 @@ go get upper.io/db.v2
 This is the source code repository, see examples and documentation at
 [beta.upper.io/db.v2][1].
 
-If you're looking for v2's source check out the [v2
-branch](https://github.com/upper/db/tree/v2).
+This is not the most recent version of our source code, if you're looking for
+`v2`'s source check out the [v2 branch](https://github.com/upper/db/tree/v2).
 
 ## Looking for v1?
 
 We're phasing out `v1`, if you're a new user we encourage you to use [v2][1]
 instead.
 
-The old import path `upper.io/db` will keep on working for a while, but we'll
-remove it eventually in favor of the versioned import path: `upper.io/db.v2`.
-
-Even after changing the import path definitely you'll always be able the find
-the latest stable version in the `v1` branch.
+Please note that the old import path `upper.io/db` will keep on working for a
+while, but we'll remove it eventually in favor of the versioned import path:
+`upper.io/db.v2`.
 
 ## License
 
