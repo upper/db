@@ -1,65 +1,45 @@
-# upper.io/db
+# upper.io/db.v2
 
 <center>
-<img src="https://upper.io/images/icon.svg" width="256" />
+<img src="http://beta.upper.io/db.v2/images/gopher.svg" width="256" />
 </center>
 
-[![GoDoc Widget]][GoDoc] [![Travis Widget]][Travis]
+## The `db.v2` package
 
-[GoDoc]: https://godoc.org/upper.io/db
-[GoDoc Widget]: https://godoc.org/upper.io/db?status.svg
-[Travis]: https://travis-ci.org/upper/db
-[Travis Widget]: https://travis-ci.org/upper/db.svg?branch=master
+The `upper.io/db.v2` package for [Go][2]  is a non-opinionated database access
+layer for Go that provides a common interface to work with different data
+sources such as PostgreSQL, MySQL, SQLite, QL and MongoDB.
 
-## The `db` package
-
-![Upper.io](https://upper.io/db/res/general.png)
-
-`upper.io/db` is a [Go][2] package that allows developers to communicate with
-different databases through the use of *adapters* that wrap well-supported
-database drivers.
-
-## Is `upper.io/db` an ORM?
-
-`upper.io/db` is not an ORM in the sense that it does not tell you how to
-design your software or how to validate your data, instead it only focuses on
-being a tool that deals with common operations on different databases:
-
-```go
-// This code works the same for all supported databases.
-var people []Person
-
-res = col.Find(db.Cond{"name": "Max"}).Limit(10).Sort("-last_name")
-
-err = res.All(&people)
+```
+go get upper.io/db.v2
 ```
 
-In strict sense `upper.io/db` could be considered a really basic non-magical
-ORM that rather stays out of the way.
-
-## Supported databases
-
-![Adapters](https://upper.io/db/res/adapters.png)
-
-`upper.io/db` attempts to provide full compatiblity for [CRUD][2] operations
-across adapters. Some other operations (such *transactions*) are supported only
-on specific database adapters, such as MySQL, PostgreSQL and SQLite.
-
-* [MongoDB](https://upper.io/db/mongo) via [mgo](http://godoc.org/labix.org/v2/mgo)
-* [MySQL](https://upper.io/db/mysql) via [mysql](https://github.com/go-sql-driver/mysql)
-* [PostgreSQL](https://upper.io/db/postgresql) via [pq](https://github.com/lib/pq)
-* [QL](https://upper.io/db/ql) via [ql](https://github.com/cznic/ql)
-* [SQLite3](https://upper.io/db/sqlite) via [go-sqlite3](https://github.com/mattn/go-sqlite3)
+![upper.io](http://beta.upper.io/db.v2/res/general.png)
 
 ## User documentation
 
-See the project page, recipes and user documentation at [upper.io/db][1].
+This is the source code repository, see examples and documentation at
+[beta.upper.io/db.v2][1].
+
+If you're looking for v2's source check out the [v2
+branch](https://github.com/upper/db/tree/v2).
+
+## Looking for v1?
+
+We're phasing out `v1`, if you're a new user we encourage you to use [v2][1]
+instead.
+
+The old import path `upper.io/db` will keep on working for a while, but we'll
+remove it eventually in favor of the versioned import path: `upper.io/db.v2`.
+
+Even after changing the import path definitely you'll always be able the find
+the latest stable version in the `v1` branch.
 
 ## License
 
 This project is licensed under the terms of the **MIT License**.
 
-> Copyright (c) 2012-2015 The upper.io/db authors. All rights reserved.
+> Copyright (c) 2012-2016 The upper.io/db authors. All rights reserved.
 >
 > Permission is hereby granted, free of charge, to any person obtaining
 > a copy of this software and associated documentation files (the
