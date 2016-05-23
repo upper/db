@@ -6,11 +6,11 @@
 
 ## The `db.v2` package
 
-![upper.io](http://beta.upper.io/db.v2/res/general.png)
-
 The `upper.io/db.v2` package for [Go][2]  is a non-opinionated database access
 layer for Go that provides a common interface to work with different data
 sources such as PostgreSQL, MySQL, SQLite, QL and MongoDB.
+
+![upper.io](http://beta.upper.io/db.v2/res/general.png)
 
 ## User documentation
 
