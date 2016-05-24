@@ -270,18 +270,26 @@ func (r *Result) Update(values interface{}) error {
 
 	cvs := new(sqlgen.ColumnValues)
 
+	args := make([]interface{}, 0, len(vv))
+
 	for i := range ff {
-		cvs.ColumnValues = append(cvs.ColumnValues, &sqlgen.ColumnValue{Column: sqlgen.ColumnWithName(ff[i]), Operator: r.template.AssignmentOperator, Value: sqlPlaceholder})
+		switch value := vv[i].(type) {
+		case db.Raw:
+			cvs.ColumnValues = append(cvs.ColumnValues, &sqlgen.ColumnValue{Column: sqlgen.ColumnWithName(ff[i]), Operator: r.template.AssignmentOperator, Value: sqlgen.RawValue(fmt.Sprintf(`%v`, value.Value))})
+		default:
+			cvs.ColumnValues = append(cvs.ColumnValues, &sqlgen.ColumnValue{Column: sqlgen.ColumnWithName(ff[i]), Operator: r.template.AssignmentOperator, Value: sqlPlaceholder})
+			args = append(args, value)
+		}
 	}
 
-	vv = append(vv, r.arguments...)
+	args = append(args, r.arguments...)
 
 	_, err = r.table.Exec(&sqlgen.Statement{
 		Type:         sqlgen.Update,
 		Table:        sqlgen.TableWithName(r.table.Name()),
 		ColumnValues: cvs,
 		Where:        &r.where,
-	}, vv...)
+	}, args...)
 
 	return err
 }
