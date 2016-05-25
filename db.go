@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2015 The upper.io/db authors. All rights reserved.
+// Copyright (c) 2012-2016 The upper.io/db authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -19,28 +19,61 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Package db provides a single interface for interacting with different data
-// sources through the use of adapters that wrap well-known database drivers.
+// Package db provides a common interface to work with different data sources
+// using adapters that wrap mature database drivers.
 //
-// As of today, `upper.io/db.v2` fully supports MySQL, PostgreSQL and SQLite (CRUD
-// + Transactions) and provides partial support for MongoDB and QL (CRUD only).
+// The main purpose of db is to abstract common database operations and
+// encourage users perform advanced operations directly using the underlying
+// driver.  db supports the MySQL, PostgreSQL, SQLite and QL databases and
+// provides partial support (CRUD, no transactions) for MongoDB.
 //
-// Usage:
+//  go get upper.io/db.v2
 //
-// 	import(
-//		// Main package.
-// 		"upper.io/db.v2"
-//		// PostgreSQL adapter.
-// 		"upper.io/db.v2/postgresql"
-// 	)
+// Usage
 //
-// `upper.io/db.v2` is not an ORM and thus does not impose any hard restrictions
-// on data structures:
+//  package main
 //
-//	// This code works the same for all supported databases.
-//	var people []Person
-//	res = col.Find(db.Cond{"name": "Max"}).Limit(2).Sort("-input")
-//	err = res.All(&people)
+//  import (
+//  	"log"
+//
+//  	"upper.io/db.v2/postgresql" // Imports the postgresql adapter.
+//  )
+//
+//  var settings = postgresql.ConnectionURL{
+//  	Database: `booktown`,
+//  	Host:     `demo.upper.io`,
+//  	User:     `demouser`,
+//  	Password: `demop4ss`,
+//  }
+//
+//  // Book represents a book.
+//  type Book struct {
+//  	ID        uint   `db:"id"`
+//  	Title     string `db:"title"`
+//  	AuthorID  uint   `db:"author_id"`
+//  	SubjectID uint   `db:"subject_id"`
+//  }
+//
+//  func main() {
+//  	sess, err := postgresql.Open(settings)
+//  	if err != nil {
+//  		log.Fatal(err)
+//  	}
+//  	defer sess.Close()
+//
+//  	var books []Book
+//  	if err := sess.Collection("books").Find().OrderBy("title").All(&books); err != nil {
+//  		log.Fatal(err)
+//  	}
+//
+//  	log.Println("Books:")
+//  	for _, book := range books {
+//  		log.Printf("%q (ID: %d)\n", book.Title, book.ID)
+//  	}
+//  }
+//
+// See more usage examples and documentation for users at
+// http://beta.upper.io/db.v2.
 package db // import "upper.io/db.v2"
 
 import (
@@ -54,18 +87,19 @@ type Constraint interface {
 	Value() interface{}
 }
 
-// Constraints interface provides the Constraints() method.
+// Constraints interface represents an array of constraints.
 type Constraints interface {
 	Constraints() []Constraint
 }
 
-// Compound represents a compound statement created by joining constraints.
+// Compound represents an statement that has one or many sentences joined by a
+// compound operator, like AND or OR.
 type Compound interface {
 	Sentences() []Compound
 	Operator() CompoundOperator
 }
 
-// CompoundOperator represents the operator of a compound.
+// CompoundOperator represents the operation on a compound statement.
 type CompoundOperator uint
 
 // Compound operators.
@@ -88,20 +122,19 @@ type Function interface {
 	Name() string
 }
 
-// Marshaler is the interface implemented by structs that can marshal
-// themselves into data suitable for storage.
+// Marshaler is the interface implemented by struct fields that can marshal
+// themselves into a value that can be saved to a database.
 type Marshaler interface {
 	MarshalDB() (interface{}, error)
 }
 
-// Unmarshaler is the interface implemented by structs that can transform
-// themselves from storage data into a valid value.
+// Unmarshaler is the interface implemented by struct fields that can unmarshal
+// themselves from database data into a Go value.
 type Unmarshaler interface {
 	UnmarshalDB(interface{}) error
 }
 
-// Cond is a map that defines conditions that can be passed to
-// `db.Collection.Find()` and `db.Result.Where()`.
+// Cond is a map that defines conditions for a query.
 //
 // Each entry of the map represents a condition (a column-value relation bound
 // by a comparison operator). The comparison operator is optional and can be
@@ -110,23 +143,22 @@ type Unmarshaler interface {
 //
 // Examples:
 //
-//	// Where age equals 18.
-//	db.Cond{"age": 18}
+//  // Where age equals 18.
+//  db.Cond{"age": 18}
+//  //	// Where age is greater than or equal to 18.
+//  db.Cond{"age >=": 18}
 //
-//	// Where age is greater than or equal to 18.
-//	db.Cond{"age >=": 18}
+//  // Where id is in a list of ids.
+//  db.Cond{"id IN": []{1, 2, 3}}
 //
-//	// Where id is in a list of ids.
-//	db.Cond{"id IN": []{1, 2, 3}}
-//
-//	// Where age is lower than 18 (mongodb-like operator).
-//	db.Cond{"age $lt": 18}
+//  // Where age is lower than 18 (mongodb-like operator).
+//  db.Cond{"age $lt": 18}
 //
 //  // Where age > 32 and age < 35
 //  db.Cond{"age >": 32, "age <": 35}
 type Cond map[interface{}]interface{}
 
-// Constraints returns each one of the map records as a constraint.
+// Constraints returns each one of the Cond map records as a constraint.
 func (c Cond) Constraints() []Constraint {
 	z := make([]Constraint, 0, len(c))
 	for k, v := range c {
@@ -135,7 +167,7 @@ func (c Cond) Constraints() []Constraint {
 	return z
 }
 
-// Sentences returns each one of the map records as a compound.
+// Sentences return each one of the map records as a compound.
 func (c Cond) Sentences() []Compound {
 	z := make([]Compound, 0, len(c))
 	for k, v := range c {
@@ -149,7 +181,6 @@ func (c Cond) Operator() CompoundOperator {
 	return OperatorNone
 }
 
-// rawValue implements RawValue
 type rawValue struct {
 	v string
 }
@@ -183,7 +214,7 @@ func (c *compound) push(a ...Compound) *compound {
 	return c
 }
 
-// Union represents a compound joined by OR.
+// Union represents an OR compound.
 type Union struct {
 	*compound
 }
@@ -205,7 +236,7 @@ func (a *Intersection) And(conds ...Compound) *Intersection {
 	return a
 }
 
-// Intersection represents a compound joined by AND.
+// Intersection represents an AND compound.
 type Intersection struct {
 	*compound
 }
@@ -228,7 +259,7 @@ func (c constraint) Value() interface{} {
 	return c.v
 }
 
-// NewConstraint creates a condition
+// NewConstraint creates a constraint.
 func NewConstraint(key interface{}, value interface{}) Constraint {
 	return constraint{k: key, v: value}
 }
@@ -281,18 +312,18 @@ func (f *dbFunc) Name() string {
 //
 //	// name = "Peter" AND last_name = "Parker"
 //	db.And(
-// 		db.Cond{"name": "Peter"},
-// 		db.Cond{"last_name": "Parker "},
-// 	)
+//		db.Cond{"name": "Peter"},
+//		db.Cond{"last_name": "Parker "},
+//	)
 //
 //	// (name = "Peter" OR name = "Mickey") AND last_name = "Mouse"
-// 	db.And(
-// 		db.Or(
-// 			db.Cond{"name": "Peter"},
-// 			db.Cond{"name": "Mickey"},
-// 		),
-// 		db.Cond{"last_name": "Mouse"},
-// 	)
+//	db.And(
+//		db.Or(
+//			db.Cond{"name": "Peter"},
+//			db.Cond{"name": "Mickey"},
+//		),
+//		db.Cond{"last_name": "Mouse"},
+//	)
 func And(conds ...Compound) *Intersection {
 	return &Intersection{compound: newCompound(conds...)}
 }
@@ -302,11 +333,11 @@ func And(conds ...Compound) *Intersection {
 //
 // Example:
 //
-// 	// year = 2012 OR year = 1987
-// 	db.Or(
-// 		db.Cond{"year": 2012},
-// 		db.Cond{"year": 1987},
-// 	)
+//	// year = 2012 OR year = 1987
+//	db.Or(
+//		db.Cond{"year": 2012},
+//		db.Cond{"year": 1987},
+//	)
 func Or(conds ...Compound) *Union {
 	return &Union{compound: newCompound(conds...)}
 }
@@ -323,35 +354,32 @@ func Raw(s string) RawValue {
 }
 
 // Database is an interface that defines methods that must be satisfied by
-// database adapters.
+// all database adapters.
 type Database interface {
 	// Driver returns the underlying driver the wrapper uses.
 	//
-	// In order to actually use the driver the `interface{}` value has to be
-	// casted to the appropriate type.
+	// In order to actually use the driver, the `interface{}` value needs to be
+	// casted into the appropriate type.
 	//
 	// Example:
 	//  internalSQLDriver := sess.Driver().(*sql.DB)
 	Driver() interface{}
 
-	// Open attempts to stablish a connection with a database manager.
+	// Open attempts to establish a connection with a DBMS.
 	Open(ConnectionURL) error
 
 	// Clone duplicates the current database session. Returns an error if the
 	// clone did not succeed.
 	// Clone() (Database, error)
 
-	// Ping returns an error if the database manager cannot be reached.
+	// Ping returns an error if the database manager could be reached.
 	Ping() error
 
-	// Close closes the currently active connection to the database.
+	// Close closes the currently active connection to the database and clears
+	// caches.
 	Close() error
 
-	// Collection returns a Collection given a table name. The collection may or
-	// may not exists and that could be an error when querying depending on the
-	// database you're working with, MongoDB does not care but SQL databases do
-	// care. If you want to know if a Collection exists use the Exists() method
-	// on a Collection.
+	// Collection returns a collection reference given a table name.
 	Collection(string) Collection
 
 	// Collections returns the names of all non-system tables on the database.
@@ -360,48 +388,44 @@ type Database interface {
 	// Name returns the name of the active database.
 	Name() string
 
+	// ConnectionURL returns the data used to set up the adapter.
 	ConnectionURL() ConnectionURL
 }
 
-// Tx is an interface that enhaces the `Database` interface with additional
-// methods for transactions.
+// Tx is an interface that enhaces the Database interface with additional
+// methods for transactional operations.
 //
 // Example:
-//	// [...]
-// 	if sess, err = db.Open(postgresql.Adapter, settings); err != nil {
-// 		log.Fatal(err)
-// 	}
+//  sess, err = postgresql.Open(settings)
+//  ...
 //
-// 	var tx db.Tx
-// 	if tx, err = sess.NewTransaction(); err != nil {
-// 		log.Fatal(err)
-// 	}
+//  tx, err = sess.NewTransaction()
+//  ...
 //
-// 	var artist db.Collection
-// 	if artist, err = tx.Collection("artist"); err != nil {
-// 		log.Fatal(err)
-// 	}
-//	// [...]
+//  artist, err = tx.Collection("artist")
+//  ...
+//
+//  id, err = artist.Insert(item)
+//  ...
+//
+//  err = tx.Commit()
 type Tx interface {
 	Database
 
 	// Rollback discards all the instructions on the current transaction.
 	Rollback() error
 
-	// Commit commits the current transactions.
+	// Commit commits the current transaction.
 	Commit() error
 }
 
-// Collection is an interface that defines methods useful for handling data
-// sources or tables.
+// Collection is an interface that defines methods useful for handling tables.
 type Collection interface {
 
 	// Insert inserts a new item into the collection, it accepts a map or a
 	// struct as argument and returns the ID of the newly added element. The type
 	// of this ID depends on the database adapter. The ID returned by Insert()
-	// can be passed directly to Find() to find the recently added element.
-	//
-	// Insert does not alter the passed element.
+	// can be passed directly to Find() to retrieve the recently added element.
 	Insert(interface{}) (interface{}, error)
 
 	// InsertReturning is like Insert() but it updates the passed pointer to map
@@ -416,7 +440,8 @@ type Collection interface {
 	// Find returns a result set with the given filters.
 	Find(...interface{}) Result
 
-	// Truncate removes all elements on the collection and resets its IDs.
+	// Truncate removes all elements on the collection and resets the
+	// collection's IDs.
 	Truncate() error
 
 	// Name returns the name of the collection.
@@ -426,7 +451,8 @@ type Collection interface {
 // Result is an interface that defines methods useful for working with result
 // sets.
 type Result interface {
-	// String satisfies fmt.Stringer
+	// String satisfies fmt.Stringer and returns a SELECT statement for
+	// the result.
 	String() string
 
 	// Limit defines the maximum number of results in this set. It only has
@@ -466,7 +492,7 @@ type Result interface {
 	Count() (uint64, error)
 
 	// Next fetches the next result within the result set and dumps it into the
-	// given pointer to struct or pointer to map. You must manually call
+	// given pointer to struct or pointer to map. You must call
 	// `Close()` after finishing using `Next()`.
 	Next(ptrToStruct interface{}) bool
 
@@ -476,13 +502,14 @@ type Result interface {
 
 	// One fetches the first result within the result set and dumps it into the
 	// given pointer to struct or pointer to map. The result set is automatically
-	// closed after picking the element, so there is no need to call `Close()`
-	// manually.
+	// closed after picking the element, so there is no need to call Close()
+	// after using One().
 	One(ptrToStruct interface{}) error
 
 	// All fetches all results within the result set and dumps them into the
 	// given pointer to slice of maps or structs.  The result set is
-	// automatically closed, so there is no need to call `Close()` manually.
+	// automatically closed, so there is no need to call Close() after
+	// using All().
 	All(sliceOfStructs interface{}) error
 
 	// Close closes the result set.
