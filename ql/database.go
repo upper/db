@@ -32,7 +32,7 @@ import (
 
 	_ "github.com/cznic/ql/driver" // QL driver
 	"github.com/jmoiron/sqlx"
-	"upper.io/cache"
+	"upper.io/db/builder/cache"
 	"upper.io/db"
 	"upper.io/db/util/adapter"
 	"upper.io/db/util/schema"

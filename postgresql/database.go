@@ -31,8 +31,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // PostgreSQL driver.
-	"upper.io/cache"
 	"upper.io/db"
+	"upper.io/db/builder/cache"
 	"upper.io/db/util/adapter"
 	"upper.io/db/util/schema"
 	"upper.io/db/util/sqlgen"
@@ -57,6 +57,10 @@ type database struct {
 type cachedStatement struct {
 	*sqlx.Stmt
 	query string
+}
+
+func (c *cachedStatement) OnPurge() {
+	c.Stmt.Close()
 }
 
 var waitForConnMu sync.Mutex
