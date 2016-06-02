@@ -3,6 +3,7 @@ package sqladapter
 import (
 	"fmt"
 	"reflect"
+
 	"upper.io/db.v2"
 	"upper.io/db.v2/builder/exql"
 )
@@ -88,7 +89,6 @@ func (c *collection) InsertReturning(item interface{}) error {
 	}
 
 	var res db.Result
-
 	col := tx.Collection(c.p.Name())
 
 	id, err := col.Insert(item)

@@ -13,7 +13,7 @@ import (
 	"upper.io/db.v2/internal/logger"
 )
 
-// HasCleanUp
+// HasCleanUp exposes a clean-up routine for adapters.
 type HasCleanUp interface {
 	CleanUp() error
 }

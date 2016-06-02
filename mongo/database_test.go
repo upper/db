@@ -71,12 +71,12 @@ type testValuesStruct struct {
 	Time  time.Duration `bson:"_time"`
 }
 
-type artistWithObjectIdKey struct {
+type artistWithObjectIDKey struct {
 	id   bson.ObjectId
 	Name string `db:"name"`
 }
 
-func (artist *artistWithObjectIdKey) SetID(id bson.ObjectId) error {
+func (artist *artistWithObjectIDKey) SetID(id bson.ObjectId) error {
 	artist.id = id
 	return nil
 }
@@ -332,7 +332,7 @@ func TestInsert(t *testing.T) {
 	}
 
 	// Attempt to append and update a private key
-	itemStruct3 := artistWithObjectIdKey{
+	itemStruct3 := artistWithObjectIDKey{
 		Name: "Janus",
 	}
 
