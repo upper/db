@@ -206,6 +206,7 @@ func (col *Collection) Truncate() error {
 	return nil
 }
 
+// InsertReturning is not currently supported by this driver.
 func (col *Collection) InsertReturning(item interface{}) error {
 	return db.ErrUnsupported
 }
@@ -237,7 +238,7 @@ func (col *Collection) Insert(item interface{}) (interface{}, error) {
 
 	// And other interfaces?
 	if _, ok := id.(bson.ObjectId); ok {
-		if setter, ok := item.(ObjectIdIDSetter); ok {
+		if setter, ok := item.(ObjectIDIDSetter); ok {
 			if err := setter.SetID(id.(bson.ObjectId)); err != nil {
 				return nil, err
 			}

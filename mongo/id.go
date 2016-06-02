@@ -25,8 +25,8 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-// ObjectIdIDSetter implements a common pattern for setting IDs of type
+// ObjectIDIDSetter implements a common pattern for setting IDs of type
 // ObjectId.
-type ObjectIdIDSetter interface {
+type ObjectIDIDSetter interface {
 	SetID(bson.ObjectId) error
 }

@@ -60,6 +60,7 @@ func Open(settings db.ConnectionURL) (db.Database, error) {
 	return d, nil
 }
 
+// ConnectionURL returns mongodb's underlaying URL.
 func (s *Source) ConnectionURL() db.ConnectionURL {
 	return s.connURL
 }
@@ -191,6 +192,7 @@ func (s *Source) versionAtLeast(version ...int) bool {
 	return true
 }
 
+// Builder is not supported by this driver yet.
 func (s *Source) Builder() builder.Builder {
 	return nil
 }

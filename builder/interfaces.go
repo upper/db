@@ -386,6 +386,7 @@ type Getter interface {
 	QueryRow() (*sql.Row, error)
 }
 
+// Fetcher provides methods for dumping results into variables.
 type Fetcher interface {
 	// All dumps all the results into the given slice, All() expects a pointer to
 	// slice of maps or structs.
