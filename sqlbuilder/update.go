@@ -3,7 +3,7 @@ package builder
 import (
 	"database/sql"
 
-	"upper.io/db.v2/builder/exql"
+	"upper.io/db.v2/sqlbuilder/exql"
 )
 
 type updater struct {

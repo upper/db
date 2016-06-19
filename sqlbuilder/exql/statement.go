@@ -3,7 +3,7 @@ package exql
 import (
 	"reflect"
 
-	"upper.io/db.v2/builder/cache"
+	"upper.io/db.v2/sqlbuilder/cache"
 )
 
 // Statement represents different kinds of SQL statements.

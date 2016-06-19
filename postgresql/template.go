@@ -22,8 +22,8 @@
 package postgresql
 
 import (
-	"upper.io/db.v2/builder/cache"
-	"upper.io/db.v2/builder/exql"
+	"upper.io/db.v2/sqlbuilder/cache"
+	"upper.io/db.v2/sqlbuilder/exql"
 )
 
 const (

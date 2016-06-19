@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"upper.io/db.v2"
-	"upper.io/db.v2/builder"
-	"upper.io/db.v2/builder/cache"
-	"upper.io/db.v2/builder/exql"
+	"upper.io/db.v2/sqlbuilder"
+	"upper.io/db.v2/sqlbuilder/cache"
+	"upper.io/db.v2/sqlbuilder/exql"
 	"upper.io/db.v2/internal/logger"
 )
 

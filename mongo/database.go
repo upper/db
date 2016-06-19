@@ -28,7 +28,7 @@ import (
 
 	"gopkg.in/mgo.v2"
 	"upper.io/db.v2"
-	"upper.io/db.v2/builder"
+	"upper.io/db.v2/sqlbuilder"
 )
 
 // Adapter holds the name of the mongodb adapter.
