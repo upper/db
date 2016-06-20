@@ -1,4 +1,4 @@
-// Copyright (c) 2015 The upper.io/db.v2/sqlbuilder authors. All rights reserved.
+// Copyright (c) 2015 The upper.io/db.v2/internal/sqlbuilder authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,7 +21,7 @@
 
 // Package builder provides tools to compose, execute and map SQL queries to Go
 // structs and maps.
-package builder // import "upper.io/db.v2/sqlbuilder"
+package builder // import "upper.io/db.v2/internal/sqlbuilder"
 
 import (
 	"database/sql"

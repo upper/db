@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"upper.io/db.v2"
-	"upper.io/db.v2/sqlbuilder/exql"
+	"upper.io/db.v2/internal/sqlbuilder/exql"
 )
 
 // Collection represents a SQL table.

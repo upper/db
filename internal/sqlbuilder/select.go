@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"upper.io/db.v2"
-	"upper.io/db.v2/sqlbuilder/exql"
+	"upper.io/db.v2/internal/sqlbuilder/exql"
 )
 
 type selectMode uint8

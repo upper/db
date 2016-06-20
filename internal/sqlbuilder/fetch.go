@@ -27,7 +27,7 @@ import (
 	"reflect"
 
 	"upper.io/db.v2"
-	"upper.io/db.v2/sqlbuilder/reflectx"
+	"upper.io/db.v2/internal/sqlbuilder/reflectx"
 )
 
 var mapper = reflectx.NewMapper("db")
