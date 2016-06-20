@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"sync/atomic"
 
-	"upper.io/db.v2/internal/sqlbuilder/cache"
+	"upper.io/db.v2/sqlbuilder/cache"
 )
 
 type hash struct {

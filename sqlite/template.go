@@ -22,8 +22,8 @@
 package sqlite
 
 import (
-	"upper.io/db.v2/internal/sqlbuilder/cache"
-	"upper.io/db.v2/internal/sqlbuilder/exql"
+	"upper.io/db.v2/sqlbuilder/cache"
+	"upper.io/db.v2/sqlbuilder/exql"
 )
 
 const (

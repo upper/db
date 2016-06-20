@@ -25,7 +25,7 @@ import (
 	"sync"
 
 	"upper.io/db.v2"
-	"upper.io/db.v2/internal/sqlbuilder"
+	"upper.io/db.v2/sqlbuilder"
 )
 
 // Result represents a delimited set of items bound by a condition.
