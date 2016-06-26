@@ -62,23 +62,22 @@ This project is licensed under the terms of the **MIT License**.
 
 ## Authors and contributors
 
-* José Carlos Nieto <jose.carlos@menteslibres.net>
-* Peter Kieltyka <peter@pressly.com>
-* Maciej Lisiewski <maciej.lisiewski@gmail.com>
-* Max Hawkins <maxhawkins@google.com>
-* Paul Xue <paul.xue@pressly.com>
-* Kevin Darlington <kdarlington@gmail.com>
-* Lars Buitinck <l.buitinck@esciencecenter.nl>
-* icattlecoder <icattlecoder@gmail.com>
-* Aaron <aaron.l.france@gmail.com>
-* Hiram J. Pérez <worg@linuxmail.org>
-* Julien Schmidt <github@julienschmidt.com>
-* Max Hawkins <maxhawkins@gmail.com>
-* Piotr "Orange" Zduniak <piotr@zduniak.net>
-* achun <achun.shx@qq.com>
-* r. c. reventlov <xiam@menteslibres.org>
-* rjmcguire <rjmcguire@gmail.com>
-* wei2912 <wei2912_support@hotmail.com>
+* José Carlos Nieto <<jose.carlos@menteslibres.net>>
+* Peter Kieltyka <<peter@pressly.com>>
+* Maciej Lisiewski <<maciej.lisiewski@gmail.com>>
+* Max Hawkins <<maxhawkins@google.com>>
+* Paul Xue <<paul.xue@pressly.com>>
+* Kevin Darlington <<kdarlington@gmail.com>>
+* Lars Buitinck <<l.buitinck@esciencecenter.nl>>
+* icattlecoder <<icattlecoder@gmail.com>>
+* Aaron <<aaron.l.france@gmail.com>>
+* Hiram J. Pérez <<worg@linuxmail.org>>
+* Julien Schmidt <<github@julienschmidt.com>>
+* Max Hawkins <<maxhawkins@gmail.com>>
+* Piotr "Orange" Zduniak <<piotr@zduniak.net>>
+* achun <<achun.shx@qq.com>>
+* rjmcguire <<rjmcguire@gmail.com>>
+* wei2912 <<wei2912_support@hotmail.com>>
 
 [1]: https://upper.io/db
 [2]: http://golang.org
