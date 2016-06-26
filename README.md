@@ -1,14 +1,16 @@
 # upper.io/db.v2 [![Build Status](https://travis-ci.org/upper/db.svg?branch=v2)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/upper.io/db.v2?status.svg)](https://godoc.org/upper.io/db.v2)
 
 <center>
-<img src="http://beta.upper.io/db.v2/images/gopher.svg" width="256" />
+<img src="https://upper.io/db.v2/images/gopher.svg" width="256" />
 </center>
 
 ## The `db.v2` package
 
-The `upper.io/db.v2` package for [Go][2]  is a productive database access layer
-for Go that provides a common interface to work with different data sources
-such as PostgreSQL, MySQL, SQLite, QL and MongoDB.
+The `upper.io/db.v2` package for [Go][2]  it's *not* an ORM, just a productive
+data access layer for Go which provides a common interface to work with
+different data sources such as [PostgreSQL](https://upper.io/db.v2/postgresql),
+[MySQL](https://upper.io/db.v2/mysql), [SQLite](https://upper.io/db.v2/sqlite),
+[QL](https://upper.io/db.v2/ql) and [MongoDB](https://upper.io/db.v2/mongodb).
 
 ```
 go get upper.io/db.v2
@@ -17,7 +19,7 @@ go get upper.io/db.v2
 ## User documentation
 
 This is the source code repository, see examples and documentation at
-[beta.upper.io/db.v2][1].
+[upper.io/db.v2][1].
 
 ## Demo
 
@@ -114,20 +116,20 @@ This project is licensed under the terms of the **MIT License**.
 * José Carlos Nieto <jose.carlos@menteslibres.net>
 * Peter Kieltyka <peter@pressly.com>
 * Maciej Lisiewski <maciej.lisiewski@gmail.com>
-* Paul Xue <paul.xue@pressly.com>
 * Max Hawkins <maxhawkins@google.com>
+* Paul Xue <paul.xue@pressly.com>
 * Kevin Darlington <kdarlington@gmail.com>
-* icattlecoder <icattlecoder@gmail.com>
 * Lars Buitinck <l.buitinck@esciencecenter.nl>
-* wei2912 <wei2912_support@hotmail.com>
-* rjmcguire <rjmcguire@gmail.com>
-* achun <achun.shx@qq.com>
-* Piotr "Orange" Zduniak <piotr@zduniak.net>
-* Max Hawkins <maxhawkins@gmail.com>
-* Julien Schmidt <github@julienschmidt.com>
-* Hiram J. Pérez <worg@linuxmail.org>
+* icattlecoder <icattlecoder@gmail.com>
 * Aaron <aaron.l.france@gmail.com>
+* Hiram J. Pérez <worg@linuxmail.org>
+* Julien Schmidt <github@julienschmidt.com>
+* Max Hawkins <maxhawkins@gmail.com>
+* Piotr "Orange" Zduniak <piotr@zduniak.net>
+* achun <achun.shx@qq.com>
+* r. c. reventlov <xiam@menteslibres.org>
+* rjmcguire <rjmcguire@gmail.com>
+* wei2912 <wei2912_support@hotmail.com>
 
-[1]: http://beta.upper.io/db.v2
+[1]: https://upper.io/db.v2
 [2]: http://golang.org
-[3]: http://en.wikipedia.org/wiki/Create,_read,_update_and_delete
