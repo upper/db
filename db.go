@@ -209,6 +209,9 @@ type Database interface {
 	// WithSession returns a clone of the session on the given sess context. sess
 	// can be a sql.DB or sql.Tx.
 	WithSession(sess interface{}) (Database, error)
+
+	// ClearCache clears all caches the session is using.
+	ClearCache()
 }
 
 // Tx is an interface that provides the same methods that the `db.Database`

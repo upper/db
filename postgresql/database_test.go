@@ -25,7 +25,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"reflect"
@@ -285,6 +284,8 @@ func TestTruncate(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	sess.ClearCache()
+
 	if len(collections) == 0 {
 		t.Fatalf("Expecting some collections.")
 	}
@@ -320,6 +321,8 @@ func TestSetCursorError(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	sess.ClearCache()
+
 	// trigger Postgres error. "" is not an int.
 	res := artist.Find(db.Cond{"id": ""})
 
@@ -354,9 +357,13 @@ func TestAppend(t *testing.T) {
 		"name": "Ozzie",
 	}
 
+	sess.ClearCache()
+
 	if id, err = artist.Append(itemMap); err != nil {
 		t.Fatal(err)
 	}
+
+	sess.ClearCache()
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
 		t.Fatalf("Expecting an ID.")
@@ -497,8 +504,6 @@ func TestResultFetch(t *testing.T) {
 		if err == db.ErrNoMoreRows {
 			break
 		}
-
-		log.Printf("rowMap: %#v", rowMap)
 
 		if err == nil {
 			if id, ok := rowMap["id"].(int64); !ok || id == 0 {

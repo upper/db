@@ -71,6 +71,16 @@ type columnSchemaT struct {
 	DataType string `db:"data_type"`
 }
 
+func (d *database) ClearCache() {
+	d.collectionsMu.Lock()
+	d.collections = make(map[string]*table)
+	d.cachedStatements.Clear()
+	d.schema = nil
+	d.collectionsMu.Unlock()
+
+	d.populateSchema()
+}
+
 func (d *database) WithSession(sess interface{}) (db.Database, error) {
 	clone := &database{
 		schema: d.schema,
