@@ -1,5 +1,8 @@
 sudo: false
 
+notifications:
+  email: false
+
 language: go
 
 go:
@@ -16,14 +19,8 @@ install:
   - mkdir -p $GOPATH/src/upper.io
   - mv $PWD $GOPATH/src/upper.io/db
   - cd $GOPATH/src/upper.io/db
-  - ls -la
-  - go get -v -t -d
   - go get -v -t -d upper.io/db/postgresql
-  - go get -v github.com/jmoiron/sqlx
   - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db
-
-before_script:
-  - (cd postgresql/_dumps && make)
 
 script:
   - cd $GOPATH/src/upper.io/db
