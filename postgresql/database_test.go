@@ -25,6 +25,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"reflect"
@@ -118,8 +119,8 @@ func (item itemWithKey) Constraint() db.Cond {
 
 func (item *itemWithKey) SetID(keys map[string]interface{}) error {
 	if len(keys) == 2 {
-		item.Code = string(keys["code"].([]byte))
-		item.UserID = string(keys["user_id"].([]byte))
+		item.Code = fmt.Sprintf("%s", keys["code"])
+		item.UserID = fmt.Sprintf("%s", keys["user_id"])
 		return nil
 	}
 	return errors.New(`Expecting exactly two keys.`)
@@ -497,11 +498,14 @@ func TestResultFetch(t *testing.T) {
 			break
 		}
 
+		log.Printf("rowMap: %#v", rowMap)
+
 		if err == nil {
 			if id, ok := rowMap["id"].(int64); !ok || id == 0 {
 				t.Fatalf("Expecting a not null ID.")
 			}
-			if name, ok := rowMap["name"].([]byte); !ok || len(name) == 0 {
+			name := fmt.Sprintf("%s", rowMap["name"])
+			if name == "" {
 				t.Fatalf("Expecting a name.")
 			}
 		} else {

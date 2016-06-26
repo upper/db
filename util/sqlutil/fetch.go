@@ -26,8 +26,8 @@ import (
 	"reflect"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/jmoiron/sqlx/reflectx"
 	"upper.io/db"
+	"upper.io/db/internal/reflectx"
 )
 
 // FetchRow receives a *sqlx.Rows value and tries to map all the rows into a
@@ -150,7 +150,7 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 	case reflect.Struct:
 
 		values := make([]interface{}, len(columns))
-		typeMap := rows.Mapper.TypeMap(itemT)
+		typeMap := mapper.TypeMap(itemT)
 		fieldMap := typeMap.Names
 		wrappedValues := map[*reflectx.FieldInfo]interface{}{}
 

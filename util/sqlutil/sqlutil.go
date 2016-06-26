@@ -29,9 +29,11 @@ import (
 	"strings"
 	// "crypto/md5"
 
-	"github.com/jmoiron/sqlx/reflectx"
 	"upper.io/db"
+	"upper.io/db/internal/reflectx"
 )
+
+var mapper = reflectx.NewMapper("db")
 
 var (
 	reInvisibleChars       = regexp.MustCompile(`[\s\r\n\t]+`)
@@ -49,7 +51,6 @@ var (
 // using FieldValues()
 type T struct {
 	Columns []string
-	Mapper  *reflectx.Mapper
 	Tables  []string // Holds table names.
 }
 
@@ -80,7 +81,7 @@ func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
 
 	case reflect.Struct:
 
-		fieldMap := t.Mapper.TypeMap(itemT).Names
+		fieldMap := mapper.TypeMap(itemT).Names
 		nfields := len(fieldMap)
 
 		values = make([]interface{}, 0, nfields)
@@ -168,11 +169,6 @@ func reset(data interface{}) error {
 // normalizeColumn prepares a column for comparison against another column.
 func normalizeColumn(s string) string {
 	return strings.ToLower(reColumnCompareExclude.ReplaceAllString(s, ""))
-}
-
-// NewMapper creates a reflectx.Mapper
-func NewMapper() *reflectx.Mapper {
-	return reflectx.NewMapper("db")
 }
 
 // MainTableName returns the name of the first table.

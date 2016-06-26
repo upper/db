@@ -31,8 +31,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // PostgreSQL driver.
-	"upper.io/db/internal/cache"
 	"upper.io/db"
+	"upper.io/db/internal/cache"
 	"upper.io/db/util/adapter"
 	"upper.io/db/util/schema"
 	"upper.io/db/util/sqlgen"
@@ -76,14 +76,11 @@ func (d *database) WithSession(sess interface{}) (db.Database, error) {
 		schema: d.schema,
 	}
 
-	mapper := sqlutil.NewMapper()
-
 	switch v := sess.(type) {
 	case *sql.DB:
 		clone.session = sqlx.NewDb(v, "postgresql")
-		clone.session.Mapper = mapper
 	case *sql.Tx:
-		tx := &sqlx.Tx{Tx: v, Mapper: mapper}
+		tx := &sqlx.Tx{Tx: v}
 		clone.tx = sqltx.New(tx)
 	}
 
@@ -263,12 +260,6 @@ func (d *database) Collection(names ...string) (db.Collection, error) {
 	col := &table{database: d}
 	col.T.Tables = names
 
-	if d.session != nil {
-		col.T.Mapper = d.session.Mapper
-	} else {
-		col.T.Mapper = d.tx.Mapper
-	}
-
 	for _, name := range names {
 		chunks := strings.SplitN(name, ` `, 2)
 
@@ -383,7 +374,6 @@ func (d *database) wrapSession(sess interface{}) error {
 		d.session, d.tx = nil, sqltx.New(v)
 	case *sqlx.DB:
 		d.session, d.tx = v, nil
-		d.session.Mapper = sqlutil.NewMapper()
 	default:
 		return errors.New("Could not wrap session.")
 	}
