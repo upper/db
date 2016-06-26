@@ -235,15 +235,6 @@ func (col *Collection) Insert(item interface{}) (interface{}, error) {
 		}
 	}
 
-	// And other interfaces?
-	if _, ok := id.(bson.ObjectId); ok {
-		if setter, ok := item.(ObjectIdIDSetter); ok {
-			if err := setter.SetID(id.(bson.ObjectId)); err != nil {
-				return nil, err
-			}
-		}
-	}
-
 	return id, nil
 }
 

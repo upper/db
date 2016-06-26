@@ -390,6 +390,9 @@ type Database interface {
 
 	// ConnectionURL returns the data used to set up the adapter.
 	ConnectionURL() ConnectionURL
+
+	// ClearCache clears all the cache mechanisms the adapter is using.
+	ClearCache()
 }
 
 // Tx is an interface that enhaces the Database interface with additional

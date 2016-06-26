@@ -23,7 +23,6 @@
 package mongo
 
 import (
-	"errors"
 	"math/rand"
 	"os"
 	"reflect"
@@ -69,36 +68,6 @@ type testValuesStruct struct {
 	DateN *time.Time    `bson:"_nildate"`
 	DateP *time.Time    `bson:"_ptrdate"`
 	Time  time.Duration `bson:"_time"`
-}
-
-type artistWithObjectIdKey struct {
-	id   bson.ObjectId
-	Name string `db:"name"`
-}
-
-func (artist *artistWithObjectIdKey) SetID(id bson.ObjectId) error {
-	artist.id = id
-	return nil
-}
-
-type itemWithKey struct {
-	ID      bson.ObjectId `bson:"-"`
-	SomeVal string        `bson:"some_val"`
-}
-
-func (item itemWithKey) Constraint() db.Cond {
-	cond := db.Cond{
-		"_id": item.ID,
-	}
-	return cond
-}
-
-func (item *itemWithKey) SetID(keys map[string]interface{}) error {
-	if len(keys) == 1 {
-		item.ID = keys["_id"].(bson.ObjectId)
-		return nil
-	}
-	return errors.New(`Expecting exactly two keys.`)
 }
 
 var testValues testValuesStruct
@@ -331,19 +300,6 @@ func TestInsert(t *testing.T) {
 		t.Fatalf("Expecting a valid bson.ObjectId.")
 	}
 
-	// Attempt to append and update a private key
-	itemStruct3 := artistWithObjectIdKey{
-		Name: "Janus",
-	}
-
-	if _, err = artist.Insert(&itemStruct3); err != nil {
-		t.Fatal(err)
-	}
-
-	if itemStruct3.id.Valid() == false {
-		t.Fatalf("Expecting an ID.")
-	}
-
 	var total uint64
 
 	// Counting elements, must be exactly 6 elements.
@@ -351,10 +307,9 @@ func TestInsert(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if total != 6 {
-		t.Fatalf("Expecting exactly 6 rows.")
+	if total != 5 {
+		t.Fatalf("Expecting exactly 5 rows.")
 	}
-
 }
 
 // This test tries to use an empty filter and count how many elements were
@@ -767,63 +722,6 @@ func TestDelete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-}
-
-// MongoDB: Does not support schemas so it can't has composite keys. We're
-// testing db.Constrainer and db.IDSetter interface.
-func TestSetterAndConstrainer(t *testing.T) {
-	var err error
-	var id interface{}
-	var sess db.Database
-	var compositeKeys db.Collection
-
-	if sess, err = db.Open(Adapter, settings); err != nil {
-		t.Fatal(err)
-	}
-
-	defer sess.Close()
-
-	compositeKeys = sess.Collection("composite_keys")
-
-	//n := rand.Intn(100000)
-
-	item := itemWithKey{
-		// 		"ABCDEF",
-		// 		strconv.Itoa(n),
-		SomeVal: "Some value",
-	}
-
-	if id, err = compositeKeys.Insert(&item); err != nil {
-		t.Fatal(err)
-	}
-
-	//	ids := id.([]interface{})
-
-	// 	if ids[0].(string) != item.Code {
-	// 		t.Fatal(`Keys must match.`)
-	// 	}
-	//
-	// 	if ids[1].(string) != item.UserID {
-	// 		t.Fatal(`Keys must match.`)
-	// 	}
-
-	// Using constraint interface.
-	res := compositeKeys.Find(itemWithKey{ID: id.(bson.ObjectId)})
-
-	var item2 itemWithKey
-
-	if item2.SomeVal == item.SomeVal {
-		t.Fatal(`Values must be different before query.`)
-	}
-
-	if err := res.One(&item2); err != nil {
-		t.Fatal(err)
-	}
-
-	if item2.SomeVal != item.SomeVal {
-		t.Fatal(`Values must be equal after query.`)
-	}
-
 }
 
 // This test tries to add many different datatypes to a single row in a

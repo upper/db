@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"upper.io/db.v2"
+	"upper.io/db.v2/internal/logger"
 	"upper.io/db.v2/sqlbuilder"
 	"upper.io/db.v2/sqlbuilder/cache"
 	"upper.io/db.v2/sqlbuilder/exql"
-	"upper.io/db.v2/internal/logger"
 )
 
 // HasCleanUp
@@ -55,6 +55,7 @@ type BaseDatabase interface {
 	Name() string
 	Close() error
 	Ping() error
+	ClearCache()
 	Collection(string) db.Collection
 	Driver() interface{}
 
@@ -156,6 +157,17 @@ func (d *database) Ping() error {
 	return d.sess.Ping()
 }
 
+// ClearCache removes all caches.
+func (d *database) ClearCache() {
+	d.collectionMu.Lock()
+	defer d.collectionMu.Unlock()
+	d.cachedCollections.Clear()
+	d.cachedStatements.Clear()
+	if d.template != nil {
+		d.template.Cache.Clear()
+	}
+}
+
 // Close terminates the current database session
 func (d *database) Close() error {
 	defer func() {
@@ -168,6 +180,7 @@ func (d *database) Close() error {
 		if d.Tx() != nil && !d.Tx().Committed() {
 			d.Tx().Rollback()
 		}
+		d.cachedCollections.Clear()
 		d.cachedStatements.Clear() // Closes prepared statements as well.
 		if cleaner, ok := d.PartialDatabase.(HasCleanUp); ok {
 			cleaner.CleanUp()
