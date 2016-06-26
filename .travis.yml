@@ -22,6 +22,9 @@ install:
   - go get -v -t -d upper.io/db/postgresql
   - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db
 
+before_script:
+  make -C $GOPATH/src/upper.io/db/postgresql/_dumps
+
 script:
   - cd $GOPATH/src/upper.io/db
   - BENCHTIME=2s make test bench -C $GOPATH/src/upper.io/db/postgresql
