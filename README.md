@@ -8,7 +8,9 @@
 
 The `upper.io/db.v2` package for [Go][2]  it's *not* an ORM, just a productive
 data access layer for Go which provides a common interface to work with
-different data sources such as PostgreSQL, MySQL, SQLite, QL and MongoDB.
+different data sources such as [PostgreSQL](https://upper.io/db.v2/postgresql),
+[MySQL](https://upper.io/db.v2/mysql), [SQLite](https://upper.io/db.v2/sqlite),
+[QL](https://upper.io/db.v2/ql) and [MongoDB](https://upper.io/db.v2/mongodb).
 
 ```
 go get upper.io/db.v2
