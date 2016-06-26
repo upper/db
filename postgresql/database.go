@@ -31,7 +31,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // PostgreSQL driver.
-	"upper.io/cache"
+	"upper.io/db/internal/cache"
 	"upper.io/db"
 	"upper.io/db/util/adapter"
 	"upper.io/db/util/schema"

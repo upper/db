@@ -1,7 +1,7 @@
 package sqlgen
 
 import (
-	"upper.io/cache"
+	"upper.io/db/internal/cache"
 )
 
 const (

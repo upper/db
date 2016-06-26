@@ -22,7 +22,7 @@
 package postgresql // import "upper.io/db/postgresql"
 
 import (
-	"upper.io/cache"
+	"upper.io/db/internal/cache"
 	"upper.io/db"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"

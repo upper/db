@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"upper.io/cache"
+	"upper.io/db/internal/cache"
 )
 
 // Statement represents different kinds of SQL statements.

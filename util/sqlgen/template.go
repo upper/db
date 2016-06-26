@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"text/template"
 
-	"upper.io/cache"
+	"upper.io/db/internal/cache"
 )
 
 // Type is the type of SQL query the statement represents.
