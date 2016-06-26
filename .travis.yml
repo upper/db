@@ -3,14 +3,12 @@ sudo: false
 language: go
 
 go:
-  - 1.5
   - 1.6
 
 addons:
   postgresql: "9.4"
 
 services:
-  - mongodb
 
 env: GOARCH=amd64 TEST_HOST=127.0.0.1
 
@@ -19,32 +17,14 @@ install:
   - mv $PWD $GOPATH/src/upper.io/db
   - cd $GOPATH/src/upper.io/db
   - ls -la
-  - go get -v github.com/cznic/ql/ql       # ql command line util.
   - go get -v -t -d
-  - go get -v -t -d upper.io/db/mysql
-  - go get -v -t -d upper.io/db/sqlite
   - go get -v -t -d upper.io/db/postgresql
-  - go get -v -t -d upper.io/db/mongo
-  - go get -v -t -d upper.io/db/ql
   - go get -v github.com/jmoiron/sqlx
-#  - (cd $GOPATH/src/github.com/jmoiron/sqlx && git pull -a && git checkout ptrs) # temporal fix
-#  - (cd $GOPATH/src/github.com/jmoiron/sqlx && go build -a && go install)
   - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db
 
 before_script:
-  - mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql
-  - (cd mysql/_dumps && make)
   - (cd postgresql/_dumps && make)
-  - (cd sqlite/_dumps && make)
-  - (cd ql/_dumps && make)
-  - (cd mongo/_dumps && make)
 
 script:
   - cd $GOPATH/src/upper.io/db
-#  - go test -v .
-#  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/mysql
-  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/postgresql
-# - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/ql # Temporarily skipping, see https://github.com/cznic/ql/issues/107
-#  - BENCHTIME=2s make test -C $GOPATH/src/upper.io/db/ql
-#  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/sqlite
-#  - BENCHTIME=2s make bench -C $GOPATH/src/upper.io/db/mongo
+  - BENCHTIME=2s make test bench -C $GOPATH/src/upper.io/db/postgresql
