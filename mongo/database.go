@@ -100,6 +100,12 @@ func (s *Source) Ping() error {
 	return s.session.Ping()
 }
 
+func (s *Source) ClearCache() {
+	s.collectionsMu.Lock()
+	defer s.collectionsMu.Unlock()
+	s.collections = make(map[string]*Collection)
+}
+
 // Driver returns the underlying *mgo.Session instance.
 func (s *Source) Driver() interface{} {
 	return s.session
