@@ -104,7 +104,7 @@ type CompoundOperator uint
 
 // Compound operators.
 const (
-	OperatorNone = CompoundOperator(iota)
+	OperatorNone CompoundOperator = iota
 	OperatorAnd
 	OperatorOr
 )
@@ -424,7 +424,6 @@ type Tx interface {
 
 // Collection is an interface that defines methods useful for handling tables.
 type Collection interface {
-
 	// Insert inserts a new item into the collection, it accepts a map or a
 	// struct as argument and returns the ID of the newly added element. The type
 	// of this ID depends on the database adapter. The ID returned by Insert()
@@ -432,7 +431,7 @@ type Collection interface {
 	Insert(interface{}) (interface{}, error)
 
 	// InsertReturning is like Insert() but it updates the passed pointer to map
-	// or struct with the newly inserted element. This is all done atomically
+	// or struct with the newly inserted element. This is all done automically
 	// within a transaction. If the database does not support transactions this
 	// method returns db.ErrUnsupported.
 	InsertReturning(interface{}) error
@@ -539,6 +538,9 @@ type ConnectionURL interface {
 //
 //	UPPERIO_DB_DEBUG=1 ./go-program
 const EnvEnableDebug = `UPPERIO_DB_DEBUG`
+
+// Debug is a variable that, when true, enables query printing.
+var Debug = false
 
 var (
 	_ = Function(&dbFunc{})
