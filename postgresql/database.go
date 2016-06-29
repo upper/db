@@ -24,6 +24,7 @@ package postgresql
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -83,7 +84,8 @@ func (d *database) ClearCache() {
 
 func (d *database) WithSession(sess interface{}) (db.Database, error) {
 	clone := &database{
-		schema: d.schema,
+		cachedStatements: cache.NewCache(),
+		collections:      make(map[string]*table),
 	}
 
 	switch v := sess.(type) {
@@ -92,20 +94,17 @@ func (d *database) WithSession(sess interface{}) (db.Database, error) {
 	case *sql.Tx:
 		tx := &sqlx.Tx{Tx: v}
 		clone.tx = sqltx.New(tx)
+	case *sqlx.Tx:
+		clone.tx = sqltx.New(v)
+	default:
+		return nil, fmt.Errorf("WithSession: unsupported argument type %T", sess)
+	}
+	if clone.tx != nil {
+		clone.session = nil
 	}
 
-	d.collectionsMu.Lock()
-	clone.cachedStatements = d.cachedStatements
-	clone.collections = d.collections
-	d.collectionsMu.Unlock()
-	if clone.collections == nil {
-		clone.collections = make(map[string]*table)
-	}
-
-	if clone.schema == nil {
-		if err := clone.populateSchema(); err != nil {
-			return nil, err
-		}
+	if err := clone.populateSchema(); err != nil {
+		return nil, err
 	}
 
 	if _, ok := sess.(*sql.Tx); ok {
