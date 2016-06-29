@@ -542,10 +542,11 @@ const EnvEnableDebug = `UPPERIO_DB_DEBUG`
 // Debug is a variable that, when true, enables query printing.
 var Debug = false
 
+// Ensure interface compatibility
 var (
-	_ = Function(&dbFunc{})
-	_ = Constraints(Cond{})
-	_ = Compound(Cond{})
-	_ = Constraint(&constraint{})
-	_ = RawValue(&rawValue{})
+	_ Function    = &dbFunc{}
+	_ Constraints = Cond{}
+	_ Compound    = Cond{}
+	_ Constraint  = &constraint{}
+	_ RawValue    = &rawValue{}
 )
