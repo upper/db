@@ -19,6 +19,7 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+//go:generate bash -c "sed s/ADAPTER/mysql/g ../internal/sqladapter/testing/adapter.go.tpl > generated_test.go"
 package mysql
 
 import (
@@ -130,5 +131,3 @@ func tearUp() error {
 
 	return nil
 }
-
-//go:generate bash -c "sed s/ADAPTER/mysql/g ../internal/sqladapter/testing/adapter.go.tpl > generated_test.go"

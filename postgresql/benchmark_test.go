@@ -1,3 +1,4 @@
+//go:generate bash -c "sed s/ADAPTER/postgresql/g ../internal/sqladapter/testing/adapter_benchmark.go.tpl > generated_benchmark_test.go"
 package postgresql
 
 const (
@@ -8,5 +9,3 @@ const (
 	updateArtistWhereName                      = `UPDATE "artist" SET "name" = $1 WHERE "name" = $2`
 	deleteArtistWhereName                      = `DELETE FROM "artist" WHERE "name" = $1`
 )
-
-//go:generate bash -c "sed s/ADAPTER/postgresql/g ../internal/sqladapter/testing/adapter_benchmark.go.tpl > generated_benchmark_test.go"

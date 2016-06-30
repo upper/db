@@ -1,3 +1,4 @@
+//go:generate bash -c "sed s/ADAPTER/mysql/g ../internal/sqladapter/testing/adapter_benchmark.go.tpl > generated_benchmark_test.go"
 package mysql
 
 const (
@@ -8,5 +9,3 @@ const (
 	updateArtistWhereName                      = "UPDATE `artist` SET `name` = ? WHERE `name` = ?"
 	deleteArtistWhereName                      = "DELETE FROM `artis` WHERE `name` = $1"
 )
-
-//go:generate bash -c "sed s/ADAPTER/mysql/g ../internal/sqladapter/testing/adapter_benchmark.go.tpl > generated_benchmark_test.go"
