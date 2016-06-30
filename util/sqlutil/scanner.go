@@ -28,7 +28,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
-	"upper.io/db.v2"
+	"upper.io/db"
 )
 
 type scanner struct {
