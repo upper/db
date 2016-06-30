@@ -28,6 +28,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+
 	"upper.io/db.v2"
 )
 
@@ -141,6 +142,7 @@ type int64Array []int64
 
 func (a *int64Array) Scan(src interface{}) error {
 	if src == nil {
+		*a = int64Array{}
 		return nil
 	}
 	b, ok := src.([]byte)
@@ -152,7 +154,7 @@ func (a *int64Array) Scan(src interface{}) error {
 	}
 
 	s := string(b)[1 : len(b)-1]
-	var results []int64
+	results := []int64{}
 	if s != "" {
 		parts := strings.Split(s, ",")
 		for _, n := range parts {
