@@ -28,6 +28,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+
 	"upper.io/db"
 )
 
@@ -152,7 +153,7 @@ func (a *int64Array) Scan(src interface{}) error {
 	}
 
 	s := string(b)[1 : len(b)-1]
-	var results []int64
+	results := []int64{}
 	if s != "" {
 		parts := strings.Split(s, ",")
 		for _, n := range parts {
