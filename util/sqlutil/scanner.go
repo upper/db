@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2015 The upper.io/db authors. All rights reserved.
+// Copyright (c) 2012-present The upper.io/db authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -28,7 +28,6 @@ import (
 	"errors"
 	"strconv"
 	"strings"
-
 	"upper.io/db"
 )
 
@@ -44,17 +43,17 @@ var _ sql.Scanner = scanner{}
 
 //------
 
-type JsonbType struct {
+type jsonbType struct {
 	V interface{}
 }
 
-func (j *JsonbType) Scan(src interface{}) error {
+func (j *jsonbType) Scan(src interface{}) error {
 	b, ok := src.([]byte)
 	if !ok {
 		return errors.New("Scan source was not []bytes")
 	}
 
-	v := JsonbType{}
+	v := jsonbType{}
 	if err := json.Unmarshal(b, &v.V); err != nil {
 		return err
 	}
@@ -62,7 +61,7 @@ func (j *JsonbType) Scan(src interface{}) error {
 	return nil
 }
 
-func (j JsonbType) Value() (driver.Value, error) {
+func (j jsonbType) Value() (driver.Value, error) {
 	b, err := json.Marshal(j.V)
 	if err != nil {
 		return nil, err
@@ -72,11 +71,11 @@ func (j JsonbType) Value() (driver.Value, error) {
 
 //------
 
-type StringArray []string
+type stringArray []string
 
-func (a *StringArray) Scan(src interface{}) error {
+func (a *stringArray) Scan(src interface{}) error {
 	if src == nil {
-		*a = StringArray{}
+		*a = stringArray{}
 		return nil
 	}
 	b, ok := src.([]byte)
@@ -91,12 +90,12 @@ func (a *StringArray) Scan(src interface{}) error {
 		return nil
 	}
 	results := strings.Split(s, ",")
-	*a = StringArray(results)
+	*a = stringArray(results)
 	return nil
 }
 
 // Value implements the driver.Valuer interface.
-func (a StringArray) Value() (driver.Value, error) {
+func (a stringArray) Value() (driver.Value, error) {
 	if a == nil {
 		return nil, nil
 	}
@@ -138,9 +137,9 @@ func appendArrayQuotedString(b []byte, v string) []byte {
 
 //------
 
-type Int64Array []int64
+type int64Array []int64
 
-func (a *Int64Array) Scan(src interface{}) error {
+func (a *int64Array) Scan(src interface{}) error {
 	if src == nil {
 		return nil
 	}
@@ -153,7 +152,7 @@ func (a *Int64Array) Scan(src interface{}) error {
 	}
 
 	s := string(b)[1 : len(b)-1]
-	results := make([]int64, 0)
+	var results []int64
 	if s != "" {
 		parts := strings.Split(s, ",")
 		for _, n := range parts {
@@ -164,12 +163,12 @@ func (a *Int64Array) Scan(src interface{}) error {
 			results = append(results, i)
 		}
 	}
-	*a = Int64Array(results)
+	*a = int64Array(results)
 	return nil
 }
 
 // Value implements the driver.Valuer interface.
-func (a Int64Array) Value() (driver.Value, error) {
+func (a int64Array) Value() (driver.Value, error) {
 	if a == nil {
 		return nil, nil
 	}

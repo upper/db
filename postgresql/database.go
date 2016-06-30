@@ -35,7 +35,6 @@ import (
 	"upper.io/db"
 	"upper.io/db/internal/cache"
 	"upper.io/db/util/adapter"
-	"upper.io/db/util/schema"
 	"upper.io/db/util/sqlgen"
 	"upper.io/db/util/sqlutil"
 	"upper.io/db/util/sqlutil/tx"
@@ -46,10 +45,10 @@ var (
 )
 
 type database struct {
+	name             string
 	connURL          db.ConnectionURL
 	session          *sqlx.DB
 	tx               *sqltx.Tx
-	schema           *schema.DatabaseSchema
 	cachedStatements *cache.Cache
 	collections      map[string]*table
 	collectionsMu    sync.Mutex
@@ -76,7 +75,6 @@ func (d *database) ClearCache() {
 	d.collectionsMu.Lock()
 	d.collections = make(map[string]*table)
 	d.cachedStatements.Clear()
-	d.schema = nil
 	d.collectionsMu.Unlock()
 
 	d.populateSchema()
@@ -84,6 +82,8 @@ func (d *database) ClearCache() {
 
 func (d *database) WithSession(sess interface{}) (db.Database, error) {
 	clone := &database{
+		session:          d.session,
+		name:             d.name,
 		cachedStatements: cache.NewCache(),
 		collections:      make(map[string]*table),
 	}
@@ -188,7 +188,10 @@ func (d *database) Open() error {
 
 	connFn := func(d **database) (err error) {
 		session, err = sqlx.Open(`postgres`, (*d).connURL.String())
-		return
+		if err != nil {
+			return err
+		}
+		return session.Ping()
 	}
 
 	if err := waitForConnection(func() error { return connFn(&d) }); err != nil {
@@ -198,6 +201,11 @@ func (d *database) Open() error {
 	if err := d.wrapSession(session); err != nil {
 		return err
 	}
+
+	if err := d.populateSchema(); err != nil {
+		return nil
+	}
+
 	return nil
 }
 
@@ -209,7 +217,7 @@ func (d *database) Clone() (db.Database, error) {
 
 func (d *database) clone() (*database, error) {
 	clone := &database{
-		schema: d.schema,
+		name: d.name,
 	}
 	if err := clone.Setup(d.connURL); err != nil {
 		return nil, err
@@ -254,8 +262,6 @@ func (d *database) C(names ...string) db.Collection {
 
 // Collection returns a table by name.
 func (d *database) Collection(names ...string) (db.Collection, error) {
-	var err error
-
 	if len(names) == 0 {
 		return nil, db.ErrMissingCollectionName
 	}
@@ -264,6 +270,14 @@ func (d *database) Collection(names ...string) (db.Collection, error) {
 		if d.tx.Done() {
 			return nil, sql.ErrTxDone
 		}
+	}
+
+	d.collectionsMu.Lock()
+	cachedCollection := d.collections[sqlutil.HashTableNames(names)]
+	d.collectionsMu.Unlock()
+
+	if cachedCollection != nil {
+		return cachedCollection, nil
 	}
 
 	col := &table{database: d}
@@ -281,10 +295,6 @@ func (d *database) Collection(names ...string) (db.Collection, error) {
 		if err := d.tableExists(tableName); err != nil {
 			return nil, err
 		}
-
-		if col.Columns, err = d.tableColumns(tableName); err != nil {
-			return nil, err
-		}
 	}
 
 	// Saving the collection for C().
@@ -297,16 +307,6 @@ func (d *database) Collection(names ...string) (db.Collection, error) {
 
 // Collections returns a list of non-system tables from the database.
 func (d *database) Collections() (collections []string, err error) {
-
-	tablesInSchema := len(d.schema.Tables)
-
-	// Is schema already populated?
-	if tablesInSchema > 0 {
-		// Pulling table names from schema.
-		return d.schema.Tables, nil
-	}
-
-	// Schema is empty.
 
 	// Querying table names.
 	stmt := &sqlgen.Statement{
@@ -329,6 +329,7 @@ func (d *database) Collections() (collections []string, err error) {
 	if rows, err = d.Query(stmt); err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	collections = []string{}
 
@@ -337,12 +338,8 @@ func (d *database) Collections() (collections []string, err error) {
 	for rows.Next() {
 		// Getting table name.
 		if err = rows.Scan(&name); err != nil {
-			rows.Close()
 			return nil, err
 		}
-
-		// Adding table entry to schema.
-		d.schema.AddTable(name)
 
 		// Adding table to collections array.
 		collections = append(collections, name)
@@ -363,8 +360,6 @@ func (d *database) Use(name string) (err error) {
 
 	d.connURL = conn
 
-	d.schema = nil
-
 	return d.Open()
 }
 
@@ -372,7 +367,7 @@ func (d *database) Use(name string) (err error) {
 func (d *database) Drop() error {
 	_, err := d.Query(&sqlgen.Statement{
 		Type:     sqlgen.DropDatabase,
-		Database: sqlgen.DatabaseWithName(d.schema.Name),
+		Database: sqlgen.DatabaseWithName(d.Name()),
 	})
 	return err
 }
@@ -389,13 +384,9 @@ func (d *database) wrapSession(sess interface{}) error {
 
 	d.cachedStatements = cache.NewCache()
 
-	d.collections = make(map[string]*table)
-	if d.schema == nil {
-		if err := d.populateSchema(); err != nil {
-			return err
-		}
+	if d.collections == nil {
+		d.collections = make(map[string]*table)
 	}
-
 	return nil
 }
 
@@ -407,7 +398,7 @@ func (d *database) Setup(connURL db.ConnectionURL) error {
 
 // Name returns the name of the database.
 func (d *database) Name() string {
-	return d.schema.Name
+	return d.name
 }
 
 // Transaction starts a transaction block and returns a db.Tx struct that can
@@ -423,7 +414,10 @@ func (d *database) Transaction() (db.Tx, error) {
 
 	connFn := func(sqlTx **sqlx.Tx) (err error) {
 		*sqlTx, err = clone.session.Beginx()
-		return
+		if err != nil {
+			return err
+		}
+		return clone.session.Ping()
 	}
 
 	if err := waitForConnection(func() error { return connFn(&sqlTx) }); err != nil {
@@ -506,39 +500,24 @@ func (d *database) QueryRow(stmt *sqlgen.Statement, args ...interface{}) (*sqlx.
 // populateSchema looks up for the table info in the database and populates its
 // schema for internal use.
 func (d *database) populateSchema() (err error) {
-	var collections []string
+	if d.name == "" {
+		// Get database name.
+		stmt := &sqlgen.Statement{
+			Type: sqlgen.Select,
+			Columns: sqlgen.JoinColumns(
+				sqlgen.RawValue(`CURRENT_DATABASE()`),
+			),
+		}
 
-	d.schema = schema.NewDatabaseSchema()
-
-	// Get database name.
-	stmt := &sqlgen.Statement{
-		Type: sqlgen.Select,
-		Columns: sqlgen.JoinColumns(
-			sqlgen.RawValue(`CURRENT_DATABASE()`),
-		),
-	}
-
-	var row *sqlx.Row
-
-	if row, err = d.QueryRow(stmt); err != nil {
-		return err
-	}
-
-	if err = row.Scan(&d.schema.Name); err != nil {
-		return err
-	}
-
-	if collections, err = d.Collections(); err != nil {
-		return err
-	}
-
-	for i := range collections {
-		if _, err = d.Collection(collections[i]); err != nil {
+		var row *sqlx.Row
+		if row, err = d.QueryRow(stmt); err != nil {
+			return err
+		}
+		if err = row.Scan(&d.name); err != nil {
 			return err
 		}
 	}
-
-	return err
+	return nil
 }
 
 func (d *database) tableExists(names ...string) error {
@@ -548,7 +527,7 @@ func (d *database) tableExists(names ...string) error {
 
 	for i := range names {
 
-		if d.schema.HasTable(names[i]) {
+		if _, ok := d.collections[names[i]]; ok {
 			// We already know this table exists.
 			continue
 		}
@@ -573,7 +552,7 @@ func (d *database) tableExists(names ...string) error {
 			),
 		}
 
-		if rows, err = d.Query(stmt, d.schema.Name, names[i]); err != nil {
+		if rows, err = d.Query(stmt, d.Name(), names[i]); err != nil {
 			return db.ErrCollectionDoesNotExist
 		}
 
@@ -588,66 +567,15 @@ func (d *database) tableExists(names ...string) error {
 	return nil
 }
 
-func (d *database) tableColumns(tableName string) ([]string, error) {
-
-	// Making sure this table is allocated.
-	tableSchema := d.schema.Table(tableName)
-
-	if len(tableSchema.Columns) > 0 {
-		return tableSchema.Columns, nil
-	}
-
-	stmt := &sqlgen.Statement{
-		Type:  sqlgen.Select,
-		Table: sqlgen.TableWithName(`information_schema.columns`),
-		Columns: sqlgen.JoinColumns(
-			sqlgen.ColumnWithName(`column_name`),
-			sqlgen.ColumnWithName(`data_type`),
-		),
-		Where: sqlgen.WhereConditions(
-			&sqlgen.ColumnValue{
-				Column:   sqlgen.ColumnWithName(`table_catalog`),
-				Operator: `=`,
-				Value:    sqlPlaceholder,
-			},
-			&sqlgen.ColumnValue{
-				Column:   sqlgen.ColumnWithName(`table_name`),
-				Operator: `=`,
-				Value:    sqlPlaceholder,
-			},
-		),
-	}
-
-	var rows *sqlx.Rows
-	var err error
-
-	if rows, err = d.Query(stmt, d.schema.Name, tableName); err != nil {
-		return nil, err
-	}
-
-	tableFields := []columnSchemaT{}
-
-	if err = sqlutil.FetchRows(rows, &tableFields); err != nil {
-		rows.Close()
-		return nil, err
-	}
-
-	rows.Close()
-
-	d.schema.TableInfo[tableName].Columns = make([]string, 0, len(tableFields))
-
-	for i := range tableFields {
-		d.schema.TableInfo[tableName].Columns = append(d.schema.TableInfo[tableName].Columns, tableFields[i].Name)
-	}
-
-	return d.schema.TableInfo[tableName].Columns, nil
-}
-
 func (d *database) getPrimaryKey(tableName string) ([]string, error) {
-	tableSchema := d.schema.Table(tableName)
+	d.Collection(tableName) //
 
-	if len(tableSchema.PrimaryKey) != 0 {
-		return tableSchema.PrimaryKey, nil
+	d.collectionsMu.Lock()
+	cachedTable := d.collections[sqlutil.HashTableNames([]string{tableName})]
+	d.collectionsMu.Unlock()
+
+	if cachedTable.PrimaryKey != nil {
+		return cachedTable.PrimaryKey, nil
 	}
 
 	// Getting primary key. See https://github.com/upper/db/issues/24.
@@ -680,19 +608,19 @@ func (d *database) getPrimaryKey(tableName string) ([]string, error) {
 	if rows, err = d.Query(stmt); err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
-	tableSchema.PrimaryKey = make([]string, 0, 1)
+	cachedTable.PrimaryKey = make([]string, 0, 1)
 
 	for rows.Next() {
 		var key string
 		if err = rows.Scan(&key); err != nil {
-			rows.Close()
 			return nil, err
 		}
-		tableSchema.PrimaryKey = append(tableSchema.PrimaryKey, key)
+		cachedTable.PrimaryKey = append(cachedTable.PrimaryKey, key)
 	}
 
-	return tableSchema.PrimaryKey, nil
+	return cachedTable.PrimaryKey, nil
 }
 
 // waitForConnection tries to execute the connectFn function, if connectFn

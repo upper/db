@@ -23,9 +23,11 @@ package sqlutil
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 	// "crypto/md5"
 
@@ -50,22 +52,31 @@ var (
 // T type is commonly used by adapters to map database/sql values to Go values
 // using FieldValues()
 type T struct {
-	Columns []string
-	Tables  []string // Holds table names.
+	PrimaryKey []string
+	Columns    []string
+	Tables     []string // Holds table names.
 }
 
-func (t *T) columnLike(s string) string {
-	for _, name := range t.Columns {
-		if normalizeColumn(s) == normalizeColumn(name) {
-			return name
-		}
-	}
-	return s
+type fieldValue struct {
+	fields []string
+	values []interface{}
+}
+
+func (fv *fieldValue) Len() int {
+	return len(fv.fields)
+}
+
+func (fv *fieldValue) Swap(i, j int) {
+	fv.fields[i], fv.fields[j] = fv.fields[j], fv.fields[i]
+	fv.values[i], fv.values[j] = fv.values[j], fv.values[i]
+}
+
+func (fv *fieldValue) Less(i, j int) bool {
+	return fv.fields[i] < fv.fields[j]
 }
 
 func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
-	fields := []string{}
-	values := []interface{}{}
+	var fv fieldValue
 
 	itemV := reflect.ValueOf(item)
 	itemT := itemV.Type()
@@ -84,12 +95,10 @@ func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
 		fieldMap := mapper.TypeMap(itemT).Names
 		nfields := len(fieldMap)
 
-		values = make([]interface{}, 0, nfields)
-		fields = make([]string, 0, nfields)
+		fv.values = make([]interface{}, 0, nfields)
+		fv.fields = make([]string, 0, nfields)
 
 		for _, fi := range fieldMap {
-			// log.Println("=>", fi.Name, fi.Options)
-
 			fld := reflectx.FieldByIndexesReadOnly(itemV, fi.Index)
 			if fld.Kind() == reflect.Ptr && fld.IsNil() {
 				continue
@@ -97,11 +106,11 @@ func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
 
 			var value interface{}
 			if _, ok := fi.Options["stringarray"]; ok {
-				value = StringArray(fld.Interface().([]string))
+				value = stringArray(fld.Interface().([]string))
 			} else if _, ok := fi.Options["int64array"]; ok {
-				value = Int64Array(fld.Interface().([]int64))
+				value = int64Array(fld.Interface().([]int64))
 			} else if _, ok := fi.Options["jsonb"]; ok {
-				value = JsonbType{fld.Interface()}
+				value = jsonbType{fld.Interface()}
 			} else {
 				value = fld.Interface()
 			}
@@ -112,39 +121,38 @@ func (t *T) FieldValues(item interface{}) ([]string, []interface{}, error) {
 				}
 			}
 
-			// TODO: columnLike stuff...?
-
-			fields = append(fields, fi.Name)
+			fv.fields = append(fv.fields, fi.Name)
 			v, err := marshal(value)
 			if err != nil {
 				return nil, nil, err
 			}
-			values = append(values, v)
+			fv.values = append(fv.values, v)
 		}
 
 	case reflect.Map:
 		nfields := itemV.Len()
-		values = make([]interface{}, nfields)
-		fields = make([]string, nfields)
+		fv.values = make([]interface{}, nfields)
+		fv.fields = make([]string, nfields)
 		mkeys := itemV.MapKeys()
 
 		for i, keyV := range mkeys {
 			valv := itemV.MapIndex(keyV)
-			fields[i] = t.columnLike(fmt.Sprintf("%v", keyV.Interface()))
+			fv.fields[i] = fmt.Sprintf("%v", keyV.Interface())
 
 			v, err := marshal(valv.Interface())
 			if err != nil {
 				return nil, nil, err
 			}
 
-			values[i] = v
+			fv.values[i] = v
 		}
-
 	default:
-		return nil, nil, db.ErrExpectingMapOrStruct
+		return nil, nil, errors.New("Expecting pointer to either map or struct")
 	}
 
-	return fields, values, nil
+	sort.Sort(&fv)
+
+	return fv.fields, fv.values, nil
 }
 
 func marshal(v interface{}) (interface{}, error) {
@@ -164,11 +172,6 @@ func reset(data interface{}) error {
 	z := reflect.Zero(t)
 	v.Set(z)
 	return nil
-}
-
-// normalizeColumn prepares a column for comparison against another column.
-func normalizeColumn(s string) string {
-	return strings.ToLower(reColumnCompareExclude.ReplaceAllString(s, ""))
 }
 
 // MainTableName returns the name of the first table.

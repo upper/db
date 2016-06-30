@@ -1547,7 +1547,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	}
 
 	if count != 1 {
-		t.Fatalf("Expecting only one element.")
+		t.Fatalf("Expecting one element, got %d.", count)
 	}
 
 	tx.Close()

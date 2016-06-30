@@ -209,14 +209,14 @@ func fetchResult(itemT reflect.Type, rows *sqlx.Rows, columns []string) (reflect
 
 			switch opt {
 			case "stringarray":
-				v := StringArray{}
+				v := stringArray{}
 				err := v.Scan(*b)
 				if err != nil {
 					return item, err
 				}
 				f.Set(reflect.ValueOf(v))
 			case "int64array":
-				v := Int64Array{}
+				v := int64Array{}
 				err := v.Scan(*b)
 				if err != nil {
 					return item, err
