@@ -22,6 +22,7 @@
 package postgresql
 
 import (
+	"database/sql"
 	"fmt"
 
 	"upper.io/db.v2"
@@ -48,6 +49,18 @@ func (t *tx) NewTransaction() (Tx, error) {
 	return t, db.ErrAlreadyWithinTransaction
 }
 
+func (t *tx) UseTransaction(sqlTx *sql.Tx) (Tx, error) {
+	return t, db.ErrAlreadyWithinTransaction
+}
+
 func (t *tx) With(interface{}) (Database, error) {
 	return nil, fmt.Errorf("Not implemented.")
+}
+
+func (t *tx) Transaction(fn func(tx Tx) error) error {
+	if err := fn(t); err != nil {
+		t.Rollback()
+		return err
+	}
+	return t.Commit()
 }

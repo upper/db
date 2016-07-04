@@ -22,11 +22,10 @@
 package postgresql
 
 import (
-	"strings"
-
 	"database/sql"
+	"strings"
+	"sync"
 
-	"fmt"
 	_ "github.com/lib/pq" // PostgreSQL driver.
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter"
@@ -39,14 +38,19 @@ type Database interface {
 	db.Database
 	builder.Builder
 
+	UseTransaction(tx *sql.Tx) (Tx, error)
 	NewTransaction() (Tx, error)
-	With(interface{}) (Database, error)
+
+	Transaction(fn func(tx Tx) error) error
 }
 
 // database is the actual implementation of Database
 type database struct {
 	sqladapter.BaseDatabase // Leveraged by sqladapter
 	builder.Builder
+
+	txMu sync.Mutex
+	tx   sqladapter.Tx
 
 	connURL db.ConnectionURL
 }
@@ -64,28 +68,6 @@ func newDatabase(settings db.ConnectionURL) (*database, error) {
 	return d, nil
 }
 
-func (d *database) With(sess interface{}) (Database, error) {
-	clone, err := newDatabase(d.connURL)
-	if err != nil {
-		return nil, err
-	}
-
-	switch t := sess.(type) {
-	case *sql.DB:
-		if err := clone.BindSession(t); err != nil {
-			return nil, err
-		}
-	case *sql.Tx:
-		if err := clone.BindTx(t); err != nil {
-			return nil, err
-		}
-	default:
-		return nil, fmt.Errorf("Unknown session type %T", t)
-	}
-
-	return clone, nil
-}
-
 // Open stablishes a new connection to a SQL server.
 func Open(settings db.ConnectionURL) (Database, error) {
 	d, err := newDatabase(settings)
@@ -93,6 +75,29 @@ func Open(settings db.ConnectionURL) (Database, error) {
 		return nil, err
 	}
 	if err := d.Open(settings); err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+// New wraps the given *sql.DB session and creates a new db session.
+func New(sess *sql.DB) (Database, error) {
+	d, err := newDatabase(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Binding with sqladapter's logic.
+	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
+
+	// Binding with builder.
+	b, err := builder.New(d.BaseDatabase, template)
+	if err != nil {
+		return nil, err
+	}
+	d.Builder = b
+
+	if err := d.BaseDatabase.BindSession(sess); err != nil {
 		return nil, err
 	}
 	return d, nil
@@ -110,6 +115,29 @@ func (d *database) Open(connURL db.ConnectionURL) error {
 	}
 	d.connURL = connURL
 	return d.open()
+}
+
+// UseTransaction makes the adapter use the given transaction.
+func (d *database) UseTransaction(sqlTx *sql.Tx) (Tx, error) {
+	if sqlTx == nil { // No transaction given.
+		d.txMu.Lock()
+		currentTx := d.tx
+		d.txMu.Unlock()
+		if currentTx != nil {
+			return &tx{Tx: currentTx}, nil
+		}
+		// Create a new transaction.
+		return d.NewTransaction()
+	}
+
+	d.txMu.Lock()
+	defer d.txMu.Unlock()
+
+	if err := d.BindTx(sqlTx); err != nil {
+		return nil, err
+	}
+	d.tx = sqladapter.NewTx(d)
+	return &tx{Tx: d.tx}, nil
 }
 
 // NewTransaction starts a transaction block.
@@ -202,12 +230,30 @@ func (d *database) NewLocalCollection(name string) db.Collection {
 	return newTable(d, name)
 }
 
+// Transaction creates a transaction and passes it to the given function, if
+// if the function returns no error then the transaction is commited.
+func (d *database) Transaction(fn func(tx Tx) error) error {
+	tx, err := d.NewTransaction()
+	if err != nil {
+		return err
+	}
+	defer tx.Close()
+	if err := fn(tx); err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit()
+}
+
 // NewLocalTransaction allows sqladapter start a transaction block.
 func (d *database) NewLocalTransaction() (sqladapter.Tx, error) {
 	clone, err := d.clone()
 	if err != nil {
 		return nil, err
 	}
+
+	clone.txMu.Lock()
+	defer clone.txMu.Unlock()
 
 	connFn := func() error {
 		sqlTx, err := clone.BaseDatabase.Session().Begin()
@@ -220,6 +266,8 @@ func (d *database) NewLocalTransaction() (sqladapter.Tx, error) {
 	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
 		return nil, err
 	}
+
+	clone.tx = sqladapter.NewTx(clone)
 
 	return sqladapter.NewTx(clone), nil
 }
