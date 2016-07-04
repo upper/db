@@ -26,11 +26,12 @@ import (
 
 	"database/sql"
 
+	"fmt"
 	_ "github.com/lib/pq" // PostgreSQL driver.
 	"upper.io/db.v2"
+	"upper.io/db.v2/internal/sqladapter"
 	"upper.io/db.v2/sqlbuilder"
 	"upper.io/db.v2/sqlbuilder/exql"
-	"upper.io/db.v2/internal/sqladapter"
 )
 
 // Database represents a SQL database.
@@ -39,6 +40,7 @@ type Database interface {
 	builder.Builder
 
 	NewTransaction() (Tx, error)
+	With(interface{}) (Database, error)
 }
 
 // database is the actual implementation of Database
@@ -60,6 +62,28 @@ func newDatabase(settings db.ConnectionURL) (*database, error) {
 		connURL: settings,
 	}
 	return d, nil
+}
+
+func (d *database) With(sess interface{}) (Database, error) {
+	clone, err := newDatabase(d.connURL)
+	if err != nil {
+		return nil, err
+	}
+
+	switch t := sess.(type) {
+	case *sql.DB:
+		if err := clone.BindSession(t); err != nil {
+			return nil, err
+		}
+	case *sql.Tx:
+		if err := clone.BindTx(t); err != nil {
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf("Unknown session type %T", t)
+	}
+
+	return clone, nil
 }
 
 // Open stablishes a new connection to a SQL server.

@@ -154,7 +154,10 @@ func (d *database) BindSession(sess *sql.DB) error {
 // Ping checks whether a connection to the database is still alive by pinging
 // it
 func (d *database) Ping() error {
-	return d.sess.Ping()
+	if d.sess != nil {
+		return d.sess.Ping()
+	}
+	return nil
 }
 
 // ClearCache removes all caches.

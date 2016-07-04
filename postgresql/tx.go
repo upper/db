@@ -22,6 +22,8 @@
 package postgresql
 
 import (
+	"fmt"
+
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter"
 )
@@ -44,4 +46,8 @@ var (
 
 func (t *tx) NewTransaction() (Tx, error) {
 	return t, db.ErrAlreadyWithinTransaction
+}
+
+func (t *tx) With(interface{}) (Database, error) {
+	return nil, fmt.Errorf("Not implemented.")
 }
