@@ -22,45 +22,23 @@
 package postgresql
 
 import (
-	"database/sql"
-	"fmt"
-
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter"
+	"upper.io/db.v2/lib"
 )
 
-// Tx represents a transaction.
-type Tx interface {
-	Database
-
-	Commit() error
-	Rollback() error
-}
-
 type tx struct {
-	sqladapter.Tx
+	sqladapter.DatabaseTx
 }
 
 var (
-	_ = db.Tx(&tx{})
+	_ = lib.SQLTx(&tx{})
 )
 
-func (t *tx) NewTransaction() (Tx, error) {
+func (t *tx) NewTx() (lib.SQLTx, error) {
 	return t, db.ErrAlreadyWithinTransaction
 }
 
-func (t *tx) UseTransaction(sqlTx *sql.Tx) (Tx, error) {
-	return t, db.ErrAlreadyWithinTransaction
-}
-
-func (t *tx) With(interface{}) (Database, error) {
-	return nil, fmt.Errorf("Not implemented.")
-}
-
-func (t *tx) Transaction(fn func(tx Tx) error) error {
-	if err := fn(t); err != nil {
-		t.Rollback()
-		return err
-	}
-	return t.Commit()
+func (t *tx) Tx(fn func(tx lib.SQLTx) error) error {
+	return fn(t)
 }

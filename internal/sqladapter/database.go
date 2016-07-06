@@ -46,7 +46,7 @@ type PartialDatabase interface {
 	ConnectionURL() db.ConnectionURL
 
 	Err(in error) (out error)
-	NewLocalTransaction() (Tx, error)
+	NewLocalTransaction() (DatabaseTx, error)
 }
 
 // BaseDatabase defines the methods provided by sqladapter that do not have to
@@ -65,7 +65,7 @@ type BaseDatabase interface {
 	Session() *sql.DB
 
 	BindTx(*sql.Tx) error
-	Tx() BaseTx
+	Transaction() BaseTx
 }
 
 // NewBaseDatabase provides a BaseDatabase given a PartialDatabase
@@ -116,7 +116,7 @@ func (d *database) BindTx(t *sql.Tx) error {
 
 // Tx returns a BaseTx, which, if not nil, means that this session is within a
 // transaction
-func (d *database) Tx() BaseTx {
+func (d *database) Transaction() BaseTx {
 	return d.baseTx
 }
 
@@ -180,8 +180,8 @@ func (d *database) Close() error {
 		d.sessMu.Unlock()
 	}()
 	if d.sess != nil {
-		if d.Tx() != nil && !d.Tx().Committed() {
-			d.Tx().Rollback()
+		if d.Transaction() != nil && !d.Transaction().Committed() {
+			d.Transaction().Rollback()
 		}
 		d.cachedCollections.Clear()
 		d.cachedStatements.Clear() // Closes prepared statements as well.
@@ -288,7 +288,7 @@ func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) 
 
 // Driver returns the underlying *sql.DB or *sql.Tx instance.
 func (d *database) Driver() interface{} {
-	if tx := d.Tx(); tx != nil {
+	if tx := d.Transaction(); tx != nil {
 		// A transaction
 		return tx.(*sqlTx).Tx
 	}
@@ -299,7 +299,7 @@ func (d *database) Driver() interface{} {
 // *sql.Stmt.  This method will attempt to used a cached prepared statement, if
 // available.
 func (d *database) prepareStatement(stmt *exql.Statement) (*sql.Stmt, string, error) {
-	if d.sess == nil {
+	if d.sess == nil && d.Transaction() == nil {
 		return nil, "", db.ErrNotConnected
 	}
 
@@ -317,8 +317,8 @@ func (d *database) prepareStatement(stmt *exql.Statement) (*sql.Stmt, string, er
 	var p *sql.Stmt
 	var err error
 
-	if d.Tx() != nil {
-		p, err = d.Tx().(*sqlTx).Prepare(query)
+	if d.Transaction() != nil {
+		p, err = d.Transaction().(*sqlTx).Prepare(query)
 	} else {
 		p, err = d.sess.Prepare(query)
 	}

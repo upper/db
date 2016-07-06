@@ -29,35 +29,26 @@ import (
 	_ "github.com/lib/pq" // PostgreSQL driver.
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter"
+	"upper.io/db.v2/lib"
 	"upper.io/db.v2/sqlbuilder"
 	"upper.io/db.v2/sqlbuilder/exql"
 )
-
-// Database represents a SQL database.
-type Database interface {
-	db.Database
-	builder.Builder
-
-	UseTransaction(tx *sql.Tx) (Tx, error)
-	NewTransaction() (Tx, error)
-
-	Transaction(fn func(tx Tx) error) error
-}
 
 // database is the actual implementation of Database
 type database struct {
 	sqladapter.BaseDatabase // Leveraged by sqladapter
 	builder.Builder
 
-	txMu sync.Mutex
-	tx   sqladapter.Tx
+	txMu   sync.Mutex
+	tx     sqladapter.DatabaseTx
+	cloned bool
 
 	connURL db.ConnectionURL
 }
 
 var (
 	_ = sqladapter.Database(&database{})
-	_ = db.Database(&database{})
+	_ = lib.SQLDatabase(&database{})
 )
 
 // newDatabase binds *database with sqladapter and the SQL builer.
@@ -69,7 +60,7 @@ func newDatabase(settings db.ConnectionURL) (*database, error) {
 }
 
 // Open stablishes a new connection to a SQL server.
-func Open(settings db.ConnectionURL) (Database, error) {
+func Open(settings db.ConnectionURL) (lib.SQLDatabase, error) {
 	d, err := newDatabase(settings)
 	if err != nil {
 		return nil, err
@@ -80,8 +71,33 @@ func Open(settings db.ConnectionURL) (Database, error) {
 	return d, nil
 }
 
+func NewTx(sqlTx *sql.Tx) (lib.SQLTx, error) {
+	d, err := newDatabase(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Binding with sqladapter's logic.
+	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
+
+	// Binding with builder.
+	b, err := builder.New(d.BaseDatabase, template)
+	if err != nil {
+		return nil, err
+	}
+	d.Builder = b
+
+	if err := d.BaseDatabase.BindTx(sqlTx); err != nil {
+		return nil, err
+	}
+
+	d.tx = sqladapter.NewTx(d)
+
+	return &tx{DatabaseTx: d.tx}, nil
+}
+
 // New wraps the given *sql.DB session and creates a new db session.
-func New(sess *sql.DB) (Database, error) {
+func New(sess *sql.DB) (lib.SQLDatabase, error) {
 	d, err := newDatabase(nil)
 	if err != nil {
 		return nil, err
@@ -117,17 +133,16 @@ func (d *database) Open(connURL db.ConnectionURL) error {
 	return d.open()
 }
 
-// UseTransaction makes the adapter use the given transaction.
-func (d *database) UseTransaction(sqlTx *sql.Tx) (Tx, error) {
+func (d *database) UseTx(sqlTx *sql.Tx) (lib.SQLTx, error) {
 	if sqlTx == nil { // No transaction given.
 		d.txMu.Lock()
 		currentTx := d.tx
 		d.txMu.Unlock()
 		if currentTx != nil {
-			return &tx{Tx: currentTx}, nil
+			return &tx{DatabaseTx: currentTx}, nil
 		}
 		// Create a new transaction.
-		return d.NewTransaction()
+		return d.NewTx()
 	}
 
 	d.txMu.Lock()
@@ -137,16 +152,16 @@ func (d *database) UseTransaction(sqlTx *sql.Tx) (Tx, error) {
 		return nil, err
 	}
 	d.tx = sqladapter.NewTx(d)
-	return &tx{Tx: d.tx}, nil
+	return &tx{DatabaseTx: d.tx}, nil
 }
 
-// NewTransaction starts a transaction block.
-func (d *database) NewTransaction() (Tx, error) {
+// NewTx starts a transaction block.
+func (d *database) NewTx() (lib.SQLTx, error) {
 	nTx, err := d.NewLocalTransaction()
 	if err != nil {
 		return nil, err
 	}
-	return &tx{Tx: nTx}, nil
+	return &tx{DatabaseTx: nTx}, nil
 }
 
 // Collections returns a list of non-system tables from the database.
@@ -200,6 +215,7 @@ func (d *database) clone() (*database, error) {
 	if err != nil {
 		return nil, err
 	}
+	clone.cloned = true
 
 	if err := clone.open(); err != nil {
 		return nil, err
@@ -232,8 +248,8 @@ func (d *database) NewLocalCollection(name string) db.Collection {
 
 // Transaction creates a transaction and passes it to the given function, if
 // if the function returns no error then the transaction is commited.
-func (d *database) Transaction(fn func(tx Tx) error) error {
-	tx, err := d.NewTransaction()
+func (d *database) Tx(fn func(tx lib.SQLTx) error) error {
+	tx, err := d.NewTx()
 	if err != nil {
 		return err
 	}
@@ -246,7 +262,7 @@ func (d *database) Transaction(fn func(tx Tx) error) error {
 }
 
 // NewLocalTransaction allows sqladapter start a transaction block.
-func (d *database) NewLocalTransaction() (sqladapter.Tx, error) {
+func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
 	clone, err := d.clone()
 	if err != nil {
 		return nil, err

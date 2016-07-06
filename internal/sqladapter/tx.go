@@ -27,7 +27,7 @@ import (
 )
 
 // Tx represents a database session within a transaction.
-type Tx interface {
+type DatabaseTx interface {
 	Database
 	BaseTx
 }
@@ -45,17 +45,17 @@ type txWrapper struct {
 }
 
 // NewTx creates a database session within a transaction.
-func NewTx(db Database) Tx {
+func NewTx(db Database) DatabaseTx {
 	return &txWrapper{
 		Database: db,
-		BaseTx:   db.Tx(),
+		BaseTx:   db.Transaction(),
 	}
 }
 
-func newTxWrapper(db Database) Tx {
+func newTxWrapper(db Database) DatabaseTx {
 	return &txWrapper{
 		Database: db,
-		BaseTx:   db.Tx(),
+		BaseTx:   db.Transaction(),
 	}
 }
 
@@ -84,12 +84,10 @@ func (t *sqlTx) Commit() (err error) {
 }
 
 func (t *txWrapper) Commit() error {
-	defer t.Database.Close()
 	return t.BaseTx.Commit()
 }
 
 func (t *txWrapper) Rollback() error {
-	defer t.Database.Close()
 	return t.BaseTx.Rollback()
 }
 

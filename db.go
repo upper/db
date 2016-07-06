@@ -523,6 +523,10 @@ type ConnectionURL interface {
 	// String returns the connection string that is going to be passed to the
 	// adapter.
 	String() string
+
+	// Adapter returns the name of the adapter associated with the connection
+	// URL.
+	Adapter() string
 }
 
 // EnvEnableDebug can be used by adapters to determine if the user has enabled

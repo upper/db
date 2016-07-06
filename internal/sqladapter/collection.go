@@ -71,10 +71,10 @@ func (c *collection) InsertReturning(item interface{}) error {
 		return fmt.Errorf("Expecting a pointer to map or string but got %T", item)
 	}
 
-	var tx Tx
+	var tx DatabaseTx
 	inTx := false
 
-	if currTx := c.p.Database().Tx(); currTx != nil {
+	if currTx := c.p.Database().Transaction(); currTx != nil {
 		tx = newTxWrapper(c.p.Database())
 		inTx = true
 	} else {
