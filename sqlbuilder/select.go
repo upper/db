@@ -33,12 +33,12 @@ type selector struct {
 	err       error
 }
 
-func (qs *selector) From(tables ...string) Selector {
+func (qs *selector) From(tables ...string) db.Selector {
 	qs.table = strings.Join(tables, ",")
 	return qs
 }
 
-func (qs *selector) Columns(columns ...interface{}) Selector {
+func (qs *selector) Columns(columns ...interface{}) db.Selector {
 	f, err := columnFragments(qs.builder.t, columns)
 	if err != nil {
 		qs.err = err
@@ -48,19 +48,19 @@ func (qs *selector) Columns(columns ...interface{}) Selector {
 	return qs
 }
 
-func (qs *selector) Distinct() Selector {
+func (qs *selector) Distinct() db.Selector {
 	qs.mode = selectModeDistinct
 	return qs
 }
 
-func (qs *selector) Where(terms ...interface{}) Selector {
+func (qs *selector) Where(terms ...interface{}) db.Selector {
 	where, arguments := qs.builder.t.ToWhereWithArguments(terms)
 	qs.where = &where
 	qs.arguments = append(qs.arguments, arguments...)
 	return qs
 }
 
-func (qs *selector) GroupBy(columns ...interface{}) Selector {
+func (qs *selector) GroupBy(columns ...interface{}) db.Selector {
 	var fragments []exql.Fragment
 	fragments, qs.err = columnFragments(qs.builder.t, columns)
 	if fragments != nil {
@@ -69,7 +69,7 @@ func (qs *selector) GroupBy(columns ...interface{}) Selector {
 	return qs
 }
 
-func (qs *selector) OrderBy(columns ...interface{}) Selector {
+func (qs *selector) OrderBy(columns ...interface{}) db.Selector {
 	var sortColumns exql.SortColumns
 
 	for i := range columns {
@@ -108,7 +108,7 @@ func (qs *selector) OrderBy(columns ...interface{}) Selector {
 	return qs
 }
 
-func (qs *selector) Using(columns ...interface{}) Selector {
+func (qs *selector) Using(columns ...interface{}) db.Selector {
 	if len(qs.joins) == 0 {
 		qs.err = errors.New(`Cannot use Using() without a preceding Join() expression.`)
 		return qs
@@ -131,7 +131,7 @@ func (qs *selector) Using(columns ...interface{}) Selector {
 	return qs
 }
 
-func (qs *selector) pushJoin(t string, tables []interface{}) Selector {
+func (qs *selector) pushJoin(t string, tables []interface{}) db.Selector {
 	if qs.joins == nil {
 		qs.joins = []*exql.Join{}
 	}
@@ -151,27 +151,27 @@ func (qs *selector) pushJoin(t string, tables []interface{}) Selector {
 	return qs
 }
 
-func (qs *selector) FullJoin(tables ...interface{}) Selector {
+func (qs *selector) FullJoin(tables ...interface{}) db.Selector {
 	return qs.pushJoin("FULL", tables)
 }
 
-func (qs *selector) CrossJoin(tables ...interface{}) Selector {
+func (qs *selector) CrossJoin(tables ...interface{}) db.Selector {
 	return qs.pushJoin("CROSS", tables)
 }
 
-func (qs *selector) RightJoin(tables ...interface{}) Selector {
+func (qs *selector) RightJoin(tables ...interface{}) db.Selector {
 	return qs.pushJoin("RIGHT", tables)
 }
 
-func (qs *selector) LeftJoin(tables ...interface{}) Selector {
+func (qs *selector) LeftJoin(tables ...interface{}) db.Selector {
 	return qs.pushJoin("LEFT", tables)
 }
 
-func (qs *selector) Join(tables ...interface{}) Selector {
+func (qs *selector) Join(tables ...interface{}) db.Selector {
 	return qs.pushJoin("", tables)
 }
 
-func (qs *selector) On(terms ...interface{}) Selector {
+func (qs *selector) On(terms ...interface{}) db.Selector {
 	if len(qs.joins) == 0 {
 		qs.err = errors.New(`Cannot use On() without a preceding Join() expression.`)
 		return qs
@@ -192,12 +192,12 @@ func (qs *selector) On(terms ...interface{}) Selector {
 	return qs
 }
 
-func (qs *selector) Limit(n int) Selector {
+func (qs *selector) Limit(n int) db.Selector {
 	qs.limit = exql.Limit(n)
 	return qs
 }
 
-func (qs *selector) Offset(n int) Selector {
+func (qs *selector) Offset(n int) db.Selector {
 	qs.offset = exql.Offset(n)
 	return qs
 }
@@ -224,7 +224,7 @@ func (qs *selector) QueryRow() (*sql.Row, error) {
 	return qs.builder.sess.StatementQueryRow(qs.statement(), qs.arguments...)
 }
 
-func (qs *selector) Iterator() Iterator {
+func (qs *selector) Iterator() db.Iterator {
 	rows, err := qs.builder.sess.StatementQuery(qs.statement(), qs.arguments...)
 	return &iterator{rows, err}
 }

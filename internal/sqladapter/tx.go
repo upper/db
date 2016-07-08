@@ -24,6 +24,7 @@ package sqladapter
 import (
 	"database/sql"
 	"sync/atomic"
+	"upper.io/db.v2"
 )
 
 // Tx represents a database session within a transaction.
@@ -34,8 +35,8 @@ type DatabaseTx interface {
 
 // BaseTx defines methods to be implemented by a transaction.
 type BaseTx interface {
-	Commit() error
-	Rollback() error
+	db.Tx
+
 	Committed() bool
 }
 

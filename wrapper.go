@@ -22,47 +22,50 @@
 package db
 
 import (
+	"database/sql"
 	"fmt"
-	"reflect"
 )
 
-// This map holds a copy of all registered adapters.
-var wrappers = make(map[string]Database)
+var adapters map[string]*SQLAdapter
 
-// Register associates an adapter's name with a type. Panics if the adapter
-// name is empty or the adapter is nil.
-func Register(name string, adapter Database) {
-
-	if name == `` {
-		panic(`Missing adapter name.`)
-	}
-
-	if _, ok := wrappers[name]; ok != false {
-		panic(`db.Register() called twice for adapter: ` + name)
-	}
-
-	wrappers[name] = adapter
+func init() {
+	adapters = make(map[string]*SQLAdapter)
 }
 
-// Open configures a database session using the given adapter's name and the
-// provided settings.
-func Open(adapter string, conn ConnectionURL) (Database, error) {
+type SQLAdapter struct {
+	New   func(sqlDB *sql.DB) (SQLDatabase, error)
+	NewTx func(sqlTx *sql.Tx) (SQLTx, error)
+	Open  func(settings ConnectionURL) (SQLDatabase, error)
+}
 
-	driver, ok := wrappers[adapter]
-	if !ok {
-		// Using panic instead of returning error because attemping to use an
-		// adapter that does not exists will never result in success.
-		panic(fmt.Sprintf(`db.Open: Unknown adapter %s. (see: https://upper.io/db.v2#database-adapters)`, adapter))
+func RegisterSQLAdapter(name string, fn *SQLAdapter) {
+	if name == "" {
+		panic(`Missing adapter name`)
 	}
-
-	// Creating a new connection everytime Open() is called.
-	driverType := reflect.ValueOf(driver).Elem().Type()
-	newAdapter := reflect.New(driverType).Interface().(Database)
-
-	// Setting up the connection.
-	if err := newAdapter.Open(conn); err != nil {
-		return nil, err
+	if _, ok := adapters[name]; ok {
+		panic(`db.RegisterSQLAdapter() called twice for adapter: ` + name)
 	}
+	adapters[name] = fn
+}
 
-	return newAdapter, nil
+func Adapter(name string) SQLAdapter {
+	if fn, ok := adapters[name]; ok {
+		return *fn
+	}
+	return missingAdapter(name)
+}
+
+func missingAdapter(name string) SQLAdapter {
+	err := fmt.Errorf("upper: Missing adapter %q, forgot to import?", name)
+	return SQLAdapter{
+		New: func(*sql.DB) (SQLDatabase, error) {
+			return nil, err
+		},
+		NewTx: func(*sql.Tx) (SQLTx, error) {
+			return nil, err
+		},
+		Open: func(ConnectionURL) (SQLDatabase, error) {
+			return nil, err
+		},
+	}
 }

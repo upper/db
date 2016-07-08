@@ -24,7 +24,6 @@ package postgresql
 import (
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter"
-	"upper.io/db.v2/lib"
 )
 
 type tx struct {
@@ -32,13 +31,5 @@ type tx struct {
 }
 
 var (
-	_ = lib.SQLTx(&tx{})
+	_ = db.SQLTx(&tx{})
 )
-
-func (t *tx) NewTx() (lib.SQLTx, error) {
-	return t, db.ErrAlreadyWithinTransaction
-}
-
-func (t *tx) Tx(fn func(tx lib.SQLTx) error) error {
-	return fn(t)
-}

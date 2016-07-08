@@ -29,7 +29,6 @@ import (
 	_ "github.com/lib/pq" // PostgreSQL driver.
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter"
-	"upper.io/db.v2/lib"
 	"upper.io/db.v2/sqlbuilder"
 	"upper.io/db.v2/sqlbuilder/exql"
 )
@@ -37,7 +36,7 @@ import (
 // database is the actual implementation of Database
 type database struct {
 	sqladapter.BaseDatabase // Leveraged by sqladapter
-	builder.Builder
+	db.Builder
 
 	txMu   sync.Mutex
 	tx     sqladapter.DatabaseTx
@@ -47,8 +46,7 @@ type database struct {
 }
 
 var (
-	_ = sqladapter.Database(&database{})
-	_ = lib.SQLDatabase(&database{})
+	_ = db.SQLDatabase(&database{})
 )
 
 // newDatabase binds *database with sqladapter and the SQL builer.
@@ -60,7 +58,7 @@ func newDatabase(settings db.ConnectionURL) (*database, error) {
 }
 
 // Open stablishes a new connection to a SQL server.
-func Open(settings db.ConnectionURL) (lib.SQLDatabase, error) {
+func Open(settings db.ConnectionURL) (db.SQLDatabase, error) {
 	d, err := newDatabase(settings)
 	if err != nil {
 		return nil, err
@@ -71,7 +69,7 @@ func Open(settings db.ConnectionURL) (lib.SQLDatabase, error) {
 	return d, nil
 }
 
-func NewTx(sqlTx *sql.Tx) (lib.SQLTx, error) {
+func NewTx(sqlTx *sql.Tx) (db.SQLTx, error) {
 	d, err := newDatabase(nil)
 	if err != nil {
 		return nil, err
@@ -97,7 +95,7 @@ func NewTx(sqlTx *sql.Tx) (lib.SQLTx, error) {
 }
 
 // New wraps the given *sql.DB session and creates a new db session.
-func New(sess *sql.DB) (lib.SQLDatabase, error) {
+func New(sess *sql.DB) (db.SQLDatabase, error) {
 	d, err := newDatabase(nil)
 	if err != nil {
 		return nil, err
@@ -133,30 +131,8 @@ func (d *database) Open(connURL db.ConnectionURL) error {
 	return d.open()
 }
 
-func (d *database) UseTx(sqlTx *sql.Tx) (lib.SQLTx, error) {
-	if sqlTx == nil { // No transaction given.
-		d.txMu.Lock()
-		currentTx := d.tx
-		d.txMu.Unlock()
-		if currentTx != nil {
-			return &tx{DatabaseTx: currentTx}, nil
-		}
-		// Create a new transaction.
-		return d.NewTx()
-	}
-
-	d.txMu.Lock()
-	defer d.txMu.Unlock()
-
-	if err := d.BindTx(sqlTx); err != nil {
-		return nil, err
-	}
-	d.tx = sqladapter.NewTx(d)
-	return &tx{DatabaseTx: d.tx}, nil
-}
-
 // NewTx starts a transaction block.
-func (d *database) NewTx() (lib.SQLTx, error) {
+func (d *database) NewTx() (db.SQLTx, error) {
 	nTx, err := d.NewLocalTransaction()
 	if err != nil {
 		return nil, err
@@ -248,7 +224,7 @@ func (d *database) NewLocalCollection(name string) db.Collection {
 
 // Transaction creates a transaction and passes it to the given function, if
 // if the function returns no error then the transaction is commited.
-func (d *database) Tx(fn func(tx lib.SQLTx) error) error {
+func (d *database) Tx(fn func(tx db.SQLTx) error) error {
 	tx, err := d.NewTx()
 	if err != nil {
 		return err

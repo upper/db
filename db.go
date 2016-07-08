@@ -413,8 +413,6 @@ type Database interface {
 //
 //  err = tx.Commit()
 type Tx interface {
-	Database
-
 	// Rollback discards all the instructions on the current transaction.
 	Rollback() error
 
@@ -525,8 +523,33 @@ type ConnectionURL interface {
 	String() string
 
 	// Adapter returns the name of the adapter associated with the connection
-	// URL.
+	// URL, this name can be used as argument by the db.Adapter function to
+	// retrieve an imported adapter.
 	Adapter() string
+}
+
+// SQLDatabase represents a SQL database capable of creating transactions and
+// use builder methods.
+type SQLDatabase interface {
+	Database
+	Builder
+
+	// NewTx returns a SQLTx in case the database supports transactions and the
+	// transaction can be initialized.
+	NewTx() (SQLTx, error)
+
+	// Tx accepts a function which first argument is a SQLDatabase which runs
+	// within a transaction.  If the fn function returns nil, the transaction is
+	// commited and the Tx function returns nil too, if fn returns an error, then
+	// the transaction is rolled back and the error is returned by Tx.
+	Tx(fn func(sess SQLTx) error) error
+}
+
+// SQLTx represents a transaction on a SQL database.
+type SQLTx interface {
+	Database
+	Builder
+	Tx
 }
 
 // EnvEnableDebug can be used by adapters to determine if the user has enabled

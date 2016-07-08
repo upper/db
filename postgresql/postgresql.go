@@ -23,7 +23,6 @@ package postgresql // import "upper.io/db.v2/postgresql"
 
 import (
 	"upper.io/db.v2"
-	"upper.io/db.v2/lib"
 )
 
 const sqlDriver = `postgres`
@@ -32,11 +31,7 @@ const sqlDriver = `postgres`
 const Adapter = `postgresql`
 
 func init() {
-	db.Register(Adapter, &database{})
-}
-
-func init() {
-	lib.RegisterSQLAdapter(Adapter, &lib.SQLAdapter{
+	db.RegisterSQLAdapter(Adapter, &db.SQLAdapter{
 		New:   New,
 		NewTx: NewTx,
 		Open:  Open,

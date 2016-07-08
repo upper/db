@@ -21,7 +21,7 @@
 
 // Package builder provides tools to compose, execute and map SQL queries to Go
 // structs and maps.
-package builder // import "upper.io/db.v2/sqlbuilder"
+package db
 
 import (
 	"database/sql"

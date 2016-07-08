@@ -55,7 +55,7 @@ type sqlBuilder struct {
 }
 
 // New returns a query builder that is bound to the given database session.
-func New(sess interface{}, t *exql.Template) (Builder, error) {
+func New(sess interface{}, t *exql.Template) (db.Builder, error) {
 	switch v := sess.(type) {
 	case *sql.DB:
 		sess = newSqlgenProxy(v, t)
@@ -72,18 +72,18 @@ func New(sess interface{}, t *exql.Template) (Builder, error) {
 }
 
 // NewBuilderWithTemplate returns a builder that is based on the given template.
-func NewBuilderWithTemplate(t *exql.Template) Builder {
+func NewBuilderWithTemplate(t *exql.Template) db.Builder {
 	return &sqlBuilder{
 		t: newTemplateWithUtils(t),
 	}
 }
 
 // NewIterator creates an iterator using the given *sql.Rows.
-func NewIterator(rows *sql.Rows) Iterator {
+func NewIterator(rows *sql.Rows) db.Iterator {
 	return &iterator{rows, nil}
 }
 
-func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) Iterator {
+func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) db.Iterator {
 	rows, err := b.Query(query, args...)
 	return &iterator{rows, err}
 }
@@ -121,7 +121,7 @@ func (b *sqlBuilder) QueryRow(query interface{}, args ...interface{}) (*sql.Row,
 	}
 }
 
-func (b *sqlBuilder) SelectFrom(table string) Selector {
+func (b *sqlBuilder) SelectFrom(table string) db.Selector {
 	qs := &selector{
 		builder: b,
 		table:   table,
@@ -131,7 +131,7 @@ func (b *sqlBuilder) SelectFrom(table string) Selector {
 	return qs
 }
 
-func (b *sqlBuilder) Select(columns ...interface{}) Selector {
+func (b *sqlBuilder) Select(columns ...interface{}) db.Selector {
 	qs := &selector{
 		builder: b,
 	}
@@ -140,7 +140,7 @@ func (b *sqlBuilder) Select(columns ...interface{}) Selector {
 	return qs.Columns(columns...)
 }
 
-func (b *sqlBuilder) InsertInto(table string) Inserter {
+func (b *sqlBuilder) InsertInto(table string) db.Inserter {
 	qi := &inserter{
 		builder: b,
 		table:   table,
@@ -150,7 +150,7 @@ func (b *sqlBuilder) InsertInto(table string) Inserter {
 	return qi
 }
 
-func (b *sqlBuilder) DeleteFrom(table string) Deleter {
+func (b *sqlBuilder) DeleteFrom(table string) db.Deleter {
 	qd := &deleter{
 		builder: b,
 		table:   table,
@@ -160,7 +160,7 @@ func (b *sqlBuilder) DeleteFrom(table string) Deleter {
 	return qd
 }
 
-func (b *sqlBuilder) Update(table string) Updater {
+func (b *sqlBuilder) Update(table string) db.Updater {
 	qu := &updater{
 		builder:      b,
 		table:        table,
@@ -436,6 +436,6 @@ func (p *exprProxy) StatementQueryRow(stmt *exql.Statement, args ...interface{})
 }
 
 var (
-	_ = Builder(&sqlBuilder{})
+	_ = db.Builder(&sqlBuilder{})
 	_ = exprDB(&exprProxy{})
 )
