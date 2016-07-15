@@ -85,10 +85,12 @@ func (t *sqlTx) Commit() (err error) {
 }
 
 func (t *txWrapper) Commit() error {
+	defer t.Database.Close() // Automatic close on commit.
 	return t.BaseTx.Commit()
 }
 
 func (t *txWrapper) Rollback() error {
+	defer t.Database.Close() // Automatic close on rollback.
 	return t.BaseTx.Rollback()
 }
 

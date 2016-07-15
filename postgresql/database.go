@@ -36,11 +36,10 @@ import (
 // database is the actual implementation of Database
 type database struct {
 	sqladapter.BaseDatabase // Leveraged by sqladapter
-	db.Builder
+	db.SQLBuilder
 
-	txMu   sync.Mutex
-	tx     sqladapter.DatabaseTx
-	cloned bool
+	txMu sync.Mutex
+	tx   sqladapter.DatabaseTx
 
 	connURL db.ConnectionURL
 }
@@ -69,6 +68,7 @@ func Open(settings db.ConnectionURL) (db.SQLDatabase, error) {
 	return d, nil
 }
 
+// NewTx returns a transaction session.
 func NewTx(sqlTx *sql.Tx) (db.SQLTx, error) {
 	d, err := newDatabase(nil)
 	if err != nil {
@@ -83,7 +83,7 @@ func NewTx(sqlTx *sql.Tx) (db.SQLTx, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.Builder = b
+	d.SQLBuilder = b
 
 	if err := d.BaseDatabase.BindTx(sqlTx); err != nil {
 		return nil, err
@@ -109,7 +109,7 @@ func New(sess *sql.DB) (db.SQLDatabase, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.Builder = b
+	d.SQLBuilder = b
 
 	if err := d.BaseDatabase.BindSession(sess); err != nil {
 		return nil, err
@@ -142,7 +142,7 @@ func (d *database) NewTx() (db.SQLTx, error) {
 
 // Collections returns a list of non-system tables from the database.
 func (d *database) Collections() (collections []string, err error) {
-	q := d.Builder.Select("table_name").
+	q := d.Select("table_name").
 		From("information_schema.tables").
 		Where("table_schema = ?", "public")
 
@@ -169,7 +169,7 @@ func (d *database) open() error {
 	if err != nil {
 		return err
 	}
-	d.Builder = b
+	d.SQLBuilder = b
 
 	connFn := func() error {
 		sess, err := sql.Open("postgres", d.ConnectionURL().String())
@@ -191,7 +191,6 @@ func (d *database) clone() (*database, error) {
 	if err != nil {
 		return nil, err
 	}
-	clone.cloned = true
 
 	if err := clone.open(); err != nil {
 		return nil, err
@@ -266,7 +265,7 @@ func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
 
 // FindDatabaseName allows sqladapter look up the database's name.
 func (d *database) FindDatabaseName() (string, error) {
-	q := d.Builder.Select(db.Raw("CURRENT_DATABASE() AS name"))
+	q := d.Select(db.Raw("CURRENT_DATABASE() AS name"))
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -283,7 +282,7 @@ func (d *database) FindDatabaseName() (string, error) {
 // TableExists allows sqladapter check whether a table exists and returns an
 // error in case it doesn't.
 func (d *database) TableExists(name string) error {
-	q := d.Builder.Select("table_name").
+	q := d.Select("table_name").
 		From("information_schema.tables").
 		Where("table_catalog = ? AND table_name = ?", d.BaseDatabase.Name(), name)
 
@@ -302,7 +301,7 @@ func (d *database) TableExists(name string) error {
 
 // FindTablePrimaryKeys allows sqladapter find a table's primary keys.
 func (d *database) FindTablePrimaryKeys(tableName string) ([]string, error) {
-	q := d.Builder.Select("pg_attribute.attname AS pkey").
+	q := d.Select("pg_attribute.attname AS pkey").
 		From("pg_index", "pg_class", "pg_attribute").
 		Where(`
 			pg_class.oid = '"` + tableName + `"'::regclass

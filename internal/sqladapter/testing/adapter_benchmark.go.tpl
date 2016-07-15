@@ -93,7 +93,7 @@ func BenchmarkUpperInsertTransaction(b *testing.B) {
 	sess := mustOpen()
 	defer sess.Close()
 
-	tx, err := sess.NewTransaction()
+	tx, err := sess.NewTx()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func BenchmarkUpperInsertTransactionWithMap(b *testing.B) {
 	sess := mustOpen()
 	defer sess.Close()
 
-	tx, err := sess.NewTransaction()
+	tx, err := sess.NewTx()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -276,8 +276,8 @@ func BenchmarkUpperCommitManyTransactions(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		var tx Tx
-		if tx, err = sess.NewTransaction(); err != nil {
+		var tx db.SQLTx
+		if tx, err = sess.NewTx(); err != nil {
 			b.Fatal(err)
 		}
 
@@ -314,8 +314,8 @@ func BenchmarkUpperRollbackManyTransactions(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		var tx db.Tx
-		if tx, err = sess.NewTransaction(); err != nil {
+		var tx db.SQLTx
+		if tx, err = sess.NewTx(); err != nil {
 			b.Fatal(err)
 		}
 

@@ -90,10 +90,6 @@ type ConnectionURL struct {
 
 var escaper = strings.NewReplacer(` `, `\ `, `'`, `\'`, `\`, `\\`)
 
-func (c ConnectionURL) Adapter() string {
-	return Adapter
-}
-
 func (c ConnectionURL) String() (s string) {
 	u := make([]string, 0, 6)
 

@@ -19,8 +19,6 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Package builder provides tools to compose, execute and map SQL queries to Go
-// structs and maps.
 package db
 
 import (
@@ -28,8 +26,8 @@ import (
 	"fmt"
 )
 
-// Builder defines methods that can serve as starting points for SQL queries.
-type Builder interface {
+// SQLBuilder defines methods that can serve as starting points for SQL queries.
+type SQLBuilder interface {
 
 	// Select initializes and returns a Selector pointed at the given columns.
 	//
@@ -279,8 +277,8 @@ type Selector interface {
 	// results.
 	Getter
 
-	// Fetcher provides methods to retrieve and map results.
-	Fetcher
+	// ResultMapper provides methods to retrieve and map results.
+	ResultMapper
 
 	// fmt.Stringer provides `String() string`, you can use `String()` to compile
 	// the `Selector` into a string.
@@ -386,7 +384,8 @@ type Getter interface {
 	QueryRow() (*sql.Row, error)
 }
 
-type Fetcher interface {
+// ResultMapper defined methods for a result mapper.
+type ResultMapper interface {
 	// All dumps all the results into the given slice, All() expects a pointer to
 	// slice of maps or structs.
 	//
@@ -411,8 +410,8 @@ type Fetcher interface {
 
 // Iterator provides methods for iterating over query results.
 type Iterator interface {
-	// Fetcher provides methods to retrieve and map results.
-	Fetcher
+	// ResultMapper provides methods to retrieve and map results.
+	ResultMapper
 
 	// Scan dumps the current result into the given pointer variable pointers.
 	Scan(dest ...interface{}) error

@@ -30,7 +30,7 @@ type Database interface {
 
 // PartialDatabase defines all the methods an adapter must provide.
 type PartialDatabase interface {
-	db.Builder
+	db.SQLBuilder
 
 	Collections() ([]string, error)
 	Open(db.ConnectionURL) error

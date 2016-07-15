@@ -38,7 +38,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func mustOpen() Database {
+func mustOpen() db.SQLDatabase {
 	sess, err := Open(settings)
 	if err != nil {
 		panic(err.Error())
@@ -162,7 +162,7 @@ func TestInsertReturningWithinTransaction(t *testing.T) {
 	err := sess.Collection("artist").Truncate()
 	assert.NoError(t, err)
 
-	tx, err := sess.NewTransaction()
+	tx, err := sess.NewTx()
 	assert.NoError(t, err)
 	defer tx.Close()
 
@@ -871,7 +871,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	defer sess.Close()
 
 	// Simple transaction that should not fail.
-	tx, err := sess.NewTransaction()
+	tx, err := sess.NewTx()
 	assert.NoError(t, err)
 
 	artist := tx.Collection("artist")
@@ -893,7 +893,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Use another transaction.
-	tx, err = sess.NewTransaction()
+	tx, err = sess.NewTx()
 
 	artist = tx.Collection("artist")
 
@@ -925,7 +925,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Attempt to add some rows.
-	tx, err = sess.NewTransaction()
+	tx, err = sess.NewTx()
 	assert.NoError(t, err)
 
 	artist = tx.Collection("artist")
@@ -956,7 +956,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Attempt to add some rows.
-	tx, err = sess.NewTransaction()
+	tx, err = sess.NewTx()
 	assert.NoError(t, err)
 
 	artist = tx.Collection("artist")
@@ -1108,7 +1108,7 @@ func TestBuilder(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotZero(t, all)
 
-	tx, err := sess.NewTransaction()
+	tx, err := sess.NewTx()
 	assert.NoError(t, err)
 	assert.NotZero(t, tx)
 	defer tx.Close()
@@ -1153,7 +1153,7 @@ func TestExhaustConnectionPool(t *testing.T) {
 
 			// Requesting a new transaction session.
 			start := time.Now()
-			tx, err := sess.NewTransaction()
+			tx, err := sess.NewTx()
 			if err != nil {
 				tFatal(err)
 			}

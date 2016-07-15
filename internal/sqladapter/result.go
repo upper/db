@@ -29,7 +29,7 @@ import (
 
 // Result represents a delimited set of items bound by a condition.
 type Result struct {
-	b       db.Builder
+	b       db.SQLBuilder
 	table   string
 	iter    db.Iterator
 	limit   int
@@ -50,7 +50,7 @@ func filter(conds []interface{}) []interface{} {
 
 // NewResult creates and Results a new Result set on the given table, this set
 // is limited by the given exql.Where conditions.
-func NewResult(b db.Builder, table string, conds []interface{}) *Result {
+func NewResult(b db.SQLBuilder, table string, conds []interface{}) *Result {
 	return &Result{
 		b:     b,
 		table: table,

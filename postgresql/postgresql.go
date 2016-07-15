@@ -31,7 +31,7 @@ const sqlDriver = `postgres`
 const Adapter = `postgresql`
 
 func init() {
-	db.RegisterSQLAdapter(Adapter, &db.SQLAdapter{
+	db.RegisterSQLAdapter(Adapter, &db.SQLAdapterFuncMap{
 		New:   New,
 		NewTx: NewTx,
 		Open:  Open,
