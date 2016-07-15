@@ -39,7 +39,6 @@ type database struct {
 	db.SQLBuilder
 
 	txMu sync.Mutex
-	tx   sqladapter.DatabaseTx
 
 	connURL db.ConnectionURL
 }
@@ -89,9 +88,8 @@ func NewTx(sqlTx *sql.Tx) (db.SQLTx, error) {
 		return nil, err
 	}
 
-	d.tx = sqladapter.NewTx(d)
-
-	return &tx{DatabaseTx: d.tx}, nil
+	newTx := sqladapter.NewTx(d)
+	return &tx{DatabaseTx: newTx}, nil
 }
 
 // New wraps the given *sql.DB session and creates a new db session.
@@ -257,8 +255,6 @@ func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
 	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
 		return nil, err
 	}
-
-	clone.tx = sqladapter.NewTx(clone)
 
 	return sqladapter.NewTx(clone), nil
 }
