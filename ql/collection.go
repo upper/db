@@ -25,8 +25,8 @@ import (
 	"database/sql"
 
 	"upper.io/db.v2"
-	"upper.io/db.v2/sqlbuilder"
 	"upper.io/db.v2/internal/sqladapter"
+	"upper.io/db.v2/sqlbuilder"
 )
 
 // table is the actual implementation of a collection.
@@ -63,7 +63,7 @@ func (r *resultProxy) Select(fields ...interface{}) db.Result {
 			var columns []struct {
 				Name string `db:"Name"`
 			}
-			err := r.t.d.Builder.Select("Name").
+			err := r.t.d.Select("Name").
 				From("__Column").
 				Where("TableName", r.t.Name()).
 				Iterator().All(&columns)

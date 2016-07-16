@@ -9,7 +9,7 @@ import (
 )
 
 func TestTemplateSelect(t *testing.T) {
-	b := builder.NewBuilderWithTemplate(template)
+	b := builder.NewSQLBuilder(template)
 	assert := assert.New(t)
 
 	assert.Equal(
@@ -147,7 +147,7 @@ func TestTemplateSelect(t *testing.T) {
 }
 
 func TestTemplateInsert(t *testing.T) {
-	b := builder.NewBuilderWithTemplate(template)
+	b := builder.NewSQLBuilder(template)
 	assert := assert.New(t)
 
 	assert.Equal(
@@ -189,7 +189,7 @@ func TestTemplateInsert(t *testing.T) {
 }
 
 func TestTemplateUpdate(t *testing.T) {
-	b := builder.NewBuilderWithTemplate(template)
+	b := builder.NewSQLBuilder(template)
 	assert := assert.New(t)
 
 	assert.Equal(
@@ -231,7 +231,7 @@ func TestTemplateUpdate(t *testing.T) {
 }
 
 func TestTemplateDelete(t *testing.T) {
-	b := builder.NewBuilderWithTemplate(template)
+	b := builder.NewSQLBuilder(template)
 	assert := assert.New(t)
 
 	assert.Equal(
