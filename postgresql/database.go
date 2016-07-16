@@ -38,9 +38,8 @@ type database struct {
 	sqladapter.BaseDatabase // Leveraged by sqladapter
 	db.SQLBuilder
 
-	txMu sync.Mutex
-
 	connURL db.ConnectionURL
+	txMu    sync.Mutex
 }
 
 var (
@@ -55,7 +54,7 @@ func newDatabase(settings db.ConnectionURL) (*database, error) {
 	return d, nil
 }
 
-// Open stablishes a new connection to a SQL server.
+// Open stablishes a new connection with the SQL server.
 func Open(settings db.ConnectionURL) (db.SQLDatabase, error) {
 	d, err := newDatabase(settings)
 	if err != nil {
@@ -219,19 +218,10 @@ func (d *database) NewLocalCollection(name string) db.Collection {
 	return newTable(d, name)
 }
 
-// Transaction creates a transaction and passes it to the given function, if
-// if the function returns no error then the transaction is commited.
+// Tx creates a transaction and passes it to the given function, if if the
+// function returns no error then the transaction is commited.
 func (d *database) Tx(fn func(tx db.SQLTx) error) error {
-	tx, err := d.NewTx()
-	if err != nil {
-		return err
-	}
-	defer tx.Close()
-	if err := fn(tx); err != nil {
-		tx.Rollback()
-		return err
-	}
-	return tx.Commit()
+	return sqladapter.RunTx(d, fn)
 }
 
 // NewLocalTransaction allows sqladapter start a transaction block.

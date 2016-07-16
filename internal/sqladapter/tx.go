@@ -94,6 +94,19 @@ func (t *txWrapper) Rollback() error {
 	return t.BaseTx.Rollback()
 }
 
+func RunTx(d db.SQLDatabase, fn func(tx db.SQLTx) error) error {
+	tx, err := d.NewTx()
+	if err != nil {
+		return err
+	}
+	defer tx.Close()
+	if err := fn(tx); err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit()
+}
+
 var (
 	_ = BaseTx(&sqlTx{})
 )
