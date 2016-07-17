@@ -27,7 +27,7 @@ func connectAndAddFakeRows() (db.Database, error) {
 	var err error
 	var sess db.Database
 
-	if sess, err = db.Open(Adapter, settings); err != nil {
+	if sess, err = Open(settings); err != nil {
 		return nil, err
 	}
 
@@ -50,7 +50,7 @@ func BenchmarkMgoInsert(b *testing.B) {
 	var err error
 	var sess db.Database
 
-	if sess, err = db.Open(Adapter, settings); err != nil {
+	if sess, err = Open(settings); err != nil {
 		b.Fatal(err)
 	}
 
@@ -73,7 +73,7 @@ func BenchmarkMgoInsert(b *testing.B) {
 // BenchmarkUpperInsert benchmarks an insertion by upper.io/db.v2.
 func BenchmarkUpperInsert(b *testing.B) {
 
-	sess, err := db.Open(Adapter, settings)
+	sess, err := Open(settings)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func BenchmarkUpperInsert(b *testing.B) {
 // with variable parameters.
 func BenchmarkUpperInsertVariableArgs(b *testing.B) {
 
-	sess, err := db.Open(Adapter, settings)
+	sess, err := Open(settings)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -337,7 +337,7 @@ func BenchmarkUpperGetCollection(b *testing.B) {
 	var err error
 	var sess db.Database
 
-	if sess, err = db.Open(Adapter, settings); err != nil {
+	if sess, err = Open(settings); err != nil {
 		b.Fatal(err)
 	}
 
@@ -354,7 +354,7 @@ func BenchmarkUpperC(b *testing.B) {
 	var err error
 	var sess db.Database
 
-	if sess, err = db.Open(Adapter, settings); err != nil {
+	if sess, err = Open(settings); err != nil {
 		b.Fatal(err)
 	}
 

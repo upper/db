@@ -102,7 +102,7 @@ func TestOpenWithWrongData(t *testing.T) {
 	}
 
 	// Attempt to open an empty database.
-	if _, err = db.Open(Adapter, rightSettings); err != nil {
+	if _, err = Open(rightSettings); err != nil {
 		// Must fail.
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestOpenWithWrongData(t *testing.T) {
 		Password: "fail",
 	}
 
-	if _, err = db.Open(Adapter, wrongSettings); err == nil {
+	if _, err = Open(wrongSettings); err == nil {
 		t.Fatalf("Expecting an error.")
 	}
 
@@ -127,7 +127,7 @@ func TestOpenWithWrongData(t *testing.T) {
 		Password: settings.Password,
 	}
 
-	if _, err = db.Open(Adapter, wrongSettings); err == nil {
+	if _, err = Open(wrongSettings); err == nil {
 		t.Fatalf("Expecting an error.")
 	}
 
@@ -139,7 +139,7 @@ func TestOpenWithWrongData(t *testing.T) {
 		Password: settings.Password,
 	}
 
-	if _, err = db.Open(Adapter, wrongSettings); err == nil {
+	if _, err = Open(wrongSettings); err == nil {
 		t.Fatalf("Expecting an error.")
 	}
 }
@@ -150,7 +150,7 @@ func TestTruncate(t *testing.T) {
 	var err error
 
 	// Opening database.
-	sess, err := db.Open(Adapter, settings)
+	sess, err := Open(settings)
 
 	if err != nil {
 		t.Fatal(err)
@@ -193,7 +193,7 @@ func TestInsert(t *testing.T) {
 	var id interface{}
 
 	// Opening database.
-	sess, err := db.Open(Adapter, settings)
+	sess, err := Open(settings)
 
 	if err != nil {
 		t.Fatal(err)
@@ -320,7 +320,7 @@ func TestResultCount(t *testing.T) {
 	var res db.Result
 
 	// Opening database.
-	sess, err := db.Open(Adapter, settings)
+	sess, err := Open(settings)
 
 	if err != nil {
 		t.Fatal(err)
@@ -352,7 +352,7 @@ func TestGroup(t *testing.T) {
 	var sess db.Database
 	var stats db.Collection
 
-	if sess, err = db.Open(Adapter, settings); err != nil {
+	if sess, err = Open(settings); err != nil {
 		t.Fatal(err)
 	}
 
@@ -402,7 +402,7 @@ func TestGroup(t *testing.T) {
 
 // Attempts to count all rows in a table that does not exist.
 func TestResultNonExistentCount(t *testing.T) {
-	sess, err := db.Open(Adapter, settings)
+	sess, err := Open(settings)
 
 	if err != nil {
 		t.Fatal(err)
@@ -428,7 +428,7 @@ func TestResultFetch(t *testing.T) {
 	var res db.Result
 
 	// Opening database.
-	sess, err := db.Open(Adapter, settings)
+	sess, err := Open(settings)
 
 	if err != nil {
 		t.Fatal(err)
@@ -560,7 +560,7 @@ func TestUpdate(t *testing.T) {
 	var err error
 
 	// Opening database.
-	sess, err := db.Open(Adapter, settings)
+	sess, err := Open(settings)
 
 	if err != nil {
 		t.Fatal(err)
@@ -657,7 +657,7 @@ func TestOperators(t *testing.T) {
 	var res db.Result
 
 	// Opening database.
-	sess, err := db.Open(Adapter, settings)
+	sess, err := Open(settings)
 
 	if err != nil {
 		t.Fatal(err)
@@ -689,7 +689,7 @@ func TestDelete(t *testing.T) {
 	var err error
 
 	// Opening database.
-	sess, err := db.Open(Adapter, settings)
+	sess, err := Open(settings)
 
 	if err != nil {
 		t.Fatal(err)
@@ -731,7 +731,7 @@ func TestDataTypes(t *testing.T) {
 	var res db.Result
 
 	// Opening database.
-	sess, err := db.Open(Adapter, settings)
+	sess, err := Open(settings)
 
 	if err != nil {
 		t.Fatal(err)

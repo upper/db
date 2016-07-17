@@ -28,7 +28,6 @@ import (
 
 	"gopkg.in/mgo.v2"
 	"upper.io/db.v2"
-	"upper.io/db.v2/sqlbuilder"
 )
 
 // Adapter holds the name of the mongodb adapter.
@@ -48,7 +47,9 @@ type Source struct {
 }
 
 func init() {
-	db.Register(Adapter, &Source{})
+	db.RegisterAdapter(Adapter, &db.AdapterFuncMap{
+		Open: Open,
+	})
 }
 
 // Open stablishes a new connection to a SQL server.
@@ -195,8 +196,4 @@ func (s *Source) versionAtLeast(version ...int) bool {
 		}
 	}
 	return true
-}
-
-func (s *Source) Builder() builder.Builder {
-	return nil
 }
