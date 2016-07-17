@@ -26,16 +26,34 @@ import (
 	"fmt"
 )
 
-var sqlAdapters map[string]*SQLAdapterFuncMap
+var (
+	sqlAdapters map[string]*SQLAdapterFuncMap
+	adapters    map[string]*AdapterFuncMap
+)
 
 func init() {
 	sqlAdapters = make(map[string]*SQLAdapterFuncMap)
+	adapters = make(map[string]*AdapterFuncMap)
+}
+
+type AdapterFuncMap struct {
+	Open func(settings ConnectionURL) (Database, error)
 }
 
 type SQLAdapterFuncMap struct {
 	New   func(sqlDB *sql.DB) (SQLDatabase, error)
 	NewTx func(sqlTx *sql.Tx) (SQLTx, error)
 	Open  func(settings ConnectionURL) (SQLDatabase, error)
+}
+
+func RegisterAdapter(name string, adapter *AdapterFuncMap) {
+	if name == "" {
+		panic(`Missing adapter name`)
+	}
+	if _, ok := adapters[name]; ok {
+		panic(`db.RegisterAdapter() called twice for adapter: ` + name)
+	}
+	adapters[name] = adapter
 }
 
 func RegisterSQLAdapter(name string, adapter *SQLAdapterFuncMap) {
@@ -48,6 +66,13 @@ func RegisterSQLAdapter(name string, adapter *SQLAdapterFuncMap) {
 	sqlAdapters[name] = adapter
 }
 
+func Adapter(name string) AdapterFuncMap {
+	if fn, ok := adapters[name]; ok {
+		return *fn
+	}
+	return missingAdapter(name)
+}
+
 func SQLAdapter(name string) SQLAdapterFuncMap {
 	if fn, ok := sqlAdapters[name]; ok {
 		return *fn
@@ -55,8 +80,17 @@ func SQLAdapter(name string) SQLAdapterFuncMap {
 	return missingSQLAdapter(name)
 }
 
-func missingSQLAdapter(name string) SQLAdapterFuncMap {
+func missingAdapter(name string) AdapterFuncMap {
 	err := fmt.Errorf("upper: Missing adapter %q, forgot to import?", name)
+	return AdapterFuncMap{
+		Open: func(ConnectionURL) (Database, error) {
+			return nil, err
+		},
+	}
+}
+
+func missingSQLAdapter(name string) SQLAdapterFuncMap {
+	err := fmt.Errorf("upper: Missing SQL adapter %q, forgot to import?", name)
 	return SQLAdapterFuncMap{
 		New: func(*sql.DB) (SQLDatabase, error) {
 			return nil, err
