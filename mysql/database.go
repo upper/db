@@ -23,53 +23,34 @@ package mysql
 
 import (
 	"strings"
+	"sync"
 
 	"database/sql"
 
 	_ "github.com/go-sql-driver/mysql" // MySQL driver.
 	"upper.io/db.v2"
+	"upper.io/db.v2/internal/sqladapter"
 	"upper.io/db.v2/sqlbuilder"
 	"upper.io/db.v2/sqlbuilder/exql"
-	"upper.io/db.v2/internal/sqladapter"
 )
-
-// Database represents a SQL database.
-type Database interface {
-	db.Database
-	builder.Builder
-
-	NewTransaction() (Tx, error)
-}
 
 // database is the actual implementation of Database
 type database struct {
 	sqladapter.BaseDatabase // Leveraged by sqladapter
-	builder.Builder
+	db.SQLBuilder
 
 	connURL db.ConnectionURL
+	txMu    sync.Mutex
 }
 
 var (
-	_ = sqladapter.Database(&database{})
-	_ = db.Database(&database{})
+	_ = db.SQLDatabase(&database{})
 )
 
 // newDatabase binds *database with sqladapter and the SQL builer.
 func newDatabase(settings db.ConnectionURL) (*database, error) {
 	d := &database{
 		connURL: settings,
-	}
-	return d, nil
-}
-
-// Open stablishes a new connection to a SQL server.
-func Open(settings db.ConnectionURL) (Database, error) {
-	d, err := newDatabase(settings)
-	if err != nil {
-		return nil, err
-	}
-	if err := d.Open(settings); err != nil {
-		return nil, err
 	}
 	return d, nil
 }
@@ -88,18 +69,18 @@ func (d *database) Open(connURL db.ConnectionURL) error {
 	return d.open()
 }
 
-// NewTransaction starts a transaction block.
-func (d *database) NewTransaction() (Tx, error) {
+// NewTx starts a transaction block.
+func (d *database) NewTx() (db.SQLTx, error) {
 	nTx, err := d.NewLocalTransaction()
 	if err != nil {
 		return nil, err
 	}
-	return &tx{Tx: nTx}, nil
+	return &tx{DatabaseTx: nTx}, nil
 }
 
 // Collections returns a list of non-system tables from the database.
 func (d *database) Collections() (collections []string, err error) {
-	q := d.Builder.Select("table_name").
+	q := d.Select("table_name").
 		From("information_schema.tables").
 		Where("table_schema = ?", d.BaseDatabase.Name())
 
@@ -126,7 +107,7 @@ func (d *database) open() error {
 	if err != nil {
 		return err
 	}
-	d.Builder = b
+	d.SQLBuilder = b
 
 	connFn := func() error {
 		sess, err := sql.Open("mysql", d.ConnectionURL().String())
@@ -165,6 +146,7 @@ func (d *database) CompileStatement(stmt *exql.Statement) string {
 // Err allows sqladapter to translate some known errors into generic errors.
 func (d *database) Err(err error) error {
 	if err != nil {
+		// This error is not exported so we have to check it by its string value.
 		s := err.Error()
 		if strings.Contains(s, `many connections`) {
 			return db.ErrTooManyClients
@@ -178,8 +160,14 @@ func (d *database) NewLocalCollection(name string) db.Collection {
 	return newTable(d, name)
 }
 
+// Tx creates a transaction and passes it to the given function, if if the
+// function returns no error then the transaction is commited.
+func (d *database) Tx(fn func(tx db.SQLTx) error) error {
+	return sqladapter.RunTx(d, fn)
+}
+
 // NewLocalTransaction allows sqladapter start a transaction block.
-func (d *database) NewLocalTransaction() (sqladapter.Tx, error) {
+func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
 	clone, err := d.clone()
 	if err != nil {
 		return nil, err
@@ -202,7 +190,7 @@ func (d *database) NewLocalTransaction() (sqladapter.Tx, error) {
 
 // FindDatabaseName allows sqladapter look up the database's name.
 func (d *database) FindDatabaseName() (string, error) {
-	q := d.Builder.Select(db.Raw("DATABASE() AS name"))
+	q := d.Select(db.Raw("DATABASE() AS name"))
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -219,7 +207,7 @@ func (d *database) FindDatabaseName() (string, error) {
 // TableExists allows sqladapter check whether a table exists and returns an
 // error in case it doesn't.
 func (d *database) TableExists(name string) error {
-	q := d.Builder.Select("table_name").
+	q := d.Select("table_name").
 		From("information_schema.tables").
 		Where("table_schema = ? AND table_name = ?", d.BaseDatabase.Name(), name)
 
@@ -238,7 +226,7 @@ func (d *database) TableExists(name string) error {
 
 // FindTablePrimaryKeys allows sqladapter find a table's primary keys.
 func (d *database) FindTablePrimaryKeys(tableName string) ([]string, error) {
-	q := d.Builder.Select("k.column_name").
+	q := d.Select("k.column_name").
 		From("information_schema.table_constraints AS t").
 		Join("information_schema.key_column_usage AS k").
 		Using("constraint_name", "table_schema", "table_name").
