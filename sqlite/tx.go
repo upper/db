@@ -26,22 +26,10 @@ import (
 	"upper.io/db.v2/internal/sqladapter"
 )
 
-// Tx represents a transaction.
-type Tx interface {
-	Database
-
-	Commit() error
-	Rollback() error
-}
-
 type tx struct {
-	sqladapter.Tx
+	sqladapter.DatabaseTx
 }
 
 var (
-	_ = db.Tx(&tx{})
+	_ = db.SQLTx(&tx{})
 )
-
-func (t *tx) NewTransaction() (Tx, error) {
-	return t, db.ErrAlreadyWithinTransaction
-}

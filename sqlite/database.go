@@ -25,30 +25,28 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sync"
 	"sync/atomic"
 
 	_ "github.com/mattn/go-sqlite3" // SQLite3 driver.
 	"upper.io/db.v2"
+	"upper.io/db.v2/internal/sqladapter"
 	"upper.io/db.v2/sqlbuilder"
 	"upper.io/db.v2/sqlbuilder/exql"
-	"upper.io/db.v2/internal/sqladapter"
 )
-
-// Database represents a SQL database.
-type Database interface {
-	db.Database
-	builder.Builder
-
-	NewTransaction() (Tx, error)
-}
 
 // database is the actual implementation of Database
 type database struct {
 	sqladapter.BaseDatabase // Leveraged by sqladapter
-	builder.Builder
+	db.SQLBuilder
 
 	connURL db.ConnectionURL
+	txMu    sync.Mutex
 }
+
+var (
+	_ = db.SQLDatabase(&database{})
+)
 
 var (
 	fileOpenCount       int32
@@ -57,26 +55,13 @@ var (
 )
 
 var (
-	_ = sqladapter.Database(&database{})
-	_ = db.Database(&database{})
+	_ = db.SQLDatabase(&database{})
 )
 
 // newDatabase binds *database with sqladapter and the SQL builer.
 func newDatabase(settings db.ConnectionURL) (*database, error) {
 	d := &database{
 		connURL: settings,
-	}
-	return d, nil
-}
-
-// Open stablishes a new connection to a SQL server.
-func Open(settings db.ConnectionURL) (Database, error) {
-	d, err := newDatabase(settings)
-	if err != nil {
-		return nil, err
-	}
-	if err := d.Open(settings); err != nil {
-		return nil, err
 	}
 	return d, nil
 }
@@ -103,18 +88,18 @@ func (d *database) Open(connURL db.ConnectionURL) error {
 	return d.open()
 }
 
-// NewTransaction starts a transaction block.
-func (d *database) NewTransaction() (Tx, error) {
+// NewTx starts a transaction block.
+func (d *database) NewTx() (db.SQLTx, error) {
 	nTx, err := d.NewLocalTransaction()
 	if err != nil {
 		return nil, err
 	}
-	return &tx{Tx: nTx}, nil
+	return &tx{DatabaseTx: nTx}, nil
 }
 
 // Collections returns a list of non-system tables from the database.
 func (d *database) Collections() (collections []string, err error) {
-	q := d.Builder.Select("tbl_name").
+	q := d.Select("tbl_name").
 		From("sqlite_master").
 		Where("type = ?", "table")
 
@@ -141,7 +126,7 @@ func (d *database) open() error {
 	if err != nil {
 		return err
 	}
-	d.Builder = b
+	d.SQLBuilder = b
 
 	openFn := func() error {
 		openFiles := atomic.LoadInt32(&fileOpenCount)
@@ -200,8 +185,14 @@ func (d *database) NewLocalCollection(name string) db.Collection {
 	return newTable(d, name)
 }
 
+// Tx creates a transaction and passes it to the given function, if if the
+// function returns no error then the transaction is commited.
+func (d *database) Tx(fn func(tx db.SQLTx) error) error {
+	return sqladapter.RunTx(d, fn)
+}
+
 // NewLocalTransaction allows sqladapter start a transaction block.
-func (d *database) NewLocalTransaction() (sqladapter.Tx, error) {
+func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
 	clone, err := d.clone()
 	if err != nil {
 		return nil, err
@@ -234,7 +225,7 @@ func (d *database) FindDatabaseName() (string, error) {
 // TableExists allows sqladapter check whether a table exists and returns an
 // error in case it doesn't.
 func (d *database) TableExists(name string) error {
-	q := d.Builder.Select("tbl_name").
+	q := d.Select("tbl_name").
 		From("sqlite_master").
 		Where("type = 'table' AND tbl_name = ?", name)
 
@@ -257,7 +248,7 @@ func (d *database) FindTablePrimaryKeys(tableName string) ([]string, error) {
 
 	stmt := exql.RawSQL(fmt.Sprintf("PRAGMA TABLE_INFO('%s')", tableName))
 
-	rows, err := d.Builder.Query(stmt)
+	rows, err := d.Query(stmt)
 	if err != nil {
 		return nil, err
 	}
