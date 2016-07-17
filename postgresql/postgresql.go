@@ -22,7 +22,11 @@
 package postgresql // import "upper.io/db.v2/postgresql"
 
 import (
+	"database/sql"
 	"upper.io/db.v2"
+
+	"upper.io/db.v2/internal/sqladapter"
+	"upper.io/db.v2/sqlbuilder"
 )
 
 const sqlDriver = `postgres`
@@ -36,4 +40,64 @@ func init() {
 		NewTx: NewTx,
 		Open:  Open,
 	})
+}
+
+// Open stablishes a new connection with the SQL server.
+func Open(settings db.ConnectionURL) (db.SQLDatabase, error) {
+	d, err := newDatabase(settings)
+	if err != nil {
+		return nil, err
+	}
+	if err := d.Open(settings); err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+// NewTx returns a transaction session.
+func NewTx(sqlTx *sql.Tx) (db.SQLTx, error) {
+	d, err := newDatabase(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Binding with sqladapter's logic.
+	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
+
+	// Binding with builder.
+	b, err := builder.New(d.BaseDatabase, template)
+	if err != nil {
+		return nil, err
+	}
+	d.SQLBuilder = b
+
+	if err := d.BaseDatabase.BindTx(sqlTx); err != nil {
+		return nil, err
+	}
+
+	newTx := sqladapter.NewTx(d)
+	return &tx{DatabaseTx: newTx}, nil
+}
+
+// New wraps the given *sql.DB session and creates a new db session.
+func New(sess *sql.DB) (db.SQLDatabase, error) {
+	d, err := newDatabase(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Binding with sqladapter's logic.
+	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
+
+	// Binding with builder.
+	b, err := builder.New(d.BaseDatabase, template)
+	if err != nil {
+		return nil, err
+	}
+	d.SQLBuilder = b
+
+	if err := d.BaseDatabase.BindSession(sess); err != nil {
+		return nil, err
+	}
+	return d, nil
 }

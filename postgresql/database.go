@@ -54,66 +54,6 @@ func newDatabase(settings db.ConnectionURL) (*database, error) {
 	return d, nil
 }
 
-// Open stablishes a new connection with the SQL server.
-func Open(settings db.ConnectionURL) (db.SQLDatabase, error) {
-	d, err := newDatabase(settings)
-	if err != nil {
-		return nil, err
-	}
-	if err := d.Open(settings); err != nil {
-		return nil, err
-	}
-	return d, nil
-}
-
-// NewTx returns a transaction session.
-func NewTx(sqlTx *sql.Tx) (db.SQLTx, error) {
-	d, err := newDatabase(nil)
-	if err != nil {
-		return nil, err
-	}
-
-	// Binding with sqladapter's logic.
-	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
-
-	// Binding with builder.
-	b, err := builder.New(d.BaseDatabase, template)
-	if err != nil {
-		return nil, err
-	}
-	d.SQLBuilder = b
-
-	if err := d.BaseDatabase.BindTx(sqlTx); err != nil {
-		return nil, err
-	}
-
-	newTx := sqladapter.NewTx(d)
-	return &tx{DatabaseTx: newTx}, nil
-}
-
-// New wraps the given *sql.DB session and creates a new db session.
-func New(sess *sql.DB) (db.SQLDatabase, error) {
-	d, err := newDatabase(nil)
-	if err != nil {
-		return nil, err
-	}
-
-	// Binding with sqladapter's logic.
-	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
-
-	// Binding with builder.
-	b, err := builder.New(d.BaseDatabase, template)
-	if err != nil {
-		return nil, err
-	}
-	d.SQLBuilder = b
-
-	if err := d.BaseDatabase.BindSession(sess); err != nil {
-		return nil, err
-	}
-	return d, nil
-}
-
 // ConnectionURL returns this database's ConnectionURL.
 func (d *database) ConnectionURL() db.ConnectionURL {
 	return d.connURL
@@ -206,6 +146,7 @@ func (d *database) CompileStatement(stmt *exql.Statement) string {
 func (d *database) Err(err error) error {
 	if err != nil {
 		s := err.Error()
+		// These errors are not exported so we have to check them by they string value.
 		if strings.Contains(s, `too many clients`) || strings.Contains(s, `remaining connection slots are reserved`) || strings.Contains(s, `too many open`) {
 			return db.ErrTooManyClients
 		}
