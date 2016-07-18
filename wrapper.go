@@ -24,11 +24,15 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"sync"
 )
 
 var (
 	sqlAdapters map[string]*SQLAdapterFuncMap
 	adapters    map[string]*AdapterFuncMap
+
+	sqlAdaptersMu sync.RWMutex
+	adaptersMu    sync.RWMutex
 )
 
 func init() {
@@ -47,6 +51,9 @@ type SQLAdapterFuncMap struct {
 }
 
 func RegisterAdapter(name string, adapter *AdapterFuncMap) {
+	adaptersMu.Lock()
+	defer adaptersMu.Unlock()
+
 	if name == "" {
 		panic(`Missing adapter name`)
 	}
@@ -57,6 +64,9 @@ func RegisterAdapter(name string, adapter *AdapterFuncMap) {
 }
 
 func RegisterSQLAdapter(name string, adapter *SQLAdapterFuncMap) {
+	sqlAdaptersMu.Lock()
+	defer sqlAdaptersMu.Unlock()
+
 	if name == "" {
 		panic(`Missing adapter name`)
 	}
@@ -64,9 +74,18 @@ func RegisterSQLAdapter(name string, adapter *SQLAdapterFuncMap) {
 		panic(`db.RegisterSQLAdapter() called twice for adapter: ` + name)
 	}
 	sqlAdapters[name] = adapter
+
+	RegisterAdapter(name, &AdapterFuncMap{
+		Open: func(settings ConnectionURL) (Database, error) {
+			return adapter.Open(settings)
+		},
+	})
 }
 
 func Adapter(name string) AdapterFuncMap {
+	adaptersMu.RLock()
+	defer adaptersMu.RUnlock()
+
 	if fn, ok := adapters[name]; ok {
 		return *fn
 	}
@@ -74,6 +93,9 @@ func Adapter(name string) AdapterFuncMap {
 }
 
 func SQLAdapter(name string) SQLAdapterFuncMap {
+	sqlAdaptersMu.RLock()
+	defer sqlAdaptersMu.RUnlock()
+
 	if fn, ok := sqlAdapters[name]; ok {
 		return *fn
 	}
@@ -102,4 +124,10 @@ func missingSQLAdapter(name string) SQLAdapterFuncMap {
 			return nil, err
 		},
 	}
+}
+
+// Open attempts to open a database. Returns a generic Database instance on
+// success.
+func Open(adapter string, settings ConnectionURL) (Database, error) {
+	return Adapter(adapter).Open(settings)
 }
