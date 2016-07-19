@@ -32,7 +32,6 @@ var (
 )
 
 func init() {
-	sqlAdapters = make(map[string]*SQLAdapterFuncMap)
 	adapters = make(map[string]*AdapterFuncMap)
 }
 

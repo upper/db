@@ -3,7 +3,6 @@ package builder
 import (
 	"database/sql"
 
-	"upper.io/db.v2"
 	"upper.io/db.v2/sqlbuilder/exql"
 )
 
@@ -17,7 +16,7 @@ type updater struct {
 	arguments    []interface{}
 }
 
-func (qu *updater) Set(terms ...interface{}) db.Updater {
+func (qu *updater) Set(terms ...interface{}) Updater {
 	if len(terms) == 1 {
 		ff, vv, _ := Map(terms[0])
 
@@ -50,7 +49,7 @@ func (qu *updater) Set(terms ...interface{}) db.Updater {
 	return qu
 }
 
-func (qu *updater) Where(terms ...interface{}) db.Updater {
+func (qu *updater) Where(terms ...interface{}) Updater {
 	where, arguments := qu.builder.t.ToWhereWithArguments(terms)
 	qu.where = &where
 	qu.arguments = append(qu.arguments, arguments...)
@@ -61,7 +60,7 @@ func (qu *updater) Exec() (sql.Result, error) {
 	return qu.builder.sess.StatementExec(qu.statement(), qu.arguments...)
 }
 
-func (qu *updater) Limit(limit int) db.Updater {
+func (qu *updater) Limit(limit int) Updater {
 	qu.limit = limit
 	return qu
 }

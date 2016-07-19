@@ -3,7 +3,6 @@ package builder
 import (
 	"database/sql"
 
-	"upper.io/db.v2"
 	"upper.io/db.v2/sqlbuilder/exql"
 )
 
@@ -16,14 +15,14 @@ type deleter struct {
 	arguments []interface{}
 }
 
-func (qd *deleter) Where(terms ...interface{}) db.Deleter {
+func (qd *deleter) Where(terms ...interface{}) Deleter {
 	where, arguments := qd.builder.t.ToWhereWithArguments(terms)
 	qd.where = &where
 	qd.arguments = append(qd.arguments, arguments...)
 	return qd
 }
 
-func (qd *deleter) Limit(limit int) db.Deleter {
+func (qd *deleter) Limit(limit int) Deleter {
 	qd.limit = limit
 	return qd
 }

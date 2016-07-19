@@ -19,12 +19,14 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package db
+package builder
 
 import (
 	"database/sql"
 	"fmt"
 	"sync"
+
+	"upper.io/db.v2"
 )
 
 var (
@@ -34,12 +36,11 @@ var (
 
 func init() {
 	sqlAdapters = make(map[string]*SQLAdapterFuncMap)
-	adapters = make(map[string]*AdapterFuncMap)
 }
 
 // SQLCommon holds common methods for SQL databases.
 type SQLCommon interface {
-	Database
+	db.Database
 	SQLBuilder
 }
 
@@ -48,7 +49,7 @@ type SQLCommon interface {
 // afterwards and are automatically closed.
 type SQLTx interface {
 	SQLCommon
-	Tx
+	db.Tx
 }
 
 // SQLDatabase represents a Database which is capable of both creating
@@ -71,7 +72,7 @@ type SQLDatabase interface {
 type SQLAdapterFuncMap struct {
 	New   func(sqlDB *sql.DB) (SQLDatabase, error)
 	NewTx func(sqlTx *sql.Tx) (SQLTx, error)
-	Open  func(settings ConnectionURL) (SQLDatabase, error)
+	Open  func(settings db.ConnectionURL) (SQLDatabase, error)
 }
 
 // RegisterSQLAdapter registers a SQL database adapter. This function must be
@@ -89,8 +90,8 @@ func RegisterSQLAdapter(name string, adapter *SQLAdapterFuncMap) {
 	}
 	sqlAdapters[name] = adapter
 
-	RegisterAdapter(name, &AdapterFuncMap{
-		Open: func(settings ConnectionURL) (Database, error) {
+	db.RegisterAdapter(name, &db.AdapterFuncMap{
+		Open: func(settings db.ConnectionURL) (db.Database, error) {
 			return adapter.Open(settings)
 		},
 	})
@@ -107,7 +108,7 @@ func SQLAdapter(name string) SQLAdapterFuncMap {
 	return missingSQLAdapter(name)
 }
 
-func SQLOpen(adapter string, settings ConnectionURL) (SQLDatabase, error) {
+func SQLOpen(adapter string, settings db.ConnectionURL) (SQLDatabase, error) {
 	return SQLAdapter(adapter).Open(settings)
 }
 
@@ -128,7 +129,7 @@ func missingSQLAdapter(name string) SQLAdapterFuncMap {
 		NewTx: func(*sql.Tx) (SQLTx, error) {
 			return nil, err
 		},
-		Open: func(ConnectionURL) (SQLDatabase, error) {
+		Open: func(db.ConnectionURL) (SQLDatabase, error) {
 			return nil, err
 		},
 	}

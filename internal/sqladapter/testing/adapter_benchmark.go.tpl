@@ -8,6 +8,7 @@ import (
 
 	"github.com/gocraft/dbr"
 	"upper.io/db.v2"
+	"upper.io/db.v2/sqlbuilder"
 )
 
 const (
@@ -276,7 +277,7 @@ func BenchmarkUpperCommitManyTransactions(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		var tx db.SQLTx
+		var tx builder.SQLTx
 		if tx, err = sess.NewTx(); err != nil {
 			b.Fatal(err)
 		}
@@ -314,7 +315,7 @@ func BenchmarkUpperRollbackManyTransactions(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		var tx db.SQLTx
+		var tx builder.SQLTx
 		if tx, err = sess.NewTx(); err != nil {
 			b.Fatal(err)
 		}

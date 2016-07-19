@@ -3,7 +3,6 @@ package builder
 import (
 	"database/sql"
 
-	"upper.io/db.v2"
 	"upper.io/db.v2/sqlbuilder/exql"
 )
 
@@ -28,7 +27,7 @@ func (qi *inserter) columnsToFragments(dst *[]exql.Fragment, columns []string) e
 	return nil
 }
 
-func (qi *inserter) Returning(columns ...string) db.Inserter {
+func (qi *inserter) Returning(columns ...string) Inserter {
 	qi.columnsToFragments(&qi.returning, columns)
 	return qi
 }
@@ -45,17 +44,17 @@ func (qi *inserter) QueryRow() (*sql.Row, error) {
 	return qi.builder.sess.StatementQueryRow(qi.statement(), qi.arguments...)
 }
 
-func (qi *inserter) Iterator() db.Iterator {
+func (qi *inserter) Iterator() Iterator {
 	rows, err := qi.builder.sess.StatementQuery(qi.statement(), qi.arguments...)
 	return &iterator{rows, err}
 }
 
-func (qi *inserter) Columns(columns ...string) db.Inserter {
+func (qi *inserter) Columns(columns ...string) Inserter {
 	qi.columnsToFragments(&qi.columns, columns)
 	return qi
 }
 
-func (qi *inserter) Values(values ...interface{}) db.Inserter {
+func (qi *inserter) Values(values ...interface{}) Inserter {
 	if len(qi.columns) == 0 && len(values) == 1 {
 		ff, vv, _ := Map(values[0])
 

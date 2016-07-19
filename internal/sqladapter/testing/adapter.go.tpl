@@ -15,6 +15,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"upper.io/db.v2"
+	"upper.io/db.v2/sqlbuilder"
 )
 
 type artistType struct {
@@ -38,7 +39,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func mustOpen() db.SQLDatabase {
+func mustOpen() builder.SQLDatabase {
 	sess, err := Open(settings)
 	if err != nil {
 		panic(err.Error())
