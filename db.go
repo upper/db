@@ -395,7 +395,7 @@ type Database interface {
 	ClearCache()
 }
 
-// Tx represents transactions that can be either committed or rolled back.
+// Tx has methods for transactions that can be either committed or rolled back.
 type Tx interface {
 	// Rollback discards all the instructions on the current transaction.
 	Rollback() error
@@ -507,33 +507,6 @@ type ConnectionURL interface {
 	// String returns the connection string that is going to be passed to the
 	// adapter.
 	String() string
-}
-
-// SQLDatabase represents a Database which is capable of both creating
-// transactions and use SQL builder methods.
-type SQLDatabase interface {
-	Database
-	SQLBuilder
-
-	// NewTx returns a new session that lives within a transaction. This session
-	// is completely independent from its parent.
-	NewTx() (SQLTx, error)
-
-	// Tx creates a new transaction that is passed as context to the fn function.
-	// The fn function defines a transaction operation.  If the fn function
-	// returns nil, the transaction is commited, otherwise the transaction is
-	// rolled back.  The transaction session is closed after the function exists,
-	// regardless of the error value returned by fn.
-	Tx(fn func(sess SQLTx) error) error
-}
-
-// SQLTx represents transaction on a SQL database. Transactions can only accept
-// intructions until being commited or rolled back, they become useless
-// afterwards and are automatically closed.
-type SQLTx interface {
-	Database
-	SQLBuilder
-	Tx
 }
 
 // EnvEnableDebug can be used by adapters to determine if the user has enabled
