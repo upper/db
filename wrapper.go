@@ -54,8 +54,7 @@ func RegisterAdapter(name string, adapter *AdapterFuncMap) {
 	adapters[name] = adapter
 }
 
-// Adapter returns a method map from the given adapter.
-func Adapter(name string) AdapterFuncMap {
+func adapter(name string) AdapterFuncMap {
 	adaptersMu.RLock()
 	defer adaptersMu.RUnlock()
 
@@ -76,6 +75,6 @@ func missingAdapter(name string) AdapterFuncMap {
 
 // Open attempts to open a database. Returns a generic Database instance on
 // success.
-func Open(adapter string, settings ConnectionURL) (Database, error) {
-	return Adapter(adapter).Open(settings)
+func Open(adapterName string, settings ConnectionURL) (Database, error) {
+	return adapter(adapterName).Open(settings)
 }
