@@ -54,8 +54,8 @@ type sqlBuilder struct {
 	t    *templateWithUtils
 }
 
-// New returns a query builder that is bound to the given database session.
-func New(sess interface{}, t *exql.Template) (SQLBuilder, error) {
+// WithSession returns a query builder that is bound to the given database session.
+func WithSession(sess interface{}, t *exql.Template) (SQLBuilder, error) {
 	switch v := sess.(type) {
 	case *sql.DB:
 		sess = newSqlgenProxy(v, t)
@@ -71,8 +71,8 @@ func New(sess interface{}, t *exql.Template) (SQLBuilder, error) {
 	}, nil
 }
 
-// NewSQLBuilder returns a builder that is based on the given template.
-func NewSQLBuilder(t *exql.Template) SQLBuilder {
+// WithTemplate returns a builder that is based on the given template.
+func WithTemplate(t *exql.Template) SQLBuilder {
 	return &sqlBuilder{
 		t: newTemplateWithUtils(t),
 	}

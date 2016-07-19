@@ -43,7 +43,7 @@ type database struct {
 }
 
 var (
-	_ = builder.SQLDatabase(&database{})
+	_ = builder.Database(&database{})
 )
 
 // newDatabase binds *database with sqladapter and the SQL builer.
@@ -69,7 +69,7 @@ func (d *database) Open(connURL db.ConnectionURL) error {
 }
 
 // NewTx starts a transaction block.
-func (d *database) NewTx() (builder.SQLTx, error) {
+func (d *database) NewTx() (builder.Tx, error) {
 	nTx, err := d.NewLocalTransaction()
 	if err != nil {
 		return nil, err
@@ -102,7 +102,7 @@ func (d *database) open() error {
 	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
 
 	// Binding with builder.
-	b, err := builder.New(d.BaseDatabase, template)
+	b, err := builder.WithSession(d.BaseDatabase, template)
 	if err != nil {
 		return err
 	}
@@ -161,7 +161,7 @@ func (d *database) NewLocalCollection(name string) db.Collection {
 
 // Tx creates a transaction and passes it to the given function, if if the
 // function returns no error then the transaction is commited.
-func (d *database) Tx(fn func(tx builder.SQLTx) error) error {
+func (d *database) Tx(fn func(tx builder.Tx) error) error {
 	return sqladapter.RunTx(d, fn)
 }
 

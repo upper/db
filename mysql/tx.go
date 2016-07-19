@@ -31,5 +31,5 @@ type tx struct {
 }
 
 var (
-	_ = db.SQLTx(&tx{})
+	_ = db.Tx(&tx{})
 )

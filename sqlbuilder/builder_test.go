@@ -320,7 +320,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	bt := NewSQLBuilder(&testTemplate)
+	bt := WithTemplate(&testTemplate)
 	assert := assert.New(t)
 
 	assert.Equal(
@@ -335,49 +335,49 @@ func TestDelete(t *testing.T) {
 }
 
 func BenchmarkDelete1(b *testing.B) {
-	bt := NewSQLBuilder(&testTemplate)
+	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
 		bt.DeleteFrom("artist").Where("name = ?", "Chavela Vargas").Limit(1).String()
 	}
 }
 
 func BenchmarkDelete2(b *testing.B) {
-	bt := NewSQLBuilder(&testTemplate)
+	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
 		bt.DeleteFrom("artist").Where("id > 5").String()
 	}
 }
 
 func BenchmarkInsert1(b *testing.B) {
-	bt := NewSQLBuilder(&testTemplate)
+	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
 		bt.InsertInto("artist").Values(10, "Ryuichi Sakamoto").Values(11, "Alondra de la Parra").Values(12, "Haruki Murakami").String()
 	}
 }
 
 func BenchmarkInsert2(b *testing.B) {
-	bt := NewSQLBuilder(&testTemplate)
+	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
 		bt.InsertInto("artist").Values(map[string]string{"id": "12", "name": "Chavela Vargas"}).String()
 	}
 }
 
 func BenchmarkInsert3(b *testing.B) {
-	bt := NewSQLBuilder(&testTemplate)
+	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
 		bt.InsertInto("artist").Values(map[string]string{"id": "12", "name": "Chavela Vargas"}).Returning("id").String()
 	}
 }
 
 func BenchmarkInsert4(b *testing.B) {
-	bt := NewSQLBuilder(&testTemplate)
+	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
 		bt.InsertInto("artist").Values(map[string]interface{}{"name": "Chavela Vargas", "id": 12}).String()
 	}
 }
 
 func BenchmarkInsert5(b *testing.B) {
-	bt := NewSQLBuilder(&testTemplate)
+	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
 		bt.InsertInto("artist").Values(struct {
 			ID   int    `db:"id"`
@@ -387,35 +387,35 @@ func BenchmarkInsert5(b *testing.B) {
 }
 
 func BenchmarkSelect1(b *testing.B) {
-	bt := NewSQLBuilder(&testTemplate)
+	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
 		bt.Select().From("artist").OrderBy("name DESC").String()
 	}
 }
 
 func BenchmarkSelect2(b *testing.B) {
-	bt := NewSQLBuilder(&testTemplate)
+	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
 		bt.Select("id").From("artist").Where(`name LIKE ? OR name LIKE ?`, `%Miya%`, `F%`).String()
 	}
 }
 
 func BenchmarkSelect3(b *testing.B) {
-	bt := NewSQLBuilder(&testTemplate)
+	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
 		bt.Select().From("artist a", "publication as p").Where("p.author_id = a.id").Limit(1).String()
 	}
 }
 
 func BenchmarkSelect4(b *testing.B) {
-	bt := NewSQLBuilder(&testTemplate)
+	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
 		bt.SelectFrom("artist").Join("publication p").On("p.author_id = a.id").Where("a.id = 2").Limit(1).String()
 	}
 }
 
 func BenchmarkSelect5(b *testing.B) {
-	bt := NewSQLBuilder(&testTemplate)
+	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
 		bt.SelectFrom("artist a").
 			LeftJoin("publication p1").On("p1.id = a.id").
@@ -425,21 +425,21 @@ func BenchmarkSelect5(b *testing.B) {
 }
 
 func BenchmarkUpdate1(b *testing.B) {
-	bt := NewSQLBuilder(&testTemplate)
+	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
 		bt.Update("artist").Set("name", "Artist").String()
 	}
 }
 
 func BenchmarkUpdate2(b *testing.B) {
-	bt := NewSQLBuilder(&testTemplate)
+	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
 		bt.Update("artist").Set("name = ?", "Artist").Where("id <", 5).String()
 	}
 }
 
 func BenchmarkUpdate3(b *testing.B) {
-	bt := NewSQLBuilder(&testTemplate)
+	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
 		bt.Update("artist").Set(struct {
 			Nombre string `db:"name"`
@@ -448,14 +448,14 @@ func BenchmarkUpdate3(b *testing.B) {
 }
 
 func BenchmarkUpdate4(b *testing.B) {
-	bt := NewSQLBuilder(&testTemplate)
+	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
 		bt.Update("artist").Set(map[string]string{"name": "Artist"}).Where(db.Cond{"id <": 5}).String()
 	}
 }
 
 func BenchmarkUpdate5(b *testing.B) {
-	bt := NewSQLBuilder(&testTemplate)
+	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
 		bt.Update("artist").Set(
 			"name = ? || ' ' || ? || id", "Artist", "#",

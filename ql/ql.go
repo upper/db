@@ -31,7 +31,7 @@ const sqlDriver = `ql`
 const Adapter = sqlDriver
 
 func init() {
-	db.RegisterSQLAdapter(Adapter, &db.SQLAdapterFuncMap{
+	db.RegisterAdapter(Adapter, &db.AdapterFuncMap{
 		New:   New,
 		NewTx: NewTx,
 		Open:  Open,

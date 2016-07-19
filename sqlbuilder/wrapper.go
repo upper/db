@@ -30,65 +30,65 @@ import (
 )
 
 var (
-	sqlAdapters   map[string]*SQLAdapterFuncMap
-	sqlAdaptersMu sync.RWMutex
+	adapters   map[string]*AdapterFuncMap
+	adaptersMu sync.RWMutex
 )
 
 func init() {
-	sqlAdapters = make(map[string]*SQLAdapterFuncMap)
+	adapters = make(map[string]*AdapterFuncMap)
 }
 
-// SQLCommon holds common methods for SQL databases.
-type SQLCommon interface {
+// Backend holds common methods for SQL databases.
+type Backend interface {
 	db.Database
 	SQLBuilder
 }
 
-// SQLTx represents transaction on a SQL database. Transactions can only accept
+// Tx represents transaction on a SQL database. Transactions can only accept
 // intructions until being commited or rolled back, they become useless
 // afterwards and are automatically closed.
-type SQLTx interface {
-	SQLCommon
+type Tx interface {
+	Backend
 	db.Tx
 }
 
-// SQLDatabase represents a Database which is capable of both creating
+// Database represents a Database which is capable of both creating
 // transactions and use SQL builder methods.
-type SQLDatabase interface {
-	SQLCommon
+type Database interface {
+	Backend
 
 	// NewTx returns a new session that lives within a transaction. This session
 	// is completely independent from its parent.
-	NewTx() (SQLTx, error)
+	NewTx() (Tx, error)
 
 	// Tx creates a new transaction that is passed as context to the fn function.
 	// The fn function defines a transaction operation.  If the fn function
 	// returns nil, the transaction is commited, otherwise the transaction is
 	// rolled back.  The transaction session is closed after the function exists,
 	// regardless of the error value returned by fn.
-	Tx(fn func(sess SQLTx) error) error
+	Tx(fn func(sess Tx) error) error
 }
 
-type SQLAdapterFuncMap struct {
-	New   func(sqlDB *sql.DB) (SQLDatabase, error)
-	NewTx func(sqlTx *sql.Tx) (SQLTx, error)
-	Open  func(settings db.ConnectionURL) (SQLDatabase, error)
+type AdapterFuncMap struct {
+	New   func(sqlDB *sql.DB) (Database, error)
+	NewTx func(sqlTx *sql.Tx) (Tx, error)
+	Open  func(settings db.ConnectionURL) (Database, error)
 }
 
-// RegisterSQLAdapter registers a SQL database adapter. This function must be
-// called from adapter packages upon initialization. RegisterSQLAdapter calls
+// RegisterAdapter registers a SQL database adapter. This function must be
+// called from adapter packages upon initialization. RegisterAdapter calls
 // RegisterAdapter automatically.
-func RegisterSQLAdapter(name string, adapter *SQLAdapterFuncMap) {
-	sqlAdaptersMu.Lock()
-	defer sqlAdaptersMu.Unlock()
+func RegisterAdapter(name string, adapter *AdapterFuncMap) {
+	adaptersMu.Lock()
+	defer adaptersMu.Unlock()
 
 	if name == "" {
 		panic(`Missing adapter name`)
 	}
-	if _, ok := sqlAdapters[name]; ok {
-		panic(`db.RegisterSQLAdapter() called twice for adapter: ` + name)
+	if _, ok := adapters[name]; ok {
+		panic(`db.RegisterAdapter() called twice for adapter: ` + name)
 	}
-	sqlAdapters[name] = adapter
+	adapters[name] = adapter
 
 	db.RegisterAdapter(name, &db.AdapterFuncMap{
 		Open: func(settings db.ConnectionURL) (db.Database, error) {
@@ -97,39 +97,39 @@ func RegisterSQLAdapter(name string, adapter *SQLAdapterFuncMap) {
 	})
 }
 
-// SQLAdapter returns SQL database functions.
-func SQLAdapter(name string) SQLAdapterFuncMap {
-	sqlAdaptersMu.RLock()
-	defer sqlAdaptersMu.RUnlock()
+// adapter returns SQL database functions.
+func adapter(name string) AdapterFuncMap {
+	adaptersMu.RLock()
+	defer adaptersMu.RUnlock()
 
-	if fn, ok := sqlAdapters[name]; ok {
+	if fn, ok := adapters[name]; ok {
 		return *fn
 	}
-	return missingSQLAdapter(name)
+	return missingAdapter(name)
 }
 
-func SQLOpen(adapter string, settings db.ConnectionURL) (SQLDatabase, error) {
-	return SQLAdapter(adapter).Open(settings)
+func Open(adapterName string, settings db.ConnectionURL) (Database, error) {
+	return adapter(adapterName).Open(settings)
 }
 
-func SQLNew(adapter string, sqlDB *sql.DB) (SQLDatabase, error) {
-	return SQLAdapter(adapter).New(sqlDB)
+func New(adapterName string, sqlDB *sql.DB) (Database, error) {
+	return adapter(adapterName).New(sqlDB)
 }
 
-func SQLNewTx(adapter string, sqlTx *sql.Tx) (SQLTx, error) {
-	return SQLAdapter(adapter).NewTx(sqlTx)
+func NewTx(adapterName string, sqlTx *sql.Tx) (Tx, error) {
+	return adapter(adapterName).NewTx(sqlTx)
 }
 
-func missingSQLAdapter(name string) SQLAdapterFuncMap {
+func missingAdapter(name string) AdapterFuncMap {
 	err := fmt.Errorf("upper: Missing SQL adapter %q, forgot to import?", name)
-	return SQLAdapterFuncMap{
-		New: func(*sql.DB) (SQLDatabase, error) {
+	return AdapterFuncMap{
+		New: func(*sql.DB) (Database, error) {
 			return nil, err
 		},
-		NewTx: func(*sql.Tx) (SQLTx, error) {
+		NewTx: func(*sql.Tx) (Tx, error) {
 			return nil, err
 		},
-		Open: func(db.ConnectionURL) (SQLDatabase, error) {
+		Open: func(db.ConnectionURL) (Database, error) {
 			return nil, err
 		},
 	}

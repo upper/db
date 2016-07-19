@@ -35,7 +35,7 @@ const sqlDriver = `postgres`
 const Adapter = `postgresql`
 
 func init() {
-	builder.RegisterSQLAdapter(Adapter, &builder.SQLAdapterFuncMap{
+	builder.RegisterAdapter(Adapter, &builder.AdapterFuncMap{
 		New:   New,
 		NewTx: NewTx,
 		Open:  Open,
@@ -43,7 +43,7 @@ func init() {
 }
 
 // Open stablishes a new connection with the SQL server.
-func Open(settings db.ConnectionURL) (builder.SQLDatabase, error) {
+func Open(settings db.ConnectionURL) (builder.Database, error) {
 	d, err := newDatabase(settings)
 	if err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func Open(settings db.ConnectionURL) (builder.SQLDatabase, error) {
 }
 
 // NewTx returns a transaction session.
-func NewTx(sqlTx *sql.Tx) (builder.SQLTx, error) {
+func NewTx(sqlTx *sql.Tx) (builder.Tx, error) {
 	d, err := newDatabase(nil)
 	if err != nil {
 		return nil, err
@@ -65,7 +65,7 @@ func NewTx(sqlTx *sql.Tx) (builder.SQLTx, error) {
 	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
 
 	// Binding with builder.
-	b, err := builder.New(d.BaseDatabase, template)
+	b, err := builder.WithSession(d.BaseDatabase, template)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func NewTx(sqlTx *sql.Tx) (builder.SQLTx, error) {
 }
 
 // New wraps the given *sql.DB session and creates a new db session.
-func New(sess *sql.DB) (builder.SQLDatabase, error) {
+func New(sess *sql.DB) (builder.Database, error) {
 	d, err := newDatabase(nil)
 	if err != nil {
 		return nil, err
@@ -90,7 +90,7 @@ func New(sess *sql.DB) (builder.SQLDatabase, error) {
 	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
 
 	// Binding with builder.
-	b, err := builder.New(d.BaseDatabase, template)
+	b, err := builder.WithSession(d.BaseDatabase, template)
 	if err != nil {
 		return nil, err
 	}
