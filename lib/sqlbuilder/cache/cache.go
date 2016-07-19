@@ -28,7 +28,7 @@ import (
 	"strconv"
 	"sync"
 
-	"upper.io/db.v2/sqlbuilder/cache/hashstructure"
+	"upper.io/db.v2/lib/sqlbuilder/cache/hashstructure"
 )
 
 const defaultCapacity = 128

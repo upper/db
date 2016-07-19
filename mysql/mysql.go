@@ -27,7 +27,7 @@ import (
 	"upper.io/db.v2"
 
 	"upper.io/db.v2/internal/sqladapter"
-	"upper.io/db.v2/sqlbuilder"
+	"upper.io/db.v2/lib/sqlbuilder"
 )
 
 const sqlDriver = `mysql`
@@ -70,7 +70,7 @@ func NewTx(sqlTx *sql.Tx) (builder.Tx, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.SQLBuilder = b
+	d.Builder = b
 
 	if err := d.BaseDatabase.BindTx(sqlTx); err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func New(sess *sql.DB) (builder.Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.SQLBuilder = b
+	d.Builder = b
 
 	if err := d.BaseDatabase.BindSession(sess); err != nil {
 		return nil, err

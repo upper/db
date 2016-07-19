@@ -31,14 +31,14 @@ import (
 	_ "github.com/mattn/go-sqlite3" // SQLite3 driver.
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter"
-	"upper.io/db.v2/sqlbuilder"
-	"upper.io/db.v2/sqlbuilder/exql"
+	"upper.io/db.v2/lib/sqlbuilder"
+	"upper.io/db.v2/lib/sqlbuilder/exql"
 )
 
 // database is the actual implementation of Database
 type database struct {
 	sqladapter.BaseDatabase // Leveraged by sqladapter
-	builder.SQLBuilder
+	builder.Builder
 
 	connURL db.ConnectionURL
 	txMu    sync.Mutex
@@ -122,7 +122,7 @@ func (d *database) open() error {
 	if err != nil {
 		return err
 	}
-	d.SQLBuilder = b
+	d.Builder = b
 
 	openFn := func() error {
 		openFiles := atomic.LoadInt32(&fileOpenCount)

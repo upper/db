@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"upper.io/db.v2"
-	"upper.io/db.v2/sqlbuilder/exql"
-	"upper.io/db.v2/sqlbuilder/reflectx"
+	"upper.io/db.v2/lib/reflectx"
+	"upper.io/db.v2/lib/sqlbuilder/exql"
 )
 
 type hasStatement interface {
@@ -55,7 +55,7 @@ type sqlBuilder struct {
 }
 
 // WithSession returns a query builder that is bound to the given database session.
-func WithSession(sess interface{}, t *exql.Template) (SQLBuilder, error) {
+func WithSession(sess interface{}, t *exql.Template) (Builder, error) {
 	switch v := sess.(type) {
 	case *sql.DB:
 		sess = newSqlgenProxy(v, t)
@@ -72,7 +72,7 @@ func WithSession(sess interface{}, t *exql.Template) (SQLBuilder, error) {
 }
 
 // WithTemplate returns a builder that is based on the given template.
-func WithTemplate(t *exql.Template) SQLBuilder {
+func WithTemplate(t *exql.Template) Builder {
 	return &sqlBuilder{
 		t: newTemplateWithUtils(t),
 	}
@@ -436,6 +436,6 @@ func (p *exprProxy) StatementQueryRow(stmt *exql.Statement, args ...interface{})
 }
 
 var (
-	_ = SQLBuilder(&sqlBuilder{})
+	_ = Builder(&sqlBuilder{})
 	_ = exprDB(&exprProxy{})
 )

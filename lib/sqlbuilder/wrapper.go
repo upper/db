@@ -41,7 +41,7 @@ func init() {
 // Backend holds common methods for SQL databases.
 type Backend interface {
 	db.Database
-	SQLBuilder
+	Builder
 }
 
 // Tx represents transaction on a SQL database. Transactions can only accept

@@ -23,7 +23,7 @@ package postgresql
 
 import (
 	"upper.io/db.v2/internal/sqladapter"
-	"upper.io/db.v2/sqlbuilder"
+	"upper.io/db.v2/lib/sqlbuilder"
 )
 
 type tx struct {

@@ -1,7 +1,8 @@
-package exql
+package builder
 
 import (
-	"upper.io/db.v2/sqlbuilder/cache"
+	"upper.io/db.v2/lib/sqlbuilder/cache"
+	"upper.io/db.v2/lib/sqlbuilder/exql"
 )
 
 const (
@@ -97,12 +98,6 @@ const (
     DELETE
       FROM {{.Table}}
       {{.Where}}
-    {{if .Limit}}
-      LIMIT {{.Limit}}
-    {{end}}
-    {{if .Offset}}
-      OFFSET {{.Offset}}
-    {{end}}
 	`
 	defaultUpdateLayout = `
 		UPDATE
@@ -157,7 +152,7 @@ const (
 	`
 )
 
-var defaultTemplate = &Template{
+var testTemplate = exql.Template{
 	ColumnSeparator:     defaultColumnSeparator,
 	IdentifierSeparator: defaultIdentifierSeparator,
 	IdentifierQuote:     defaultIdentifierQuote,

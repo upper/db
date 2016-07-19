@@ -26,7 +26,7 @@ import (
 	"sync/atomic"
 
 	"upper.io/db.v2"
-	"upper.io/db.v2/sqlbuilder"
+	"upper.io/db.v2/lib/sqlbuilder"
 )
 
 // Tx represents a database session within a transaction.

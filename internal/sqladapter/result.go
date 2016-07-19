@@ -25,12 +25,12 @@ import (
 	"sync"
 
 	"upper.io/db.v2"
-	"upper.io/db.v2/sqlbuilder"
+	"upper.io/db.v2/lib/sqlbuilder"
 )
 
 // Result represents a delimited set of items bound by a condition.
 type Result struct {
-	b       builder.SQLBuilder
+	b       builder.Builder
 	table   string
 	iter    builder.Iterator
 	limit   int
@@ -51,7 +51,7 @@ func filter(conds []interface{}) []interface{} {
 
 // NewResult creates and Results a new Result set on the given table, this set
 // is limited by the given exql.Where conditions.
-func NewResult(b builder.SQLBuilder, table string, conds []interface{}) *Result {
+func NewResult(b builder.Builder, table string, conds []interface{}) *Result {
 	return &Result{
 		b:     b,
 		table: table,

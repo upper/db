@@ -22,7 +22,7 @@
 package ql // import "upper.io/db.v2/ql"
 
 import (
-	"upper.io/db.v2/sqlbuilder"
+	"upper.io/db.v2/lib/sqlbuilder"
 )
 
 const sqlDriver = `ql`

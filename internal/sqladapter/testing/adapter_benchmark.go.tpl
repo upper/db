@@ -8,7 +8,7 @@ import (
 
 	"github.com/gocraft/dbr"
 	"upper.io/db.v2"
-	"upper.io/db.v2/sqlbuilder"
+	"upper.io/db.v2/lib/sqlbuilder"
 )
 
 const (

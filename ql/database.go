@@ -30,14 +30,14 @@ import (
 	_ "github.com/cznic/ql/driver" // QL driver
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter"
-	"upper.io/db.v2/sqlbuilder"
-	"upper.io/db.v2/sqlbuilder/exql"
+	"upper.io/db.v2/lib/sqlbuilder"
+	"upper.io/db.v2/lib/sqlbuilder/exql"
 )
 
 // database is the actual implementation of Database
 type database struct {
 	sqladapter.BaseDatabase // Leveraged by sqladapter
-	builder.SQLBuilder
+	builder.Builder
 
 	connURL db.ConnectionURL
 	txMu    sync.Mutex
@@ -110,7 +110,7 @@ func NewTx(sqlTx *sql.Tx) (builder.Tx, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.SQLBuilder = b
+	d.Builder = b
 
 	if err := d.BaseDatabase.BindTx(sqlTx); err != nil {
 		return nil, err
@@ -135,7 +135,7 @@ func New(sess *sql.DB) (builder.Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.SQLBuilder = b
+	d.Builder = b
 
 	if err := d.BaseDatabase.BindSession(sess); err != nil {
 		return nil, err
@@ -180,7 +180,7 @@ func (d *database) open() error {
 	if err != nil {
 		return err
 	}
-	d.SQLBuilder = b
+	d.Builder = b
 
 	openFn := func() error {
 		openFiles := atomic.LoadInt32(&fileOpenCount)
@@ -308,7 +308,7 @@ func (d *database) FindDatabaseName() (string, error) {
 // TableExists allows sqladapter check whether a table exists and returns an
 // error in case it doesn't.
 func (d *database) TableExists(name string) error {
-	q := d.SQLBuilder.Select("Name").
+	q := d.Builder.Select("Name").
 		From("__Table").
 		Where("Name == ?", name)
 

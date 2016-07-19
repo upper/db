@@ -1,4 +1,4 @@
-// Copyright (c) 2015 The upper.io/db.v2/sqlbuilder authors. All rights reserved.
+// Copyright (c) 2015 The upper.io/db.v2/lib/sqlbuilder authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -26,8 +26,8 @@ import (
 	"fmt"
 )
 
-// SQLBuilder defines methods that can serve as starting points for SQL queries.
-type SQLBuilder interface {
+// Builder defines methods that can serve as starting points for SQL queries.
+type Builder interface {
 
 	// Select initializes and returns a Selector pointed at the given columns.
 	//

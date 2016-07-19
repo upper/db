@@ -5,7 +5,7 @@ DB_HOST ?= 127.0.0.1
 export DB_HOST
 
 test:
-	go test -v ./sqlbuilder/... && \
+	go test -v ./lib/... && \
 	go test -v ./internal/... && \
 	$(MAKE) test -C postgresql && \
 	$(MAKE) test -C mysql && \

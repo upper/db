@@ -22,8 +22,8 @@
 package mysql
 
 import (
-	"upper.io/db.v2/sqlbuilder/cache"
-	"upper.io/db.v2/sqlbuilder/exql"
+	"upper.io/db.v2/lib/sqlbuilder/cache"
+	"upper.io/db.v2/lib/sqlbuilder/exql"
 )
 
 const (
