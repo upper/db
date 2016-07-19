@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+
 	"upper.io/db.v2/sqlbuilder/cache/hashstructure"
 )
 

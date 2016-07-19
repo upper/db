@@ -37,7 +37,7 @@ import (
 // database is the actual implementation of Database
 type database struct {
 	sqladapter.BaseDatabase // Leveraged by sqladapter
-	db.SQLBuilder
+	builder.SQLBuilder
 
 	connURL db.ConnectionURL
 	txMu    sync.Mutex
@@ -50,7 +50,7 @@ var (
 )
 
 var (
-	_ = db.Database(&database{})
+	_ = builder.Database(&database{})
 )
 
 // newDatabase binds *database with sqladapter and the SQL builer.
@@ -62,7 +62,7 @@ func newDatabase(settings db.ConnectionURL) (*database, error) {
 }
 
 // Open stablishes a new connection to a SQL server.
-func Open(settings db.ConnectionURL) (db.Database, error) {
+func Open(settings db.ConnectionURL) (builder.Database, error) {
 	d, err := newDatabase(settings)
 	if err != nil {
 		return nil, err
@@ -96,7 +96,7 @@ func (d *database) Open(connURL db.ConnectionURL) error {
 }
 
 // NewTx returns a transaction session.
-func NewTx(sqlTx *sql.Tx) (db.Tx, error) {
+func NewTx(sqlTx *sql.Tx) (builder.Tx, error) {
 	d, err := newDatabase(nil)
 	if err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func NewTx(sqlTx *sql.Tx) (db.Tx, error) {
 }
 
 // New wraps the given *sql.DB session and creates a new db session.
-func New(sess *sql.DB) (db.Database, error) {
+func New(sess *sql.DB) (builder.Database, error) {
 	d, err := newDatabase(nil)
 	if err != nil {
 		return nil, err
@@ -144,7 +144,7 @@ func New(sess *sql.DB) (db.Database, error) {
 }
 
 // NewTx starts a transaction block.
-func (d *database) NewTx() (db.Tx, error) {
+func (d *database) NewTx() (builder.Tx, error) {
 	nTx, err := d.NewLocalTransaction()
 	if err != nil {
 		return nil, err
@@ -267,7 +267,7 @@ func (d *database) NewLocalCollection(name string) db.Collection {
 
 // Tx creates a transaction and passes it to the given function, if if the
 // function returns no error then the transaction is commited.
-func (d *database) Tx(fn func(tx db.Tx) error) error {
+func (d *database) Tx(fn func(tx builder.Tx) error) error {
 	return sqladapter.RunTx(d, fn)
 }
 

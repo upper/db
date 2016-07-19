@@ -23,6 +23,7 @@ package sqlite // import "upper.io/db.v2/sqlite"
 
 import (
 	"database/sql"
+
 	"upper.io/db.v2"
 
 	"upper.io/db.v2/internal/sqladapter"
@@ -35,7 +36,7 @@ const sqlDriver = `sqlite`
 const Adapter = sqlDriver
 
 func init() {
-	db.RegisterAdapter(Adapter, &db.AdapterFuncMap{
+	builder.RegisterAdapter(Adapter, &builder.AdapterFuncMap{
 		New:   New,
 		NewTx: NewTx,
 		Open:  Open,
@@ -43,7 +44,7 @@ func init() {
 }
 
 // Open stablishes a new connection with the SQL server.
-func Open(settings db.ConnectionURL) (db.Database, error) {
+func Open(settings db.ConnectionURL) (builder.Database, error) {
 	d, err := newDatabase(settings)
 	if err != nil {
 		return nil, err
@@ -55,7 +56,7 @@ func Open(settings db.ConnectionURL) (db.Database, error) {
 }
 
 // NewTx returns a transaction session.
-func NewTx(sqlTx *sql.Tx) (db.Tx, error) {
+func NewTx(sqlTx *sql.Tx) (builder.Tx, error) {
 	d, err := newDatabase(nil)
 	if err != nil {
 		return nil, err
@@ -80,7 +81,7 @@ func NewTx(sqlTx *sql.Tx) (db.Tx, error) {
 }
 
 // New wraps the given *sql.DB session and creates a new db session.
-func New(sess *sql.DB) (db.Database, error) {
+func New(sess *sql.DB) (builder.Database, error) {
 	d, err := newDatabase(nil)
 	if err != nil {
 		return nil, err

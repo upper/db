@@ -22,7 +22,7 @@
 package ql // import "upper.io/db.v2/ql"
 
 import (
-	"upper.io/db.v2"
+	"upper.io/db.v2/sqlbuilder"
 )
 
 const sqlDriver = `ql`
@@ -31,7 +31,7 @@ const sqlDriver = `ql`
 const Adapter = sqlDriver
 
 func init() {
-	db.RegisterAdapter(Adapter, &db.AdapterFuncMap{
+	builder.RegisterAdapter(Adapter, &builder.AdapterFuncMap{
 		New:   New,
 		NewTx: NewTx,
 		Open:  Open,
