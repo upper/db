@@ -63,6 +63,10 @@ func (j *jsonbType) Scan(src interface{}) error {
 }
 
 func (j jsonbType) Value() (driver.Value, error) {
+	if v, ok := j.V.(json.RawMessage); ok {
+		return string(v), nil
+	}
+
 	b, err := json.Marshal(j.V)
 	if err != nil {
 		return nil, err
