@@ -97,6 +97,7 @@ type Constraints interface {
 type Compound interface {
 	Sentences() []Compound
 	Operator() CompoundOperator
+	Empty() bool
 }
 
 // CompoundOperator represents the operation on a compound statement.
@@ -113,6 +114,7 @@ const (
 // care.
 type RawValue interface {
 	fmt.Stringer
+	Compound
 	Raw() string
 }
 
@@ -181,6 +183,14 @@ func (c Cond) Operator() CompoundOperator {
 	return OperatorNone
 }
 
+// Empty returns false if there are no conditions.
+func (c Cond) Empty() bool {
+	for range c {
+		return true
+	}
+	return false
+}
+
 type rawValue struct {
 	v string
 }
@@ -191,6 +201,21 @@ func (r rawValue) Raw() string {
 
 func (r rawValue) String() string {
 	return r.Raw()
+}
+
+// Sentences return each one of the map records as a compound.
+func (r rawValue) Sentences() []Compound {
+	return []Compound{r}
+}
+
+// Operator returns the default compound operator.
+func (r rawValue) Operator() CompoundOperator {
+	return OperatorNone
+}
+
+// Empty return false if this struct holds no value.
+func (r rawValue) Empty() bool {
+	return r.v == ""
 }
 
 type compound struct {
@@ -207,6 +232,10 @@ func (c *compound) Sentences() []Compound {
 
 func (c *compound) Operator() CompoundOperator {
 	return OperatorNone
+}
+
+func (c *compound) Empty() bool {
+	return len(c.conds) == 0
 }
 
 func (c *compound) push(a ...Compound) *compound {
@@ -230,10 +259,20 @@ func (o *Union) Operator() CompoundOperator {
 	return OperatorOr
 }
 
+// Empty returns false if this struct holds no conditions.
+func (o *Union) Empty() bool {
+	return o.compound.Empty()
+}
+
 // And adds more terms to the compound.
 func (a *Intersection) And(conds ...Compound) *Intersection {
 	a.compound.push(conds...)
 	return a
+}
+
+// Empty returns false if this struct holds no conditions.
+func (a *Intersection) Empty() bool {
+	return a.compound.Empty()
 }
 
 // Intersection represents an AND compound.
