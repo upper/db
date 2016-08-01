@@ -23,7 +23,7 @@ type Statement struct {
 	Limit
 	Offset
 
-	rawSQL string
+	SQL string
 
 	hash hash
 }
@@ -64,9 +64,9 @@ func (s *Statement) Hash() string {
 
 // Compile transforms the Statement into an equivalent SQL query.
 func (s *Statement) Compile(layout *Template) (compiled string) {
-	if s.Type == rawSQL {
+	if s.Type == SQL {
 		// No need to hit the cache.
-		return s.rawSQL
+		return s.SQL
 	}
 
 	if z, ok := layout.Read(s); ok {
@@ -117,7 +117,7 @@ func (s *Statement) Compile(layout *Template) (compiled string) {
 // RawSQL represents a raw SQL statement.
 func RawSQL(s string) *Statement {
 	return &Statement{
-		Type:   rawSQL,
-		rawSQL: s,
+		Type: SQL,
+		SQL:  s,
 	}
 }
