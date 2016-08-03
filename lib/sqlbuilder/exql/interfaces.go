@@ -1,7 +1,7 @@
 package exql
 
 import (
-	"upper.io/db.v2/lib/sqlbuilder/cache"
+	"upper.io/db.v2/internal/cache"
 )
 
 // Fragment is any interface that can be both cached and compiled.

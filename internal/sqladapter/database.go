@@ -9,7 +9,7 @@ import (
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/logger"
 	"upper.io/db.v2/lib/sqlbuilder"
-	"upper.io/db.v2/lib/sqlbuilder/cache"
+	"upper.io/db.v2/internal/cache"
 	"upper.io/db.v2/lib/sqlbuilder/exql"
 )
 

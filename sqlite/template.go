@@ -22,7 +22,7 @@
 package sqlite
 
 import (
-	"upper.io/db.v2/lib/sqlbuilder/cache"
+	"upper.io/db.v2/internal/cache"
 	"upper.io/db.v2/lib/sqlbuilder/exql"
 )
 
