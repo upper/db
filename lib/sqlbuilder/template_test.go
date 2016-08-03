@@ -1,4 +1,4 @@
-package builder
+package sqlbuilder
 
 import (
 	"upper.io/db.v2/internal/cache"

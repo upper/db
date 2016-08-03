@@ -19,7 +19,7 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package builder
+package sqlbuilder
 
 import (
 	"database/sql"
@@ -36,7 +36,7 @@ type Builder interface {
 	//
 	// Example:
 	//
-	//  q := builder.Select("first_name", "last_name").From("people").Where(...)
+	//  q := sqlbuilder.Select("first_name", "last_name").From("people").Where(...)
 	Select(columns ...interface{}) Selector
 
 	// SelectFrom creates a Selector that selects all columns (like SELECT *)
@@ -44,56 +44,56 @@ type Builder interface {
 	//
 	// Example:
 	//
-	//  q := builder.SelectFrom("people").Where(...)
+	//  q := sqlbuilder.SelectFrom("people").Where(...)
 	SelectFrom(table string) Selector
 
 	// InsertInto prepares an returns a Inserter that points at the given table.
 	//
 	// Example:
 	//
-	//   q := builder.InsertInto("books").Columns(...).Values(...)
+	//   q := sqlbuilder.InsertInto("books").Columns(...).Values(...)
 	InsertInto(table string) Inserter
 
 	// DeleteFrom prepares a Deleter that points at the given table.
 	//
 	// Example:
 	//
-	//  q := builder.DeleteFrom("tasks").Where(...)
+	//  q := sqlbuilder.DeleteFrom("tasks").Where(...)
 	DeleteFrom(table string) Deleter
 
 	// Update prepares and returns an Updater that points at the given table.
 	//
 	// Example:
 	//
-	//  q := builder.Update("profile").Set(...).Where(...)
+	//  q := sqlbuilder.Update("profile").Set(...).Where(...)
 	Update(table string) Updater
 
 	// Exec executes the given SQL query and returns the sql.Result.
 	//
 	// Example:
 	//
-	//  builder.Exec(`INSERT INTO books (title) VALUES("La Ciudad y los Perros")`)
+	//  sqlbuilder.Exec(`INSERT INTO books (title) VALUES("La Ciudad y los Perros")`)
 	Exec(query interface{}, args ...interface{}) (sql.Result, error)
 
 	// Query executes the given SQL query and returns *sql.Rows.
 	//
 	// Example:
 	//
-	//  builder.Query(`SELECT * FROM people WHERE name = "Mateo"`)
+	//  sqlbuilder.Query(`SELECT * FROM people WHERE name = "Mateo"`)
 	Query(query interface{}, args ...interface{}) (*sql.Rows, error)
 
 	// QueryRow executes the given SQL query and returns *sql.Row.
 	//
 	// Example:
 	//
-	//  builder.QueryRow(`SELECT * FROM people WHERE name = "Haruki" AND last_name = "Murakami" LIMIT 1`)
+	//  sqlbuilder.QueryRow(`SELECT * FROM people WHERE name = "Haruki" AND last_name = "Murakami" LIMIT 1`)
 	QueryRow(query interface{}, args ...interface{}) (*sql.Row, error)
 
 	// Iterator executes the given SQL query and returns an Iterator.
 	//
 	// Example:
 	//
-	//  builder.Iterator(`SELECT * FROM people WHERE name LIKE "M%"`)
+	//  sqlbuilder.Iterator(`SELECT * FROM people WHERE name LIKE "M%"`)
 	Iterator(query interface{}, args ...interface{}) Iterator
 }
 
@@ -115,14 +115,14 @@ type Selector interface {
 	//
 	//   s.Columns("name n")
 	//
-	// If you don't want the column to be escaped use the builder.RawString
+	// If you don't want the column to be escaped use the sqlbuilder.RawString
 	// function.
 	//
-	//   s.Columns(builder.RawString("DATABASE_NAME()"))
+	//   s.Columns(sqlbuilder.RawString("DATABASE_NAME()"))
 	//
 	// The above statement is equivalent to:
 	//
-	//   s.Columns(builder.Func("DATABASE_NAME"))
+	//   s.Columns(sqlbuilder.Func("DATABASE_NAME"))
 	Columns(columns ...interface{}) Selector
 
 	// From represents a FROM clause and is tipically used after Columns().

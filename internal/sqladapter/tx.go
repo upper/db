@@ -96,7 +96,7 @@ func (t *txWrapper) Rollback() error {
 	return t.BaseTx.Rollback()
 }
 
-func RunTx(d builder.Database, fn func(tx builder.Tx) error) error {
+func RunTx(d sqlbuilder.Database, fn func(tx sqlbuilder.Tx) error) error {
 	tx, err := d.NewTx()
 	if err != nil {
 		return err

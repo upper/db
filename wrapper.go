@@ -35,6 +35,7 @@ func init() {
 	adapters = make(map[string]*AdapterFuncMap)
 }
 
+// AdapterFuncMap defines functions that need to be implemented by adapters.
 type AdapterFuncMap struct {
 	Open func(settings ConnectionURL) (Database, error)
 }

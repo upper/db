@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func mustOpen() builder.Database {
+func mustOpen() sqlbuilder.Database {
 	sess, err := Open(settings)
 	if err != nil {
 		panic(err.Error())

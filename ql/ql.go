@@ -31,7 +31,7 @@ const sqlDriver = `ql`
 const Adapter = sqlDriver
 
 func init() {
-	builder.RegisterAdapter(Adapter, &builder.AdapterFuncMap{
+	sqlbuilder.RegisterAdapter(Adapter, &sqlbuilder.AdapterFuncMap{
 		New:   New,
 		NewTx: NewTx,
 		Open:  Open,

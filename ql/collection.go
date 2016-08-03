@@ -112,7 +112,7 @@ func (t *table) Find(conds ...interface{}) db.Result {
 
 // Insert inserts an item (map or struct) into the collection.
 func (t *table) Insert(item interface{}) (interface{}, error) {
-	columnNames, columnValues, err := builder.Map(item)
+	columnNames, columnValues, err := sqlbuilder.Map(item)
 	if err != nil {
 		return nil, err
 	}

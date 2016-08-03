@@ -37,7 +37,7 @@ import (
 // database is the actual implementation of Database
 type database struct {
 	sqladapter.BaseDatabase // Leveraged by sqladapter
-	builder.Builder
+	sqlbuilder.Builder
 
 	connURL db.ConnectionURL
 	txMu    sync.Mutex
@@ -50,7 +50,7 @@ var (
 )
 
 var (
-	_ = builder.Database(&database{})
+	_ = sqlbuilder.Database(&database{})
 )
 
 // newDatabase binds *database with sqladapter and the SQL builer.
@@ -62,7 +62,7 @@ func newDatabase(settings db.ConnectionURL) (*database, error) {
 }
 
 // Open stablishes a new connection to a SQL server.
-func Open(settings db.ConnectionURL) (builder.Database, error) {
+func Open(settings db.ConnectionURL) (sqlbuilder.Database, error) {
 	d, err := newDatabase(settings)
 	if err != nil {
 		return nil, err
@@ -96,7 +96,7 @@ func (d *database) Open(connURL db.ConnectionURL) error {
 }
 
 // NewTx returns a transaction session.
-func NewTx(sqlTx *sql.Tx) (builder.Tx, error) {
+func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 	d, err := newDatabase(nil)
 	if err != nil {
 		return nil, err
@@ -105,8 +105,8 @@ func NewTx(sqlTx *sql.Tx) (builder.Tx, error) {
 	// Binding with sqladapter's logic.
 	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
 
-	// Binding with builder.
-	b, err := builder.WithSession(d.BaseDatabase, template)
+	// Binding with sqlbuilder.
+	b, err := sqlbuilder.WithSession(d.BaseDatabase, template)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func NewTx(sqlTx *sql.Tx) (builder.Tx, error) {
 }
 
 // New wraps the given *sql.DB session and creates a new db session.
-func New(sess *sql.DB) (builder.Database, error) {
+func New(sess *sql.DB) (sqlbuilder.Database, error) {
 	d, err := newDatabase(nil)
 	if err != nil {
 		return nil, err
@@ -130,8 +130,8 @@ func New(sess *sql.DB) (builder.Database, error) {
 	// Binding with sqladapter's logic.
 	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
 
-	// Binding with builder.
-	b, err := builder.WithSession(d.BaseDatabase, template)
+	// Binding with sqlbuilder.
+	b, err := sqlbuilder.WithSession(d.BaseDatabase, template)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func New(sess *sql.DB) (builder.Database, error) {
 }
 
 // NewTx starts a transaction block.
-func (d *database) NewTx() (builder.Tx, error) {
+func (d *database) NewTx() (sqlbuilder.Tx, error) {
 	nTx, err := d.NewLocalTransaction()
 	if err != nil {
 		return nil, err
@@ -175,8 +175,8 @@ func (d *database) open() error {
 	// Binding with sqladapter's logic.
 	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
 
-	// Binding with builder.
-	b, err := builder.WithSession(d.BaseDatabase, template)
+	// Binding with sqlbuilder.
+	b, err := sqlbuilder.WithSession(d.BaseDatabase, template)
 	if err != nil {
 		return err
 	}
@@ -267,7 +267,7 @@ func (d *database) NewLocalCollection(name string) db.Collection {
 
 // Tx creates a transaction and passes it to the given function, if if the
 // function returns no error then the transaction is commited.
-func (d *database) Tx(fn func(tx builder.Tx) error) error {
+func (d *database) Tx(fn func(tx sqlbuilder.Tx) error) error {
 	return sqladapter.RunTx(d, fn)
 }
 

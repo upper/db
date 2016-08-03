@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"upper.io/db.v2"
+	"upper.io/db.v2/internal/cache"
 	"upper.io/db.v2/internal/logger"
 	"upper.io/db.v2/lib/sqlbuilder"
-	"upper.io/db.v2/internal/cache"
 	"upper.io/db.v2/lib/sqlbuilder/exql"
 )
 
@@ -31,7 +31,7 @@ type Database interface {
 
 // PartialDatabase defines all the methods an adapter must provide.
 type PartialDatabase interface {
-	builder.Builder
+	sqlbuilder.Builder
 
 	Collections() ([]string, error)
 	Open(db.ConnectionURL) error

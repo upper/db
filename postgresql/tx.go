@@ -31,5 +31,5 @@ type tx struct {
 }
 
 var (
-	_ = builder.Tx(&tx{})
+	_ = sqlbuilder.Tx(&tx{})
 )
