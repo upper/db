@@ -3,7 +3,7 @@ package sqlbuilder
 import (
 	"database/sql"
 
-	"upper.io/db.v2/lib/sqlbuilder/exql"
+	"upper.io/db.v2/internal/sqladapter/exql"
 )
 
 type inserter struct {

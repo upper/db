@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"upper.io/db.v2"
+	"upper.io/db.v2/internal/sqladapter/exql"
 	"upper.io/db.v2/lib/reflectx"
-	"upper.io/db.v2/lib/sqlbuilder/exql"
 )
 
 type hasStatement interface {

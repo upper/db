@@ -2,7 +2,7 @@ package sqlbuilder
 
 import (
 	"upper.io/db.v2/internal/cache"
-	"upper.io/db.v2/lib/sqlbuilder/exql"
+	"upper.io/db.v2/internal/sqladapter/exql"
 )
 
 const (
