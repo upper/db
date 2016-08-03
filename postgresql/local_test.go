@@ -81,3 +81,39 @@ func TestStringAndInt64Array(t *testing.T) {
 		assert.NotZero(t, itemCheck.Strings)
 	}
 }
+
+func TestIssue210(t *testing.T) {
+	list := []string{
+		`DROP TABLE IF EXISTS testing123`,
+		`DROP TABLE IF EXISTS hello`,
+		`CREATE TABLE IF NOT EXISTS testing123 (
+			ID INT PRIMARY KEY     NOT NULL,
+			NAME           TEXT    NOT NULL
+		)
+		`,
+		`CREATE TABLE IF NOT EXISTS hello (
+			ID INT PRIMARY KEY     NOT NULL,
+			NAME           TEXT    NOT NULL
+		)`,
+	}
+
+	sess := mustOpen()
+	defer sess.Close()
+
+	tx, err := sess.NewTx()
+	assert.NoError(t, err)
+
+	for i := range list {
+		_, err = tx.Exec(list[i])
+		assert.NoError(t, err)
+	}
+
+	err = tx.Commit()
+	assert.NoError(t, err)
+
+	_, err = sess.Collection("testing123").Find().Count()
+	assert.NoError(t, err)
+
+	_, err = sess.Collection("hello").Find().Count()
+	assert.NoError(t, err)
+}
