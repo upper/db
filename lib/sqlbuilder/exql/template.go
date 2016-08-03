@@ -20,7 +20,8 @@ const (
 	Select
 	Update
 	Delete
-	rawSQL
+
+	SQL
 )
 
 type (
