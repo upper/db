@@ -83,6 +83,9 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where exql.
 			where.Conditions = append(where.Conditions, w.Conditions...)
 		}
 		return
+	case db.RawValue:
+		where.Conditions = []exql.Fragment{exql.RawValue(t.String())}
+		return
 	case db.Constraints:
 		for _, c := range t.Constraints() {
 			w, v := tu.ToWhereWithArguments(c)

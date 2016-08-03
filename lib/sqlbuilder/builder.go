@@ -313,39 +313,37 @@ func (s *stringer) compileAndReplacePlaceholders(stmt *exql.Statement) (query st
 }
 
 func (iter *iterator) Scan(dst ...interface{}) error {
-	if iter.err != nil {
-		return iter.err
+	if err := iter.Err(); err != nil {
+		return err
 	}
 	return iter.cursor.Scan(dst...)
 }
 
+func (iter *iterator) setErr(err error) error {
+	iter.err = err
+	return iter.err
+}
+
 func (iter *iterator) One(dst interface{}) error {
-	if iter.err != nil {
-		return iter.err
+	if err := iter.Err(); err != nil {
+		return err
 	}
-
 	defer iter.Close()
-
-	if !iter.Next(dst) {
-		return iter.Err()
-	}
-
-	return nil
+	return iter.setErr(iter.next(dst))
 }
 
 func (iter *iterator) All(dst interface{}) error {
-	var err error
-
-	if iter.err != nil {
-		return iter.err
+	if err := iter.Err(); err != nil {
+		return err
 	}
-
 	defer iter.Close()
 
 	// Fetching all results within the cursor.
-	err = fetchRows(iter.cursor, dst)
+	if err := fetchRows(iter.cursor, dst); err != nil {
+		return iter.setErr(err)
+	}
 
-	return err
+	return nil
 }
 
 func (iter *iterator) Err() (err error) {
@@ -353,31 +351,44 @@ func (iter *iterator) Err() (err error) {
 }
 
 func (iter *iterator) Next(dst ...interface{}) bool {
-	var err error
 
-	if iter.err != nil {
+	if err := iter.Err(); err != nil {
 		return false
 	}
+
+	if err := iter.next(dst...); err != nil {
+		// ignore db.ErrNoMoreRows, just break.
+		if err != db.ErrNoMoreRows {
+			iter.setErr(err)
+		}
+		return false
+	}
+
+	return true
+}
+
+func (iter *iterator) next(dst ...interface{}) error {
 
 	switch len(dst) {
 	case 0:
 		if ok := iter.cursor.Next(); !ok {
-			iter.err = iter.cursor.Err()
-			iter.Close()
-			return false
+			defer iter.Close()
+			err := iter.cursor.Err()
+			if err == nil {
+				err = db.ErrNoMoreRows
+			}
+			return err
 		}
-		return true
+		return nil
 	case 1:
-		if err = fetchRow(iter.cursor, dst[0]); err != nil {
-			iter.err = err
-			iter.Close()
-			return false
+		if err := fetchRow(iter.cursor, dst[0]); err != nil {
+			defer iter.Close()
+			return err
 		}
-		return true
+		return nil
 	}
 
-	iter.err = errors.New("Next does not currently supports more than one parameters")
-	return false
+	return errors.New("Next does not currently supports more than one parameters")
 }
 
 func (iter *iterator) Close() (err error) {

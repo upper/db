@@ -63,9 +63,11 @@ func (r *Result) setErr(err error) error {
 	r.errMu.Lock()
 	defer r.errMu.Unlock()
 
-	if err != nil {
-		r.err = err
+	if err == nil {
+		return nil
 	}
+
+	r.err = err
 	return err
 }
 
