@@ -960,14 +960,13 @@ func TestEven(t *testing.T) {
 			if err := res.Err(); err != nil {
 				t.Fatalf(`%s: %q`, wrapper, err)
 			}
-
 			if err = res.Delete(); err != nil {
 				t.Fatalf(`Could not remove with wrapper %s: %q`, wrapper, err)
 			}
 
+			// Testing named inputs (using tags).
 			res = col.Find()
 
-			// Testing named inputs (using tags).
 			var item2 struct {
 				Value uint `db:"input" bson:"input"` // The "bson" tag is required by mgo.
 			}
@@ -981,12 +980,36 @@ func TestEven(t *testing.T) {
 			}
 
 			// Testing inline tag.
+			res = col.Find()
+
 			var item3 struct {
-				oddEven `db:",inline" bson:",inline"`
+				OddEven oddEven `db:",inline" bson:",inline"`
 			}
 			for res.Next(&item3) {
-				if item3.Input%2 == 0 {
+				if item3.OddEven.Input%2 == 0 {
 					t.Fatalf("Expecting odd numbers only with wrapper %s. Got: %v\n", wrapper, item3)
+				}
+				if item3.OddEven.Input == 0 {
+					t.Fatal("Expecting a number > 0")
+				}
+			}
+			if err := res.Err(); err != nil {
+				t.Fatalf(`%s: %q`, wrapper, err)
+			}
+
+			// Testing inline tag.
+			type OddEven oddEven
+			res = col.Find()
+
+			var item31 struct {
+				OddEven `db:",inline" bson:",inline"`
+			}
+			for res.Next(&item31) {
+				if item31.Input%2 == 0 {
+					t.Fatalf("Expecting odd numbers only with wrapper %s. Got: %v\n", wrapper, item31)
+				}
+				if item31.Input == 0 {
+					t.Fatal("Expecting a number > 0")
 				}
 			}
 			if err := res.Err(); err != nil {
@@ -994,6 +1017,8 @@ func TestEven(t *testing.T) {
 			}
 
 			// Testing omision tag.
+			res = col.Find()
+
 			var item4 struct {
 				Value uint `db:"-"`
 			}
