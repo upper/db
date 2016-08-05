@@ -230,6 +230,21 @@ func TestSelect(t *testing.T) {
 	)
 
 	assert.Equal(
+		`SELECT * FROM "artist" WHERE ("id" IS NULL)`,
+		b.SelectFrom("artist").Where(db.Cond{"id": nil}).String(),
+	)
+
+	assert.Equal(
+		`SELECT * FROM "artist" WHERE ("id" IS NULL)`,
+		b.SelectFrom("artist").Where(db.Cond{"id": []int64{}}).String(),
+	)
+
+	assert.Equal(
+		`SELECT * FROM "artist" WHERE ("id" IN ($1))`,
+		b.SelectFrom("artist").Where(db.Cond{"id": []int64{0}}).String(),
+	)
+
+	assert.Equal(
 		`SELECT DATE()`,
 		b.Select(db.Raw("DATE()")).String(),
 	)
