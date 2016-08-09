@@ -117,6 +117,11 @@ func TestSelect(t *testing.T) {
 	)
 
 	assert.Equal(
+		`SELECT * FROM "artist" ORDER BY RAND()`,
+		b.Select().From("artist").OrderBy(db.Raw("RAND()")).String(),
+	)
+
+	assert.Equal(
 		`SELECT * FROM "artist" ORDER BY "name" DESC`,
 		b.Select().From("artist").OrderBy("-name").String(),
 	)
