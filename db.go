@@ -577,7 +577,7 @@ var (
 
 // Default limits for database/sql limit methods.
 var (
-	DefaultConnMaxLifetime = time.Duration(0)
-	DefaultMaxIdleConns    = 0
-	DefaultMaxOpenConns    = 0
+	DefaultConnMaxLifetime = time.Duration(0) // 0 means reuse forever.
+	DefaultMaxIdleConns    = 10               // Keep 10 idle connections.
+	DefaultMaxOpenConns    = 0                // 0 means unlimited.
 )
