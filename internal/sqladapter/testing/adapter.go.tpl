@@ -830,8 +830,7 @@ func TestDelete(t *testing.T) {
 
 func TestCompositeKeys(t *testing.T) {
 	if Adapter == "ql" {
-		t.Logf("Unsupported, skipped")
-		return
+		t.Skip("Currently not supported.")
 	}
 
 	sess := mustOpen()
@@ -864,8 +863,7 @@ func TestCompositeKeys(t *testing.T) {
 // Attempts to test database transactions.
 func TestTransactionsAndRollback(t *testing.T) {
 	if Adapter == "ql" {
-		t.Logf("Skipped.")
-		return
+		t.Skip("Currently not supported.")
 	}
 
 	sess := mustOpen()
@@ -986,8 +984,7 @@ func TestTransactionsAndRollback(t *testing.T) {
 
 func TestDataTypes(t *testing.T) {
 	if Adapter == "ql" {
-		t.Logf("Skipped.")
-		return
+		t.Skip("Currently not supported.")
 	}
 
 	type testValuesStruct struct {
@@ -1124,11 +1121,11 @@ func TestBuilder(t *testing.T) {
 
 func TestExhaustConnectionPool(t *testing.T) {
 	if Adapter == "ql" {
-		t.Logf("Skipped.")
-		return
+		t.Skip("Currently not supported.")
 	}
 
 	var tMu sync.Mutex
+
 	tFatal := func(err error) {
 		tMu.Lock()
 		defer tMu.Unlock()
@@ -1154,6 +1151,7 @@ func TestExhaustConnectionPool(t *testing.T) {
 
 			// Requesting a new transaction session.
 			start := time.Now()
+			tLogf("Tx: %d: NewTx")
 			tx, err := sess.NewTx()
 			if err != nil {
 				tFatal(err)

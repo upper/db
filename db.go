@@ -79,6 +79,7 @@ package db // import "upper.io/db.v2"
 import (
 	"fmt"
 	"reflect"
+	"time"
 )
 
 // Constraint interface represents a condition.
@@ -572,4 +573,10 @@ var (
 	_ Compound    = Cond{}
 	_ Constraint  = &constraint{}
 	_ RawValue    = &rawValue{}
+)
+
+var (
+	DefaultConnMaxLifetime = time.Duration(0)
+	DefaultMaxIdleConns    = 0
+	DefaultMaxOpenConns    = 0
 )
