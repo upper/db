@@ -78,11 +78,12 @@ func (s *Source) Open(connURL db.ConnectionURL) error {
 
 // Clone returns a cloned db.Database session.
 func (s *Source) Clone() (db.Database, error) {
+	newSession := s.session.Copy()
 	clone := &Source{
 		name:        s.name,
 		connURL:     s.connURL,
-		session:     s.session.Copy(),
-		database:    s.database,
+		session:     newSession,
+		database:    newSession.DB(s.database.Name),
 		version:     s.version,
 		collections: map[string]*Collection{},
 	}
