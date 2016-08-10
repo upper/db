@@ -23,19 +23,17 @@ type Book struct {
 func main() {
 	sess, err := postgresql.Open(settings)
 	if err != nil {
-		log.Fatalf("db.Open(): %q\n", err)
+		log.Fatal(err)
 	}
 	defer sess.Close()
 
-	booksCol := sess.Collection("books")
-
 	var books []Book
-	err = booksCol.Find().All(&books)
+	err = sess.Collection("books").Find().All(&books)
 	if err != nil {
-		log.Fatalf("Find(): %q\n", err)
+		log.Fatal(err)
 	}
 
-	for i, book := range books {
-		log.Printf("Book %d: %#v\n", i, book)
+	for _, book := range books {
+		log.Printf("%q (ID: %d)\n", book.Title, book.ID)
 	}
 }

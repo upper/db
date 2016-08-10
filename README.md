@@ -23,6 +23,8 @@ This is the source code repository, see examples and documentation at
 
 ## Demo
 
+You can run the following example on our [playground](https://demo.upper.io):
+
 ```go
 package main
 
@@ -53,10 +55,8 @@ func main() {
 	}
 	defer sess.Close()
 
-	booksCol := sess.Collection("books")
-
 	var books []Book
-	err = booksCol.Find().All(&books)
+	err = sess.Collection("books").Find().All(&books)
 	if err != nil {
 		log.Fatalf("Find(): %q\n", err)
 	}
@@ -67,23 +67,25 @@ func main() {
 }
 ```
 
+Or you can also run it locally from the `_examples` directory:
+
 ```
 go run _examples/booktown-books/main.go
-2016/05/23 18:08:03 Book 0: main.Book{ID:7808, Title:"The Shining", AuthorID:4156, SubjectID:9}
-2016/05/23 18:08:03 Book 1: main.Book{ID:4513, Title:"Dune", AuthorID:1866, SubjectID:15}
-2016/05/23 18:08:03 Book 2: main.Book{ID:4267, Title:"2001: A Space Odyssey", AuthorID:2001, SubjectID:15}
-2016/05/23 18:08:03 Book 3: main.Book{ID:1608, Title:"The Cat in the Hat", AuthorID:1809, SubjectID:2}
-2016/05/23 18:08:03 Book 4: main.Book{ID:1590, Title:"Bartholomew and the Oobleck", AuthorID:1809, SubjectID:2}
-2016/05/23 18:08:03 Book 5: main.Book{ID:25908, Title:"Franklin in the Dark", AuthorID:15990, SubjectID:2}
-2016/05/23 18:08:03 Book 6: main.Book{ID:1501, Title:"Goodnight Moon", AuthorID:2031, SubjectID:2}
-2016/05/23 18:08:03 Book 7: main.Book{ID:190, Title:"Little Women", AuthorID:16, SubjectID:6}
-2016/05/23 18:08:03 Book 8: main.Book{ID:1234, Title:"The Velveteen Rabbit", AuthorID:25041, SubjectID:3}
-2016/05/23 18:08:03 Book 9: main.Book{ID:2038, Title:"Dynamic Anatomy", AuthorID:1644, SubjectID:0}
-2016/05/23 18:08:03 Book 10: main.Book{ID:156, Title:"The Tell-Tale Heart", AuthorID:115, SubjectID:9}
-2016/05/23 18:08:03 Book 11: main.Book{ID:41473, Title:"Programming Python", AuthorID:7805, SubjectID:4}
-2016/05/23 18:08:03 Book 12: main.Book{ID:41477, Title:"Learning Python", AuthorID:7805, SubjectID:4}
-2016/05/23 18:08:03 Book 13: main.Book{ID:41478, Title:"Perl Cookbook", AuthorID:7806, SubjectID:4}
-2016/05/23 18:08:03 Book 14: main.Book{ID:41472, Title:"Practical PostgreSQL", AuthorID:1212, SubjectID:4}
+2016/08/10 08:42:48 "The Shining" (ID: 7808)
+2016/08/10 08:42:48 "Dune" (ID: 4513)
+2016/08/10 08:42:48 "2001: A Space Odyssey" (ID: 4267)
+2016/08/10 08:42:48 "The Cat in the Hat" (ID: 1608)
+2016/08/10 08:42:48 "Bartholomew and the Oobleck" (ID: 1590)
+2016/08/10 08:42:48 "Franklin in the Dark" (ID: 25908)
+2016/08/10 08:42:48 "Goodnight Moon" (ID: 1501)
+2016/08/10 08:42:48 "Little Women" (ID: 190)
+2016/08/10 08:42:48 "The Velveteen Rabbit" (ID: 1234)
+2016/08/10 08:42:48 "Dynamic Anatomy" (ID: 2038)
+2016/08/10 08:42:48 "The Tell-Tale Heart" (ID: 156)
+2016/08/10 08:42:48 "Programming Python" (ID: 41473)
+2016/08/10 08:42:48 "Learning Python" (ID: 41477)
+2016/08/10 08:42:48 "Perl Cookbook" (ID: 41478)
+2016/08/10 08:42:48 "Practical PostgreSQL" (ID: 41472)
 ```
 
 ## License
