@@ -112,6 +112,9 @@ func (d *database) open() error {
 	connFn := func() error {
 		sess, err := sql.Open("mysql", d.ConnectionURL().String())
 		if err == nil {
+			sess.SetConnMaxLifetime(connMaxLifetime)
+			sess.SetMaxIdleConns(maxIdleConns)
+			sess.SetMaxOpenConns(maxOpenConns)
 			return d.BaseDatabase.BindSession(sess)
 		}
 		return err

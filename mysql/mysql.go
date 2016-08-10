@@ -23,11 +23,18 @@ package mysql // import "upper.io/db.v2/mysql"
 
 import (
 	"database/sql"
+	"time"
 
 	"upper.io/db.v2"
 
 	"upper.io/db.v2/internal/sqladapter"
 	"upper.io/db.v2/lib/sqlbuilder"
+)
+
+var (
+	connMaxLifetime time.Duration = db.DefaultConnMaxLifetime
+	maxIdleConns    int           = db.DefaultMaxIdleConns
+	maxOpenConns    int           = db.DefaultMaxOpenConns
 )
 
 const sqlDriver = `mysql`
@@ -101,4 +108,31 @@ func New(sess *sql.DB) (sqlbuilder.Database, error) {
 		return nil, err
 	}
 	return d, nil
+}
+
+// SetConnMaxLifetime sets the default value to be passed to
+// db.SetConnMaxLifetime.
+func SetConnMaxLifetime(d time.Duration) {
+	connMaxLifetime = d
+}
+
+// SetMaxIdleConns sets the default value to be passed to db.SetMaxOpenConns.
+func SetMaxIdleConns(n int) {
+	if n < 0 {
+		n = 0
+	}
+	maxIdleConns = n
+}
+
+// SetMaxOpenConns sets the default value to be passed to db.SetMaxOpenConns.
+// If the value of maxIdleConns is >= 0 and maxOpenConns is less than
+// maxIdleConns, then maxIdleConns will be reduced to match maxOpenConns.
+func SetMaxOpenConns(n int) {
+	if n < 0 {
+		n = 0
+	}
+	if n > maxIdleConns {
+		maxIdleConns = n
+	}
+	maxOpenConns = n
 }
