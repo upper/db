@@ -32,9 +32,9 @@ import (
 )
 
 var (
-	connMaxLifetime time.Duration = db.DefaultConnMaxLifetime
-	maxIdleConns    int           = db.DefaultMaxIdleConns
-	maxOpenConns    int           = db.DefaultMaxOpenConns
+	connMaxLifetime = db.DefaultConnMaxLifetime
+	maxIdleConns    = db.DefaultMaxIdleConns
+	maxOpenConns    = db.DefaultMaxOpenConns
 )
 
 const sqlDriver = `postgres`

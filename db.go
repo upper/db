@@ -575,6 +575,7 @@ var (
 	_ RawValue    = &rawValue{}
 )
 
+// Default limits for database/sql limit methods.
 var (
 	DefaultConnMaxLifetime = time.Duration(0)
 	DefaultMaxIdleConns    = 0
