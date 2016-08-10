@@ -180,15 +180,21 @@ func (d *database) Close() error {
 		d.sessMu.Unlock()
 	}()
 	if d.sess != nil {
-		if d.Transaction() != nil && !d.Transaction().Committed() {
-			d.Transaction().Rollback()
-		}
-		d.cachedCollections.Clear()
-		d.cachedStatements.Clear() // Closes prepared statements as well.
 		if cleaner, ok := d.PartialDatabase.(HasCleanUp); ok {
 			cleaner.CleanUp()
 		}
-		return d.sess.Close()
+		d.cachedCollections.Clear()
+		d.cachedStatements.Clear() // Closes prepared statements as well.
+
+		tx := d.Transaction()
+		if tx == nil {
+			// Not within a transaction.
+			return d.sess.Close()
+		}
+
+		if !tx.Committed() {
+			tx.Rollback()
+		}
 	}
 	return nil
 }

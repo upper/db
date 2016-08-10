@@ -133,10 +133,15 @@ func (d *database) clone() (*database, error) {
 		return nil, err
 	}
 
-	if err := clone.open(); err != nil {
+	clone.BaseDatabase = sqladapter.NewBaseDatabase(clone)
+
+	b, err := sqlbuilder.WithSession(clone.BaseDatabase, template)
+	if err != nil {
 		return nil, err
 	}
+	clone.Builder = b
 
+	clone.BaseDatabase.BindSession(d.BaseDatabase.Session())
 	return clone, nil
 }
 
