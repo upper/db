@@ -2,6 +2,7 @@ package exql
 
 import (
 	"reflect"
+	"strings"
 
 	"upper.io/db.v2/internal/cache"
 )
@@ -19,6 +20,8 @@ type Statement struct {
 	Joins        Fragment
 	Where        Fragment
 	Returning    Fragment
+	Prefix       string
+	Suffix       string
 
 	Limit
 	Offset
@@ -109,7 +112,7 @@ func (s *Statement) Compile(layout *Template) (compiled string) {
 		panic("Unknown template type.")
 	}
 
-	layout.Write(s, compiled)
+	layout.Write(s, s.Prefix+strings.TrimSpace(compiled)+s.Suffix)
 
 	return compiled
 }

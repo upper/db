@@ -283,6 +283,12 @@ type Selector interface {
 	// fmt.Stringer provides `String() string`, you can use `String()` to compile
 	// the `Selector` into a string.
 	fmt.Stringer
+
+	Prefix(string, ...interface{}) Selector
+
+	Suffix(string, ...interface{}) Selector
+
+	Wrap(string, string, ...interface{}) Selector
 }
 
 // Inserter represents an INSERT statement.
