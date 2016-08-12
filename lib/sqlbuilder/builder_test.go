@@ -250,8 +250,18 @@ func TestSelect(t *testing.T) {
 	)
 
 	assert.Equal(
-		`SELECT DATE()`,
-		b.Select(db.Raw("DATE()")).String(),
+		`SELECT NOW()`,
+		b.Select(db.Raw("NOW()")).String(),
+	)
+
+	assert.Equal(
+		`SELECT * FROM (SELECT NOW()) AS subquery`,
+		b.Select(db.Raw("NOW()")).Prefix(`SELECT * FROM (`).Suffix(`) AS subquery`).String(),
+	)
+
+	assert.Equal(
+		`SELECT * FROM (SELECT NOW()) AS subquery`,
+		b.Select(db.Raw(`NOW()`)).Wrap(`SELECT * FROM (`, `) AS subquery`).String(),
 	)
 }
 

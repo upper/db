@@ -19,6 +19,8 @@ const (
 
 type selector struct {
 	*stringer
+	prefix    string
+	suffix    string
 	mode      selectMode
 	builder   *sqlBuilder
 	table     string
@@ -31,6 +33,25 @@ type selector struct {
 	joins     []*exql.Join
 	arguments []interface{}
 	err       error
+}
+
+func (qs *selector) Prefix(prefix string, args ...interface{}) Selector {
+	qs.prefix = prefix
+	qs.arguments = append(qs.arguments, args...)
+	return qs
+}
+
+func (qs *selector) Suffix(suffix string, args ...interface{}) Selector {
+	qs.suffix = suffix
+	qs.arguments = append(qs.arguments, args...)
+	return qs
+}
+
+func (qs *selector) Wrap(prefix string, suffix string, args ...interface{}) Selector {
+	qs.prefix = prefix
+	qs.suffix = suffix
+	qs.arguments = append(qs.arguments, args...)
+	return qs
 }
 
 func (qs *selector) From(tables ...string) Selector {
@@ -204,6 +225,8 @@ func (qs *selector) Offset(n int) Selector {
 
 func (qs *selector) statement() *exql.Statement {
 	return &exql.Statement{
+		Prefix:  qs.prefix,
+		Suffix:  qs.suffix,
 		Type:    exql.Select,
 		Table:   exql.TableWithName(qs.table),
 		Columns: qs.columns,
@@ -234,5 +257,5 @@ func (qs *selector) All(destSlice interface{}) error {
 }
 
 func (qs *selector) One(dest interface{}) error {
-	return qs.Iterator().All(dest)
+	return qs.Iterator().One(dest)
 }
