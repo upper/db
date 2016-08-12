@@ -263,13 +263,6 @@ func TestSelect(t *testing.T) {
 		`SELECT * FROM (SELECT NOW()) AS subquery`,
 		b.Select(db.Raw(`NOW()`)).Wrap(`SELECT * FROM (`, `) AS subquery`).String(),
 	)
-
-	/*
-		assert.Equal(
-			`SELECT * FROM (SELECT NOW()) AS subquery`,
-			b.SelectFrom(db.Raw(`(SELECT NOW()) AS subquery`)).String(),
-		)
-	*/
 }
 
 func TestInsert(t *testing.T) {

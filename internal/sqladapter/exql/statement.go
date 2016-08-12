@@ -112,8 +112,8 @@ func (s *Statement) Compile(layout *Template) (compiled string) {
 		panic("Unknown template type.")
 	}
 
-	layout.Write(s, s.Prefix+strings.TrimSpace(compiled)+s.Suffix)
-
+	compiled = s.Prefix + strings.TrimSpace(compiled) + s.Suffix
+	layout.Write(s, compiled)
 	return compiled
 }
 
