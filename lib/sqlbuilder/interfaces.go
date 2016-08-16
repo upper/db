@@ -416,6 +416,12 @@ type Iterator interface {
 	// Scan dumps the current result into the given pointer variable pointers.
 	Scan(dest ...interface{}) error
 
+	// NextScan advances the iterator and performs Scan.
+	NextScan(dest ...interface{}) error
+
+	// ScanOne advances the iterator, performs Scan and closes the iterator.
+	ScanOne(dest ...interface{}) error
+
 	// Next dumps the current element into the given destination, which could be
 	// a pointer to either a map or a struct.
 	Next(dest ...interface{}) bool

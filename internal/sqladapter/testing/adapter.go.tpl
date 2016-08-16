@@ -1099,6 +1099,50 @@ func TestBuilder(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotZero(t, all)
 
+	// Using explicit iterator and NextScan.
+	iter = sess.SelectFrom("artist").Iterator()
+	var id int
+	var name string
+	err = iter.NextScan(&id, &name)
+
+	assert.NoError(t, err)
+	assert.NotZero(t, id)
+	assert.NotEmpty(t, name)
+	assert.NoError(t, iter.Close())
+
+	err = iter.NextScan(&id, &name)
+	assert.Error(t, err)
+
+	// Using explicit iterator and ScanOne.
+	iter = sess.SelectFrom("artist").Iterator()
+	id, name = 0, ""
+	err = iter.ScanOne(&id, &name)
+
+	assert.NoError(t, err)
+	assert.NotZero(t, id)
+	assert.NotEmpty(t, name)
+
+	err = iter.ScanOne(&id, &name)
+	assert.Error(t, err)
+
+	// Using explicit iterator and Next.
+	iter = sess.SelectFrom("artist").Iterator()
+
+	var artist map[string]interface{}
+	for iter.Next(&artist) {
+		assert.NotZero(t, artist["id"])
+		assert.NotEmpty(t, artist["name"])
+	}
+	// We should not have any error after finishing successfully exiting a Next() loop.
+	assert.Empty(t, iter.Err())
+
+	for i := 0; i < 5; i++ {
+		// But we'll get errors if we attempt to continue using Next().
+		assert.False(t, iter.Next(&artist))
+		assert.Error(t, iter.Err())
+	}
+
+
 	// Using implicit iterator.
 	q := sess.SelectFrom("artist")
 	err = q.All(&all)
