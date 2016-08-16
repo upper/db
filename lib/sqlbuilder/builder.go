@@ -312,6 +312,21 @@ func (s *stringer) compileAndReplacePlaceholders(stmt *exql.Statement) (query st
 	return query
 }
 
+func (iter *iterator) NextScan(dst ...interface{}) error {
+	if ok := iter.Next(); ok {
+		return iter.Scan(dst...)
+	}
+	if err := iter.Err(); err != nil {
+		return err
+	}
+	return db.ErrNoMoreRows
+}
+
+func (iter *iterator) ScanOne(dst ...interface{}) error {
+	defer iter.Close()
+	return iter.NextScan(dst...)
+}
+
 func (iter *iterator) Scan(dst ...interface{}) error {
 	if err := iter.Err(); err != nil {
 		return err
@@ -351,7 +366,6 @@ func (iter *iterator) Err() (err error) {
 }
 
 func (iter *iterator) Next(dst ...interface{}) bool {
-
 	if err := iter.Err(); err != nil {
 		return false
 	}
@@ -368,6 +382,9 @@ func (iter *iterator) Next(dst ...interface{}) bool {
 }
 
 func (iter *iterator) next(dst ...interface{}) error {
+	if iter.cursor == nil {
+		return iter.setErr(db.ErrNoMoreRows)
+	}
 
 	switch len(dst) {
 	case 0:
