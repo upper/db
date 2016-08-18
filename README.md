@@ -1,8 +1,8 @@
 # upper.io/db.v2 [![Build Status](https://travis-ci.org/upper/db.svg?branch=v2)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/upper.io/db.v2?status.svg)](https://godoc.org/upper.io/db.v2)
 
-<center>
-<img src="https://upper.io/db.v2/images/gopher.svg" width="256" />
-</center>
+<p align="center">
+  <img src="https://upper.io/db.v2/images/gopher.svg" width="256" />
+</p>
 
 ## The `db.v2` package
 
