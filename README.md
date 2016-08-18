@@ -1,12 +1,10 @@
-# upper.io/db.v2 [![Build Status](https://travis-ci.org/upper/db.svg?branch=v2)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/upper.io/db.v2?status.svg)](https://godoc.org/upper.io/db.v2)
-
 <p align="center">
   <img src="https://upper.io/db.v2/images/gopher.svg" width="256" />
 </p>
 
-## The `db.v2` package
+# upper.io/db.v2 [![Build Status](https://travis-ci.org/upper/db.svg?branch=v2)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/upper.io/db.v2?status.svg)](https://godoc.org/upper.io/db.v2)
 
-The `upper.io/db.v2` package for [Go][2]  it's *not* an ORM, just a productive
+The `upper.io/db.v2` package for [Go][2] is *not* an ORM, it's just a productive
 data access layer for Go which provides a common interface to work with
 different data sources such as [PostgreSQL](https://upper.io/db.v2/postgresql),
 [MySQL](https://upper.io/db.v2/mysql), [SQLite](https://upper.io/db.v2/sqlite),
