@@ -22,23 +22,32 @@ func TestSelect(t *testing.T) {
 		b.SelectFrom("artist").String(),
 	)
 
-	assert.Equal(
-		`SELECT DISTINCT(name) FROM "artist"`,
-		b.Select(db.Func("DISTINCT", "name")).From("artist").String(),
-	)
+	{
+		sel := b.Select(db.Func("DISTINCT", "name")).From("artist")
+		assert.Equal(
+			`SELECT DISTINCT($1) FROM "artist"`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{"name"},
+			sel.Arguments(),
+		)
+	}
 
 	assert.Equal(
 		`SELECT * FROM "artist" WHERE (1 = $1)`,
 		b.Select().From("artist").Where(db.Cond{1: 1}).String(),
 	)
 
-	// TODO: handle this case
-	/*
-		assert.Equal(
-			`SELECT * FROM "artist" WHERE ($1 = ANY("column"))`, // search_term = ANY(name)
-			b.Select().From("artist").Where(db.Cond{1: db.Func("ANY", db.Raw("column"))}).String(), // ??
-		)
-	*/
+	assert.Equal(
+		`SELECT * FROM "artist" WHERE (1 = ANY($1))`,
+		b.Select().From("artist").Where(db.Cond{1: db.Func("ANY", "name")}).String(),
+	)
+
+	assert.Equal(
+		`SELECT * FROM "artist" WHERE (1 = ANY(column))`,
+		b.Select().From("artist").Where(db.Cond{1: db.Func("ANY", db.Raw("column"))}).String(),
+	)
 
 	assert.Equal(
 		`SELECT * FROM "artist" WHERE ("id" NOT IN ($1, $2))`,
@@ -182,6 +191,11 @@ func TestSelect(t *testing.T) {
 	)
 
 	assert.Equal(
+		`SELECT * FROM "artist" WHERE (id IN ($1, $2, $3, $4) AND foo = $5 AND bar IN ($6, $7, $8))`,
+		b.SelectFrom("artist").Where("id IN ? AND foo = ? AND bar IN ?", []int{1, 9, 8, 7}, 28, []int{1, 2, 3}).String(),
+	)
+
+	assert.Equal(
 		`SELECT * FROM "artist" WHERE (name IS NOT NULL)`,
 		b.SelectFrom("artist").Where("name IS NOT NULL").String(),
 	)
@@ -253,6 +267,216 @@ func TestSelect(t *testing.T) {
 		`SELECT DATE()`,
 		b.Select(db.Raw("DATE()")).String(),
 	)
+
+	{
+		sel := b.Select(db.Raw("CONCAT(?, ?)", "foo", "bar"))
+		assert.Equal(
+			`SELECT CONCAT($1, $2)`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{"foo", "bar"},
+			sel.Arguments(),
+		)
+	}
+
+	{
+		sel := b.SelectFrom("foo").Where(db.Cond{"bar": db.Raw("1")})
+		assert.Equal(
+			`SELECT * FROM "foo" WHERE ("bar" = 1)`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}(nil),
+			sel.Arguments(),
+		)
+	}
+
+	{
+		sel := b.SelectFrom("foo").Where(db.Cond{db.Raw("1"): 1})
+		assert.Equal(
+			`SELECT * FROM "foo" WHERE (1 = $1)`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{1},
+			sel.Arguments(),
+		)
+	}
+
+	{
+		sel := b.SelectFrom("foo").Where(db.Cond{db.Raw("1"): db.Raw("1")})
+		assert.Equal(
+			`SELECT * FROM "foo" WHERE (1 = 1)`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}(nil),
+			sel.Arguments(),
+		)
+	}
+
+	{
+		sel := b.SelectFrom("foo").Where(db.Raw("1 = 1"))
+		assert.Equal(
+			`SELECT * FROM "foo" WHERE (1 = 1)`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}(nil),
+			sel.Arguments(),
+		)
+	}
+
+	{
+		sel := b.SelectFrom("foo").Where(db.Cond{"bar": 1}, db.Cond{"baz": db.Raw("CONCAT(?, ?)", "foo", "bar")})
+		assert.Equal(
+			`SELECT * FROM "foo" WHERE ("bar" = $1 AND "baz" = CONCAT($2, $3))`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{1, "foo", "bar"},
+			sel.Arguments(),
+		)
+	}
+
+	{
+		sel := b.SelectFrom("foo").Where(db.Cond{"bar": 1}, db.Raw("? = ANY(col)", "name"))
+		assert.Equal(
+			`SELECT * FROM "foo" WHERE ("bar" = $1 AND $2 = ANY(col))`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{1, "name"},
+			sel.Arguments(),
+		)
+	}
+
+	{
+		sel := b.SelectFrom("foo").Where(db.Cond{"bar": 1}, db.Cond{"name": db.Raw("ANY(col)")})
+		assert.Equal(
+			`SELECT * FROM "foo" WHERE ("bar" = $1 AND "name" = ANY(col))`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{1},
+			sel.Arguments(),
+		)
+	}
+
+	{
+		sel := b.SelectFrom("foo").Where(db.Cond{"bar": 1}, db.Cond{db.Raw("CONCAT(?, ?)", "a", "b"): db.Raw("ANY(col)")})
+		assert.Equal(
+			`SELECT * FROM "foo" WHERE ("bar" = $1 AND CONCAT($2, $3) = ANY(col))`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{1, "a", "b"},
+			sel.Arguments(),
+		)
+	}
+
+	{
+		sel := b.SelectFrom("foo").Where("bar", 2).And(db.Cond{"baz": 1})
+		assert.Equal(
+			`SELECT * FROM "foo" WHERE ("bar" = $1 AND "baz" = $2)`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{2, 1},
+			sel.Arguments(),
+		)
+	}
+
+	{
+		sel := b.SelectFrom("foo").And(db.Cond{"bar": 1})
+		assert.Equal(
+			`SELECT * FROM "foo" WHERE ("bar" = $1)`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{1},
+			sel.Arguments(),
+		)
+	}
+
+	{
+		sel := b.SelectFrom("foo").Where("bar", 2).Where(db.Cond{"baz": 1})
+		assert.Equal(
+			`SELECT * FROM "foo" WHERE ("bar" = $1 AND "baz" = $2)`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{2, 1},
+			sel.Arguments(),
+		)
+	}
+
+	{
+		sel := b.SelectFrom("foo").Where(db.Raw("bar->'baz' = ?", true))
+		assert.Equal(
+			`SELECT * FROM "foo" WHERE (bar->'baz' = $1)`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{true},
+			sel.Arguments(),
+		)
+	}
+
+	{
+		sel := b.SelectFrom("foo").Where(db.Cond{}).And(db.Cond{})
+		assert.Equal(
+			`SELECT * FROM "foo"`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}(nil),
+			sel.Arguments(),
+		)
+	}
+
+	{
+		sel := b.SelectFrom("foo").Where("bar = 1").And(db.Or(
+			db.Raw("fieldA ILIKE ?", `%a%`),
+			db.Raw("fieldB ILIKE ?", `%b%`),
+		))
+		assert.Equal(
+			`SELECT * FROM "foo" WHERE (bar = 1 AND (fieldA ILIKE $1 OR fieldB ILIKE $2))`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{`%a%`, `%b%`},
+			sel.Arguments(),
+		)
+	}
+
+	{
+		s := `SUM(CASE WHEN foo in ? THEN 1 ELSE 0 END) AS _sum`
+		sel := b.Select("c1").Columns(db.Raw(s, []int{5, 4, 3, 2})).From("foo").Where("bar = ?", 1)
+		assert.Equal(
+			`SELECT "c1", SUM(CASE WHEN foo in ($1, $2, $3, $4) THEN 1 ELSE 0 END) AS _sum FROM "foo" WHERE (bar = $5)`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{5, 4, 3, 2, 1},
+			sel.Arguments(),
+		)
+	}
+
+	{
+		s := `SUM(CASE WHEN foo in ? THEN 1 ELSE 0 END) AS _sum`
+		sel := b.Select("c1").Columns(db.Raw(s, []int{5, 4, 3, 2})).From("foo").Where("bar = ?", 1)
+		sel2 := b.SelectFrom(sel).As("subquery").Where(db.Cond{"foo": "bar"}).OrderBy("subquery.seq")
+		assert.Equal(
+			`SELECT * FROM (SELECT "c1", SUM(CASE WHEN foo in ($1, $2, $3, $4) THEN 1 ELSE 0 END) AS _sum FROM "foo" WHERE (bar = $5)) AS "subquery" WHERE ("foo" = $6) ORDER BY "subquery"."seq" ASC`,
+			sel2.String(),
+		)
+		assert.Equal(
+			[]interface{}{5, 4, 3, 2, 1, "bar"},
+			sel2.Arguments(),
+		)
+	}
 }
 
 func TestInsert(t *testing.T) {

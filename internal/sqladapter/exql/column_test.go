@@ -10,7 +10,7 @@ func TestColumnHash(t *testing.T) {
 	column := Column{Name: "role.name"}
 
 	s = column.Hash()
-	e = "*exql.Column:5574933406985810060"
+	e = "*exql.Column:5663680925324531495"
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)

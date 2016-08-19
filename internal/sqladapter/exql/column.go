@@ -12,8 +12,9 @@ type columnT struct {
 
 // Column represents a SQL column.
 type Column struct {
-	Name interface{}
-	hash hash
+	Name  interface{}
+	Alias string
+	hash  hash
 }
 
 // ColumnWithName creates and returns a Column with the given name.
@@ -31,6 +32,8 @@ func (c *Column) Compile(layout *Template) (compiled string) {
 	if z, ok := layout.Read(c); ok {
 		return z
 	}
+
+	alias := c.Alias
 
 	switch value := c.Name.(type) {
 	case string:
@@ -51,20 +54,20 @@ func (c *Column) Compile(layout *Template) (compiled string) {
 			nameChunks[i] = mustParse(layout.IdentifierQuote, Raw{Value: nameChunks[i]})
 		}
 
-		name = strings.Join(nameChunks, layout.ColumnSeparator)
-
-		var alias string
+		compiled = strings.Join(nameChunks, layout.ColumnSeparator)
 
 		if len(chunks) > 1 {
 			alias = trimString(chunks[1])
 			alias = mustParse(layout.IdentifierQuote, Raw{Value: alias})
 		}
-
-		compiled = mustParse(layout.ColumnAliasLayout, columnT{name, alias})
 	case Raw:
 		compiled = value.String()
 	default:
 		compiled = fmt.Sprintf("%v", c.Name)
+	}
+
+	if alias != "" {
+		compiled = mustParse(layout.ColumnAliasLayout, columnT{compiled, alias})
 	}
 
 	layout.Write(c, compiled)

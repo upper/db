@@ -117,12 +117,13 @@ type RawValue interface {
 	fmt.Stringer
 	Compound
 	Raw() string
+	Arguments() []interface{}
 }
 
 // Function interface defines methods for representing database functions.
 type Function interface {
-	Arguments() []interface{}
 	Name() string
+	Arguments() []interface{}
 }
 
 // Marshaler is the interface implemented by struct fields that can marshal
@@ -194,6 +195,14 @@ func (c Cond) Empty() bool {
 
 type rawValue struct {
 	v string
+	a *[]interface{} // This may look ugly but allows us to use db.Raw() as keys for db.Cond{}.
+}
+
+func (r rawValue) Arguments() []interface{} {
+	if r.a != nil {
+		return *r.a
+	}
+	return nil
 }
 
 func (r rawValue) Raw() string {
@@ -389,8 +398,12 @@ func Or(conds ...Compound) *Union {
 //
 //	// SOUNDEX('Hello')
 //	Raw("SOUNDEX('Hello')")
-func Raw(s string) RawValue {
-	return rawValue{v: s}
+func Raw(value string, args ...interface{}) RawValue {
+	r := rawValue{v: value, a: nil}
+	if len(args) > 0 {
+		r.a = &args
+	}
+	return r
 }
 
 // Database is an interface that defines methods that must be satisfied by

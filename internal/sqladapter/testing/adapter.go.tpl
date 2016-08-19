@@ -678,9 +678,9 @@ func TestFunction(t *testing.T) {
 	assert.Equal(t, uint64(4), total)
 
 	// Testing conditions
-	cond = db.Cond{"id NOT": db.Func("IN", 0, -1)}
+	cond = db.Cond{"id NOT IN": []interface{}{0, -1}}
 	if Adapter == "ql" {
-		cond = db.Cond{"id() NOT": db.Func("IN", 0, -1)}
+		cond = db.Cond{"id() NOT IN": []interface{}{0, -1}}
 	}
 	res = artist.Find(cond)
 

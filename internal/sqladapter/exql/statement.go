@@ -2,6 +2,7 @@ package exql
 
 import (
 	"reflect"
+	"strings"
 
 	"upper.io/db.v2/internal/cache"
 )
@@ -109,8 +110,8 @@ func (s *Statement) Compile(layout *Template) (compiled string) {
 		panic("Unknown template type.")
 	}
 
+	compiled = strings.TrimSpace(compiled)
 	layout.Write(s, compiled)
-
 	return compiled
 }
 

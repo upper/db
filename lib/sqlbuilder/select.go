@@ -21,7 +21,8 @@ type selector struct {
 	*stringer
 	mode      selectMode
 	builder   *sqlBuilder
-	table     string
+	table     *exql.Columns
+	as        string
 	where     *exql.Where
 	groupBy   *exql.GroupBy
 	orderBy   exql.OrderBy
@@ -33,18 +34,34 @@ type selector struct {
 	err       error
 }
 
-func (qs *selector) From(tables ...string) Selector {
-	qs.table = strings.Join(tables, ",")
-	return qs
-}
-
-func (qs *selector) Columns(columns ...interface{}) Selector {
-	f, err := columnFragments(qs.builder.t, columns)
+func (qs *selector) From(tables ...interface{}) Selector {
+	f, args, err := columnFragments(qs.builder.t, tables)
 	if err != nil {
 		qs.err = err
 		return qs
 	}
-	qs.columns = exql.JoinColumns(f...)
+	c := exql.JoinColumns(f...)
+	qs.table = c
+
+	qs.arguments = append(qs.arguments, args...)
+	return qs
+}
+
+func (qs *selector) Columns(columns ...interface{}) Selector {
+	f, args, err := columnFragments(qs.builder.t, columns)
+	if err != nil {
+		qs.err = err
+		return qs
+	}
+
+	c := exql.JoinColumns(f...)
+	if qs.columns != nil {
+		qs.columns.Append(c)
+	} else {
+		qs.columns = c
+	}
+
+	qs.arguments = append(qs.arguments, args...)
 	return qs
 }
 
@@ -54,18 +71,39 @@ func (qs *selector) Distinct() Selector {
 }
 
 func (qs *selector) Where(terms ...interface{}) Selector {
+	if qs.where != nil {
+		return qs.And(terms...)
+	}
 	where, arguments := qs.builder.t.ToWhereWithArguments(terms)
 	qs.where = &where
 	qs.arguments = append(qs.arguments, arguments...)
 	return qs
 }
 
+func (qs *selector) And(terms ...interface{}) Selector {
+	where, arguments := qs.builder.t.ToWhereWithArguments(terms)
+	if qs.where == nil {
+		qs.where = &exql.Where{}
+	}
+	qs.where.Append(&where)
+	qs.arguments = append(qs.arguments, arguments...)
+	return qs
+}
+
+func (qs *selector) Arguments() []interface{} {
+	return qs.arguments
+}
+
 func (qs *selector) GroupBy(columns ...interface{}) Selector {
-	var fragments []exql.Fragment
-	fragments, qs.err = columnFragments(qs.builder.t, columns)
+	fragments, args, err := columnFragments(qs.builder.t, columns)
+	if err != nil {
+		qs.err = err
+		return qs
+	}
 	if fragments != nil {
 		qs.groupBy = exql.GroupByColumns(fragments...)
 	}
+	qs.arguments = append(qs.arguments, args...)
 	return qs
 }
 
@@ -121,11 +159,12 @@ func (qs *selector) Using(columns ...interface{}) Selector {
 		return qs
 	}
 
-	fragments, err := columnFragments(qs.builder.t, columns)
+	fragments, args, err := columnFragments(qs.builder.t, columns)
 	if err != nil {
 		qs.err = err
 		return qs
 	}
+	qs.arguments = append(qs.arguments, args...)
 
 	lastJoin.Using = exql.UsingColumns(fragments...)
 	return qs
@@ -205,7 +244,7 @@ func (qs *selector) Offset(n int) Selector {
 func (qs *selector) statement() *exql.Statement {
 	return &exql.Statement{
 		Type:    exql.Select,
-		Table:   exql.TableWithName(qs.table),
+		Table:   qs.table,
 		Columns: qs.columns,
 		Limit:   qs.limit,
 		Offset:  qs.offset,
@@ -218,6 +257,18 @@ func (qs *selector) statement() *exql.Statement {
 
 func (qs *selector) Query() (*sql.Rows, error) {
 	return qs.builder.sess.StatementQuery(qs.statement(), qs.arguments...)
+}
+
+func (qs *selector) As(alias string) Selector {
+	if qs.table == nil {
+		qs.err = errors.New("Cannot use As() without a preceding From() expression")
+		return qs
+	}
+	last := len(qs.table.Columns) - 1
+	if raw, ok := qs.table.Columns[last].(*exql.Raw); ok {
+		qs.table.Columns[last] = exql.RawValue("(" + raw.Value + ") AS " + exql.ColumnWithName(alias).Compile(qs.stringer.t))
+	}
+	return qs
 }
 
 func (qs *selector) QueryRow() (*sql.Row, error) {
