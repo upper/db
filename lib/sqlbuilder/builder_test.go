@@ -125,6 +125,30 @@ func TestSelect(t *testing.T) {
 		b.Select().From("artist").OrderBy("name DESC").String(),
 	)
 
+	{
+		sel := b.Select().From("artist").OrderBy(db.Raw("id = ?", 1), "name DESC")
+		assert.Equal(
+			`SELECT * FROM "artist" ORDER BY id = $1 , "name" DESC`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{1},
+			sel.Arguments(),
+		)
+	}
+
+	{
+		sel := b.Select().From("artist").OrderBy(db.Func("RAND"))
+		assert.Equal(
+			`SELECT * FROM "artist" ORDER BY RAND()`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}(nil),
+			sel.Arguments(),
+		)
+	}
+
 	assert.Equal(
 		`SELECT * FROM "artist" ORDER BY RAND()`,
 		b.Select().From("artist").OrderBy(db.Raw("RAND()")).String(),

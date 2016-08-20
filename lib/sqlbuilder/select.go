@@ -115,9 +115,23 @@ func (qs *selector) OrderBy(columns ...interface{}) Selector {
 
 		switch value := columns[i].(type) {
 		case db.RawValue:
+			col, args := expandPlaceholders(value.Raw(), value.Arguments()...)
 			sort = &exql.SortColumn{
-				Column: exql.RawValue(value.String()),
+				Column: exql.RawValue(col),
 			}
+			qs.arguments = append(qs.arguments, args...)
+		case db.Function:
+			fnName, fnArgs := value.Name(), value.Arguments()
+			if len(fnArgs) == 0 {
+				fnName = fnName + "()"
+			} else {
+				fnName = fnName + "(?" + strings.Repeat("?, ", len(fnArgs)-1) + ")"
+			}
+			expanded, fnArgs := expandPlaceholders(fnName, fnArgs...)
+			sort = &exql.SortColumn{
+				Column: exql.RawValue(expanded),
+			}
+			qs.arguments = append(qs.arguments, fnArgs...)
 		case string:
 			if strings.HasPrefix(value, "-") {
 				sort = &exql.SortColumn{
@@ -137,6 +151,9 @@ func (qs *selector) OrderBy(columns ...interface{}) Selector {
 					Order:  order,
 				}
 			}
+		default:
+			qs.err = fmt.Errorf("Can't sort by type %T", value)
+			return qs
 		}
 		sortColumns.Columns = append(sortColumns.Columns, sort)
 	}

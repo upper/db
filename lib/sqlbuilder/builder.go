@@ -284,7 +284,7 @@ func columnFragments(template *templateWithUtils, columns []interface{}) ([]exql
 			} else {
 				fnName = fnName + "(?" + strings.Repeat("?, ", len(fnArgs)-1) + ")"
 			}
-			expanded, fnArgs := expandPlaceholders(fnName, fnArgs)
+			expanded, fnArgs := expandPlaceholders(fnName, fnArgs...)
 			f[i] = exql.RawValue(expanded)
 			args = append(args, fnArgs...)
 		case db.RawValue:
