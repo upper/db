@@ -188,9 +188,9 @@ func (c Cond) Operator() CompoundOperator {
 // Empty returns false if there are no conditions.
 func (c Cond) Empty() bool {
 	for range c {
-		return true
+		return false
 	}
-	return false
+	return true
 }
 
 type rawValue struct {
