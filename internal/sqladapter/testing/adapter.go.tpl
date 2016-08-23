@@ -1078,6 +1078,28 @@ func TestDataTypes(t *testing.T) {
 	assert.Equal(t, testValues, item)
 }
 
+func TestBatchInsert(t *testing.T) {
+	sess := mustOpen()
+	defer sess.Close()
+
+	err := sess.Collection("artist").Truncate()
+	assert.NoError(t, err)
+
+	batch := sess.InsertInto("artist").Columns("name").NewBatch(5)
+
+	go func() {
+		for i := 0; i < 9; i++ {
+			batch.Values(fmt.Sprintf("artist-%d", i))
+		}
+		batch.Done()
+	}()
+
+	for q := range batch.Next() {
+		_, err = q.Exec()
+		assert.NoError(t, err)
+	}
+}
+
 func TestBuilder(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()
