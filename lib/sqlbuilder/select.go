@@ -234,5 +234,5 @@ func (qs *selector) All(destSlice interface{}) error {
 }
 
 func (qs *selector) One(dest interface{}) error {
-	return qs.Iterator().All(dest)
+	return qs.Iterator().One(dest)
 }

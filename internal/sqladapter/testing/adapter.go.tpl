@@ -1099,6 +1099,14 @@ func TestBuilder(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotZero(t, all)
 
+	// Using explicit iterator to fetch one item.
+	var item map[string]interface{}
+	iter = sess.SelectFrom("artist").Iterator()
+	err = iter.One(&item)
+
+	assert.NoError(t, err)
+	assert.NotZero(t, item)
+
 	// Using explicit iterator and NextScan.
 	iter = sess.SelectFrom("artist").Iterator()
 	var id int
