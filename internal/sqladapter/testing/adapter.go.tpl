@@ -1115,7 +1115,7 @@ func TestBatchInsert(t *testing.T) {
 }
 
 func TestBatchInsertReturningKeys(t *testing.T) {
-	if Adapter == "ql" {
+	if Adapter != "postgresql" {
 		t.Skip("Currently not supported.")
 	}
 
