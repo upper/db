@@ -3,7 +3,7 @@ package sqlbuilder
 type BatchInserter struct {
 	inserter *inserter
 	size     int
-	Values   chan interface{}
+	values   chan []interface{}
 	err      error
 }
 
@@ -14,17 +14,23 @@ func newBatchInserter(inserter *inserter, size int) *BatchInserter {
 	b := &BatchInserter{
 		inserter: inserter,
 		size:     size,
-		Values:   make(chan interface{}, size),
+		values:   make(chan []interface{}, size),
 	}
 	return b
 }
 
-func (b *BatchInserter) Next(dst interface{}) bool {
+// Values pushes column values to be inserted as part of the batch.
+func (b *BatchInserter) Values(values ...interface{}) *BatchInserter {
+	b.values <- values
+	return b
+}
+
+func (b *BatchInserter) NextResult(dst interface{}) bool {
 	clone := b.inserter.clone()
 	i := 0
-	for value := range b.Values {
+	for values := range b.values {
 		i++
-		clone.Values(value)
+		clone.Values(values...)
 		if i == b.size {
 			break
 		}
@@ -36,9 +42,13 @@ func (b *BatchInserter) Next(dst interface{}) bool {
 	return (b.err == nil)
 }
 
-func (b *BatchInserter) Exec() error {
+func (b *BatchInserter) Done() {
+	close(b.values)
+}
+
+func (b *BatchInserter) Wait() error {
 	var nop []struct{}
-	for b.Next(&nop) {
+	for b.NextResult(&nop) {
 	}
 	return b.err
 }
