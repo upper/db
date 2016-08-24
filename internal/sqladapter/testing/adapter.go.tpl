@@ -1086,7 +1086,7 @@ func TestBatchInsert(t *testing.T) {
 		err := sess.Collection("artist").Truncate()
 		assert.NoError(t, err)
 
-		batch := sess.InsertInto("artist").Columns("name").NewBatch(batchSize)
+		batch := sess.InsertInto("artist").Columns("name").Batch(batchSize)
 
 		totalItems := int(rand.Int31n(21))
 
@@ -1126,7 +1126,7 @@ func TestBatchInsertReturningKeys(t *testing.T) {
 
 	batchSize, totalItems := 7, 12
 
-	batch := sess.InsertInto("artist").Columns("name").Returning("id").NewBatch(batchSize)
+	batch := sess.InsertInto("artist").Columns("name").Returning("id").Batch(batchSize)
 
 	go func() {
 		defer batch.Done()

@@ -326,7 +326,7 @@ type Inserter interface {
 	// Batch provies a BatchInserter that can be used to insert many elements at
 	// once by issuing several calls to Values(). It accepts a size parameter
 	// which defines the batch size. If size is < 1, the batch size is set to 1.
-	NewBatch(size int) *BatchInserter
+	Batch(size int) *BatchInserter
 
 	// Execer provides the Exec method.
 	Execer

@@ -23,7 +23,7 @@ func (qi *inserter) clone() *inserter {
 	return clone
 }
 
-func (qi *inserter) NewBatch(n int) *BatchInserter {
+func (qi *inserter) Batch(n int) *BatchInserter {
 	return newBatchInserter(qi.clone(), n)
 }
 
