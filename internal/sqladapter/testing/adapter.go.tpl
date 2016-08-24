@@ -1099,7 +1099,7 @@ func TestBatchInsert(t *testing.T) {
 
 		err = batch.Wait()
 		assert.NoError(t, err)
-		assert.NoError(t, batch.Error())
+		assert.NoError(t, batch.Err())
 
 		c, err := sess.Collection("artist").Find().Count()
 		assert.NoError(t, err)
@@ -1144,7 +1144,7 @@ func TestBatchInsertReturningKeys(t *testing.T) {
 		assert.True(t, len(keyMap) <= batchSize)
 
 		// Find the elements we've just inserted
-		keys := make([]int, len(keyMap))
+		keys := make([]int, 0, len(keyMap))
 		for i := range keyMap {
 			keys = append(keys, keyMap[i].ID)
 		}
@@ -1154,7 +1154,7 @@ func TestBatchInsertReturningKeys(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, uint64(len(keyMap)), c)
 	}
-	assert.NoError(t, batch.Error())
+	assert.NoError(t, batch.Err())
 
 	// Count all new elements
 	c, err := sess.Collection("artist").Find().Count()

@@ -1,5 +1,7 @@
 package sqlbuilder
 
+// BatchInserter provides a helper that can be used to do massive insertions in
+// batches.
 type BatchInserter struct {
 	inserter *inserter
 	size     int
@@ -25,7 +27,7 @@ func (b *BatchInserter) Values(values ...interface{}) *BatchInserter {
 	return b
 }
 
-func (b *BatchInserter) NextResult(dst interface{}) bool {
+func (b *BatchInserter) nextQuery() *inserter {
 	clone := b.inserter.clone()
 	i := 0
 	for values := range b.values {
@@ -36,23 +38,44 @@ func (b *BatchInserter) NextResult(dst interface{}) bool {
 		}
 	}
 	if i == 0 {
+		return nil
+	}
+	return clone
+}
+
+// NextResult is useful when using PostgreSQL and Returning(), it dumps the
+// next slice of results to dst, which can mean having the IDs of all inserted
+// elements in the batch.
+func (b *BatchInserter) NextResult(dst interface{}) bool {
+	clone := b.nextQuery()
+	if clone == nil {
 		return false
 	}
 	b.err = clone.Iterator().All(dst)
 	return (b.err == nil)
 }
 
+// Done means that no more elements are going to be added.
 func (b *BatchInserter) Done() {
 	close(b.values)
 }
 
+// Wait blocks until the whole batch is executed.
 func (b *BatchInserter) Wait() error {
-	var nop []struct{}
-	for b.NextResult(&nop) {
+	for {
+		q := b.nextQuery()
+		if q == nil {
+			break
+		}
+		if _, err := q.Exec(); err != nil {
+			b.err = err
+			break
+		}
 	}
-	return b.err
+	return b.Err()
 }
 
-func (b *BatchInserter) Error() error {
+// Err returns any error while executing the batch.
+func (b *BatchInserter) Err() error {
 	return b.err
 }
