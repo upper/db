@@ -1139,8 +1139,6 @@ func TestBatchInsertReturningKeys(t *testing.T) {
 		ID int `db:"id"`
 	}
 	for batch.Next(&keyMap) {
-		assert.NoError(t, err)
-
 		// Each insertion must produce new keys.
 		assert.True(t, len(keyMap) > 0)
 		assert.True(t, len(keyMap) <= batchSize)

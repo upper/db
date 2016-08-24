@@ -25,7 +25,7 @@ func (b *BatchInserter) Next(dst interface{}) bool {
 	for value := range b.Values {
 		i++
 		clone.Values(value)
-		if b.size == i {
+		if i == b.size {
 			break
 		}
 	}
