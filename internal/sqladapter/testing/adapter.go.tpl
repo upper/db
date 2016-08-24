@@ -1082,22 +1082,85 @@ func TestBatchInsert(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()
 
+	for batchSize := 0; batchSize < 17; batchSize++ {
+		err := sess.Collection("artist").Truncate()
+		assert.NoError(t, err)
+
+		batch := sess.InsertInto("artist").Columns("name").NewBatch(batchSize)
+
+		totalItems := int(rand.Int31n(21))
+
+		go func() {
+			for i := 0; i < totalItems; i++ {
+				batch.Values(fmt.Sprintf("artist-%d", i))
+			}
+			batch.Done()
+		}()
+
+		for q := range batch.Next() {
+			_, err = q.Exec()
+			assert.NoError(t, err)
+		}
+
+		c, err := sess.Collection("artist").Find().Count()
+		assert.NoError(t, err)
+		assert.Equal(t, uint64(totalItems), c)
+
+		for i := 0; i < totalItems; i++ {
+			c, err := sess.Collection("artist").Find(db.Cond{"name": fmt.Sprintf("artist-%d", i)}).Count()
+			assert.NoError(t, err)
+			assert.Equal(t, uint64(1), c)
+		}
+	}
+}
+
+func TestBatchInsertReturningKeys(t *testing.T) {
+	if Adapter == "ql" {
+		t.Skip("Currently not supported.")
+	}
+
+	sess := mustOpen()
+	defer sess.Close()
+
 	err := sess.Collection("artist").Truncate()
 	assert.NoError(t, err)
 
-	batch := sess.InsertInto("artist").Columns("name").NewBatch(5)
+	batchSize, totalItems := 7, 12
+
+	batch := sess.InsertInto("artist").Columns("name").Returning("id").NewBatch(batchSize)
 
 	go func() {
-		for i := 0; i < 9; i++ {
+		for i := 0; i < totalItems; i++ {
 			batch.Values(fmt.Sprintf("artist-%d", i))
 		}
 		batch.Done()
 	}()
 
 	for q := range batch.Next() {
-		_, err = q.Exec()
+		var keyMap []struct{ID int `db:"id"`}
+		err := q.Iterator().All(&keyMap)
 		assert.NoError(t, err)
+
+		// Each insertion must produce new keys.
+		assert.True(t, len(keyMap) > 0)
+		assert.True(t, len(keyMap) <= batchSize)
+
+		// Find the elements we've just inserted
+		keys := make([]int, len(keyMap))
+		for i := range keyMap {
+			keys = append(keys, keyMap[i].ID)
+		}
+
+		// Make sure count matches.
+		c, err := sess.Collection("artist").Find(db.Cond{"id": keys}).Count()
+		assert.NoError(t, err)
+		assert.Equal(t, uint64(len(keyMap)), c)
 	}
+
+	// Count all new elements
+	c, err := sess.Collection("artist").Find().Count()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(totalItems), c)
 }
 
 func TestBuilder(t *testing.T) {

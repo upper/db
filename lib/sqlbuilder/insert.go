@@ -24,7 +24,7 @@ func (qi *inserter) clone() *inserter {
 }
 
 func (qi *inserter) NewBatch(n int) *BatchInserter {
-	return &BatchInserter{inserter: qi.clone(), size: n}
+	return newBatchInserter(qi.clone(), n)
 }
 
 func (qi *inserter) columnsToFragments(dst *[]exql.Fragment, columns []string) error {
