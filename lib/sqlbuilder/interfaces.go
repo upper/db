@@ -323,6 +323,11 @@ type Inserter interface {
 	// Inserter. This is only possible when using Returning().
 	Iterator() Iterator
 
+	// Batch provies a BatchInserter that can be used to insert many elements at
+	// once by issuing several calls to Values(). It accepts a size parameter
+	// which defines the batch size. If size is < 1, the batch size is set to 1.
+	Batch(size int) *BatchInserter
+
 	// Execer provides the Exec method.
 	Execer
 

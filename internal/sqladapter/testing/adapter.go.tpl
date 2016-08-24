@@ -1078,6 +1078,90 @@ func TestDataTypes(t *testing.T) {
 	assert.Equal(t, testValues, item)
 }
 
+func TestBatchInsert(t *testing.T) {
+	sess := mustOpen()
+	defer sess.Close()
+
+	for batchSize := 0; batchSize < 17; batchSize++ {
+		err := sess.Collection("artist").Truncate()
+		assert.NoError(t, err)
+
+		batch := sess.InsertInto("artist").Columns("name").Batch(batchSize)
+
+		totalItems := int(rand.Int31n(21))
+
+		go func() {
+			defer batch.Done()
+			for i := 0; i < totalItems; i++ {
+				batch.Values(fmt.Sprintf("artist-%d", i))
+			}
+		}()
+
+		err = batch.Wait()
+		assert.NoError(t, err)
+		assert.NoError(t, batch.Err())
+
+		c, err := sess.Collection("artist").Find().Count()
+		assert.NoError(t, err)
+		assert.Equal(t, uint64(totalItems), c)
+
+		for i := 0; i < totalItems; i++ {
+			c, err := sess.Collection("artist").Find(db.Cond{"name": fmt.Sprintf("artist-%d", i)}).Count()
+			assert.NoError(t, err)
+			assert.Equal(t, uint64(1), c)
+		}
+	}
+}
+
+func TestBatchInsertReturningKeys(t *testing.T) {
+	if Adapter != "postgresql" {
+		t.Skip("Currently not supported.")
+	}
+
+	sess := mustOpen()
+	defer sess.Close()
+
+	err := sess.Collection("artist").Truncate()
+	assert.NoError(t, err)
+
+	batchSize, totalItems := 7, 12
+
+	batch := sess.InsertInto("artist").Columns("name").Returning("id").Batch(batchSize)
+
+	go func() {
+		defer batch.Done()
+		for i := 0; i < totalItems; i++ {
+			batch.Values(fmt.Sprintf("artist-%d", i))
+		}
+	}()
+
+	var keyMap []struct {
+		ID int `db:"id"`
+	}
+	for batch.NextResult(&keyMap) {
+		// Each insertion must produce new keys.
+		assert.True(t, len(keyMap) > 0)
+		assert.True(t, len(keyMap) <= batchSize)
+
+		// Find the elements we've just inserted
+		keys := make([]int, 0, len(keyMap))
+		for i := range keyMap {
+			keys = append(keys, keyMap[i].ID)
+		}
+
+		// Make sure count matches.
+		c, err := sess.Collection("artist").Find(db.Cond{"id": keys}).Count()
+		assert.NoError(t, err)
+		assert.Equal(t, uint64(len(keyMap)), c)
+	}
+	assert.NoError(t, batch.Err())
+
+	// Count all new elements
+	c, err := sess.Collection("artist").Find().Count()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(totalItems), c)
+}
+
 func TestBuilder(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()
