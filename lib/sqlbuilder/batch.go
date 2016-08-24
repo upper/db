@@ -1,15 +1,10 @@
 package sqlbuilder
 
-import (
-	"sync"
-)
-
 type BatchInserter struct {
 	inserter *inserter
 	size     int
-	values   [][]interface{}
-	next     chan Inserter
-	mu       sync.Mutex
+	values   chan []interface{}
+	err      error
 }
 
 func newBatchInserter(inserter *inserter, size int) *BatchInserter {
@@ -19,51 +14,45 @@ func newBatchInserter(inserter *inserter, size int) *BatchInserter {
 	b := &BatchInserter{
 		inserter: inserter,
 		size:     size,
-		next:     make(chan Inserter),
+		values:   make(chan []interface{}, size),
 	}
-	b.reset()
 	return b
 }
 
-func (b *BatchInserter) reset() {
-	b.values = make([][]interface{}, 0, b.size)
-}
-
-func (b *BatchInserter) flush() {
-	if len(b.values) > 0 {
-		clone := b.inserter.clone()
-		for i := range b.values {
-			clone.Values(b.values[i]...)
-		}
-		b.next <- clone
-		b.reset()
-	}
-}
-
-// Values pushes a value to be inserted as part of the batch.
+// Values pushes column values to be inserted as part of the batch.
 func (b *BatchInserter) Values(values ...interface{}) *BatchInserter {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	b.values = append(b.values, values)
-	if len(b.values) >= b.size {
-		b.flush()
-	}
+	b.values <- values
 	return b
 }
 
-// Next returns a channel that receives new q elements.
-func (b *BatchInserter) Next() chan Inserter {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	return b.next
+func (b *BatchInserter) NextResult(dst interface{}) bool {
+	clone := b.inserter.clone()
+	i := 0
+	for values := range b.values {
+		i++
+		clone.Values(values...)
+		if i == b.size {
+			break
+		}
+	}
+	if i == 0 {
+		return false
+	}
+	b.err = clone.Iterator().All(dst)
+	return (b.err == nil)
 }
 
 func (b *BatchInserter) Done() {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	close(b.values)
+}
 
-	b.flush()
-	close(b.next)
+func (b *BatchInserter) Wait() error {
+	var nop []struct{}
+	for b.NextResult(&nop) {
+	}
+	return b.err
+}
+
+func (b *BatchInserter) Error() error {
+	return b.err
 }
