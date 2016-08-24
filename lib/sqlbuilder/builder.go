@@ -171,7 +171,7 @@ func (b *sqlBuilder) Update(table string) Updater {
 	return qu
 }
 
-// Map receives a pointer to map or sturct and maps it to columns and values.
+// Map receives a pointer to map or struct and maps it to columns and values.
 func Map(item interface{}) ([]string, []interface{}, error) {
 	var fv fieldValue
 
