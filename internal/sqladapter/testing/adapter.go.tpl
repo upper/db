@@ -1092,15 +1092,14 @@ func TestBatchInsert(t *testing.T) {
 
 		go func() {
 			for i := 0; i < totalItems; i++ {
-				batch.Values(fmt.Sprintf("artist-%d", i))
+				batch.Values <- fmt.Sprintf("artist-%d", i)
 			}
-			batch.Done()
+			close(batch.Values)
 		}()
 
-		for q := range batch.Next() {
-			_, err = q.Exec()
-			assert.NoError(t, err)
-		}
+		err = batch.Exec()
+		assert.NoError(t, err)
+		assert.NoError(t, batch.Error())
 
 		c, err := sess.Collection("artist").Find().Count()
 		assert.NoError(t, err)
@@ -1131,14 +1130,15 @@ func TestBatchInsertReturningKeys(t *testing.T) {
 
 	go func() {
 		for i := 0; i < totalItems; i++ {
-			batch.Values(fmt.Sprintf("artist-%d", i))
+			batch.Values <- fmt.Sprintf("artist-%d", i)
 		}
-		batch.Done()
+		close(batch.Values)
 	}()
 
-	for q := range batch.Next() {
-		var keyMap []struct{ID int `db:"id"`}
-		err := q.Iterator().All(&keyMap)
+	var keyMap []struct {
+		ID int `db:"id"`
+	}
+	for batch.Next(&keyMap) {
 		assert.NoError(t, err)
 
 		// Each insertion must produce new keys.
@@ -1156,6 +1156,7 @@ func TestBatchInsertReturningKeys(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, uint64(len(keyMap)), c)
 	}
+	assert.NoError(t, batch.Error())
 
 	// Count all new elements
 	c, err := sess.Collection("artist").Find().Count()
