@@ -30,6 +30,11 @@ func UsingColumns(columns ...Fragment) *Using {
 	return &Using{Columns: columns}
 }
 
+func (c *Columns) Append(a *Columns) *Columns {
+	c.Columns = append(c.Columns, a.Columns...)
+	return c
+}
+
 // Compile transforms the Columns into an equivalent SQL representation.
 func (c *Columns) Compile(layout *Template) (compiled string) {
 

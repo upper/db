@@ -17,6 +17,16 @@ type inserter struct {
 	extra     string
 }
 
+func (qi *inserter) clone() *inserter {
+	clone := &inserter{}
+	*clone = *qi
+	return clone
+}
+
+func (qi *inserter) Batch(n int) *BatchInserter {
+	return newBatchInserter(qi.clone(), n)
+}
+
 func (qi *inserter) columnsToFragments(dst *[]exql.Fragment, columns []string) error {
 	l := len(columns)
 	f := make([]exql.Fragment, l)

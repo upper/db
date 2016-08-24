@@ -45,7 +45,7 @@ type Builder interface {
 	// Example:
 	//
 	//  q := sqlbuilder.SelectFrom("people").Where(...)
-	SelectFrom(table string) Selector
+	SelectFrom(table ...interface{}) Selector
 
 	// InsertInto prepares an returns a Inserter that points at the given table.
 	//
@@ -139,13 +139,16 @@ type Selector interface {
 	// Or with the shortcut:
 	//
 	//   s.Columns(...).From("people p").Where("p.name = ?", ...)
-	From(tables ...string) Selector
+	From(tables ...interface{}) Selector
 
 	// Distict represents a DISCTING clause.
 	//
 	// DISCTINC is used to ask the database to return only values that are
 	// different.
 	Distinct() Selector
+
+	// As defines an alias for a table.
+	As(string) Selector
 
 	// Where specifies the conditions that columns must match in order to be
 	// retrieved.
@@ -173,6 +176,9 @@ type Selector interface {
 	// argument does not satisfy any of those interfaces Where() will use
 	// fmt.Sprintf("%v", arg) to transform the type into a string.
 	Where(conds ...interface{}) Selector
+
+	// And appends more arguments to the WHERE clause.
+	And(conds ...interface{}) Selector
 
 	// GroupBy represents a GROUP BY statement.
 	//
@@ -283,6 +289,9 @@ type Selector interface {
 	// fmt.Stringer provides `String() string`, you can use `String()` to compile
 	// the `Selector` into a string.
 	fmt.Stringer
+
+	// Arguments returns the arguments that are prepared for this query.
+	Arguments() []interface{}
 }
 
 // Inserter represents an INSERT statement.
@@ -313,6 +322,11 @@ type Inserter interface {
 	// Iterator provides methods to iterate over the results returned by the
 	// Inserter. This is only possible when using Returning().
 	Iterator() Iterator
+
+	// Batch provies a BatchInserter that can be used to insert many elements at
+	// once by issuing several calls to Values(). It accepts a size parameter
+	// which defines the batch size. If size is < 1, the batch size is set to 1.
+	Batch(size int) *BatchInserter
 
 	// Execer provides the Exec method.
 	Execer

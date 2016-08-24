@@ -10,7 +10,7 @@ func TestColumnValueHash(t *testing.T) {
 	c := &ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(1)}
 
 	s = c.Hash()
-	e = `*exql.ColumnValue:7841113954072405845`
+	e = `*exql.ColumnValue:4950005282640920683`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
@@ -26,7 +26,7 @@ func TestColumnValuesHash(t *testing.T) {
 	)
 
 	s = c.Hash()
-	e = `*exql.ColumnValues:12182225587466517135`
+	e = `*exql.ColumnValues:8728513848368010747`
 
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)

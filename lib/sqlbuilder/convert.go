@@ -24,6 +24,37 @@ func newTemplateWithUtils(template *exql.Template) *templateWithUtils {
 	return &templateWithUtils{template}
 }
 
+func expandPlaceholders(in string, args ...interface{}) (string, []interface{}) {
+	argn := 0
+	for i := 0; i < len(in); i++ {
+		if in[i] == '?' {
+			if len(args) > argn { // we have arguments to match.
+				u := toInterfaceArguments(args[argn])
+				k := `?`
+
+				if len(u) > 1 {
+					// An array of arguments
+					k = `(?` + strings.Repeat(`, ?`, len(u)-1) + `)`
+				} else if len(u) == 1 {
+					if rawValue, ok := u[0].(db.RawValue); ok {
+						k = rawValue.Raw()
+						u = []interface{}{}
+					}
+				}
+
+				lk := len(k)
+				if lk > 1 {
+					in = in[:i] + k + in[i+1:]
+					i += len(k) - 1
+				}
+				args = append(args[:argn], append(u, args[argn+1:]...)...)
+				argn += len(u)
+			}
+		}
+	}
+	return in, args
+}
+
 // ToWhereWithArguments converts the given parameters into a exql.Where
 // value.
 func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where exql.Where, args []interface{}) {
@@ -34,38 +65,17 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where exql.
 		if len(t) > 0 {
 			if s, ok := t[0].(string); ok {
 				if strings.ContainsAny(s, "?") || len(t) == 1 {
-					var j int
-
-					vv := t[1:]
-
-					for i := 0; i < len(s); i++ {
-						if s[i] == '?' {
-							if len(vv) > j {
-								u := tu.ToInterfaceArguments(vv[j])
-								args = append(args, u...)
-								j = j + 1
-								if len(u) > 1 {
-									k := "(?" + strings.Repeat(", ?", len(u)-1) + ")"
-									s = s[:i] + k + s[i+1:]
-									i = i - 1 + len(k)
-								}
-							}
-						}
-					}
-
+					s, args = expandPlaceholders(s, t[1:]...)
 					where.Conditions = []exql.Fragment{exql.RawValue(s)}
 				} else {
 					var val interface{}
 					key := s
-
 					if len(t) > 2 {
 						val = t[1:]
 					} else {
 						val = t[1]
 					}
-
 					cv, v := tu.ToColumnValues(db.NewConstraint(key, val))
-
 					args = append(args, v...)
 					for i := range cv.ColumnValues {
 						where.Conditions = append(where.Conditions, cv.ColumnValues[i])
@@ -84,7 +94,9 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where exql.
 		}
 		return
 	case db.RawValue:
-		where.Conditions = []exql.Fragment{exql.RawValue(t.String())}
+		r, v := expandPlaceholders(t.Raw(), t.Arguments()...)
+		where.Conditions = []exql.Fragment{exql.RawValue(r)}
+		args = append(args, v...)
 		return
 	case db.Constraints:
 		for _, c := range t.Constraints() {
@@ -142,7 +154,7 @@ func (tu *templateWithUtils) PlaceholderValue(in interface{}) (exql.Fragment, []
 		fnName := t.Name()
 		fnArgs := []interface{}{}
 
-		args := tu.ToInterfaceArguments(t.Arguments())
+		args := toInterfaceArguments(t.Arguments())
 		fragments := []string{}
 		for i := range args {
 			frag, args := tu.PlaceholderValue(args[i])
@@ -156,8 +168,8 @@ func (tu *templateWithUtils) PlaceholderValue(in interface{}) (exql.Fragment, []
 	}
 }
 
-// ToInterfaceArguments converts the given value into an array of interfaces.
-func (tu *templateWithUtils) ToInterfaceArguments(value interface{}) (args []interface{}) {
+// toInterfaceArguments converts the given value into an array of interfaces.
+func toInterfaceArguments(value interface{}) (args []interface{}) {
 	if value == nil {
 		return nil
 	}
@@ -167,19 +179,15 @@ func (tu *templateWithUtils) ToInterfaceArguments(value interface{}) (args []int
 	switch v.Type().Kind() {
 	case reflect.Slice:
 		var i, total int
-
 		if v.Type().Elem().Kind() == reflect.Uint8 {
 			return []interface{}{string(value.([]byte))}
 		}
-
 		total = v.Len()
 		if total > 0 {
 			args = make([]interface{}, total)
-
 			for i = 0; i < total; i++ {
 				args[i] = v.Index(i).Interface()
 			}
-
 			return args
 		}
 		return nil
@@ -239,24 +247,33 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv exql.ColumnVal
 				columnValue.Operator = chunks[1]
 			}
 		} else {
-			columnValue.Column = exql.RawValue(fmt.Sprintf("%v", t.Key()))
+			if rawValue, ok := t.Key().(db.RawValue); ok {
+				columnValue.Column = exql.RawValue(rawValue.Raw())
+				args = append(args, rawValue.Arguments()...)
+			} else {
+				columnValue.Column = exql.RawValue(fmt.Sprintf("%v", t.Key()))
+			}
 		}
 
 		switch value := t.Value().(type) {
 		case db.Function:
-			v := tu.ToInterfaceArguments(value.Arguments())
-
-			if v == nil {
+			fnName, fnArgs := value.Name(), value.Arguments()
+			if len(fnArgs) == 0 {
 				// A function with no arguments.
-				columnValue.Value = exql.RawValue(fmt.Sprintf(`%s()`, value.Name()))
+				fnName = fnName + "()"
 			} else {
 				// A function with one or more arguments.
-				columnValue.Value = exql.RawValue(fmt.Sprintf(`%s(?%s)`, value.Name(), strings.Repeat(`, ?`, len(v)-1)))
+				fnName = fnName + "(?" + strings.Repeat("?, ", len(fnArgs)-1) + ")"
 			}
-
-			args = append(args, v...)
+			expanded, fnArgs := expandPlaceholders(fnName, fnArgs)
+			columnValue.Value = exql.RawValue(expanded)
+			args = append(args, fnArgs...)
+		case db.RawValue:
+			expanded, rawArgs := expandPlaceholders(value.Raw(), value.Arguments()...)
+			columnValue.Value = exql.RawValue(expanded)
+			args = append(args, rawArgs...)
 		default:
-			v := tu.ToInterfaceArguments(value)
+			v := toInterfaceArguments(value)
 
 			if v == nil {
 				// Nil value given.

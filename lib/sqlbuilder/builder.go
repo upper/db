@@ -15,6 +15,10 @@ import (
 	"upper.io/db.v2/lib/reflectx"
 )
 
+type hasArguments interface {
+	Arguments() []interface{}
+}
+
 type hasStatement interface {
 	statement() *exql.Statement
 }
@@ -121,14 +125,12 @@ func (b *sqlBuilder) QueryRow(query interface{}, args ...interface{}) (*sql.Row,
 	}
 }
 
-func (b *sqlBuilder) SelectFrom(table string) Selector {
+func (b *sqlBuilder) SelectFrom(table ...interface{}) Selector {
 	qs := &selector{
 		builder: b,
-		table:   table,
 	}
-
 	qs.stringer = &stringer{qs, b.t.Template}
-	return qs
+	return qs.From(table...)
 }
 
 func (b *sqlBuilder) Select(columns ...interface{}) Selector {
@@ -252,27 +254,43 @@ func Map(item interface{}) ([]string, []interface{}, error) {
 	return fv.fields, fv.values, nil
 }
 
-func columnFragments(template *templateWithUtils, columns []interface{}) ([]exql.Fragment, error) {
+func extractArguments(fragments []interface{}) []interface{} {
+	args := []interface{}{}
+	l := len(fragments)
+	for i := 0; i < l; i++ {
+		switch v := fragments[i].(type) {
+		case hasArguments: // TODO: use this on other places where we want to extract arguments.
+			args = append(args, v.Arguments()...)
+		}
+	}
+	return args
+}
+
+func columnFragments(template *templateWithUtils, columns []interface{}) ([]exql.Fragment, []interface{}, error) {
 	l := len(columns)
 	f := make([]exql.Fragment, l)
+	args := []interface{}{}
 
 	for i := 0; i < l; i++ {
 		switch v := columns[i].(type) {
+		case *selector:
+			expanded, rawArgs := expandPlaceholders(v.statement().Compile(v.stringer.t), v.Arguments()...)
+			f[i] = exql.RawValue(expanded)
+			args = append(args, rawArgs...)
 		case db.Function:
-			var s string
-			a := template.ToInterfaceArguments(v.Arguments())
-			if len(a) == 0 {
-				s = fmt.Sprintf(`%s()`, v.Name())
+			fnName, fnArgs := v.Name(), v.Arguments()
+			if len(fnArgs) == 0 {
+				fnName = fnName + "()"
 			} else {
-				ss := make([]string, 0, len(a))
-				for j := range a {
-					ss = append(ss, fmt.Sprintf(`%v`, a[j]))
-				}
-				s = fmt.Sprintf(`%s(%s)`, v.Name(), strings.Join(ss, `, `))
+				fnName = fnName + "(?" + strings.Repeat("?, ", len(fnArgs)-1) + ")"
 			}
-			f[i] = exql.RawValue(s)
+			expanded, fnArgs := expandPlaceholders(fnName, fnArgs...)
+			f[i] = exql.RawValue(expanded)
+			args = append(args, fnArgs...)
 		case db.RawValue:
-			f[i] = exql.RawValue(v.String())
+			expanded, rawArgs := expandPlaceholders(v.Raw(), v.Arguments()...)
+			f[i] = exql.RawValue(expanded)
+			args = append(args, rawArgs...)
 		case exql.Fragment:
 			f[i] = v
 		case string:
@@ -280,11 +298,10 @@ func columnFragments(template *templateWithUtils, columns []interface{}) ([]exql
 		case interface{}:
 			f[i] = exql.ColumnWithName(fmt.Sprintf("%v", v))
 		default:
-			return nil, fmt.Errorf("Unexpected argument type %T for Select() argument.", v)
+			return nil, nil, fmt.Errorf("Unexpected argument type %T for Select() argument.", v)
 		}
 	}
-
-	return f, nil
+	return f, args, nil
 }
 
 func (s *stringer) String() string {

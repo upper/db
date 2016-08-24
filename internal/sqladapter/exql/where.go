@@ -40,6 +40,14 @@ func (w *Where) Hash() string {
 	return w.hash.Hash(w)
 }
 
+// Appends adds the conditions to the ones that already exist.
+func (w *Where) Append(a *Where) *Where {
+	if a != nil {
+		w.Conditions = append(w.Conditions, a.Conditions...)
+	}
+	return w
+}
+
 // Hash returns a unique identifier.
 func (o *Or) Hash() string {
 	w := Where(*o)
@@ -49,7 +57,7 @@ func (o *Or) Hash() string {
 // Hash returns a unique identifier.
 func (a *And) Hash() string {
 	w := Where(*a)
-	return `Or(` + w.Hash() + `)`
+	return `And(` + w.Hash() + `)`
 }
 
 // Compile transforms the Or into an equivalent SQL representation.
