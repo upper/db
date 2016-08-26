@@ -187,14 +187,11 @@ func (d *database) Close() error {
 		d.cachedStatements.Clear() // Closes prepared statements as well.
 
 		tx := d.Transaction()
-		if tx == nil {
-			// Not within a transaction.
-			return d.sess.Close()
-		}
-
-		if !tx.Committed() {
+		if tx != nil && !tx.Committed() {
 			tx.Rollback()
 		}
+
+		return d.sess.Close()
 	}
 	return nil
 }
