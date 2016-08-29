@@ -2,6 +2,7 @@ package exql
 
 import (
 	"bytes"
+	"sync"
 	"text/template"
 
 	"upper.io/db.v2/internal/cache"
@@ -32,7 +33,7 @@ type (
 )
 
 var (
-	parsedTemplates = make(map[string]*template.Template)
+	templateCache = templateMap{M: make(map[string]*template.Template)}
 )
 
 // Template is an SQL template.
@@ -76,13 +77,33 @@ func mustParse(text string, data interface{}) string {
 	var b bytes.Buffer
 	var ok bool
 
-	if _, ok = parsedTemplates[text]; !ok {
-		parsedTemplates[text] = template.Must(template.New("").Parse(text))
+	v, ok := templateCache.Get(text)
+	if !ok {
+		v = template.Must(template.New("").Parse(text))
+		templateCache.Set(text, v)
 	}
 
-	if err := parsedTemplates[text].Execute(&b, data); err != nil {
+	if err := v.Execute(&b, data); err != nil {
 		panic("There was an error compiling the following template:\n" + text + "\nError was: " + err.Error())
 	}
 
 	return b.String()
+}
+
+type templateMap struct {
+	sync.RWMutex
+	M map[string]*template.Template
+}
+
+func (m *templateMap) Get(k string) (*template.Template, bool) {
+	m.RLock()
+	defer m.RUnlock()
+	v, ok := m.M[k]
+	return v, ok
+}
+
+func (m *templateMap) Set(k string, v *template.Template) {
+	m.Lock()
+	defer m.Unlock()
+	m.M[k] = v
 }
