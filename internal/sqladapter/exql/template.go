@@ -77,11 +77,12 @@ func mustParse(text string, data interface{}) string {
 	var b bytes.Buffer
 	var ok bool
 
-	if _, ok = templateCache.Get(text); !ok {
-		templateCache.Set(text, template.Must(template.New("").Parse(text)))
+	v, ok := templateCache.Get(text)
+	if !ok {
+		v = template.Must(template.New("").Parse(text))
+		templateCache.Set(text, v)
 	}
 
-	v, _ := templateCache.Get(text)
 	if err := v.Execute(&b, data); err != nil {
 		panic("There was an error compiling the following template:\n" + text + "\nError was: " + err.Error())
 	}
