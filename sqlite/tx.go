@@ -33,3 +33,15 @@ type tx struct {
 var (
 	_ = db.Tx(&tx{})
 )
+
+func (t *tx) Commit() error {
+	sess := t.Session()
+	defer sess.Close()
+	return t.DatabaseTx.Commit()
+}
+
+func (t *tx) Rollback() error {
+	sess := t.Session()
+	defer sess.Close()
+	return t.DatabaseTx.Rollback()
+}
