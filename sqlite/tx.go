@@ -35,13 +35,15 @@ var (
 )
 
 func (t *tx) Commit() error {
-	sess := t.Session()
-	defer sess.Close()
+	if sess := t.Session(); sess != nil {
+		defer sess.Close()
+	}
 	return t.DatabaseTx.Commit()
 }
 
 func (t *tx) Rollback() error {
-	sess := t.Session()
-	defer sess.Close()
+	if sess := t.Session(); sess != nil {
+		defer sess.Close()
+	}
 	return t.DatabaseTx.Rollback()
 }
