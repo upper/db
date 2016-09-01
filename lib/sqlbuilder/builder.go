@@ -294,6 +294,10 @@ func columnFragments(template *templateWithUtils, columns []interface{}) ([]exql
 		case exql.Fragment:
 			f[i] = v
 		case string:
+			if v == "*" && l == 1 {
+				f = f[:0]
+				continue
+			}
 			f[i] = exql.ColumnWithName(v)
 		case interface{}:
 			f[i] = exql.ColumnWithName(fmt.Sprintf("%v", v))
