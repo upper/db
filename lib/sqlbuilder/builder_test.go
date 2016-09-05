@@ -292,6 +292,16 @@ func TestSelect(t *testing.T) {
 		b.Select(db.Raw("DATE()")).String(),
 	)
 
+	assert.Equal(
+		`SELECT * FROM "artist"`,
+		b.Select("*").From("artist").String(),
+	)
+
+	assert.Equal(
+		`SELECT "artist".* FROM "artist"`,
+		b.Select("artist.*").From("artist").String(),
+	)
+
 	{
 		sel := b.Select(db.Raw("CONCAT(?, ?)", "foo", "bar"))
 		assert.Equal(
