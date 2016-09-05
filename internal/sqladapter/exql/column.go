@@ -51,7 +51,9 @@ func (c *Column) Compile(layout *Template) (compiled string) {
 
 		for i := range nameChunks {
 			nameChunks[i] = trimString(nameChunks[i])
-			nameChunks[i] = mustParse(layout.IdentifierQuote, Raw{Value: nameChunks[i]})
+			if nameChunks[i] != "*" {
+				nameChunks[i] = mustParse(layout.IdentifierQuote, Raw{Value: nameChunks[i]})
+			}
 		}
 
 		compiled = strings.Join(nameChunks, layout.ColumnSeparator)
