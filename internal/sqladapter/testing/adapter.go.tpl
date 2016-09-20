@@ -1,3 +1,5 @@
+// +build generated
+
 package ADAPTER
 
 import (
