@@ -22,8 +22,8 @@
 package ql
 
 import (
-	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter"
+	"upper.io/db.v2/lib/sqlbuilder"
 )
 
 type tx struct {
@@ -31,5 +31,5 @@ type tx struct {
 }
 
 var (
-	_ = db.Tx(&tx{})
+	_ = sqlbuilder.Tx(&tx{})
 )

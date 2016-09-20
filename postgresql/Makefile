@@ -43,7 +43,7 @@ reset-db: require-client
 	fi
 
 test: reset-db generate
-	go test -v -race
+	go test -tags generated -v -race
 
 bench: reset-db generate
-	go test -v -test.bench=. -test.benchtime=$(BENCHTIME) -benchmem
+	go test -tags generated -v -test.bench=. -test.benchtime=$(BENCHTIME) -benchmem
