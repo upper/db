@@ -69,6 +69,7 @@ type Template struct {
 	DropDatabaseLayout  string
 	DropTableLayout     string
 	CountLayout         string
+	CTELayout           string
 	GroupByLayout       string
 	*cache.Cache
 }
