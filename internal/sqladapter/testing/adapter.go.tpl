@@ -1115,6 +1115,42 @@ func TestBatchInsert(t *testing.T) {
 	}
 }
 
+func TestBatchInsertNoColumns(t *testing.T) {
+	sess := mustOpen()
+	defer sess.Close()
+
+	for batchSize := 0; batchSize < 17; batchSize++ {
+		err := sess.Collection("artist").Truncate()
+		assert.NoError(t, err)
+
+		batch := sess.InsertInto("artist").Batch(batchSize)
+
+		totalItems := int(rand.Int31n(21))
+
+		go func() {
+			defer batch.Done()
+			for i := 0; i < totalItems; i++ {
+				value := struct{Name string `db:"name"`}{fmt.Sprintf("artist-%d", i)}
+				batch.Values(value)
+			}
+		}()
+
+		err = batch.Wait()
+		assert.NoError(t, err)
+		assert.NoError(t, batch.Err())
+
+		c, err := sess.Collection("artist").Find().Count()
+		assert.NoError(t, err)
+		assert.Equal(t, uint64(totalItems), c)
+
+		for i := 0; i < totalItems; i++ {
+			c, err := sess.Collection("artist").Find(db.Cond{"name": fmt.Sprintf("artist-%d", i)}).Count()
+			assert.NoError(t, err)
+			assert.Equal(t, uint64(1), c)
+		}
+	}
+}
+
 func TestBatchInsertReturningKeys(t *testing.T) {
 	if Adapter != "postgresql" {
 		t.Skip("Currently not supported.")
