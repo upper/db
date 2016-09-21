@@ -540,6 +540,20 @@ func TestInsert(t *testing.T) {
 	)
 
 	assert.Equal(
+		`INSERT INTO "artist" ("id", "name") VALUES ($1, $2), ($3, $4), ($5, $6)`,
+		b.InsertInto("artist").Values(struct {
+			ID   int    `db:"id"`
+			Name string `db:"name"`
+		}{12, "Chavela Vargas"}).Values(struct {
+			ID   int    `db:"id"`
+			Name string `db:"name"`
+		}{13, "Alondra de la Parra"}).Values(struct {
+			ID   int    `db:"id"`
+			Name string `db:"name"`
+		}{14, "Haruki Murakami"}).String(),
+	)
+
+	assert.Equal(
 		`INSERT INTO "artist" ("name", "id") VALUES ($1, $2)`,
 		b.InsertInto("artist").Columns("name", "id").Values("Chavela Vargas", 12).String(),
 	)
