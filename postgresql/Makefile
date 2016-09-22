@@ -7,8 +7,6 @@ DB_USERNAME ?= upperio_tests
 DB_PASSWORD ?= upperio_secret
 DB_NAME     ?= upperio_tests
 
-BENCHTIME ?= 5s
-
 export DB_HOST
 export DB_NAME
 export DB_PASSWORD
@@ -44,6 +42,3 @@ reset-db: require-client
 
 test: reset-db generate
 	go test -tags generated -v -race
-
-bench: reset-db generate
-	go test -tags generated -v -test.bench=. -test.benchtime=$(BENCHTIME) -benchmem

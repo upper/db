@@ -2,8 +2,6 @@ SHELL := bash
 
 DB_NAME ?= sqlite3-test.db
 
-BENCHTIME ?= 5s
-
 export DB_NAME
 
 build:
@@ -24,6 +22,3 @@ reset-db: require-client
 
 test: reset-db generate
 	go test -tags generated -v -race
-
-bench: reset-db generate
-	go test -tags generated -v -test.bench=. -test.benchtime=$(BENCHTIME) -benchmem
