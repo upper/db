@@ -386,7 +386,7 @@ type fibonacci struct {
 	OmitMe bool `json:"omitme" db:",bson,omitempty" bson:"omit_me,omitempty"`
 }
 
-type oddEven struct {
+type OddEven struct {
 	// Test for JSON option.
 	Input int `json:"input"`
 	// Test for JSON option.
@@ -881,7 +881,7 @@ func TestEven(t *testing.T) {
 			// Adding some items.
 			var i int
 			for i = 1; i < 100; i++ {
-				item := oddEven{Input: i, IsEven: even(i)}
+				item := OddEven{Input: i, IsEven: even(i)}
 				_, err = col.Append(item)
 				if err != nil {
 					t.Fatalf(`Could not append item with wrapper %s: %q`, wrapper, err)
@@ -892,7 +892,7 @@ func TestEven(t *testing.T) {
 			res := col.Find(db.Cond{"is_even": true})
 
 			for {
-				var item oddEven
+				var item OddEven
 				err = res.Next(&item)
 				if err != nil {
 					if err == db.ErrNoMoreRows {
@@ -933,7 +933,7 @@ func TestEven(t *testing.T) {
 			for {
 				// Testing inline tag.
 				var item struct {
-					oddEven `db:",inline" bson:",inline"`
+					OddEven `db:",inline" bson:",inline"`
 				}
 				err = res.Next(&item)
 				if err != nil {
