@@ -30,7 +30,7 @@ import (
 	"time"
 	// Importing QL driver
 	_ "github.com/cznic/ql/driver"
-	"upper.io/cache"
+	"upper.io/db/internal/cache"
 	"upper.io/db"
 	"upper.io/db/util/schema"
 	"upper.io/db/util/sqlgen"

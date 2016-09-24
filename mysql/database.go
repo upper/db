@@ -28,7 +28,7 @@ import (
 	"time"
 	// Importing MySQL driver.
 	_ "github.com/go-sql-driver/mysql"
-	"upper.io/cache"
+	"upper.io/db/internal/cache"
 	"upper.io/db"
 	"upper.io/db/util/schema"
 	"upper.io/db/util/sqlgen"

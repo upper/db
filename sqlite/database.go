@@ -29,7 +29,7 @@ import (
 	"time"
 	// Importing SQLite3 driver.
 	_ "github.com/mattn/go-sqlite3"
-	"upper.io/cache"
+	"upper.io/db/internal/cache"
 	"upper.io/db"
 	"upper.io/db/util/schema"
 	"upper.io/db/util/sqlgen"

@@ -31,7 +31,7 @@ import (
 
 	// Importing PostgreSQL driver.
 	_ "github.com/xiam/gopostgresql"
-	"upper.io/cache"
+	"upper.io/db/internal/cache"
 	"upper.io/db"
 	"upper.io/db/util/schema"
 	"upper.io/db/util/sqlgen"
