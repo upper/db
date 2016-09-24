@@ -14,7 +14,6 @@ install:
   - sudo apt-get install bzr
   # - go get github.com/cznic/ql/ql # ql command line util.
   # - go install github.com/cznic/ql/ql # ql command line util.
-  - go get -t -d
   # - go get upper.io/db/mongo
   # - go get upper.io/db/mysql
   # - go get upper.io/db/postgresql
@@ -40,4 +39,5 @@ before_script:
 script:
   - cd $HOME/gopath/src/upper.io/db
   - go version
+  - go get -t -d
   - go test -host 127.0.0.1
