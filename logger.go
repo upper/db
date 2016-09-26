@@ -10,8 +10,8 @@ import (
 
 // QueryStatus represents a query after being executed.
 type QueryStatus struct {
-	SessionID uint64
-	TxID      uint64
+	SessID uint64
+	TxID   uint64
 
 	Query string
 	Args  []interface{}
@@ -40,13 +40,13 @@ const (
 
 func init() {
 	if envEnabled(EnvEnableDebug) {
-		Config.SetLogger(&defaultLogger{}) // Using default logger.
-		Config.SetLogging(true)
+		Conf.SetLogger(&defaultLogger{}) // Using default logger.
+		Conf.SetLogging(true)
 	}
 }
 
 // Logger represents a logging collector. You can pass a logging collector to
-// db.Config.SetLogger(myCollector) to make it collect db.QueryStatus messages
+// db.Conf.SetLogger(myCollector) to make it collect db.QueryStatus messages
 // after every query.
 type Logger interface {
 	Log(*QueryStatus)
@@ -54,11 +54,11 @@ type Logger interface {
 
 // Log sends a query status report to the configured logger.
 func Log(m *QueryStatus) {
-	if lg := Config.Logger(); lg != nil {
+	if lg := Conf.Logger(); lg != nil {
 		lg.Log(m)
 		return
 	}
-	log.Printf("No logger has been configured, use db.Config.SetLogger()")
+	log.Printf("No logger has been configured, use db.Conf.SetLogger()")
 }
 
 var (

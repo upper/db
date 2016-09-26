@@ -222,7 +222,7 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (sql
 	var query string
 	var err error
 
-	if db.Config.LoggingEnabled() {
+	if db.Conf.LoggingEnabled() {
 		defer func(start time.Time) {
 			db.Log(&db.QueryStatus{
 				Query: query,
@@ -251,7 +251,7 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (*s
 	var query string
 	var err error
 
-	if db.Config.LoggingEnabled() {
+	if db.Conf.LoggingEnabled() {
 		defer func(start time.Time) {
 			db.Log(&db.QueryStatus{
 				Query: query,
@@ -277,7 +277,7 @@ func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) 
 	var query string
 	var err error
 
-	if db.Config.LoggingEnabled() {
+	if db.Conf.LoggingEnabled() {
 		defer func(start time.Time) {
 			db.Log(&db.QueryStatus{
 				Query: query,

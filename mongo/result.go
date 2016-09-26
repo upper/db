@@ -125,7 +125,7 @@ func (r *result) Select(fields ...interface{}) db.Result {
 // All dumps all results into a pointer to an slice of structs or maps.
 func (r *result) All(dst interface{}) (err error) {
 
-	if db.Config.LoggingEnabled() {
+	if db.Conf.LoggingEnabled() {
 		defer func(start time.Time) {
 			db.Log(&db.QueryStatus{
 				Query: fmt.Sprintf("find(%s)", mustJSON(r.queryChunks.Conditions)),
@@ -162,7 +162,7 @@ func (r *result) Group(fields ...interface{}) db.Result {
 
 // One fetches only one result from the resultset.
 func (r *result) One(dst interface{}) (err error) {
-	if db.Config.LoggingEnabled() {
+	if db.Conf.LoggingEnabled() {
 		defer func(start time.Time) {
 			db.Log(&db.QueryStatus{
 				Query: fmt.Sprintf("findOne(%s)", mustJSON(r.queryChunks.Conditions)),
@@ -196,7 +196,7 @@ func (r *result) Next(dst interface{}) bool {
 
 // Delete remove the matching items from the collection.
 func (r *result) Delete() (err error) {
-	if db.Config.LoggingEnabled() {
+	if db.Conf.LoggingEnabled() {
 		defer func(start time.Time) {
 			db.Log(&db.QueryStatus{
 				Query: fmt.Sprintf("remove(%s)", mustJSON(r.queryChunks.Conditions)),
@@ -229,7 +229,7 @@ func (r *result) Close() error {
 func (r *result) Update(src interface{}) (err error) {
 	updateSet := map[string]interface{}{"$set": src}
 
-	if db.Config.LoggingEnabled() {
+	if db.Conf.LoggingEnabled() {
 		defer func(start time.Time) {
 			db.Log(&db.QueryStatus{
 				Query: fmt.Sprintf("update(%s, %s)", mustJSON(r.queryChunks.Conditions), mustJSON(updateSet)),
@@ -287,7 +287,7 @@ func (r *result) query() (*mgo.Query, error) {
 
 // Count counts matching elements.
 func (r *result) Count() (total uint64, err error) {
-	if db.Config.LoggingEnabled() {
+	if db.Conf.LoggingEnabled() {
 		defer func(start time.Time) {
 			db.Log(&db.QueryStatus{
 				Query: fmt.Sprintf("find(%s).count()", mustJSON(r.queryChunks.Conditions)),
