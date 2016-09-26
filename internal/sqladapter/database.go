@@ -8,7 +8,6 @@ import (
 
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/cache"
-	"upper.io/db.v2/internal/logger"
 	"upper.io/db.v2/internal/sqladapter/exql"
 	"upper.io/db.v2/lib/sqlbuilder"
 )
@@ -221,19 +220,21 @@ func (d *database) Collection(name string) db.Collection {
 // rows.
 func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
 	var query string
-	var p *sql.Stmt
 	var err error
 
-	if db.Debug {
-		var start, end int64
-		start = time.Now().UnixNano()
-
-		defer func() {
-			end = time.Now().UnixNano()
-			logger.Log(query, args, err, start, end)
-		}()
+	if db.Config.LoggingEnabled() {
+		defer func(start time.Time) {
+			db.Log(&db.QueryStatus{
+				Query: query,
+				Args:  args,
+				Err:   err,
+				Start: start,
+				End:   time.Now(),
+			})
+		}(time.Now())
 	}
 
+	var p *sql.Stmt
 	if p, query, err = d.prepareStatement(stmt); err != nil {
 		return nil, err
 	}
@@ -248,19 +249,21 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (sql
 // StatementQuery compiles and executes a statement that returns rows.
 func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
 	var query string
-	var p *sql.Stmt
 	var err error
 
-	if db.Debug {
-		var start, end int64
-		start = time.Now().UnixNano()
-
-		defer func() {
-			end = time.Now().UnixNano()
-			logger.Log(query, args, err, start, end)
-		}()
+	if db.Config.LoggingEnabled() {
+		defer func(start time.Time) {
+			db.Log(&db.QueryStatus{
+				Query: query,
+				Args:  args,
+				Err:   err,
+				Start: start,
+				End:   time.Now(),
+			})
+		}(time.Now())
 	}
 
+	var p *sql.Stmt
 	if p, query, err = d.prepareStatement(stmt); err != nil {
 		return nil, err
 	}
@@ -272,19 +275,21 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (*s
 // row.
 func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
 	var query string
-	var p *sql.Stmt
 	var err error
 
-	if db.Debug {
-		var start, end int64
-		start = time.Now().UnixNano()
-
-		defer func() {
-			end = time.Now().UnixNano()
-			logger.Log(query, args, err, start, end)
-		}()
+	if db.Config.LoggingEnabled() {
+		defer func(start time.Time) {
+			db.Log(&db.QueryStatus{
+				Query: query,
+				Args:  args,
+				Err:   err,
+				Start: start,
+				End:   time.Now(),
+			})
+		}(time.Now())
 	}
 
+	var p *sql.Stmt
 	if p, query, err = d.prepareStatement(stmt); err != nil {
 		return nil, err
 	}

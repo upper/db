@@ -562,23 +562,6 @@ type ConnectionURL interface {
 	String() string
 }
 
-// EnvEnableDebug can be used by adapters to determine if the user has enabled
-// debugging.
-//
-// If the user sets the `UPPERIO_DB_DEBUG` environment variable to a
-// non-empty value, all generated statements will be printed at runtime to
-// the standard logger.
-//
-// Example:
-//
-//	UPPERIO_DB_DEBUG=1 go test
-//
-//	UPPERIO_DB_DEBUG=1 ./go-program
-const EnvEnableDebug = `UPPERIO_DB_DEBUG`
-
-// Debug is a variable that, when true, enables query printing.
-var Debug = false
-
 // Ensure interface compatibility
 var (
 	_ Function    = &dbFunc{}
