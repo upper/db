@@ -312,6 +312,9 @@ type Inserter interface {
 	//   i.Values(map[string][string]{"name": "María"})
 	Values(...interface{}) Inserter
 
+	// Arguments returns the arguments that are prepared for this query.
+	Arguments() []interface{}
+
 	// Returning represents a RETURNING clause.
 	//
 	// RETURNING specifies which columns should be returned after INSERT.
