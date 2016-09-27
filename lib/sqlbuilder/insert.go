@@ -27,6 +27,10 @@ func (qi *inserter) Batch(n int) *BatchInserter {
 	return newBatchInserter(qi.clone(), n)
 }
 
+func (qi *inserter) Arguments() []interface{} {
+	return qi.arguments
+}
+
 func (qi *inserter) columnsToFragments(dst *[]exql.Fragment, columns []string) error {
 	l := len(columns)
 	f := make([]exql.Fragment, l)
@@ -66,7 +70,7 @@ func (qi *inserter) Columns(columns ...string) Inserter {
 
 func (qi *inserter) Values(values ...interface{}) Inserter {
 	if len(values) == 1 {
-		ff, vv, err := Map(values[0])
+		ff, vv, err := Map(values[0], &MapOptions{IncludeZeroed: true, IncludeNil: true})
 		if err == nil {
 			columns, vals, arguments, _ := qi.builder.t.ToColumnsValuesAndArguments(ff, vv)
 

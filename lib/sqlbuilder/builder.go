@@ -15,6 +15,16 @@ import (
 	"upper.io/db.v2/lib/reflectx"
 )
 
+type MapOptions struct {
+	IncludeZeroed bool
+	IncludeNil    bool
+}
+
+var defaultMapOptions = MapOptions{
+	IncludeZeroed: false,
+	IncludeNil:    false,
+}
+
 type hasIsZero interface {
 	IsZero() bool
 }
@@ -178,8 +188,12 @@ func (b *sqlBuilder) Update(table string) Updater {
 }
 
 // Map receives a pointer to map or struct and maps it to columns and values.
-func Map(item interface{}) ([]string, []interface{}, error) {
+func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error) {
 	var fv fieldValue
+
+	if options == nil {
+		options = &defaultMapOptions
+	}
 
 	itemV := reflect.ValueOf(item)
 	itemT := itemV.Type()
@@ -203,7 +217,12 @@ func Map(item interface{}) ([]string, []interface{}, error) {
 
 		for _, fi := range fieldMap {
 			fld := reflectx.FieldByIndexesReadOnly(itemV, fi.Index)
+
 			if fld.Kind() == reflect.Ptr && fld.IsNil() {
+				if options.IncludeNil {
+					fv.fields = append(fv.fields, fi.Name)
+					fv.values = append(fv.values, fld.Interface())
+				}
 				continue
 			}
 
@@ -218,13 +237,15 @@ func Map(item interface{}) ([]string, []interface{}, error) {
 				value = fld.Interface()
 			}
 
-			if _, ok := fi.Options["omitempty"]; ok {
-				if t, ok := fld.Interface().(hasIsZero); ok {
-					if t.IsZero() {
+			if !options.IncludeZeroed {
+				if _, ok := fi.Options["omitempty"]; ok {
+					if t, ok := fld.Interface().(hasIsZero); ok {
+						if t.IsZero() {
+							continue
+						}
+					} else if value == fi.Zero.Interface() {
 						continue
 					}
-				} else if value == fi.Zero.Interface() {
-					continue
 				}
 			}
 
