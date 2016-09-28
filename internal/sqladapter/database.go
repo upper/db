@@ -2,14 +2,21 @@ package sqladapter
 
 import (
 	"database/sql"
+	"math"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/cache"
 	"upper.io/db.v2/internal/sqladapter/exql"
 	"upper.io/db.v2/lib/sqlbuilder"
+)
+
+var (
+	lastSessID uint64
+	lastTxID   uint64
 )
 
 // HasCleanUp
@@ -90,6 +97,9 @@ type database struct {
 	sess   *sql.DB
 	sessMu sync.Mutex
 
+	sessID uint64
+	txID   uint64
+
 	cachedStatements  *cache.Cache
 	cachedCollections *cache.Cache
 
@@ -108,9 +118,15 @@ func (d *database) Session() *sql.DB {
 // BindTx binds a *sql.Tx into *database
 func (d *database) BindTx(t *sql.Tx) error {
 	d.sessMu.Lock()
-	d.baseTx = newTx(t)
 	defer d.sessMu.Unlock()
-	return d.Ping()
+
+	d.baseTx = newTx(t)
+	if err := d.Ping(); err != nil {
+		return err
+	}
+
+	d.txID = newTxID()
+	return nil
 }
 
 // Tx returns a BaseTx, which, if not nil, means that this session is within a
@@ -141,10 +157,12 @@ func (d *database) BindSession(sess *sql.DB) error {
 		return err
 	}
 
+	d.sessID = newSessionID()
 	name, err := d.PartialDatabase.FindDatabaseName()
 	if err != nil {
 		return err
 	}
+
 	d.name = name
 
 	return nil
@@ -225,11 +243,13 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 		defer func(start time.Time) {
 
 			status := db.QueryStatus{
-				Query: query,
-				Args:  args,
-				Err:   err,
-				Start: start,
-				End:   time.Now(),
+				TxID:   d.txID,
+				SessID: d.sessID,
+				Query:  query,
+				Args:   args,
+				Err:    err,
+				Start:  start,
+				End:    time.Now(),
 			}
 
 			if rowsAffected, err := res.RowsAffected(); err == nil {
@@ -266,11 +286,13 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (*s
 	if db.Conf.LoggingEnabled() {
 		defer func(start time.Time) {
 			db.Log(&db.QueryStatus{
-				Query: query,
-				Args:  args,
-				Err:   err,
-				Start: start,
-				End:   time.Now(),
+				TxID:   d.txID,
+				SessID: d.sessID,
+				Query:  query,
+				Args:   args,
+				Err:    err,
+				Start:  start,
+				End:    time.Now(),
 			})
 		}(time.Now())
 	}
@@ -292,11 +314,13 @@ func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) 
 	if db.Conf.LoggingEnabled() {
 		defer func(start time.Time) {
 			db.Log(&db.QueryStatus{
-				Query: query,
-				Args:  args,
-				Err:   err,
-				Start: start,
-				End:   time.Now(),
+				TxID:   d.txID,
+				SessID: d.sessID,
+				Query:  query,
+				Args:   args,
+				Err:    err,
+				Start:  start,
+				End:    time.Now(),
 			})
 		}(time.Now())
 	}
@@ -416,4 +440,20 @@ func ReplaceWithDollarSign(in string) string {
 	out = append(out, buf[k:i]...)
 
 	return string(out)
+}
+
+func newSessionID() uint64 {
+	if atomic.LoadUint64(&lastSessID) == math.MaxUint64 {
+		atomic.StoreUint64(&lastSessID, 0)
+		return 0
+	}
+	return atomic.AddUint64(&lastSessID, 1)
+}
+
+func newTxID() uint64 {
+	if atomic.LoadUint64(&lastTxID) == math.MaxUint64 {
+		atomic.StoreUint64(&lastTxID, 0)
+		return 0
+	}
+	return atomic.AddUint64(&lastTxID, 1)
 }

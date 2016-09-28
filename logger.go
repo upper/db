@@ -9,6 +9,8 @@ import (
 )
 
 const (
+	fmtLogSessId       = `Session ID:     %05d`
+	fmtLogTxId         = `Transaction ID: %05d`
 	fmtLogQuery        = `Query:          %s`
 	fmtLogArgs         = `Arguments:      %#v`
 	fmtLogRowsAffected = `Rows affected:  %d`
@@ -32,6 +34,43 @@ type QueryStatus struct {
 
 	Start time.Time
 	End   time.Time
+}
+
+func (q *QueryStatus) String() string {
+	s := make([]string, 0, 8)
+
+	if q.SessID > 0 {
+		s = append(s, fmt.Sprintf(fmtLogSessId, q.SessID))
+	}
+
+	if q.TxID > 0 {
+		s = append(s, fmt.Sprintf(fmtLogTxId, q.TxID))
+	}
+
+	if qry := q.Query; qry != "" {
+		qry = reInvisibleChars.ReplaceAllString(qry, ` `)
+		qry = strings.TrimSpace(qry)
+		s = append(s, fmt.Sprintf(fmtLogQuery, qry))
+	}
+
+	if len(q.Args) > 0 {
+		s = append(s, fmt.Sprintf(fmtLogArgs, q.Args))
+	}
+
+	if q.RowsAffected != nil {
+		s = append(s, fmt.Sprintf(fmtLogRowsAffected, *q.RowsAffected))
+	}
+	if q.LastInsertID != nil {
+		s = append(s, fmt.Sprintf(fmtLogLastInsertId, *q.LastInsertID))
+	}
+
+	if q.Err != nil {
+		s = append(s, fmt.Sprintf(fmtLogError, q.Err))
+	}
+
+	s = append(s, fmt.Sprintf(fmtLogTimeTaken, float64(q.End.UnixNano()-q.Start.UnixNano())/float64(1e9)))
+
+	return strings.Join(s, "\n")
 }
 
 // EnvEnableDebug can be used by adapters to determine if the user has enabled
@@ -68,9 +107,6 @@ type Logger interface {
 func Log(m *QueryStatus) {
 	if lg := Conf.Logger(); lg != nil {
 
-		m.Query = reInvisibleChars.ReplaceAllString(m.Query, ` `)
-		m.Query = strings.TrimSpace(m.Query)
-
 		lg.Log(m)
 		return
 	}
@@ -86,28 +122,5 @@ type defaultLogger struct {
 }
 
 func (lg *defaultLogger) Log(m *QueryStatus) {
-	s := make([]string, 0, 6)
-
-	if m.Query != "" {
-		s = append(s, fmt.Sprintf(fmtLogQuery, m.Query))
-	}
-
-	if len(m.Args) > 0 {
-		s = append(s, fmt.Sprintf(fmtLogArgs, m.Args))
-	}
-
-	if m.RowsAffected != nil {
-		s = append(s, fmt.Sprintf(fmtLogRowsAffected, *m.RowsAffected))
-	}
-	if m.LastInsertID != nil {
-		s = append(s, fmt.Sprintf(fmtLogLastInsertId, *m.LastInsertID))
-	}
-
-	if m.Err != nil {
-		s = append(s, fmt.Sprintf(fmtLogError, m.Err))
-	}
-
-	s = append(s, fmt.Sprintf(fmtLogTimeTaken, float64(m.End.UnixNano()-m.Start.UnixNano())/float64(1e9)))
-
-	log.Printf("\n\t%s\n\n", strings.Join(s, "\n\t"))
+	log.Printf("\n\t%s\n\n", strings.Replace(m.String(), "\n", "\n\t", -1))
 }
