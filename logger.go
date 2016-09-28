@@ -19,6 +19,11 @@ const (
 	fmtLogTimeTaken    = `Time taken:     %0.5fs`
 )
 
+var (
+	reInvisibleChars       = regexp.MustCompile(`[\s\r\n\t]+`)
+	reColumnCompareExclude = regexp.MustCompile(`[^a-zA-Z0-9]`)
+)
+
 // QueryStatus represents a query after being executed.
 type QueryStatus struct {
 	SessID uint64
@@ -91,7 +96,6 @@ const (
 
 func init() {
 	if envEnabled(EnvEnableDebug) {
-		Conf.SetLogger(&defaultLogger{}) // Using default logger.
 		Conf.SetLogging(true)
 	}
 }
@@ -105,18 +109,8 @@ type Logger interface {
 
 // Log sends a query status report to the configured logger.
 func Log(m *QueryStatus) {
-	logger := Conf.Logger()
-	if logger == nil {
-		logger = &defaultLogger{}
-		Conf.SetLogger(logger)
-	}
-	logger.Log(m)
+	Conf.Logger().Log(m)
 }
-
-var (
-	reInvisibleChars       = regexp.MustCompile(`[\s\r\n\t]+`)
-	reColumnCompareExclude = regexp.MustCompile(`[^a-zA-Z0-9]`)
-)
 
 type defaultLogger struct {
 }
@@ -124,3 +118,5 @@ type defaultLogger struct {
 func (lg *defaultLogger) Log(m *QueryStatus) {
 	log.Printf("\n\t%s\n\n", strings.Replace(m.String(), "\n", "\n\t", -1))
 }
+
+var _ = Logger(&defaultLogger{})

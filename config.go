@@ -21,13 +21,14 @@ type Settings interface {
 type conf struct {
 	loggingEnabled uint32
 	queryLogger    atomic.Value
+	defaultLogger  defaultLogger
 }
 
 func (c *conf) Logger() Logger {
 	if lg := c.queryLogger.Load(); lg != nil {
 		return lg.(Logger)
 	}
-	return nil
+	return &c.defaultLogger
 }
 
 func (c *conf) SetLogger(lg Logger) {
