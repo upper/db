@@ -9,12 +9,12 @@ import (
 )
 
 const (
-	fmtLogSessId       = `Session ID:     %05d`
-	fmtLogTxId         = `Transaction ID: %05d`
+	fmtLogSessID       = `Session ID:     %05d`
+	fmtLogTxID         = `Transaction ID: %05d`
 	fmtLogQuery        = `Query:          %s`
 	fmtLogArgs         = `Arguments:      %#v`
 	fmtLogRowsAffected = `Rows affected:  %d`
-	fmtLogLastInsertId = `Last insert ID: %d`
+	fmtLogLastInsertID = `Last insert ID: %d`
 	fmtLogError        = `Error:          %v`
 	fmtLogTimeTaken    = `Time taken:     %0.5fs`
 )
@@ -40,11 +40,11 @@ func (q *QueryStatus) String() string {
 	s := make([]string, 0, 8)
 
 	if q.SessID > 0 {
-		s = append(s, fmt.Sprintf(fmtLogSessId, q.SessID))
+		s = append(s, fmt.Sprintf(fmtLogSessID, q.SessID))
 	}
 
 	if q.TxID > 0 {
-		s = append(s, fmt.Sprintf(fmtLogTxId, q.TxID))
+		s = append(s, fmt.Sprintf(fmtLogTxID, q.TxID))
 	}
 
 	if qry := q.Query; qry != "" {
@@ -61,7 +61,7 @@ func (q *QueryStatus) String() string {
 		s = append(s, fmt.Sprintf(fmtLogRowsAffected, *q.RowsAffected))
 	}
 	if q.LastInsertID != nil {
-		s = append(s, fmt.Sprintf(fmtLogLastInsertId, *q.LastInsertID))
+		s = append(s, fmt.Sprintf(fmtLogLastInsertID, *q.LastInsertID))
 	}
 
 	if q.Err != nil {

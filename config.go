@@ -4,6 +4,20 @@ import (
 	"sync/atomic"
 )
 
+// Settings defines methods to get or set configuration settings, use db.Conf
+// to get or set global configuration settings.
+type Settings interface {
+	// SetLogging enables or disables logging.
+	SetLogging(bool)
+	// LoggingEnabled returns true if logging is enabled, false otherwise.
+	LoggingEnabled() bool
+
+	// SetLogger defines which logger to use.
+	SetLogger(Logger)
+	// Returns the configured logger.
+	Logger() Logger
+}
+
 type conf struct {
 	loggingEnabled uint32
 	queryLogger    atomic.Value
@@ -35,4 +49,5 @@ func (c *conf) LoggingEnabled() bool {
 	return false
 }
 
-var Conf = conf{}
+// Conf has global configuration settings for upper-db.
+var Conf Settings = &conf{}
