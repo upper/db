@@ -218,19 +218,29 @@ func (d *database) Collection(name string) db.Collection {
 
 // StatementExec compiles and executes a statement that does not return any
 // rows.
-func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
+func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res sql.Result, err error) {
 	var query string
-	var err error
 
 	if db.Conf.LoggingEnabled() {
 		defer func(start time.Time) {
-			db.Log(&db.QueryStatus{
+
+			status := db.QueryStatus{
 				Query: query,
 				Args:  args,
 				Err:   err,
 				Start: start,
 				End:   time.Now(),
-			})
+			}
+
+			if rowsAffected, err := res.RowsAffected(); err == nil {
+				status.RowsAffected = &rowsAffected
+			}
+
+			if lastInsertId, err := res.LastInsertId(); err == nil {
+				status.LastInsertID = &lastInsertId
+			}
+
+			db.Log(&status)
 		}(time.Now())
 	}
 
@@ -240,10 +250,12 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (sql
 	}
 
 	if execer, ok := d.PartialDatabase.(HasStatementExec); ok {
-		return execer.StatementExec(p, args...)
+		res, err = execer.StatementExec(p, args...)
+		return
 	}
 
-	return p.Exec(args...)
+	res, err = p.Exec(args...)
+	return
 }
 
 // StatementQuery compiles and executes a statement that returns rows.

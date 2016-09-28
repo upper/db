@@ -8,10 +8,22 @@ import (
 	"time"
 )
 
+const (
+	fmtLogQuery        = `Query:          %s`
+	fmtLogArgs         = `Arguments:      %#v`
+	fmtLogRowsAffected = `Rows affected:  %d`
+	fmtLogLastInsertId = `Last insert ID: %d`
+	fmtLogError        = `Error:          %v`
+	fmtLogTimeTaken    = `Time taken:     %0.5fs`
+)
+
 // QueryStatus represents a query after being executed.
 type QueryStatus struct {
 	SessID uint64
 	TxID   uint64
+
+	RowsAffected *int64
+	LastInsertID *int64
 
 	Query string
 	Args  []interface{}
@@ -55,6 +67,10 @@ type Logger interface {
 // Log sends a query status report to the configured logger.
 func Log(m *QueryStatus) {
 	if lg := Conf.Logger(); lg != nil {
+
+		m.Query = reInvisibleChars.ReplaceAllString(m.Query, ` `)
+		m.Query = strings.TrimSpace(m.Query)
+
 		lg.Log(m)
 		return
 	}
@@ -70,24 +86,28 @@ type defaultLogger struct {
 }
 
 func (lg *defaultLogger) Log(m *QueryStatus) {
-	m.Query = reInvisibleChars.ReplaceAllString(m.Query, ` `)
-	m.Query = strings.TrimSpace(m.Query)
-
-	s := make([]string, 0, 4)
+	s := make([]string, 0, 6)
 
 	if m.Query != "" {
-		s = append(s, fmt.Sprintf(`Q: %s`, m.Query))
+		s = append(s, fmt.Sprintf(fmtLogQuery, m.Query))
 	}
 
 	if len(m.Args) > 0 {
-		s = append(s, fmt.Sprintf(`A: %#v`, m.Args))
+		s = append(s, fmt.Sprintf(fmtLogArgs, m.Args))
+	}
+
+	if m.RowsAffected != nil {
+		s = append(s, fmt.Sprintf(fmtLogRowsAffected, *m.RowsAffected))
+	}
+	if m.LastInsertID != nil {
+		s = append(s, fmt.Sprintf(fmtLogLastInsertId, *m.LastInsertID))
 	}
 
 	if m.Err != nil {
-		s = append(s, fmt.Sprintf(`E: %q`, m.Err))
+		s = append(s, fmt.Sprintf(fmtLogError, m.Err))
 	}
 
-	s = append(s, fmt.Sprintf(`T: %0.5fs`, float64(m.End.UnixNano()-m.Start.UnixNano())/float64(1e9)))
+	s = append(s, fmt.Sprintf(fmtLogTimeTaken, float64(m.End.UnixNano()-m.Start.UnixNano())/float64(1e9)))
 
 	log.Printf("\n\t%s\n\n", strings.Join(s, "\n\t"))
 }
