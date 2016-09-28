@@ -105,12 +105,12 @@ type Logger interface {
 
 // Log sends a query status report to the configured logger.
 func Log(m *QueryStatus) {
-	if lg := Conf.Logger(); lg != nil {
-
-		lg.Log(m)
-		return
+	logger := Conf.Logger()
+	if logger == nil {
+		logger = &defaultLogger{}
+		Conf.SetLogger(logger)
 	}
-	log.Printf("No logger has been configured, use db.Conf.SetLogger()")
+	logger.Log(m)
 }
 
 var (
