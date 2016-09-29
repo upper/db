@@ -252,12 +252,14 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 				End:    time.Now(),
 			}
 
-			if rowsAffected, err := res.RowsAffected(); err == nil {
-				status.RowsAffected = &rowsAffected
-			}
+			if res != nil {
+				if rowsAffected, err := res.RowsAffected(); err == nil {
+					status.RowsAffected = &rowsAffected
+				}
 
-			if lastInsertId, err := res.LastInsertId(); err == nil {
-				status.LastInsertID = &lastInsertId
+				if lastInsertId, err := res.LastInsertId(); err == nil {
+					status.LastInsertID = &lastInsertId
+				}
 			}
 
 			db.Log(&status)
