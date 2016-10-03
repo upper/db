@@ -75,7 +75,7 @@ func (t *table) Conds(conds ...interface{}) []interface{} {
 
 // Insert inserts an item (map or struct) into the collection.
 func (t *table) Insert(item interface{}) (interface{}, error) {
-	columnNames, columnValues, err := sqlbuilder.Map(item)
+	columnNames, columnValues, err := sqlbuilder.Map(item, nil)
 	if err != nil {
 		return nil, err
 	}

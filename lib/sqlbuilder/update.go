@@ -18,7 +18,7 @@ type updater struct {
 
 func (qu *updater) Set(terms ...interface{}) Updater {
 	if len(terms) == 1 {
-		ff, vv, _ := Map(terms[0])
+		ff, vv, _ := Map(terms[0], nil)
 
 		cvs := make([]exql.Fragment, 0, len(ff))
 		args := make([]interface{}, 0, len(vv))
