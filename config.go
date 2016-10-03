@@ -1,6 +1,7 @@
 package db
 
 import (
+	"sync"
 	"sync/atomic"
 )
 
@@ -20,19 +21,28 @@ type Settings interface {
 
 type conf struct {
 	loggingEnabled uint32
-	queryLogger    atomic.Value
-	defaultLogger  defaultLogger
+
+	queryLogger   Logger
+	queryLoggerMu sync.RWMutex
+	defaultLogger defaultLogger
 }
 
 func (c *conf) Logger() Logger {
-	if lg := c.queryLogger.Load(); lg != nil {
-		return lg.(Logger)
+	c.queryLoggerMu.RLock()
+	defer c.queryLoggerMu.RUnlock()
+
+	if c.queryLogger == nil {
+		return &c.defaultLogger
 	}
-	return &c.defaultLogger
+
+	return c.queryLogger
 }
 
 func (c *conf) SetLogger(lg Logger) {
-	c.queryLogger.Store(lg)
+	c.queryLoggerMu.Lock()
+	defer c.queryLoggerMu.Unlock()
+
+	c.queryLogger = lg
 }
 
 func (c *conf) SetLogging(value bool) {
