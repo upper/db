@@ -33,7 +33,6 @@ import (
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db.v2"
-	"upper.io/db.v2/internal/logger"
 )
 
 // result represents a query result.
@@ -126,13 +125,15 @@ func (r *result) Select(fields ...interface{}) db.Result {
 // All dumps all results into a pointer to an slice of structs or maps.
 func (r *result) All(dst interface{}) (err error) {
 
-	if db.Debug {
-		var start, end int64
-		start = time.Now().UnixNano()
-		defer func() {
-			end = time.Now().UnixNano()
-			logger.Log(r.debugQuery(fmt.Sprintf("find(%s)", mustJSON(r.queryChunks.Conditions))), nil, err, start, end)
-		}()
+	if db.Conf.LoggingEnabled() {
+		defer func(start time.Time) {
+			db.Log(&db.QueryStatus{
+				Query: fmt.Sprintf("find(%s)", mustJSON(r.queryChunks.Conditions)),
+				Err:   err,
+				Start: start,
+				End:   time.Now(),
+			})
+		}(time.Now())
 	}
 
 	err = r.setCursor()
@@ -161,13 +162,15 @@ func (r *result) Group(fields ...interface{}) db.Result {
 
 // One fetches only one result from the resultset.
 func (r *result) One(dst interface{}) (err error) {
-	if db.Debug {
-		var start, end int64
-		start = time.Now().UnixNano()
-		defer func() {
-			end = time.Now().UnixNano()
-			logger.Log(r.debugQuery(fmt.Sprintf("findOne(%s)", mustJSON(r.queryChunks.Conditions))), nil, err, start, end)
-		}()
+	if db.Conf.LoggingEnabled() {
+		defer func(start time.Time) {
+			db.Log(&db.QueryStatus{
+				Query: fmt.Sprintf("findOne(%s)", mustJSON(r.queryChunks.Conditions)),
+				Err:   err,
+				Start: start,
+				End:   time.Now(),
+			})
+		}(time.Now())
 	}
 
 	defer r.Close()
@@ -193,13 +196,15 @@ func (r *result) Next(dst interface{}) bool {
 
 // Delete remove the matching items from the collection.
 func (r *result) Delete() (err error) {
-	if db.Debug {
-		var start, end int64
-		start = time.Now().UnixNano()
-		defer func() {
-			end = time.Now().UnixNano()
-			logger.Log(r.debugQuery(fmt.Sprintf("remove(%s)", mustJSON(r.queryChunks.Conditions))), nil, err, start, end)
-		}()
+	if db.Conf.LoggingEnabled() {
+		defer func(start time.Time) {
+			db.Log(&db.QueryStatus{
+				Query: fmt.Sprintf("remove(%s)", mustJSON(r.queryChunks.Conditions)),
+				Err:   err,
+				Start: start,
+				End:   time.Now(),
+			})
+		}(time.Now())
 	}
 
 	_, err = r.c.collection.RemoveAll(r.queryChunks.Conditions)
@@ -224,13 +229,15 @@ func (r *result) Close() error {
 func (r *result) Update(src interface{}) (err error) {
 	updateSet := map[string]interface{}{"$set": src}
 
-	if db.Debug {
-		var start, end int64
-		start = time.Now().UnixNano()
-		defer func() {
-			end = time.Now().UnixNano()
-			logger.Log(r.debugQuery(fmt.Sprintf("update(%s, %s)", mustJSON(r.queryChunks.Conditions), mustJSON(updateSet))), nil, err, start, end)
-		}()
+	if db.Conf.LoggingEnabled() {
+		defer func(start time.Time) {
+			db.Log(&db.QueryStatus{
+				Query: fmt.Sprintf("update(%s, %s)", mustJSON(r.queryChunks.Conditions), mustJSON(updateSet)),
+				Err:   err,
+				Start: start,
+				End:   time.Now(),
+			})
+		}(time.Now())
 	}
 
 	_, err = r.c.collection.UpdateAll(r.queryChunks.Conditions, updateSet)
@@ -280,13 +287,15 @@ func (r *result) query() (*mgo.Query, error) {
 
 // Count counts matching elements.
 func (r *result) Count() (total uint64, err error) {
-	if db.Debug {
-		var start, end int64
-		start = time.Now().UnixNano()
-		defer func() {
-			end = time.Now().UnixNano()
-			logger.Log(r.debugQuery(fmt.Sprintf("find(%s).count()", mustJSON(r.queryChunks.Conditions))), nil, err, start, end)
-		}()
+	if db.Conf.LoggingEnabled() {
+		defer func(start time.Time) {
+			db.Log(&db.QueryStatus{
+				Query: fmt.Sprintf("find(%s).count()", mustJSON(r.queryChunks.Conditions)),
+				Err:   err,
+				Start: start,
+				End:   time.Now(),
+			})
+		}(time.Now())
 	}
 
 	q := r.c.collection.Find(r.queryChunks.Conditions)

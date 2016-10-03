@@ -2,15 +2,21 @@ package sqladapter
 
 import (
 	"database/sql"
+	"math"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/cache"
-	"upper.io/db.v2/internal/logger"
 	"upper.io/db.v2/internal/sqladapter/exql"
 	"upper.io/db.v2/lib/sqlbuilder"
+)
+
+var (
+	lastSessID uint64
+	lastTxID   uint64
 )
 
 // HasCleanUp
@@ -91,6 +97,9 @@ type database struct {
 	sess   *sql.DB
 	sessMu sync.Mutex
 
+	sessID uint64
+	txID   uint64
+
 	cachedStatements  *cache.Cache
 	cachedCollections *cache.Cache
 
@@ -109,9 +118,15 @@ func (d *database) Session() *sql.DB {
 // BindTx binds a *sql.Tx into *database
 func (d *database) BindTx(t *sql.Tx) error {
 	d.sessMu.Lock()
-	d.baseTx = newTx(t)
 	defer d.sessMu.Unlock()
-	return d.Ping()
+
+	d.baseTx = newTx(t)
+	if err := d.Ping(); err != nil {
+		return err
+	}
+
+	d.txID = newTxID()
+	return nil
 }
 
 // Tx returns a BaseTx, which, if not nil, means that this session is within a
@@ -142,10 +157,12 @@ func (d *database) BindSession(sess *sql.DB) error {
 		return err
 	}
 
+	d.sessID = newSessionID()
 	name, err := d.PartialDatabase.FindDatabaseName()
 	if err != nil {
 		return err
 	}
+
 	d.name = name
 
 	return nil
@@ -219,48 +236,70 @@ func (d *database) Collection(name string) db.Collection {
 
 // StatementExec compiles and executes a statement that does not return any
 // rows.
-func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
+func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res sql.Result, err error) {
 	var query string
-	var p *sql.Stmt
-	var err error
 
-	if db.Debug {
-		var start, end int64
-		start = time.Now().UnixNano()
+	if db.Conf.LoggingEnabled() {
+		defer func(start time.Time) {
 
-		defer func() {
-			end = time.Now().UnixNano()
-			logger.Log(query, args, err, start, end)
-		}()
+			status := db.QueryStatus{
+				TxID:   d.txID,
+				SessID: d.sessID,
+				Query:  query,
+				Args:   args,
+				Err:    err,
+				Start:  start,
+				End:    time.Now(),
+			}
+
+			if res != nil {
+				if rowsAffected, err := res.RowsAffected(); err == nil {
+					status.RowsAffected = &rowsAffected
+				}
+
+				if lastInsertId, err := res.LastInsertId(); err == nil {
+					status.LastInsertID = &lastInsertId
+				}
+			}
+
+			db.Log(&status)
+		}(time.Now())
 	}
 
+	var p *sql.Stmt
 	if p, query, err = d.prepareStatement(stmt); err != nil {
 		return nil, err
 	}
 
 	if execer, ok := d.PartialDatabase.(HasStatementExec); ok {
-		return execer.StatementExec(p, args...)
+		res, err = execer.StatementExec(p, args...)
+		return
 	}
 
-	return p.Exec(args...)
+	res, err = p.Exec(args...)
+	return
 }
 
 // StatementQuery compiles and executes a statement that returns rows.
 func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
 	var query string
-	var p *sql.Stmt
 	var err error
 
-	if db.Debug {
-		var start, end int64
-		start = time.Now().UnixNano()
-
-		defer func() {
-			end = time.Now().UnixNano()
-			logger.Log(query, args, err, start, end)
-		}()
+	if db.Conf.LoggingEnabled() {
+		defer func(start time.Time) {
+			db.Log(&db.QueryStatus{
+				TxID:   d.txID,
+				SessID: d.sessID,
+				Query:  query,
+				Args:   args,
+				Err:    err,
+				Start:  start,
+				End:    time.Now(),
+			})
+		}(time.Now())
 	}
 
+	var p *sql.Stmt
 	if p, query, err = d.prepareStatement(stmt); err != nil {
 		return nil, err
 	}
@@ -272,19 +311,23 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (*s
 // row.
 func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
 	var query string
-	var p *sql.Stmt
 	var err error
 
-	if db.Debug {
-		var start, end int64
-		start = time.Now().UnixNano()
-
-		defer func() {
-			end = time.Now().UnixNano()
-			logger.Log(query, args, err, start, end)
-		}()
+	if db.Conf.LoggingEnabled() {
+		defer func(start time.Time) {
+			db.Log(&db.QueryStatus{
+				TxID:   d.txID,
+				SessID: d.sessID,
+				Query:  query,
+				Args:   args,
+				Err:    err,
+				Start:  start,
+				End:    time.Now(),
+			})
+		}(time.Now())
 	}
 
+	var p *sql.Stmt
 	if p, query, err = d.prepareStatement(stmt); err != nil {
 		return nil, err
 	}
@@ -399,4 +442,20 @@ func ReplaceWithDollarSign(in string) string {
 	out = append(out, buf[k:i]...)
 
 	return string(out)
+}
+
+func newSessionID() uint64 {
+	if atomic.LoadUint64(&lastSessID) == math.MaxUint64 {
+		atomic.StoreUint64(&lastSessID, 0)
+		return 0
+	}
+	return atomic.AddUint64(&lastSessID, 1)
+}
+
+func newTxID() uint64 {
+	if atomic.LoadUint64(&lastTxID) == math.MaxUint64 {
+		atomic.StoreUint64(&lastTxID, 0)
+		return 0
+	}
+	return atomic.AddUint64(&lastTxID, 1)
 }
