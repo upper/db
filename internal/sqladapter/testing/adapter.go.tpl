@@ -20,6 +20,18 @@ import (
 	"upper.io/db.v2/lib/sqlbuilder"
 )
 
+type customLogger struct {
+}
+
+func (*customLogger) Log(q *db.QueryStatus) {
+	switch q.Err {
+	case nil, db.ErrNoMoreRows:
+		return // Don't log successful queries.
+	}
+	// Alert of any other error.
+	log.Printf("Unexpected database error: %v\n%s", q.Err, q.String())
+}
+
 type artistType struct {
 	ID   int64  `db:"id,omitempty"`
 	Name string `db:"name"`
@@ -81,6 +93,23 @@ func TestTruncateAllCollections(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestCustomQueryLogger(t *testing.T) {
+	sess, err := Open(settings)
+	assert.NoError(t, err)
+	defer sess.Close()
+
+	db.Conf.SetLogger(&customLogger{})
+	defer func() {
+		db.Conf.SetLogger(nil)
+	}()
+
+	_, err = sess.Collection("artist").Find().Count()
+	assert.Equal(t, nil, err)
+
+	_, err = sess.Collection("artist_x").Find().Count()
+	assert.NotEqual(t, nil, err)
 }
 
 func TestExpectCursorError(t *testing.T) {
