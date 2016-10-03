@@ -5,8 +5,8 @@ package ADAPTER
 import (
 	"database/sql"
 	"flag"
-	"log"
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"strconv"
@@ -19,6 +19,18 @@ import (
 	"upper.io/db.v2"
 	"upper.io/db.v2/lib/sqlbuilder"
 )
+
+type customLogger struct {
+}
+
+func (*customLogger) Log(q *db.QueryStatus) {
+	switch q.Err {
+	case nil, db.ErrNoMoreRows:
+		return // Don't log successful queries.
+	}
+	// Alert of any other error.
+	log.Printf("Unexpected database error: %v\n%s", q.Err, q.String())
+}
 
 type artistType struct {
 	ID   int64  `db:"id,omitempty"`
@@ -83,6 +95,23 @@ func TestTruncateAllCollections(t *testing.T) {
 	}
 }
 
+func TestCustomQueryLogger(t *testing.T) {
+	sess, err := Open(settings)
+	assert.NoError(t, err)
+	defer sess.Close()
+
+	db.Conf.SetLogger(&customLogger{})
+	defer func() {
+		db.Conf.SetLogger(nil)
+	}()
+
+	_, err = sess.Collection("artist").Find().Count()
+	assert.Equal(t, nil, err)
+
+	_, err = sess.Collection("artist_x").Find().Count()
+	assert.NotEqual(t, nil, err)
+}
+
 func TestExpectCursorError(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()
@@ -117,7 +146,7 @@ func TestInsertReturning(t *testing.T) {
 	assert.NotZero(t, itemMap["id"], "Must not be zero after inserting")
 
 	itemStruct := struct {
-		ID int `db:"id,omitempty"`
+		ID   int    `db:"id,omitempty"`
 		Name string `db:"name"`
 	}{
 		0,
@@ -133,7 +162,7 @@ func TestInsertReturning(t *testing.T) {
 	assert.Equal(t, uint64(2), count, "Expecting 2 elements")
 
 	itemStruct2 := struct {
-		ID int `db:"id,omitempty"`
+		ID   int    `db:"id,omitempty"`
 		Name string `db:"name"`
 	}{
 		0,
@@ -180,7 +209,7 @@ func TestInsertReturningWithinTransaction(t *testing.T) {
 	assert.NotZero(t, itemMap["id"], "Must not be zero after inserting")
 
 	itemStruct := struct {
-		ID int `db:"id,omitempty"`
+		ID   int    `db:"id,omitempty"`
 		Name string `db:"name"`
 	}{
 		0,
@@ -196,7 +225,7 @@ func TestInsertReturningWithinTransaction(t *testing.T) {
 	assert.Equal(t, uint64(2), count, "Expecting 2 elements")
 
 	itemStruct2 := struct {
-		ID int `db:"id,omitempty"`
+		ID   int    `db:"id,omitempty"`
 		Name string `db:"name"`
 	}{
 		0,
@@ -362,7 +391,7 @@ func TestGetResultsOneByOne(t *testing.T) {
 
 	// Dumping into a tagged struct.
 	rowStruct2 := struct {
-		Value1 int64 `db:"id"`
+		Value1 int64  `db:"id"`
 		Value2 string `db:"name"`
 	}{}
 
@@ -402,7 +431,7 @@ func TestGetResultsOneByOne(t *testing.T) {
 
 	// Dumping into a slice of structs.
 	allRowsStruct := []struct {
-		ID   int64 `db:"id,omitempty"`
+		ID   int64  `db:"id,omitempty"`
 		Name string `db:"name"`
 	}{}
 
@@ -423,7 +452,7 @@ func TestGetResultsOneByOne(t *testing.T) {
 
 	// Dumping into a slice of tagged structs.
 	allRowsStruct2 := []struct {
-		Value1 int64 `db:"id"`
+		Value1 int64  `db:"id"`
 		Value2 string `db:"name"`
 	}{}
 
@@ -536,7 +565,7 @@ func TestUpdate(t *testing.T) {
 
 	// Defining destination struct
 	value := struct {
-		ID   int64 `db:"id,omitempty"`
+		ID   int64  `db:"id,omitempty"`
 		Name string `db:"name"`
 	}{}
 
@@ -1130,7 +1159,9 @@ func TestBatchInsertNoColumns(t *testing.T) {
 		go func() {
 			defer batch.Done()
 			for i := 0; i < totalItems; i++ {
-				value := struct{Name string `db:"name"`}{fmt.Sprintf("artist-%d", i)}
+				value := struct {
+					Name string `db:"name"`
+				}{fmt.Sprintf("artist-%d", i)}
 				batch.Values(value)
 			}
 		}()
@@ -1209,7 +1240,7 @@ func TestBuilder(t *testing.T) {
 	err := sess.Collection("artist").Truncate()
 	assert.NoError(t, err)
 
-	_, err = sess.InsertInto("artist").Values(struct{
+	_, err = sess.InsertInto("artist").Values(struct {
 		Name string `db:"name"`
 	}{"Rinko Kikuchi"}).Exec()
 	assert.NoError(t, err)
@@ -1285,7 +1316,6 @@ func TestBuilder(t *testing.T) {
 		assert.Error(t, iter.Err())
 	}
 
-
 	// Using implicit iterator.
 	q := sess.SelectFrom("artist")
 	err = q.All(&all)
@@ -1319,7 +1349,7 @@ func TestExhaustConnectionPool(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tLogf := func(format string, args... interface{}) {
+	tLogf := func(format string, args ...interface{}) {
 		tMu.Lock()
 		defer tMu.Unlock()
 		t.Logf(format, args...)
@@ -1349,7 +1379,7 @@ func TestExhaustConnectionPool(t *testing.T) {
 			// transaction lasts 3 seconds.
 			time.Sleep(time.Second * 3)
 
-			switch i%7 {
+			switch i % 7 {
 			case 0:
 				var account map[string]interface{}
 				if err := tx.Collection("artist").Find().One(&account); err != nil {
