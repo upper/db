@@ -199,7 +199,8 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 	itemT := itemV.Type()
 
 	if itemT.Kind() == reflect.Ptr {
-		// Single derefence. Just in case user passed a pointer to struct instead of a struct.
+		// Single dereference. Just in case the user passes a pointer to struct
+		// instead of a struct.
 		item = itemV.Elem().Interface()
 		itemV = reflect.ValueOf(item)
 		itemT = itemV.Type()
@@ -216,10 +217,16 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 		fv.fields = make([]string, 0, nfields)
 
 		for _, fi := range fieldMap {
-			fld := reflectx.FieldByIndexesReadOnly(itemV, fi.Index)
 
+			// Field options
+			_, tagOmitEmpty := fi.Options["omitempty"]
+			_, tagStringArray := fi.Options["stringarray"]
+			_, tagInt64Array := fi.Options["int64array"]
+			_, tagJSONB := fi.Options["jsonb"]
+
+			fld := reflectx.FieldByIndexesReadOnly(itemV, fi.Index)
 			if fld.Kind() == reflect.Ptr && fld.IsNil() {
-				if options.IncludeNil {
+				if options.IncludeNil || !tagOmitEmpty {
 					fv.fields = append(fv.fields, fi.Name)
 					fv.values = append(fv.values, fld.Interface())
 				}
@@ -227,18 +234,27 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 			}
 
 			var value interface{}
-			if _, ok := fi.Options["stringarray"]; ok {
-				value = stringArray(fld.Interface().([]string))
-			} else if _, ok := fi.Options["int64array"]; ok {
-				value = int64Array(fld.Interface().([]int64))
-			} else if _, ok := fi.Options["jsonb"]; ok {
+			switch {
+			case tagStringArray:
+				v, ok := fld.Interface().([]string)
+				if !ok {
+					return nil, nil, fmt.Errorf(`Expecting field %q to be []string (using "stringarray" tag)`, fi.Name)
+				}
+				value = stringArray(v)
+			case tagInt64Array:
+				v, ok := fld.Interface().([]int64)
+				if !ok {
+					return nil, nil, fmt.Errorf(`Expecting field %q to be []int64 (using "int64array" tag)`, fi.Name)
+				}
+				value = int64Array(v)
+			case tagJSONB:
 				value = jsonbType{fld.Interface()}
-			} else {
+			default:
 				value = fld.Interface()
 			}
 
 			if !options.IncludeZeroed {
-				if _, ok := fi.Options["omitempty"]; ok {
+				if tagOmitEmpty {
 					if t, ok := fld.Interface().(hasIsZero); ok {
 						if t.IsZero() {
 							continue
