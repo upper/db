@@ -15,6 +15,10 @@ import (
 	"upper.io/db.v2/lib/reflectx"
 )
 
+type hasIsZero interface {
+	IsZero() bool
+}
+
 type hasArguments interface {
 	Arguments() []interface{}
 }
@@ -215,7 +219,11 @@ func Map(item interface{}) ([]string, []interface{}, error) {
 			}
 
 			if _, ok := fi.Options["omitempty"]; ok {
-				if value == fi.Zero.Interface() {
+				if t, ok := fld.Interface().(hasIsZero); ok {
+					if t.IsZero() {
+						continue
+					}
+				} else if value == fi.Zero.Interface() {
 					continue
 				}
 			}

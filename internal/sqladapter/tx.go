@@ -31,8 +31,10 @@ import (
 
 // Tx represents a database session within a transaction.
 type DatabaseTx interface {
-	Database
+	BaseDatabase
 	BaseTx
+
+	PartialDatabase
 }
 
 // BaseTx defines methods to be implemented by a transaction.

@@ -6,8 +6,6 @@ DB_NAME 		?= upperio_tests
 DB_PASSWORD ?= upperio_secret
 DB_PORT 		?= 27017
 
-BENCHTIME ?= 10s
-
 export DB_HOST
 export DB_PORT
 export DB_NAME
@@ -32,6 +30,3 @@ reset-db: require-client
 
 test: reset-db
 	go test -v
-
-bench: reset-db
-	go test -v -test.bench=. -test.benchtime=$(BENCHTIME) -benchmem

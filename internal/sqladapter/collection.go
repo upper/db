@@ -85,12 +85,12 @@ func (c *collection) InsertReturning(item interface{}) error {
 		if err != nil {
 			return err
 		}
-		defer tx.Close()
+		defer tx.(Database).Close()
 	}
 
 	var res db.Result
 
-	col := tx.Collection(c.p.Name())
+	col := tx.(Database).Collection(c.p.Name())
 
 	id, err := col.Insert(item)
 	if err != nil {
