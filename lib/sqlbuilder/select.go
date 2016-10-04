@@ -293,6 +293,9 @@ func (qs *selector) QueryRow() (*sql.Row, error) {
 }
 
 func (qs *selector) Iterator() Iterator {
+	if qs.columns == nil {
+		return &iterator{nil, errors.New("invalid select query")}
+	}
 	rows, err := qs.builder.sess.StatementQuery(qs.statement(), qs.arguments...)
 	return &iterator{rows, err}
 }
