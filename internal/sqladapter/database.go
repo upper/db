@@ -281,9 +281,8 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 }
 
 // StatementQuery compiles and executes a statement that returns rows.
-func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
+func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (rows *sql.Rows, err error) {
 	var query string
-	var err error
 
 	if db.Conf.LoggingEnabled() {
 		defer func(start time.Time) {
@@ -304,14 +303,14 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (*s
 		return nil, err
 	}
 
-	return p.Query(args...)
+	rows, err = p.Query(args...)
+	return
 }
 
 // StatementQueryRow compiles and executes a statement that returns at most one
 // row.
-func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
+func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) (row *sql.Row, err error) {
 	var query string
-	var err error
 
 	if db.Conf.LoggingEnabled() {
 		defer func(start time.Time) {
@@ -332,7 +331,8 @@ func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) 
 		return nil, err
 	}
 
-	return p.QueryRow(args...), nil
+	row, err = p.QueryRow(args...), nil
+	return
 }
 
 // Driver returns the underlying *sql.DB or *sql.Tx instance.
