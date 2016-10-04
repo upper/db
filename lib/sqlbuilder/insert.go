@@ -2,6 +2,7 @@ package sqlbuilder
 
 import (
 	"database/sql"
+	"errors"
 
 	"upper.io/db.v2/internal/sqladapter/exql"
 )
@@ -47,6 +48,9 @@ func (qi *inserter) Returning(columns ...string) Inserter {
 }
 
 func (qi *inserter) Exec() (sql.Result, error) {
+	if qi.values == nil || len(qi.values) == 0 {
+		return nil, errors.New("no values given")
+	}
 	return qi.builder.sess.StatementExec(qi.statement(), qi.arguments...)
 }
 

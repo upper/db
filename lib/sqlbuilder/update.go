@@ -2,6 +2,7 @@ package sqlbuilder
 
 import (
 	"database/sql"
+	"errors"
 
 	"upper.io/db.v2/internal/sqladapter/exql"
 )
@@ -57,6 +58,9 @@ func (qu *updater) Where(terms ...interface{}) Updater {
 }
 
 func (qu *updater) Exec() (sql.Result, error) {
+	if qu.columnValues == nil || len(qu.columnValues.ColumnValues) == 0 {
+		return nil, errors.New("no column values given")
+	}
 	return qu.builder.sess.StatementExec(qu.statement(), qu.arguments...)
 }
 
