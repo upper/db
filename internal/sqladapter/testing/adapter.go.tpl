@@ -1370,7 +1370,7 @@ func TestBuilder(t *testing.T) {
 	assert.NotZero(t, all)
 }
 
-func TestExhaustConnectionPool(t *testing.T) {
+func TestExhaustConnectionPoolWithTransactions(t *testing.T) {
 	if Adapter == "ql" {
 		t.Skip("Currently not supported.")
 	}
@@ -1402,7 +1402,7 @@ func TestExhaustConnectionPool(t *testing.T) {
 
 			// Requesting a new transaction session.
 			start := time.Now()
-			tLogf("Tx: %d: NewTx")
+			tLogf("Tx: %d: NewTx", i)
 			tx, err := sess.NewTx()
 			if err != nil {
 				tFatal(err)

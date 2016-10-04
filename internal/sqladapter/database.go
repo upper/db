@@ -2,6 +2,7 @@ package sqladapter
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"math"
 	"strconv"
 	"sync"
@@ -12,6 +13,15 @@ import (
 	"upper.io/db.v2/internal/cache"
 	"upper.io/db.v2/internal/sqladapter/exql"
 	"upper.io/db.v2/lib/sqlbuilder"
+)
+
+var (
+	maxQueryRetryAttempts = 2 // Each retry adds a max wait time of maxConnectionRetryTime
+
+	minConnectionRetryInterval = time.Millisecond * 10
+	maxConnectionRetryInterval = time.Millisecond * 500
+
+	maxConnectionRetryTime = time.Second * 10
 )
 
 var (
@@ -90,6 +100,8 @@ type database struct {
 	PartialDatabase
 	baseTx BaseTx
 
+	recoverFromErrMu sync.Mutex
+
 	collectionMu sync.Mutex
 	databaseMu   sync.Mutex
 
@@ -166,6 +178,38 @@ func (d *database) BindSession(sess *sql.DB) error {
 	d.name = name
 
 	return nil
+}
+
+// recoverFromErr attempts to reestablish a connection after a temporary error.
+func (d *database) recoverFromErr(err error) error {
+	d.recoverFromErrMu.Lock()
+	defer d.recoverFromErrMu.Unlock()
+
+	if d.Transaction() != nil {
+		// Don't even attempt to recover from within a transaction.
+		return err
+	}
+
+	waitTime := minConnectionRetryInterval
+
+	// Attempt to stablish a new connection using the current session.
+	lastErr := d.PartialDatabase.Err(err)
+	for ts := time.Now(); time.Now().Sub(ts) < maxConnectionRetryTime; {
+		switch lastErr {
+		case nil:
+			return nil
+		case db.ErrTooManyClients, db.ErrServerRefusedConnection, driver.ErrBadConn:
+			time.Sleep(waitTime)
+			if waitTime < maxConnectionRetryInterval {
+				waitTime = waitTime * 2
+			}
+		default:
+			break // Other error we don't know how to deal with.
+		}
+		lastErr = d.PartialDatabase.Err(d.Ping())
+	}
+
+	return err
 }
 
 // Ping checks whether a connection to the database is still alive by pinging
@@ -271,12 +315,20 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 		return nil, err
 	}
 
-	if execer, ok := d.PartialDatabase.(HasStatementExec); ok {
-		res, err = execer.StatementExec(p, args...)
-		return
+	for i := 0; i < maxQueryRetryAttempts; i++ {
+		if execer, ok := d.PartialDatabase.(HasStatementExec); ok {
+			res, err = execer.StatementExec(p, args...)
+		} else {
+			res, err = p.Exec(args...)
+		}
+		if err == nil {
+			return
+		}
+		if err = d.recoverFromErr(err); err != nil {
+			return
+		}
 	}
 
-	res, err = p.Exec(args...)
 	return
 }
 
@@ -303,7 +355,16 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (ro
 		return nil, err
 	}
 
-	rows, err = p.Query(args...)
+	for i := 0; i < maxQueryRetryAttempts; i++ {
+		rows, err = p.Query(args...)
+		if err == nil {
+			return
+		}
+		if err = d.recoverFromErr(err); err != nil {
+			return
+		}
+	}
+
 	return
 }
 
@@ -353,7 +414,6 @@ func (d *database) prepareStatement(stmt *exql.Statement) (*sql.Stmt, string, er
 	}
 
 	pc, ok := d.cachedStatements.ReadRaw(stmt)
-
 	if ok {
 		// The statement was cached.
 		ps := pc.(*cachedStatement)
@@ -394,21 +454,22 @@ func (d *database) WaitForConnection(connectFn func() error) error {
 	defer waitForConnMu.Unlock()
 
 	// Minimum waiting time.
-	waitTime := time.Millisecond * 10
+	waitTime := minConnectionRetryInterval
 
 	// Waitig 5 seconds for a successful connection.
-	for timeStart := time.Now(); time.Now().Sub(timeStart) < time.Second*5; {
+	for timeStart := time.Now(); time.Now().Sub(timeStart) < maxConnectionRetryTime; {
 		err := connectFn()
 		if err == nil {
 			return nil // Connected!
 		}
 
 		// Only attempt to reconnect if the error is too many clients.
-		if d.PartialDatabase.Err(err) == db.ErrTooManyClients {
-			// Sleep and try again if, and only if, the server replied with a "too
-			// many clients" error.
+		switch d.PartialDatabase.Err(err) {
+		case db.ErrTooManyClients, db.ErrServerRefusedConnection, driver.ErrBadConn:
+			// Sleep and try again if, and only if, the server replied with a
+			// temporary error.
 			time.Sleep(waitTime)
-			if waitTime < time.Millisecond*500 {
+			if waitTime < maxConnectionRetryInterval {
 				// Wait a bit more next time.
 				waitTime = waitTime * 2
 			}
