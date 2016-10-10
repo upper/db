@@ -325,6 +325,22 @@ func TestInsertIntoArtistsTable(t *testing.T) {
 	count, err := artist.Find().Count()
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(4), count)
+
+	count, err = artist.Find(db.Cond{"name": "Ozzie"}).Count()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(1), count)
+
+	count, err = artist.Find(db.Or(db.Cond{"name": "Ozzie"}, db.Cond{"name": "Flea"})).Count()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(2), count)
+
+	count, err = artist.Find(db.And(db.Cond{"name": "Ozzie"}, db.Cond{"name": "Flea"})).Count()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(0), count)
+
+	count, err = artist.Find(db.Cond{"name": "Ozzie"}).And(db.Cond{"name": "Flea"}).Count()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(0), count)
 }
 
 func TestQueryNonExistentCollection(t *testing.T) {
