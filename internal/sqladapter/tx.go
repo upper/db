@@ -29,7 +29,7 @@ import (
 	"upper.io/db.v2/lib/sqlbuilder"
 )
 
-// Tx represents a database session within a transaction.
+// DatabaseTx represents a database session within a transaction.
 type DatabaseTx interface {
 	BaseDatabase
 	BaseTx
@@ -98,6 +98,7 @@ func (t *txWrapper) Rollback() error {
 	return t.BaseTx.Rollback()
 }
 
+// RunTx creates a transaction context and runs fn within it.
 func RunTx(d sqlbuilder.Database, fn func(tx sqlbuilder.Tx) error) error {
 	tx, err := d.NewTx()
 	if err != nil {

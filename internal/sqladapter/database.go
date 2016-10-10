@@ -19,7 +19,8 @@ var (
 	lastTxID   uint64
 )
 
-// HasCleanUp
+// HasCleanUp is implemented by structs that have a clean up routine that needs
+// to be called before Close().
 type HasCleanUp interface {
 	CleanUp() error
 }
@@ -257,8 +258,8 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 					status.RowsAffected = &rowsAffected
 				}
 
-				if lastInsertId, err := res.LastInsertId(); err == nil {
-					status.LastInsertID = &lastInsertId
+				if lastInsertID, err := res.LastInsertId(); err == nil {
+					status.LastInsertID = &lastInsertID
 				}
 			}
 
