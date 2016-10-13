@@ -25,7 +25,7 @@ import (
 	"errors"
 )
 
-// Shared error messages.
+// Error messages.
 var (
 	ErrNoMoreRows               = errors.New(`upper: no more rows in this result set`)
 	ErrNotConnected             = errors.New(`upper: you're currently not connected`)

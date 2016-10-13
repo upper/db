@@ -1370,6 +1370,34 @@ func TestBuilder(t *testing.T) {
 	assert.NotZero(t, all)
 }
 
+func TestStressPreparedStatementCache(t *testing.T) {
+	sess := mustOpen()
+	defer sess.Close()
+
+	var tMu sync.Mutex
+	tFatal := func(err error) {
+		tMu.Lock()
+		defer tMu.Unlock()
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+
+	for i := 1; i < 1000; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			res := sess.Collection("artist").Find().Select(db.Raw(fmt.Sprintf("COUNT(%d)", i%5)))
+			var data map[string]interface{}
+			if err := res.One(&data); err != nil {
+				tFatal(err)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+}
+
 func TestExhaustConnectionPool(t *testing.T) {
 	if Adapter == "ql" {
 		t.Skip("Currently not supported.")

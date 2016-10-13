@@ -19,12 +19,12 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Package db provides a common interface to work with different data sources
-// using adapters that wrap mature database drivers.
+// Package db (or upper-db) provides a common interface to work with different
+// data sources using adapters that wrap mature database drivers.
 //
-// The main purpose of db is to abstract common database operations and
+// The main purpose of upper-db is to abstract common database operations and
 // encourage users perform advanced operations directly using the underlying
-// driver.  db supports the MySQL, PostgreSQL, SQLite and QL databases and
+// driver. upper-db supports the MySQL, PostgreSQL, SQLite and QL databases and
 // provides partial support (CRUD, no transactions) for MongoDB.
 //
 //  go get upper.io/db.v2
@@ -73,7 +73,7 @@
 //  }
 //
 // See more usage examples and documentation for users at
-// http://beta.upper.io/db.v2.
+// https://upper.io/db.v2.
 package db // import "upper.io/db.v2"
 
 import (
@@ -82,22 +82,38 @@ import (
 	"time"
 )
 
-// Constraint interface represents a condition.
+// Constraint interface represents a single condition, like "a = 1".  where `a`
+// is the key and `1` is the value. This is an exported interface but it's
+// rarely used directly, you may want to use the `db.Cond{}` map instead.
 type Constraint interface {
+	// Key is the leftmost part of the constraint and usually contains a column
+	// name.
 	Key() interface{}
+
+	// Value if the rightmost part of the constraint and usually contains a
+	// column value.
 	Value() interface{}
 }
 
-// Constraints interface represents an array of constraints.
+// Constraints interface represents an array or constraints, like "a = 1, b =
+// 2, c = 3".
 type Constraints interface {
+	// Constraints returns an array of constraints.
 	Constraints() []Constraint
 }
 
-// Compound represents an statement that has one or many sentences joined by a
-// compound operator, like AND or OR.
+// Compound represents an statement that has one or many sentences joined by by
+// an operator like "AND" or "OR". This is an exported interface but it's
+// rarely used directly, you may want to use the `db.And()` or `db.Or()`
+// functions instead.
 type Compound interface {
+	// Sentences returns child sentences.
 	Sentences() []Compound
+
+	// Operator returns the operator that joins the compound's child sentences.
 	Operator() CompoundOperator
+
+	// Empty returns true if the compound has zero children, false otherwise.
 	Empty() bool
 }
 
@@ -111,34 +127,49 @@ const (
 	OperatorOr
 )
 
-// RawValue interface represents values that can bypass SQL filters. Use with
-// care.
+// RawValue interface represents values that can bypass SQL filters. This is an
+// exported interface but it's rarely used directly, you may want to use
+// the `db.Raw()` function instead.
 type RawValue interface {
 	fmt.Stringer
 	Compound
+
+	// Raw returns the string representation of the value that the user wants to
+	// pass without any escaping.
 	Raw() string
+
+	// Arguments returns the arguments to be replaced on the query.
 	Arguments() []interface{}
 }
 
 // Function interface defines methods for representing database functions.
+// This is an exported interface but it's rarely used directly, you may want to
+// use the `db.Func()` function instead.
 type Function interface {
+	// Name returns the function name.
 	Name() string
+
+	// Argument returns the function arguments.
 	Arguments() []interface{}
 }
 
-// Marshaler is the interface implemented by struct fields that can marshal
-// themselves into a value that can be saved to a database.
+// Marshaler is the interface implemented by struct fields that can transform
+// themselves into values that can be stored on a database.
 type Marshaler interface {
+	// MarshalDB returns the internal database representation of the Go value.
 	MarshalDB() (interface{}, error)
 }
 
-// Unmarshaler is the interface implemented by struct fields that can unmarshal
-// themselves from database data into a Go value.
+// Unmarshaler is the interface implemented by struct fields that can transform
+// themselves from stored database values into Go values.
 type Unmarshaler interface {
+	// UnmarshalDB receives an internal database representation of a value and
+	// must transform that into a Go value.
 	UnmarshalDB(interface{}) error
 }
 
-// Cond is a map that defines conditions for a query.
+// Cond is a map that defines conditions for a query and satisfies the
+// Constraints and Compound interfaces.
 //
 // Each entry of the map represents a condition (a column-value relation bound
 // by a comparison operator). The comparison operator is optional and can be
@@ -155,7 +186,8 @@ type Unmarshaler interface {
 //  // Where id is in a list of ids.
 //  db.Cond{"id IN": []{1, 2, 3}}
 //
-//  // Where age is lower than 18 (mongodb-like operator).
+//  // Where age is lower than 18 (you could use this syntax when using
+//  // mongodb).
 //  db.Cond{"age $lt": 18}
 //
 //  // Where age > 32 and age < 35
@@ -253,7 +285,7 @@ func (c *compound) push(a ...Compound) *compound {
 	return c
 }
 
-// Union represents an OR compound.
+// Union represents a compound joined by OR.
 type Union struct {
 	*compound
 }
@@ -285,7 +317,7 @@ func (a *Intersection) Empty() bool {
 	return a.compound.Empty()
 }
 
-// Intersection represents an AND compound.
+// Intersection represents a compound joined by AND.
 type Intersection struct {
 	*compound
 }
@@ -313,7 +345,7 @@ func NewConstraint(key interface{}, value interface{}) Constraint {
 	return constraint{k: key, v: value}
 }
 
-// Func represents a database function.
+// Func represents a database function and satisfies the db.Function interface.
 //
 // Examples:
 //
@@ -398,6 +430,8 @@ func Or(conds ...Compound) *Union {
 //
 //	// SOUNDEX('Hello')
 //	Raw("SOUNDEX('Hello')")
+//
+// Raw returns a value that satifies the db.RawValue interface.
 func Raw(value string, args ...interface{}) RawValue {
 	r := rawValue{v: value, a: nil}
 	if len(args) > 0 {
@@ -460,23 +494,24 @@ type Tx interface {
 // Collection is an interface that defines methods useful for handling tables.
 type Collection interface {
 	// Insert inserts a new item into the collection, it accepts one argument
-	// that can be either a map or a struct. When the call is successful, it
-	// returns the ID of the newly added element as an interface (the underlying
-	// type of this ID depends on the database adapter). The ID returned by
-	// Insert() can be passed directly to Find() in order to retrieve the newly
-	// added element.
+	// that can be either a map or a struct. If the call suceeds, it returns the
+	// ID of the newly added element as an `interface{}` (the underlying type of
+	// this ID is unknown and depends on the database adapter). The ID returned
+	// by Insert() could be passed directly to Find() to retrieve the newly added
+	// element.
 	Insert(interface{}) (interface{}, error)
 
 	// InsertReturning is like Insert() but it updates the passed pointer to map
-	// or struct with the newly inserted element. This is all done automically
-	// within a transaction. If the database does not support transactions this
-	// method returns db.ErrUnsupported.
+	// or struct with the newly inserted element (and with automatic fields, like
+	// IDs, timestamps, etc). This is all done atomically within a transaction.
+	// If the database does not support transactions this method returns
+	// db.ErrUnsupported.
 	InsertReturning(interface{}) error
 
-	// Exists returns true if the collection exists.
+	// Exists returns true if the collection exists, false otherwise.
 	Exists() bool
 
-	// Find returns a result set with the given filters.
+	// Find defines a new result set with elements from the collection.
 	Find(...interface{}) Result
 
 	// Truncate removes all elements on the collection and resets the
@@ -511,7 +546,7 @@ type Result interface {
 	// set.
 	Select(...interface{}) Result
 
-	// Where discards the initial filtering conditions and sets new ones.
+	// Where resets the initial filtering conditions and sets new ones.
 	Where(...interface{}) Result
 
 	// Group is used to group results that have the same value in the same column
@@ -551,29 +586,28 @@ type Result interface {
 	// using All().
 	All(sliceOfStructs interface{}) error
 
-	// Close closes the result set.
+	// Close closes the result set and frees all locked resources.
 	Close() error
 }
 
-// ConnectionURL represents a connection string
+// ConnectionURL represents a connection string.
 type ConnectionURL interface {
 	// String returns the connection string that is going to be passed to the
 	// adapter.
 	String() string
 }
 
-// Ensure interface compatibility
+// Default limits for database/sql limit methods.
+var (
+	DefaultConnMaxLifetime = time.Duration(0) // 0 means reuse forever.
+	DefaultMaxIdleConns    = 10               // Keep 10 idle connections.
+	DefaultMaxOpenConns    = 0                // 0 means unlimited.
+)
+
 var (
 	_ Function    = &dbFunc{}
 	_ Constraints = Cond{}
 	_ Compound    = Cond{}
 	_ Constraint  = &constraint{}
 	_ RawValue    = &rawValue{}
-)
-
-// Default limits for database/sql limit methods.
-var (
-	DefaultConnMaxLifetime = time.Duration(0) // 0 means reuse forever.
-	DefaultMaxIdleConns    = 10               // Keep 10 idle connections.
-	DefaultMaxOpenConns    = 0                // 0 means unlimited.
 )
