@@ -1381,21 +1381,21 @@ func TestStressPreparedStatementCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-  var wg sync.WaitGroup
+	var wg sync.WaitGroup
 
-  for i := 1; i < 1000; i++ {
-    wg.Add(1)
-    go func(i int) {
-      defer wg.Done()
-      res := sess.Collection("artist").Find().Select(db.Raw(fmt.Sprintf("COUNT(%d)", i%5)))
-      var data map[string]interface{}
-      if err := res.One(&data); err != nil {
-        tFatal(err)
-      }
-    }(i)
-  }
+	for i := 1; i < 1000; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			res := sess.Collection("artist").Find().Select(db.Raw(fmt.Sprintf("COUNT(%d)", i%5)))
+			var data map[string]interface{}
+			if err := res.One(&data); err != nil {
+				tFatal(err)
+			}
+		}(i)
+	}
 
-  wg.Wait()
+	wg.Wait()
 }
 
 func TestExhaustConnectionPool(t *testing.T) {
