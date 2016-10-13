@@ -359,7 +359,7 @@ func (d *database) prepareStatement(stmt *exql.Statement) (*Stmt, string, error)
 	pc, ok := d.cachedStatements.ReadRaw(stmt)
 	if ok {
 		// The statement was cached.
-		ps := pc.(*Stmt).open()
+		ps := pc.(*Stmt).Open()
 		return ps, ps.query, nil
 	}
 
@@ -376,7 +376,7 @@ func (d *database) prepareStatement(stmt *exql.Statement) (*Stmt, string, error)
 		return nil, query, err
 	}
 
-	p := newCachedStatement(sqlStmt, query)
+	p := NewStatement(sqlStmt, query)
 	d.cachedStatements.Write(stmt, p)
 	return p, query, nil
 }
