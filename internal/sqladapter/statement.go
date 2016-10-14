@@ -2,8 +2,22 @@ package sqladapter
 
 import (
 	"database/sql"
+	"sync"
 	"sync/atomic"
 )
+
+var (
+	statements   = make(map[*Stmt]bool)
+	statementsMu sync.Mutex
+)
+
+// NumActiveStatements returns the number of prepared statements in use at any
+// point.
+func NumActiveStatements() int {
+	statementsMu.Lock()
+	defer statementsMu.Unlock()
+	return len(statements)
+}
 
 // Stmt represents a *sql.Stmt that is cached and provides the
 // OnPurge method to allow it to clean after itself.
@@ -18,11 +32,15 @@ type Stmt struct {
 
 // NewStatement creates an returns an opened statement
 func NewStatement(stmt *sql.Stmt, query string) *Stmt {
-	return &Stmt{
+	s := &Stmt{
 		Stmt:  stmt,
 		query: query,
 		count: 1,
 	}
+	statementsMu.Lock()
+	statements[s] = true
+	statementsMu.Unlock()
+	return s
 }
 
 // Open marks the statement as in-use
@@ -41,6 +59,10 @@ func (c *Stmt) Close() {
 	if atomic.LoadInt32(&c.dead) > 0 {
 		// Statement is dead and we can close it for real.
 		c.Stmt.Close()
+
+		statementsMu.Lock()
+		delete(statements, c)
+		statementsMu.Unlock()
 	}
 }
 
@@ -49,4 +71,6 @@ func (c *Stmt) OnPurge() {
 	// Mark as dead, you can continue using it but it will be closed for real
 	// when c.count reaches 0.
 	atomic.StoreInt32(&c.dead, 1)
+	// Call Close again to make sure we're closing the statement.
+	c.Close()
 }
