@@ -56,7 +56,6 @@ func (c *Stmt) Close() {
 		// close it for real.
 		return
 	}
-	return
 	if atomic.LoadInt32(&c.dead) > 0 {
 		// Statement is dead and we can close it for real.
 		c.Stmt.Close()
