@@ -2,21 +2,17 @@ package sqladapter
 
 import (
 	"database/sql"
-	"sync"
 	"sync/atomic"
 )
 
 var (
-	statements   = make(map[*Stmt]bool)
-	statementsMu sync.Mutex
+	activeStatements int64
 )
 
 // NumActiveStatements returns the number of prepared statements in use at any
 // point.
-func NumActiveStatements() int {
-	statementsMu.Lock()
-	defer statementsMu.Unlock()
-	return len(statements)
+func NumActiveStatements() int64 {
+	return atomic.LoadInt64(&activeStatements)
 }
 
 // Stmt represents a *sql.Stmt that is cached and provides the
@@ -37,9 +33,8 @@ func NewStatement(stmt *sql.Stmt, query string) *Stmt {
 		query: query,
 		count: 1,
 	}
-	statementsMu.Lock()
-	statements[s] = true
-	statementsMu.Unlock()
+	// Increment active statements counter.
+	atomic.AddInt64(&activeStatements, 1)
 	return s
 }
 
@@ -59,10 +54,8 @@ func (c *Stmt) Close() {
 	if atomic.LoadInt32(&c.dead) > 0 {
 		// Statement is dead and we can close it for real.
 		c.Stmt.Close()
-
-		statementsMu.Lock()
-		delete(statements, c)
-		statementsMu.Unlock()
+		// Reduce active statements counter.
+		atomic.AddInt64(&activeStatements, -1)
 	}
 }
 
