@@ -17,6 +17,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"upper.io/db.v2"
+	"upper.io/db.v2/internal/sqladapter"
 	"upper.io/db.v2/lib/sqlbuilder"
 )
 
@@ -73,6 +74,48 @@ func TestOpenMustSucceed(t *testing.T) {
 
 	err = sess.Close()
 	assert.NoError(t, err)
+}
+
+func TestPreparedStatementsCache(t *testing.T) {
+	sess, err := Open(settings)
+	assert.NoError(t, err)
+	defer sess.Close()
+
+	var tMu sync.Mutex
+	tFatal := func(err error) {
+		tMu.Lock()
+		defer tMu.Unlock()
+		t.Fatal(err)
+	}
+
+	// The max number of elements we can have on our LRU is 128, if an statement
+	// is evicted it will be marked as dead and will be closed only when no other
+	// queries are using it.
+	const maxPreparedStatements = 128 * 2
+
+	var wg sync.WaitGroup
+	for i := 0; i < 500; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			// This query is different with each iteration and thus generates a new
+			// prepared statement everytime it's called.
+			res := sess.Collection("artist").Find().Select(db.Raw(fmt.Sprintf("COUNT(%d)", i)))
+			var count map[string]uint64
+			err := res.One(&count)
+			if err != nil {
+				tFatal(err)
+			}
+			if sqladapter.NumActiveStatements() > maxPreparedStatements {
+				tFatal(fmt.Errorf("The number of active statements cannot exceed %d.", maxPreparedStatements))
+			}
+		}(i)
+		if i%maxPreparedStatements == 0 {
+			wg.Wait()
+		}
+	}
+
+	wg.Wait()
 }
 
 func TestTruncateAllCollections(t *testing.T) {
