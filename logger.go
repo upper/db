@@ -1,3 +1,24 @@
+// Copyright (c) 2012-present The upper.io/db authors. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 package db
 
 import (
@@ -24,7 +45,7 @@ var (
 	reColumnCompareExclude = regexp.MustCompile(`[^a-zA-Z0-9]`)
 )
 
-// QueryStatus represents a query after being executed.
+// QueryStatus represents the status of a query after being executed.
 type QueryStatus struct {
 	SessID uint64
 	TxID   uint64
@@ -41,41 +62,42 @@ type QueryStatus struct {
 	End   time.Time
 }
 
+// String returns a formatted log message.
 func (q *QueryStatus) String() string {
-	s := make([]string, 0, 8)
+	lines := make([]string, 0, 8)
 
 	if q.SessID > 0 {
-		s = append(s, fmt.Sprintf(fmtLogSessID, q.SessID))
+		lines = append(lines, fmt.Sprintf(fmtLogSessID, q.SessID))
 	}
 
 	if q.TxID > 0 {
-		s = append(s, fmt.Sprintf(fmtLogTxID, q.TxID))
+		lines = append(lines, fmt.Sprintf(fmtLogTxID, q.TxID))
 	}
 
-	if qry := q.Query; qry != "" {
-		qry = reInvisibleChars.ReplaceAllString(qry, ` `)
-		qry = strings.TrimSpace(qry)
-		s = append(s, fmt.Sprintf(fmtLogQuery, qry))
+	if query := q.Query; query != "" {
+		query = reInvisibleChars.ReplaceAllString(query, ` `)
+		query = strings.TrimSpace(query)
+		lines = append(lines, fmt.Sprintf(fmtLogQuery, query))
 	}
 
 	if len(q.Args) > 0 {
-		s = append(s, fmt.Sprintf(fmtLogArgs, q.Args))
+		lines = append(lines, fmt.Sprintf(fmtLogArgs, q.Args))
 	}
 
 	if q.RowsAffected != nil {
-		s = append(s, fmt.Sprintf(fmtLogRowsAffected, *q.RowsAffected))
+		lines = append(lines, fmt.Sprintf(fmtLogRowsAffected, *q.RowsAffected))
 	}
 	if q.LastInsertID != nil {
-		s = append(s, fmt.Sprintf(fmtLogLastInsertID, *q.LastInsertID))
+		lines = append(lines, fmt.Sprintf(fmtLogLastInsertID, *q.LastInsertID))
 	}
 
 	if q.Err != nil {
-		s = append(s, fmt.Sprintf(fmtLogError, q.Err))
+		lines = append(lines, fmt.Sprintf(fmtLogError, q.Err))
 	}
 
-	s = append(s, fmt.Sprintf(fmtLogTimeTaken, float64(q.End.UnixNano()-q.Start.UnixNano())/float64(1e9)))
+	lines = append(lines, fmt.Sprintf(fmtLogTimeTaken, float64(q.End.UnixNano()-q.Start.UnixNano())/float64(1e9)))
 
-	return strings.Join(s, "\n")
+	return strings.Join(lines, "\n")
 }
 
 // EnvEnableDebug can be used by adapters to determine if the user has enabled
@@ -94,15 +116,9 @@ const (
 	EnvEnableDebug = `UPPERIO_DB_DEBUG`
 )
 
-func init() {
-	if envEnabled(EnvEnableDebug) {
-		Conf.SetLogging(true)
-	}
-}
-
 // Logger represents a logging collector. You can pass a logging collector to
 // db.Conf.SetLogger(myCollector) to make it collect db.QueryStatus messages
-// after every query.
+// after executing a query.
 type Logger interface {
 	Log(*QueryStatus)
 }
@@ -119,4 +135,10 @@ func (lg *defaultLogger) Log(m *QueryStatus) {
 	log.Printf("\n\t%s\n\n", strings.Replace(m.String(), "\n", "\n\t", -1))
 }
 
-var _ = Logger(&defaultLogger{})
+var _ Logger = &defaultLogger{}
+
+func init() {
+	if envEnabled(EnvEnableDebug) {
+		Conf.SetLogging(true)
+	}
+}

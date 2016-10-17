@@ -15,6 +15,7 @@ import (
 	"upper.io/db.v2/lib/reflectx"
 )
 
+// MapOptions represents options for the mapper.
 type MapOptions struct {
 	IncludeZeroed bool
 	IncludeNil    bool

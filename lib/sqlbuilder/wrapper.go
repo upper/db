@@ -69,6 +69,8 @@ type Database interface {
 	Tx(fn func(sess Tx) error) error
 }
 
+// AdapterFuncMap is a struct that defines a set of functions that adapters
+// need to provide.
 type AdapterFuncMap struct {
 	New   func(sqlDB *sql.DB) (Database, error)
 	NewTx func(sqlTx *sql.Tx) (Tx, error)
@@ -108,14 +110,17 @@ func adapter(name string) AdapterFuncMap {
 	return missingAdapter(name)
 }
 
+// Open opens a SQL database.
 func Open(adapterName string, settings db.ConnectionURL) (Database, error) {
 	return adapter(adapterName).Open(settings)
 }
 
+// New wraps an active *sql.DB session.
 func New(adapterName string, sqlDB *sql.DB) (Database, error) {
 	return adapter(adapterName).New(sqlDB)
 }
 
+// NewTx wraps an active *sql.Tx transation.
 func NewTx(adapterName string, sqlTx *sql.Tx) (Tx, error) {
 	return adapter(adapterName).NewTx(sqlTx)
 }

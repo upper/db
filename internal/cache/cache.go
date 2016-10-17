@@ -83,8 +83,8 @@ func (c *Cache) Read(h Hashable) (string, bool) {
 // does not exists returns nil and false.
 func (c *Cache) ReadRaw(h Hashable) (interface{}, bool) {
 	c.mu.RLock()
+	defer c.mu.RUnlock()
 	data, ok := c.cache[h.Hash()]
-	c.mu.RUnlock()
 	if ok {
 		return data.Value.(*item).value, true
 	}
@@ -106,7 +106,7 @@ func (c *Cache) Write(h Hashable, value interface{}) {
 
 	c.cache[key] = c.li.PushFront(&item{key, value})
 
-	if c.li.Len() > c.capacity {
+	for c.li.Len() > c.capacity {
 		el := c.li.Remove(c.li.Back())
 		delete(c.cache, el.(*item).key)
 		if p, ok := el.(*item).value.(HasOnPurge); ok {
