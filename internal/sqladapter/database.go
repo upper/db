@@ -17,12 +17,15 @@ import (
 )
 
 var (
-	maxQueryRetryAttempts = 2 // Each retry adds a max wait time of maxConnectionRetryTime
+	// Needs to be multiplied by maxConnectionRetryTime to get the total time
+	// upper-db will use to retry before giving up and returning an error.
+	maxQueryRetryAttempts = 2
 
 	minConnectionRetryInterval = time.Millisecond * 10
 	maxConnectionRetryInterval = time.Millisecond * 500
 
-	maxConnectionRetryTime = time.Second * 10
+	// The amount of time each retry can take.
+	maxConnectionRetryTime = time.Second * 5
 )
 
 var (
@@ -186,8 +189,9 @@ func (d *database) BindSession(sess *sql.DB) error {
 	return nil
 }
 
-// recoverFromErr attempts to reestablish a connection after a temporary error,
-// returns nil if the connection was reestablished and the query can be retried.
+// recoverFromErr attempts to reestablish a connection after a recoverable
+// error (like "bad driver").  Returns nil if the connection was reestablished,
+// afther this the query can be retried.
 func (d *database) recoverFromErr(err error) error {
 	if err == nil {
 		return errNothingToRecoverFrom
@@ -207,16 +211,25 @@ func (d *database) recoverFromErr(err error) error {
 	lastErr := d.PartialDatabase.Err(err)
 	for ts := time.Now(); time.Now().Sub(ts) < maxConnectionRetryTime; {
 		switch lastErr {
-		case db.ErrTooManyClients, db.ErrServerRefusedConnection, driver.ErrBadConn:
-			time.Sleep(waitTime)
-			if waitTime < maxConnectionRetryInterval {
-				waitTime = waitTime * 2
+		// According to database/sql, this is returned by an sql driver when the
+		// connection is in bad state and it should not be returned if there's a
+		// possibility that the database server might have performed the operation.
+		case driver.ErrBadConn:
+			time.Sleep(waitTime)    // Wait a bit before retrying.
+			waitTime = waitTime * 2 // Double the previous waiting time.
+			if waitTime > maxConnectionRetryInterval {
+				// Won't wait more than maxConnectionRetryInterval
+				waitTime = maxConnectionRetryInterval
 			}
 		default:
-			// We don't know how to deal with this error.
+			// We don't know how to deal with this error, nor if we can recover
+			// from it, return the original error.
 			return err
 		}
 		lastErr = d.PartialDatabase.Err(d.Ping())
+		if lastErr == nil {
+			return nil // Connection was reestablished.
+		}
 	}
 
 	// Return original error
@@ -334,16 +347,18 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 			res, err = p.Exec(args...)
 		}
 		if err == nil {
-			return // successful query
+			return res, nil // successful query
 		}
 		if d.recoverFromErr(err) == nil {
-			continue // retry
+			continue // Connection was reestablished, retry.
 		}
-		return
+		// We got another error from recoverFromErr that means it could not
+		// recover.
+		return res, err
 	}
 
-	// All retry attempts failed, return res and err.
-	return
+	// All retry attempts failed.
+	return res, err
 }
 
 // StatementQuery compiles and executes a statement that returns rows.
@@ -373,17 +388,17 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (ro
 	for i := 0; i < maxQueryRetryAttempts; i++ {
 		rows, err = p.Query(args...)
 		if err == nil {
-			return // successful query
+			return rows, err // this was a successful query
 		}
 
 		if d.recoverFromErr(err) == nil {
-			continue // retry
+			continue // we can retry
 		}
-		return
+		return rows, err
 	}
 
-	// All retry attempts failed, return rows and err.
-	return
+	// All retry attempts failed.
+	return rows, err
 }
 
 // StatementQueryRow compiles and executes a statement that returns at most one
@@ -411,8 +426,8 @@ func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) 
 	}
 	defer p.Close()
 
-	row, err = p.QueryRow(args...), nil
-	return
+	row, err = p.QueryRow(args...), nil // We're setting row and err like this because they're going to be logged.
+	return row, err
 }
 
 // Driver returns the underlying *sql.DB or *sql.Tx instance.
