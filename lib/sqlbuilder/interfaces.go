@@ -175,9 +175,13 @@ type Selector interface {
 	// the Marshaler interface, then with fmt.Stringer and finally, if the
 	// argument does not satisfy any of those interfaces Where() will use
 	// fmt.Sprintf("%v", arg) to transform the type into a string.
+	//
+	// Subsequent calls to Where() will overwrite previously set conditions, if
+	// you want these new conditions to be appended use And() instead.
 	Where(conds ...interface{}) Selector
 
-	// And appends more arguments to the WHERE clause.
+	// And appends more constraints to the WHERE clause without overwriting
+	// conditions that have been already set.
 	And(conds ...interface{}) Selector
 
 	// GroupBy represents a GROUP BY statement.

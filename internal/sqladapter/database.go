@@ -29,7 +29,8 @@ var (
 	lastTxID   uint64
 )
 
-// HasCleanUp
+// HasCleanUp is implemented by structs that have a clean up routine that needs
+// to be called before Close().
 type HasCleanUp interface {
 	CleanUp() error
 }
@@ -301,8 +302,8 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 					status.RowsAffected = &rowsAffected
 				}
 
-				if lastInsertId, err := res.LastInsertId(); err == nil {
-					status.LastInsertID = &lastInsertId
+				if lastInsertID, err := res.LastInsertId(); err == nil {
+					status.LastInsertID = &lastInsertID
 				}
 			}
 
@@ -310,14 +311,15 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 		}(time.Now())
 	}
 
-	var p *sql.Stmt
+	var p *Stmt
 	if p, query, err = d.prepareStatement(stmt); err != nil {
 		return nil, err
 	}
+	defer p.Close()
 
 	for i := 0; i < maxQueryRetryAttempts; i++ {
 		if execer, ok := d.PartialDatabase.(HasStatementExec); ok {
-			res, err = execer.StatementExec(p, args...)
+			res, err = execer.StatementExec(p.Stmt, args...)
 		} else {
 			res, err = p.Exec(args...)
 		}
@@ -350,10 +352,11 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (ro
 		}(time.Now())
 	}
 
-	var p *sql.Stmt
+	var p *Stmt
 	if p, query, err = d.prepareStatement(stmt); err != nil {
 		return nil, err
 	}
+	defer p.Close()
 
 	for i := 0; i < maxQueryRetryAttempts; i++ {
 		rows, err = p.Query(args...)
@@ -387,10 +390,11 @@ func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) 
 		}(time.Now())
 	}
 
-	var p *sql.Stmt
+	var p *Stmt
 	if p, query, err = d.prepareStatement(stmt); err != nil {
 		return nil, err
 	}
+	defer p.Close()
 
 	row, err = p.QueryRow(args...), nil
 	return
@@ -408,7 +412,7 @@ func (d *database) Driver() interface{} {
 // prepareStatement converts a *exql.Statement representation into an actual
 // *sql.Stmt.  This method will attempt to used a cached prepared statement, if
 // available.
-func (d *database) prepareStatement(stmt *exql.Statement) (*sql.Stmt, string, error) {
+func (d *database) prepareStatement(stmt *exql.Statement) (*Stmt, string, error) {
 	if d.sess == nil && d.Transaction() == nil {
 		return nil, "", db.ErrNotConnected
 	}
@@ -416,28 +420,25 @@ func (d *database) prepareStatement(stmt *exql.Statement) (*sql.Stmt, string, er
 	pc, ok := d.cachedStatements.ReadRaw(stmt)
 	if ok {
 		// The statement was cached.
-		ps := pc.(*cachedStatement)
-		return ps.Stmt, ps.query, nil
+		ps := pc.(*Stmt).Open()
+		return ps, ps.query, nil
 	}
 
 	// Plain SQL query.
 	query := d.PartialDatabase.CompileStatement(stmt)
 
-	var p *sql.Stmt
-	var err error
-
-	if d.Transaction() != nil {
-		p, err = d.Transaction().(*sqlTx).Prepare(query)
-	} else {
-		p, err = d.sess.Prepare(query)
-	}
-
+	sqlStmt, err := func() (*sql.Stmt, error) {
+		if d.Transaction() != nil {
+			return d.Transaction().(*sqlTx).Prepare(query)
+		}
+		return d.sess.Prepare(query)
+	}()
 	if err != nil {
 		return nil, query, err
 	}
 
-	d.cachedStatements.Write(stmt, &cachedStatement{p, query})
-
+	p := NewStatement(sqlStmt, query)
+	d.cachedStatements.Write(stmt, p)
 	return p, query, nil
 }
 
