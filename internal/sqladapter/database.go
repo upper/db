@@ -3,6 +3,7 @@ package sqladapter
 import (
 	"database/sql"
 	"database/sql/driver"
+	"errors"
 	"math"
 	"strconv"
 	"sync"
@@ -22,6 +23,10 @@ var (
 	maxConnectionRetryInterval = time.Millisecond * 500
 
 	maxConnectionRetryTime = time.Second * 10
+)
+
+var (
+	errNothingToRecoverFrom = errors.New("Nothing to recover from")
 )
 
 var (
@@ -181,15 +186,20 @@ func (d *database) BindSession(sess *sql.DB) error {
 	return nil
 }
 
-// recoverFromErr attempts to reestablish a connection after a temporary error.
+// recoverFromErr attempts to reestablish a connection after a temporary error,
+// returns nil if the connection was reestablished and the query can be retried.
 func (d *database) recoverFromErr(err error) error {
-	d.recoverFromErrMu.Lock()
-	defer d.recoverFromErrMu.Unlock()
+	if err == nil {
+		return errNothingToRecoverFrom
+	}
 
 	if d.Transaction() != nil {
 		// Don't even attempt to recover from within a transaction.
 		return err
 	}
+
+	d.recoverFromErrMu.Lock()
+	defer d.recoverFromErrMu.Unlock()
 
 	waitTime := minConnectionRetryInterval
 
@@ -197,19 +207,19 @@ func (d *database) recoverFromErr(err error) error {
 	lastErr := d.PartialDatabase.Err(err)
 	for ts := time.Now(); time.Now().Sub(ts) < maxConnectionRetryTime; {
 		switch lastErr {
-		case nil:
-			return nil
 		case db.ErrTooManyClients, db.ErrServerRefusedConnection, driver.ErrBadConn:
 			time.Sleep(waitTime)
 			if waitTime < maxConnectionRetryInterval {
 				waitTime = waitTime * 2
 			}
 		default:
-			break // Other error we don't know how to deal with.
+			// We don't know how to deal with this error.
+			return err
 		}
 		lastErr = d.PartialDatabase.Err(d.Ping())
 	}
 
+	// Return original error
 	return err
 }
 
@@ -324,13 +334,15 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 			res, err = p.Exec(args...)
 		}
 		if err == nil {
-			return
+			return // successful query
 		}
-		if err = d.recoverFromErr(err); err != nil {
-			return
+		if d.recoverFromErr(err) == nil {
+			continue // retry
 		}
+		return
 	}
 
+	// All retry attempts failed, return res and err.
 	return
 }
 
@@ -361,13 +373,16 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (ro
 	for i := 0; i < maxQueryRetryAttempts; i++ {
 		rows, err = p.Query(args...)
 		if err == nil {
-			return
+			return // successful query
 		}
-		if err = d.recoverFromErr(err); err != nil {
-			return
+
+		if d.recoverFromErr(err) == nil {
+			continue // retry
 		}
+		return
 	}
 
+	// All retry attempts failed, return rows and err.
 	return
 }
 
