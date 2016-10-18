@@ -85,6 +85,12 @@ func (r *Result) Where(conds ...interface{}) db.Result {
 	return r
 }
 
+// And adds more conditions on top of the existing ones.
+func (r *Result) And(conds ...interface{}) db.Result {
+	r.conds = append(r.conds, conds...)
+	return r
+}
+
 // Limit determines the maximum limit of Results to be returned.
 func (r *Result) Limit(n int) db.Result {
 	r.limit = n
