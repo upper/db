@@ -94,23 +94,23 @@ func TestPreparedStatementsCache(t *testing.T) {
 	const maxPreparedStatements = 128 * 2
 
 	var wg sync.WaitGroup
-	for i := 0; i < 500; i++ {
+	for i := 0; i < 1000; i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
 			// This query is different with each iteration and thus generates a new
 			// prepared statement everytime it's called.
-			res := sess.Collection("artist").Find().Select(db.Raw(fmt.Sprintf("COUNT(%d)", i)))
+			res := sess.Collection("artist").Find().Select(db.Raw(fmt.Sprintf("count(%d)", i)))
 			var count map[string]uint64
 			err := res.One(&count)
 			if err != nil {
 				tFatal(err)
 			}
-			if sqladapter.NumActiveStatements() > maxPreparedStatements {
-				tFatal(fmt.Errorf("The number of active statements cannot exceed %d.", maxPreparedStatements))
+			if activeStatements := sqladapter.NumActiveStatements(); activeStatements > maxPreparedStatements {
+				tFatal(fmt.Errorf("The number of active statements cannot exceed %d (got %d).", maxPreparedStatements, activeStatements))
 			}
 		}(i)
-		if i%maxPreparedStatements == 0 {
+		if i%50 == 0 {
 			wg.Wait()
 		}
 	}
@@ -1192,7 +1192,7 @@ func TestUpdateWithNullColumn(t *testing.T) {
 	assert.NotEqual(t, nil, item.Name)
 	assert.Equal(t, name, *item.Name)
 
-	artist.Find(db.Cond{"id": id}).Update(Artist{Name: nil})
+	artist.Find(id).Update(Artist{Name: nil})
 	assert.NoError(t, err)
 
 	var item2 Artist
@@ -1427,34 +1427,6 @@ func TestBuilder(t *testing.T) {
 	err = q.All(&all)
 	assert.NoError(t, err)
 	assert.NotZero(t, all)
-}
-
-func TestStressPreparedStatementCache(t *testing.T) {
-	sess := mustOpen()
-	defer sess.Close()
-
-	var tMu sync.Mutex
-	tFatal := func(err error) {
-		tMu.Lock()
-		defer tMu.Unlock()
-		t.Fatal(err)
-	}
-
-	var wg sync.WaitGroup
-
-	for i := 1; i < 1000; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			res := sess.Collection("artist").Find().Select(db.Raw(fmt.Sprintf("COUNT(%d)", i%5)))
-			var data map[string]interface{}
-			if err := res.One(&data); err != nil {
-				tFatal(err)
-			}
-		}(i)
-	}
-
-	wg.Wait()
 }
 
 func TestExhaustConnectionPool(t *testing.T) {

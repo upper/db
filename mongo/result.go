@@ -77,6 +77,19 @@ func (r *result) setCursor() error {
 	return nil
 }
 
+func (r *result) And(terms ...interface{}) db.Result {
+	if r.queryChunks.Conditions == nil {
+		return r.Where(terms)
+	}
+	r.queryChunks.Conditions = map[string]interface{}{
+		"$and": []interface{}{
+			r.queryChunks.Conditions,
+			r.c.compileQuery(terms...),
+		},
+	}
+	return r
+}
+
 func (r *result) Where(terms ...interface{}) db.Result {
 	r.queryChunks.Conditions = r.c.compileQuery(terms...)
 	return r
