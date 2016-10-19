@@ -654,6 +654,45 @@ func TestUpdate(t *testing.T) {
 		b.Update("artist").Set("name", "Artist").String(),
 	)
 
+	{
+		idSlice := []int64{8, 7, 6}
+		q := b.Update("artist").Set(db.Cond{"some_column": 10}).Where(db.Cond{"id": 1}, db.Cond{"another_val": idSlice})
+		assert.Equal(
+			`UPDATE "artist" SET "some_column" = $1 WHERE ("id" = $2 AND "another_val" IN ($3, $4, $5))`,
+			q.String(),
+		)
+		assert.Equal(
+			[]interface{}{10, 1, int64(8), int64(7), int64(6)},
+			q.Arguments(),
+		)
+	}
+
+	{
+		idSlice := []int64{}
+		q := b.Update("artist").Set(db.Cond{"some_column": 10}).Where(db.Cond{"id": 1}, db.Cond{"another_val": idSlice})
+		assert.Equal(
+			`UPDATE "artist" SET "some_column" = $1 WHERE ("id" = $2 AND "another_val" IS NULL)`,
+			q.String(),
+		)
+		assert.Equal(
+			[]interface{}{10, 1},
+			q.Arguments(),
+		)
+	}
+
+	{
+		idSlice := []int64{}
+		q := b.Update("artist").Where(db.Cond{"id": 1}, db.Cond{"another_val": idSlice}).Set(db.Cond{"some_column": 10})
+		assert.Equal(
+			`UPDATE "artist" SET "some_column" = $1 WHERE ("id" = $2 AND "another_val" IS NULL)`,
+			q.String(),
+		)
+		assert.Equal(
+			[]interface{}{10, 1},
+			q.Arguments(),
+		)
+	}
+
 	assert.Equal(
 		`UPDATE "artist" SET "name" = $1 WHERE ("id" < $2)`,
 		b.Update("artist").Set("name = ?", "Artist").Where("id <", 5).String(),
@@ -669,6 +708,13 @@ func TestUpdate(t *testing.T) {
 		b.Update("artist").Set(struct {
 			Nombre string `db:"name"`
 		}{"Artist"}).Where(db.Cond{"id <": 5}).String(),
+	)
+
+	assert.Equal(
+		`UPDATE "artist" SET "name" = $1 WHERE ("id" < $2)`,
+		b.Update("artist").Where(db.Cond{"id <": 5}).Set(struct {
+			Nombre string `db:"name"`
+		}{"Artist"}).String(),
 	)
 
 	assert.Equal(

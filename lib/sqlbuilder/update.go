@@ -2,18 +2,25 @@ package sqlbuilder
 
 import (
 	"database/sql"
+	"sync"
 
 	"upper.io/db.v2/internal/sqladapter/exql"
 )
 
 type updater struct {
 	*stringer
-	builder      *sqlBuilder
-	table        string
-	columnValues *exql.ColumnValues
-	limit        int
-	where        *exql.Where
-	arguments    []interface{}
+	builder *sqlBuilder
+	table   string
+
+	columnValues     *exql.ColumnValues
+	columnValuesArgs []interface{}
+
+	limit int
+
+	where     *exql.Where
+	whereArgs []interface{}
+
+	mu sync.Mutex
 }
 
 func (qu *updater) Set(terms ...interface{}) Updater {
@@ -36,28 +43,36 @@ func (qu *updater) Set(terms ...interface{}) Updater {
 			cvs = append(cvs, cv)
 		}
 
-		args = append(args, qu.arguments...)
-
 		qu.columnValues.Insert(cvs...)
-		qu.arguments = append(qu.arguments, args...)
+		qu.columnValuesArgs = append(qu.columnValuesArgs, args...)
 	} else if len(terms) > 1 {
 		cv, arguments := qu.builder.t.ToColumnValues(terms)
 		qu.columnValues.Insert(cv.ColumnValues...)
-		qu.arguments = append(qu.arguments, arguments...)
+		qu.columnValuesArgs = append(qu.columnValuesArgs, arguments...)
 	}
 
 	return qu
 }
 
+func (qu *updater) Arguments() []interface{} {
+	qu.mu.Lock()
+	defer qu.mu.Unlock()
+
+	return joinArguments(
+		qu.columnValuesArgs,
+		qu.whereArgs,
+	)
+}
+
 func (qu *updater) Where(terms ...interface{}) Updater {
 	where, arguments := qu.builder.t.ToWhereWithArguments(terms)
 	qu.where = &where
-	qu.arguments = append(qu.arguments, arguments...)
+	qu.whereArgs = append(qu.whereArgs, arguments...)
 	return qu
 }
 
 func (qu *updater) Exec() (sql.Result, error) {
-	return qu.builder.sess.StatementExec(qu.statement(), qu.arguments...)
+	return qu.builder.sess.StatementExec(qu.statement(), qu.Arguments()...)
 }
 
 func (qu *updater) Limit(limit int) Updater {

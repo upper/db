@@ -27,6 +27,10 @@ func (qd *deleter) Limit(limit int) Deleter {
 	return qd
 }
 
+func (qd *deleter) Arguments() []interface{} {
+	return qd.arguments
+}
+
 func (qd *deleter) Exec() (sql.Result, error) {
 	return qd.builder.sess.StatementExec(qd.statement(), qd.arguments...)
 }
