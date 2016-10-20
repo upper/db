@@ -121,18 +121,14 @@ func (qs *selector) Arguments() []interface{} {
 	qs.mu.Lock()
 	defer qs.mu.Unlock()
 
-	total := len(qs.tableArgs) + len(qs.columnsArgs) + len(qs.whereArgs) + len(qs.joinsArgs) + len(qs.groupByArgs) + len(qs.orderByArgs)
-	if total == 0 {
-		return nil
-	}
-	args := make([]interface{}, 0, total)
-	args = append(args, qs.tableArgs...)
-	args = append(args, qs.columnsArgs...)
-	args = append(args, qs.joinsArgs...)
-	args = append(args, qs.whereArgs...)
-	args = append(args, qs.groupByArgs...)
-	args = append(args, qs.orderByArgs...)
-	return args
+	return joinArguments(
+		qs.tableArgs,
+		qs.columnsArgs,
+		qs.joinsArgs,
+		qs.whereArgs,
+		qs.groupByArgs,
+		qs.orderByArgs,
+	)
 }
 
 func (qs *selector) GroupBy(columns ...interface{}) Selector {
