@@ -26,33 +26,42 @@ func newTemplateWithUtils(template *exql.Template) *templateWithUtils {
 
 func expandPlaceholders(in string, args ...interface{}) (string, []interface{}) {
 	argn := 0
+	argx := make([]interface{}, 0, len(args))
 	for i := 0; i < len(in); i++ {
 		if in[i] == '?' {
-			if len(args) > argn { // we have arguments to match.
-				u := toInterfaceArguments(args[argn])
+			if len(args) > argn {
 				k := `?`
 
-				if len(u) > 1 {
-					// An array of arguments
-					k = `(?` + strings.Repeat(`, ?`, len(u)-1) + `)`
-				} else if len(u) == 1 {
-					if rawValue, ok := u[0].(db.RawValue); ok {
-						k = rawValue.Raw()
-						u = []interface{}{}
+				values, isSlice := toInterfaceArguments(args[argn])
+				if isSlice {
+					if len(values) == 0 {
+						k = `(NULL)`
+					} else {
+						k = `(?` + strings.Repeat(`, ?`, len(values)-1) + `)`
+					}
+				} else {
+					if len(values) == 1 {
+						if rawValue, ok := values[0].(db.RawValue); ok {
+							k, values = rawValue.Raw(), nil
+						}
+					} else if len(values) == 0 {
+						k = `NULL`
 					}
 				}
 
-				lk := len(k)
-				if lk > 1 {
+				if k != `?` {
 					in = in[:i] + k + in[i+1:]
 					i += len(k) - 1
 				}
-				args = append(args[:argn], append(u, args[argn+1:]...)...)
-				argn += len(u)
+
+				if len(values) > 0 {
+					argx = append(argx, values...)
+				}
+				argn++
 			}
 		}
 	}
-	return in, args
+	return in, argx
 }
 
 // ToWhereWithArguments converts the given parameters into a exql.Where
@@ -154,7 +163,7 @@ func (tu *templateWithUtils) PlaceholderValue(in interface{}) (exql.Fragment, []
 		fnName := t.Name()
 		fnArgs := []interface{}{}
 
-		args := toInterfaceArguments(t.Arguments())
+		args, _ := toInterfaceArguments(t.Arguments())
 		fragments := []string{}
 		for i := range args {
 			frag, args := tu.PlaceholderValue(args[i])
@@ -169,33 +178,30 @@ func (tu *templateWithUtils) PlaceholderValue(in interface{}) (exql.Fragment, []
 }
 
 // toInterfaceArguments converts the given value into an array of interfaces.
-func toInterfaceArguments(value interface{}) (args []interface{}) {
-	if value == nil {
-		return nil
-	}
-
+func toInterfaceArguments(value interface{}) (args []interface{}, isSlice bool) {
 	v := reflect.ValueOf(value)
 
-	switch v.Type().Kind() {
-	case reflect.Slice:
-		var i, total int
-		if v.Type().Elem().Kind() == reflect.Uint8 {
-			return []interface{}{string(value.([]byte))}
-		}
-		total = v.Len()
-		if total > 0 {
-			args = make([]interface{}, total)
-			for i = 0; i < total; i++ {
-				args[i] = v.Index(i).Interface()
-			}
-			return args
-		}
-		return nil
-	default:
-		args = []interface{}{value}
+	if value == nil {
+		return nil, false
 	}
 
-	return args
+	if v.Type().Kind() == reflect.Slice {
+		var i, total int
+
+		// Byte slice gets transformed into a string.
+		if v.Type().Elem().Kind() == reflect.Uint8 {
+			return []interface{}{string(value.([]byte))}, false
+		}
+
+		total = v.Len()
+		args = make([]interface{}, total)
+		for i = 0; i < total; i++ {
+			args[i] = v.Index(i).Interface()
+		}
+		return args, true
+	}
+
+	return []interface{}{value}, false
 }
 
 // ToColumnValues converts the given conditions into a exql.ColumnValues struct.
@@ -265,7 +271,7 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv exql.ColumnVal
 				// A function with one or more arguments.
 				fnName = fnName + "(?" + strings.Repeat("?, ", len(fnArgs)-1) + ")"
 			}
-			expanded, fnArgs := expandPlaceholders(fnName, fnArgs)
+			expanded, fnArgs := expandPlaceholders(fnName, fnArgs...)
 			columnValue.Value = exql.RawValue(expanded)
 			args = append(args, fnArgs...)
 		case db.RawValue:
@@ -273,27 +279,33 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv exql.ColumnVal
 			columnValue.Value = exql.RawValue(expanded)
 			args = append(args, rawArgs...)
 		default:
-			v := toInterfaceArguments(value)
+			v, isSlice := toInterfaceArguments(value)
 
-			if v == nil {
-				// Nil value given.
-				columnValue.Value = sqlNull
+			if isSlice {
 				if columnValue.Operator == "" {
-					columnValue.Operator = sqlIsOperator
+					columnValue.Operator = sqlInOperator
 				}
-			} else {
-				if len(v) > 1 || reflect.TypeOf(value).Kind() == reflect.Slice {
+				if len(v) > 0 {
 					// Array value given.
 					columnValue.Value = exql.RawValue(fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1)))
-					if columnValue.Operator == "" {
-						columnValue.Operator = sqlInOperator
-					}
 				} else {
 					// Single value given.
-					columnValue.Value = sqlPlaceholder
+					columnValue.Value = exql.RawValue(`(NULL)`)
 				}
 				args = append(args, v...)
+			} else {
+				if v == nil {
+					// Nil value given.
+					columnValue.Value = sqlNull
+					if columnValue.Operator == "" {
+						columnValue.Operator = sqlIsOperator
+					}
+				} else {
+					columnValue.Value = sqlPlaceholder
+					args = append(args, v...)
+				}
 			}
+
 		}
 
 		// Using guessed operator if no operator was given.
