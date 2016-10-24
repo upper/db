@@ -164,6 +164,9 @@ func (d *database) Err(err error) error {
 		case strings.Contains(s, `connection refused`),
 			strings.Contains(s, `reset by peer`),
 			strings.Contains(s, `is starting up`),
+			strings.Contains(s, `is in recovery mode`),
+			strings.Contains(s, `could not read block`),
+			strings.Contains(s, `is closed`),
 			strings.Contains(s, `is shutting down`):
 			return db.ErrServerRefusedConnection
 		}
