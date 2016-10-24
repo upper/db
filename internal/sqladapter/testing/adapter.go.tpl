@@ -100,17 +100,17 @@ func TestStressPreparedStatementsCache(t *testing.T) {
 			defer wg.Done()
 			// This query is different with each iteration and thus generates a new
 			// prepared statement everytime it's called.
-			res := sess.Collection("artist").Find().Select(db.Raw(fmt.Sprintf("COUNT(%d)", i)))
+			res := sess.Collection("artist").Find().Select(db.Raw(fmt.Sprintf("count(%d)", i)))
 			var count map[string]uint64
 			err := res.One(&count)
 			if err != nil {
 				tFatal(err)
 			}
-			if sqladapter.NumActiveStatements() > maxPreparedStatements {
-				tFatal(fmt.Errorf("The number of active statements cannot exceed %d.", maxPreparedStatements))
+			if activeStatements := sqladapter.NumActiveStatements(); activeStatements > maxPreparedStatements {
+				tFatal(fmt.Errorf("The number of active statements cannot exceed %d (got %d).", maxPreparedStatements, activeStatements))
 			}
 		}(i)
-		if i%maxPreparedStatements == 0 {
+		if i%50 == 0 {
 			wg.Wait()
 		}
 	}
@@ -368,6 +368,22 @@ func TestInsertIntoArtistsTable(t *testing.T) {
 	count, err := artist.Find().Count()
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(4), count)
+
+	count, err = artist.Find(db.Cond{"name": "Ozzie"}).Count()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(1), count)
+
+	count, err = artist.Find(db.Or(db.Cond{"name": "Ozzie"}, db.Cond{"name": "Flea"})).Count()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(2), count)
+
+	count, err = artist.Find(db.And(db.Cond{"name": "Ozzie"}, db.Cond{"name": "Flea"})).Count()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(0), count)
+
+	count, err = artist.Find(db.Cond{"name": "Ozzie"}).And(db.Cond{"name": "Flea"}).Count()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(0), count)
 }
 
 func TestQueryNonExistentCollection(t *testing.T) {
@@ -1176,7 +1192,7 @@ func TestUpdateWithNullColumn(t *testing.T) {
 	assert.NotEqual(t, nil, item.Name)
 	assert.Equal(t, name, *item.Name)
 
-	artist.Find(db.Cond{"id": id}).Update(Artist{Name: nil})
+	artist.Find(id).Update(Artist{Name: nil})
 	assert.NoError(t, err)
 
 	var item2 Artist

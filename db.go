@@ -268,6 +268,15 @@ func newCompound(c ...Compound) *compound {
 	return &compound{c}
 }
 
+func defaultJoin(in ...Compound) []Compound {
+	for i := range in {
+		if cond, ok := in[i].(Cond); ok && len(cond) > 1 {
+			in[i] = And(cond)
+		}
+	}
+	return in
+}
+
 func (c *compound) Sentences() []Compound {
 	return c.conds
 }
@@ -292,7 +301,7 @@ type Union struct {
 
 // Or adds more terms to the compound.
 func (o *Union) Or(conds ...Compound) *Union {
-	o.compound.push(conds...)
+	o.compound.push(defaultJoin(conds...)...)
 	return o
 }
 
@@ -420,7 +429,7 @@ func And(conds ...Compound) *Intersection {
 //		db.Cond{"year": 1987},
 //	)
 func Or(conds ...Compound) *Union {
-	return &Union{compound: newCompound(conds...)}
+	return &Union{compound: newCompound(defaultJoin(conds...)...)}
 }
 
 // Raw marks chunks of data as protected, so they pass directly to the query
@@ -546,8 +555,23 @@ type Result interface {
 	// set.
 	Select(...interface{}) Result
 
-	// Where resets the initial filtering conditions and sets new ones.
+	// Where discards all the previously set filtering constraints (if any) and
+	// sets new ones. Commonly used when the conditions of the result depend on
+	// external parameters that are yet to be evaluated:
+	//
+	//   res := col.Find()
+	//
+	//   if ... {
+	//     res.Where(...)
+	//   } else {
+	//     res.Where(...)
+	//   }
 	Where(...interface{}) Result
+
+	// And adds more filtering conditions on top of the existing constraints.
+	//
+	//   res := col.Find(...).And(...)
+	And(...interface{}) Result
 
 	// Group is used to group results that have the same value in the same column
 	// or columns.

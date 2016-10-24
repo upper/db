@@ -450,8 +450,10 @@ func (d *database) prepareStatement(stmt *exql.Statement) (*Stmt, string, error)
 	pc, ok := d.cachedStatements.ReadRaw(stmt)
 	if ok {
 		// The statement was cached.
-		ps := pc.(*Stmt).Open()
-		return ps, ps.query, nil
+		ps, err := pc.(*Stmt).Open()
+		if err == nil {
+			return ps, ps.query, nil
+		}
 	}
 
 	// Plain SQL query.

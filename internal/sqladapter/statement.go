@@ -2,6 +2,7 @@ package sqladapter
 
 import (
 	"database/sql"
+	"errors"
 	"sync/atomic"
 )
 
@@ -39,19 +40,23 @@ func NewStatement(stmt *sql.Stmt, query string) *Stmt {
 }
 
 // Open marks the statement as in-use
-func (c *Stmt) Open() *Stmt {
+func (c *Stmt) Open() (*Stmt, error) {
+	if atomic.LoadInt32(&c.dead) > 0 {
+		return nil, errors.New("statement is dead")
+	}
 	atomic.AddInt64(&c.count, 1)
-	return c
+	return c, nil
 }
 
 // Close closes the underlying statement if no other go-routine is using it.
 func (c *Stmt) Close() {
 	if atomic.AddInt64(&c.count, -1) > 0 {
-		// There are another goroutines using this statement so we don't want to
-		// close it for real.
+		// If this counter is more than 0 then there are other goroutines using
+		// this statement so we don't want to close it for real.
 		return
 	}
-	if atomic.LoadInt32(&c.dead) > 0 {
+
+	if atomic.LoadInt32(&c.dead) > 0 && atomic.LoadInt64(&c.count) <= 0 {
 		// Statement is dead and we can close it for real.
 		c.Stmt.Close()
 		// Reduce active statements counter.
