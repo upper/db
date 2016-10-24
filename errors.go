@@ -49,4 +49,5 @@ var (
 	ErrMissingConnURL           = errors.New(`upper: missing DSN`)
 	ErrNotImplemented           = errors.New(`upper: call not implemented`)
 	ErrAlreadyWithinTransaction = errors.New(`upper: already within a transaction`)
+	ErrServerRefusedConnection  = errors.New(`upper: database server refused connection`)
 )

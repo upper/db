@@ -2,6 +2,9 @@ package sqladapter
 
 import (
 	"database/sql"
+	"database/sql/driver"
+	"fmt"
+	"io"
 	"math"
 	"strconv"
 	"sync"
@@ -248,7 +251,7 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 				SessID: d.sessID,
 				Query:  query,
 				Args:   args,
-				Err:    err,
+				Err:    wouldHaveRetried(err),
 				Start:  start,
 				End:    time.Now(),
 			}
@@ -293,7 +296,7 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (ro
 				SessID: d.sessID,
 				Query:  query,
 				Args:   args,
-				Err:    err,
+				Err:    wouldHaveRetried(err),
 				Start:  start,
 				End:    time.Now(),
 			})
@@ -322,7 +325,7 @@ func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) 
 				SessID: d.sessID,
 				Query:  query,
 				Args:   args,
-				Err:    err,
+				Err:    wouldHaveRetried(err),
 				Start:  start,
 				End:    time.Now(),
 			})
@@ -460,4 +463,19 @@ func newTxID() uint64 {
 		return 0
 	}
 	return atomic.AddUint64(&lastTxID, 1)
+}
+
+// wouldHaveRetried is a temporary function we use to demonstrate when
+// we would have used the recovery mechanisms.
+func wouldHaveRetried(err error) error {
+	// These are all the errors we consider we can recover from
+	// https://github.com/upper/db/blob/7a867154f10d8d10782519055552e53c3b6a401f/internal/sqladapter/database.go#L272
+	switch err {
+	case io.EOF,
+		db.ErrTooManyClients,
+		db.ErrServerRefusedConnection,
+		driver.ErrBadConn:
+		return fmt.Errorf("Would have retried: %v", err)
+	}
+	return err
 }
