@@ -18,8 +18,18 @@ import (
 	"upper.io/db.v2/lib/sqlbuilder"
 )
 
+// A list of errors that mean the server is not working and that we should
+// try to connect and retry the query.
+var recoverableErrors = []error{
+	io.EOF,
+	driver.ErrBadConn,
+	db.ErrNotConnected,
+	db.ErrTooManyClients,
+	db.ErrServerRefusedConnection,
+}
+
 var (
-	maxQueryRetryAttempts = 6 // Each retry adds a max wait time of maxConnectionRetryTime
+	maxQueryRetryAttempts = 2 // Each retry adds a max wait time of maxConnectionRetryTime
 
 	minConnectionRetryInterval = time.Millisecond * 100
 	maxConnectionRetryInterval = time.Millisecond * 1000
@@ -28,9 +38,8 @@ var (
 )
 
 var (
-	errNothingToRecoverFrom  = errors.New("Nothing to recover from")
-	errUnableToRecover       = errors.New("Unable to recover from this error")
-	errAllAttemptsHaveFailed = errors.New("All attempts to recover have failed")
+	errNothingToRecoverFrom = errors.New("Nothing to recover from")
+	errUnableToRecover      = errors.New("Unable to recover from this error")
 )
 
 var (
@@ -98,11 +107,17 @@ type BaseDatabase interface {
 // NewBaseDatabase provides a BaseDatabase given a PartialDatabase
 func NewBaseDatabase(p PartialDatabase) BaseDatabase {
 	d := &database{
-		PartialDatabase:   p,
+		PartialDatabase: p,
+
 		cachedCollections: cache.NewCache(),
 		cachedStatements:  cache.NewCache(),
+		connFn:            defaultConnFn,
 	}
 	return d
+}
+
+var defaultConnFn = func() error {
+	return errors.New("No connection function was defined.")
 }
 
 // database is the actual implementation of Database and joins methods from
@@ -111,7 +126,7 @@ type database struct {
 	PartialDatabase
 	baseTx BaseTx
 
-	reconnectMu sync.Mutex
+	connectMu sync.Mutex
 
 	collectionMu sync.Mutex
 	databaseMu   sync.Mutex
@@ -120,10 +135,9 @@ type database struct {
 
 	name string
 
-	sess         *sql.DB
-	sessErr      error
-	sessMu       sync.Mutex
-	reconnecting int32
+	sess    *sql.DB
+	sessErr error
+	sessMu  sync.Mutex
 
 	sessID uint64
 	txID   uint64
@@ -139,59 +153,76 @@ var (
 )
 
 func (d *database) reconnect() error {
-	log.Printf("reconnect: wait...")
+	log.Printf("reconnect: start")
+	if d.Transaction() != nil {
+		// Don't even attempt to recover from within a transaction, this is not
+		// possible.
+		return errors.New("Can't recover from a transaction.")
+	}
 
-	d.reconnectMu.Lock()
-	defer d.reconnectMu.Unlock()
-
-	lastErr := d.PartialDatabase.Err(d.Ping())
-	if lastErr == nil {
+	err := d.PartialDatabase.Err(d.ping())
+	if err == nil {
 		log.Printf("reconnect: Conn is still there!")
 		return nil
 	}
-	log.Printf("reconnect: Ping: %v", lastErr)
+	log.Printf("reconnect: Ping: %v", err)
+
+	return d.connect(d.connFn)
+}
+
+func (d *database) connect(connFn func() error) error {
+	log.Printf("connect: start")
+
+	if connFn == nil {
+		return errors.New("Missing connect function")
+	}
+
+	log.Printf("connect: wait...")
+
+	d.connectMu.Lock()
+	defer d.connectMu.Unlock()
 
 	waitTime := minConnectionRetryInterval
 
 	for start, i := time.Now(), 0; time.Now().Sub(start) < maxConnectionRetryTime; i++ {
-		switch lastErr {
-		case io.EOF, db.ErrTooManyClients, db.ErrServerRefusedConnection, driver.ErrBadConn, db.ErrGivingUpTryingToConnect:
-			log.Printf("reconnect[%d]: Sleeping... %v", i, waitTime)
-			time.Sleep(waitTime)
-
-			waitTime = waitTime * 2
-			if waitTime > maxConnectionRetryInterval {
-				waitTime = maxConnectionRetryInterval
-			}
-		default:
-			// We don't know how to deal with this error.
-			log.Printf("reconnect[%d]: We don't know how to handle: %v (%T), %v (%T)", i, lastErr, lastErr, driver.ErrBadConn, driver.ErrBadConn)
-			return lastErr
+		waitTime = time.Duration(i) * minConnectionRetryInterval
+		if waitTime > maxConnectionRetryInterval {
+			waitTime = maxConnectionRetryInterval
 		}
-		log.Printf("reconnect[%d]: Attempt to reconnect...", i)
+		// Wait a bit until retrying.
+		if waitTime > time.Duration(0) {
+			log.Printf("connect[%d]: Wait %v", i, waitTime)
+			time.Sleep(waitTime)
+		}
 
-		// Attempt to reconnect.
-		atomic.StoreInt32(&d.reconnecting, 1)
-		err := d.connFn()
-		log.Printf("reconnect[%d]: connFn: %v", i, err)
+		// Attempt to (re)connect
+		err := connFn()
+		log.Printf("connect[%d]: connFn: %v", i, err)
 		if err == nil {
-			atomic.StoreInt32(&d.reconnecting, 0)
-			log.Printf("reconnect[%d]: Reconnected!", i)
+			log.Printf("connect[%d]: connected!", i)
+			d.connFn = connFn
 			return nil
 		}
-		atomic.StoreInt32(&d.reconnecting, 0)
 
-		lastErr = d.PartialDatabase.Err(err)
+		if !d.isRecoverableError(err) {
+			log.Printf("connect[%d]: We don't know how to handle: %v", i, err)
+			return err
+		}
 	}
 
-	log.Printf("reconnect: Failed to reconnect")
-	return errAllAttemptsHaveFailed
+	log.Printf("connect: Failed to connect")
+	return db.ErrGivingUpTryingToConnect
 }
 
 // Session returns the underlying *sql.DB
 func (d *database) Session() *sql.DB {
-	d.reconnectMu.Lock()
-	defer d.reconnectMu.Unlock()
+	if atomic.LoadUint64(&d.sessID) == 0 {
+		return d.sess
+	}
+
+	// Can't return while connecting.
+	d.connectMu.Lock()
+	defer d.connectMu.Unlock()
 
 	return d.sess
 }
@@ -201,10 +232,15 @@ func (d *database) BindTx(t *sql.Tx) error {
 	d.sessMu.Lock()
 	defer d.sessMu.Unlock()
 
+	log.Printf("BindTx")
+
 	d.baseTx = newTx(t)
 	if err := d.Ping(); err != nil {
+		log.Printf("BindTx: err: %v", err)
 		return err
 	}
+
+	log.Printf("BindTx: OK")
 
 	d.txID = newTxID()
 	return nil
@@ -228,33 +264,51 @@ func (d *database) Name() string {
 	return d.name
 }
 
-// BindSession binds a *sql.DB into *database
-func (d *database) BindSession(sess *sql.DB) error {
-	log.Printf("bindSession")
-
-	d.sessMu.Lock()
-	if d.sess != nil {
-		d.sess.Close()
-	}
-	d.sess = sess
-	d.sessMu.Unlock()
-
-	if err := d.Ping(); err != nil {
-		return err
-	}
-
-	if atomic.LoadInt32(&d.reconnecting) == 1 {
-		return nil
-	}
-
-	d.sessID = newSessionID()
+func (d *database) getDBName() error {
 	name, err := d.PartialDatabase.FindDatabaseName()
 	if err != nil {
 		return err
 	}
 	d.name = name
-
 	return nil
+}
+
+// BindSession binds a *sql.DB into *database
+func (d *database) BindSession(sess *sql.DB) error {
+	if err := sess.Ping(); err != nil {
+		return err
+	}
+
+	d.sessMu.Lock()
+	if d.sess != nil {
+		d.sess.Close() // Close before rebind.
+	}
+	d.sess = sess
+	d.sessMu.Unlock()
+
+	// Does this session already have a session ID?
+	if atomic.LoadUint64(&d.sessID) != 0 {
+		return nil
+	}
+
+	// Is this connection really working?
+	if err := d.getDBName(); err != nil {
+		return err
+	}
+
+	// Assign an ID if everyting was OK.
+	d.sessID = newSessionID()
+	return nil
+}
+
+func (d *database) isRecoverableError(err error) bool {
+	err = d.PartialDatabase.Err(err)
+	for i := 0; i < len(recoverableErrors); i++ {
+		if err == recoverableErrors[i] {
+			return true
+		}
+	}
+	return false
 }
 
 // recoverFromErr attempts to reestablish a connection after a temporary error,
@@ -264,28 +318,30 @@ func (d *database) recoverFromErr(err error) error {
 		return errNothingToRecoverFrom
 	}
 
-	if d.Transaction() != nil {
-		// Don't even attempt to recover from within a transaction.
-		return err
-	}
-
-	switch err {
-	case io.EOF, db.ErrTooManyClients, db.ErrServerRefusedConnection, driver.ErrBadConn, db.ErrGivingUpTryingToConnect:
-		err = d.reconnect()
+	if d.isRecoverableError(err) {
+		err := d.reconnect()
 		log.Printf("recoverFromErr: %v", err)
 		return err
 	}
 
+	// This is not an error we can recover from.
 	return errUnableToRecover
 }
 
 // Ping checks whether a connection to the database is still alive by pinging
 // it
 func (d *database) Ping() error {
-	if d.sess != nil {
-		return d.sess.Ping()
+	if sess := d.Session(); sess != nil {
+		return sess.Ping()
 	}
-	return nil
+	return db.ErrNotConnected
+}
+
+func (d *database) ping() error {
+	if d.sess == nil {
+		return db.ErrNotConnected
+	}
+	return d.sess.Ping()
 }
 
 // ClearCache removes all caches.
@@ -356,13 +412,14 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 		defer func(start time.Time) {
 
 			status := db.QueryStatus{
-				TxID:   d.txID,
-				SessID: d.sessID,
-				Query:  query,
-				Args:   args,
-				Err:    err,
-				Start:  start,
-				End:    time.Now(),
+				TxID:    d.txID,
+				SessID:  d.sessID,
+				QueryID: queryID,
+				Query:   query,
+				Args:    args,
+				Err:     err,
+				Start:   start,
+				End:     time.Now(),
 			}
 
 			if res != nil {
@@ -417,13 +474,14 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (ro
 	if db.Conf.LoggingEnabled() {
 		defer func(start time.Time) {
 			db.Log(&db.QueryStatus{
-				TxID:   d.txID,
-				SessID: d.sessID,
-				Query:  query,
-				Args:   args,
-				Err:    err,
-				Start:  start,
-				End:    time.Now(),
+				TxID:    d.txID,
+				SessID:  d.sessID,
+				QueryID: queryID,
+				Query:   query,
+				Args:    args,
+				Err:     err,
+				Start:   start,
+				End:     time.Now(),
 			})
 		}(time.Now())
 	}
@@ -463,13 +521,14 @@ func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) 
 	if db.Conf.LoggingEnabled() {
 		defer func(start time.Time) {
 			db.Log(&db.QueryStatus{
-				TxID:   d.txID,
-				SessID: d.sessID,
-				Query:  query,
-				Args:   args,
-				Err:    err,
-				Start:  start,
-				End:    time.Now(),
+				TxID:    d.txID,
+				SessID:  d.sessID,
+				QueryID: queryID,
+				Query:   query,
+				Args:    args,
+				Err:     err,
+				Start:   start,
+				End:     time.Now(),
 			})
 		}(time.Now())
 	}
@@ -544,40 +603,11 @@ var waitForConnMu sync.Mutex
 // returns an error, then WaitForConnection will keep trying until connFn
 // returns nil. Maximum waiting time is 5s after having acquired the lock.
 func (d *database) WaitForConnection(connFn func() error) error {
-	// This lock ensures first-come, first-served and prevents opening too many
-	// file descriptors.
-	waitForConnMu.Lock()
-	defer waitForConnMu.Unlock()
-
-	// Minimum waiting time.
-	waitTime := minConnectionRetryInterval
-
-	// Waitig 5 seconds for a successful connection.
-	for timeStart := time.Now(); time.Now().Sub(timeStart) < maxConnectionRetryTime; {
-		err := connFn()
-		if err == nil {
-			d.connFn = connFn
-			return nil // Connected!
-		}
-
-		// Only attempt to reconnect if the error is too many clients.
-		switch d.PartialDatabase.Err(err) {
-		case db.ErrTooManyClients, db.ErrServerRefusedConnection, driver.ErrBadConn:
-			// Sleep and try again if, and only if, the server replied with a
-			// temporary error.
-			time.Sleep(waitTime)
-			waitTime = waitTime * 2
-			if waitTime > maxConnectionRetryInterval {
-				waitTime = maxConnectionRetryInterval
-			}
-			continue
-		}
-
-		// Return any other error immediately.
+	if err := d.connect(connFn); err != nil {
 		return err
 	}
-
-	return db.ErrGivingUpTryingToConnect
+	// Success.
+	return nil
 }
 
 // ReplaceWithDollarSign turns a SQL statament with '?' placeholders into

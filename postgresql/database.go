@@ -206,7 +206,6 @@ func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
 	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
 		return nil, err
 	}
-
 	return sqladapter.NewTx(clone), nil
 }
 
