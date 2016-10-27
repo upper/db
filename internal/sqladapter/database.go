@@ -5,7 +5,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"io"
-	"log"
+	//"log"
 	"math"
 	"strconv"
 	"sync"
@@ -29,12 +29,22 @@ var recoverableErrors = []error{
 }
 
 var (
-	maxQueryRetryAttempts = 2 // Each retry adds a max wait time of maxConnectionRetryTime
+	// If a query fails with a recoverable error the connection is going to be
+	// re-estalished and the query can be retried, each retry adds a max wait
+	// time of maxConnectionRetryTime
+	maxQueryRetryAttempts = 2
 
+	// Minimum interval when trying to reconnect.
 	minConnectionRetryInterval = time.Millisecond * 100
-	maxConnectionRetryInterval = time.Millisecond * 1000
 
+	// Maximum interval when trying to reconnect.
+	maxConnectionRetryInterval = time.Millisecond * 2500
+
+	// Maximun time each connection retry attempt can take.
 	maxConnectionRetryTime = time.Second * 20
+
+	// Maximun reconnection attempts before the session gives up.
+	maxReconnectionAttempts uint64 = 3
 )
 
 var (
@@ -126,10 +136,8 @@ type database struct {
 	PartialDatabase
 	baseTx BaseTx
 
-	connectMu sync.Mutex
-
+	connectMu    sync.Mutex
 	collectionMu sync.Mutex
-	databaseMu   sync.Mutex
 
 	connFn func() error
 
@@ -142,6 +150,8 @@ type database struct {
 	sessID uint64
 	txID   uint64
 
+	connectAttempts uint64
+
 	cachedStatements  *cache.Cache
 	cachedCollections *cache.Cache
 
@@ -153,34 +163,38 @@ var (
 )
 
 func (d *database) reconnect() error {
-	log.Printf("reconnect: start")
+	//log.Printf("reconnect: start")
 	if d.Transaction() != nil {
 		// Don't even attempt to recover from within a transaction, this is not
 		// possible.
-		return errors.New("Can't recover from a transaction.")
+		return errors.New("Can't recover from within a bad transaction.")
 	}
 
-	err := d.PartialDatabase.Err(d.ping())
+	err := d.PartialDatabase.Err(d.Ping())
 	if err == nil {
-		log.Printf("reconnect: Conn is still there!")
+		//log.Printf("reconnect: Conn is still there!")
 		return nil
 	}
-	log.Printf("reconnect: Ping: %v", err)
+	//log.Printf("reconnect: Ping: %v", err)
 
 	return d.connect(d.connFn)
 }
 
 func (d *database) connect(connFn func() error) error {
-	log.Printf("connect: start")
+	//log.Printf("connect: start")
 
 	if connFn == nil {
 		return errors.New("Missing connect function")
 	}
 
-	log.Printf("connect: wait...")
-
+	//log.Printf("connect: wait...")
 	d.connectMu.Lock()
 	defer d.connectMu.Unlock()
+
+	// Attempt to (re)connect
+	if atomic.AddUint64(&d.connectAttempts, 1) >= maxReconnectionAttempts {
+		return db.ErrGivingUpTryingToConnect
+	}
 
 	waitTime := minConnectionRetryInterval
 
@@ -191,36 +205,39 @@ func (d *database) connect(connFn func() error) error {
 		}
 		// Wait a bit until retrying.
 		if waitTime > time.Duration(0) {
-			log.Printf("connect[%d]: Wait %v", i, waitTime)
+			//log.Printf("connect[%d]: Wait %v", i, waitTime)
 			time.Sleep(waitTime)
 		}
 
-		// Attempt to (re)connect
 		err := connFn()
-		log.Printf("connect[%d]: connFn: %v", i, err)
+		//log.Printf("connect[%d]: connFn: %v", i, err)
 		if err == nil {
-			log.Printf("connect[%d]: connected!", i)
+			atomic.StoreUint64(&d.connectAttempts, 0)
+			//log.Printf("connect[%d]: connected!", i)
 			d.connFn = connFn
 			return nil
 		}
 
 		if !d.isRecoverableError(err) {
-			log.Printf("connect[%d]: We don't know how to handle: %v", i, err)
+			//log.Printf("connect[%d]: We don't know how to handle: %v", i, err)
 			return err
 		}
 	}
 
-	log.Printf("connect: Failed to connect")
+	//log.Printf("connect: Failed to connect")
 	return db.ErrGivingUpTryingToConnect
 }
 
 // Session returns the underlying *sql.DB
 func (d *database) Session() *sql.DB {
 	if atomic.LoadUint64(&d.sessID) == 0 {
+		// This means the session is connecting for the first time, in this case we
+		// don't block because the session hasn't been returned yet.
 		return d.sess
 	}
 
-	// Can't return while connecting.
+	// Prevents goroutines from using the session until the connection is
+	// re-established.
 	d.connectMu.Lock()
 	defer d.connectMu.Unlock()
 
@@ -232,15 +249,15 @@ func (d *database) BindTx(t *sql.Tx) error {
 	d.sessMu.Lock()
 	defer d.sessMu.Unlock()
 
-	log.Printf("BindTx")
+	//log.Printf("BindTx")
 
 	d.baseTx = newTx(t)
 	if err := d.Ping(); err != nil {
-		log.Printf("BindTx: err: %v", err)
+		//log.Printf("BindTx: err: %v", err)
 		return err
 	}
 
-	log.Printf("BindTx: OK")
+	//log.Printf("BindTx: OK")
 
 	d.txID = newTxID()
 	return nil
@@ -249,18 +266,14 @@ func (d *database) BindTx(t *sql.Tx) error {
 // Tx returns a BaseTx, which, if not nil, means that this session is within a
 // transaction
 func (d *database) Transaction() BaseTx {
+	d.sessMu.Lock()
+	defer d.sessMu.Unlock()
+
 	return d.baseTx
 }
 
 // Name returns the database named
 func (d *database) Name() string {
-	d.databaseMu.Lock()
-	defer d.databaseMu.Unlock()
-
-	if d.name == "" {
-		d.name, _ = d.PartialDatabase.FindDatabaseName()
-	}
-
 	return d.name
 }
 
@@ -320,7 +333,7 @@ func (d *database) recoverFromErr(err error) error {
 
 	if d.isRecoverableError(err) {
 		err := d.reconnect()
-		log.Printf("recoverFromErr: %v", err)
+		//log.Printf("recoverFromErr: %v", err)
 		return err
 	}
 
@@ -337,17 +350,11 @@ func (d *database) Ping() error {
 	return db.ErrNotConnected
 }
 
-func (d *database) ping() error {
-	if d.sess == nil {
-		return db.ErrNotConnected
-	}
-	return d.sess.Ping()
-}
-
 // ClearCache removes all caches.
 func (d *database) ClearCache() {
 	d.collectionMu.Lock()
 	defer d.collectionMu.Unlock()
+
 	d.cachedCollections.Clear()
 	d.cachedStatements.Clear()
 	if d.template != nil {
@@ -363,7 +370,7 @@ func (d *database) Close() error {
 		d.baseTx = nil
 		d.sessMu.Unlock()
 	}()
-	if d.sess != nil {
+	if sess := d.Session(); sess != nil {
 		if cleaner, ok := d.PartialDatabase.(HasCleanUp); ok {
 			cleaner.CleanUp()
 		}
@@ -376,6 +383,7 @@ func (d *database) Close() error {
 			return d.sess.Close()
 		}
 
+		// Don't close the parent session if within a transaction.
 		if !tx.Committed() {
 			tx.Rollback()
 		}
@@ -390,15 +398,30 @@ func (d *database) Collection(name string) db.Collection {
 
 	h := cache.String(name)
 
-	ccol, ok := d.cachedCollections.ReadRaw(h)
+	cachedCollection, ok := d.cachedCollections.ReadRaw(h)
 	if ok {
-		return ccol.(db.Collection)
+		return cachedCollection.(db.Collection)
 	}
 
 	col := d.PartialDatabase.NewLocalCollection(name)
 	d.cachedCollections.Write(h, col)
 
 	return col
+}
+
+func (d *database) prepareAndExec(stmt *exql.Statement, args ...interface{}) (string, sql.Result, error) {
+	p, query, err := d.prepareStatement(stmt)
+	if err != nil {
+		return query, nil, err
+	}
+
+	if execer, ok := d.PartialDatabase.(HasStatementExec); ok {
+		res, err := execer.StatementExec(p.Stmt, args...)
+		return query, res, err
+	}
+
+	res, err := p.Exec(args...)
+	return query, res, err
 }
 
 // StatementExec compiles and executes a statement that does not return any
@@ -410,7 +433,6 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 
 	if db.Conf.LoggingEnabled() {
 		defer func(start time.Time) {
-
 			status := db.QueryStatus{
 				TxID:    d.txID,
 				SessID:  d.sessID,
@@ -436,25 +458,14 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 		}(time.Now())
 	}
 
-	log.Printf("Exec[%d] start", queryID)
+	//log.Printf("Exec[%d] start", queryID)
 	for i := 0; i < maxQueryRetryAttempts; i++ {
-		var p *Stmt
-		if p, query, err = d.prepareStatement(stmt); err != nil {
-			log.Printf("prepareStatement[%d] (%d): %v", queryID, i, err)
-			goto fail
-		}
-
-		if execer, ok := d.PartialDatabase.(HasStatementExec); ok {
-			res, err = execer.StatementExec(p.Stmt, args...)
-		} else {
-			res, err = p.Exec(args...)
-		}
-		log.Printf("Exec[%d] (%d): %v", queryID, i, err)
+		query, res, err = d.prepareAndExec(stmt, args...)
 		if err == nil {
-			return res, nil // successful query
+			return res, nil // success
 		}
 
-	fail:
+		//log.Printf("exec[%d] (%d): %v", queryID, i, err)
 		if d.recoverFromErr(err) == nil {
 			continue // retry
 		}
@@ -463,6 +474,16 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 
 	// All retry attempts failed, return res and err.
 	return nil, err
+}
+
+func (d *database) prepareAndQuery(stmt *exql.Statement, args ...interface{}) (string, *sql.Rows, error) {
+	p, query, err := d.prepareStatement(stmt)
+	if err != nil {
+		return query, nil, err
+	}
+
+	rows, err := p.Query(args...)
+	return query, rows, nil
 }
 
 // StatementQuery compiles and executes a statement that returns rows.
@@ -486,21 +507,14 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (ro
 		}(time.Now())
 	}
 
-	log.Printf("Query[%d] start", queryID)
+	//log.Printf("Query[%d] start", queryID)
 	for i := 0; i < maxQueryRetryAttempts; i++ {
-		var p *Stmt
-		if p, query, err = d.prepareStatement(stmt); err != nil {
-			log.Printf("prepareStatement[%d] (%d): %v", queryID, i, err)
-			goto fail
-		}
-
-		rows, err = p.Query(args...)
-		log.Printf("Query[%d] (%d): %v", queryID, i, err)
+		query, rows, err = d.prepareAndQuery(stmt, args...)
 		if err == nil {
-			return rows, nil // successful query
+			return rows, err // success
 		}
 
-	fail:
+		//log.Printf("query[%d] (%d): %v", queryID, i, err)
 		if d.recoverFromErr(err) == nil {
 			continue // retry
 		}
@@ -509,6 +523,18 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (ro
 
 	// All retry attempts failed, return rows and err.
 	return nil, err
+}
+
+func (d *database) prepareAndQueryRow(stmt *exql.Statement, args ...interface{}) (string, *sql.Row, error) {
+	p, query, err := d.prepareStatement(stmt)
+	if err != nil {
+		return query, nil, err
+	}
+
+	// Would be nice to find a way to check if this succeeded before using
+	// Scan.
+	rows, err := p.QueryRow(args...), nil
+	return query, rows, nil
 }
 
 // StatementQueryRow compiles and executes a statement that returns at most one
@@ -533,17 +559,14 @@ func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) 
 		}(time.Now())
 	}
 
-	log.Printf("QueryRow[%d] start", queryID)
+	//log.Printf("QueryRow[%d] start", queryID)
 	for i := 0; i < maxQueryRetryAttempts; i++ {
-		var p *Stmt
-		if p, query, err = d.prepareStatement(stmt); err != nil {
-			log.Printf("prepareStatement [%d] (%d): %v", queryID, i, err)
-			goto fail
+		query, row, err = d.prepareAndQueryRow(stmt, args...)
+		if err == nil {
+			return row, nil // success
 		}
 
-		row, err = p.QueryRow(args...), nil
-		return row, err
-	fail:
+		//log.Printf("queryRow[%d] (%d): %v", queryID, i, err)
 		if d.recoverFromErr(err) == nil {
 			continue // retry
 		}
@@ -556,10 +579,9 @@ func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) 
 // Driver returns the underlying *sql.DB or *sql.Tx instance.
 func (d *database) Driver() interface{} {
 	if tx := d.Transaction(); tx != nil {
-		// A transaction
 		return tx.(*sqlTx).Tx
 	}
-	return d.sess
+	return d.Session()
 }
 
 // prepareStatement converts a *exql.Statement representation into an actual
@@ -572,19 +594,20 @@ func (d *database) prepareStatement(stmt *exql.Statement) (*Stmt, string, error)
 
 	pc, ok := d.cachedStatements.ReadRaw(stmt)
 	if ok {
-		// The statement was cached.
+		// This prepared statement was cached, no need to build or to prepare
+		// again.
 		ps, err := pc.(*Stmt).Open()
 		if err == nil {
 			return ps, ps.query, nil
 		}
 	}
 
-	// Plain SQL query.
+	// Building the actual SQL query.
 	query := d.PartialDatabase.CompileStatement(stmt)
 
 	sqlStmt, err := func() (*sql.Stmt, error) {
-		if d.Transaction() != nil {
-			return d.Transaction().(*sqlTx).Prepare(query)
+		if tx := d.Transaction(); tx != nil {
+			return tx.(*sqlTx).Prepare(query)
 		}
 		return d.sess.Prepare(query)
 	}()
@@ -634,24 +657,24 @@ func ReplaceWithDollarSign(in string) string {
 
 func newSessionID() uint64 {
 	if atomic.LoadUint64(&lastSessID) == math.MaxUint64 {
-		atomic.StoreUint64(&lastSessID, 0)
-		return 0
+		atomic.StoreUint64(&lastSessID, 1)
+		return 1
 	}
 	return atomic.AddUint64(&lastSessID, 1)
 }
 
 func newTxID() uint64 {
 	if atomic.LoadUint64(&lastTxID) == math.MaxUint64 {
-		atomic.StoreUint64(&lastTxID, 0)
-		return 0
+		atomic.StoreUint64(&lastTxID, 1)
+		return 1
 	}
 	return atomic.AddUint64(&lastTxID, 1)
 }
 
 func newOperationID() uint64 {
 	if atomic.LoadUint64(&lastOperationID) == math.MaxUint64 {
-		atomic.StoreUint64(&lastOperationID, 0)
-		return 0
+		atomic.StoreUint64(&lastOperationID, 1)
+		return 1
 	}
 	return atomic.AddUint64(&lastOperationID, 1)
 }
