@@ -19,6 +19,21 @@ func TestOrderBy(t *testing.T) {
 	}
 }
 
+func TestOrderByRaw(t *testing.T) {
+	o := JoinWithOrderBy(
+		JoinSortColumns(
+			&SortColumn{Column: RawValue("CASE WHEN id IN ? THEN 0 ELSE 1 END")},
+		),
+	)
+
+	s := o.Compile(defaultTemplate)
+	e := `ORDER BY CASE WHEN id IN ? THEN 0 ELSE 1 END`
+
+	if trim(s) != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
 func TestOrderByDesc(t *testing.T) {
 	o := JoinWithOrderBy(
 		JoinSortColumns(

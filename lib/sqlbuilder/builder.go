@@ -530,3 +530,19 @@ var (
 	_ = Builder(&sqlBuilder{})
 	_ = exprDB(&exprProxy{})
 )
+
+func joinArguments(args ...[]interface{}) []interface{} {
+	total := 0
+	for i := range args {
+		total += len(args[i])
+	}
+	if total == 0 {
+		return nil
+	}
+
+	flatten := make([]interface{}, 0, total)
+	for i := range args {
+		flatten = append(flatten, args[i]...)
+	}
+	return flatten
+}
