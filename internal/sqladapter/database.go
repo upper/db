@@ -33,17 +33,17 @@ var (
 	// time of maxConnectionRetryTime
 	maxQueryRetryAttempts = 3
 
-	// Minimum interval when trying to reconnect.
+	// Minimum interval when waiting before trying to reconnect.
 	minConnectionRetryInterval = time.Millisecond * 100
 
-	// Maximum interval when trying to reconnect.
+	// Maximum interval when waiting before trying to reconnect.
 	maxConnectionRetryInterval = time.Millisecond * 2500
 
 	// Maximun time each connection retry attempt can take.
-	maxConnectionRetryTime = time.Second * 20
+	maxConnectionRetryTime = time.Second * 5
 
 	// Maximun reconnection attempts per session before giving up.
-	maxReconnectionAttempts uint64 = 6
+	maxReconnectionAttempts uint64 = 12
 )
 
 var (
