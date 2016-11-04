@@ -249,6 +249,12 @@ func (d *database) BindTx(t *sql.Tx) error {
 // Tx returns a BaseTx, which, if not nil, means that this session is within a
 // transaction
 func (d *database) Transaction() BaseTx {
+	if atomic.LoadUint64(&d.sessID) == 0 {
+		// This means the session is connecting for the first time, in this case we
+		// don't block because the session hasn't been returned yet.
+		return d.baseTx
+	}
+
 	d.sessMu.Lock()
 	defer d.sessMu.Unlock()
 
