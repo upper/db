@@ -336,9 +336,11 @@ func (d *database) Ping() error {
 		if err != nil {
 			return err
 		}
-
 		return nil
-
+	}
+	if tx := d.Transaction(); tx != nil {
+		// When upper wraps a transaction with no original session.
+		return nil
 	}
 	return db.ErrNotConnected
 }
