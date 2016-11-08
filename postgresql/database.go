@@ -153,10 +153,21 @@ func (d *database) CompileStatement(stmt *exql.Statement) string {
 // Err allows sqladapter to translate some known errors into generic errors.
 func (d *database) Err(err error) error {
 	if err != nil {
+		// These errors are not exported so we have to check them by comparing
+		// string values.
 		s := err.Error()
-		// These errors are not exported so we have to check them by they string value.
-		if strings.Contains(s, `too many clients`) || strings.Contains(s, `remaining connection slots are reserved`) || strings.Contains(s, `too many open`) {
+		switch {
+		case strings.Contains(s, `too many clients`),
+			strings.Contains(s, `remaining connection slots are reserved`),
+			strings.Contains(s, `too many open`):
 			return db.ErrTooManyClients
+		case strings.Contains(s, `connection refused`),
+			strings.Contains(s, `reset by peer`),
+			strings.Contains(s, `is starting up`),
+			strings.Contains(s, `is in recovery mode`),
+			strings.Contains(s, `is closed`),
+			strings.Contains(s, `is shutting down`):
+			return db.ErrServerRefusedConnection
 		}
 	}
 	return err
@@ -194,7 +205,6 @@ func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
 	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
 		return nil, err
 	}
-
 	return sqladapter.NewTx(clone), nil
 }
 
