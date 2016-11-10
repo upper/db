@@ -186,7 +186,7 @@ func (d *database) connect(connFn func() error) error {
 
 	// Attempt to (re)connect
 	if atomic.AddUint64(&d.connectAttempts, 1) >= maxReconnectionAttempts {
-		return db.ErrGivingUpTryingToConnect
+		return db.ErrTooManyReconnectionAttempts
 	}
 
 	waitTime := minConnectionRetryInterval
