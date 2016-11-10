@@ -28,10 +28,10 @@ import (
 
 // Settings defines methods to get or set configuration values.
 type Settings interface {
-	// SetQueryRetryOnError enables or disable query retry-on-error features.
-	SetQueryRetryOnError(bool)
+	// SetRetryQueryOnError enables or disable query retry-on-error features.
+	SetRetryQueryOnError(bool)
 	// Returns true if query retry is enabled.
-	QueryRetryOnError() bool
+	RetryQueryOnError() bool
 
 	// SetLogging enables or disables logging.
 	SetLogging(bool)
@@ -65,11 +65,11 @@ func (c *conf) Logger() Logger {
 	return c.queryLogger
 }
 
-func (c *conf) SetQueryRetryOnError(v bool) {
+func (c *conf) SetRetryQueryOnError(v bool) {
 	c.setBinaryOption(&c.queryRetryOnError, true)
 }
 
-func (c *conf) QueryRetryOnError() bool {
+func (c *conf) RetryQueryOnError() bool {
 	return c.binaryOption(&c.queryRetryOnError)
 }
 

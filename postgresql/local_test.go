@@ -127,6 +127,9 @@ func TestDriverBadConnection(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()
 
+	db.Conf.SetRetryQueryOnError(true)
+	defer db.Conf.SetRetryQueryOnError(false)
+
 	var tMu sync.Mutex
 	tFatal := func(err error) {
 		tMu.Lock()

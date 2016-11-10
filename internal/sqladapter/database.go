@@ -495,7 +495,7 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (ro
 
 	for i := 0; ; i++ {
 		query, rows, err = d.prepareAndQuery(stmt, args...)
-		if err == nil || i >= maxQueryRetryAttempts || !db.Conf.QueryRetryOnError() {
+		if err == nil || i >= maxQueryRetryAttempts || !db.Conf.RetryQueryOnError() {
 			return rows, err
 		}
 
@@ -544,7 +544,7 @@ func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) 
 
 	for i := 0; ; i++ {
 		query, row, err = d.prepareAndQueryRow(stmt, args...)
-		if err == nil || i >= maxQueryRetryAttempts || !db.Conf.QueryRetryOnError() {
+		if err == nil || i >= maxQueryRetryAttempts || !db.Conf.RetryQueryOnError() {
 			return row, err
 		}
 
