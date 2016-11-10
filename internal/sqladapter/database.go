@@ -449,7 +449,7 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 
 	for i := 0; ; i++ {
 		query, res, err = d.prepareAndExec(stmt, args...)
-		if err == nil || i >= maxQueryRetryAttempts {
+		if err == nil || i >= maxQueryRetryAttempts || !db.Conf.RetryQueryOnError() {
 			return res, err
 		}
 
