@@ -37,13 +37,13 @@ var (
 	minConnectionRetryInterval = time.Millisecond * 100
 
 	// Maximum interval when waiting before trying to reconnect.
-	maxConnectionRetryInterval = time.Millisecond * 2500
+	maxConnectionRetryInterval = time.Millisecond * 1500
 
 	// Maximun time each connection retry attempt can take.
 	maxConnectionRetryTime = time.Second * 5
 
 	// Maximun reconnection attempts per session before giving up.
-	maxReconnectionAttempts uint64 = 12
+	maxReconnectionAttempts uint64 = 4
 )
 
 var (
@@ -89,6 +89,7 @@ type PartialDatabase interface {
 	NewLocalCollection(name string) db.Collection
 	CompileStatement(stmt *exql.Statement) (query string)
 	ConnectionURL() db.ConnectionURL
+	ConnCheck() error
 
 	Err(in error) (out error)
 	NewLocalTransaction() (DatabaseTx, error)
@@ -104,7 +105,7 @@ type BaseDatabase interface {
 	Collection(string) db.Collection
 	Driver() interface{}
 
-	WaitForConnection(func() error) error
+	WaitForConnection(func() error, bool) error
 
 	BindSession(*sql.DB) error
 	Session() *sql.DB
@@ -168,7 +169,7 @@ func (d *database) reconnect() error {
 		return errors.New("Can't recover from within a bad transaction.")
 	}
 
-	err := d.PartialDatabase.Err(d.Ping())
+	err := d.PartialDatabase.Err(d.ConnCheck())
 	if err == nil {
 		return nil
 	}
@@ -204,7 +205,6 @@ func (d *database) connect(connFn func() error) error {
 		err := connFn()
 		if err == nil {
 			atomic.StoreUint64(&d.connectAttempts, 0)
-			d.connFn = connFn
 			return nil
 		}
 
@@ -238,7 +238,7 @@ func (d *database) BindTx(t *sql.Tx) error {
 	defer d.sessMu.Unlock()
 
 	d.baseTx = newTx(t)
-	if err := d.Ping(); err != nil {
+	if err := d.ConnCheck(); err != nil {
 		return err
 	}
 
@@ -334,19 +334,7 @@ func (d *database) recoverFromErr(err error) error {
 // it
 func (d *database) Ping() error {
 	if sess := d.Session(); sess != nil {
-		if err := sess.Ping(); err != nil {
-			return err
-		}
-
-		_, err := sess.Exec("SELECT 1")
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-	if tx := d.Transaction(); tx != nil {
-		// When upper wraps a transaction with no original session.
-		return nil
+		return sess.Ping()
 	}
 	return db.ErrNotConnected
 }
@@ -618,11 +606,16 @@ var waitForConnMu sync.Mutex
 // WaitForConnection tries to execute the given connFn function, if connFn
 // returns an error, then WaitForConnection will keep trying until connFn
 // returns nil. Maximum waiting time is 5s after having acquired the lock.
-func (d *database) WaitForConnection(connFn func() error) error {
+func (d *database) WaitForConnection(connFn func() error, isDefault bool) error {
 	if err := d.connect(connFn); err != nil {
 		return err
 	}
-	// Success.
+
+	if isDefault {
+		d.connectMu.Lock()
+		d.connFn = connFn
+		d.connectMu.Unlock()
+	}
 	return nil
 }
 

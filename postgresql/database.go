@@ -119,7 +119,7 @@ func (d *database) open() error {
 		return err
 	}
 
-	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
+	if err := d.BaseDatabase.WaitForConnection(connFn, true); err != nil {
 		return err
 	}
 
@@ -140,7 +140,10 @@ func (d *database) clone() (*database, error) {
 	}
 	clone.Builder = b
 
-	clone.BaseDatabase.BindSession(d.BaseDatabase.Session())
+	if err := clone.BaseDatabase.BindSession(d.BaseDatabase.Session()); err != nil {
+		return nil, err
+	}
+
 	return clone, nil
 }
 
@@ -178,6 +181,27 @@ func (d *database) NewLocalCollection(name string) db.Collection {
 	return newTable(d, name)
 }
 
+// ConnCheck tests whether a connection is valid or not. A connection is valid
+// when the server can be reached, login details are correct and an a simple
+// operation can be actually carried out.
+func (d *database) ConnCheck() error {
+	if sess := d.Session(); sess != nil {
+		if err := sess.Ping(); err != nil {
+			return err
+		}
+
+		_, err := d.Session().Exec("SELECT 1")
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	if tx := d.Transaction(); tx != nil {
+		return nil
+	}
+	return db.ErrNotConnected
+}
+
 // Tx creates a transaction and passes it to the given function, if if the
 // function returns no error then the transaction is commited.
 func (d *database) Tx(fn func(tx sqlbuilder.Tx) error) error {
@@ -195,14 +219,18 @@ func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
 	defer clone.txMu.Unlock()
 
 	connFn := func() error {
-		sqlTx, err := clone.BaseDatabase.Session().Begin()
+		sess := clone.BaseDatabase.Session()
+		if sess == nil {
+			return db.ErrNotConnected
+		}
+		sqlTx, err := sess.Begin()
 		if err == nil {
 			return clone.BindTx(sqlTx)
 		}
 		return err
 	}
 
-	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
+	if err := d.BaseDatabase.WaitForConnection(connFn, false); err != nil {
 		return nil, err
 	}
 	return sqladapter.NewTx(clone), nil

@@ -24,6 +24,7 @@ package ql
 import (
 	"database/sql"
 	"errors"
+	"log"
 	"sync"
 	"sync/atomic"
 
@@ -198,7 +199,7 @@ func (d *database) open() error {
 		return errTooManyOpenFiles
 	}
 
-	if err := d.BaseDatabase.WaitForConnection(openFn); err != nil {
+	if err := d.BaseDatabase.WaitForConnection(openFn, true); err != nil {
 		return err
 	}
 
@@ -227,6 +228,7 @@ func (d *database) CompileStatement(stmt *exql.Statement) string {
 // Err allows sqladapter to translate some known errors into generic errors.
 func (d *database) Err(err error) error {
 	if err != nil {
+		log.Printf("Err: %v", err)
 		if err == errTooManyOpenFiles {
 			return db.ErrTooManyClients
 		}
@@ -265,6 +267,19 @@ func (d *database) NewLocalCollection(name string) db.Collection {
 	return newTable(d, name)
 }
 
+// ConnCheck tests whether a connection is valid or not. A connection is valid
+// when the server can be reached, login details are correct and an a simple
+// operation can be actually carried out.
+func (d *database) ConnCheck() error {
+	if sess := d.Session(); sess != nil {
+		return sess.Ping()
+	}
+	if tx := d.Transaction(); tx != nil {
+		return nil
+	}
+	return db.ErrNotConnected
+}
+
 // Tx creates a transaction and passes it to the given function, if if the
 // function returns no error then the transaction is commited.
 func (d *database) Tx(fn func(tx sqlbuilder.Tx) error) error {
@@ -282,14 +297,18 @@ func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
 	defer clone.txMu.Unlock()
 
 	openFn := func() error {
-		sqlTx, err := clone.BaseDatabase.Session().Begin()
+		sess := clone.BaseDatabase.Session()
+		if sess == nil {
+			return db.ErrNotConnected
+		}
+		sqlTx, err := sess.Begin()
 		if err == nil {
 			return clone.BindTx(sqlTx)
 		}
 		return err
 	}
 
-	if err := d.BaseDatabase.WaitForConnection(openFn); err != nil {
+	if err := d.BaseDatabase.WaitForConnection(openFn, false); err != nil {
 		return nil, err
 	}
 
