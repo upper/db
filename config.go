@@ -66,7 +66,7 @@ func (c *conf) Logger() Logger {
 }
 
 func (c *conf) SetRetryQueryOnError(v bool) {
-	c.setBinaryOption(&c.queryRetryOnError, true)
+	c.setBinaryOption(&c.queryRetryOnError, v)
 }
 
 func (c *conf) RetryQueryOnError() bool {
@@ -96,7 +96,7 @@ func (c *conf) setBinaryOption(dest *uint32, value bool) {
 }
 
 func (c *conf) SetLogging(value bool) {
-	c.setBinaryOption(&c.loggingEnabled, true)
+	c.setBinaryOption(&c.loggingEnabled, value)
 }
 
 func (c *conf) LoggingEnabled() bool {
