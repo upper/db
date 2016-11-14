@@ -31,7 +31,7 @@ var (
 	// If a query fails with a recoverable error the connection is going to be
 	// re-estalished and the query can be retried, each retry adds a max wait
 	// time of maxConnectionRetryTime
-	maxQueryRetryAttempts = 3
+	maxQueryRetryAttempts = 6
 
 	// Minimum interval when waiting before trying to reconnect.
 	minConnectionRetryInterval = time.Millisecond * 100
@@ -39,11 +39,16 @@ var (
 	// Maximum interval when waiting before trying to reconnect.
 	maxConnectionRetryInterval = time.Millisecond * 1500
 
-	// Maximun time each connection retry attempt can take.
+	// Maximum time each connection retry attempt can take.
 	maxConnectionRetryTime = time.Second * 5
 
-	// Maximun reconnection attempts per session before giving up.
+	// Maximum reconnection attempts per session before giving up.
 	maxReconnectionAttempts uint64 = 4
+
+	// If this session failed to recover more than
+	// discardConnectionAfterFailedRecoverAttempts times, assume the entire pool
+	// is borked and force a clean reconnection.
+	discardConnectionAfterFailedRecoverAttempts = uint64(maxQueryRetryAttempts / 2)
 )
 
 var (
@@ -151,6 +156,7 @@ type database struct {
 	txID   uint64
 
 	connectAttempts uint64
+	recoverAttempts uint64
 
 	cachedStatements  *cache.Cache
 	cachedCollections *cache.Cache
@@ -161,21 +167,6 @@ type database struct {
 var (
 	_ = db.Database(&database{})
 )
-
-func (d *database) reconnect() error {
-	if d.Transaction() != nil {
-		// Don't even attempt to recover from within a transaction, this is not
-		// possible.
-		return errors.New("Can't recover from within a bad transaction.")
-	}
-
-	err := d.PartialDatabase.Err(d.ConnCheck())
-	if err == nil {
-		return nil
-	}
-
-	return d.connect(d.connFn)
-}
 
 func (d *database) connect(connFn func() error) error {
 	if connFn == nil {
@@ -205,6 +196,7 @@ func (d *database) connect(connFn func() error) error {
 		err := connFn()
 		if err == nil {
 			atomic.StoreUint64(&d.connectAttempts, 0)
+			atomic.StoreUint64(&d.recoverAttempts, 0)
 			return nil
 		}
 
@@ -321,9 +313,23 @@ func (d *database) recoverFromErr(err error) error {
 		return errNothingToRecoverFrom
 	}
 
+	if d.Transaction() != nil {
+		// Don't even attempt to recover from within a transaction, this is not
+		// possible.
+		return errors.New("Can't recover from within a bad transaction.")
+	}
+
+	if atomic.AddUint64(&d.recoverAttempts, 1) == discardConnectionAfterFailedRecoverAttempts {
+		d.sess.Close()
+	}
+
 	if d.isRecoverableError(err) {
-		err := d.reconnect()
-		return err
+		err := d.PartialDatabase.Err(d.ConnCheck()) // Let's see if database/sql recovered itself.
+		if err == nil {
+			return nil
+		}
+		// Let's attempt to connect
+		return d.connect(d.connFn)
 	}
 
 	// This is not an error we can recover from.
