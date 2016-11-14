@@ -181,27 +181,6 @@ func (d *database) NewLocalCollection(name string) db.Collection {
 	return newTable(d, name)
 }
 
-// ConnCheck tests whether a connection is valid or not. A connection is valid
-// when the server can be reached, login details are correct and an a simple
-// operation can be actually carried out.
-func (d *database) ConnCheck() error {
-	if sess := d.Session(); sess != nil {
-		if err := sess.Ping(); err != nil {
-			return err
-		}
-
-		_, err := d.Session().Exec("SELECT 1")
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-	if tx := d.Transaction(); tx != nil {
-		return nil
-	}
-	return db.ErrNotConnected
-}
-
 // Tx creates a transaction and passes it to the given function, if if the
 // function returns no error then the transaction is commited.
 func (d *database) Tx(fn func(tx sqlbuilder.Tx) error) error {

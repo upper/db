@@ -46,9 +46,9 @@ var (
 	maxReconnectionAttempts uint64 = 4
 
 	// If this session failed to recover more than
-	// discardConnectionAfterFailedRecoverAttempts times, assume the entire pool
+	// flushConnectionPoolAfterRecoverAttempts times, assume the entire pool
 	// is borked and force a clean reconnection.
-	discardConnectionAfterFailedRecoverAttempts = uint64(maxQueryRetryAttempts / 2)
+	flushConnectionPoolAfterRecoverAttempts = uint64(maxQueryRetryAttempts / 2)
 )
 
 var (
@@ -94,7 +94,6 @@ type PartialDatabase interface {
 	NewLocalCollection(name string) db.Collection
 	CompileStatement(stmt *exql.Statement) (query string)
 	ConnectionURL() db.ConnectionURL
-	ConnCheck() error
 
 	Err(in error) (out error)
 	NewLocalTransaction() (DatabaseTx, error)
@@ -230,7 +229,7 @@ func (d *database) BindTx(t *sql.Tx) error {
 	defer d.sessMu.Unlock()
 
 	d.baseTx = newTx(t)
-	if err := d.ConnCheck(); err != nil {
+	if err := d.Ping(); err != nil {
 		return err
 	}
 
@@ -319,12 +318,17 @@ func (d *database) recoverFromErr(err error) error {
 		return errors.New("Can't recover from within a bad transaction.")
 	}
 
-	if atomic.AddUint64(&d.recoverAttempts, 1) == discardConnectionAfterFailedRecoverAttempts {
+	if atomic.AddUint64(&d.recoverAttempts, 1) == flushConnectionPoolAfterRecoverAttempts {
+		// This happens when d.Ping() says everything is OK but the next query
+		// fails, and this probably means that a high number of connections in the
+		// pool are in bad state.  Since we don't have any way to check the
+		// connection pool for valid connections we'll close the database, this
+		// makes d.Ping() fail and forces a reconnection.
 		d.sess.Close()
 	}
 
 	if d.isRecoverableError(err) {
-		err := d.PartialDatabase.Err(d.ConnCheck()) // Let's see if database/sql recovered itself.
+		err := d.PartialDatabase.Err(d.Ping()) // Let's see if database/sql recovered itself.
 		if err == nil {
 			return nil
 		}
@@ -341,6 +345,11 @@ func (d *database) recoverFromErr(err error) error {
 func (d *database) Ping() error {
 	if sess := d.Session(); sess != nil {
 		return sess.Ping()
+	}
+	if tx := d.Transaction(); tx != nil {
+		// This is a wrapped transaction, let's assume we had a working
+		// connection in the first place.
+		return nil
 	}
 	return db.ErrNotConnected
 }
