@@ -27,7 +27,7 @@ var recoverableErrors = []error{
 	db.ErrServerRefusedConnection,
 }
 
-var (
+const (
 	// If a query fails with a recoverable error the connection is going to be
 	// re-estalished and the query can be retried, each retry adds a max wait
 	// time of maxConnectionRetryTime
@@ -318,26 +318,31 @@ func (d *database) recoverFromErr(err error) error {
 		return errors.New("Can't recover from within a bad transaction.")
 	}
 
-	if atomic.AddUint64(&d.recoverAttempts, 1) == flushConnectionPoolAfterRecoverAttempts {
-		// This happens when d.Ping() says everything is OK but the next query
-		// fails, and this probably means that a high number of connections in the
-		// pool are in bad state.  Since we don't have any way to check the
-		// connection pool for valid connections we'll close the database, this
-		// makes d.Ping() fail and forces a reconnection.
-		d.sess.Close()
+	if !d.isRecoverableError(err) {
+		// This is not an error we can recover from.
+		return errUnableToRecover
 	}
 
-	if d.isRecoverableError(err) {
-		err := d.PartialDatabase.Err(d.Ping()) // Let's see if database/sql recovered itself.
-		if err == nil {
-			return nil
-		}
+	reconnect := false
+
+	if err := d.PartialDatabase.Err(d.Ping()); err != nil { // Let's see if database/sql recovered itself.
+		reconnect = true
+	}
+
+	if !reconnect && atomic.AddUint64(&d.recoverAttempts, 1) == flushConnectionPoolAfterRecoverAttempts {
+		// This happens when d.Ping() says everything is OK but queries keep
+		// failing, that probably means that a high number of connections in the
+		// pool are in bad state.  Since we don't have any way to check the
+		// connection pool for valid connections we'll force a reconnection (once).
+		reconnect = true
+	}
+
+	if reconnect {
 		// Let's attempt to connect
 		return d.connect(d.connFn)
 	}
 
-	// This is not an error we can recover from.
-	return errUnableToRecover
+	return nil
 }
 
 // Ping checks whether a connection to the database is still alive by pinging
