@@ -120,7 +120,7 @@ func (d *database) open() error {
 		return err
 	}
 
-	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
+	if err := d.BaseDatabase.WaitForConnection(connFn, true); err != nil {
 		return err
 	}
 
@@ -141,7 +141,10 @@ func (d *database) clone() (*database, error) {
 	}
 	clone.Builder = b
 
-	clone.BaseDatabase.BindSession(d.BaseDatabase.Session())
+	if err := clone.BaseDatabase.BindSession(d.BaseDatabase.Session()); err != nil {
+		return nil, err
+	}
+
 	return clone, nil
 }
 
@@ -182,14 +185,19 @@ func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
 	}
 
 	connFn := func() error {
-		sqlTx, err := clone.BaseDatabase.Session().Begin()
+		sess := clone.BaseDatabase.Session()
+		if sess == nil {
+			return db.ErrNotConnected
+		}
+
+		sqlTx, err := sess.Begin()
 		if err == nil {
 			return clone.BindTx(sqlTx)
 		}
 		return err
 	}
 
-	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
+	if err := d.BaseDatabase.WaitForConnection(connFn, false); err != nil {
 		return nil, err
 	}
 

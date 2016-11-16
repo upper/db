@@ -23,6 +23,71 @@ func TestSelect(t *testing.T) {
 	)
 
 	{
+		rawCase := db.Raw("CASE WHEN id IN ? THEN 0 ELSE 1 END", []int{1000, 2000})
+		sel := b.SelectFrom("artist").OrderBy(rawCase)
+		assert.Equal(
+			`SELECT * FROM "artist" ORDER BY CASE WHEN id IN ($1, $2) THEN 0 ELSE 1 END`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{1000, 2000},
+			sel.Arguments(),
+		)
+	}
+
+	{
+		rawCase := db.Raw("CASE WHEN id IN ? THEN 0 ELSE 1 END", []int{1000})
+		sel := b.SelectFrom("artist").OrderBy(rawCase)
+		assert.Equal(
+			`SELECT * FROM "artist" ORDER BY CASE WHEN id IN ($1) THEN 0 ELSE 1 END`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{1000},
+			sel.Arguments(),
+		)
+	}
+
+	{
+		rawCase := db.Raw("CASE WHEN id IN ? THEN 0 ELSE 1 END", []int{})
+		sel := b.SelectFrom("artist").OrderBy(rawCase)
+		assert.Equal(
+			`SELECT * FROM "artist" ORDER BY CASE WHEN id IN (NULL) THEN 0 ELSE 1 END`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}(nil),
+			sel.Arguments(),
+		)
+	}
+
+	{
+		rawCase := db.Raw("CASE WHEN id IN (NULL) THEN 0 ELSE 1 END")
+		sel := b.SelectFrom("artist").OrderBy(rawCase)
+		assert.Equal(
+			`SELECT * FROM "artist" ORDER BY CASE WHEN id IN (NULL) THEN 0 ELSE 1 END`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}(nil),
+			rawCase.Arguments(),
+		)
+	}
+
+	{
+		rawCase := db.Raw("CASE WHEN id IN (?, ?) THEN 0 ELSE 1 END", 1000, 2000)
+		sel := b.SelectFrom("artist").OrderBy(rawCase)
+		assert.Equal(
+			`SELECT * FROM "artist" ORDER BY CASE WHEN id IN ($1, $2) THEN 0 ELSE 1 END`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{1000, 2000},
+			rawCase.Arguments(),
+		)
+	}
+
+	{
 		sel := b.Select(db.Func("DISTINCT", "name")).From("artist")
 		assert.Equal(
 			`SELECT DISTINCT($1) FROM "artist"`,
@@ -49,15 +114,29 @@ func TestSelect(t *testing.T) {
 		b.Select().From("artist").Where(db.Cond{1: db.Func("ANY", db.Raw("column"))}).String(),
 	)
 
-	assert.Equal(
-		`SELECT * FROM "artist" WHERE ("id" NOT IN ($1, $2))`,
-		b.Select().From("artist").Where(db.Cond{"id NOT IN": []int{0, -1}}).String(),
-	)
+	{
+		q := b.Select().From("artist").Where(db.Cond{"id NOT IN": []int{0, -1}})
+		assert.Equal(
+			`SELECT * FROM "artist" WHERE ("id" NOT IN ($1, $2))`,
+			q.String(),
+		)
+		assert.Equal(
+			[]interface{}{0, -1},
+			q.Arguments(),
+		)
+	}
 
-	assert.Equal(
-		`SELECT * FROM "artist" WHERE ("id" NOT IN ($1))`,
-		b.Select().From("artist").Where(db.Cond{"id NOT IN": []int{-1}}).String(),
-	)
+	{
+		q := b.Select().From("artist").Where(db.Cond{"id NOT IN": []int{-1}})
+		assert.Equal(
+			`SELECT * FROM "artist" WHERE ("id" NOT IN ($1))`,
+			q.String(),
+		)
+		assert.Equal(
+			[]interface{}{-1},
+			q.Arguments(),
+		)
+	}
 
 	assert.Equal(
 		`SELECT * FROM "artist" WHERE ("id" IN ($1, $2))`,
@@ -74,6 +153,23 @@ func TestSelect(t *testing.T) {
 			),
 		).String(),
 	)
+
+	{
+		q := b.Select().From("artist").Where(
+			db.Or(
+				db.And(db.Cond{"a": 1}, db.Cond{"b": 2}, db.Cond{"c": 3}),
+				db.And(db.Cond{"d": 1}, db.Cond{"e": 2}, db.Cond{"f": 3}),
+			),
+		)
+		assert.Equal(
+			`SELECT * FROM "artist" WHERE ((("a" = $1 AND "b" = $2 AND "c" = $3) OR ("d" = $4 AND "e" = $5 AND "f" = $6)))`,
+			q.String(),
+		)
+		assert.Equal(
+			[]interface{}{1, 2, 3, 1, 2, 3},
+			q.Arguments(),
+		)
+	}
 
 	assert.Equal(
 		`SELECT * FROM "artist" WHERE ((("id" = $1 OR "id" = $2 OR "id" IS NULL) OR ("name" = $3 OR "name" = $4)))`,
@@ -288,7 +384,7 @@ func TestSelect(t *testing.T) {
 	)
 
 	assert.Equal(
-		`SELECT * FROM "artist" WHERE ("id" IS NULL)`,
+		`SELECT * FROM "artist" WHERE ("id" IN (NULL))`,
 		b.SelectFrom("artist").Where(db.Cond{"id": []int64{}}).String(),
 	)
 
@@ -671,7 +767,7 @@ func TestUpdate(t *testing.T) {
 		idSlice := []int64{}
 		q := b.Update("artist").Set(db.Cond{"some_column": 10}).Where(db.Cond{"id": 1}, db.Cond{"another_val": idSlice})
 		assert.Equal(
-			`UPDATE "artist" SET "some_column" = $1 WHERE ("id" = $2 AND "another_val" IS NULL)`,
+			`UPDATE "artist" SET "some_column" = $1 WHERE ("id" = $2 AND "another_val" IN (NULL))`,
 			q.String(),
 		)
 		assert.Equal(
@@ -684,7 +780,7 @@ func TestUpdate(t *testing.T) {
 		idSlice := []int64{}
 		q := b.Update("artist").Where(db.Cond{"id": 1}, db.Cond{"another_val": idSlice}).Set(db.Cond{"some_column": 10})
 		assert.Equal(
-			`UPDATE "artist" SET "some_column" = $1 WHERE ("id" = $2 AND "another_val" IS NULL)`,
+			`UPDATE "artist" SET "some_column" = $1 WHERE ("id" = $2 AND "another_val" IN (NULL))`,
 			q.String(),
 		)
 		assert.Equal(

@@ -2,6 +2,8 @@ package postgresql
 
 import (
 	"database/sql"
+	"os"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -116,4 +118,48 @@ func TestIssue210(t *testing.T) {
 
 	_, err = sess.Collection("hello").Find().Count()
 	assert.NoError(t, err)
+}
+
+// The "driver: bad connection" problem (driver.ErrBadConn) happens when the
+// database process is abnormally interrupted, this can happen for a variety of
+// reasons, for instance when the database process is OOM killed by the OS.
+func TestDriverBadConnection(t *testing.T) {
+	sess := mustOpen()
+	defer sess.Close()
+
+	db.Conf.SetRetryQueryOnError(true)
+	defer db.Conf.SetRetryQueryOnError(false)
+
+	var tMu sync.Mutex
+	tFatal := func(err error) {
+		tMu.Lock()
+		defer tMu.Unlock()
+		t.Fatal(err)
+	}
+
+	const concurrentOpts = 20
+	var wg sync.WaitGroup
+
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			_, err := sess.Collection("artist").Find().Count()
+			if err != nil {
+				tFatal(err)
+			}
+		}(i)
+		if i%concurrentOpts == (concurrentOpts - 1) {
+			// This triggers the "bad connection" problem, if you want to see that
+			// instead of retrying the query set maxQueryRetryAttempts to 0.
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				sess.Query("SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = ?", os.Getenv("DB_NAME"))
+			}()
+			wg.Wait()
+		}
+	}
+
+	wg.Wait()
 }

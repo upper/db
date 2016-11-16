@@ -48,7 +48,7 @@ func TestPlaceholderArray(t *testing.T) {
 
 	{
 		ret, _ := expandPlaceholders("??", []interface{}{1, 2, 3}, []interface{}{}, []interface{}{4, 5}, []interface{}{})
-		assert.Equal(t, "(?, ?, ?)?", ret)
+		assert.Equal(t, "(?, ?, ?)(NULL)", ret)
 	}
 }
 

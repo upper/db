@@ -24,6 +24,7 @@ package ql
 import (
 	"database/sql"
 	"errors"
+	"log"
 	"sync"
 	"sync/atomic"
 
@@ -198,7 +199,7 @@ func (d *database) open() error {
 		return errTooManyOpenFiles
 	}
 
-	if err := d.BaseDatabase.WaitForConnection(openFn); err != nil {
+	if err := d.BaseDatabase.WaitForConnection(openFn, true); err != nil {
 		return err
 	}
 
@@ -227,6 +228,7 @@ func (d *database) CompileStatement(stmt *exql.Statement) string {
 // Err allows sqladapter to translate some known errors into generic errors.
 func (d *database) Err(err error) error {
 	if err != nil {
+		log.Printf("Err: %v", err)
 		if err == errTooManyOpenFiles {
 			return db.ErrTooManyClients
 		}
@@ -282,14 +284,18 @@ func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
 	defer clone.txMu.Unlock()
 
 	openFn := func() error {
-		sqlTx, err := clone.BaseDatabase.Session().Begin()
+		sess := clone.BaseDatabase.Session()
+		if sess == nil {
+			return db.ErrNotConnected
+		}
+		sqlTx, err := sess.Begin()
 		if err == nil {
 			return clone.BindTx(sqlTx)
 		}
 		return err
 	}
 
-	if err := d.BaseDatabase.WaitForConnection(openFn); err != nil {
+	if err := d.BaseDatabase.WaitForConnection(openFn, false); err != nil {
 		return nil, err
 	}
 

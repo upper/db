@@ -28,6 +28,11 @@ import (
 
 // Settings defines methods to get or set configuration values.
 type Settings interface {
+	// SetRetryQueryOnError enables or disable query retry-on-error features.
+	SetRetryQueryOnError(bool)
+	// Returns true if query retry is enabled.
+	RetryQueryOnError() bool
+
 	// SetLogging enables or disables logging.
 	SetLogging(bool)
 	// LoggingEnabled returns true if logging is enabled, false otherwise.
@@ -45,6 +50,8 @@ type conf struct {
 	queryLogger   Logger
 	queryLoggerMu sync.RWMutex
 	defaultLogger defaultLogger
+
+	queryRetryOnError uint32
 }
 
 func (c *conf) Logger() Logger {
@@ -58,6 +65,14 @@ func (c *conf) Logger() Logger {
 	return c.queryLogger
 }
 
+func (c *conf) SetRetryQueryOnError(v bool) {
+	c.setBinaryOption(&c.queryRetryOnError, v)
+}
+
+func (c *conf) RetryQueryOnError() bool {
+	return c.binaryOption(&c.queryRetryOnError)
+}
+
 func (c *conf) SetLogger(lg Logger) {
 	c.queryLoggerMu.Lock()
 	defer c.queryLoggerMu.Unlock()
@@ -65,20 +80,28 @@ func (c *conf) SetLogger(lg Logger) {
 	c.queryLogger = lg
 }
 
-func (c *conf) SetLogging(value bool) {
-	if value {
-		atomic.StoreUint32(&c.loggingEnabled, 1)
-		return
-	}
-	atomic.StoreUint32(&c.loggingEnabled, 0)
-}
-
-func (c *conf) LoggingEnabled() bool {
-	if v := atomic.LoadUint32(&c.loggingEnabled); v == 1 {
+func (c *conf) binaryOption(dest *uint32) bool {
+	if v := atomic.LoadUint32(dest); v == 1 {
 		return true
 	}
 	return false
 }
 
-// Conf provides global configuration settings for upper-db.
+func (c *conf) setBinaryOption(dest *uint32, value bool) {
+	if value {
+		atomic.StoreUint32(dest, 1)
+		return
+	}
+	atomic.StoreUint32(dest, 0)
+}
+
+func (c *conf) SetLogging(value bool) {
+	c.setBinaryOption(&c.loggingEnabled, value)
+}
+
+func (c *conf) LoggingEnabled() bool {
+	return c.binaryOption(&c.loggingEnabled)
+}
+
+// Conf provides default global configuration settings for upper-db.
 var Conf Settings = &conf{}

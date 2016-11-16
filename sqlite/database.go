@@ -140,7 +140,7 @@ func (d *database) open() error {
 		return errTooManyOpenFiles
 	}
 
-	if err := d.BaseDatabase.WaitForConnection(openFn); err != nil {
+	if err := d.BaseDatabase.WaitForConnection(openFn, true); err != nil {
 		return err
 	}
 
@@ -195,6 +195,10 @@ func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
 	}
 
 	openFn := func() error {
+		sess := clone.BaseDatabase.Session()
+		if sess == nil {
+			return db.ErrNotConnected
+		}
 		sqlTx, err := clone.BaseDatabase.Session().Begin()
 		if err == nil {
 			return clone.BindTx(sqlTx)
@@ -202,7 +206,7 @@ func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
 		return err
 	}
 
-	if err := d.BaseDatabase.WaitForConnection(openFn); err != nil {
+	if err := d.BaseDatabase.WaitForConnection(openFn, true); err != nil {
 		return nil, err
 	}
 
