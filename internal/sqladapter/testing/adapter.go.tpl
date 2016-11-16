@@ -91,7 +91,11 @@ func TestStressPreparedStatementsCache(t *testing.T) {
 	// The max number of elements we can have on our LRU is 128, if an statement
 	// is evicted it will be marked as dead and will be closed only when no other
 	// queries are using it.
-	const maxPreparedStatements = 128 * 2
+	const preparedStatementsLRU = 128
+
+	// This number can be a bit greater than preparedStatementsLRU when executing
+	// a lot of concurrent statements.
+	const maxPreparedStatements = preparedStatementsLRU + 40
 
 	var wg sync.WaitGroup
 	for i := 0; i < 1000; i++ {
@@ -106,7 +110,8 @@ func TestStressPreparedStatementsCache(t *testing.T) {
 			if err != nil {
 				tFatal(err)
 			}
-			if activeStatements := sqladapter.NumActiveStatements(); activeStatements > maxPreparedStatements {
+			activeStatements := sqladapter.NumActiveStatements()
+			if activeStatements > maxPreparedStatements {
 				tFatal(fmt.Errorf("The number of active statements cannot exceed %d (got %d).", maxPreparedStatements, activeStatements))
 			}
 		}(i)
@@ -116,6 +121,11 @@ func TestStressPreparedStatementsCache(t *testing.T) {
 	}
 
 	wg.Wait()
+
+	activeStatements := sqladapter.NumActiveStatements()
+	if activeStatements > preparedStatementsLRU {
+		t.Fatal(fmt.Errorf("The number of active statements cannot exceed %d (got %d).", preparedStatementsLRU, activeStatements))
+	}
 }
 
 func TestTruncateAllCollections(t *testing.T) {

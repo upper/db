@@ -423,6 +423,7 @@ func (d *database) prepareAndExec(stmt *exql.Statement, args ...interface{}) (st
 	if err != nil {
 		return query, nil, err
 	}
+	defer p.Close()
 
 	if execer, ok := d.PartialDatabase.(HasStatementExec); ok {
 		res, err := execer.StatementExec(p.Stmt, args...)
@@ -487,6 +488,7 @@ func (d *database) prepareAndQuery(stmt *exql.Statement, args ...interface{}) (s
 	if err != nil {
 		return query, nil, err
 	}
+	defer p.Close()
 
 	rows, err := p.Query(args...)
 	return query, rows, err
@@ -533,6 +535,7 @@ func (d *database) prepareAndQueryRow(stmt *exql.Statement, args ...interface{})
 	if err != nil {
 		return query, nil, err
 	}
+	defer p.Close()
 
 	// Would be nice to find a way to check if this succeeded before using
 	// Scan.
