@@ -7,7 +7,7 @@ export DB_HOST
 test:
 	go test -v -benchtime=500ms -bench=. ./lib/... && \
 	go test -v -benchtime=500ms -bench=. ./internal/... && \
-	for ADAPTER in postgresql mysql sqlite ql mongo; do \
+	for ADAPTER in mysql; do \
 		$(MAKE) -C $$ADAPTER test; \
 	done && \
-	go test -v
+	WRAPPER=mysql go test -v

@@ -267,18 +267,12 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 		}(time.Now())
 	}
 
-	var p *Stmt
-	if p, query, err = d.prepareStatement(stmt); err != nil {
-		return nil, err
-	}
-	defer p.Close()
-
-	if execer, ok := d.PartialDatabase.(HasStatementExec); ok {
-		res, err = execer.StatementExec(p.Stmt, args...)
+	query = d.PartialDatabase.CompileStatement(stmt)
+	if tx := d.Transaction(); tx != nil {
+		res, err = tx.(*sqlTx).Exec(query, args...)
 		return
 	}
-
-	res, err = p.Exec(args...)
+	res, err = d.sess.Exec(query, args...)
 	return
 }
 
@@ -300,13 +294,12 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (ro
 		}(time.Now())
 	}
 
-	var p *Stmt
-	if p, query, err = d.prepareStatement(stmt); err != nil {
-		return nil, err
+	query = d.PartialDatabase.CompileStatement(stmt)
+	if tx := d.Transaction(); tx != nil {
+		rows, err = tx.(*sqlTx).Query(query, args...)
+		return
 	}
-	defer p.Close()
-
-	rows, err = p.Query(args...)
+	rows, err = d.sess.Query(query, args...)
 	return
 }
 
@@ -329,14 +322,11 @@ func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) 
 		}(time.Now())
 	}
 
-	var p *Stmt
-	if p, query, err = d.prepareStatement(stmt); err != nil {
-		return nil, err
+	query = d.PartialDatabase.CompileStatement(stmt)
+	if tx := d.Transaction(); tx != nil {
+		return tx.(*sqlTx).QueryRow(query, args...), nil
 	}
-	defer p.Close()
-
-	row, err = p.QueryRow(args...), nil
-	return
+	return d.sess.QueryRow(query, args...), nil
 }
 
 // Driver returns the underlying *sql.DB or *sql.Tx instance.
