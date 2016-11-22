@@ -24,11 +24,13 @@ package postgresql
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"upper.io/db.v2"
+	"upper.io/db.v2/lib/sqlbuilder"
 )
 
 const (
@@ -335,4 +337,44 @@ func TestOptionTypeJsonbStruct(t *testing.T) {
 	assert.Equal(t, "aah", item1Chk.Tags[0])
 	assert.Equal(t, "a", item1Chk.Settings.Name)
 	assert.Equal(t, int64(123), item1Chk.Settings.Num)
+}
+
+func getStats(sess sqlbuilder.Database) (map[string]int, error) {
+	stats := make(map[string]int)
+
+	row := sess.Driver().(*sql.DB).QueryRow(`SELECT count(1) AS value FROM pg_prepared_statements`)
+
+	var value int
+	err := row.Scan(&value)
+	if err != nil {
+		return nil, err
+	}
+
+	stats["pg_prepared_statements_count"] = value
+
+	return stats, nil
+}
+
+func cleanUpCheck(sess sqlbuilder.Database) (err error) {
+	var stats map[string]int
+	stats, err = getStats(sess)
+	if err != nil {
+		return err
+	}
+
+	if stats["Prepared_stmt_count"] > 128 {
+		return fmt.Errorf(`Expecting "Prepared_stmt_count" not to be greater than the prepared statements cache size (128) before cleaning, got %d`, stats["Prepared_stmt_count"])
+	}
+
+	sess.ClearCache()
+
+	stats, err = getStats(sess)
+	if err != nil {
+		return err
+	}
+
+	if stats["pg_prepared_statements_count"] != 0 {
+		return fmt.Errorf(`Expecting "Prepared_stmt_count" to be 0, got %d`, stats["Prepared_stmt_count"])
+	}
+	return nil
 }

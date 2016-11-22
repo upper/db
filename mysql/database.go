@@ -141,7 +141,10 @@ func (d *database) clone() (*database, error) {
 	}
 	clone.Builder = b
 
-	clone.BaseDatabase.BindSession(d.BaseDatabase.Session())
+	if err = clone.BaseDatabase.BindSession(d.BaseDatabase.Session()); err != nil {
+		return nil, err
+	}
+
 	return clone, nil
 }
 
@@ -180,6 +183,9 @@ func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	clone.txMu.Lock()
+	defer clone.txMu.Unlock()
 
 	connFn := func() error {
 		sqlTx, err := clone.BaseDatabase.Session().Begin()

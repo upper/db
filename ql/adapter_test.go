@@ -25,6 +25,8 @@ package ql
 import (
 	"database/sql"
 	"os"
+
+	"upper.io/db.v2/lib/sqlbuilder"
 )
 
 const (
@@ -121,5 +123,10 @@ func tearUp() error {
 		return err
 	}
 
+	return nil
+}
+
+func cleanUpCheck(sess sqlbuilder.Database) (err error) {
+	// TODO: Check the number of prepared statements.
 	return nil
 }

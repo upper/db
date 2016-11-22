@@ -25,6 +25,8 @@ package sqlite
 import (
 	"database/sql"
 	"os"
+
+	"upper.io/db.v2/lib/sqlbuilder"
 )
 
 const (
@@ -124,5 +126,10 @@ func tearUp() error {
 		}
 	}
 
+	return nil
+}
+
+func cleanUpCheck(sess sqlbuilder.Database) (err error) {
+	// TODO: Check the number of prepared statements.
 	return nil
 }

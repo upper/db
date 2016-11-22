@@ -194,6 +194,9 @@ func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
 		return nil, err
 	}
 
+	clone.txMu.Lock()
+	defer clone.txMu.Unlock()
+
 	openFn := func() error {
 		sqlTx, err := clone.BaseDatabase.Session().Begin()
 		if err == nil {

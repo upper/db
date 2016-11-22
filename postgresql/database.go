@@ -140,7 +140,9 @@ func (d *database) clone() (*database, error) {
 	}
 	clone.Builder = b
 
-	clone.BaseDatabase.BindSession(d.BaseDatabase.Session())
+	if err = clone.BaseDatabase.BindSession(d.BaseDatabase.Session()); err != nil {
+		return nil, err
+	}
 	return clone, nil
 }
 
