@@ -26,6 +26,10 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"time"
+
+	"upper.io/db.v2/internal/sqladapter"
+	"upper.io/db.v2/lib/sqlbuilder"
 )
 
 const (
@@ -130,4 +134,59 @@ func tearUp() error {
 	}
 
 	return nil
+}
+
+func getStats(sess sqlbuilder.Database) (map[string]int, error) {
+	stats := make(map[string]int)
+
+	res, err := sess.Driver().(*sql.DB).Query(`SHOW GLOBAL STATUS LIKE '%stmt%'`)
+	if err != nil {
+		return nil, err
+	}
+	var result struct {
+		VariableName string `db:"Variable_name"`
+		Value        int    `db:"Value"`
+	}
+
+	iter := sqlbuilder.NewIterator(res)
+	for iter.Next(&result) {
+		stats[result.VariableName] = result.Value
+	}
+
+	return stats, nil
+}
+
+func cleanUpCheck(sess sqlbuilder.Database) (err error) {
+	var stats map[string]int
+
+	stats, err = getStats(sess)
+	if err != nil {
+		return err
+	}
+
+	if stats["Prepared_stmt_count"] > 128 {
+		return fmt.Errorf(`Expecting "Prepared_stmt_count" not to be greater than the prepared statements cache size (128) before cleaning, got %d`, stats["Prepared_stmt_count"])
+	}
+
+	sess.ClearCache()
+
+	if activeStatements := sqladapter.NumActiveStatements(); activeStatements != 0 {
+		return fmt.Errorf("Expecting active statements to be 0, got %d", activeStatements)
+	}
+
+	for i := 0; i < 10; i++ {
+		stats, err = getStats(sess)
+		if err != nil {
+			return err
+		}
+
+		if stats["Prepared_stmt_count"] != 0 {
+			time.Sleep(time.Millisecond * 200) // Sometimes it takes a bit to clean prepared statements
+			err = fmt.Errorf(`Expecting "Prepared_stmt_count" to be 0, got %d`, stats["Prepared_stmt_count"])
+			continue
+		}
+		break
+	}
+
+	return err
 }
