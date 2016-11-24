@@ -154,6 +154,23 @@ func TestSelect(t *testing.T) {
 		).String(),
 	)
 
+	{
+		q := b.Select().From("artist").Where(
+			db.Or(
+				db.And(db.Cond{"a": 1}, db.Cond{"b": 2}, db.Cond{"c": 3}),
+				db.And(db.Cond{"d": 1}, db.Cond{"e": 2}, db.Cond{"f": 3}),
+			),
+		)
+		assert.Equal(
+			`SELECT * FROM "artist" WHERE ((("a" = $1 AND "b" = $2 AND "c" = $3) OR ("d" = $4 AND "e" = $5 AND "f" = $6)))`,
+			q.String(),
+		)
+		assert.Equal(
+			[]interface{}{1, 2, 3, 1, 2, 3},
+			q.Arguments(),
+		)
+	}
+
 	assert.Equal(
 		`SELECT * FROM "artist" WHERE ((("id" = $1 OR "id" = $2 OR "id" IS NULL) OR ("name" = $3 OR "name" = $4)))`,
 		b.Select().From("artist").Where(
