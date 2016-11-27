@@ -73,6 +73,10 @@ type BaseDatabase interface {
 
 	BindTx(*sql.Tx) error
 	Transaction() BaseTx
+
+	SetConnMaxLifetime(time.Duration)
+	SetMaxIdleConns(int)
+	SetMaxOpenConns(int)
 }
 
 // NewBaseDatabase provides a BaseDatabase given a PartialDatabase
@@ -176,6 +180,30 @@ func (d *database) Ping() error {
 		return d.sess.Ping()
 	}
 	return nil
+}
+
+// SetConnMaxLifetime sets the maximum amount of time a connection may be
+// reused.
+func (d *database) SetConnMaxLifetime(t time.Duration) {
+	if sess := d.Session(); sess != nil {
+		sess.SetConnMaxLifetime(t)
+	}
+}
+
+// SetMaxIdleConns sets the maximum number of connections in the idle
+// connection pool.
+func (d *database) SetMaxIdleConns(n int) {
+	if sess := d.Session(); sess != nil {
+		sess.SetMaxIdleConns(n)
+	}
+}
+
+// SetMaxOpenConns sets the maximum number of open connections to the
+// database.
+func (d *database) SetMaxOpenConns(n int) {
+	if sess := d.Session(); sess != nil {
+		sess.SetMaxOpenConns(n)
+	}
 }
 
 // ClearCache removes all caches.
@@ -352,6 +380,9 @@ func (d *database) Driver() interface{} {
 // *sql.Stmt.  This method will attempt to used a cached prepared statement, if
 // available.
 func (d *database) prepareStatement(stmt *exql.Statement) (*Stmt, string, error) {
+	d.sessMu.Lock()
+	defer d.sessMu.Unlock()
+
 	if d.sess == nil && d.Transaction() == nil {
 		return nil, "", db.ErrNotConnected
 	}

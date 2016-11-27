@@ -34,4 +34,5 @@ reset-db: require-client
 	mysql -uroot -h"$(DB_HOST)" -P$(DB_PORT) <<< $$SQL
 
 test: reset-db generate
-	go test -tags generated -v -race
+	#go test -tags generated -v -race # race: limit on 8192 simultaneously alive goroutines is exceeded, dying
+	go test -tags generated -v

@@ -176,6 +176,32 @@ func (d *database) Err(err error) error {
 	return err
 }
 
+// StatementExec wraps the statement to execute around a transaction.
+func (d *database) StatementExec(stmt *sql.Stmt, args ...interface{}) (sql.Result, error) {
+	if d.BaseDatabase.Transaction() == nil {
+		var tx *sql.Tx
+		var res sql.Result
+		var err error
+
+		if tx, err = d.Session().Begin(); err != nil {
+			return nil, err
+		}
+
+		s := tx.Stmt(stmt)
+
+		if res, err = s.Exec(args...); err != nil {
+			return nil, err
+		}
+
+		if err = tx.Commit(); err != nil {
+			return nil, err
+		}
+
+		return res, err
+	}
+	return stmt.Exec(args...)
+}
+
 // NewLocalCollection allows sqladapter create a local db.Collection.
 func (d *database) NewLocalCollection(name string) db.Collection {
 	return newTable(d, name)

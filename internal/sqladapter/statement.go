@@ -49,7 +49,7 @@ func (c *Stmt) Open() (*Stmt, error) {
 }
 
 // Close closes the underlying statement if no other go-routine is using it.
-func (c *Stmt) Close() {
+func (c *Stmt) Close() (err error) {
 	if atomic.AddInt64(&c.count, -1) > 0 {
 		// If this counter is more than 0 then there are other goroutines using
 		// this statement so we don't want to close it for real.
@@ -58,10 +58,11 @@ func (c *Stmt) Close() {
 
 	if atomic.LoadInt32(&c.dead) > 0 && atomic.LoadInt64(&c.count) <= 0 {
 		// Statement is dead and we can close it for real.
-		c.Stmt.Close()
+		err = c.Stmt.Close()
 		// Reduce active statements counter.
 		atomic.AddInt64(&activeStatements, -1)
 	}
+	return
 }
 
 // OnPurge marks the statement as ready to be cleaned up.

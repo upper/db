@@ -17,7 +17,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"upper.io/db.v2"
-	"upper.io/db.v2/internal/sqladapter"
 	"upper.io/db.v2/lib/sqlbuilder"
 )
 
@@ -86,24 +85,9 @@ func TestPreparedStatementsCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// QL and SQLite don't have the same concurrency capabilities PostgreSQL and
-	// MySQL have, so they have special limits.
-	defaultLimit := 1000
-
-	limits := map[string]int {
-		"sqlite": 20,
-		"ql": 20,
-	}
-
-	limit := limits[Adapter]
-	if limit < 1 {
-		limit = defaultLimit
-	}
-
-	// The max number of elements we can have on our LRU is 128, if an statement
-	// is evicted it will be marked as dead and will be closed only when no other
-	// queries are using it.
-	const maxPreparedStatements = 128 * 2
+	// This limit was chosen because, by default, MySQL accepts 16k statements
+	// and dies. See https://github.com/upper/db/issues/287
+	limit := 20000
 
 	var wg sync.WaitGroup
 	for i := 0; i < limit; i++ {
@@ -112,43 +96,47 @@ func TestPreparedStatementsCache(t *testing.T) {
 			defer wg.Done()
 			// This query is different with each iteration and thus generates a new
 			// prepared statement everytime it's called.
-			res := sess.Collection("artist").Find().Select(db.Raw(fmt.Sprintf("count(%d)", i%200)))
+			res := sess.Collection("artist").Find().Select(db.Raw(fmt.Sprintf("count(%d)", i)))
 			var count map[string]uint64
 			err := res.One(&count)
 			if err != nil {
 				tFatal(err)
 			}
-			if activeStatements := sqladapter.NumActiveStatements(); activeStatements > maxPreparedStatements {
-				tFatal(fmt.Errorf("The number of active statements cannot exceed %d (got %d).", maxPreparedStatements, activeStatements))
-			}
 		}(i)
-		if i%50 == 0 {
-			wg.Wait()
-		}
 	}
 	wg.Wait()
+
+	// Concurrent Insert can open many connections on MySQL / PostgreSQL, this
+	// sets a limit to them.
+	maxOpenConns := 100
+	if Adapter == "sqlite" {
+		// We can't use sqlite3 for multiple writes concurrently.
+		// https://github.com/mattn/go-sqlite3#faq
+		//
+		// The right thing here would be using bulk insertion, but that's not what
+		// we're testing.
+		limit = 10
+	}
+	sess.SetMaxOpenConns(maxOpenConns)
+	log.Printf("limit: %v, maxOpenConns: %v", limit, maxOpenConns)
 
 	for i := 0; i < limit; i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			// This query is different with each iteration and thus generates a new
-			// prepared statement everytime it's called.
+			// The same prepared query on every iteration.
 			_, err := sess.Collection("artist").Insert(artistType{
         Name: fmt.Sprintf("artist-%d", i%200),
       })
 			if err != nil {
 				tFatal(err)
 			}
-			if activeStatements := sqladapter.NumActiveStatements(); activeStatements > maxPreparedStatements {
-				tFatal(fmt.Errorf("The number of active statements cannot exceed %d (got %d).", maxPreparedStatements, activeStatements))
-			}
 		}(i)
-		if i%50 == 0 {
-			wg.Wait()
-		}
 	}
 	wg.Wait()
+
+	// Removing the limit.
+	sess.SetMaxOpenConns(0)
 
 	assert.NoError(t, cleanUpCheck(sess))
 	assert.NoError(t, sess.Close())

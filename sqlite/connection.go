@@ -58,6 +58,10 @@ func (c ConnectionURL) String() (s string) {
 		c.Options = map[string]string{}
 	}
 
+	if _, ok := c.Options["_busy_timeout"]; !ok {
+		c.Options["_busy_timeout"] = "10000"
+	}
+
 	// Converting options into URL values.
 	for k, v := range c.Options {
 		vv.Set(k, v)
