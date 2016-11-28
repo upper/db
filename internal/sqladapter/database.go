@@ -27,7 +27,7 @@ type HasCleanUp interface {
 
 // HasStatementExec allows the adapter to have its own exec statement.
 type HasStatementExec interface {
-	StatementExec(stmt *sql.Stmt, args ...interface{}) (sql.Result, error)
+	StatementExec(query string, args ...interface{}) (sql.Result, error)
 }
 
 // Database represents a SQL database.
@@ -77,6 +77,8 @@ type BaseDatabase interface {
 	SetConnMaxLifetime(time.Duration)
 	SetMaxIdleConns(int)
 	SetMaxOpenConns(int)
+
+	BindClone(PartialDatabase) (BaseDatabase, error)
 }
 
 // NewBaseDatabase provides a BaseDatabase given a PartialDatabase
@@ -101,6 +103,8 @@ type database struct {
 	name   string
 	sess   *sql.DB
 	sessMu sync.Mutex
+
+	psMu sync.Mutex
 
 	sessID uint64
 	txID   uint64
@@ -217,6 +221,20 @@ func (d *database) ClearCache() {
 	}
 }
 
+// BindClone binds a clone that is linked to the current
+// session. This is commonly done before creating a transaction
+// session.
+func (d *database) BindClone(p PartialDatabase) (BaseDatabase, error) {
+	nd := NewBaseDatabase(p).(*database)
+	nd.name = d.name
+	nd.sess = d.sess
+	if err := nd.Ping(); err != nil {
+		return nil, err
+	}
+	nd.sessID = newSessionID()
+	return nd, nil
+}
+
 // Close terminates the current database session
 func (d *database) Close() error {
 	defer func() {
@@ -229,6 +247,7 @@ func (d *database) Close() error {
 		if cleaner, ok := d.PartialDatabase.(HasCleanUp); ok {
 			cleaner.CleanUp()
 		}
+
 		d.cachedCollections.Clear()
 		d.cachedStatements.Clear() // Closes prepared statements as well.
 
@@ -240,6 +259,7 @@ func (d *database) Close() error {
 
 		if !tx.Committed() {
 			tx.Rollback()
+			return nil
 		}
 	}
 	return nil
@@ -295,18 +315,33 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 		}(time.Now())
 	}
 
-	var p *Stmt
-	if p, query, err = d.prepareStatement(stmt); err != nil {
-		return nil, err
-	}
-	defer p.Close()
-
 	if execer, ok := d.PartialDatabase.(HasStatementExec); ok {
-		res, err = execer.StatementExec(p.Stmt, args...)
+		query = d.compileStatement(stmt)
+		res, err = execer.StatementExec(query, args...)
 		return
 	}
 
-	res, err = p.Exec(args...)
+	tx := d.Transaction()
+
+	if db.Conf.PreparedStatementCacheEnabled() && tx == nil {
+		var p *Stmt
+		if p, query, err = d.prepareStatement(stmt); err != nil {
+			return nil, err
+		}
+		defer p.Close()
+
+		res, err = p.Exec(args...)
+		return
+	}
+
+	query = d.compileStatement(stmt)
+
+	if tx != nil {
+		res, err = tx.(*sqlTx).Exec(query, args...)
+		return
+	}
+
+	res, err = d.sess.Exec(query, args...)
 	return
 }
 
@@ -328,14 +363,28 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (ro
 		}(time.Now())
 	}
 
-	var p *Stmt
-	if p, query, err = d.prepareStatement(stmt); err != nil {
-		return nil, err
-	}
-	defer p.Close()
+	tx := d.Transaction()
 
-	rows, err = p.Query(args...)
+	if db.Conf.PreparedStatementCacheEnabled() && tx == nil {
+		var p *Stmt
+		if p, query, err = d.prepareStatement(stmt); err != nil {
+			return nil, err
+		}
+		defer p.Close()
+
+		rows, err = p.Query(args...)
+		return
+	}
+
+	query = d.compileStatement(stmt)
+	if tx != nil {
+		rows, err = tx.(*sqlTx).Query(query, args...)
+		return
+	}
+
+	rows, err = d.sess.Query(query, args...)
 	return
+
 }
 
 // StatementQueryRow compiles and executes a statement that returns at most one
@@ -357,13 +406,26 @@ func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) 
 		}(time.Now())
 	}
 
-	var p *Stmt
-	if p, query, err = d.prepareStatement(stmt); err != nil {
-		return nil, err
-	}
-	defer p.Close()
+	tx := d.Transaction()
 
-	row, err = p.QueryRow(args...), nil
+	if db.Conf.PreparedStatementCacheEnabled() && tx == nil {
+		var p *Stmt
+		if p, query, err = d.prepareStatement(stmt); err != nil {
+			return nil, err
+		}
+		defer p.Close()
+
+		row = p.QueryRow(args...)
+		return
+	}
+
+	query = d.compileStatement(stmt)
+	if tx != nil {
+		row = tx.(*sqlTx).QueryRow(query, args...)
+		return
+	}
+
+	row = d.sess.QueryRow(query, args...)
 	return
 }
 
@@ -376,14 +438,19 @@ func (d *database) Driver() interface{} {
 	return d.sess
 }
 
-// prepareStatement converts a *exql.Statement representation into an actual
-// *sql.Stmt.  This method will attempt to used a cached prepared statement, if
-// available.
+// compileStatement compiles the given statement into a string.
+func (d *database) compileStatement(stmt *exql.Statement) string {
+	return d.PartialDatabase.CompileStatement(stmt)
+}
+
+// prepareStatement compiles a query and tries to use previously generated
+// statement.
 func (d *database) prepareStatement(stmt *exql.Statement) (*Stmt, string, error) {
 	d.sessMu.Lock()
 	defer d.sessMu.Unlock()
 
-	if d.sess == nil && d.Transaction() == nil {
+	sess, tx := d.sess, d.Transaction()
+	if sess == nil && tx == nil {
 		return nil, "", db.ErrNotConnected
 	}
 
@@ -396,22 +463,23 @@ func (d *database) prepareStatement(stmt *exql.Statement) (*Stmt, string, error)
 		}
 	}
 
-	// Plain SQL query.
-	query := d.PartialDatabase.CompileStatement(stmt)
-
-	sqlStmt, err := func() (*sql.Stmt, error) {
-		if d.Transaction() != nil {
-			return d.Transaction().(*sqlTx).Prepare(query)
+	query := d.compileStatement(stmt)
+	sqlStmt, err := func(query *string) (*sql.Stmt, error) {
+		if tx != nil {
+			return tx.(*sqlTx).Prepare(*query)
 		}
-		return d.sess.Prepare(query)
-	}()
+		return sess.Prepare(*query)
+	}(&query)
+	if err != nil {
+		return nil, "", err
+	}
+
+	p, err := NewStatement(sqlStmt, query).Open()
 	if err != nil {
 		return nil, query, err
 	}
-
-	p := NewStatement(sqlStmt, query)
 	d.cachedStatements.Write(stmt, p)
-	return p, query, nil
+	return p, p.query, nil
 }
 
 var waitForConnMu sync.Mutex

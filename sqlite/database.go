@@ -153,9 +153,16 @@ func (d *database) clone() (*database, error) {
 		return nil, err
 	}
 
-	if err := clone.open(); err != nil {
+	clone.BaseDatabase, err = d.BindClone(clone)
+	if err != nil {
 		return nil, err
 	}
+
+	b, err := sqlbuilder.WithSession(clone.BaseDatabase, template)
+	if err != nil {
+		return nil, err
+	}
+	clone.Builder = b
 
 	return clone, nil
 }
@@ -177,29 +184,28 @@ func (d *database) Err(err error) error {
 }
 
 // StatementExec wraps the statement to execute around a transaction.
-func (d *database) StatementExec(stmt *sql.Stmt, args ...interface{}) (sql.Result, error) {
-	if d.BaseDatabase.Transaction() == nil {
-		var tx *sql.Tx
-		var res sql.Result
-		var err error
+func (d *database) StatementExec(query string, args ...interface{}) (res sql.Result, err error) {
+	d.txMu.Lock()
+	defer d.txMu.Unlock()
 
-		if tx, err = d.Session().Begin(); err != nil {
-			return nil, err
-		}
-
-		s := tx.Stmt(stmt)
-
-		if res, err = s.Exec(args...); err != nil {
-			return nil, err
-		}
-
-		if err = tx.Commit(); err != nil {
-			return nil, err
-		}
-
-		return res, err
+	if d.Transaction() != nil {
+		return d.Driver().(*sql.Tx).Exec(query, args...)
 	}
-	return stmt.Exec(args...)
+
+	sqlTx, err := d.Session().Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	if res, err = sqlTx.Exec(query, args...); err != nil {
+		return nil, err
+	}
+
+	if err = sqlTx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return res, err
 }
 
 // NewLocalCollection allows sqladapter create a local db.Collection.

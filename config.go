@@ -37,10 +37,18 @@ type Settings interface {
 	SetLogger(Logger)
 	// Returns the currently configured logger.
 	Logger() Logger
+
+	// SetPreparedStatementCache enables or disables the prepared statement
+	// cache.
+	SetPreparedStatementCache(bool)
+	// PreparedStatementCacheEnabled returns true if the prepared statement cache
+	// is enabled, false otherwise.
+	PreparedStatementCacheEnabled() bool
 }
 
 type conf struct {
-	loggingEnabled uint32
+	loggingEnabled                uint32
+	preparedStatementCacheEnabled uint32
 
 	queryLogger   Logger
 	queryLoggerMu sync.RWMutex
@@ -65,20 +73,38 @@ func (c *conf) SetLogger(lg Logger) {
 	c.queryLogger = lg
 }
 
-func (c *conf) SetLogging(value bool) {
-	if value {
-		atomic.StoreUint32(&c.loggingEnabled, 1)
-		return
-	}
-	atomic.StoreUint32(&c.loggingEnabled, 0)
-}
-
-func (c *conf) LoggingEnabled() bool {
-	if v := atomic.LoadUint32(&c.loggingEnabled); v == 1 {
+func (c *conf) binaryOption(opt *uint32) bool {
+	if atomic.LoadUint32(opt) == 1 {
 		return true
 	}
 	return false
 }
 
+func (c *conf) setBinaryOption(opt *uint32, value bool) {
+	if value {
+		atomic.StoreUint32(opt, 1)
+		return
+	}
+	atomic.StoreUint32(opt, 0)
+}
+
+func (c *conf) SetLogging(value bool) {
+	c.setBinaryOption(&c.loggingEnabled, value)
+}
+
+func (c *conf) LoggingEnabled() bool {
+	return c.binaryOption(&c.loggingEnabled)
+}
+
+func (c *conf) SetPreparedStatementCache(value bool) {
+	c.setBinaryOption(&c.preparedStatementCacheEnabled, value)
+}
+
+func (c *conf) PreparedStatementCacheEnabled() bool {
+	return c.binaryOption(&c.preparedStatementCacheEnabled)
+}
+
 // Conf provides global configuration settings for upper-db.
-var Conf Settings = &conf{}
+var Conf Settings = &conf{
+	preparedStatementCacheEnabled: 0,
+}

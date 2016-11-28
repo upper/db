@@ -3,6 +3,7 @@ package sqladapter
 import (
 	"fmt"
 	"reflect"
+	"sync"
 
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter/exql"
@@ -35,6 +36,7 @@ type BaseCollection interface {
 type collection struct {
 	p  PartialCollection
 	pk []string
+	mu sync.Mutex
 }
 
 // NewBaseCollection returns a collection with basic methods.
@@ -68,6 +70,9 @@ func (c *collection) Exists() bool {
 
 // InsertReturning inserts an item and updates the given variable reference.
 func (c *collection) InsertReturning(item interface{}) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	if reflect.TypeOf(item).Kind() != reflect.Ptr {
 		return fmt.Errorf("Expecting a pointer to map or string but got %T", item)
 	}

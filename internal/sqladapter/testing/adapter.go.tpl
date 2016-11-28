@@ -78,6 +78,9 @@ func TestOpenMustSucceed(t *testing.T) {
 func TestPreparedStatementsCache(t *testing.T) {
 	sess := mustOpen()
 
+	db.Conf.SetPreparedStatementCache(true)
+	defer db.Conf.SetPreparedStatementCache(false)
+
 	var tMu sync.Mutex
 	tFatal := func(err error) {
 		tMu.Lock()
@@ -88,8 +91,8 @@ func TestPreparedStatementsCache(t *testing.T) {
 	// This limit was chosen because, by default, MySQL accepts 16k statements
 	// and dies. See https://github.com/upper/db/issues/287
 	limit := 20000
-
 	var wg sync.WaitGroup
+
 	for i := 0; i < limit; i++ {
 		wg.Add(1)
 		go func(i int) {
@@ -108,17 +111,7 @@ func TestPreparedStatementsCache(t *testing.T) {
 
 	// Concurrent Insert can open many connections on MySQL / PostgreSQL, this
 	// sets a limit to them.
-	maxOpenConns := 100
-	if Adapter == "sqlite" {
-		// We can't use sqlite3 for multiple writes concurrently.
-		// https://github.com/mattn/go-sqlite3#faq
-		//
-		// The right thing here would be using bulk insertion, but that's not what
-		// we're testing.
-		limit = 10
-	}
-	sess.SetMaxOpenConns(maxOpenConns)
-	log.Printf("limit: %v, maxOpenConns: %v", limit, maxOpenConns)
+	//sess.SetMaxOpenConns(100)
 
 	for i := 0; i < limit; i++ {
 		wg.Add(1)
@@ -126,8 +119,25 @@ func TestPreparedStatementsCache(t *testing.T) {
 			defer wg.Done()
 			// The same prepared query on every iteration.
 			_, err := sess.Collection("artist").Insert(artistType{
-        Name: fmt.Sprintf("artist-%d", i%200),
+        Name: fmt.Sprintf("artist-%d", i),
       })
+			if err != nil {
+				tFatal(err)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	// Insert returning creates a transaction.
+	for i := 0; i < limit; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			// The same prepared query on every iteration.
+			artist := artistType{
+        Name: fmt.Sprintf("artist-%d", i),
+      }
+			err := sess.Collection("artist").InsertReturning(&artist)
 			if err != nil {
 				tFatal(err)
 			}
@@ -1008,6 +1018,7 @@ func TestCompositeKeys(t *testing.T) {
 
 // Attempts to test database transactions.
 func TestTransactionsAndRollback(t *testing.T) {
+
 	if Adapter == "ql" {
 		t.Skip("Currently not supported.")
 	}
@@ -1036,8 +1047,12 @@ func TestTransactionsAndRollback(t *testing.T) {
 	err = tx.Close()
 	assert.NoError(t, err)
 
+	err = tx.Close()
+	assert.NoError(t, err)
+
 	// Use another transaction.
 	tx, err = sess.NewTx()
+	assert.NoError(t, err)
 
 	artist = tx.Collection("artist")
 
