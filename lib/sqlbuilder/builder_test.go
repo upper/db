@@ -1,6 +1,7 @@
 package sqlbuilder
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -618,6 +619,54 @@ func TestSelect(t *testing.T) {
 			[]interface{}{5, 4, 3, 2, 1, "bar"},
 			sel2.Arguments(),
 		)
+	}
+
+	{
+		sq := b.
+			Select("user_id").
+			From("user_access").
+			Where(db.Cond{"hub_id": 3})
+
+		sq.And(db.Cond{"role": []int{1, 2}})
+
+		assert.Equal(
+			`SELECT "user_id" FROM "user_access" WHERE ("hub_id" = $1 AND "role" IN ($2, $3))`,
+			sq.String(),
+		)
+
+		assert.Equal(
+			[]interface{}{3, 1, 2},
+			sq.Arguments(),
+		)
+
+		cond := db.Or(
+			db.Raw("a.id IN ?", sq),
+		)
+
+		cond.Or(db.Cond{"ml.mailing_list_id": []int{4, 5, 6}})
+
+		sel := b.
+			Select(db.Raw("DISTINCT ON(a.id) a.id"), db.Raw("COALESCE(NULLIF(ml.name,''), a.name) as name"), "a.email").
+			From("mailing_list_recipients ml").
+			FullJoin("accounts a").On("a.id = ml.user_id").
+			Where(cond)
+
+		search := "word"
+		sel.And(db.Or(
+			db.Raw("COALESCE(NULLIF(ml.name,''), a.name) ILIKE ?", fmt.Sprintf("%%%s%%", search)),
+			db.Cond{"a.email ILIKE": fmt.Sprintf("%%%s%%", search)},
+		))
+
+		assert.Equal(
+			`SELECT DISTINCT ON(a.id) a.id, COALESCE(NULLIF(ml.name,''), a.name) as name, "a"."email" FROM "mailing_list_recipients" AS "ml" FULL JOIN "accounts" AS "a" ON (a.id = ml.user_id) WHERE ((a.id IN (SELECT "user_id" FROM "user_access" WHERE ("hub_id" = $1 AND "role" IN ($2, $3))) OR "ml"."mailing_list_id" IN ($4, $5, $6)) AND (COALESCE(NULLIF(ml.name,''), a.name) ILIKE $7 OR "a"."email" ILIKE $8))`,
+			sel.String(),
+		)
+
+		assert.Equal(
+			[]interface{}{3, 1, 2, 4, 5, 6, `%word%`, `%word%`},
+			sel.Arguments(),
+		)
+
 	}
 }
 

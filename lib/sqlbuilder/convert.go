@@ -41,8 +41,11 @@ func expandPlaceholders(in string, args ...interface{}) (string, []interface{}) 
 					}
 				} else {
 					if len(values) == 1 {
-						if rawValue, ok := values[0].(db.RawValue); ok {
-							k, values = rawValue.Raw(), nil
+						switch t := values[0].(type) {
+						case db.RawValue:
+							k, values = t.Raw(), nil
+						case *selector:
+							k, values = `(`+t.statement().Compile(t.stringer.t)+`)`, t.Arguments()
 						}
 					} else if len(values) == 0 {
 						k = `NULL`
