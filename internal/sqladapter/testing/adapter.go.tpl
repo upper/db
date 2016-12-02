@@ -110,8 +110,16 @@ func TestPreparedStatementsCache(t *testing.T) {
 	wg.Wait()
 
 	// Concurrent Insert can open many connections on MySQL / PostgreSQL, this
-	// sets a limit to them.
-	//sess.SetMaxOpenConns(100)
+	// sets a limit on them.
+	sess.SetMaxOpenConns(100)
+
+	switch Adapter {
+	case "ql":
+		limit = 1000
+	case "sqlite":
+		// TODO: We'll probably be able to workaround this with a mutex on inserts.
+		t.Skip(`Skipped due to a "database is locked" problem with concurrent transactions. See https://github.com/mattn/go-sqlite3/issues/274`)
+	}
 
 	for i := 0; i < limit; i++ {
 		wg.Add(1)
@@ -119,8 +127,8 @@ func TestPreparedStatementsCache(t *testing.T) {
 			defer wg.Done()
 			// The same prepared query on every iteration.
 			_, err := sess.Collection("artist").Insert(artistType{
-        Name: fmt.Sprintf("artist-%d", i),
-      })
+				Name: fmt.Sprintf("artist-%d", i),
+			})
 			if err != nil {
 				tFatal(err)
 			}
@@ -135,8 +143,8 @@ func TestPreparedStatementsCache(t *testing.T) {
 			defer wg.Done()
 			// The same prepared query on every iteration.
 			artist := artistType{
-        Name: fmt.Sprintf("artist-%d", i),
-      }
+				Name: fmt.Sprintf("artist-%d", i),
+			}
 			err := sess.Collection("artist").InsertReturning(&artist)
 			if err != nil {
 				tFatal(err)
@@ -530,7 +538,7 @@ func TestGetResultsOneByOne(t *testing.T) {
 	assert.Equal(t, 4, len(allRowsMap))
 
 	for _, singleRowMap := range allRowsMap {
-    if fmt.Sprintf("%d", singleRowMap["id"]) == "0" {
+		if fmt.Sprintf("%d", singleRowMap["id"]) == "0" {
 			t.Fatalf("Expecting a not null ID.")
 		}
 	}
