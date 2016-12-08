@@ -47,6 +47,8 @@ type selector struct {
 	joins     []*exql.Join
 	joinsArgs []interface{}
 
+	wrapFn func(string) string
+
 	mu sync.Mutex
 
 	err error
@@ -326,7 +328,7 @@ func (qs *selector) Offset(n int) Selector {
 }
 
 func (qs *selector) statement() *exql.Statement {
-	return &exql.Statement{
+	stmt := &exql.Statement{
 		Type:    exql.Select,
 		Table:   qs.table,
 		Columns: qs.columns,
@@ -337,6 +339,14 @@ func (qs *selector) statement() *exql.Statement {
 		OrderBy: qs.orderBy,
 		GroupBy: qs.groupBy,
 	}
+	if qs.wrapFn != nil {
+		query := stmt.Compile(qs.stringer.t)
+		return &exql.Statement{
+			Type: exql.SQL,
+			SQL:  qs.wrapFn(query),
+		}
+	}
+	return stmt
 }
 
 func (qs *selector) Query() (*sql.Rows, error) {
@@ -352,6 +362,11 @@ func (qs *selector) As(alias string) Selector {
 	if raw, ok := qs.table.Columns[last].(*exql.Raw); ok {
 		qs.table.Columns[last] = exql.RawValue("(" + raw.Value + ") AS " + exql.ColumnWithName(alias).Compile(qs.stringer.t))
 	}
+	return qs
+}
+
+func (qs *selector) Wrap(wrapFn func(q string) string) Selector {
+	qs.wrapFn = wrapFn
 	return qs
 }
 

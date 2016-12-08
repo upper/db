@@ -95,6 +95,8 @@ type Builder interface {
 	//
 	//  sqlbuilder.Iterator(`SELECT * FROM people WHERE name LIKE "M%"`)
 	Iterator(query interface{}, args ...interface{}) Iterator
+
+	// Compose(query interface{}, args ...interface{}) (string, error)
 }
 
 // Selector represents a SELECT statement.
@@ -296,6 +298,9 @@ type Selector interface {
 
 	// Arguments returns the arguments that are prepared for this query.
 	Arguments() []interface{}
+
+	// Wrap is an experiment
+	Wrap(func(query string) string) Selector
 }
 
 // Inserter represents an INSERT statement.
@@ -345,6 +350,9 @@ type Inserter interface {
 	// fmt.Stringer provides `String() string`, you can use `String()` to compile
 	// the `Inserter` into a string.
 	fmt.Stringer
+
+	// Wrap is an experiment
+	Wrap(func(query string) string) Inserter
 }
 
 // Deleter represents a DELETE statement.

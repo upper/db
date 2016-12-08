@@ -14,6 +14,7 @@ type inserter struct {
 	returning []exql.Fragment
 	columns   []exql.Fragment
 	arguments []interface{}
+	wrapFn    func(string) string
 	extra     string
 }
 
@@ -39,6 +40,11 @@ func (qi *inserter) columnsToFragments(dst *[]exql.Fragment, columns []string) e
 	}
 	*dst = append(*dst, f...)
 	return nil
+}
+
+func (qi *inserter) Wrap(wrapFn func(q string) string) Inserter {
+	qi.wrapFn = wrapFn
+	return qi
 }
 
 func (qi *inserter) Returning(columns ...string) Inserter {
@@ -115,6 +121,14 @@ func (qi *inserter) statement() *exql.Statement {
 
 	if len(qi.returning) > 0 {
 		stmt.Returning = exql.ReturningColumns(qi.returning...)
+	}
+
+	if qi.wrapFn != nil {
+		query := stmt.Compile(qi.stringer.t)
+		return &exql.Statement{
+			Type: exql.SQL,
+			SQL:  qi.wrapFn(query),
+		}
 	}
 
 	return stmt
