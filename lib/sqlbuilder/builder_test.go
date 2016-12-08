@@ -25,16 +25,6 @@ func TestSelect(t *testing.T) {
 		}).String(),
 	)
 
-	/*
-		assert.Equal(
-			`WITH test AS (SELECT COUNT($1) AS value) SELECT value + $2 FROM test`,
-			db.Compose(`WITH test AS (?) ?`,
-				b.Select(db.Raw("COUNT(?) AS value", 1)),
-				b.Select(db.Raw("value + ?", 10)).From("test"),
-			).String(),
-		)
-	*/
-
 	assert.Equal(
 		`SELECT * FROM "artist"`,
 		b.SelectFrom("artist").String(),
@@ -927,6 +917,26 @@ func TestDelete(t *testing.T) {
 	assert.Equal(
 		`DELETE FROM "artist" WHERE (id > 5)`,
 		bt.DeleteFrom("artist").Where("id > 5").String(),
+	)
+}
+
+func TestNonTrivialQueries(t *testing.T) {
+	b := &sqlBuilder{t: newTemplateWithUtils(&testTemplate)}
+	assert := assert.New(t)
+
+	q, args := b.Compose(`WITH test AS (?) ?`,
+		b.Select(db.Raw("COUNT(?) AS value", 1)),
+		b.Select(db.Raw("value + ?", 10)).From("test"),
+	)
+
+	assert.Equal(
+		`WITH test AS ((SELECT COUNT(?) AS value)) (SELECT value + ? FROM "test")`,
+		q,
+	)
+
+	assert.Equal(
+		[]interface{}{1, 10},
+		args,
 	)
 }
 

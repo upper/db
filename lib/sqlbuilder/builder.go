@@ -188,6 +188,18 @@ func (b *sqlBuilder) Update(table string) Updater {
 	return qu
 }
 
+func (b *sqlBuilder) Compose(query string, args ...interface{}) (string, []interface{}) {
+	stmt := exql.Statement{
+		Type: exql.SQL,
+		SQL:  query,
+	}
+
+	q, args := expandPlaceholders(stmt.Compile(b.t.Template), args...)
+	q = reInvisibleChars.ReplaceAllString(q, ` `)
+
+	return q, args
+}
+
 // Map receives a pointer to map or struct and maps it to columns and values.
 func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error) {
 	var fv fieldValue
