@@ -158,7 +158,7 @@ func (upd *updater) Exec() (sql.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return upd.builder.sess.StatementExec(uq.statement(), uq.arguments()...)
+	return upd.Builder().sess.StatementExec(uq.statement(), uq.arguments()...)
 }
 
 func (upd *updater) Limit(limit int) Updater {

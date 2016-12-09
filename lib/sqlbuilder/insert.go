@@ -55,6 +55,19 @@ type inserter struct {
 	prev *inserter
 }
 
+func (ins *inserter) Builder() *sqlBuilder {
+	p := &ins
+	for {
+		if (*p).builder != nil {
+			return (*p).builder
+		}
+		if (*p).prev == nil {
+			return nil
+		}
+		p = &(*p).prev
+	}
+}
+
 func (ins *inserter) Stringer() *stringer {
 	p := &ins
 	for {
@@ -79,7 +92,7 @@ func (ins *inserter) String() string {
 }
 
 func (ins *inserter) frame(fn func(*inserterQuery) error) *inserter {
-	return &inserter{prev: ins, fn: fn, builder: ins.builder}
+	return &inserter{prev: ins, fn: fn}
 }
 
 func (ins *inserter) clone() *inserter {
@@ -112,7 +125,7 @@ func (ins *inserter) Exec() (sql.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ins.builder.sess.StatementExec(iq.statement(), iq.arguments...)
+	return ins.Builder().sess.StatementExec(iq.statement(), iq.arguments...)
 }
 
 func (ins *inserter) Query() (*sql.Rows, error) {
@@ -120,7 +133,7 @@ func (ins *inserter) Query() (*sql.Rows, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ins.builder.sess.StatementQuery(iq.statement(), iq.arguments...)
+	return ins.Builder().sess.StatementQuery(iq.statement(), iq.arguments...)
 }
 
 func (ins *inserter) QueryRow() (*sql.Row, error) {
@@ -128,7 +141,7 @@ func (ins *inserter) QueryRow() (*sql.Row, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ins.builder.sess.StatementQueryRow(iq.statement(), iq.arguments...)
+	return ins.Builder().sess.StatementQueryRow(iq.statement(), iq.arguments...)
 }
 
 func (ins *inserter) Iterator() Iterator {

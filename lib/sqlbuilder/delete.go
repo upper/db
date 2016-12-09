@@ -115,7 +115,7 @@ func (del *deleter) Exec() (sql.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return del.builder.sess.StatementExec(dq.statement(), dq.arguments...)
+	return del.Builder().sess.StatementExec(dq.statement(), dq.arguments...)
 }
 
 func (del *deleter) statement() *exql.Statement {

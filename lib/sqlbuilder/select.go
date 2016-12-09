@@ -113,6 +113,19 @@ type selector struct {
 	prev *selector
 }
 
+func (sel *selector) Builder() *sqlBuilder {
+	p := &sel
+	for {
+		if (*p).builder != nil {
+			return (*p).builder
+		}
+		if (*p).prev == nil {
+			return nil
+		}
+		p = &(*p).prev
+	}
+}
+
 func (sel *selector) Stringer() *stringer {
 	p := &sel
 	for {
@@ -397,7 +410,7 @@ func (sel *selector) QueryRow() (*sql.Row, error) {
 		return nil, err
 	}
 
-	return sel.builder.sess.StatementQueryRow(sq.statement(), sq.arguments()...)
+	return sel.Builder().sess.StatementQueryRow(sq.statement(), sq.arguments()...)
 }
 
 func (sel *selector) Query() (*sql.Rows, error) {
@@ -405,7 +418,7 @@ func (sel *selector) Query() (*sql.Rows, error) {
 	if err != nil {
 		return nil, err
 	}
-	return sel.builder.sess.StatementQuery(sq.statement(), sq.arguments()...)
+	return sel.Builder().sess.StatementQuery(sq.statement(), sq.arguments()...)
 }
 
 func (sel *selector) Iterator() Iterator {
@@ -414,7 +427,7 @@ func (sel *selector) Iterator() Iterator {
 		return &iterator{nil, err}
 	}
 
-	rows, err := sel.builder.sess.StatementQuery(sq.statement(), sq.arguments()...)
+	rows, err := sel.Builder().sess.StatementQuery(sq.statement(), sq.arguments()...)
 	return &iterator{rows, err}
 }
 
