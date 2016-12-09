@@ -56,6 +56,55 @@ func (sq *selectorQuery) and(terms ...interface{}) error {
 	return nil
 }
 
+func (sq *selectorQuery) arguments() []interface{} {
+	return joinArguments(
+		sq.tableArgs,
+		sq.columnsArgs,
+		sq.joinsArgs,
+		sq.whereArgs,
+		sq.groupByArgs,
+		sq.orderByArgs,
+	)
+}
+
+func (sq *selectorQuery) statement() *exql.Statement {
+	stmt := &exql.Statement{
+		Type:    exql.Select,
+		Table:   sq.table,
+		Columns: sq.columns,
+		Limit:   sq.limit,
+		Offset:  sq.offset,
+		Where:   sq.where,
+		OrderBy: sq.orderBy,
+		GroupBy: sq.groupBy,
+	}
+
+	if len(sq.joins) > 0 {
+		stmt.Joins = exql.JoinConditions(sq.joins...)
+	}
+
+	return stmt
+}
+
+func (sq *selectorQuery) pushJoin(t string, tables []interface{}) error {
+	tableNames := make([]string, len(tables))
+	for i := range tables {
+		tableNames[i] = fmt.Sprintf("%s", tables[i])
+	}
+
+	if sq.joins == nil {
+		sq.joins = []*exql.Join{}
+	}
+	sq.joins = append(sq.joins,
+		&exql.Join{
+			Type:  t,
+			Table: exql.TableWithName(strings.Join(tableNames, ", ")),
+		},
+	)
+
+	return nil
+}
+
 type selector struct {
 	builder *sqlBuilder
 	*stringer
@@ -148,42 +197,12 @@ func (sel *selector) And(terms ...interface{}) Selector {
 	})
 }
 
-func (sq *selectorQuery) arguments() []interface{} {
-	return joinArguments(
-		sq.tableArgs,
-		sq.columnsArgs,
-		sq.joinsArgs,
-		sq.whereArgs,
-		sq.groupByArgs,
-		sq.orderByArgs,
-	)
-}
-
 func (sel *selector) Arguments() []interface{} {
 	sq, err := sel.build()
 	if err != nil {
 		return nil
 	}
 	return sq.arguments()
-}
-
-func (sq *selectorQuery) statement() *exql.Statement {
-	stmt := &exql.Statement{
-		Type:    exql.Select,
-		Table:   sq.table,
-		Columns: sq.columns,
-		Limit:   sq.limit,
-		Offset:  sq.offset,
-		Where:   sq.where,
-		OrderBy: sq.orderBy,
-		GroupBy: sq.groupBy,
-	}
-
-	if len(sq.joins) > 0 {
-		stmt.Joins = exql.JoinConditions(sq.joins...)
-	}
-
-	return stmt
 }
 
 func (sel *selector) GroupBy(columns ...interface{}) Selector {
@@ -284,25 +303,6 @@ func (sel *selector) Using(columns ...interface{}) Selector {
 
 		return nil
 	})
-}
-
-func (sq *selectorQuery) pushJoin(t string, tables []interface{}) error {
-	tableNames := make([]string, len(tables))
-	for i := range tables {
-		tableNames[i] = fmt.Sprintf("%s", tables[i])
-	}
-
-	if sq.joins == nil {
-		sq.joins = []*exql.Join{}
-	}
-	sq.joins = append(sq.joins,
-		&exql.Join{
-			Type:  t,
-			Table: exql.TableWithName(strings.Join(tableNames, ", ")),
-		},
-	)
-
-	return nil
 }
 
 func (sel *selector) FullJoin(tables ...interface{}) Selector {

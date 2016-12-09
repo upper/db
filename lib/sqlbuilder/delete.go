@@ -16,7 +16,7 @@ type deleter struct {
 }
 
 func (qd *deleter) Where(terms ...interface{}) Deleter {
-	where, arguments := qd.builder.t.ToWhereWithArguments(terms)
+	where, arguments := toWhereWithArguments(terms)
 	qd.where = &where
 	qd.arguments = append(qd.arguments, arguments...)
 	return qd

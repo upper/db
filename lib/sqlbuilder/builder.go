@@ -164,11 +164,10 @@ func (b *sqlBuilder) Select(columns ...interface{}) Selector {
 func (b *sqlBuilder) InsertInto(table string) Inserter {
 	qi := &inserter{
 		builder: b,
-		table:   table,
 	}
 
 	qi.stringer = &stringer{qi, b.t.Template}
-	return qi
+	return qi.Into(table)
 }
 
 func (b *sqlBuilder) DeleteFrom(table string) Deleter {

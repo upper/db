@@ -46,7 +46,7 @@ func (qu *updater) Set(terms ...interface{}) Updater {
 		qu.columnValues.Insert(cvs...)
 		qu.columnValuesArgs = append(qu.columnValuesArgs, args...)
 	} else if len(terms) > 1 {
-		cv, arguments := qu.builder.t.ToColumnValues(terms)
+		cv, arguments := toColumnValues(terms)
 		qu.columnValues.Insert(cv.ColumnValues...)
 		qu.columnValuesArgs = append(qu.columnValuesArgs, arguments...)
 	}
@@ -65,7 +65,7 @@ func (qu *updater) Arguments() []interface{} {
 }
 
 func (qu *updater) Where(terms ...interface{}) Updater {
-	where, arguments := qu.builder.t.ToWhereWithArguments(terms)
+	where, arguments := toWhereWithArguments(terms)
 	qu.where = &where
 	qu.whereArgs = append(qu.whereArgs, arguments...)
 	return qu
