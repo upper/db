@@ -79,7 +79,7 @@ func (ins *inserter) String() string {
 }
 
 func (ins *inserter) frame(fn func(*inserterQuery) error) *inserter {
-	return &inserter{prev: ins, fn: fn}
+	return &inserter{prev: ins, fn: fn, builder: ins.builder}
 }
 
 func (ins *inserter) clone() *inserter {

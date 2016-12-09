@@ -182,13 +182,11 @@ func (b *sqlBuilder) DeleteFrom(table string) Deleter {
 
 func (b *sqlBuilder) Update(table string) Updater {
 	qu := &updater{
-		builder:      b,
-		table:        table,
-		columnValues: &exql.ColumnValues{},
+		builder: b,
 	}
 
 	qu.stringer = &stringer{qu, b.t.Template}
-	return qu
+	return qu.setTable(table)
 }
 
 // Map receives a pointer to map or struct and maps it to columns and values.
