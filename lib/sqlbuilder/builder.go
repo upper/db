@@ -173,11 +173,10 @@ func (b *sqlBuilder) InsertInto(table string) Inserter {
 func (b *sqlBuilder) DeleteFrom(table string) Deleter {
 	qd := &deleter{
 		builder: b,
-		table:   table,
 	}
 
 	qd.stringer = &stringer{qd, b.t.Template}
-	return qd
+	return qd.setTable(table)
 }
 
 func (b *sqlBuilder) Update(table string) Updater {

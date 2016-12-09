@@ -2,52 +2,147 @@ package sqlbuilder
 
 import (
 	"database/sql"
+	"strings"
 
 	"upper.io/db.v2/internal/sqladapter/exql"
 )
 
-type deleter struct {
-	*stringer
-	builder   *sqlBuilder
+type deleterQuery struct {
 	table     string
 	limit     int
 	where     *exql.Where
 	arguments []interface{}
 }
 
-func (qd *deleter) Where(terms ...interface{}) Deleter {
-	where, arguments := toWhereWithArguments(terms)
-	qd.where = &where
-	qd.arguments = append(qd.arguments, arguments...)
-	return qd
-}
-
-func (qd *deleter) Limit(limit int) Deleter {
-	qd.limit = limit
-	return qd
-}
-
-func (qd *deleter) Arguments() []interface{} {
-	return qd.arguments
-}
-
-func (qd *deleter) Exec() (sql.Result, error) {
-	return qd.builder.sess.StatementExec(qd.statement(), qd.arguments...)
-}
-
-func (qd *deleter) statement() *exql.Statement {
+func (dq *deleterQuery) statement() *exql.Statement {
 	stmt := &exql.Statement{
 		Type:  exql.Delete,
-		Table: exql.TableWithName(qd.table),
+		Table: exql.TableWithName(dq.table),
 	}
 
-	if qd.Where != nil {
-		stmt.Where = qd.where
+	if dq.where != nil {
+		stmt.Where = dq.where
 	}
 
-	if qd.limit != 0 {
-		stmt.Limit = exql.Limit(qd.limit)
+	if dq.limit != 0 {
+		stmt.Limit = exql.Limit(dq.limit)
 	}
 
 	return stmt
+}
+
+type deleter struct {
+	*stringer
+	builder *sqlBuilder
+
+	fn   func(*deleterQuery) error
+	prev *deleter
+}
+
+func (del *deleter) Builder() *sqlBuilder {
+	p := &del
+	for {
+		if (*p).builder != nil {
+			return (*p).builder
+		}
+		if (*p).prev == nil {
+			return nil
+		}
+		p = &(*p).prev
+	}
+}
+
+func (del *deleter) Stringer() *stringer {
+	p := &del
+	for {
+		if (*p).stringer != nil {
+			return (*p).stringer
+		}
+		if (*p).prev == nil {
+			return nil
+		}
+		p = &(*p).prev
+	}
+}
+
+func (del *deleter) String() string {
+	query, err := del.build()
+	if err != nil {
+		return ""
+	}
+	q := del.Stringer().compileAndReplacePlaceholders(query.statement())
+	q = reInvisibleChars.ReplaceAllString(q, ` `)
+	return strings.TrimSpace(q)
+}
+
+func (del *deleter) setTable(table string) *deleter {
+	return del.frame(func(uq *deleterQuery) error {
+		uq.table = table
+		return nil
+	})
+}
+
+func (del *deleter) frame(fn func(*deleterQuery) error) *deleter {
+	return &deleter{prev: del, fn: fn}
+}
+
+func (del *deleter) Where(terms ...interface{}) Deleter {
+	return del.frame(func(dq *deleterQuery) error {
+		where, arguments := toWhereWithArguments(terms)
+		dq.where = &where
+		dq.arguments = append(dq.arguments, arguments...)
+		return nil
+	})
+}
+
+func (del *deleter) Limit(limit int) Deleter {
+	return del.frame(func(dq *deleterQuery) error {
+		dq.limit = limit
+		return nil
+	})
+}
+
+func (del *deleter) Arguments() []interface{} {
+	dq, err := del.build()
+	if err != nil {
+		return nil
+	}
+	return dq.arguments
+}
+
+func (del *deleter) Exec() (sql.Result, error) {
+	dq, err := del.build()
+	if err != nil {
+		return nil, err
+	}
+	return del.builder.sess.StatementExec(dq.statement(), dq.arguments...)
+}
+
+func (del *deleter) statement() *exql.Statement {
+	iq, _ := del.build()
+	return iq.statement()
+}
+
+func (del *deleter) build() (*deleterQuery, error) {
+	iq, err := deleterFastForward(&deleterQuery{}, del)
+	if err != nil {
+		return nil, err
+	}
+	return iq, nil
+}
+
+func (del *deleter) Compile() string {
+	return del.statement().Compile(del.Stringer().t)
+}
+
+func deleterFastForward(in *deleterQuery, curr *deleter) (*deleterQuery, error) {
+	if curr == nil || curr.fn == nil {
+		return in, nil
+	}
+	in, err := deleterFastForward(in, curr.prev)
+	if err != nil {
+		return nil, err
+	}
+	err = curr.fn(in)
+	return in, err
 }
