@@ -212,15 +212,11 @@ func (r *Result) Count() (uint64, error) {
 }
 
 func (r *Result) buildSelect() sqlbuilder.Selector {
-	q := r.b.Select(r.fields...)
-
-	q.From(r.table)
-	q.Where(filter(r.conds)...)
-	q.Limit(r.limit)
-	q.Offset(r.offset)
-
-	q.GroupBy(r.groupBy...)
-	q.OrderBy(r.orderBy...)
-
-	return q
+	return r.b.Select(r.fields...).
+		From(r.table).
+		Where(filter(r.conds)...).
+		Limit(r.limit).
+		Offset(r.offset).
+		GroupBy(r.groupBy...).
+		OrderBy(r.orderBy...)
 }

@@ -628,7 +628,7 @@ func TestSelect(t *testing.T) {
 			Where(db.Cond{"hub_id": 3})
 
 		// Don't reassign
-		sq.And(db.Cond{"role": []int{1, 2}})
+		_ = sq.And(db.Cond{"role": []int{1, 2}})
 
 		assert.Equal(
 			`SELECT "user_id" FROM "user_access" WHERE ("hub_id" = $1)`,

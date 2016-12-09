@@ -32,7 +32,7 @@ func (b *BatchInserter) nextQuery() *inserter {
 	i := 0
 	for values := range b.values {
 		i++
-		clone.Values(values...)
+		clone = clone.Values(values...).(*inserter)
 		if i == b.size {
 			break
 		}
