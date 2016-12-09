@@ -26,6 +26,10 @@ var defaultMapOptions = MapOptions{
 	IncludeNil:    false,
 }
 
+type hasStringer interface {
+	Stringer() *stringer
+}
+
 type hasIsZero interface {
 	IsZero() bool
 }
@@ -312,7 +316,7 @@ func extractArguments(fragments []interface{}) []interface{} {
 	return args
 }
 
-func columnFragments(template *templateWithUtils, columns []interface{}) ([]exql.Fragment, []interface{}, error) {
+func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, error) {
 	l := len(columns)
 	f := make([]exql.Fragment, l)
 	args := []interface{}{}
@@ -320,7 +324,7 @@ func columnFragments(template *templateWithUtils, columns []interface{}) ([]exql
 	for i := 0; i < l; i++ {
 		switch v := columns[i].(type) {
 		case *selector:
-			expanded, rawArgs := expandPlaceholders(v.statement().Compile(v.stringer.t), v.Arguments()...)
+			expanded, rawArgs := expandPlaceholders(v.Compile(), v.Arguments()...)
 			f[i] = exql.RawValue(expanded)
 			args = append(args, rawArgs...)
 		case db.Function:

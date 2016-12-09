@@ -45,7 +45,7 @@ func expandPlaceholders(in string, args ...interface{}) (string, []interface{}) 
 						case db.RawValue:
 							k, values = t.Raw(), nil
 						case *selector:
-							k, values = `(`+t.statement().Compile(t.stringer.t)+`)`, t.Arguments()
+							k, values = `(`+t.Compile()+`)`, t.Arguments()
 						}
 					} else if len(values) == 0 {
 						k = `NULL`
@@ -368,4 +368,218 @@ func (tu *templateWithUtils) ToColumnsValuesAndArguments(columnNames []string, c
 	}
 
 	return columns, values, arguments, nil
+}
+
+// ToWhereWithArguments converts the given parameters into a exql.Where
+// value.
+func toWhereWithArguments(term interface{}) (where exql.Where, args []interface{}) {
+	args = []interface{}{}
+
+	switch t := term.(type) {
+	case []interface{}:
+		if len(t) > 0 {
+			if s, ok := t[0].(string); ok {
+				if strings.ContainsAny(s, "?") || len(t) == 1 {
+					s, args = expandPlaceholders(s, t[1:]...)
+					where.Conditions = []exql.Fragment{exql.RawValue(s)}
+				} else {
+					var val interface{}
+					key := s
+					if len(t) > 2 {
+						val = t[1:]
+					} else {
+						val = t[1]
+					}
+					cv, v := toColumnValues(db.NewConstraint(key, val))
+					args = append(args, v...)
+					for i := range cv.ColumnValues {
+						where.Conditions = append(where.Conditions, cv.ColumnValues[i])
+					}
+				}
+				return
+			}
+		}
+		for i := range t {
+			w, v := toWhereWithArguments(t[i])
+			if len(w.Conditions) == 0 {
+				continue
+			}
+			args = append(args, v...)
+			where.Conditions = append(where.Conditions, w.Conditions...)
+		}
+		return
+	case db.RawValue:
+		r, v := expandPlaceholders(t.Raw(), t.Arguments()...)
+		where.Conditions = []exql.Fragment{exql.RawValue(r)}
+		args = append(args, v...)
+		return
+	case db.Constraints:
+		for _, c := range t.Constraints() {
+			w, v := toWhereWithArguments(c)
+			if len(w.Conditions) == 0 {
+				continue
+			}
+			args = append(args, v...)
+			where.Conditions = append(where.Conditions, w.Conditions...)
+		}
+		return
+	case db.Compound:
+		var cond exql.Where
+
+		for _, c := range t.Sentences() {
+			w, v := toWhereWithArguments(c)
+			if len(w.Conditions) == 0 {
+				continue
+			}
+			args = append(args, v...)
+			cond.Conditions = append(cond.Conditions, w.Conditions...)
+		}
+
+		if len(cond.Conditions) > 0 {
+			var frag exql.Fragment
+			switch t.Operator() {
+			case db.OperatorNone, db.OperatorAnd:
+				q := exql.And(cond)
+				frag = &q
+			case db.OperatorOr:
+				q := exql.Or(cond)
+				frag = &q
+			default:
+				panic(fmt.Sprintf("Unknown type %T", t))
+			}
+			where.Conditions = append(where.Conditions, frag)
+		}
+
+		return
+	case db.Constraint:
+		cv, v := toColumnValues(t)
+		args = append(args, v...)
+		where.Conditions = append(where.Conditions, cv.ColumnValues...)
+		return where, args
+	}
+
+	panic(fmt.Sprintf("Unknown condition type %T", term))
+}
+
+func toColumnValues(term interface{}) (cv exql.ColumnValues, args []interface{}) {
+	args = []interface{}{}
+
+	switch t := term.(type) {
+	case []interface{}:
+		l := len(t)
+		for i := 0; i < l; i++ {
+			column := t[i].(string)
+
+			if !strings.ContainsAny(column, "=") {
+				column = fmt.Sprintf("%s = ?", column)
+			}
+
+			chunks := strings.SplitN(column, "=", 2)
+
+			column = chunks[0]
+			format := strings.TrimSpace(chunks[1])
+
+			columnValue := exql.ColumnValue{
+				Column:   exql.ColumnWithName(column),
+				Operator: "=",
+				Value:    exql.RawValue(format),
+			}
+
+			ps := strings.Count(format, "?")
+			if i+ps < l {
+				for j := 0; j < ps; j++ {
+					args = append(args, t[i+j+1])
+				}
+				i = i + ps
+			} else {
+				panic(fmt.Sprintf("Format string %q has more placeholders than given arguments.", format))
+			}
+
+			cv.ColumnValues = append(cv.ColumnValues, &columnValue)
+		}
+		return cv, args
+	case db.Constraint:
+		columnValue := exql.ColumnValue{}
+
+		// Guessing operator from input, or using a default one.
+		if column, ok := t.Key().(string); ok {
+			chunks := strings.SplitN(strings.TrimSpace(column), ` `, 2)
+			columnValue.Column = exql.ColumnWithName(chunks[0])
+			if len(chunks) > 1 {
+				columnValue.Operator = chunks[1]
+			}
+		} else {
+			if rawValue, ok := t.Key().(db.RawValue); ok {
+				columnValue.Column = exql.RawValue(rawValue.Raw())
+				args = append(args, rawValue.Arguments()...)
+			} else {
+				columnValue.Column = exql.RawValue(fmt.Sprintf("%v", t.Key()))
+			}
+		}
+
+		switch value := t.Value().(type) {
+		case db.Function:
+			fnName, fnArgs := value.Name(), value.Arguments()
+			if len(fnArgs) == 0 {
+				// A function with no arguments.
+				fnName = fnName + "()"
+			} else {
+				// A function with one or more arguments.
+				fnName = fnName + "(?" + strings.Repeat("?, ", len(fnArgs)-1) + ")"
+			}
+			expanded, fnArgs := expandPlaceholders(fnName, fnArgs...)
+			columnValue.Value = exql.RawValue(expanded)
+			args = append(args, fnArgs...)
+		case db.RawValue:
+			expanded, rawArgs := expandPlaceholders(value.Raw(), value.Arguments()...)
+			columnValue.Value = exql.RawValue(expanded)
+			args = append(args, rawArgs...)
+		default:
+			v, isSlice := toInterfaceArguments(value)
+
+			if isSlice {
+				if columnValue.Operator == "" {
+					columnValue.Operator = sqlInOperator
+				}
+				if len(v) > 0 {
+					// Array value given.
+					columnValue.Value = exql.RawValue(fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1)))
+				} else {
+					// Single value given.
+					columnValue.Value = exql.RawValue(`(NULL)`)
+				}
+				args = append(args, v...)
+			} else {
+				if v == nil {
+					// Nil value given.
+					columnValue.Value = sqlNull
+					if columnValue.Operator == "" {
+						columnValue.Operator = sqlIsOperator
+					}
+				} else {
+					columnValue.Value = sqlPlaceholder
+					args = append(args, v...)
+				}
+			}
+
+		}
+
+		// Using guessed operator if no operator was given.
+		if columnValue.Operator == "" {
+			columnValue.Operator = sqlDefaultOperator
+		}
+
+		cv.ColumnValues = append(cv.ColumnValues, &columnValue)
+
+		return cv, args
+	case db.Constraints:
+		for _, c := range t.Constraints() {
+			p, q := toColumnValues(c)
+			cv.ColumnValues = append(cv.ColumnValues, p.ColumnValues...)
+			args = append(args, q...)
+		}
+		return cv, args
+	}
+
+	panic(fmt.Sprintf("Unknown term type %T.", term))
 }
