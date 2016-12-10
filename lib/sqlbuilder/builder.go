@@ -107,12 +107,18 @@ func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) Iterator {
 	return &iterator{rows, err}
 }
 
+func expandQuery(query string, args ...interface{}) (*exql.Statement, []interface{}) {
+	query, args = expandPlaceholders(query, args...)
+	return exql.RawSQL(query), args
+}
+
 func (b *sqlBuilder) Exec(query interface{}, args ...interface{}) (sql.Result, error) {
 	switch q := query.(type) {
 	case *exql.Statement:
 		return b.sess.StatementExec(q, args...)
 	case string:
-		return b.sess.StatementExec(exql.RawSQL(q), args...)
+		stmt, args := expandQuery(q, args...)
+		return b.sess.StatementExec(stmt, args...)
 	default:
 		return nil, fmt.Errorf("Unsupported query type %T.", query)
 	}
@@ -123,7 +129,8 @@ func (b *sqlBuilder) Query(query interface{}, args ...interface{}) (*sql.Rows, e
 	case *exql.Statement:
 		return b.sess.StatementQuery(q, args...)
 	case string:
-		return b.sess.StatementQuery(exql.RawSQL(q), args...)
+		stmt, args := expandQuery(q, args...)
+		return b.sess.StatementQuery(stmt, args...)
 	default:
 		return nil, fmt.Errorf("Unsupported query type %T.", query)
 	}
@@ -134,7 +141,8 @@ func (b *sqlBuilder) QueryRow(query interface{}, args ...interface{}) (*sql.Row,
 	case *exql.Statement:
 		return b.sess.StatementQueryRow(q, args...)
 	case string:
-		return b.sess.StatementQueryRow(exql.RawSQL(q), args...)
+		stmt, args := expandQuery(q, args...)
+		return b.sess.StatementQueryRow(stmt, args...)
 	default:
 		return nil, fmt.Errorf("Unsupported query type %T.", query)
 	}
@@ -186,6 +194,18 @@ func (b *sqlBuilder) Update(table string) Updater {
 
 	qu.stringer = &stringer{qu, b.t.Template}
 	return qu
+}
+
+func (b *sqlBuilder) Compose(query string, args ...interface{}) (string, []interface{}) {
+	stmt := exql.Statement{
+		Type: exql.SQL,
+		SQL:  query,
+	}
+
+	q, args := expandPlaceholders(stmt.Compile(b.t.Template), args...)
+	q = reInvisibleChars.ReplaceAllString(q, ` `)
+
+	return q, args
 }
 
 // Map receives a pointer to map or struct and maps it to columns and values.

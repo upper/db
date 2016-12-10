@@ -19,6 +19,13 @@ func TestSelect(t *testing.T) {
 	)
 
 	assert.Equal(
+		`WITH test AS (SELECT NOW() AS value) SELECT value FROM test`,
+		b.Select(db.Raw("NOW() AS value")).Wrap(func(query string) string {
+			return fmt.Sprintf(`WITH test AS (%s) SELECT value FROM test`, query)
+		}).String(),
+	)
+
+	assert.Equal(
 		`SELECT * FROM "artist"`,
 		b.SelectFrom("artist").String(),
 	)
@@ -675,6 +682,14 @@ func TestInsert(t *testing.T) {
 	assert := assert.New(t)
 
 	assert.Equal(
+		`INSERT INTO "distributors" ("did", "dname") VALUES ($1, $2) ON CONFLICT (did) DO NOTHING`,
+		b.InsertInto("distributors").Columns("did", "dname").
+			Values(7, "Redline GmbH").Wrap(func(query string) string {
+			return query + " ON CONFLICT (did) DO NOTHING"
+		}).String(),
+	)
+
+	assert.Equal(
 		`INSERT INTO "artist" VALUES ($1, $2), ($3, $4), ($5, $6)`,
 		b.InsertInto("artist").
 			Values(10, "Ryuichi Sakamoto").
@@ -794,6 +809,18 @@ func TestUpdate(t *testing.T) {
 	b := &sqlBuilder{t: newTemplateWithUtils(&testTemplate)}
 	assert := assert.New(t)
 
+	/*
+		assert.Equal(
+			`WITH t AS (UPDATE products SET price = price * 1.05 RETURNING *) SELECT * FROM products`,
+			b.Update("products").
+				Set("price", db.Raw("price *1.05")).
+				Wrap(func(query string) string {
+					return `WITH t AS (` + query + ` RETURNING *) SELECT * FROM products`
+				}).
+				String(),
+		)
+	*/
+
 	assert.Equal(
 		`UPDATE "artist" SET "name" = $1`,
 		b.Update("artist").Set("name", "Artist").String(),
@@ -890,6 +917,26 @@ func TestDelete(t *testing.T) {
 	assert.Equal(
 		`DELETE FROM "artist" WHERE (id > 5)`,
 		bt.DeleteFrom("artist").Where("id > 5").String(),
+	)
+}
+
+func TestNonTrivialQueries(t *testing.T) {
+	b := &sqlBuilder{t: newTemplateWithUtils(&testTemplate)}
+	assert := assert.New(t)
+
+	q, args := b.Compose(`WITH test AS (?) ?`,
+		b.Select(db.Raw("COUNT(?) AS value", 1)),
+		b.Select(db.Raw("value + ?", 10)).From("test"),
+	)
+
+	assert.Equal(
+		`WITH test AS ((SELECT COUNT(?) AS value)) (SELECT value + ? FROM "test")`,
+		q,
+	)
+
+	assert.Equal(
+		[]interface{}{1, 10},
+		args,
 	)
 }
 
