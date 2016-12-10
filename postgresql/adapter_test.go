@@ -336,16 +336,3 @@ func TestOptionTypeJsonbStruct(t *testing.T) {
 	assert.Equal(t, "a", item1Chk.Settings.Name)
 	assert.Equal(t, int64(123), item1Chk.Settings.Num)
 }
-
-func TestNonTrivialQueries(t *testing.T) {
-	sess := mustOpen()
-	defer sess.Close()
-
-	q, err := sess.Query(sess.Compose(`WITH test AS (?) ?`,
-		b.Select(db.Raw("COUNT(?) AS value", 1)),
-		b.Select(db.Raw("value + ?", 10)).From("test"),
-	))
-
-	assert.NoError(t, err)
-	assert.NotNil(t, q)
-}
