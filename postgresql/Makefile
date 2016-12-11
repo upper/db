@@ -41,4 +41,5 @@ reset-db: require-client
 	fi
 
 test: reset-db generate
-	go test -tags generated -v -race
+	#go test -tags generated -v -race # race: limit on 8192 simultaneously alive goroutines is exceeded, dying
+	go test -tags generated -v

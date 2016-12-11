@@ -164,8 +164,8 @@ func cleanUpCheck(sess sqlbuilder.Database) (err error) {
 		return err
 	}
 
-	if stats["Prepared_stmt_count"] > 128 {
-		return fmt.Errorf(`Expecting "Prepared_stmt_count" not to be greater than the prepared statements cache size (128) before cleaning, got %d`, stats["Prepared_stmt_count"])
+	if activeStatements := sqladapter.NumActiveStatements(); activeStatements > 128 {
+		return fmt.Errorf("Expecting active statements to be at most 128, got %d", activeStatements)
 	}
 
 	sess.ClearCache()
