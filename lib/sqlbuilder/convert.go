@@ -78,11 +78,6 @@ func Preprocess(in string, args []interface{}) (string, []interface{}) {
 	return expandQuery(in, args, preprocessFn)
 }
 
-func expandPlaceholders(in string, args []interface{}) (string, []interface{}) {
-	// TODO: Remove after immutable query builder
-	return in, args
-}
-
 // ToWhereWithArguments converts the given parameters into a exql.Where
 // value.
 func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where exql.Where, args []interface{}) {
@@ -93,7 +88,7 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where exql.
 		if len(t) > 0 {
 			if s, ok := t[0].(string); ok {
 				if strings.ContainsAny(s, "?") || len(t) == 1 {
-					s, args = expandPlaceholders(s, t[1:])
+					s, args = Preprocess(s, t[1:])
 					where.Conditions = []exql.Fragment{exql.RawValue(s)}
 				} else {
 					var val interface{}
@@ -122,7 +117,7 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where exql.
 		}
 		return
 	case db.RawValue:
-		r, v := expandPlaceholders(t.Raw(), t.Arguments())
+		r, v := Preprocess(t.Raw(), t.Arguments())
 		where.Conditions = []exql.Fragment{exql.RawValue(r)}
 		args = append(args, v...)
 		return
@@ -294,11 +289,11 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv exql.ColumnVal
 				// A function with one or more arguments.
 				fnName = fnName + "(?" + strings.Repeat("?, ", len(fnArgs)-1) + ")"
 			}
-			expanded, fnArgs := expandPlaceholders(fnName, fnArgs)
+			expanded, fnArgs := Preprocess(fnName, fnArgs)
 			columnValue.Value = exql.RawValue(expanded)
 			args = append(args, fnArgs...)
 		case db.RawValue:
-			expanded, rawArgs := expandPlaceholders(value.Raw(), value.Arguments())
+			expanded, rawArgs := Preprocess(value.Raw(), value.Arguments())
 			columnValue.Value = exql.RawValue(expanded)
 			args = append(args, rawArgs...)
 		default:

@@ -326,7 +326,7 @@ func columnFragments(template *templateWithUtils, columns []interface{}) ([]exql
 	for i := 0; i < l; i++ {
 		switch v := columns[i].(type) {
 		case *selector:
-			expanded, rawArgs := expandPlaceholders(v.statement().Compile(v.stringer.t), v.Arguments())
+			expanded, rawArgs := Preprocess(v.statement().Compile(v.stringer.t), v.Arguments())
 			f[i] = exql.RawValue(expanded)
 			args = append(args, rawArgs...)
 		case db.Function:
@@ -336,11 +336,11 @@ func columnFragments(template *templateWithUtils, columns []interface{}) ([]exql
 			} else {
 				fnName = fnName + "(?" + strings.Repeat("?, ", len(fnArgs)-1) + ")"
 			}
-			expanded, fnArgs := expandPlaceholders(fnName, fnArgs)
+			expanded, fnArgs := Preprocess(fnName, fnArgs)
 			f[i] = exql.RawValue(expanded)
 			args = append(args, fnArgs...)
 		case db.RawValue:
-			expanded, rawArgs := expandPlaceholders(v.Raw(), v.Arguments())
+			expanded, rawArgs := Preprocess(v.Raw(), v.Arguments())
 			f[i] = exql.RawValue(expanded)
 			args = append(args, rawArgs...)
 		case exql.Fragment:
