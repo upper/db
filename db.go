@@ -261,11 +261,16 @@ func (r rawValue) Empty() bool {
 }
 
 type compound struct {
-	conds []Compound
+	prev *compound
+	fn   func() []Compound
 }
 
-func newCompound(c ...Compound) *compound {
-	return &compound{c}
+func newCompound(conds ...Compound) *compound {
+	return &compound{
+		fn: func() []Compound {
+			return conds
+		},
+	}
 }
 
 func defaultJoin(in ...Compound) []Compound {
@@ -278,7 +283,7 @@ func defaultJoin(in ...Compound) []Compound {
 }
 
 func (c *compound) Sentences() []Compound {
-	return c.conds
+	return compoundFastForward(c)
 }
 
 func (c *compound) Operator() CompoundOperator {
@@ -286,12 +291,26 @@ func (c *compound) Operator() CompoundOperator {
 }
 
 func (c *compound) Empty() bool {
-	return len(c.conds) == 0
+	if c.fn == nil {
+		return false
+	}
+	return true
 }
 
-func (c *compound) push(a ...Compound) *compound {
-	c.conds = append(c.conds, a...)
-	return c
+func (c *compound) frame(a []Compound) *compound {
+	if len(a) == 0 {
+		return c
+	}
+	nc := newCompound(a...)
+	nc.prev = c
+	return nc
+}
+
+func compoundFastForward(curr *compound) []Compound {
+	if curr == nil {
+		return []Compound{}
+	}
+	return append(compoundFastForward(curr.prev), curr.fn()...)
 }
 
 // Union represents a compound joined by OR.
@@ -301,8 +320,7 @@ type Union struct {
 
 // Or adds more terms to the compound.
 func (o *Union) Or(conds ...Compound) *Union {
-	o.compound.push(defaultJoin(conds...)...)
-	return o
+	return &Union{o.compound.frame(conds)}
 }
 
 // Operator returns the OR operator.
@@ -317,8 +335,7 @@ func (o *Union) Empty() bool {
 
 // And adds more terms to the compound.
 func (a *Intersection) And(conds ...Compound) *Intersection {
-	a.compound.push(conds...)
-	return a
+	return &Intersection{a.compound.frame(conds)}
 }
 
 // Empty returns false if this struct holds no conditions.
@@ -415,7 +432,7 @@ func (f *dbFunc) Name() string {
 //		db.Cond{"last_name": "Mouse"},
 //	)
 func And(conds ...Compound) *Intersection {
-	return &Intersection{compound: newCompound(conds...)}
+	return &Intersection{newCompound(conds...)}
 }
 
 // Or joins conditions under logical disjunction. Conditions can be represented
@@ -429,7 +446,7 @@ func And(conds ...Compound) *Intersection {
 //		db.Cond{"year": 1987},
 //	)
 func Or(conds ...Compound) *Union {
-	return &Union{compound: newCompound(defaultJoin(conds...)...)}
+	return &Union{newCompound(defaultJoin(conds...)...)}
 }
 
 // Raw marks chunks of data as protected, so they pass directly to the query

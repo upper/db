@@ -657,7 +657,7 @@ func TestSelect(t *testing.T) {
 			db.Raw("a.id IN ?", sq),
 		)
 
-		cond.Or(db.Cond{"ml.mailing_list_id": []int{4, 5, 6}})
+		cond = cond.Or(db.Cond{"ml.mailing_list_id": []int{4, 5, 6}})
 
 		sel := b.
 			Select(db.Raw("DISTINCT ON(a.id) a.id"), db.Raw("COALESCE(NULLIF(ml.name,''), a.name) as name"), "a.email").
