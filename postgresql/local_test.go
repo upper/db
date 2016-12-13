@@ -117,3 +117,92 @@ func TestIssue210(t *testing.T) {
 	_, err = sess.Collection("hello").Find().Count()
 	assert.NoError(t, err)
 }
+
+func TestNonTrivialSubqueries(t *testing.T) {
+	sess := mustOpen()
+	defer sess.Close()
+
+	{
+		q, err := sess.Query(`WITH test AS (?) ?`,
+			sess.Select("id AS foo").From("artist"),
+			sess.Select("foo").From("test").Where("foo > ?", 0),
+		)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, q)
+
+		assert.True(t, q.Next())
+
+		var number int
+		assert.NoError(t, q.Scan(&number))
+
+		assert.Equal(t, 1, number)
+		assert.NoError(t, q.Close())
+	}
+
+	{
+		row, err := sess.QueryRow(`WITH test AS (?) ?`,
+			sess.Select("id AS foo").From("artist"),
+			sess.Select("foo").From("test").Where("foo > ?", 0),
+		)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, row)
+
+		var number int
+		assert.NoError(t, row.Scan(&number))
+
+		assert.Equal(t, 1, number)
+	}
+
+	{
+		res, err := sess.Exec(`UPDATE artist a1 SET id = ?`,
+			sess.Select(db.Raw("id + 1")).From("artist a2").Where("a2.id = a1.id"),
+		)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+	}
+
+	{
+		q, err := sess.Query(db.Raw(`WITH test AS (?) ?`,
+			sess.Select("id AS foo").From("artist"),
+			sess.Select("foo").From("test").Where("foo > ?", 0),
+		))
+
+		assert.NoError(t, err)
+		assert.NotNil(t, q)
+
+		assert.True(t, q.Next())
+
+		var number int
+		assert.NoError(t, q.Scan(&number))
+
+		assert.Equal(t, 2, number)
+		assert.NoError(t, q.Close())
+	}
+
+	{
+		row, err := sess.QueryRow(db.Raw(`WITH test AS (?) ?`,
+			sess.Select("id AS foo").From("artist"),
+			sess.Select("foo").From("test").Where("foo > ?", 0),
+		))
+
+		assert.NoError(t, err)
+		assert.NotNil(t, row)
+
+		var number int
+		assert.NoError(t, row.Scan(&number))
+
+		assert.Equal(t, 2, number)
+	}
+
+	{
+		res, err := sess.Exec(db.Raw(`UPDATE artist a1 SET id = ?`,
+			sess.Select(db.Raw("id + 1")).From("artist a2").Where("a2.id = a1.id"),
+		))
+
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+	}
+}

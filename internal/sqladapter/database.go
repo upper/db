@@ -49,7 +49,7 @@ type PartialDatabase interface {
 	FindTablePrimaryKeys(name string) ([]string, error)
 
 	NewLocalCollection(name string) db.Collection
-	CompileStatement(stmt *exql.Statement) (query string)
+	CompileStatement(stmt *exql.Statement, args []interface{}) (string, []interface{})
 	ConnectionURL() db.ConnectionURL
 
 	Err(in error) (out error)
@@ -316,7 +316,7 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 	}
 
 	if execer, ok := d.PartialDatabase.(HasStatementExec); ok {
-		query = d.compileStatement(stmt)
+		query, args = d.compileStatement(stmt, args)
 		res, err = execer.StatementExec(query, args...)
 		return
 	}
@@ -325,7 +325,7 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 
 	if db.Conf.PreparedStatementCacheEnabled() && tx == nil {
 		var p *Stmt
-		if p, query, err = d.prepareStatement(stmt); err != nil {
+		if p, query, args, err = d.prepareStatement(stmt, args); err != nil {
 			return nil, err
 		}
 		defer p.Close()
@@ -334,8 +334,7 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 		return
 	}
 
-	query = d.compileStatement(stmt)
-
+	query, args = d.compileStatement(stmt, args)
 	if tx != nil {
 		res, err = tx.(*sqlTx).Exec(query, args...)
 		return
@@ -367,7 +366,7 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (ro
 
 	if db.Conf.PreparedStatementCacheEnabled() && tx == nil {
 		var p *Stmt
-		if p, query, err = d.prepareStatement(stmt); err != nil {
+		if p, query, args, err = d.prepareStatement(stmt, args); err != nil {
 			return nil, err
 		}
 		defer p.Close()
@@ -376,7 +375,7 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (ro
 		return
 	}
 
-	query = d.compileStatement(stmt)
+	query, args = d.compileStatement(stmt, args)
 	if tx != nil {
 		rows, err = tx.(*sqlTx).Query(query, args...)
 		return
@@ -410,7 +409,7 @@ func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) 
 
 	if db.Conf.PreparedStatementCacheEnabled() && tx == nil {
 		var p *Stmt
-		if p, query, err = d.prepareStatement(stmt); err != nil {
+		if p, query, args, err = d.prepareStatement(stmt, args); err != nil {
 			return nil, err
 		}
 		defer p.Close()
@@ -419,7 +418,7 @@ func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) 
 		return
 	}
 
-	query = d.compileStatement(stmt)
+	query, args = d.compileStatement(stmt, args)
 	if tx != nil {
 		row = tx.(*sqlTx).QueryRow(query, args...)
 		return
@@ -439,19 +438,19 @@ func (d *database) Driver() interface{} {
 }
 
 // compileStatement compiles the given statement into a string.
-func (d *database) compileStatement(stmt *exql.Statement) string {
-	return d.PartialDatabase.CompileStatement(stmt)
+func (d *database) compileStatement(stmt *exql.Statement, args []interface{}) (string, []interface{}) {
+	return d.PartialDatabase.CompileStatement(stmt, args)
 }
 
 // prepareStatement compiles a query and tries to use previously generated
 // statement.
-func (d *database) prepareStatement(stmt *exql.Statement) (*Stmt, string, error) {
+func (d *database) prepareStatement(stmt *exql.Statement, args []interface{}) (*Stmt, string, []interface{}, error) {
 	d.sessMu.Lock()
 	defer d.sessMu.Unlock()
 
 	sess, tx := d.sess, d.Transaction()
 	if sess == nil && tx == nil {
-		return nil, "", db.ErrNotConnected
+		return nil, "", nil, db.ErrNotConnected
 	}
 
 	pc, ok := d.cachedStatements.ReadRaw(stmt)
@@ -459,11 +458,12 @@ func (d *database) prepareStatement(stmt *exql.Statement) (*Stmt, string, error)
 		// The statement was cached.
 		ps, err := pc.(*Stmt).Open()
 		if err == nil {
-			return ps, ps.query, nil
+			_, args = d.compileStatement(stmt, args)
+			return ps, ps.query, args, nil
 		}
 	}
 
-	query := d.compileStatement(stmt)
+	query, args := d.compileStatement(stmt, args)
 	sqlStmt, err := func(query *string) (*sql.Stmt, error) {
 		if tx != nil {
 			return tx.(*sqlTx).Prepare(*query)
@@ -471,15 +471,15 @@ func (d *database) prepareStatement(stmt *exql.Statement) (*Stmt, string, error)
 		return sess.Prepare(*query)
 	}(&query)
 	if err != nil {
-		return nil, "", err
+		return nil, "", nil, err
 	}
 
 	p, err := NewStatement(sqlStmt, query).Open()
 	if err != nil {
-		return nil, query, err
+		return nil, query, args, err
 	}
 	d.cachedStatements.Write(stmt, p)
-	return p, p.query, nil
+	return p, p.query, args, nil
 }
 
 var waitForConnMu sync.Mutex
