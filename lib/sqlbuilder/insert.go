@@ -2,15 +2,19 @@ package sqlbuilder
 
 import (
 	"database/sql"
+	"sync"
 
 	"upper.io/db.v2/internal/sqladapter/exql"
 )
 
 type inserter struct {
 	*stringer
-	builder   *sqlBuilder
-	table     string
-	values    []*exql.Values
+	builder *sqlBuilder
+	table   string
+
+	enqueuedValues [][]interface{}
+	mu             sync.Mutex
+
 	returning []exql.Fragment
 	columns   []exql.Fragment
 	arguments []interface{}
@@ -28,6 +32,7 @@ func (qi *inserter) Batch(n int) *BatchInserter {
 }
 
 func (qi *inserter) Arguments() []interface{} {
+	_ = qi.statement()
 	return qi.arguments
 }
 
@@ -69,34 +74,77 @@ func (qi *inserter) Columns(columns ...string) Inserter {
 }
 
 func (qi *inserter) Values(values ...interface{}) Inserter {
-	if len(values) == 1 {
-		ff, vv, err := Map(values[0], &MapOptions{IncludeZeroed: true, IncludeNil: true})
-		if err == nil {
-			columns, vals, arguments, _ := qi.builder.t.ToColumnsValuesAndArguments(ff, vv)
+	qi.mu.Lock()
+	defer qi.mu.Unlock()
 
-			qi.arguments = append(qi.arguments, arguments...)
-			qi.values = append(qi.values, vals)
-			if len(qi.columns) == 0 {
-				for _, c := range columns.Columns {
-					qi.columns = append(qi.columns, c)
-				}
-			}
-			return qi
-		}
+	if qi.enqueuedValues == nil {
+		qi.enqueuedValues = [][]interface{}{}
 	}
-
-	if len(qi.columns) == 0 || len(values) == len(qi.columns) {
-		qi.arguments = append(qi.arguments, values...)
-
-		l := len(values)
-		placeholders := make([]exql.Fragment, l)
-		for i := 0; i < l; i++ {
-			placeholders[i] = exql.RawValue(`?`)
-		}
-		qi.values = append(qi.values, exql.NewValueGroup(placeholders...))
-	}
-
+	qi.enqueuedValues = append(qi.enqueuedValues, values)
 	return qi
+}
+
+func (qi *inserter) processValues() (values []*exql.Values, arguments []interface{}) {
+	// TODO: simplify with immutable queries
+	var insertNils bool
+
+	for _, enqueuedValue := range qi.enqueuedValues {
+		if len(enqueuedValue) == 1 {
+			ff, vv, err := Map(enqueuedValue[0], nil)
+			if err == nil {
+				columns, vals, args, _ := qi.builder.t.ToColumnsValuesAndArguments(ff, vv)
+
+				values, arguments = append(values, vals), append(arguments, args...)
+
+				if len(qi.columns) == 0 {
+					for _, c := range columns.Columns {
+						qi.columns = append(qi.columns, c)
+					}
+				} else {
+					if len(qi.columns) != len(columns.Columns) {
+						insertNils = true
+						break
+					}
+				}
+				continue
+			}
+		}
+
+		if len(qi.columns) == 0 || len(enqueuedValue) == len(qi.columns) {
+			arguments = append(arguments, enqueuedValue...)
+
+			l := len(enqueuedValue)
+			placeholders := make([]exql.Fragment, l)
+			for i := 0; i < l; i++ {
+				placeholders[i] = exql.RawValue(`?`)
+			}
+			values = append(values, exql.NewValueGroup(placeholders...))
+		}
+	}
+
+	if insertNils {
+		values, arguments = values[0:0], arguments[0:0]
+
+		for _, enqueuedValue := range qi.enqueuedValues {
+			if len(enqueuedValue) == 1 {
+				ff, vv, err := Map(enqueuedValue[0], &MapOptions{IncludeZeroed: true, IncludeNil: true})
+				if err == nil {
+					columns, vals, args, _ := qi.builder.t.ToColumnsValuesAndArguments(ff, vv)
+					values, arguments = append(values, vals), append(arguments, args...)
+
+					if len(qi.columns) != len(columns.Columns) {
+						qi.columns = qi.columns[0:0]
+						for _, c := range columns.Columns {
+							qi.columns = append(qi.columns, c)
+						}
+					}
+				}
+				continue
+			}
+		}
+	}
+
+	return
 }
 
 func (qi *inserter) statement() *exql.Statement {
@@ -105,12 +153,16 @@ func (qi *inserter) statement() *exql.Statement {
 		Table: exql.TableWithName(qi.table),
 	}
 
-	if len(qi.values) > 0 {
-		stmt.Values = exql.JoinValueGroups(qi.values...)
-	}
+	values, arguments := qi.processValues()
+
+	qi.arguments = arguments
 
 	if len(qi.columns) > 0 {
 		stmt.Columns = exql.JoinColumns(qi.columns...)
+	}
+
+	if len(values) > 0 {
+		stmt.Values = exql.JoinValueGroups(values...)
 	}
 
 	if len(qi.returning) > 0 {
