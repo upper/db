@@ -326,6 +326,8 @@ type Inserter interface {
 	// RETURNING may not be supported by all SQL databases.
 	Returning(columns ...string) Inserter
 
+	OnConflict(onConflict string) Inserter
+
 	// Iterator provides methods to iterate over the results returned by the
 	// Inserter. This is only possible when using Returning().
 	Iterator() Iterator

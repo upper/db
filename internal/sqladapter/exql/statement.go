@@ -19,6 +19,7 @@ type Statement struct {
 	GroupBy      Fragment
 	Joins        Fragment
 	Where        Fragment
+	OnConflict   string
 	Returning    Fragment
 
 	Limit
@@ -39,6 +40,7 @@ type statementT struct {
 	GroupBy      string
 	Where        string
 	Joins        string
+	OnConflict   string
 	Returning    string
 	Limit
 	Offset
@@ -85,6 +87,7 @@ func (s *Statement) Compile(layout *Template) (compiled string) {
 		OrderBy:      layout.doCompile(s.OrderBy),
 		GroupBy:      layout.doCompile(s.GroupBy),
 		Where:        layout.doCompile(s.Where),
+		OnConflict:   s.OnConflict,
 		Returning:    layout.doCompile(s.Returning),
 		Joins:        layout.doCompile(s.Joins),
 	}

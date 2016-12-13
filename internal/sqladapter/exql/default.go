@@ -131,6 +131,7 @@ const (
       {{if .Columns }}({{.Columns}}){{end}}
     VALUES
       {{.Values}}
+		{{if .OnConflict }}ON CONFLICT {{.OnConflict}}{{end}}
 		{{if .Returning}}
 			RETURNING {{.Returning}}
 		{{end}}

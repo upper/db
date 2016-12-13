@@ -8,13 +8,13 @@ import (
 
 type inserter struct {
 	*stringer
-	builder   *sqlBuilder
-	table     string
-	values    []*exql.Values
-	returning []exql.Fragment
-	columns   []exql.Fragment
-	arguments []interface{}
-	extra     string
+	builder    *sqlBuilder
+	table      string
+	values     []*exql.Values
+	onConflict string
+	returning  []exql.Fragment
+	columns    []exql.Fragment
+	arguments  []interface{}
 }
 
 func (qi *inserter) clone() *inserter {
@@ -43,6 +43,11 @@ func (qi *inserter) columnsToFragments(dst *[]exql.Fragment, columns []string) e
 
 func (qi *inserter) Returning(columns ...string) Inserter {
 	qi.columnsToFragments(&qi.returning, columns)
+	return qi
+}
+
+func (qi *inserter) OnConflict(onConflict string) Inserter {
+	qi.onConflict = onConflict
 	return qi
 }
 
@@ -116,6 +121,8 @@ func (qi *inserter) statement() *exql.Statement {
 	if len(qi.returning) > 0 {
 		stmt.Returning = exql.ReturningColumns(qi.returning...)
 	}
+
+	stmt.OnConflict = qi.onConflict
 
 	return stmt
 }
