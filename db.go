@@ -266,11 +266,13 @@ type compound struct {
 }
 
 func newCompound(conds ...Compound) *compound {
-	return &compound{
-		fn: func() []Compound {
+	c := &compound{}
+	if len(conds) > 0 {
+		c.fn = func() []Compound {
 			return conds
-		},
+		}
 	}
+	return c
 }
 
 func defaultJoin(in ...Compound) []Compound {
@@ -307,7 +309,7 @@ func (c *compound) frame(a []Compound) *compound {
 }
 
 func compoundFastForward(curr *compound) []Compound {
-	if curr == nil {
+	if curr == nil || curr.fn == nil {
 		return []Compound{}
 	}
 	return append(compoundFastForward(curr.prev), curr.fn()...)
