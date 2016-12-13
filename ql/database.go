@@ -227,8 +227,9 @@ func (d *database) clone() (*database, error) {
 
 // CompileStatement allows sqladapter to compile the given statement into the
 // format SQLite expects.
-func (d *database) CompileStatement(stmt *exql.Statement) string {
-	return sqladapter.ReplaceWithDollarSign(stmt.Compile(template))
+func (d *database) CompileStatement(stmt *exql.Statement, args []interface{}) (string, []interface{}) {
+	query, args := sqlbuilder.Preprocess(stmt.Compile(template), args)
+	return sqladapter.ReplaceWithDollarSign(query), args
 }
 
 // Err allows sqladapter to translate some known errors into generic errors.

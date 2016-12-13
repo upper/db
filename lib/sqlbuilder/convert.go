@@ -1,6 +1,7 @@
 package sqlbuilder
 
 import (
+	"database/sql/driver"
 	"fmt"
 	"reflect"
 	"strings"
@@ -24,47 +25,62 @@ func newTemplateWithUtils(template *exql.Template) *templateWithUtils {
 	return &templateWithUtils{template}
 }
 
-func expandPlaceholders(in string, args ...interface{}) (string, []interface{}) {
+func expandQuery(in string, args []interface{}, fn func(interface{}) (string, []interface{})) (string, []interface{}) {
 	argn := 0
 	argx := make([]interface{}, 0, len(args))
 	for i := 0; i < len(in); i++ {
-		if in[i] == '?' {
-			if len(args) > argn {
-				k := `?`
-
-				values, isSlice := toInterfaceArguments(args[argn])
-				if isSlice {
-					if len(values) == 0 {
-						k = `(NULL)`
-					} else {
-						k = `(?` + strings.Repeat(`, ?`, len(values)-1) + `)`
-					}
-				} else {
-					if len(values) == 1 {
-						switch t := values[0].(type) {
-						case db.RawValue:
-							k, values = t.Raw(), nil
-						case *selector:
-							k, values = `(`+t.statement().Compile(t.stringer.t)+`)`, t.Arguments()
-						}
-					} else if len(values) == 0 {
-						k = `NULL`
-					}
-				}
-
-				if k != `?` {
-					in = in[:i] + k + in[i+1:]
-					i += len(k) - 1
-				}
-
-				if len(values) > 0 {
-					argx = append(argx, values...)
-				}
-				argn++
+		if in[i] != '?' {
+			continue
+		}
+		if len(args) > argn {
+			k, values := fn(args[argn])
+			if k != "" {
+				in = in[:i] + k + in[i+1:]
+				i += len(k) - 1
 			}
+			if len(values) > 0 {
+				argx = append(argx, values...)
+			}
+			argn++
 		}
 	}
+	if len(argx) < len(args) {
+		argx = append(argx, args[argn:]...)
+	}
 	return in, argx
+}
+
+func preprocessFn(arg interface{}) (string, []interface{}) {
+	values, isSlice := toInterfaceArguments(arg)
+
+	if isSlice {
+		if len(values) == 0 {
+			return `(NULL)`, nil
+		}
+		return `(?` + strings.Repeat(`, ?`, len(values)-1) + `)`, values
+	}
+
+	if len(values) == 1 {
+		switch t := arg.(type) {
+		case db.RawValue:
+			return Preprocess(t.Raw(), t.Arguments())
+		case *selector:
+			return `(` + t.statement().Compile(t.stringer.t) + `)`, t.Arguments()
+		}
+	} else if len(values) == 0 {
+		return `NULL`, nil
+	}
+
+	return "", []interface{}{arg}
+}
+
+func Preprocess(in string, args []interface{}) (string, []interface{}) {
+	return expandQuery(in, args, preprocessFn)
+}
+
+func expandPlaceholders(in string, args []interface{}) (string, []interface{}) {
+	// TODO: Remove after immutable query builder
+	return in, args
 }
 
 // ToWhereWithArguments converts the given parameters into a exql.Where
@@ -77,7 +93,7 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where exql.
 		if len(t) > 0 {
 			if s, ok := t[0].(string); ok {
 				if strings.ContainsAny(s, "?") || len(t) == 1 {
-					s, args = expandPlaceholders(s, t[1:]...)
+					s, args = expandPlaceholders(s, t[1:])
 					where.Conditions = []exql.Fragment{exql.RawValue(s)}
 				} else {
 					var val interface{}
@@ -106,7 +122,7 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where exql.
 		}
 		return
 	case db.RawValue:
-		r, v := expandPlaceholders(t.Raw(), t.Arguments()...)
+		r, v := expandPlaceholders(t.Raw(), t.Arguments())
 		where.Conditions = []exql.Fragment{exql.RawValue(r)}
 		args = append(args, v...)
 		return
@@ -182,12 +198,16 @@ func (tu *templateWithUtils) PlaceholderValue(in interface{}) (exql.Fragment, []
 
 // toInterfaceArguments converts the given value into an array of interfaces.
 func toInterfaceArguments(value interface{}) (args []interface{}, isSlice bool) {
-	v := reflect.ValueOf(value)
-
 	if value == nil {
 		return nil, false
 	}
 
+	switch t := value.(type) {
+	case driver.Valuer:
+		return []interface{}{t}, false
+	}
+
+	v := reflect.ValueOf(value)
 	if v.Type().Kind() == reflect.Slice {
 		var i, total int
 
@@ -274,11 +294,11 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv exql.ColumnVal
 				// A function with one or more arguments.
 				fnName = fnName + "(?" + strings.Repeat("?, ", len(fnArgs)-1) + ")"
 			}
-			expanded, fnArgs := expandPlaceholders(fnName, fnArgs...)
+			expanded, fnArgs := expandPlaceholders(fnName, fnArgs)
 			columnValue.Value = exql.RawValue(expanded)
 			args = append(args, fnArgs...)
 		case db.RawValue:
-			expanded, rawArgs := expandPlaceholders(value.Raw(), value.Arguments()...)
+			expanded, rawArgs := expandPlaceholders(value.Raw(), value.Arguments())
 			columnValue.Value = exql.RawValue(expanded)
 			args = append(args, rawArgs...)
 		default:
