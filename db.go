@@ -489,6 +489,18 @@ type Database interface {
 
 	// ClearCache clears all the cache mechanisms the adapter is using.
 	ClearCache()
+
+	// SetConnMaxLifetime sets the maximum amount of time a connection may be
+	// reused.
+	SetConnMaxLifetime(time.Duration)
+
+	// SetMaxIdleConns sets the maximum number of connections in the idle
+	// connection pool.
+	SetMaxIdleConns(int)
+
+	// SetMaxOpenConns sets the maximum number of open connections to the
+	// database.
+	SetMaxOpenConns(int)
 }
 
 // Tx has methods for transactions that can be either committed or rolled back.

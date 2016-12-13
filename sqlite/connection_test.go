@@ -40,7 +40,7 @@ func TestConnectionURL(t *testing.T) {
 
 	absoluteName, _ := filepath.Abs(c.Database)
 
-	if c.String() != "file://"+absoluteName {
+	if c.String() != "file://"+absoluteName+"?_busy_timeout=10000" {
 		t.Fatal(`Test failed, got:`, c.String())
 	}
 
@@ -50,14 +50,14 @@ func TestConnectionURL(t *testing.T) {
 		"mode":  "ro",
 	}
 
-	if c.String() != "file://"+absoluteName+"?cache=foobar&mode=ro" {
+	if c.String() != "file://"+absoluteName+"?_busy_timeout=10000&cache=foobar&mode=ro" {
 		t.Fatal(`Test failed, got:`, c.String())
 	}
 
 	// Setting another database.
 	c.Database = "/another/database"
 
-	if c.String() != `file:///another/database?cache=foobar&mode=ro` {
+	if c.String() != `file:///another/database?_busy_timeout=10000&cache=foobar&mode=ro` {
 		t.Fatal(`Test failed, got:`, c.String())
 	}
 
@@ -82,7 +82,7 @@ func TestParseConnectionURL(t *testing.T) {
 		t.Fatal("If not defined, cache should be shared by default.")
 	}
 
-	s = "file:///path/to/my/database.db?mode=ro&cache=foobar"
+	s = "file:///path/to/my/database.db?_busy_timeout=10000&mode=ro&cache=foobar"
 
 	if u, err = ParseURL(s); err != nil {
 		t.Fatal(err)

@@ -65,6 +65,21 @@ func (s *Source) ConnectionURL() db.ConnectionURL {
 	return s.connURL
 }
 
+// SetConnMaxLifetime is not supported.
+func (s *Source) SetConnMaxLifetime(time.Duration) {
+
+}
+
+// SetMaxIdleConns is not supported.
+func (s *Source) SetMaxIdleConns(int) {
+
+}
+
+// SetMaxOpenConns is not supported.
+func (s *Source) SetMaxOpenConns(int) {
+
+}
+
 // Name returns the name of the database.
 func (s *Source) Name() string {
 	return s.name

@@ -17,7 +17,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"upper.io/db.v2"
-	"upper.io/db.v2/internal/sqladapter"
 	"upper.io/db.v2/lib/sqlbuilder"
 )
 
@@ -79,6 +78,9 @@ func TestOpenMustSucceed(t *testing.T) {
 func TestPreparedStatementsCache(t *testing.T) {
 	sess := mustOpen()
 
+	db.Conf.SetPreparedStatementCache(true)
+	defer db.Conf.SetPreparedStatementCache(false)
+
 	var tMu sync.Mutex
 	tFatal := func(err error) {
 		tMu.Lock()
@@ -86,69 +88,73 @@ func TestPreparedStatementsCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// QL and SQLite don't have the same concurrency capabilities PostgreSQL and
-	// MySQL have, so they have special limits.
-	defaultLimit := 1000
-
-	limits := map[string]int {
-		"sqlite": 20,
-		"ql": 20,
-	}
-
-	limit := limits[Adapter]
-	if limit < 1 {
-		limit = defaultLimit
-	}
-
-	// The max number of elements we can have on our LRU is 128, if an statement
-	// is evicted it will be marked as dead and will be closed only when no other
-	// queries are using it.
-	const maxPreparedStatements = 128 * 2
-
+	// This limit was chosen because, by default, MySQL accepts 16k statements
+	// and dies. See https://github.com/upper/db/issues/287
+	limit := 20000
 	var wg sync.WaitGroup
+
 	for i := 0; i < limit; i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
 			// This query is different with each iteration and thus generates a new
 			// prepared statement everytime it's called.
-			res := sess.Collection("artist").Find().Select(db.Raw(fmt.Sprintf("count(%d)", i%200)))
+			res := sess.Collection("artist").Find().Select(db.Raw(fmt.Sprintf("count(%d)", i)))
 			var count map[string]uint64
 			err := res.One(&count)
 			if err != nil {
 				tFatal(err)
 			}
-			if activeStatements := sqladapter.NumActiveStatements(); activeStatements > maxPreparedStatements {
-				tFatal(fmt.Errorf("The number of active statements cannot exceed %d (got %d).", maxPreparedStatements, activeStatements))
-			}
 		}(i)
-		if i%50 == 0 {
-			wg.Wait()
-		}
 	}
 	wg.Wait()
+
+	// Concurrent Insert can open many connections on MySQL / PostgreSQL, this
+	// sets a limit on them.
+	sess.SetMaxOpenConns(100)
+
+	switch Adapter {
+	case "ql":
+		limit = 1000
+	case "sqlite":
+		// TODO: We'll probably be able to workaround this with a mutex on inserts.
+		t.Skip(`Skipped due to a "database is locked" problem with concurrent transactions. See https://github.com/mattn/go-sqlite3/issues/274`)
+	}
 
 	for i := 0; i < limit; i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			// This query is different with each iteration and thus generates a new
-			// prepared statement everytime it's called.
+			// The same prepared query on every iteration.
 			_, err := sess.Collection("artist").Insert(artistType{
-        Name: fmt.Sprintf("artist-%d", i%200),
-      })
+				Name: fmt.Sprintf("artist-%d", i),
+			})
 			if err != nil {
 				tFatal(err)
 			}
-			if activeStatements := sqladapter.NumActiveStatements(); activeStatements > maxPreparedStatements {
-				tFatal(fmt.Errorf("The number of active statements cannot exceed %d (got %d).", maxPreparedStatements, activeStatements))
-			}
 		}(i)
-		if i%50 == 0 {
-			wg.Wait()
-		}
 	}
 	wg.Wait()
+
+	// Insert returning creates a transaction.
+	for i := 0; i < limit; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			// The same prepared query on every iteration.
+			artist := artistType{
+				Name: fmt.Sprintf("artist-%d", i),
+			}
+			err := sess.Collection("artist").InsertReturning(&artist)
+			if err != nil {
+				tFatal(err)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	// Removing the limit.
+	sess.SetMaxOpenConns(0)
 
 	assert.NoError(t, cleanUpCheck(sess))
 	assert.NoError(t, sess.Close())
@@ -532,7 +538,7 @@ func TestGetResultsOneByOne(t *testing.T) {
 	assert.Equal(t, 4, len(allRowsMap))
 
 	for _, singleRowMap := range allRowsMap {
-    if fmt.Sprintf("%d", singleRowMap["id"]) == "0" {
+		if fmt.Sprintf("%d", singleRowMap["id"]) == "0" {
 			t.Fatalf("Expecting a not null ID.")
 		}
 	}
@@ -1020,6 +1026,7 @@ func TestCompositeKeys(t *testing.T) {
 
 // Attempts to test database transactions.
 func TestTransactionsAndRollback(t *testing.T) {
+
 	if Adapter == "ql" {
 		t.Skip("Currently not supported.")
 	}
@@ -1048,8 +1055,12 @@ func TestTransactionsAndRollback(t *testing.T) {
 	err = tx.Close()
 	assert.NoError(t, err)
 
+	err = tx.Close()
+	assert.NoError(t, err)
+
 	// Use another transaction.
 	tx, err = sess.NewTx()
+	assert.NoError(t, err)
 
 	artist = tx.Collection("artist")
 

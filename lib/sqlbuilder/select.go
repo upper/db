@@ -243,7 +243,7 @@ func (sel *selector) OrderBy(columns ...interface{}) Selector {
 
 			switch value := columns[i].(type) {
 			case db.RawValue:
-				col, args := expandPlaceholders(value.Raw(), value.Arguments()...)
+				col, args := expandPlaceholders(value.Raw(), value.Arguments())
 				sort = &exql.SortColumn{
 					Column: exql.RawValue(col),
 				}
@@ -255,7 +255,7 @@ func (sel *selector) OrderBy(columns ...interface{}) Selector {
 				} else {
 					fnName = fnName + "(?" + strings.Repeat("?, ", len(fnArgs)-1) + ")"
 				}
-				expanded, fnArgs := expandPlaceholders(fnName, fnArgs...)
+				expanded, fnArgs := expandPlaceholders(fnName, fnArgs)
 				sort = &exql.SortColumn{
 					Column: exql.RawValue(expanded),
 				}

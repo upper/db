@@ -132,7 +132,10 @@ func (d *database) clone() (*database, error) {
 		return nil, err
 	}
 
-	clone.BaseDatabase = sqladapter.NewBaseDatabase(clone)
+	clone.BaseDatabase, err = d.BindClone(clone)
+	if err != nil {
+		return nil, err
+	}
 
 	b, err := sqlbuilder.WithSession(clone.BaseDatabase, template)
 	if err != nil {
@@ -140,16 +143,14 @@ func (d *database) clone() (*database, error) {
 	}
 	clone.Builder = b
 
-	if err = clone.BaseDatabase.BindSession(d.BaseDatabase.Session()); err != nil {
-		return nil, err
-	}
 	return clone, nil
 }
 
 // CompileStatement allows sqladapter to compile the given statement into the
 // format PostgreSQL expects.
-func (d *database) CompileStatement(stmt *exql.Statement) string {
-	return sqladapter.ReplaceWithDollarSign(stmt.Compile(template))
+func (d *database) CompileStatement(stmt *exql.Statement, args []interface{}) (string, []interface{}) {
+	query, args := sqlbuilder.Preprocess(stmt.Compile(template), args)
+	return sqladapter.ReplaceWithDollarSign(query), args
 }
 
 // Err allows sqladapter to translate some known errors into generic errors.

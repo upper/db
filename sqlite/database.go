@@ -153,17 +153,24 @@ func (d *database) clone() (*database, error) {
 		return nil, err
 	}
 
-	if err := clone.open(); err != nil {
+	clone.BaseDatabase, err = d.BindClone(clone)
+	if err != nil {
 		return nil, err
 	}
+
+	b, err := sqlbuilder.WithSession(clone.BaseDatabase, template)
+	if err != nil {
+		return nil, err
+	}
+	clone.Builder = b
 
 	return clone, nil
 }
 
 // CompileStatement allows sqladapter to compile the given statement into the
 // format SQLite expects.
-func (d *database) CompileStatement(stmt *exql.Statement) string {
-	return stmt.Compile(template)
+func (d *database) CompileStatement(stmt *exql.Statement, args []interface{}) (string, []interface{}) {
+	return sqlbuilder.Preprocess(stmt.Compile(template), args)
 }
 
 // Err allows sqladapter to translate some known errors into generic errors.
@@ -174,6 +181,31 @@ func (d *database) Err(err error) error {
 		}
 	}
 	return err
+}
+
+// StatementExec wraps the statement to execute around a transaction.
+func (d *database) StatementExec(query string, args ...interface{}) (res sql.Result, err error) {
+	d.txMu.Lock()
+	defer d.txMu.Unlock()
+
+	if d.Transaction() != nil {
+		return d.Driver().(*sql.Tx).Exec(query, args...)
+	}
+
+	sqlTx, err := d.Session().Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	if res, err = sqlTx.Exec(query, args...); err != nil {
+		return nil, err
+	}
+
+	if err = sqlTx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return res, err
 }
 
 // NewLocalCollection allows sqladapter create a local db.Collection.
