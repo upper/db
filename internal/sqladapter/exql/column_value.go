@@ -35,6 +35,9 @@ func (c *ColumnValue) Compile(layout *Template) (compiled string) {
 		c.Operator,
 		c.Value.Compile(layout),
 	}
+	if c.Operator == "" {
+		data.Operator = layout.DefaultOperator
+	}
 
 	compiled = mustParse(layout.ColumnValue, data)
 

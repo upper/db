@@ -11,10 +11,9 @@ import (
 )
 
 var (
-	sqlNull            = exql.RawValue(`NULL`)
-	sqlIsOperator      = `IS`
-	sqlInOperator      = `IN`
-	sqlDefaultOperator = `=`
+	sqlNull       = exql.RawValue(`NULL`)
+	sqlIsOperator = `IS`
+	sqlInOperator = `IN`
 )
 
 type templateWithUtils struct {
@@ -167,11 +166,6 @@ func Preprocess(in string, args []interface{}) (string, []interface{}) {
 	return expandQuery(in, args, preprocessFn)
 }
 
-func expandPlaceholders(in string, args []interface{}) (string, []interface{}) {
-	// TODO: Remove after immutable query builder
-	return in, args
-}
-
 // toWhereWithArguments converts the given parameters into a exql.Where
 // value.
 func toWhereWithArguments(term interface{}) (where exql.Where, args []interface{}) {
@@ -182,7 +176,7 @@ func toWhereWithArguments(term interface{}) (where exql.Where, args []interface{
 		if len(t) > 0 {
 			if s, ok := t[0].(string); ok {
 				if strings.ContainsAny(s, "?") || len(t) == 1 {
-					s, args = expandPlaceholders(s, t[1:])
+					s, args = Preprocess(s, t[1:])
 					where.Conditions = []exql.Fragment{exql.RawValue(s)}
 				} else {
 					var val interface{}
@@ -211,7 +205,7 @@ func toWhereWithArguments(term interface{}) (where exql.Where, args []interface{
 		}
 		return
 	case db.RawValue:
-		r, v := expandPlaceholders(t.Raw(), t.Arguments())
+		r, v := Preprocess(t.Raw(), t.Arguments())
 		where.Conditions = []exql.Fragment{exql.RawValue(r)}
 		args = append(args, v...)
 		return
@@ -329,13 +323,13 @@ func toColumnValues(term interface{}) (cv exql.ColumnValues, args []interface{})
 				// A function with one or more arguments.
 				fnName = fnName + "(?" + strings.Repeat("?, ", len(fnArgs)-1) + ")"
 			}
-			expanded, fnArgs := expandPlaceholders(fnName, fnArgs)
-			columnValue.Value = exql.RawValue(expanded)
+			fnName, fnArgs = Preprocess(fnName, fnArgs)
+			columnValue.Value = exql.RawValue(fnName)
 			args = append(args, fnArgs...)
 		case db.RawValue:
-			expanded, rawArgs := expandPlaceholders(value.Raw(), value.Arguments())
-			columnValue.Value = exql.RawValue(expanded)
-			args = append(args, rawArgs...)
+			q, a := Preprocess(value.Raw(), value.Arguments())
+			columnValue.Value = exql.RawValue(q)
+			args = append(args, a...)
 		default:
 			v, isSlice := toInterfaceArguments(value)
 
@@ -367,10 +361,6 @@ func toColumnValues(term interface{}) (cv exql.ColumnValues, args []interface{})
 		}
 
 		// Using guessed operator if no operator was given.
-		if columnValue.Operator == "" {
-			columnValue.Operator = sqlDefaultOperator
-		}
-
 		cv.ColumnValues = append(cv.ColumnValues, &columnValue)
 
 		return cv, args

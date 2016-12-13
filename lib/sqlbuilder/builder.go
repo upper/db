@@ -330,10 +330,10 @@ func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, err
 
 	for i := 0; i < l; i++ {
 		switch v := columns[i].(type) {
-		case *selector:
-			expanded, rawArgs := expandPlaceholders(v.Compile(), v.Arguments())
-			f[i] = exql.RawValue(expanded)
-			args = append(args, rawArgs...)
+		case compilable:
+			q, a := Preprocess(v.Compile(), v.Arguments())
+			f[i] = exql.RawValue(q)
+			args = append(args, a...)
 		case db.Function:
 			fnName, fnArgs := v.Name(), v.Arguments()
 			if len(fnArgs) == 0 {
@@ -341,13 +341,13 @@ func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, err
 			} else {
 				fnName = fnName + "(?" + strings.Repeat("?, ", len(fnArgs)-1) + ")"
 			}
-			expanded, fnArgs := expandPlaceholders(fnName, fnArgs)
-			f[i] = exql.RawValue(expanded)
+			fnName, fnArgs = Preprocess(fnName, fnArgs)
+			f[i] = exql.RawValue(fnName)
 			args = append(args, fnArgs...)
 		case db.RawValue:
-			expanded, rawArgs := expandPlaceholders(v.Raw(), v.Arguments())
-			f[i] = exql.RawValue(expanded)
-			args = append(args, rawArgs...)
+			q, a := Preprocess(v.Raw(), v.Arguments())
+			f[i] = exql.RawValue(q)
+			args = append(args, a...)
 		case exql.Fragment:
 			f[i] = v
 		case string:

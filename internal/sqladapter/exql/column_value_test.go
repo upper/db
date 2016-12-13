@@ -54,6 +54,15 @@ func TestColumnValue(t *testing.T) {
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
+
+	cv = &ColumnValue{Column: ColumnWithName("date"), Value: NewValue(RawValue("NOW()"))}
+
+	s = cv.Compile(defaultTemplate)
+	e = `"date" = NOW()`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
 }
 
 func TestColumnValues(t *testing.T) {
