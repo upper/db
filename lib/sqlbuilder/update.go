@@ -2,8 +2,8 @@ package sqlbuilder
 
 import (
 	"database/sql"
-	"strings"
 
+	"upper.io/db.v2/internal/immutable"
 	"upper.io/db.v2/internal/sqladapter/exql"
 )
 
@@ -45,47 +45,27 @@ func (uq *updaterQuery) arguments() []interface{} {
 }
 
 type updater struct {
-	*stringer
 	builder *sqlBuilder
 
 	fn   func(*updaterQuery) error
 	prev *updater
 }
 
+var _ = immutable.Immutable(&updater{})
+
 func (upd *updater) Builder() *sqlBuilder {
-	p := &upd
-	for {
-		if (*p).builder != nil {
-			return (*p).builder
-		}
-		if (*p).prev == nil {
-			return nil
-		}
-		p = &(*p).prev
+	if upd.prev == nil {
+		return upd.builder
 	}
+	return upd.prev.Builder()
 }
 
-func (upd *updater) Stringer() *stringer {
-	p := &upd
-	for {
-		if (*p).stringer != nil {
-			return (*p).stringer
-		}
-		if (*p).prev == nil {
-			return nil
-		}
-		p = &(*p).prev
-	}
+func (upd *updater) template() *exql.Template {
+	return upd.Builder().t.Template
 }
 
 func (upd *updater) String() string {
-	query, err := upd.build()
-	if err != nil {
-		return ""
-	}
-	q := upd.Stringer().compileAndReplacePlaceholders(query.statement())
-	q = reInvisibleChars.ReplaceAllString(q, ` `)
-	return strings.TrimSpace(q)
+	return prepareQueryForDisplay(upd.Compile())
 }
 
 func (upd *updater) setTable(table string) *updater {
@@ -174,25 +154,31 @@ func (upd *updater) statement() *exql.Statement {
 }
 
 func (upd *updater) build() (*updaterQuery, error) {
-	iq, err := updaterFastForward(&updaterQuery{}, upd)
+	uq, err := immutable.FastForward(upd)
 	if err != nil {
 		return nil, err
 	}
-	return iq, nil
+	return uq.(*updaterQuery), nil
 }
 
 func (upd *updater) Compile() string {
-	return upd.statement().Compile(upd.Stringer().t)
+	return upd.statement().Compile(upd.template())
 }
 
-func updaterFastForward(in *updaterQuery, curr *updater) (*updaterQuery, error) {
-	if curr == nil || curr.fn == nil {
-		return in, nil
+func (upd *updater) Prev() immutable.Immutable {
+	if upd == nil {
+		return nil
 	}
-	in, err := updaterFastForward(in, curr.prev)
-	if err != nil {
-		return nil, err
+	return upd.prev
+}
+
+func (upd *updater) Fn(in interface{}) error {
+	if upd.fn == nil {
+		return nil
 	}
-	err = curr.fn(in)
-	return in, err
+	return upd.fn(in.(*updaterQuery))
+}
+
+func (upd *updater) Base() interface{} {
+	return &updaterQuery{}
 }

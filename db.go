@@ -80,6 +80,8 @@ import (
 	"fmt"
 	"reflect"
 	"time"
+
+	"upper.io/db.v2/internal/immutable"
 )
 
 // Constraint interface represents a single condition, like "a = 1".  where `a`
@@ -262,30 +264,25 @@ func (r rawValue) Empty() bool {
 
 type compound struct {
 	prev *compound
-	fn   func() []Compound
+	fn   func(*[]Compound) error
 }
 
 func newCompound(conds ...Compound) *compound {
 	c := &compound{}
-	if len(conds) > 0 {
-		c.fn = func() []Compound {
-			return conds
-		}
-	}
-	return c
+	return c.frame(func(in *[]Compound) error {
+		*in = append(*in, conds...)
+		return nil
+	})
 }
 
-func defaultJoin(in ...Compound) []Compound {
-	for i := range in {
-		if cond, ok := in[i].(Cond); ok && len(cond) > 1 {
-			in[i] = And(cond)
-		}
-	}
-	return in
-}
+var _ = immutable.Immutable(&compound{})
 
 func (c *compound) Sentences() []Compound {
-	return compoundFastForward(c)
+	conds, err := immutable.FastForward(c)
+	if err == nil {
+		return *(conds.(*[]Compound))
+	}
+	return nil
 }
 
 func (c *compound) Operator() CompoundOperator {
@@ -299,20 +296,35 @@ func (c *compound) Empty() bool {
 	return true
 }
 
-func (c *compound) frame(a []Compound) *compound {
-	if len(a) == 0 {
-		return c
-	}
-	nc := newCompound(a...)
-	nc.prev = c
-	return nc
+func (c *compound) frame(fn func(*[]Compound) error) *compound {
+	return &compound{prev: c, fn: fn}
 }
 
-func compoundFastForward(curr *compound) []Compound {
-	if curr == nil || curr.fn == nil {
-		return []Compound{}
+func (c *compound) Prev() immutable.Immutable {
+	if c == nil {
+		return nil
 	}
-	return append(compoundFastForward(curr.prev), curr.fn()...)
+	return c.prev
+}
+
+func (c *compound) Fn(in interface{}) error {
+	if c.fn == nil {
+		return nil
+	}
+	return c.fn(in.(*[]Compound))
+}
+
+func (c *compound) Base() interface{} {
+	return &[]Compound{}
+}
+
+func defaultJoin(in ...Compound) []Compound {
+	for i := range in {
+		if cond, ok := in[i].(Cond); ok && len(cond) > 1 {
+			in[i] = And(cond)
+		}
+	}
+	return in
 }
 
 // Union represents a compound joined by OR.
@@ -321,8 +333,11 @@ type Union struct {
 }
 
 // Or adds more terms to the compound.
-func (o *Union) Or(conds ...Compound) *Union {
-	return &Union{o.compound.frame(conds)}
+func (o *Union) Or(orConds ...Compound) *Union {
+	return &Union{o.compound.frame(func(in *[]Compound) error {
+		*in = append(*in, orConds...)
+		return nil
+	})}
 }
 
 // Operator returns the OR operator.
@@ -336,8 +351,11 @@ func (o *Union) Empty() bool {
 }
 
 // And adds more terms to the compound.
-func (a *Intersection) And(conds ...Compound) *Intersection {
-	return &Intersection{a.compound.frame(conds)}
+func (a *Intersection) And(andConds ...Compound) *Intersection {
+	return &Intersection{a.compound.frame(func(in *[]Compound) error {
+		*in = append(*in, andConds...)
+		return nil
+	})}
 }
 
 // Empty returns false if this struct holds no conditions.

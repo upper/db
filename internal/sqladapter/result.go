@@ -26,11 +26,12 @@ import (
 	"sync/atomic"
 
 	"upper.io/db.v2"
+	"upper.io/db.v2/internal/immutable"
 	"upper.io/db.v2/lib/sqlbuilder"
 )
 
 type Result struct {
-	b sqlbuilder.Builder
+	builder sqlbuilder.Builder
 
 	err atomic.Value
 
@@ -59,9 +60,9 @@ func filter(conds []interface{}) []interface{} {
 
 // NewResult creates and Results a new Result set on the given table, this set
 // is limited by the given exql.Where conditions.
-func NewResult(b sqlbuilder.Builder, table string, conds []interface{}) *Result {
+func NewResult(builder sqlbuilder.Builder, table string, conds []interface{}) *Result {
 	r := &Result{
-		b: b,
+		builder: builder,
 	}
 	return r.from(table).where(conds)
 }
@@ -70,17 +71,11 @@ func (r *Result) frame(fn func(*result) error) *Result {
 	return &Result{prev: r, fn: fn}
 }
 
-func (r *Result) builder() sqlbuilder.Builder {
-	p := &r
-	for {
-		if (*p).b != nil {
-			return (*p).b
-		}
-		if (*p).prev == nil {
-			return nil
-		}
-		p = &(*p).prev
+func (r *Result) Builder() sqlbuilder.Builder {
+	if r.prev == nil {
+		return r.builder
 	}
+	return r.prev.Builder()
 }
 
 func (r *Result) from(table string) *Result {
@@ -274,9 +269,12 @@ func (r *Result) Count() (uint64, error) {
 }
 
 func (r *Result) buildSelect() (sqlbuilder.Selector, error) {
-	res, err := resultFastForward(&result{}, r)
+	res, err := r.fastForward()
+	if err != nil {
+		return nil, err
+	}
 
-	sel := r.builder().Select(res.fields...).
+	sel := r.Builder().Select(res.fields...).
 		From(res.table).
 		Where(filter(res.conds)...).
 		Limit(res.limit).
@@ -284,50 +282,75 @@ func (r *Result) buildSelect() (sqlbuilder.Selector, error) {
 		GroupBy(res.groupBy...).
 		OrderBy(res.orderBy...)
 
-	return sel, err
+	return sel, nil
 }
 
 func (r *Result) buildDelete() (sqlbuilder.Deleter, error) {
-	res, err := resultFastForward(&result{}, r)
+	res, err := r.fastForward()
+	if err != nil {
+		return nil, err
+	}
 
-	del := r.builder().DeleteFrom(res.table).
+	del := r.Builder().DeleteFrom(res.table).
 		Where(filter(res.conds)...).
 		Limit(res.limit)
 
-	return del, err
+	return del, nil
 }
 
 func (r *Result) buildUpdate(values interface{}) (sqlbuilder.Updater, error) {
-	res, err := resultFastForward(&result{}, r)
+	res, err := r.fastForward()
+	if err != nil {
+		return nil, err
+	}
 
-	upd := r.builder().Update(res.table).
+	upd := r.Builder().Update(res.table).
 		Set(values).
 		Where(filter(res.conds)...).
 		Limit(res.limit)
 
-	return upd, err
+	return upd, nil
+}
+
+func (r *Result) fastForward() (*result, error) {
+	ff, err := immutable.FastForward(r)
+	if err != nil {
+		return nil, err
+	}
+	return ff.(*result), nil
 }
 
 func (r *Result) buildCount() (sqlbuilder.Selector, error) {
-	res, err := resultFastForward(&result{}, r)
+	res, err := r.fastForward()
+	if err != nil {
+		return nil, err
+	}
 
-	sel := r.builder().Select(db.Raw("count(1) AS _t")).
+	sel := r.Builder().Select(db.Raw("count(1) AS _t")).
 		From(res.table).
 		Where(filter(res.conds)...).
 		GroupBy(res.groupBy...).
 		Limit(1)
 
-	return sel, err
+	return sel, nil
 }
 
-func resultFastForward(in *result, curr *Result) (*result, error) {
-	if curr == nil || curr.fn == nil {
-		return in, nil
+func (r *Result) Prev() immutable.Immutable {
+	if r == nil {
+		return nil
 	}
-	in, err := resultFastForward(in, curr.prev)
-	if err != nil {
-		return nil, err
-	}
-	err = curr.fn(in)
-	return in, err
+	return r.prev
 }
+
+func (r *Result) Fn(in interface{}) error {
+	if r.fn == nil {
+		return nil
+	}
+	return r.fn(in.(*result))
+}
+
+func (r *Result) Base() interface{} {
+	return &result{}
+}
+
+var _ = immutable.Immutable(&Result{})

@@ -2,8 +2,8 @@ package sqlbuilder
 
 import (
 	"database/sql"
-	"strings"
 
+	"upper.io/db.v2/internal/immutable"
 	"upper.io/db.v2/internal/sqladapter/exql"
 )
 
@@ -99,23 +99,14 @@ func (iq *inserterQuery) statement() *exql.Statement {
 	return stmt
 }
 
-func columnsToFragments(dst *[]exql.Fragment, columns []string) error {
-	l := len(columns)
-	f := make([]exql.Fragment, l)
-	for i := 0; i < l; i++ {
-		f[i] = exql.ColumnWithName(columns[i])
-	}
-	*dst = append(*dst, f...)
-	return nil
-}
-
 type inserter struct {
 	builder *sqlBuilder
-	*stringer
 
 	fn   func(*inserterQuery) error
 	prev *inserter
 }
+
+var _ = immutable.Immutable(&inserter{})
 
 func (ins *inserter) Builder() *sqlBuilder {
 	if ins.prev == nil {
@@ -124,35 +115,20 @@ func (ins *inserter) Builder() *sqlBuilder {
 	return ins.prev.Builder()
 }
 
-func (ins *inserter) Stringer() *stringer {
-	if ins.prev == nil {
-		return ins.stringer
-	}
-	return ins.prev.Stringer()
+func (ins *inserter) template() *exql.Template {
+	return ins.Builder().t.Template
 }
 
 func (ins *inserter) String() string {
-	query, err := ins.build()
-	if err != nil {
-		return ""
-	}
-	q := ins.Stringer().compileAndReplacePlaceholders(query.statement())
-	q = reInvisibleChars.ReplaceAllString(q, ` `)
-	return strings.TrimSpace(q)
+	return prepareQueryForDisplay(ins.Compile())
 }
 
 func (ins *inserter) frame(fn func(*inserterQuery) error) *inserter {
 	return &inserter{prev: ins, fn: fn}
 }
 
-func (ins *inserter) clone() *inserter {
-	clone := &inserter{}
-	*clone = *ins
-	return clone
-}
-
 func (ins *inserter) Batch(n int) *BatchInserter {
-	return newBatchInserter(ins.clone(), n)
+	return newBatchInserter(ins, n)
 }
 
 func (ins *inserter) Arguments() []interface{} {
@@ -226,26 +202,43 @@ func (ins *inserter) statement() *exql.Statement {
 }
 
 func (ins *inserter) build() (*inserterQuery, error) {
-	iq, err := inserterFastForward(&inserterQuery{}, ins)
+	iq, err := immutable.FastForward(ins)
 	if err != nil {
 		return nil, err
 	}
-	iq.values, iq.arguments = iq.processValues()
-	return iq, nil
+	ret := iq.(*inserterQuery)
+	ret.values, ret.arguments = ret.processValues()
+	return ret, nil
 }
 
 func (ins *inserter) Compile() string {
-	return ins.statement().Compile(ins.Stringer().t)
+	return ins.statement().Compile(ins.template())
 }
 
-func inserterFastForward(in *inserterQuery, curr *inserter) (*inserterQuery, error) {
-	if curr == nil || curr.fn == nil {
-		return in, nil
+func (ins *inserter) Prev() immutable.Immutable {
+	if ins == nil {
+		return nil
 	}
-	in, err := inserterFastForward(in, curr.prev)
-	if err != nil {
-		return nil, err
+	return ins.prev
+}
+
+func (ins *inserter) Fn(in interface{}) error {
+	if ins.fn == nil {
+		return nil
 	}
-	err = curr.fn(in)
-	return in, err
+	return ins.fn(in.(*inserterQuery))
+}
+
+func (ins *inserter) Base() interface{} {
+	return &inserterQuery{}
+}
+
+func columnsToFragments(dst *[]exql.Fragment, columns []string) error {
+	l := len(columns)
+	f := make([]exql.Fragment, l)
+	for i := 0; i < l; i++ {
+		f[i] = exql.ColumnWithName(columns[i])
+	}
+	*dst = append(*dst, f...)
+	return nil
 }

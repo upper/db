@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"upper.io/db.v2"
+	"upper.io/db.v2/internal/immutable"
 	"upper.io/db.v2/internal/sqladapter/exql"
 )
 
@@ -107,46 +108,22 @@ func (sq *selectorQuery) pushJoin(t string, tables []interface{}) error {
 
 type selector struct {
 	builder *sqlBuilder
-	*stringer
 
 	fn   func(*selectorQuery) error
 	prev *selector
 }
 
-func (sel *selector) Builder() *sqlBuilder {
-	p := &sel
-	for {
-		if (*p).builder != nil {
-			return (*p).builder
-		}
-		if (*p).prev == nil {
-			return nil
-		}
-		p = &(*p).prev
-	}
-}
+var _ = immutable.Immutable(&inserter{})
 
-func (sel *selector) Stringer() *stringer {
-	p := &sel
-	for {
-		if (*p).stringer != nil {
-			return (*p).stringer
-		}
-		if (*p).prev == nil {
-			return nil
-		}
-		p = &(*p).prev
+func (sel *selector) Builder() *sqlBuilder {
+	if sel.prev == nil {
+		return sel.builder
 	}
+	return sel.prev.Builder()
 }
 
 func (sel *selector) String() string {
-	query, err := sel.build()
-	if err != nil {
-		return ""
-	}
-	q := sel.Stringer().compileAndReplacePlaceholders(query.statement())
-	q = reInvisibleChars.ReplaceAllString(q, ` `)
-	return strings.TrimSpace(q)
+	return prepareQueryForDisplay(sel.Compile())
 }
 
 func (sel *selector) frame(fn func(*selectorQuery) error) *selector {
@@ -386,6 +363,10 @@ func (sel *selector) Offset(n int) Selector {
 	})
 }
 
+func (sel *selector) template() *exql.Template {
+	return sel.Builder().t.Template
+}
+
 func (sel *selector) As(alias string) Selector {
 	return sel.frame(func(sq *selectorQuery) error {
 		if sq.table == nil {
@@ -393,7 +374,7 @@ func (sel *selector) As(alias string) Selector {
 		}
 		last := len(sq.table.Columns) - 1
 		if raw, ok := sq.table.Columns[last].(*exql.Raw); ok {
-			sq.table.Columns[last] = exql.RawValue("(" + raw.Value + ") AS " + exql.ColumnWithName(alias).Compile(sel.Stringer().t))
+			sq.table.Columns[last] = exql.RawValue("(" + raw.Value + ") AS " + exql.ColumnWithName(alias).Compile(sel.template()))
 		}
 		return nil
 	})
@@ -440,25 +421,31 @@ func (sel *selector) One(dest interface{}) error {
 }
 
 func (sel *selector) build() (*selectorQuery, error) {
-	sq, err := selectorFastForward(&selectorQuery{}, sel)
+	sq, err := immutable.FastForward(sel)
 	if err != nil {
 		return nil, err
 	}
-	return sq, nil
+	return sq.(*selectorQuery), nil
 }
 
 func (sel *selector) Compile() string {
-	return sel.statement().Compile(sel.Stringer().t)
+	return sel.statement().Compile(sel.template())
 }
 
-func selectorFastForward(in *selectorQuery, curr *selector) (*selectorQuery, error) {
-	if curr == nil || curr.fn == nil {
-		return in, nil
+func (sel *selector) Prev() immutable.Immutable {
+	if sel == nil {
+		return nil
 	}
-	in, err := selectorFastForward(in, curr.prev)
-	if err != nil {
-		return nil, err
+	return sel.prev
+}
+
+func (sel *selector) Fn(in interface{}) error {
+	if sel.fn == nil {
+		return nil
 	}
-	err = curr.fn(in)
-	return in, err
+	return sel.fn(in.(*selectorQuery))
+}
+
+func (sel *selector) Base() interface{} {
+	return &selectorQuery{}
 }

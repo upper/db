@@ -2,8 +2,8 @@ package sqlbuilder
 
 import (
 	"database/sql"
-	"strings"
 
+	"upper.io/db.v2/internal/immutable"
 	"upper.io/db.v2/internal/sqladapter/exql"
 )
 
@@ -32,47 +32,27 @@ func (dq *deleterQuery) statement() *exql.Statement {
 }
 
 type deleter struct {
-	*stringer
 	builder *sqlBuilder
 
 	fn   func(*deleterQuery) error
 	prev *deleter
 }
 
+var _ = immutable.Immutable(&deleter{})
+
 func (del *deleter) Builder() *sqlBuilder {
-	p := &del
-	for {
-		if (*p).builder != nil {
-			return (*p).builder
-		}
-		if (*p).prev == nil {
-			return nil
-		}
-		p = &(*p).prev
+	if del.prev == nil {
+		return del.builder
 	}
+	return del.prev.Builder()
 }
 
-func (del *deleter) Stringer() *stringer {
-	p := &del
-	for {
-		if (*p).stringer != nil {
-			return (*p).stringer
-		}
-		if (*p).prev == nil {
-			return nil
-		}
-		p = &(*p).prev
-	}
+func (del *deleter) template() *exql.Template {
+	return del.Builder().t.Template
 }
 
 func (del *deleter) String() string {
-	query, err := del.build()
-	if err != nil {
-		return ""
-	}
-	q := del.Stringer().compileAndReplacePlaceholders(query.statement())
-	q = reInvisibleChars.ReplaceAllString(q, ` `)
-	return strings.TrimSpace(q)
+	return prepareQueryForDisplay(del.Compile())
 }
 
 func (del *deleter) setTable(table string) *deleter {
@@ -124,25 +104,31 @@ func (del *deleter) statement() *exql.Statement {
 }
 
 func (del *deleter) build() (*deleterQuery, error) {
-	iq, err := deleterFastForward(&deleterQuery{}, del)
+	dq, err := immutable.FastForward(del)
 	if err != nil {
 		return nil, err
 	}
-	return iq, nil
+	return dq.(*deleterQuery), nil
 }
 
 func (del *deleter) Compile() string {
-	return del.statement().Compile(del.Stringer().t)
+	return del.statement().Compile(del.template())
 }
 
-func deleterFastForward(in *deleterQuery, curr *deleter) (*deleterQuery, error) {
-	if curr == nil || curr.fn == nil {
-		return in, nil
+func (del *deleter) Prev() immutable.Immutable {
+	if del == nil {
+		return nil
 	}
-	in, err := deleterFastForward(in, curr.prev)
-	if err != nil {
-		return nil, err
+	return del.prev
+}
+
+func (del *deleter) Fn(in interface{}) error {
+	if del.fn == nil {
+		return nil
 	}
-	err = curr.fn(in)
-	return in, err
+	return del.fn(in.(*deleterQuery))
+}
+
+func (del *deleter) Base() interface{} {
+	return &deleterQuery{}
 }

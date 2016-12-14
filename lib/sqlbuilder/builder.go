@@ -31,10 +31,6 @@ type compilable interface {
 	Arguments() []interface{}
 }
 
-type hasStringer interface {
-	Stringer() *stringer
-}
-
 type hasIsZero interface {
 	IsZero() bool
 }
@@ -45,11 +41,6 @@ type hasArguments interface {
 
 type hasStatement interface {
 	statement() *exql.Statement
-}
-
-type stringer struct {
-	i hasStatement
-	t *exql.Template
 }
 
 type iterator struct {
@@ -159,7 +150,6 @@ func (b *sqlBuilder) SelectFrom(table ...interface{}) Selector {
 	qs := &selector{
 		builder: b,
 	}
-	qs.stringer = &stringer{qs, b.t.Template}
 	return qs.From(table...)
 }
 
@@ -167,8 +157,6 @@ func (b *sqlBuilder) Select(columns ...interface{}) Selector {
 	qs := &selector{
 		builder: b,
 	}
-
-	qs.stringer = &stringer{qs, b.t.Template}
 	return qs.Columns(columns...)
 }
 
@@ -176,8 +164,6 @@ func (b *sqlBuilder) InsertInto(table string) Inserter {
 	qi := &inserter{
 		builder: b,
 	}
-
-	qi.stringer = &stringer{qi, b.t.Template}
 	return qi.Into(table)
 }
 
@@ -185,8 +171,6 @@ func (b *sqlBuilder) DeleteFrom(table string) Deleter {
 	qd := &deleter{
 		builder: b,
 	}
-
-	qd.stringer = &stringer{qd, b.t.Template}
 	return qd.setTable(table)
 }
 
@@ -194,8 +178,6 @@ func (b *sqlBuilder) Update(table string) Updater {
 	qu := &updater{
 		builder: b,
 	}
-
-	qu.stringer = &stringer{qu, b.t.Template}
 	return qu.setTable(table)
 }
 
@@ -361,29 +343,19 @@ func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, err
 	return f, args, nil
 }
 
-func (s *stringer) String() string {
-	if s != nil && s.i != nil {
-		q := s.compileAndReplacePlaceholders(s.i.statement())
-		q = reInvisibleChars.ReplaceAllString(q, ` `)
-		return strings.TrimSpace(q)
-	}
-	return ""
-}
-
-func (s *stringer) compileAndReplacePlaceholders(stmt *exql.Statement) (query string) {
-	buf := stmt.Compile(s.t)
-
+func prepareQueryForDisplay(in string) (out string) {
 	j := 1
-	for i := range buf {
-		if buf[i] == '?' {
-			query = query + "$" + strconv.Itoa(j)
+	for i := range in {
+		if in[i] == '?' {
+			out = out + "$" + strconv.Itoa(j)
 			j++
 		} else {
-			query = query + string(buf[i])
+			out = out + string(in[i])
 		}
 	}
 
-	return query
+	out = reInvisibleChars.ReplaceAllString(out, ` `)
+	return strings.TrimSpace(out)
 }
 
 func (iter *iterator) NextScan(dst ...interface{}) error {
