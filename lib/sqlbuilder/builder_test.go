@@ -760,6 +760,89 @@ func TestInsert(t *testing.T) {
 	}
 
 	{
+		type artistStruct struct {
+			ID   int    `db:"id,omitempty"`
+			Name string `db:"name,omitempty"`
+		}
+
+		assert.Equal(
+			`INSERT INTO "artist" ("name") VALUES ($1)`,
+			b.InsertInto("artist").
+				Values(artistStruct{Name: "Chavela Vargas"}).
+				String(),
+		)
+
+		assert.Equal(
+			`INSERT INTO "artist" ("id") VALUES ($1)`,
+			b.InsertInto("artist").
+				Values(artistStruct{ID: 1}).
+				String(),
+		)
+	}
+
+	{
+		type artistStruct struct {
+			ID   int    `db:"id,omitempty"`
+			Name string `db:"name,omitempty"`
+		}
+
+		{
+			q := b.InsertInto("artist").Values(artistStruct{Name: "Chavela Vargas"})
+
+			assert.Equal(
+				`INSERT INTO "artist" ("name") VALUES ($1)`,
+				q.String(),
+			)
+			assert.Equal(
+				[]interface{}{"Chavela Vargas"},
+				q.Arguments(),
+			)
+		}
+
+		{
+			q := b.InsertInto("artist").Values(artistStruct{Name: "Chavela Vargas"}).Values(artistStruct{Name: "Alondra de la Parra"})
+
+			assert.Equal(
+				`INSERT INTO "artist" ("name") VALUES ($1), ($2)`,
+				q.String(),
+			)
+			assert.Equal(
+				[]interface{}{"Chavela Vargas", "Alondra de la Parra"},
+				q.Arguments(),
+			)
+		}
+
+		{
+			q := b.InsertInto("artist").Values(artistStruct{ID: 1})
+
+			assert.Equal(
+				`INSERT INTO "artist" ("id") VALUES ($1)`,
+				q.String(),
+			)
+
+			assert.Equal(
+				[]interface{}{1},
+				q.Arguments(),
+			)
+		}
+
+		{
+			q := b.InsertInto("artist").Values(artistStruct{ID: 1}).Values(artistStruct{ID: 2})
+
+			assert.Equal(
+				`INSERT INTO "artist" ("id") VALUES ($1), ($2)`,
+				q.String(),
+			)
+
+			assert.Equal(
+				[]interface{}{1, 2},
+				q.Arguments(),
+			)
+		}
+
+	}
+
+	{
 		intRef := func(i int) *int {
 			if i == 0 {
 				return nil

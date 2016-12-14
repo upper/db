@@ -8,12 +8,74 @@ import (
 )
 
 type inserterQuery struct {
-	table     string
-	values    []*exql.Values
-	returning []exql.Fragment
-	columns   []exql.Fragment
-	arguments []interface{}
-	extra     string
+	table          string
+	enqueuedValues [][]interface{}
+	returning      []exql.Fragment
+	columns        []exql.Fragment
+	values         []*exql.Values
+	arguments      []interface{}
+	extra          string
+}
+
+func (iq *inserterQuery) processValues() (values []*exql.Values, arguments []interface{}) {
+	var insertNils bool
+
+	for _, enqueuedValue := range iq.enqueuedValues {
+		if len(enqueuedValue) == 1 {
+			ff, vv, err := Map(enqueuedValue[0], nil)
+			if err == nil {
+				columns, vals, args, _ := toColumnsValuesAndArguments(ff, vv)
+
+				values, arguments = append(values, vals), append(arguments, args...)
+
+				if len(iq.columns) == 0 {
+					for _, c := range columns.Columns {
+						iq.columns = append(iq.columns, c)
+					}
+				} else {
+					if len(iq.columns) != len(columns.Columns) {
+						insertNils = true
+						break
+					}
+				}
+				continue
+			}
+		}
+
+		if len(iq.columns) == 0 || len(enqueuedValue) == len(iq.columns) {
+			arguments = append(arguments, enqueuedValue...)
+
+			l := len(enqueuedValue)
+			placeholders := make([]exql.Fragment, l)
+			for i := 0; i < l; i++ {
+				placeholders[i] = exql.RawValue(`?`)
+			}
+			values = append(values, exql.NewValueGroup(placeholders...))
+		}
+	}
+
+	if insertNils {
+		values, arguments = values[0:0], arguments[0:0]
+
+		for _, enqueuedValue := range iq.enqueuedValues {
+			if len(enqueuedValue) == 1 {
+				ff, vv, err := Map(enqueuedValue[0], &MapOptions{IncludeZeroed: true, IncludeNil: true})
+				if err == nil {
+					columns, vals, args, _ := toColumnsValuesAndArguments(ff, vv)
+					values, arguments = append(values, vals), append(arguments, args...)
+
+					if len(iq.columns) != len(columns.Columns) {
+						iq.columns = iq.columns[0:0]
+						for _, c := range columns.Columns {
+							iq.columns = append(iq.columns, c)
+						}
+					}
+				}
+				continue
+			}
+		}
+	}
+	return
 }
 
 func (iq *inserterQuery) statement() *exql.Statement {
@@ -56,29 +118,17 @@ type inserter struct {
 }
 
 func (ins *inserter) Builder() *sqlBuilder {
-	p := &ins
-	for {
-		if (*p).builder != nil {
-			return (*p).builder
-		}
-		if (*p).prev == nil {
-			return nil
-		}
-		p = &(*p).prev
+	if ins.prev == nil {
+		return ins.builder
 	}
+	return ins.prev.Builder()
 }
 
 func (ins *inserter) Stringer() *stringer {
-	p := &ins
-	for {
-		if (*p).stringer != nil {
-			return (*p).stringer
-		}
-		if (*p).prev == nil {
-			return nil
-		}
-		p = &(*p).prev
+	if ins.prev == nil {
+		return ins.stringer
 	}
+	return ins.prev.Stringer()
 }
 
 func (ins *inserter) String() string {
@@ -165,33 +215,7 @@ func (ins *inserter) Columns(columns ...string) Inserter {
 
 func (ins *inserter) Values(values ...interface{}) Inserter {
 	return ins.frame(func(iq *inserterQuery) error {
-		if len(values) == 1 {
-			ff, vv, err := Map(values[0], &MapOptions{IncludeZeroed: true, IncludeNil: true})
-			if err == nil {
-				columns, vals, arguments, _ := toColumnsValuesAndArguments(ff, vv)
-
-				iq.arguments = append(iq.arguments, arguments...)
-				iq.values = append(iq.values, vals)
-				if len(iq.columns) == 0 {
-					for _, c := range columns.Columns {
-						iq.columns = append(iq.columns, c)
-					}
-				}
-				return nil
-			}
-		}
-
-		if len(iq.columns) == 0 || len(values) == len(iq.columns) {
-			iq.arguments = append(iq.arguments, values...)
-
-			l := len(values)
-			placeholders := make([]exql.Fragment, l)
-			for i := 0; i < l; i++ {
-				placeholders[i] = exql.RawValue(`?`)
-			}
-			iq.values = append(iq.values, exql.NewValueGroup(placeholders...))
-		}
-
+		iq.enqueuedValues = append(iq.enqueuedValues, values)
 		return nil
 	})
 }
@@ -206,6 +230,7 @@ func (ins *inserter) build() (*inserterQuery, error) {
 	if err != nil {
 		return nil, err
 	}
+	iq.values, iq.arguments = iq.processValues()
 	return iq, nil
 }
 
