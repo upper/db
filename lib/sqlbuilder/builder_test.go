@@ -627,7 +627,21 @@ func TestSelect(t *testing.T) {
 			From("user_access").
 			Where(db.Cond{"hub_id": 3})
 
-		sq.And(db.Cond{"role": []int{1, 2}})
+		// Don't reassign
+		_ = sq.And(db.Cond{"role": []int{1, 2}})
+
+		assert.Equal(
+			`SELECT "user_id" FROM "user_access" WHERE ("hub_id" = $1)`,
+			sq.String(),
+		)
+
+		assert.Equal(
+			[]interface{}{3},
+			sq.Arguments(),
+		)
+
+		// Reassign
+		sq = sq.And(db.Cond{"role": []int{1, 2}})
 
 		assert.Equal(
 			`SELECT "user_id" FROM "user_access" WHERE ("hub_id" = $1 AND "role" IN ($2, $3))`,
@@ -643,7 +657,7 @@ func TestSelect(t *testing.T) {
 			db.Raw("a.id IN ?", sq),
 		)
 
-		cond.Or(db.Cond{"ml.mailing_list_id": []int{4, 5, 6}})
+		cond = cond.Or(db.Cond{"ml.mailing_list_id": []int{4, 5, 6}})
 
 		sel := b.
 			Select(db.Raw("DISTINCT ON(a.id) a.id"), db.Raw("COALESCE(NULLIF(ml.name,''), a.name) as name"), "a.email").
@@ -652,7 +666,7 @@ func TestSelect(t *testing.T) {
 			Where(cond)
 
 		search := "word"
-		sel.And(db.Or(
+		sel = sel.And(db.Or(
 			db.Raw("COALESCE(NULLIF(ml.name,''), a.name) ILIKE ?", fmt.Sprintf("%%%s%%", search)),
 			db.Cond{"a.email ILIKE": fmt.Sprintf("%%%s%%", search)},
 		))
@@ -666,7 +680,6 @@ func TestSelect(t *testing.T) {
 			[]interface{}{3, 1, 2, 4, 5, 6, `%word%`, `%word%`},
 			sel.Arguments(),
 		)
-
 	}
 }
 

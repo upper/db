@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 
 	"upper.io/db.v2"
+	"upper.io/db.v2/internal/immutable"
 	"upper.io/db.v2/internal/sqladapter/exql"
 )
 
@@ -18,11 +18,8 @@ const (
 	selectModeDistinct
 )
 
-type selector struct {
-	*stringer
-
-	mode    selectMode
-	builder *sqlBuilder
+type selectorQuery struct {
+	mode selectMode
 
 	table     *exql.Columns
 	tableArgs []interface{}
@@ -46,334 +43,409 @@ type selector struct {
 
 	joins     []*exql.Join
 	joinsArgs []interface{}
-
-	mu sync.Mutex
-
-	err error
 }
 
-func (qs *selector) From(tables ...interface{}) Selector {
-	f, args, err := columnFragments(qs.builder.t, tables)
-	if err != nil {
-		qs.setErr(err)
-		return qs
+func (sq *selectorQuery) and(terms ...interface{}) error {
+	where, whereArgs := toWhereWithArguments(terms)
+
+	if sq.where == nil {
+		sq.where, sq.whereArgs = &exql.Where{}, []interface{}{}
 	}
-	c := exql.JoinColumns(f...)
+	sq.where.Append(&where)
+	sq.whereArgs = append(sq.whereArgs, whereArgs...)
 
-	qs.mu.Lock()
-	qs.table = c
-	qs.tableArgs = args
-	qs.mu.Unlock()
-
-	return qs
+	return nil
 }
 
-func (qs *selector) Columns(columns ...interface{}) Selector {
-	f, args, err := columnFragments(qs.builder.t, columns)
-	if err != nil {
-		qs.setErr(err)
-		return qs
-	}
-
-	c := exql.JoinColumns(f...)
-
-	qs.mu.Lock()
-	if qs.columns != nil {
-		qs.columns.Append(c)
-	} else {
-		qs.columns = c
-	}
-	qs.columnsArgs = append(qs.columnsArgs, args...)
-	qs.mu.Unlock()
-
-	return qs
-}
-
-func (qs *selector) Distinct() Selector {
-	qs.mu.Lock()
-	qs.mode = selectModeDistinct
-	qs.mu.Unlock()
-	return qs
-}
-
-func (qs *selector) Where(terms ...interface{}) Selector {
-	qs.mu.Lock()
-	qs.where, qs.whereArgs = &exql.Where{}, []interface{}{}
-	qs.mu.Unlock()
-	return qs.And(terms...)
-}
-
-func (qs *selector) And(terms ...interface{}) Selector {
-	where, whereArgs := qs.builder.t.ToWhereWithArguments(terms)
-
-	qs.mu.Lock()
-	if qs.where == nil {
-		qs.where, qs.whereArgs = &exql.Where{}, []interface{}{}
-	}
-	qs.where.Append(&where)
-	qs.whereArgs = append(qs.whereArgs, whereArgs...)
-	qs.mu.Unlock()
-
-	return qs
-}
-
-func (qs *selector) Arguments() []interface{} {
-	qs.mu.Lock()
-	defer qs.mu.Unlock()
-
+func (sq *selectorQuery) arguments() []interface{} {
 	return joinArguments(
-		qs.tableArgs,
-		qs.columnsArgs,
-		qs.joinsArgs,
-		qs.whereArgs,
-		qs.groupByArgs,
-		qs.orderByArgs,
+		sq.tableArgs,
+		sq.columnsArgs,
+		sq.joinsArgs,
+		sq.whereArgs,
+		sq.groupByArgs,
+		sq.orderByArgs,
 	)
 }
 
-func (qs *selector) GroupBy(columns ...interface{}) Selector {
-	fragments, args, err := columnFragments(qs.builder.t, columns)
-	if err != nil {
-		qs.setErr(err)
-		return qs
+func (sq *selectorQuery) statement() *exql.Statement {
+	stmt := &exql.Statement{
+		Type:    exql.Select,
+		Table:   sq.table,
+		Columns: sq.columns,
+		Limit:   sq.limit,
+		Offset:  sq.offset,
+		Where:   sq.where,
+		OrderBy: sq.orderBy,
+		GroupBy: sq.groupBy,
 	}
 
-	qs.mu.Lock()
-	if fragments != nil {
-		qs.groupBy = exql.GroupByColumns(fragments...)
+	if len(sq.joins) > 0 {
+		stmt.Joins = exql.JoinConditions(sq.joins...)
 	}
-	qs.groupByArgs = args
-	qs.mu.Unlock()
 
-	return qs
+	return stmt
 }
 
-func (qs *selector) OrderBy(columns ...interface{}) Selector {
-	var sortColumns exql.SortColumns
-
-	for i := range columns {
-		var sort *exql.SortColumn
-
-		switch value := columns[i].(type) {
-		case db.RawValue:
-			col, args := Preprocess(value.Raw(), value.Arguments())
-			sort = &exql.SortColumn{
-				Column: exql.RawValue(col),
-			}
-			qs.mu.Lock()
-			qs.orderByArgs = append(qs.orderByArgs, args...)
-			qs.mu.Unlock()
-		case db.Function:
-			fnName, fnArgs := value.Name(), value.Arguments()
-			if len(fnArgs) == 0 {
-				fnName = fnName + "()"
-			} else {
-				fnName = fnName + "(?" + strings.Repeat("?, ", len(fnArgs)-1) + ")"
-			}
-			expanded, fnArgs := Preprocess(fnName, fnArgs)
-			sort = &exql.SortColumn{
-				Column: exql.RawValue(expanded),
-			}
-			qs.mu.Lock()
-			qs.orderByArgs = append(qs.orderByArgs, fnArgs...)
-			qs.mu.Unlock()
-		case string:
-			if strings.HasPrefix(value, "-") {
-				sort = &exql.SortColumn{
-					Column: exql.ColumnWithName(value[1:]),
-					Order:  exql.Descendent,
-				}
-			} else {
-				chunks := strings.SplitN(value, " ", 2)
-
-				order := exql.Ascendent
-				if len(chunks) > 1 && strings.ToUpper(chunks[1]) == "DESC" {
-					order = exql.Descendent
-				}
-
-				sort = &exql.SortColumn{
-					Column: exql.ColumnWithName(chunks[0]),
-					Order:  order,
-				}
-			}
-		default:
-			qs.setErr(fmt.Errorf("Can't sort by type %T", value))
-			return qs
-		}
-		sortColumns.Columns = append(sortColumns.Columns, sort)
-	}
-
-	qs.mu.Lock()
-	qs.orderBy = &exql.OrderBy{
-		SortColumns: &sortColumns,
-	}
-	qs.mu.Unlock()
-
-	return qs
-}
-
-func (qs *selector) Using(columns ...interface{}) Selector {
-	qs.mu.Lock()
-	joins := len(qs.joins)
-	qs.mu.Unlock()
-
-	if joins == 0 {
-		qs.setErr(errors.New(`Cannot use Using() without a preceding Join() expression.`))
-		return qs
-	}
-
-	lastJoin := qs.joins[joins-1]
-	if lastJoin.On != nil {
-		qs.setErr(errors.New(`Cannot use Using() and On() with the same Join() expression.`))
-		return qs
-	}
-
-	fragments, args, err := columnFragments(qs.builder.t, columns)
-	if err != nil {
-		qs.setErr(err)
-		return qs
-	}
-
-	qs.mu.Lock()
-	qs.joinsArgs = append(qs.joinsArgs, args...)
-	lastJoin.Using = exql.UsingColumns(fragments...)
-	qs.mu.Unlock()
-
-	return qs
-}
-
-func (qs *selector) pushJoin(t string, tables []interface{}) Selector {
+func (sq *selectorQuery) pushJoin(t string, tables []interface{}) error {
 	tableNames := make([]string, len(tables))
 	for i := range tables {
 		tableNames[i] = fmt.Sprintf("%s", tables[i])
 	}
 
-	qs.mu.Lock()
-	if qs.joins == nil {
-		qs.joins = []*exql.Join{}
+	if sq.joins == nil {
+		sq.joins = []*exql.Join{}
 	}
-	qs.joins = append(qs.joins,
+	sq.joins = append(sq.joins,
 		&exql.Join{
 			Type:  t,
 			Table: exql.TableWithName(strings.Join(tableNames, ", ")),
 		},
 	)
-	qs.mu.Unlock()
 
-	return qs
+	return nil
 }
 
-func (qs *selector) FullJoin(tables ...interface{}) Selector {
-	return qs.pushJoin("FULL", tables)
+type selector struct {
+	builder *sqlBuilder
+
+	fn   func(*selectorQuery) error
+	prev *selector
 }
 
-func (qs *selector) CrossJoin(tables ...interface{}) Selector {
-	return qs.pushJoin("CROSS", tables)
+var _ = immutable.Immutable(&inserter{})
+
+func (sel *selector) Builder() *sqlBuilder {
+	if sel.prev == nil {
+		return sel.builder
+	}
+	return sel.prev.Builder()
 }
 
-func (qs *selector) RightJoin(tables ...interface{}) Selector {
-	return qs.pushJoin("RIGHT", tables)
+func (sel *selector) String() string {
+	return prepareQueryForDisplay(sel.Compile())
 }
 
-func (qs *selector) LeftJoin(tables ...interface{}) Selector {
-	return qs.pushJoin("LEFT", tables)
+func (sel *selector) frame(fn func(*selectorQuery) error) *selector {
+	return &selector{prev: sel, fn: fn}
 }
 
-func (qs *selector) Join(tables ...interface{}) Selector {
-	return qs.pushJoin("", tables)
+func (sel *selector) From(tables ...interface{}) Selector {
+	return sel.frame(
+		func(sq *selectorQuery) error {
+			f, args, err := columnFragments(tables)
+			if err != nil {
+				return err
+			}
+			sq.table = exql.JoinColumns(f...)
+			sq.tableArgs = args
+			return nil
+		},
+	)
 }
 
-func (qs *selector) On(terms ...interface{}) Selector {
-	qs.mu.Lock()
-	joins := len(qs.joins)
-	qs.mu.Unlock()
+func (sel *selector) Columns(columns ...interface{}) Selector {
+	return sel.frame(
+		func(sq *selectorQuery) error {
+			f, args, err := columnFragments(columns)
+			if err != nil {
+				return err
+			}
 
-	if joins == 0 {
-		qs.setErr(errors.New(`Cannot use On() without a preceding Join() expression.`))
-		return qs
+			c := exql.JoinColumns(f...)
+
+			if sq.columns != nil {
+				sq.columns.Append(c)
+			} else {
+				sq.columns = c
+			}
+
+			sq.columnsArgs = append(sq.columnsArgs, args...)
+			return nil
+		},
+	)
+}
+
+func (sel *selector) Distinct() Selector {
+	return sel.frame(func(sq *selectorQuery) error {
+		sq.mode = selectModeDistinct
+		return nil
+	})
+}
+
+func (sel *selector) Where(terms ...interface{}) Selector {
+	return sel.frame(func(sq *selectorQuery) error {
+		sq.where, sq.whereArgs = &exql.Where{}, []interface{}{}
+		return sq.and(terms...)
+	})
+}
+
+func (sel *selector) And(terms ...interface{}) Selector {
+	return sel.frame(func(sq *selectorQuery) error {
+		sq.and(terms...)
+		return nil
+	})
+}
+
+func (sel *selector) Arguments() []interface{} {
+	sq, err := sel.build()
+	if err != nil {
+		return nil
+	}
+	return sq.arguments()
+}
+
+func (sel *selector) GroupBy(columns ...interface{}) Selector {
+	return sel.frame(func(sq *selectorQuery) error {
+		fragments, args, err := columnFragments(columns)
+		if err != nil {
+			return err
+		}
+
+		if fragments != nil {
+			sq.groupBy = exql.GroupByColumns(fragments...)
+		}
+		sq.groupByArgs = args
+
+		return nil
+	})
+}
+
+func (sel *selector) OrderBy(columns ...interface{}) Selector {
+	return sel.frame(func(sq *selectorQuery) error {
+		var sortColumns exql.SortColumns
+
+		for i := range columns {
+			var sort *exql.SortColumn
+
+			switch value := columns[i].(type) {
+			case db.RawValue:
+				query, args := Preprocess(value.Raw(), value.Arguments())
+				sort = &exql.SortColumn{
+					Column: exql.RawValue(query),
+				}
+				sq.orderByArgs = append(sq.orderByArgs, args...)
+			case db.Function:
+				fnName, fnArgs := value.Name(), value.Arguments()
+				if len(fnArgs) == 0 {
+					fnName = fnName + "()"
+				} else {
+					fnName = fnName + "(?" + strings.Repeat("?, ", len(fnArgs)-1) + ")"
+				}
+				fnName, fnArgs = Preprocess(fnName, fnArgs)
+				sort = &exql.SortColumn{
+					Column: exql.RawValue(fnName),
+				}
+				sq.orderByArgs = append(sq.orderByArgs, fnArgs...)
+			case string:
+				if strings.HasPrefix(value, "-") {
+					sort = &exql.SortColumn{
+						Column: exql.ColumnWithName(value[1:]),
+						Order:  exql.Descendent,
+					}
+				} else {
+					chunks := strings.SplitN(value, " ", 2)
+
+					order := exql.Ascendent
+					if len(chunks) > 1 && strings.ToUpper(chunks[1]) == "DESC" {
+						order = exql.Descendent
+					}
+
+					sort = &exql.SortColumn{
+						Column: exql.ColumnWithName(chunks[0]),
+						Order:  order,
+					}
+				}
+			default:
+				return fmt.Errorf("Can't sort by type %T", value)
+			}
+			sortColumns.Columns = append(sortColumns.Columns, sort)
+		}
+
+		sq.orderBy = &exql.OrderBy{
+			SortColumns: &sortColumns,
+		}
+		return nil
+	})
+}
+
+func (sel *selector) Using(columns ...interface{}) Selector {
+	return sel.frame(func(sq *selectorQuery) error {
+
+		joins := len(sq.joins)
+
+		if joins == 0 {
+			return errors.New(`Cannot use Using() without a preceding Join() expression.`)
+		}
+
+		lastJoin := sq.joins[joins-1]
+		if lastJoin.On != nil {
+			return errors.New(`Cannot use Using() and On() with the same Join() expression.`)
+		}
+
+		fragments, args, err := columnFragments(columns)
+		if err != nil {
+			return err
+		}
+
+		sq.joinsArgs = append(sq.joinsArgs, args...)
+		lastJoin.Using = exql.UsingColumns(fragments...)
+
+		return nil
+	})
+}
+
+func (sel *selector) FullJoin(tables ...interface{}) Selector {
+	return sel.frame(func(sq *selectorQuery) error {
+		return sq.pushJoin("FULL", tables)
+	})
+}
+
+func (sel *selector) CrossJoin(tables ...interface{}) Selector {
+	return sel.frame(func(sq *selectorQuery) error {
+		return sq.pushJoin("CROSS", tables)
+	})
+}
+
+func (sel *selector) RightJoin(tables ...interface{}) Selector {
+	return sel.frame(func(sq *selectorQuery) error {
+		return sq.pushJoin("RIGHT", tables)
+	})
+}
+
+func (sel *selector) LeftJoin(tables ...interface{}) Selector {
+	return sel.frame(func(sq *selectorQuery) error {
+		return sq.pushJoin("LEFT", tables)
+	})
+}
+
+func (sel *selector) Join(tables ...interface{}) Selector {
+	return sel.frame(func(sq *selectorQuery) error {
+		return sq.pushJoin("", tables)
+	})
+}
+
+func (sel *selector) On(terms ...interface{}) Selector {
+	return sel.frame(func(sq *selectorQuery) error {
+		joins := len(sq.joins)
+
+		if joins == 0 {
+			return errors.New(`Cannot use On() without a preceding Join() expression.`)
+		}
+
+		lastJoin := sq.joins[joins-1]
+		if lastJoin.On != nil {
+			return errors.New(`Cannot use Using() and On() with the same Join() expression.`)
+		}
+
+		w, a := toWhereWithArguments(terms)
+		o := exql.On(w)
+
+		lastJoin.On = &o
+
+		sq.joinsArgs = append(sq.joinsArgs, a...)
+
+		return nil
+	})
+}
+
+func (sel *selector) Limit(n int) Selector {
+	return sel.frame(func(sq *selectorQuery) error {
+		sq.limit = exql.Limit(n)
+		return nil
+	})
+}
+
+func (sel *selector) Offset(n int) Selector {
+	return sel.frame(func(sq *selectorQuery) error {
+		sq.offset = exql.Offset(n)
+		return nil
+	})
+}
+
+func (sel *selector) template() *exql.Template {
+	return sel.Builder().t.Template
+}
+
+func (sel *selector) As(alias string) Selector {
+	return sel.frame(func(sq *selectorQuery) error {
+		if sq.table == nil {
+			return errors.New("Cannot use As() without a preceding From() expression")
+		}
+		last := len(sq.table.Columns) - 1
+		if raw, ok := sq.table.Columns[last].(*exql.Raw); ok {
+			sq.table.Columns[last] = exql.RawValue("(" + raw.Value + ") AS " + exql.ColumnWithName(alias).Compile(sel.template()))
+		}
+		return nil
+	})
+}
+
+func (sel *selector) statement() *exql.Statement {
+	sq, _ := sel.build()
+	return sq.statement()
+}
+
+func (sel *selector) QueryRow() (*sql.Row, error) {
+	sq, err := sel.build()
+	if err != nil {
+		return nil, err
 	}
 
-	lastJoin := qs.joins[joins-1]
-	if lastJoin.On != nil {
-		qs.setErr(errors.New(`Cannot use Using() and On() with the same Join() expression.`))
-		return qs
+	return sel.Builder().sess.StatementQueryRow(sq.statement(), sq.arguments()...)
+}
+
+func (sel *selector) Query() (*sql.Rows, error) {
+	sq, err := sel.build()
+	if err != nil {
+		return nil, err
+	}
+	return sel.Builder().sess.StatementQuery(sq.statement(), sq.arguments()...)
+}
+
+func (sel *selector) Iterator() Iterator {
+	sq, err := sel.build()
+	if err != nil {
+		return &iterator{nil, err}
 	}
 
-	w, a := qs.builder.t.ToWhereWithArguments(terms)
-	o := exql.On(w)
-
-	lastJoin.On = &o
-
-	qs.mu.Lock()
-	qs.joinsArgs = append(qs.joinsArgs, a...)
-	qs.mu.Unlock()
-
-	return qs
-}
-
-func (qs *selector) Limit(n int) Selector {
-	qs.mu.Lock()
-	qs.limit = exql.Limit(n)
-	qs.mu.Unlock()
-	return qs
-}
-
-func (qs *selector) Offset(n int) Selector {
-	qs.mu.Lock()
-	qs.offset = exql.Offset(n)
-	qs.mu.Unlock()
-	return qs
-}
-
-func (qs *selector) statement() *exql.Statement {
-	return &exql.Statement{
-		Type:    exql.Select,
-		Table:   qs.table,
-		Columns: qs.columns,
-		Limit:   qs.limit,
-		Offset:  qs.offset,
-		Joins:   exql.JoinConditions(qs.joins...),
-		Where:   qs.where,
-		OrderBy: qs.orderBy,
-		GroupBy: qs.groupBy,
-	}
-}
-
-func (qs *selector) Query() (*sql.Rows, error) {
-	return qs.builder.sess.StatementQuery(qs.statement(), qs.Arguments()...)
-}
-
-func (qs *selector) As(alias string) Selector {
-	if qs.table == nil {
-		qs.setErr(errors.New("Cannot use As() without a preceding From() expression"))
-		return qs
-	}
-	last := len(qs.table.Columns) - 1
-	if raw, ok := qs.table.Columns[last].(*exql.Raw); ok {
-		qs.table.Columns[last] = exql.RawValue("(" + raw.Value + ") AS " + exql.ColumnWithName(alias).Compile(qs.stringer.t))
-	}
-	return qs
-}
-
-func (qs *selector) QueryRow() (*sql.Row, error) {
-	return qs.builder.sess.StatementQueryRow(qs.statement(), qs.Arguments()...)
-}
-
-func (qs *selector) Iterator() Iterator {
-	rows, err := qs.builder.sess.StatementQuery(qs.statement(), qs.Arguments()...)
+	rows, err := sel.Builder().sess.StatementQuery(sq.statement(), sq.arguments()...)
 	return &iterator{rows, err}
 }
 
-func (qs *selector) All(destSlice interface{}) error {
-	return qs.Iterator().All(destSlice)
+func (sel *selector) All(destSlice interface{}) error {
+	return sel.Iterator().All(destSlice)
 }
 
-func (qs *selector) One(dest interface{}) error {
-	return qs.Iterator().One(dest)
+func (sel *selector) One(dest interface{}) error {
+	return sel.Iterator().One(dest)
 }
 
-func (qs *selector) setErr(err error) {
-	qs.mu.Lock()
-	qs.err = err
-	qs.mu.Unlock()
+func (sel *selector) build() (*selectorQuery, error) {
+	sq, err := immutable.FastForward(sel)
+	if err != nil {
+		return nil, err
+	}
+	return sq.(*selectorQuery), nil
+}
+
+func (sel *selector) Compile() string {
+	return sel.statement().Compile(sel.template())
+}
+
+func (sel *selector) Prev() immutable.Immutable {
+	if sel == nil {
+		return nil
+	}
+	return sel.prev
+}
+
+func (sel *selector) Fn(in interface{}) error {
+	if sel.fn == nil {
+		return nil
+	}
+	return sel.fn(in.(*selectorQuery))
+}
+
+func (sel *selector) Base() interface{} {
+	return &selectorQuery{}
 }

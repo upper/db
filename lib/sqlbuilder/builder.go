@@ -26,6 +26,11 @@ var defaultMapOptions = MapOptions{
 	IncludeNil:    false,
 }
 
+type compilable interface {
+	Compile() string
+	Arguments() []interface{}
+}
+
 type hasIsZero interface {
 	IsZero() bool
 }
@@ -36,11 +41,6 @@ type hasArguments interface {
 
 type hasStatement interface {
 	statement() *exql.Statement
-}
-
-type stringer struct {
-	i hasStatement
-	t *exql.Template
 }
 
 type iterator struct {
@@ -150,7 +150,6 @@ func (b *sqlBuilder) SelectFrom(table ...interface{}) Selector {
 	qs := &selector{
 		builder: b,
 	}
-	qs.stringer = &stringer{qs, b.t.Template}
 	return qs.From(table...)
 }
 
@@ -158,40 +157,28 @@ func (b *sqlBuilder) Select(columns ...interface{}) Selector {
 	qs := &selector{
 		builder: b,
 	}
-
-	qs.stringer = &stringer{qs, b.t.Template}
 	return qs.Columns(columns...)
 }
 
 func (b *sqlBuilder) InsertInto(table string) Inserter {
 	qi := &inserter{
 		builder: b,
-		table:   table,
 	}
-
-	qi.stringer = &stringer{qi, b.t.Template}
-	return qi
+	return qi.Into(table)
 }
 
 func (b *sqlBuilder) DeleteFrom(table string) Deleter {
 	qd := &deleter{
 		builder: b,
-		table:   table,
 	}
-
-	qd.stringer = &stringer{qd, b.t.Template}
-	return qd
+	return qd.setTable(table)
 }
 
 func (b *sqlBuilder) Update(table string) Updater {
 	qu := &updater{
-		builder:      b,
-		table:        table,
-		columnValues: &exql.ColumnValues{},
+		builder: b,
 	}
-
-	qu.stringer = &stringer{qu, b.t.Template}
-	return qu
+	return qu.setTable(table)
 }
 
 // Map receives a pointer to map or struct and maps it to columns and values.
@@ -318,17 +305,17 @@ func extractArguments(fragments []interface{}) []interface{} {
 	return args
 }
 
-func columnFragments(template *templateWithUtils, columns []interface{}) ([]exql.Fragment, []interface{}, error) {
+func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, error) {
 	l := len(columns)
 	f := make([]exql.Fragment, l)
 	args := []interface{}{}
 
 	for i := 0; i < l; i++ {
 		switch v := columns[i].(type) {
-		case *selector:
-			expanded, rawArgs := Preprocess(v.statement().Compile(v.stringer.t), v.Arguments())
-			f[i] = exql.RawValue(expanded)
-			args = append(args, rawArgs...)
+		case compilable:
+			q, a := Preprocess(v.Compile(), v.Arguments())
+			f[i] = exql.RawValue(q)
+			args = append(args, a...)
 		case db.Function:
 			fnName, fnArgs := v.Name(), v.Arguments()
 			if len(fnArgs) == 0 {
@@ -336,13 +323,13 @@ func columnFragments(template *templateWithUtils, columns []interface{}) ([]exql
 			} else {
 				fnName = fnName + "(?" + strings.Repeat("?, ", len(fnArgs)-1) + ")"
 			}
-			expanded, fnArgs := Preprocess(fnName, fnArgs)
-			f[i] = exql.RawValue(expanded)
+			fnName, fnArgs = Preprocess(fnName, fnArgs)
+			f[i] = exql.RawValue(fnName)
 			args = append(args, fnArgs...)
 		case db.RawValue:
-			expanded, rawArgs := Preprocess(v.Raw(), v.Arguments())
-			f[i] = exql.RawValue(expanded)
-			args = append(args, rawArgs...)
+			q, a := Preprocess(v.Raw(), v.Arguments())
+			f[i] = exql.RawValue(q)
+			args = append(args, a...)
 		case exql.Fragment:
 			f[i] = v
 		case string:
@@ -356,29 +343,19 @@ func columnFragments(template *templateWithUtils, columns []interface{}) ([]exql
 	return f, args, nil
 }
 
-func (s *stringer) String() string {
-	if s != nil && s.i != nil {
-		q := s.compileAndReplacePlaceholders(s.i.statement())
-		q = reInvisibleChars.ReplaceAllString(q, ` `)
-		return strings.TrimSpace(q)
-	}
-	return ""
-}
-
-func (s *stringer) compileAndReplacePlaceholders(stmt *exql.Statement) (query string) {
-	buf := stmt.Compile(s.t)
-
+func prepareQueryForDisplay(in string) (out string) {
 	j := 1
-	for i := range buf {
-		if buf[i] == '?' {
-			query = query + "$" + strconv.Itoa(j)
+	for i := range in {
+		if in[i] == '?' {
+			out = out + "$" + strconv.Itoa(j)
 			j++
 		} else {
-			query = query + string(buf[i])
+			out = out + string(in[i])
 		}
 	}
 
-	return query
+	out = reInvisibleChars.ReplaceAllString(out, ` `)
+	return strings.TrimSpace(out)
 }
 
 func (iter *iterator) NextScan(dst ...interface{}) error {
