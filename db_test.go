@@ -33,12 +33,12 @@ import (
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"upper.io/db.v2"
-	"upper.io/db.v2/mongo"
-	"upper.io/db.v2/mysql"
-	"upper.io/db.v2/postgresql"
-	"upper.io/db.v2/ql"
-	"upper.io/db.v2/sqlite"
+	"upper.io/db.v3"
+	"upper.io/db.v3/mongo"
+	"upper.io/db.v3/mysql"
+	"upper.io/db.v3/postgresql"
+	"upper.io/db.v3/ql"
+	"upper.io/db.v3/sqlite"
 )
 
 var wrappers = []string{

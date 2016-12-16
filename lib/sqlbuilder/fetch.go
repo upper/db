@@ -26,8 +26,8 @@ import (
 	"encoding/json"
 	"reflect"
 
-	"upper.io/db.v2"
-	"upper.io/db.v2/lib/reflectx"
+	"upper.io/db.v3"
+	"upper.io/db.v3/lib/reflectx"
 )
 
 var mapper = reflectx.NewMapper("db")

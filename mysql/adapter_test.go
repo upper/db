@@ -28,8 +28,8 @@ import (
 	"os"
 	"time"
 
-	"upper.io/db.v2/internal/sqladapter"
-	"upper.io/db.v2/lib/sqlbuilder"
+	"upper.io/db.v3/internal/sqladapter"
+	"upper.io/db.v3/lib/sqlbuilder"
 )
 
 const (

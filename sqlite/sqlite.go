@@ -19,15 +19,15 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package sqlite // import "upper.io/db.v2/sqlite"
+package sqlite // import "upper.io/db.v3/sqlite"
 
 import (
 	"database/sql"
 
-	"upper.io/db.v2"
+	"upper.io/db.v3"
 
-	"upper.io/db.v2/internal/sqladapter"
-	"upper.io/db.v2/lib/sqlbuilder"
+	"upper.io/db.v3/internal/sqladapter"
+	"upper.io/db.v3/lib/sqlbuilder"
 )
 
 const sqlDriver = `sqlite`

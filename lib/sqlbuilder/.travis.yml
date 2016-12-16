@@ -15,10 +15,10 @@ go:
 
 install:
   - mkdir -p $GOPATH/src/upper.io
-  - mv $PWD $GOPATH/src/upper.io/db.v2/lib/sqlbuilder
-  - cd $GOPATH/src/upper.io/db.v2/lib/sqlbuilder
+  - mv $PWD $GOPATH/src/upper.io/db.v3/lib/sqlbuilder
+  - cd $GOPATH/src/upper.io/db.v3/lib/sqlbuilder
   - go get -v -d -t ./...
 
 script:
-  - cd $GOPATH/src/upper.io/db.v2/lib/sqlbuilder
+  - cd $GOPATH/src/upper.io/db.v3/lib/sqlbuilder
   - make test

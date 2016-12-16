@@ -1,4 +1,4 @@
-// Copyright (c) 2015 The upper.io/db.v2/lib/sqlbuilder authors. All rights reserved.
+// Copyright (c) 2015 The upper.io/db.v3/lib/sqlbuilder authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the

@@ -27,7 +27,7 @@
 // driver. upper-db supports the MySQL, PostgreSQL, SQLite and QL databases and
 // provides partial support (CRUD, no transactions) for MongoDB.
 //
-//  go get upper.io/db.v2
+//  go get upper.io/db.v3
 //
 // Usage
 //
@@ -36,7 +36,7 @@
 //  import (
 //  	"log"
 //
-//  	"upper.io/db.v2/postgresql" // Imports the postgresql adapter.
+//  	"upper.io/db.v3/postgresql" // Imports the postgresql adapter.
 //  )
 //
 //  var settings = postgresql.ConnectionURL{
@@ -73,15 +73,15 @@
 //  }
 //
 // See more usage examples and documentation for users at
-// https://upper.io/db.v2.
-package db // import "upper.io/db.v2"
+// https://upper.io/db.v3.
+package db // import "upper.io/db.v3"
 
 import (
 	"fmt"
 	"reflect"
 	"time"
 
-	"upper.io/db.v2/internal/immutable"
+	"upper.io/db.v3/internal/immutable"
 )
 
 // Constraint interface represents a single condition, like "a = 1".  where `a`

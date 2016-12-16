@@ -19,16 +19,16 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package postgresql // import "upper.io/db.v2/postgresql"
+package postgresql // import "upper.io/db.v3/postgresql"
 
 import (
 	"database/sql"
 	"time"
 
-	"upper.io/db.v2"
+	"upper.io/db.v3"
 
-	"upper.io/db.v2/internal/sqladapter"
-	"upper.io/db.v2/lib/sqlbuilder"
+	"upper.io/db.v3/internal/sqladapter"
+	"upper.io/db.v3/lib/sqlbuilder"
 )
 
 var (

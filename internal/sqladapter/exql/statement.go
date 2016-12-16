@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"strings"
 
-	"upper.io/db.v2/internal/cache"
+	"upper.io/db.v3/internal/cache"
 )
 
 // Statement represents different kinds of SQL statements.

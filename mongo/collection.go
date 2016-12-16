@@ -30,7 +30,7 @@ import (
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"upper.io/db.v2"
+	"upper.io/db.v3"
 )
 
 // Collection represents a mongodb collection.

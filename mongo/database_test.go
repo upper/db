@@ -31,7 +31,7 @@ import (
 	"time"
 
 	"gopkg.in/mgo.v2/bson"
-	"upper.io/db.v2"
+	"upper.io/db.v3"
 )
 
 // Global settings for tests.

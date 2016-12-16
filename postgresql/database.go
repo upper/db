@@ -27,10 +27,10 @@ import (
 	"sync"
 
 	_ "github.com/lib/pq" // PostgreSQL driver.
-	"upper.io/db.v2"
-	"upper.io/db.v2/internal/sqladapter"
-	"upper.io/db.v2/internal/sqladapter/exql"
-	"upper.io/db.v2/lib/sqlbuilder"
+	"upper.io/db.v3"
+	"upper.io/db.v3/internal/sqladapter"
+	"upper.io/db.v3/internal/sqladapter/exql"
+	"upper.io/db.v3/lib/sqlbuilder"
 )
 
 // database is the actual implementation of Database

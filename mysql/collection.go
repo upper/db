@@ -24,9 +24,9 @@ package mysql
 import (
 	"database/sql"
 
-	"upper.io/db.v2"
-	"upper.io/db.v2/internal/sqladapter"
-	"upper.io/db.v2/lib/sqlbuilder"
+	"upper.io/db.v3"
+	"upper.io/db.v3/internal/sqladapter"
+	"upper.io/db.v3/lib/sqlbuilder"
 )
 
 // table is the actual implementation of a collection.

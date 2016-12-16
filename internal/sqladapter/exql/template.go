@@ -5,7 +5,7 @@ import (
 	"sync"
 	"text/template"
 
-	"upper.io/db.v2/internal/cache"
+	"upper.io/db.v3/internal/cache"
 )
 
 // Type is the type of SQL query the statement represents.

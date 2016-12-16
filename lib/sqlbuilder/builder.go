@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 
-	"upper.io/db.v2"
-	"upper.io/db.v2/internal/sqladapter/exql"
-	"upper.io/db.v2/lib/reflectx"
+	"upper.io/db.v3"
+	"upper.io/db.v3/internal/sqladapter/exql"
+	"upper.io/db.v3/lib/reflectx"
 )
 
 // MapOptions represents options for the mapper.
