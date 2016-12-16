@@ -22,6 +22,7 @@
 package sqlbuilder
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 )
@@ -82,6 +83,13 @@ type Builder interface {
 	//  sqlbuilder.Query(`SELECT * FROM people WHERE name = "Mateo"`)
 	Query(query interface{}, args ...interface{}) (*sql.Rows, error)
 
+	// QueryContext executes the given SQL query and returns *sql.Rows.
+	//
+	// Example:
+	//
+	//  sqlbuilder.QueryContext(ctx, `SELECT * FROM people WHERE name = "Mateo"`)
+	QueryContext(ctx context.Context, query interface{}, args ...interface{}) (*sql.Rows, error)
+
 	// QueryRow executes the given SQL query and returns *sql.Row.
 	//
 	// Example:
@@ -89,12 +97,26 @@ type Builder interface {
 	//  sqlbuilder.QueryRow(`SELECT * FROM people WHERE name = "Haruki" AND last_name = "Murakami" LIMIT 1`)
 	QueryRow(query interface{}, args ...interface{}) (*sql.Row, error)
 
+	// QueryRowContext executes the given SQL query and returns *sql.Row.
+	//
+	// Example:
+	//
+	//  sqlbuilder.QueryRowContext(ctx, `SELECT * FROM people WHERE name = "Haruki" AND last_name = "Murakami" LIMIT 1`)
+	QueryRowContext(ctx context.Context, query interface{}, args ...interface{}) (*sql.Row, error)
+
 	// Iterator executes the given SQL query and returns an Iterator.
 	//
 	// Example:
 	//
 	//  sqlbuilder.Iterator(`SELECT * FROM people WHERE name LIKE "M%"`)
 	Iterator(query interface{}, args ...interface{}) Iterator
+
+	// IteratorContext executes the given SQL query and returns an Iterator.
+	//
+	// Example:
+	//
+	//  sqlbuilder.IteratorContext(ctx, `SELECT * FROM people WHERE name LIKE "M%"`)
+	IteratorContext(ctx context.Context, query interface{}, args ...interface{}) Iterator
 }
 
 // Selector represents a SELECT statement.
@@ -283,6 +305,10 @@ type Selector interface {
 	// Selector.
 	Iterator() Iterator
 
+	// IteratorContext provides methods to iterate over the results returned by
+	// the Selector.
+	IteratorContext(ctx context.Context) Iterator
+
 	// Getter provides methods to compile and execute a query that returns
 	// results.
 	Getter
@@ -329,6 +355,10 @@ type Inserter interface {
 	// Iterator provides methods to iterate over the results returned by the
 	// Inserter. This is only possible when using Returning().
 	Iterator() Iterator
+
+	// IteratorContext provides methods to iterate over the results returned by
+	// the Inserter. This is only possible when using Returning().
+	IteratorContext(ctx context.Context) Iterator
 
 	// Batch provies a BatchInserter that can be used to insert many elements at
 	// once by issuing several calls to Values(). It accepts a size parameter
@@ -400,6 +430,9 @@ type Updater interface {
 type Execer interface {
 	// Exec executes a statement and returns sql.Result.
 	Exec() (sql.Result, error)
+
+	// ExecContext executes a statement and returns sql.Result.
+	ExecContext(context.Context) (sql.Result, error)
 }
 
 // Getter provides methods for executing statements that return results.
@@ -407,8 +440,14 @@ type Getter interface {
 	// Query returns *sql.Rows.
 	Query() (*sql.Rows, error)
 
+	// QueryContext returns *sql.Rows.
+	QueryContext(context.Context) (*sql.Rows, error)
+
 	// QueryRow returns only one row.
 	QueryRow() (*sql.Row, error)
+
+	// QueryRowContext returns only one row.
+	QueryRowContext(ctx context.Context) (*sql.Row, error)
 }
 
 // ResultMapper defined methods for a result mapper.
