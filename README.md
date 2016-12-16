@@ -88,7 +88,7 @@ go run _examples/booktown-books/main.go
 
 ## Changelog
 
-See [CHANGELOG.md][https://github.com/upper/db/blob/master/CHANGELOG.md].
+See [CHANGELOG.md](https://github.com/upper/db/blob/master/CHANGELOG.md).
 
 ## License
 
