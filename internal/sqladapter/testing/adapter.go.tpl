@@ -1301,7 +1301,7 @@ func TestBatchInsert(t *testing.T) {
 		go func() {
 			defer batch.Done()
 			for i := 0; i < totalItems; i++ {
-				batch.Values(fmt.Sprintf("artist-%d", i))
+				batch.Push(fmt.Sprintf("artist-%d", i))
 			}
 		}()
 
@@ -1341,7 +1341,7 @@ func TestBatchInsertNoColumns(t *testing.T) {
 				value := struct {
 					Name string `db:"name"`
 				}{fmt.Sprintf("artist-%d", i)}
-				batch.Values(value)
+				batch.Push(value)
 			}
 		}()
 
@@ -1381,7 +1381,7 @@ func TestBatchInsertReturningKeys(t *testing.T) {
 	go func() {
 		defer batch.Done()
 		for i := 0; i < totalItems; i++ {
-			batch.Values(fmt.Sprintf("artist-%d", i))
+			batch.Push(fmt.Sprintf("artist-%d", i))
 		}
 	}()
 

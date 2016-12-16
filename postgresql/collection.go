@@ -102,7 +102,7 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 	}
 
 	// Asking the database to return the primary key after insertion.
-	q.Returning(pKey...)
+	q = q.Returning(pKey...)
 
 	var keyMap db.Cond
 	if err = q.Iterator().One(&keyMap); err != nil {

@@ -21,18 +21,19 @@ func newBatchInserter(inserter *inserter, size int) *BatchInserter {
 	return b
 }
 
-// Values pushes column values to be inserted as part of the batch.
-func (b *BatchInserter) Values(values ...interface{}) *BatchInserter {
+// Push pushes column values to be inserted as part of the batch.
+func (b *BatchInserter) Push(values ...interface{}) *BatchInserter {
 	b.values <- values
 	return b
 }
 
 func (b *BatchInserter) nextQuery() *inserter {
-	clone := b.inserter.clone()
+	ins := &inserter{}
+	*ins = *b.inserter
 	i := 0
 	for values := range b.values {
 		i++
-		clone.Values(values...)
+		ins = ins.Values(values...).(*inserter)
 		if i == b.size {
 			break
 		}
@@ -40,7 +41,7 @@ func (b *BatchInserter) nextQuery() *inserter {
 	if i == 0 {
 		return nil
 	}
-	return clone
+	return ins
 }
 
 // NextResult is useful when using PostgreSQL and Returning(), it dumps the
