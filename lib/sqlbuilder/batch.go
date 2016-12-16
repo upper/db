@@ -21,8 +21,8 @@ func newBatchInserter(inserter *inserter, size int) *BatchInserter {
 	return b
 }
 
-// Values pushes column values to be inserted as part of the batch.
-func (b *BatchInserter) Values(values ...interface{}) *BatchInserter {
+// Push pushes column values to be inserted as part of the batch.
+func (b *BatchInserter) Push(values ...interface{}) *BatchInserter {
 	b.values <- values
 	return b
 }
