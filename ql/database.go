@@ -22,6 +22,7 @@
 package ql
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"sync"
@@ -243,17 +244,17 @@ func (d *database) Err(err error) error {
 }
 
 // StatementExec wraps the statement to execute around a transaction.
-func (d *database) StatementExec(query string, args ...interface{}) (res sql.Result, err error) {
+func (d *database) StatementExec(ctx context.Context, query string, args ...interface{}) (res sql.Result, err error) {
 	if d.Transaction() != nil {
-		return d.Driver().(*sql.Tx).Exec(query, args...)
+		return d.Driver().(*sql.Tx).ExecContext(ctx, query, args...)
 	}
 
-	sqlTx, err := d.Session().Begin()
+	sqlTx, err := d.Session().BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	if res, err = sqlTx.Exec(query, args...); err != nil {
+	if res, err = sqlTx.ExecContext(ctx, query, args...); err != nil {
 		return nil, err
 	}
 
