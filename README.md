@@ -88,7 +88,11 @@ go run _examples/booktown-books/main.go
 
 ## Changelog
 
-Dec 15th, 2016: Before `2.0.0-rc8`, upper-db produced queries that mutated
+### Dec 15th, 2016
+
+#### Immutable queries
+
+Before `2.0.0-rc8`, upper-db produced queries that mutated
 themselves:
 
 ```
@@ -117,6 +121,38 @@ behaviour and could cause you trouble use `dbcheck`:
 go get -u github.com/upper/cmd/dbcheck
 
 dbcheck github.com/my/package/...
+```
+
+#### Renamed BatchInserter's Values() into Push()
+
+This is a batch insertion snippet:
+
+```
+batch := sess.InsertInto("foo").Columns("bar", "baz").Batch(5)
+
+go func() {
+  for i := 0; i < 10; i++ {
+    batch.Values(aaa, bbb)
+  }
+}()
+
+err := batch.Wait()
+```
+
+The problem was that the `Values()` method didn't do the same as a regular
+inserter's `Values()`, this method was renamed into `Push()`, which is more
+accurate:
+
+```
+batch := sess.InsertInto("foo").Columns("bar", "baz").Batch(5)
+
+go func() {
+  for i := 0; i < 10; i++ {
+    batch.Push(aaa, bbb)
+  }
+}()
+
+err := batch.Wait()
 ```
 
 ## License
