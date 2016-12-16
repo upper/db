@@ -95,7 +95,7 @@ go run _examples/booktown-books/main.go
 Before `2.0.0-rc8`, upper-db produced queries that mutated
 themselves:
 
-```
+```go
 q := sess.SelectFrom("users")
 
 q.Where(...) // This method modified q's internal state.
@@ -104,7 +104,7 @@ q.Where(...) // This method modified q's internal state.
 Starting on `2.0.0-rc8` this is no longer valid, if you want to use values to
 represent queries you'll have to reassign them, like this:
 
-```
+```go
 q := sess.SelectFrom("users")
 
 q = q.Where(...)
@@ -127,7 +127,7 @@ dbcheck github.com/my/package/...
 
 This is a batch insertion snippet:
 
-```
+```go
 batch := sess.InsertInto("foo").Columns("bar", "baz").Batch(5)
 
 go func() {
@@ -143,7 +143,7 @@ The problem was that the `Values()` method didn't do the same as a regular
 inserter's `Values()`, this method was renamed into `Push()`, which is more
 accurate:
 
-```
+```go
 batch := sess.InsertInto("foo").Columns("bar", "baz").Batch(5)
 
 go func() {
