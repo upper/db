@@ -86,7 +86,7 @@ go run _examples/booktown-books/main.go
 2016/08/10 08:42:48 "Practical PostgreSQL" (ID: 41472)
 ```
 
-## Changeog
+## Changelog
 
 Dec 15th, 2016: Before `2.0.0-rc8`, upper-db produced queries that mutated
 themselves:
