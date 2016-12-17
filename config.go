@@ -24,6 +24,7 @@ package db
 import (
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // Settings defines methods to get or set configuration values.
@@ -44,15 +45,45 @@ type Settings interface {
 	// PreparedStatementCacheEnabled returns true if the prepared statement cache
 	// is enabled, false otherwise.
 	PreparedStatementCacheEnabled() bool
+
+	// SetConnMaxLifetime sets the default maximum amount of time a connection
+	// may be reused.
+	SetConnMaxLifetime(time.Duration)
+
+	// ConnMaxLifetime returns the default maximum amount of time a connection
+	// may be reused.
+	ConnMaxLifetime() time.Duration
+
+	// SetMaxIdleConns sets the default maximum number of connections in the idle
+	// connection pool.
+	SetMaxIdleConns(int)
+
+	// MaxIdleConns returns the default maximum number of connections in the idle
+	// connection pool.
+	MaxIdleConns() int
+
+	// SetMaxOpenConns sets the default maximum number of open connections to the
+	// database.
+	SetMaxOpenConns(int)
+
+	// MaxOpenConns returns the default maximum number of open connections to the
+	// database.
+	MaxOpenConns() int
 }
 
 type conf struct {
-	loggingEnabled                uint32
+	sync.RWMutex
+
 	preparedStatementCacheEnabled uint32
 
-	queryLogger   Logger
-	queryLoggerMu sync.RWMutex
-	defaultLogger defaultLogger
+	connMaxLifetime time.Duration
+	maxOpenConns    int
+	maxIdleConns    int
+
+	loggingEnabled uint32
+	queryLogger    Logger
+	queryLoggerMu  sync.RWMutex
+	defaultLogger  defaultLogger
 }
 
 func (c *conf) Logger() Logger {
@@ -104,7 +135,46 @@ func (c *conf) PreparedStatementCacheEnabled() bool {
 	return c.binaryOption(&c.preparedStatementCacheEnabled)
 }
 
+func (c *conf) SetConnMaxLifetime(t time.Duration) {
+	c.Lock()
+	c.connMaxLifetime = t
+	c.Unlock()
+}
+
+func (c *conf) ConnMaxLifetime() time.Duration {
+	c.RLock()
+	defer c.RUnlock()
+	return c.connMaxLifetime
+}
+
+func (c *conf) SetMaxIdleConns(n int) {
+	c.Lock()
+	c.maxIdleConns = n
+	c.Unlock()
+}
+
+func (c *conf) MaxIdleConns() int {
+	c.RLock()
+	defer c.RUnlock()
+	return c.maxIdleConns
+}
+
+func (c *conf) SetMaxOpenConns(n int) {
+	c.Lock()
+	c.maxOpenConns = n
+	c.Unlock()
+}
+
+func (c *conf) MaxOpenConns() int {
+	c.RLock()
+	defer c.RUnlock()
+	return c.maxOpenConns
+}
+
 // Conf provides global configuration settings for upper-db.
 var Conf Settings = &conf{
 	preparedStatementCacheEnabled: 0,
+	connMaxLifetime:               time.Duration(0),
+	maxIdleConns:                  10,
+	maxOpenConns:                  0,
 }

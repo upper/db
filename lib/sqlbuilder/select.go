@@ -1,6 +1,7 @@
 package sqlbuilder
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -386,29 +387,41 @@ func (sel *selector) statement() *exql.Statement {
 }
 
 func (sel *selector) QueryRow() (*sql.Row, error) {
+	return sel.QueryRowContext(sel.Builder().sess.Context())
+}
+
+func (sel *selector) QueryRowContext(ctx context.Context) (*sql.Row, error) {
 	sq, err := sel.build()
 	if err != nil {
 		return nil, err
 	}
 
-	return sel.Builder().sess.StatementQueryRow(sq.statement(), sq.arguments()...)
+	return sel.Builder().sess.StatementQueryRow(ctx, sq.statement(), sq.arguments()...)
 }
 
 func (sel *selector) Query() (*sql.Rows, error) {
+	return sel.QueryContext(sel.Builder().sess.Context())
+}
+
+func (sel *selector) QueryContext(ctx context.Context) (*sql.Rows, error) {
 	sq, err := sel.build()
 	if err != nil {
 		return nil, err
 	}
-	return sel.Builder().sess.StatementQuery(sq.statement(), sq.arguments()...)
+	return sel.Builder().sess.StatementQuery(ctx, sq.statement(), sq.arguments()...)
 }
 
 func (sel *selector) Iterator() Iterator {
+	return sel.IteratorContext(sel.Builder().sess.Context())
+}
+
+func (sel *selector) IteratorContext(ctx context.Context) Iterator {
 	sq, err := sel.build()
 	if err != nil {
 		return &iterator{nil, err}
 	}
 
-	rows, err := sel.Builder().sess.StatementQuery(sq.statement(), sq.arguments()...)
+	rows, err := sel.Builder().sess.StatementQuery(ctx, sq.statement(), sq.arguments()...)
 	return &iterator{rows, err}
 }
 

@@ -22,6 +22,7 @@
 package ql
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"sync"
@@ -112,7 +113,7 @@ func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 	}
 	d.Builder = b
 
-	if err := d.BaseDatabase.BindTx(sqlTx); err != nil {
+	if err := d.BaseDatabase.BindTx(d.Context(), sqlTx); err != nil {
 		return nil, err
 	}
 
@@ -144,8 +145,11 @@ func New(sess *sql.DB) (sqlbuilder.Database, error) {
 }
 
 // NewTx starts a transaction block.
-func (d *database) NewTx() (sqlbuilder.Tx, error) {
-	nTx, err := d.NewLocalTransaction()
+func (d *database) NewTx(ctx context.Context) (sqlbuilder.Tx, error) {
+	if ctx == nil {
+		ctx = d.Context()
+	}
+	nTx, err := d.NewLocalTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -243,17 +247,17 @@ func (d *database) Err(err error) error {
 }
 
 // StatementExec wraps the statement to execute around a transaction.
-func (d *database) StatementExec(query string, args ...interface{}) (res sql.Result, err error) {
+func (d *database) StatementExec(ctx context.Context, query string, args ...interface{}) (res sql.Result, err error) {
 	if d.Transaction() != nil {
-		return d.Driver().(*sql.Tx).Exec(query, args...)
+		return d.Driver().(*sql.Tx).ExecContext(ctx, query, args...)
 	}
 
-	sqlTx, err := d.Session().Begin()
+	sqlTx, err := d.Session().BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	if res, err = sqlTx.Exec(query, args...); err != nil {
+	if res, err = sqlTx.ExecContext(ctx, query, args...); err != nil {
 		return nil, err
 	}
 
@@ -271,12 +275,12 @@ func (d *database) NewLocalCollection(name string) db.Collection {
 
 // Tx creates a transaction and passes it to the given function, if if the
 // function returns no error then the transaction is commited.
-func (d *database) Tx(fn func(tx sqlbuilder.Tx) error) error {
-	return sqladapter.RunTx(d, fn)
+func (d *database) Tx(ctx context.Context, fn func(tx sqlbuilder.Tx) error) error {
+	return sqladapter.RunTx(d, ctx, fn)
 }
 
 // NewLocalTransaction allows sqladapter start a transaction block.
-func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
+func (d *database) NewLocalTransaction(ctx context.Context) (sqladapter.DatabaseTx, error) {
 	clone, err := d.clone()
 	if err != nil {
 		return nil, err
@@ -286,9 +290,9 @@ func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
 	defer clone.txMu.Unlock()
 
 	openFn := func() error {
-		sqlTx, err := clone.BaseDatabase.Session().Begin()
+		sqlTx, err := clone.BaseDatabase.Session().BeginTx(ctx, nil)
 		if err == nil {
-			return clone.BindTx(sqlTx)
+			return clone.BindTx(ctx, sqlTx)
 		}
 		return err
 	}

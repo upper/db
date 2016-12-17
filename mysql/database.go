@@ -22,6 +22,7 @@
 package mysql
 
 import (
+	"context"
 	"strings"
 	"sync"
 
@@ -70,8 +71,11 @@ func (d *database) Open(connURL db.ConnectionURL) error {
 }
 
 // NewTx starts a transaction block.
-func (d *database) NewTx() (sqlbuilder.Tx, error) {
-	nTx, err := d.NewLocalTransaction()
+func (d *database) NewTx(ctx context.Context) (sqlbuilder.Tx, error) {
+	if ctx == nil {
+		ctx = d.Context()
+	}
+	nTx, err := d.NewLocalTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -112,9 +116,9 @@ func (d *database) open() error {
 	connFn := func() error {
 		sess, err := sql.Open("mysql", d.ConnectionURL().String())
 		if err == nil {
-			sess.SetConnMaxLifetime(connMaxLifetime)
-			sess.SetMaxIdleConns(maxIdleConns)
-			sess.SetMaxOpenConns(maxOpenConns)
+			sess.SetConnMaxLifetime(db.Conf.ConnMaxLifetime())
+			sess.SetMaxIdleConns(db.Conf.MaxIdleConns())
+			sess.SetMaxOpenConns(db.Conf.MaxOpenConns())
 			return d.BaseDatabase.BindSession(sess)
 		}
 		return err
@@ -172,12 +176,12 @@ func (d *database) NewLocalCollection(name string) db.Collection {
 
 // Tx creates a transaction and passes it to the given function, if if the
 // function returns no error then the transaction is commited.
-func (d *database) Tx(fn func(tx sqlbuilder.Tx) error) error {
-	return sqladapter.RunTx(d, fn)
+func (d *database) Tx(ctx context.Context, fn func(tx sqlbuilder.Tx) error) error {
+	return sqladapter.RunTx(d, ctx, fn)
 }
 
 // NewLocalTransaction allows sqladapter start a transaction block.
-func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
+func (d *database) NewLocalTransaction(ctx context.Context) (sqladapter.DatabaseTx, error) {
 	clone, err := d.clone()
 	if err != nil {
 		return nil, err
@@ -187,9 +191,9 @@ func (d *database) NewLocalTransaction() (sqladapter.DatabaseTx, error) {
 	defer clone.txMu.Unlock()
 
 	connFn := func() error {
-		sqlTx, err := clone.BaseDatabase.Session().Begin()
+		sqlTx, err := clone.BaseDatabase.Session().BeginTx(ctx, nil)
 		if err == nil {
-			return clone.BindTx(sqlTx)
+			return clone.BindTx(ctx, sqlTx)
 		}
 		return err
 	}

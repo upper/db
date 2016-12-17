@@ -1,6 +1,7 @@
 package sqlbuilder
 
 import (
+	"context"
 	"database/sql"
 
 	"upper.io/db.v3/internal/immutable"
@@ -134,11 +135,15 @@ func (upd *updater) Where(terms ...interface{}) Updater {
 }
 
 func (upd *updater) Exec() (sql.Result, error) {
+	return upd.ExecContext(upd.Builder().sess.Context())
+}
+
+func (upd *updater) ExecContext(ctx context.Context) (sql.Result, error) {
 	uq, err := upd.build()
 	if err != nil {
 		return nil, err
 	}
-	return upd.Builder().sess.StatementExec(uq.statement(), uq.arguments()...)
+	return upd.Builder().sess.StatementExec(ctx, uq.statement(), uq.arguments()...)
 }
 
 func (upd *updater) Limit(limit int) Updater {

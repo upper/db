@@ -1,6 +1,7 @@
 package sqlbuilder
 
 import (
+	"context"
 	"database/sql"
 
 	"upper.io/db.v3/internal/immutable"
@@ -147,31 +148,47 @@ func (ins *inserter) Returning(columns ...string) Inserter {
 }
 
 func (ins *inserter) Exec() (sql.Result, error) {
+	return ins.ExecContext(ins.Builder().sess.Context())
+}
+
+func (ins *inserter) ExecContext(ctx context.Context) (sql.Result, error) {
 	iq, err := ins.build()
 	if err != nil {
 		return nil, err
 	}
-	return ins.Builder().sess.StatementExec(iq.statement(), iq.arguments...)
+	return ins.Builder().sess.StatementExec(ctx, iq.statement(), iq.arguments...)
 }
 
 func (ins *inserter) Query() (*sql.Rows, error) {
+	return ins.QueryContext(ins.Builder().sess.Context())
+}
+
+func (ins *inserter) QueryContext(ctx context.Context) (*sql.Rows, error) {
 	iq, err := ins.build()
 	if err != nil {
 		return nil, err
 	}
-	return ins.Builder().sess.StatementQuery(iq.statement(), iq.arguments...)
+	return ins.Builder().sess.StatementQuery(ctx, iq.statement(), iq.arguments...)
 }
 
 func (ins *inserter) QueryRow() (*sql.Row, error) {
+	return ins.QueryRowContext(ins.Builder().sess.Context())
+}
+
+func (ins *inserter) QueryRowContext(ctx context.Context) (*sql.Row, error) {
 	iq, err := ins.build()
 	if err != nil {
 		return nil, err
 	}
-	return ins.Builder().sess.StatementQueryRow(iq.statement(), iq.arguments...)
+	return ins.Builder().sess.StatementQueryRow(ctx, iq.statement(), iq.arguments...)
 }
 
 func (ins *inserter) Iterator() Iterator {
-	rows, err := ins.Query()
+	return ins.IteratorContext(ins.Builder().sess.Context())
+}
+
+func (ins *inserter) IteratorContext(ctx context.Context) Iterator {
+	rows, err := ins.QueryContext(ctx)
 	return &iterator{rows, err}
 }
 

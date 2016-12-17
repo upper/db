@@ -1,6 +1,7 @@
 package sqlbuilder
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -63,9 +64,11 @@ var (
 )
 
 type exprDB interface {
-	StatementQuery(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error)
-	StatementQueryRow(stmt *exql.Statement, args ...interface{}) (*sql.Row, error)
-	StatementExec(stmt *exql.Statement, args ...interface{}) (sql.Result, error)
+	StatementQuery(ctx context.Context, stmt *exql.Statement, args ...interface{}) (*sql.Rows, error)
+	StatementQueryRow(ctx context.Context, stmt *exql.Statement, args ...interface{}) (*sql.Row, error)
+	StatementExec(ctx context.Context, stmt *exql.Statement, args ...interface{}) (sql.Result, error)
+
+	Context() context.Context
 }
 
 type sqlBuilder struct {
@@ -75,17 +78,11 @@ type sqlBuilder struct {
 
 // WithSession returns a query builder that is bound to the given database session.
 func WithSession(sess interface{}, t *exql.Template) (Builder, error) {
-	switch v := sess.(type) {
-	case *sql.DB:
-		sess = newSqlgenProxy(v, t)
-	case exprDB:
-		// OK!
-	default:
-		// There should be no way this error is ignored.
-		panic(fmt.Sprintf("Unkown source type: %T", sess))
+	if sqlDB, ok := sess.(*sql.DB); ok {
+		sess = sqlDB
 	}
 	return &sqlBuilder{
-		sess: sess.(exprDB),
+		sess: sess.(exprDB), // Let it panic, it will show the developer an informative error.
 		t:    newTemplateWithUtils(t),
 	}, nil
 }
@@ -103,44 +100,60 @@ func NewIterator(rows *sql.Rows) Iterator {
 }
 
 func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) Iterator {
-	rows, err := b.Query(query, args...)
+	return b.IteratorContext(b.sess.Context(), query, args...)
+}
+
+func (b *sqlBuilder) IteratorContext(ctx context.Context, query interface{}, args ...interface{}) Iterator {
+	rows, err := b.QueryContext(ctx, query, args...)
 	return &iterator{rows, err}
 }
 
 func (b *sqlBuilder) Exec(query interface{}, args ...interface{}) (sql.Result, error) {
+	return b.ExecContext(b.sess.Context(), query, args...)
+}
+
+func (b *sqlBuilder) ExecContext(ctx context.Context, query interface{}, args ...interface{}) (sql.Result, error) {
 	switch q := query.(type) {
 	case *exql.Statement:
-		return b.sess.StatementExec(q, args...)
+		return b.sess.StatementExec(ctx, q, args...)
 	case string:
-		return b.sess.StatementExec(exql.RawSQL(q), args...)
+		return b.sess.StatementExec(ctx, exql.RawSQL(q), args...)
 	case db.RawValue:
-		return b.Exec(q.Raw(), q.Arguments()...)
+		return b.ExecContext(ctx, q.Raw(), q.Arguments()...)
 	default:
 		return nil, fmt.Errorf("Unsupported query type %T.", query)
 	}
 }
 
 func (b *sqlBuilder) Query(query interface{}, args ...interface{}) (*sql.Rows, error) {
+	return b.QueryContext(b.sess.Context(), query, args...)
+}
+
+func (b *sqlBuilder) QueryContext(ctx context.Context, query interface{}, args ...interface{}) (*sql.Rows, error) {
 	switch q := query.(type) {
 	case *exql.Statement:
-		return b.sess.StatementQuery(q, args...)
+		return b.sess.StatementQuery(ctx, q, args...)
 	case string:
-		return b.sess.StatementQuery(exql.RawSQL(q), args...)
+		return b.sess.StatementQuery(ctx, exql.RawSQL(q), args...)
 	case db.RawValue:
-		return b.Query(q.Raw(), q.Arguments()...)
+		return b.QueryContext(ctx, q.Raw(), q.Arguments()...)
 	default:
 		return nil, fmt.Errorf("Unsupported query type %T.", query)
 	}
 }
 
 func (b *sqlBuilder) QueryRow(query interface{}, args ...interface{}) (*sql.Row, error) {
+	return b.QueryRowContext(b.sess.Context(), query, args...)
+}
+
+func (b *sqlBuilder) QueryRowContext(ctx context.Context, query interface{}, args ...interface{}) (*sql.Row, error) {
 	switch q := query.(type) {
 	case *exql.Statement:
-		return b.sess.StatementQueryRow(q, args...)
+		return b.sess.StatementQueryRow(ctx, q, args...)
 	case string:
-		return b.sess.StatementQueryRow(exql.RawSQL(q), args...)
+		return b.sess.StatementQueryRow(ctx, exql.RawSQL(q), args...)
 	case db.RawValue:
-		return b.QueryRow(q.Raw(), q.Arguments()...)
+		return b.QueryRowContext(ctx, q.Raw(), q.Arguments()...)
 	default:
 		return nil, fmt.Errorf("Unsupported query type %T.", query)
 	}
@@ -494,19 +507,23 @@ func newSqlgenProxy(db *sql.DB, t *exql.Template) *exprProxy {
 	return &exprProxy{db: db, t: t}
 }
 
-func (p *exprProxy) StatementExec(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
-	s := stmt.Compile(p.t)
-	return p.db.Exec(s, args...)
+func (p *exprProxy) Context() context.Context {
+	return context.Background()
 }
 
-func (p *exprProxy) StatementQuery(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
+func (p *exprProxy) StatementExec(ctx context.Context, stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
 	s := stmt.Compile(p.t)
-	return p.db.Query(s, args...)
+	return p.db.ExecContext(ctx, s, args...)
 }
 
-func (p *exprProxy) StatementQueryRow(stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
+func (p *exprProxy) StatementQuery(ctx context.Context, stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
 	s := stmt.Compile(p.t)
-	return p.db.QueryRow(s, args...), nil
+	return p.db.QueryContext(ctx, s, args...)
+}
+
+func (p *exprProxy) StatementQueryRow(ctx context.Context, stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
+	s := stmt.Compile(p.t)
+	return p.db.QueryRowContext(ctx, s, args...), nil
 }
 
 var (

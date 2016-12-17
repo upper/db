@@ -6,10 +6,7 @@ notifications:
 language: go
 
 go:
-  - "1.6.2"
-  - "1.6.3"
-  - "1.7"
-  - "1.7.1"
+  - "1.8beta2"
 
 services:
   - mongodb

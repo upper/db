@@ -1,6 +1,7 @@
 package sqlbuilder
 
 import (
+	"context"
 	"database/sql"
 
 	"upper.io/db.v3/internal/immutable"
@@ -91,11 +92,15 @@ func (del *deleter) Arguments() []interface{} {
 }
 
 func (del *deleter) Exec() (sql.Result, error) {
+	return del.ExecContext(del.Builder().sess.Context())
+}
+
+func (del *deleter) ExecContext(ctx context.Context) (sql.Result, error) {
 	dq, err := del.build()
 	if err != nil {
 		return nil, err
 	}
-	return del.Builder().sess.StatementExec(dq.statement(), dq.arguments...)
+	return del.Builder().sess.StatementExec(ctx, dq.statement(), dq.arguments...)
 }
 
 func (del *deleter) statement() *exql.Statement {

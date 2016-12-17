@@ -1,6 +1,7 @@
 package sqladapter
 
 import (
+	"context"
 	"database/sql"
 	"math"
 	"strconv"
@@ -27,7 +28,7 @@ type HasCleanUp interface {
 
 // HasStatementExec allows the adapter to have its own exec statement.
 type HasStatementExec interface {
-	StatementExec(query string, args ...interface{}) (sql.Result, error)
+	StatementExec(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
 }
 
 // Database represents a SQL database.
@@ -53,7 +54,7 @@ type PartialDatabase interface {
 	ConnectionURL() db.ConnectionURL
 
 	Err(in error) (out error)
-	NewLocalTransaction() (DatabaseTx, error)
+	NewLocalTransaction(ctx context.Context) (DatabaseTx, error)
 }
 
 // BaseDatabase defines the methods provided by sqladapter that do not have to
@@ -67,11 +68,13 @@ type BaseDatabase interface {
 	Driver() interface{}
 
 	WaitForConnection(func() error) error
+	Context() context.Context
+	WithContext(context.Context) Database
 
 	BindSession(*sql.DB) error
 	Session() *sql.DB
 
-	BindTx(*sql.Tx) error
+	BindTx(context.Context, *sql.Tx) error
 	Transaction() BaseTx
 
 	SetConnMaxLifetime(time.Duration)
@@ -96,6 +99,8 @@ func NewBaseDatabase(p PartialDatabase) BaseDatabase {
 type database struct {
 	PartialDatabase
 	baseTx BaseTx
+
+	ctx context.Context
 
 	collectionMu sync.Mutex
 	databaseMu   sync.Mutex
@@ -125,7 +130,7 @@ func (d *database) Session() *sql.DB {
 }
 
 // BindTx binds a *sql.Tx into *database
-func (d *database) BindTx(t *sql.Tx) error {
+func (d *database) BindTx(ctx context.Context, t *sql.Tx) error {
 	d.sessMu.Lock()
 	defer d.sessMu.Unlock()
 
@@ -134,6 +139,7 @@ func (d *database) BindTx(t *sql.Tx) error {
 		return err
 	}
 
+	d.ctx = ctx
 	d.txID = newTxID()
 	return nil
 }
@@ -285,7 +291,7 @@ func (d *database) Collection(name string) db.Collection {
 
 // StatementExec compiles and executes a statement that does not return any
 // rows.
-func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res sql.Result, err error) {
+func (d *database) StatementExec(ctx context.Context, stmt *exql.Statement, args ...interface{}) (res sql.Result, err error) {
 	var query string
 
 	if db.Conf.LoggingEnabled() {
@@ -317,7 +323,7 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 
 	if execer, ok := d.PartialDatabase.(HasStatementExec); ok {
 		query, args = d.compileStatement(stmt, args)
-		res, err = execer.StatementExec(query, args...)
+		res, err = execer.StatementExec(ctx, query, args...)
 		return
 	}
 
@@ -325,27 +331,27 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 
 	if db.Conf.PreparedStatementCacheEnabled() && tx == nil {
 		var p *Stmt
-		if p, query, args, err = d.prepareStatement(stmt, args); err != nil {
+		if p, query, args, err = d.prepareStatement(ctx, stmt, args); err != nil {
 			return nil, err
 		}
 		defer p.Close()
 
-		res, err = p.Exec(args...)
+		res, err = p.ExecContext(ctx, args...)
 		return
 	}
 
 	query, args = d.compileStatement(stmt, args)
 	if tx != nil {
-		res, err = tx.(*sqlTx).Exec(query, args...)
+		res, err = tx.(*sqlTx).ExecContext(ctx, query, args...)
 		return
 	}
 
-	res, err = d.sess.Exec(query, args...)
+	res, err = d.sess.ExecContext(ctx, query, args...)
 	return
 }
 
 // StatementQuery compiles and executes a statement that returns rows.
-func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (rows *sql.Rows, err error) {
+func (d *database) StatementQuery(ctx context.Context, stmt *exql.Statement, args ...interface{}) (rows *sql.Rows, err error) {
 	var query string
 
 	if db.Conf.LoggingEnabled() {
@@ -366,29 +372,29 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (ro
 
 	if db.Conf.PreparedStatementCacheEnabled() && tx == nil {
 		var p *Stmt
-		if p, query, args, err = d.prepareStatement(stmt, args); err != nil {
+		if p, query, args, err = d.prepareStatement(ctx, stmt, args); err != nil {
 			return nil, err
 		}
 		defer p.Close()
 
-		rows, err = p.Query(args...)
+		rows, err = p.QueryContext(ctx, args...)
 		return
 	}
 
 	query, args = d.compileStatement(stmt, args)
 	if tx != nil {
-		rows, err = tx.(*sqlTx).Query(query, args...)
+		rows, err = tx.(*sqlTx).QueryContext(ctx, query, args...)
 		return
 	}
 
-	rows, err = d.sess.Query(query, args...)
+	rows, err = d.sess.QueryContext(ctx, query, args...)
 	return
 
 }
 
 // StatementQueryRow compiles and executes a statement that returns at most one
 // row.
-func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) (row *sql.Row, err error) {
+func (d *database) StatementQueryRow(ctx context.Context, stmt *exql.Statement, args ...interface{}) (row *sql.Row, err error) {
 	var query string
 
 	if db.Conf.LoggingEnabled() {
@@ -409,22 +415,22 @@ func (d *database) StatementQueryRow(stmt *exql.Statement, args ...interface{}) 
 
 	if db.Conf.PreparedStatementCacheEnabled() && tx == nil {
 		var p *Stmt
-		if p, query, args, err = d.prepareStatement(stmt, args); err != nil {
+		if p, query, args, err = d.prepareStatement(ctx, stmt, args); err != nil {
 			return nil, err
 		}
 		defer p.Close()
 
-		row = p.QueryRow(args...)
+		row = p.QueryRowContext(ctx, args...)
 		return
 	}
 
 	query, args = d.compileStatement(stmt, args)
 	if tx != nil {
-		row = tx.(*sqlTx).QueryRow(query, args...)
+		row = tx.(*sqlTx).QueryRowContext(ctx, query, args...)
 		return
 	}
 
-	row = d.sess.QueryRow(query, args...)
+	row = d.sess.QueryRowContext(ctx, query, args...)
 	return
 }
 
@@ -437,6 +443,21 @@ func (d *database) Driver() interface{} {
 	return d.sess
 }
 
+func (d *database) Context() context.Context {
+	if d.ctx == nil {
+		return context.Background()
+	}
+	return d.ctx
+}
+
+func (d *database) WithContext(ctx context.Context) Database {
+	// TODO: Don't just copy this over.
+	var newDB *database
+	*newDB = *d
+	newDB.ctx = ctx
+	return newDB
+}
+
 // compileStatement compiles the given statement into a string.
 func (d *database) compileStatement(stmt *exql.Statement, args []interface{}) (string, []interface{}) {
 	return d.PartialDatabase.CompileStatement(stmt, args)
@@ -444,7 +465,7 @@ func (d *database) compileStatement(stmt *exql.Statement, args []interface{}) (s
 
 // prepareStatement compiles a query and tries to use previously generated
 // statement.
-func (d *database) prepareStatement(stmt *exql.Statement, args []interface{}) (*Stmt, string, []interface{}, error) {
+func (d *database) prepareStatement(ctx context.Context, stmt *exql.Statement, args []interface{}) (*Stmt, string, []interface{}, error) {
 	d.sessMu.Lock()
 	defer d.sessMu.Unlock()
 
@@ -466,9 +487,9 @@ func (d *database) prepareStatement(stmt *exql.Statement, args []interface{}) (*
 	query, args := d.compileStatement(stmt, args)
 	sqlStmt, err := func(query *string) (*sql.Stmt, error) {
 		if tx != nil {
-			return tx.(*sqlTx).Prepare(*query)
+			return tx.(*sqlTx).PrepareContext(ctx, *query)
 		}
-		return sess.Prepare(*query)
+		return sess.PrepareContext(ctx, *query)
 	}(&query)
 	if err != nil {
 		return nil, "", nil, err
