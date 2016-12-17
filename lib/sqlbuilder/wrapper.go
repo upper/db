@@ -22,6 +22,7 @@
 package sqlbuilder
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sync"
@@ -50,6 +51,8 @@ type Backend interface {
 type Tx interface {
 	Backend
 	db.Tx
+
+	Context() context.Context
 }
 
 // Database represents a Database which is capable of both creating
@@ -59,14 +62,14 @@ type Database interface {
 
 	// NewTx returns a new session that lives within a transaction. This session
 	// is completely independent from its parent.
-	NewTx() (Tx, error)
+	NewTx(ctx context.Context) (Tx, error)
 
 	// Tx creates a new transaction that is passed as context to the fn function.
 	// The fn function defines a transaction operation.  If the fn function
 	// returns nil, the transaction is commited, otherwise the transaction is
 	// rolled back.  The transaction session is closed after the function exists,
 	// regardless of the error value returned by fn.
-	Tx(fn func(sess Tx) error) error
+	Tx(ctx context.Context, fn func(sess Tx) error) error
 }
 
 // AdapterFuncMap is a struct that defines a set of functions that adapters

@@ -54,7 +54,7 @@ type PartialDatabase interface {
 	ConnectionURL() db.ConnectionURL
 
 	Err(in error) (out error)
-	NewLocalTransaction() (DatabaseTx, error)
+	NewLocalTransaction(ctx context.Context) (DatabaseTx, error)
 }
 
 // BaseDatabase defines the methods provided by sqladapter that do not have to
@@ -74,7 +74,7 @@ type BaseDatabase interface {
 	BindSession(*sql.DB) error
 	Session() *sql.DB
 
-	BindTx(*sql.Tx) error
+	BindTx(context.Context, *sql.Tx) error
 	Transaction() BaseTx
 
 	SetConnMaxLifetime(time.Duration)
@@ -130,7 +130,7 @@ func (d *database) Session() *sql.DB {
 }
 
 // BindTx binds a *sql.Tx into *database
-func (d *database) BindTx(t *sql.Tx) error {
+func (d *database) BindTx(ctx context.Context, t *sql.Tx) error {
 	d.sessMu.Lock()
 	defer d.sessMu.Unlock()
 
@@ -139,6 +139,7 @@ func (d *database) BindTx(t *sql.Tx) error {
 		return err
 	}
 
+	d.ctx = ctx
 	d.txID = newTxID()
 	return nil
 }

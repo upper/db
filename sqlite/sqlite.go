@@ -72,7 +72,7 @@ func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 	}
 	d.Builder = b
 
-	if err := d.BaseDatabase.BindTx(sqlTx); err != nil {
+	if err := d.BaseDatabase.BindTx(d.Context(), sqlTx); err != nil {
 		return nil, err
 	}
 

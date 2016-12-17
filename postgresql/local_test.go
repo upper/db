@@ -100,7 +100,7 @@ func TestIssue210(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()
 
-	tx, err := sess.NewTx()
+	tx, err := sess.NewTx(nil)
 	assert.NoError(t, err)
 
 	for i := range list {

@@ -22,6 +22,7 @@
 package sqladapter
 
 import (
+	"context"
 	"database/sql"
 	"sync/atomic"
 
@@ -51,13 +52,6 @@ type txWrapper struct {
 
 // NewTx creates a database session within a transaction.
 func NewTx(db Database) DatabaseTx {
-	return &txWrapper{
-		Database: db,
-		BaseTx:   db.Transaction(),
-	}
-}
-
-func newTxWrapper(db Database) DatabaseTx {
 	return &txWrapper{
 		Database: db,
 		BaseTx:   db.Transaction(),
@@ -99,8 +93,8 @@ func (t *txWrapper) Rollback() error {
 }
 
 // RunTx creates a transaction context and runs fn within it.
-func RunTx(d sqlbuilder.Database, fn func(tx sqlbuilder.Tx) error) error {
-	tx, err := d.NewTx()
+func RunTx(d sqlbuilder.Database, ctx context.Context, fn func(tx sqlbuilder.Tx) error) error {
+	tx, err := d.NewTx(ctx)
 	if err != nil {
 		return err
 	}

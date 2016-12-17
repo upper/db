@@ -76,12 +76,12 @@ func (c *collection) InsertReturning(item interface{}) error {
 	inTx := false
 
 	if currTx := c.p.Database().Transaction(); currTx != nil {
-		tx = newTxWrapper(c.p.Database())
+		tx = NewTx(c.p.Database())
 		inTx = true
 	} else {
 		// Not within a transaction, let's create one.
 		var err error
-		tx, err = c.p.Database().NewLocalTransaction()
+		tx, err = c.p.Database().NewLocalTransaction(c.p.Database().Context())
 		if err != nil {
 			return err
 		}

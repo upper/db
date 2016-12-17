@@ -23,7 +23,6 @@ package mysql // import "upper.io/db.v3/mysql"
 
 import (
 	"database/sql"
-	"time"
 
 	"upper.io/db.v3"
 
@@ -79,7 +78,7 @@ func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 	}
 	d.Builder = b
 
-	if err := d.BaseDatabase.BindTx(sqlTx); err != nil {
+	if err := d.BaseDatabase.BindTx(d.Context(), sqlTx); err != nil {
 		return nil, err
 	}
 
@@ -108,31 +107,4 @@ func New(sess *sql.DB) (sqlbuilder.Database, error) {
 		return nil, err
 	}
 	return d, nil
-}
-
-// SetConnMaxLifetime sets the default value to be passed to
-// db.SetConnMaxLifetime.
-func SetConnMaxLifetime(d time.Duration) {
-	connMaxLifetime = d
-}
-
-// SetMaxIdleConns sets the default value to be passed to db.SetMaxOpenConns.
-func SetMaxIdleConns(n int) {
-	if n < 0 {
-		n = 0
-	}
-	maxIdleConns = n
-}
-
-// SetMaxOpenConns sets the default value to be passed to db.SetMaxOpenConns.
-// If the value of maxIdleConns is >= 0 and maxOpenConns is less than
-// maxIdleConns, then maxIdleConns will be reduced to match maxOpenConns.
-func SetMaxOpenConns(n int) {
-	if n < 0 {
-		n = 0
-	}
-	if n > maxIdleConns {
-		maxIdleConns = n
-	}
-	maxOpenConns = n
 }
