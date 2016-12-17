@@ -30,12 +30,6 @@ import (
 	"upper.io/db.v3/lib/sqlbuilder"
 )
 
-var (
-	connMaxLifetime = db.DefaultConnMaxLifetime
-	maxIdleConns    = db.DefaultMaxIdleConns
-	maxOpenConns    = db.DefaultMaxOpenConns
-)
-
 const sqlDriver = `mysql`
 
 // Adapter is the public name of the adapter.
