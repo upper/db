@@ -116,11 +116,11 @@ type selector struct {
 
 var _ = immutable.Immutable(&inserter{})
 
-func (sel *selector) Builder() *sqlBuilder {
+func (sel *selector) SQLBuilder() *sqlBuilder {
 	if sel.prev == nil {
 		return sel.builder
 	}
-	return sel.prev.Builder()
+	return sel.prev.SQLBuilder()
 }
 
 func (sel *selector) String() string {
@@ -365,7 +365,7 @@ func (sel *selector) Offset(n int) Selector {
 }
 
 func (sel *selector) template() *exql.Template {
-	return sel.Builder().t.Template
+	return sel.SQLBuilder().t.Template
 }
 
 func (sel *selector) As(alias string) Selector {
@@ -387,7 +387,7 @@ func (sel *selector) statement() *exql.Statement {
 }
 
 func (sel *selector) QueryRow() (*sql.Row, error) {
-	return sel.QueryRowContext(sel.Builder().sess.Context())
+	return sel.QueryRowContext(sel.SQLBuilder().sess.Context())
 }
 
 func (sel *selector) QueryRowContext(ctx context.Context) (*sql.Row, error) {
@@ -396,11 +396,11 @@ func (sel *selector) QueryRowContext(ctx context.Context) (*sql.Row, error) {
 		return nil, err
 	}
 
-	return sel.Builder().sess.StatementQueryRow(ctx, sq.statement(), sq.arguments()...)
+	return sel.SQLBuilder().sess.StatementQueryRow(ctx, sq.statement(), sq.arguments()...)
 }
 
 func (sel *selector) Query() (*sql.Rows, error) {
-	return sel.QueryContext(sel.Builder().sess.Context())
+	return sel.QueryContext(sel.SQLBuilder().sess.Context())
 }
 
 func (sel *selector) QueryContext(ctx context.Context) (*sql.Rows, error) {
@@ -408,11 +408,11 @@ func (sel *selector) QueryContext(ctx context.Context) (*sql.Rows, error) {
 	if err != nil {
 		return nil, err
 	}
-	return sel.Builder().sess.StatementQuery(ctx, sq.statement(), sq.arguments()...)
+	return sel.SQLBuilder().sess.StatementQuery(ctx, sq.statement(), sq.arguments()...)
 }
 
 func (sel *selector) Iterator() Iterator {
-	return sel.IteratorContext(sel.Builder().sess.Context())
+	return sel.IteratorContext(sel.SQLBuilder().sess.Context())
 }
 
 func (sel *selector) IteratorContext(ctx context.Context) Iterator {
@@ -421,7 +421,7 @@ func (sel *selector) IteratorContext(ctx context.Context) Iterator {
 		return &iterator{nil, err}
 	}
 
-	rows, err := sel.Builder().sess.StatementQuery(ctx, sq.statement(), sq.arguments()...)
+	rows, err := sel.SQLBuilder().sess.StatementQuery(ctx, sq.statement(), sq.arguments()...)
 	return &iterator{rows, err}
 }
 

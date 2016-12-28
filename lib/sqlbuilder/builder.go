@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 	"regexp"
 	"sort"
@@ -77,7 +78,7 @@ type sqlBuilder struct {
 }
 
 // WithSession returns a query builder that is bound to the given database session.
-func WithSession(sess interface{}, t *exql.Template) (Builder, error) {
+func WithSession(sess interface{}, t *exql.Template) (SQLBuilder, error) {
 	if sqlDB, ok := sess.(*sql.DB); ok {
 		sess = sqlDB
 	}
@@ -88,7 +89,7 @@ func WithSession(sess interface{}, t *exql.Template) (Builder, error) {
 }
 
 // WithTemplate returns a builder that is based on the given template.
-func WithTemplate(t *exql.Template) Builder {
+func WithTemplate(t *exql.Template) SQLBuilder {
 	return &sqlBuilder{
 		t: newTemplateWithUtils(t),
 	}
@@ -508,6 +509,7 @@ func newSqlgenProxy(db *sql.DB, t *exql.Template) *exprProxy {
 }
 
 func (p *exprProxy) Context() context.Context {
+	log.Printf("Missing context")
 	return context.Background()
 }
 
@@ -527,7 +529,7 @@ func (p *exprProxy) StatementQueryRow(ctx context.Context, stmt *exql.Statement,
 }
 
 var (
-	_ = Builder(&sqlBuilder{})
+	_ = SQLBuilder(&sqlBuilder{})
 	_ = exprDB(&exprProxy{})
 )
 

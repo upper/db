@@ -43,7 +43,12 @@ func init() {
 	})
 }
 
-// Open stablishes a new connection with the SQL server.
+// Open opens a new connection with the PostgreSQL server. The returned session
+// is validated first by Ping and then with a test query before being returned,
+// if either the Ping or the query fail, an error value is returned.  You can
+// call Open() once and use it on multiple goroutines on a long-running
+// program. See https://golang.org/pkg/database/sql/#Open and
+// http://go-database-sql.org/accessing.html
 func Open(settings db.ConnectionURL) (sqlbuilder.Database, error) {
 	d, err := newDatabase(settings)
 	if err != nil {
@@ -55,7 +60,8 @@ func Open(settings db.ConnectionURL) (sqlbuilder.Database, error) {
 	return d, nil
 }
 
-// NewTx returns a transaction session.
+// NewTx wraps a regular *sql.Tx and returns a transactional session backed by
+// it.
 func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 	d, err := newDatabase(nil)
 	if err != nil {
@@ -70,7 +76,7 @@ func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.Builder = b
+	d.SQLBuilder = b
 
 	if err := d.BaseDatabase.BindTx(d.Context(), sqlTx); err != nil {
 		return nil, err
@@ -80,7 +86,7 @@ func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 	return &tx{DatabaseTx: newTx}, nil
 }
 
-// New wraps the given *sql.DB session and creates a new db session.
+// New wraps a regular *sql.DB and creates a new session backed by it.
 func New(sess *sql.DB) (sqlbuilder.Database, error) {
 	d, err := newDatabase(nil)
 	if err != nil {
@@ -95,7 +101,7 @@ func New(sess *sql.DB) (sqlbuilder.Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.Builder = b
+	d.SQLBuilder = b
 
 	if err := d.BaseDatabase.BindSession(sess); err != nil {
 		return nil, err

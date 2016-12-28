@@ -38,7 +38,7 @@ import (
 // database is the actual implementation of Database
 type database struct {
 	sqladapter.BaseDatabase // Leveraged by sqladapter
-	sqlbuilder.Builder
+	sqlbuilder.SQLBuilder
 
 	connURL db.ConnectionURL
 	txMu    sync.Mutex
@@ -111,7 +111,7 @@ func (d *database) open() error {
 	if err != nil {
 		return err
 	}
-	d.Builder = b
+	d.SQLBuilder = b
 
 	connFn := func() error {
 		sess, err := sql.Open("mysql", d.ConnectionURL().String())
@@ -146,7 +146,7 @@ func (d *database) clone() (*database, error) {
 	if err != nil {
 		return nil, err
 	}
-	clone.Builder = b
+	clone.SQLBuilder = b
 
 	return clone, nil
 }

@@ -109,15 +109,15 @@ type inserter struct {
 
 var _ = immutable.Immutable(&inserter{})
 
-func (ins *inserter) Builder() *sqlBuilder {
+func (ins *inserter) SQLBuilder() *sqlBuilder {
 	if ins.prev == nil {
 		return ins.builder
 	}
-	return ins.prev.Builder()
+	return ins.prev.SQLBuilder()
 }
 
 func (ins *inserter) template() *exql.Template {
-	return ins.Builder().t.Template
+	return ins.SQLBuilder().t.Template
 }
 
 func (ins *inserter) String() string {
@@ -148,7 +148,7 @@ func (ins *inserter) Returning(columns ...string) Inserter {
 }
 
 func (ins *inserter) Exec() (sql.Result, error) {
-	return ins.ExecContext(ins.Builder().sess.Context())
+	return ins.ExecContext(ins.SQLBuilder().sess.Context())
 }
 
 func (ins *inserter) ExecContext(ctx context.Context) (sql.Result, error) {
@@ -156,11 +156,11 @@ func (ins *inserter) ExecContext(ctx context.Context) (sql.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ins.Builder().sess.StatementExec(ctx, iq.statement(), iq.arguments...)
+	return ins.SQLBuilder().sess.StatementExec(ctx, iq.statement(), iq.arguments...)
 }
 
 func (ins *inserter) Query() (*sql.Rows, error) {
-	return ins.QueryContext(ins.Builder().sess.Context())
+	return ins.QueryContext(ins.SQLBuilder().sess.Context())
 }
 
 func (ins *inserter) QueryContext(ctx context.Context) (*sql.Rows, error) {
@@ -168,11 +168,11 @@ func (ins *inserter) QueryContext(ctx context.Context) (*sql.Rows, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ins.Builder().sess.StatementQuery(ctx, iq.statement(), iq.arguments...)
+	return ins.SQLBuilder().sess.StatementQuery(ctx, iq.statement(), iq.arguments...)
 }
 
 func (ins *inserter) QueryRow() (*sql.Row, error) {
-	return ins.QueryRowContext(ins.Builder().sess.Context())
+	return ins.QueryRowContext(ins.SQLBuilder().sess.Context())
 }
 
 func (ins *inserter) QueryRowContext(ctx context.Context) (*sql.Row, error) {
@@ -180,11 +180,11 @@ func (ins *inserter) QueryRowContext(ctx context.Context) (*sql.Row, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ins.Builder().sess.StatementQueryRow(ctx, iq.statement(), iq.arguments...)
+	return ins.SQLBuilder().sess.StatementQueryRow(ctx, iq.statement(), iq.arguments...)
 }
 
 func (ins *inserter) Iterator() Iterator {
-	return ins.IteratorContext(ins.Builder().sess.Context())
+	return ins.IteratorContext(ins.SQLBuilder().sess.Context())
 }
 
 func (ins *inserter) IteratorContext(ctx context.Context) Iterator {

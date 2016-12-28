@@ -1415,7 +1415,7 @@ func TestBatchInsertReturningKeys(t *testing.T) {
 	assert.NoError(t, sess.Close())
 }
 
-func TestBuilder(t *testing.T) {
+func TestSQLBuilder(t *testing.T) {
 	sess := mustOpen()
 
 	var all []map[string]interface{}

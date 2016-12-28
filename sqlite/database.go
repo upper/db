@@ -39,7 +39,7 @@ import (
 // database is the actual implementation of Database
 type database struct {
 	sqladapter.BaseDatabase // Leveraged by sqladapter
-	sqlbuilder.Builder
+	sqlbuilder.SQLBuilder
 
 	connURL db.ConnectionURL
 	txMu    sync.Mutex
@@ -123,7 +123,7 @@ func (d *database) open() error {
 	if err != nil {
 		return err
 	}
-	d.Builder = b
+	d.SQLBuilder = b
 
 	openFn := func() error {
 		openFiles := atomic.LoadInt32(&fileOpenCount)
@@ -163,7 +163,7 @@ func (d *database) clone() (*database, error) {
 	if err != nil {
 		return nil, err
 	}
-	clone.Builder = b
+	clone.SQLBuilder = b
 
 	return clone, nil
 }

@@ -41,15 +41,15 @@ type deleter struct {
 
 var _ = immutable.Immutable(&deleter{})
 
-func (del *deleter) Builder() *sqlBuilder {
+func (del *deleter) SQLBuilder() *sqlBuilder {
 	if del.prev == nil {
 		return del.builder
 	}
-	return del.prev.Builder()
+	return del.prev.SQLBuilder()
 }
 
 func (del *deleter) template() *exql.Template {
-	return del.Builder().t.Template
+	return del.SQLBuilder().t.Template
 }
 
 func (del *deleter) String() string {
@@ -92,7 +92,7 @@ func (del *deleter) Arguments() []interface{} {
 }
 
 func (del *deleter) Exec() (sql.Result, error) {
-	return del.ExecContext(del.Builder().sess.Context())
+	return del.ExecContext(del.SQLBuilder().sess.Context())
 }
 
 func (del *deleter) ExecContext(ctx context.Context) (sql.Result, error) {
@@ -100,7 +100,7 @@ func (del *deleter) ExecContext(ctx context.Context) (sql.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return del.Builder().sess.StatementExec(ctx, dq.statement(), dq.arguments...)
+	return del.SQLBuilder().sess.StatementExec(ctx, dq.statement(), dq.arguments...)
 }
 
 func (del *deleter) statement() *exql.Statement {

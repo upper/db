@@ -38,7 +38,7 @@ import (
 // database is the actual implementation of Database
 type database struct {
 	sqladapter.BaseDatabase // Leveraged by sqladapter
-	sqlbuilder.Builder
+	sqlbuilder.SQLBuilder
 
 	connURL db.ConnectionURL
 	txMu    sync.Mutex
@@ -111,7 +111,7 @@ func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.Builder = b
+	d.SQLBuilder = b
 
 	if err := d.BaseDatabase.BindTx(d.Context(), sqlTx); err != nil {
 		return nil, err
@@ -136,7 +136,7 @@ func New(sess *sql.DB) (sqlbuilder.Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.Builder = b
+	d.SQLBuilder = b
 
 	if err := d.BaseDatabase.BindSession(sess); err != nil {
 		return nil, err
@@ -184,7 +184,7 @@ func (d *database) open() error {
 	if err != nil {
 		return err
 	}
-	d.Builder = b
+	d.SQLBuilder = b
 
 	openFn := func() error {
 		openFiles := atomic.LoadInt32(&fileOpenCount)
@@ -224,7 +224,7 @@ func (d *database) clone() (*database, error) {
 	if err != nil {
 		return nil, err
 	}
-	clone.Builder = b
+	clone.SQLBuilder = b
 
 	return clone, nil
 }
@@ -316,7 +316,7 @@ func (d *database) FindDatabaseName() (string, error) {
 // TableExists allows sqladapter check whether a table exists and returns an
 // error in case it doesn't.
 func (d *database) TableExists(name string) error {
-	q := d.Builder.Select("Name").
+	q := d.SQLBuilder.Select("Name").
 		From("__Table").
 		Where("Name == ?", name)
 

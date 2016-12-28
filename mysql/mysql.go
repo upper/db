@@ -70,7 +70,7 @@ func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.Builder = b
+	d.SQLBuilder = b
 
 	if err := d.BaseDatabase.BindTx(d.Context(), sqlTx); err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func New(sess *sql.DB) (sqlbuilder.Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.Builder = b
+	d.SQLBuilder = b
 
 	if err := d.BaseDatabase.BindSession(sess); err != nil {
 		return nil, err

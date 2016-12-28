@@ -27,8 +27,8 @@ import (
 	"fmt"
 )
 
-// Builder defines methods that can serve as starting points for SQL queries.
-type Builder interface {
+// SQLBuilder defines methods that can serve as starting points for SQL queries.
+type SQLBuilder interface {
 
 	// Select initializes and returns a Selector pointed at the given columns.
 	//

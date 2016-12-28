@@ -39,7 +39,7 @@ type Database interface {
 
 // PartialDatabase defines all the methods an adapter must provide.
 type PartialDatabase interface {
-	sqlbuilder.Builder
+	sqlbuilder.SQLBuilder
 
 	Collections() ([]string, error)
 	Open(db.ConnectionURL) error
@@ -55,6 +55,9 @@ type PartialDatabase interface {
 
 	Err(in error) (out error)
 	NewLocalTransaction(ctx context.Context) (DatabaseTx, error)
+
+	SetContext(ctx context.Context)
+	Context() context.Context
 }
 
 // BaseDatabase defines the methods provided by sqladapter that do not have to
@@ -68,8 +71,6 @@ type BaseDatabase interface {
 	Driver() interface{}
 
 	WaitForConnection(func() error) error
-	Context() context.Context
-	WithContext(context.Context) Database
 
 	BindSession(*sql.DB) error
 	Session() *sql.DB
@@ -99,8 +100,6 @@ func NewBaseDatabase(p PartialDatabase) BaseDatabase {
 type database struct {
 	PartialDatabase
 	baseTx BaseTx
-
-	ctx context.Context
 
 	collectionMu sync.Mutex
 	databaseMu   sync.Mutex
@@ -139,7 +138,7 @@ func (d *database) BindTx(ctx context.Context, t *sql.Tx) error {
 		return err
 	}
 
-	d.ctx = ctx
+	d.SetContext(ctx)
 	d.txID = newTxID()
 	return nil
 }
@@ -441,21 +440,6 @@ func (d *database) Driver() interface{} {
 		return tx.(*sqlTx).Tx
 	}
 	return d.sess
-}
-
-func (d *database) Context() context.Context {
-	if d.ctx == nil {
-		return context.Background()
-	}
-	return d.ctx
-}
-
-func (d *database) WithContext(ctx context.Context) Database {
-	// TODO: Don't just copy this over.
-	var newDB *database
-	*newDB = *d
-	newDB.ctx = ctx
-	return newDB
 }
 
 // compileStatement compiles the given statement into a string.

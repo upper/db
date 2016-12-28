@@ -269,6 +269,9 @@ type compound struct {
 
 func newCompound(conds ...Compound) *compound {
 	c := &compound{}
+	if len(conds) == 0 {
+		return c
+	}
 	return c.frame(func(in *[]Compound) error {
 		*in = append(*in, conds...)
 		return nil
@@ -290,8 +293,11 @@ func (c *compound) Operator() CompoundOperator {
 }
 
 func (c *compound) Empty() bool {
-	if c.fn == nil {
+	if c.fn != nil {
 		return false
+	}
+	if c.prev != nil {
+		return c.prev.Empty()
 	}
 	return true
 }
@@ -334,10 +340,14 @@ type Union struct {
 
 // Or adds more terms to the compound.
 func (o *Union) Or(orConds ...Compound) *Union {
-	return &Union{o.compound.frame(func(in *[]Compound) error {
-		*in = append(*in, orConds...)
-		return nil
-	})}
+	var fn func(*[]Compound) error
+	if len(orConds) > 0 {
+		fn = func(in *[]Compound) error {
+			*in = append(*in, orConds...)
+			return nil
+		}
+	}
+	return &Union{o.compound.frame(fn)}
 }
 
 // Operator returns the OR operator.
@@ -352,10 +362,14 @@ func (o *Union) Empty() bool {
 
 // And adds more terms to the compound.
 func (a *Intersection) And(andConds ...Compound) *Intersection {
-	return &Intersection{a.compound.frame(func(in *[]Compound) error {
-		*in = append(*in, andConds...)
-		return nil
-	})}
+	var fn func(*[]Compound) error
+	if len(andConds) > 0 {
+		fn = func(in *[]Compound) error {
+			*in = append(*in, andConds...)
+			return nil
+		}
+	}
+	return &Intersection{a.compound.frame(fn)}
 }
 
 // Empty returns false if this struct holds no conditions.

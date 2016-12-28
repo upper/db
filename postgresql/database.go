@@ -37,10 +37,11 @@ import (
 // database is the actual implementation of Database
 type database struct {
 	sqladapter.BaseDatabase // Leveraged by sqladapter
-	sqlbuilder.Builder
+	sqlbuilder.SQLBuilder
 
 	connURL db.ConnectionURL
 	txMu    sync.Mutex
+	ctx     context.Context
 }
 
 var (
@@ -110,7 +111,7 @@ func (d *database) open() error {
 	if err != nil {
 		return err
 	}
-	d.Builder = b
+	d.SQLBuilder = b
 
 	connFn := func() error {
 		sess, err := sql.Open("postgres", d.ConnectionURL().String())
@@ -130,11 +131,13 @@ func (d *database) open() error {
 	return nil
 }
 
-func (d *database) clone() (*database, error) {
+func (d *database) clone(ctx context.Context) (*database, error) {
 	clone, err := newDatabase(d.connURL)
 	if err != nil {
 		return nil, err
 	}
+
+	clone.SetContext(ctx)
 
 	clone.BaseDatabase, err = d.BindClone(clone)
 	if err != nil {
@@ -145,7 +148,7 @@ func (d *database) clone() (*database, error) {
 	if err != nil {
 		return nil, err
 	}
-	clone.Builder = b
+	clone.SQLBuilder = b
 
 	return clone, nil
 }
@@ -182,7 +185,7 @@ func (d *database) Tx(ctx context.Context, fn func(tx sqlbuilder.Tx) error) erro
 
 // NewLocalTransaction allows sqladapter start a transaction block.
 func (d *database) NewLocalTransaction(ctx context.Context) (sqladapter.DatabaseTx, error) {
-	clone, err := d.clone()
+	clone, err := d.clone(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +201,7 @@ func (d *database) NewLocalTransaction(ctx context.Context) (sqladapter.Database
 		return err
 	}
 
-	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
+	if err := clone.BaseDatabase.WaitForConnection(connFn); err != nil {
 		return nil, err
 	}
 
@@ -267,4 +270,20 @@ func (d *database) FindTablePrimaryKeys(tableName string) ([]string, error) {
 	}
 
 	return pk, nil
+}
+
+func (d *database) SetContext(ctx context.Context) {
+	d.ctx = ctx
+}
+
+func (d *database) Context() context.Context {
+	if d.ctx == nil {
+		return context.Background()
+	}
+	return d.ctx
+}
+
+func (d *database) WithContext(ctx context.Context) sqlbuilder.Database {
+	newDB, _ := d.clone(ctx)
+	return newDB
 }

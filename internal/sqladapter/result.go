@@ -31,7 +31,7 @@ import (
 )
 
 type Result struct {
-	builder sqlbuilder.Builder
+	builder sqlbuilder.SQLBuilder
 
 	err atomic.Value
 
@@ -60,7 +60,7 @@ func filter(conds []interface{}) []interface{} {
 
 // NewResult creates and Results a new Result set on the given table, this set
 // is limited by the given exql.Where conditions.
-func NewResult(builder sqlbuilder.Builder, table string, conds []interface{}) *Result {
+func NewResult(builder sqlbuilder.SQLBuilder, table string, conds []interface{}) *Result {
 	r := &Result{
 		builder: builder,
 	}
@@ -71,11 +71,11 @@ func (r *Result) frame(fn func(*result) error) *Result {
 	return &Result{prev: r, fn: fn}
 }
 
-func (r *Result) Builder() sqlbuilder.Builder {
+func (r *Result) SQLBuilder() sqlbuilder.SQLBuilder {
 	if r.prev == nil {
 		return r.builder
 	}
-	return r.prev.Builder()
+	return r.prev.SQLBuilder()
 }
 
 func (r *Result) from(table string) *Result {
@@ -274,7 +274,7 @@ func (r *Result) buildSelect() (sqlbuilder.Selector, error) {
 		return nil, err
 	}
 
-	sel := r.Builder().Select(res.fields...).
+	sel := r.SQLBuilder().Select(res.fields...).
 		From(res.table).
 		Where(filter(res.conds)...).
 		Limit(res.limit).
@@ -291,7 +291,7 @@ func (r *Result) buildDelete() (sqlbuilder.Deleter, error) {
 		return nil, err
 	}
 
-	del := r.Builder().DeleteFrom(res.table).
+	del := r.SQLBuilder().DeleteFrom(res.table).
 		Where(filter(res.conds)...).
 		Limit(res.limit)
 
@@ -304,7 +304,7 @@ func (r *Result) buildUpdate(values interface{}) (sqlbuilder.Updater, error) {
 		return nil, err
 	}
 
-	upd := r.Builder().Update(res.table).
+	upd := r.SQLBuilder().Update(res.table).
 		Set(values).
 		Where(filter(res.conds)...).
 		Limit(res.limit)
@@ -326,7 +326,7 @@ func (r *Result) buildCount() (sqlbuilder.Selector, error) {
 		return nil, err
 	}
 
-	sel := r.Builder().Select(db.Raw("count(1) AS _t")).
+	sel := r.SQLBuilder().Select(db.Raw("count(1) AS _t")).
 		From(res.table).
 		Where(filter(res.conds)...).
 		GroupBy(res.groupBy...).

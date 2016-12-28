@@ -54,15 +54,15 @@ type updater struct {
 
 var _ = immutable.Immutable(&updater{})
 
-func (upd *updater) Builder() *sqlBuilder {
+func (upd *updater) SQLBuilder() *sqlBuilder {
 	if upd.prev == nil {
 		return upd.builder
 	}
-	return upd.prev.Builder()
+	return upd.prev.SQLBuilder()
 }
 
 func (upd *updater) template() *exql.Template {
-	return upd.Builder().t.Template
+	return upd.SQLBuilder().t.Template
 }
 
 func (upd *updater) String() string {
@@ -95,11 +95,11 @@ func (upd *updater) Set(terms ...interface{}) Updater {
 			for i := range ff {
 				cv := &exql.ColumnValue{
 					Column:   exql.ColumnWithName(ff[i]),
-					Operator: upd.Builder().t.AssignmentOperator,
+					Operator: upd.SQLBuilder().t.AssignmentOperator,
 				}
 
 				var localArgs []interface{}
-				cv.Value, localArgs = upd.Builder().t.PlaceholderValue(vv[i])
+				cv.Value, localArgs = upd.SQLBuilder().t.PlaceholderValue(vv[i])
 
 				args = append(args, localArgs...)
 				cvs = append(cvs, cv)
@@ -135,7 +135,7 @@ func (upd *updater) Where(terms ...interface{}) Updater {
 }
 
 func (upd *updater) Exec() (sql.Result, error) {
-	return upd.ExecContext(upd.Builder().sess.Context())
+	return upd.ExecContext(upd.SQLBuilder().sess.Context())
 }
 
 func (upd *updater) ExecContext(ctx context.Context) (sql.Result, error) {
@@ -143,7 +143,7 @@ func (upd *updater) ExecContext(ctx context.Context) (sql.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return upd.Builder().sess.StatementExec(ctx, uq.statement(), uq.arguments()...)
+	return upd.SQLBuilder().sess.StatementExec(ctx, uq.statement(), uq.arguments()...)
 }
 
 func (upd *updater) Limit(limit int) Updater {

@@ -39,37 +39,49 @@ func init() {
 	adapters = make(map[string]*AdapterFuncMap)
 }
 
-// Backend holds common methods for SQL databases.
-type Backend interface {
-	db.Database
-	Builder
-}
-
-// Tx represents transaction on a SQL database. Transactions can only accept
-// intructions until being commited or rolled back, they become useless
-// afterwards and are automatically closed.
+// Tx represents a transaction on a SQL database. A transaction is like a
+// regular Database with two extra methods: Commit and Rollback. A transaction
+// needs to be commited to make changes permanent. After commiting or rolling
+// back a transaction can not longer be used and it's automatically closed.
 type Tx interface {
-	Backend
+	// Compatibility layer.
+	db.Database
+
+	// SQL builder.
+	SQLBuilder
+
+	// Provides Commit and Rollback.
 	db.Tx
 
+	// Context returns the context used in this transaction.
 	Context() context.Context
+
+	WithContext(context.Context) Tx
 }
 
-// Database represents a Database which is capable of both creating
-// transactions and use SQL builder methods.
+// Database represents a SQL database.
 type Database interface {
-	Backend
+	// Compatibility layer.
+	db.Database
 
-	// NewTx returns a new session that lives within a transaction. This session
-	// is completely independent from its parent.
+	// SQL builder.
+	SQLBuilder
+
+	// NewTx creates and returns a transaction, if ctx is nil a a default context
+	// is used. The user is responsible for commiting, rolling back and closing
+	// the returned transaction.
 	NewTx(ctx context.Context) (Tx, error)
 
-	// Tx creates a new transaction that is passed as context to the fn function.
-	// The fn function defines a transaction operation.  If the fn function
-	// returns nil, the transaction is commited, otherwise the transaction is
-	// rolled back.  The transaction session is closed after the function exists,
-	// regardless of the error value returned by fn.
+	// Tx creates a new transaction that is passed as argument to the fn
+	// function.  The fn function defines a transactional operation.  If the fn
+	// function returns nil, the transaction is commited, if not the transaction
+	// is rolled back.  The transaction session is closed after the function
+	// exists, regardless of the error value returned by fn.
 	Tx(ctx context.Context, fn func(sess Tx) error) error
+
+	Context() context.Context
+
+	WithContext(context.Context) Database
 }
 
 // AdapterFuncMap is a struct that defines a set of functions that adapters
@@ -118,12 +130,12 @@ func Open(adapterName string, settings db.ConnectionURL) (Database, error) {
 	return adapter(adapterName).Open(settings)
 }
 
-// New wraps an active *sql.DB session.
+// New wraps an active *sql.DB session and returns a SQLBuilder database.
 func New(adapterName string, sqlDB *sql.DB) (Database, error) {
 	return adapter(adapterName).New(sqlDB)
 }
 
-// NewTx wraps an active *sql.Tx transation.
+// NewTx wraps an active *sql.Tx transation and returns a SQLBuilder transaction.
 func NewTx(adapterName string, sqlTx *sql.Tx) (Tx, error) {
 	return adapter(adapterName).NewTx(sqlTx)
 }
