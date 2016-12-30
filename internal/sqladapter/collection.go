@@ -14,33 +14,57 @@ type Collection interface {
 	BaseCollection
 }
 
-// PartialCollection defines methods to be implemented by the adapter.
+// PartialCollection defines methods that must be implemented by the adapter.
 type PartialCollection interface {
+	// Database returns the parent database.
 	Database() Database
+
+	// Name returns the name of the table.
 	Name() string
-	Conds(...interface{}) []interface{}
+
+	// FilterConds filters the given conditions and transforms them if necessary.
+	FilterConds(...interface{}) []interface{}
+
+	// Insert inserts a new item into the collection.
 	Insert(interface{}) (interface{}, error)
 }
 
-// BaseCollection defines methods that are implemented by sqladapter.
+// BaseCollection provides logic for methods that can be shared across all SQL
+// adapters.
 type BaseCollection interface {
+	// Exists returns true if the collection exists.
 	Exists() bool
+
+	// Find creates and returns a new result set.
 	Find(conds ...interface{}) db.Result
+
+	// Truncate removes all items on the collection.
 	Truncate() error
+
+	// InsertReturning inserts a new item and updates it with the
+	// actual values from the database.
 	InsertReturning(interface{}) error
+
+	// PrimaryKeys returns the table's primary keys.
 	PrimaryKeys() []string
 }
 
 // collection is the implementation of Collection.
 type collection struct {
-	p  PartialCollection
+	BaseCollection
+	PartialCollection
+
 	pk []string
 }
 
+var (
+	_ = Collection(&collection{})
+)
+
 // NewBaseCollection returns a collection with basic methods.
 func NewBaseCollection(p PartialCollection) BaseCollection {
-	c := &collection{p: p}
-	c.pk, _ = c.p.Database().FindTablePrimaryKeys(c.p.Name())
+	c := &collection{PartialCollection: p}
+	c.pk, _ = c.Database().PrimaryKeys(c.Name())
 	return c
 }
 
@@ -52,15 +76,15 @@ func (c *collection) PrimaryKeys() []string {
 // Find creates a result set with the given conditions.
 func (c *collection) Find(conds ...interface{}) db.Result {
 	return NewResult(
-		c.p.Database(),
-		c.p.Name(),
-		c.p.Conds(conds...),
+		c.Database(),
+		c.Name(),
+		c.FilterConds(conds...),
 	)
 }
 
 // Exists returns true if the collection exists.
 func (c *collection) Exists() bool {
-	if err := c.p.Database().TableExists(c.p.Name()); err != nil {
+	if err := c.Database().TableExists(c.Name()); err != nil {
 		return false
 	}
 	return true
@@ -68,20 +92,20 @@ func (c *collection) Exists() bool {
 
 // InsertReturning inserts an item and updates the given variable reference.
 func (c *collection) InsertReturning(item interface{}) error {
-	if reflect.TypeOf(item).Kind() != reflect.Ptr {
-		return fmt.Errorf("Expecting a pointer to map or string but got %T", item)
+	if item == nil || reflect.TypeOf(item).Kind() != reflect.Ptr {
+		return fmt.Errorf("Expecting a pointer but got %T", item)
 	}
 
 	var tx DatabaseTx
 	inTx := false
 
-	if currTx := c.p.Database().Transaction(); currTx != nil {
-		tx = NewTx(c.p.Database())
+	if currTx := c.Database().Transaction(); currTx != nil {
+		tx = NewDatabaseTx(c.Database())
 		inTx = true
 	} else {
 		// Not within a transaction, let's create one.
 		var err error
-		tx, err = c.p.Database().NewLocalTransaction(c.p.Database().Context())
+		tx, err = c.Database().NewDatabaseTx(c.Database().Context())
 		if err != nil {
 			return err
 		}
@@ -90,7 +114,7 @@ func (c *collection) InsertReturning(item interface{}) error {
 
 	var res db.Result
 
-	col := tx.(Database).Collection(c.p.Name())
+	col := tx.(Database).Collection(c.Name())
 
 	id, err := col.Insert(item)
 	if err != nil {
@@ -129,9 +153,9 @@ cancel:
 func (c *collection) Truncate() error {
 	stmt := exql.Statement{
 		Type:  exql.Truncate,
-		Table: exql.TableWithName(c.p.Name()),
+		Table: exql.TableWithName(c.Name()),
 	}
-	if _, err := c.p.Database().Exec(&stmt); err != nil {
+	if _, err := c.Database().Exec(&stmt); err != nil {
 		return err
 	}
 	return nil

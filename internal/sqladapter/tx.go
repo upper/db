@@ -33,63 +33,65 @@ import (
 // DatabaseTx represents a database session within a transaction.
 type DatabaseTx interface {
 	BaseDatabase
-	BaseTx
-
 	PartialDatabase
+
+	BaseTx
 }
 
-// BaseTx defines methods to be implemented by a transaction.
+// BaseTx provides logic for methods that can be shared across all SQL
+// adapters.
 type BaseTx interface {
 	db.Tx
 
+	// Committed returns true if the transaction was already commited.
 	Committed() bool
 }
 
-type txWrapper struct {
+type databaseTx struct {
 	Database
 	BaseTx
 }
 
-// NewTx creates a database session within a transaction.
-func NewTx(db Database) DatabaseTx {
-	return &txWrapper{
+// NewDatabaseTx creates a database session within a transaction.
+func NewDatabaseTx(db Database) DatabaseTx {
+	return &databaseTx{
 		Database: db,
 		BaseTx:   db.Transaction(),
 	}
 }
 
-type sqlTx struct {
+type baseTx struct {
 	*sql.Tx
 	committed atomic.Value
 }
 
-func newTx(tx *sql.Tx) BaseTx {
-	return &sqlTx{Tx: tx}
+func newBaseTx(tx *sql.Tx) BaseTx {
+	return &baseTx{Tx: tx}
 }
 
-func (t *sqlTx) Committed() bool {
-	committed := t.committed.Load()
+func (b *baseTx) Committed() bool {
+	committed := b.committed.Load()
 	if committed != nil {
 		return true
 	}
 	return false
 }
 
-func (t *sqlTx) Commit() (err error) {
-	if err = t.Tx.Commit(); err == nil {
-		t.committed.Store(struct{}{})
+func (b *baseTx) Commit() (err error) {
+	if err = b.Tx.Commit(); err == nil {
+		b.committed.Store(struct{}{})
 	}
 	return err
 }
 
-func (t *txWrapper) Commit() error {
-	defer t.Database.Close() // Automatic close on commit.
-	return t.BaseTx.Commit()
+func (w *databaseTx) Commit() error {
+	defer w.Database.Close() // Automatic close on commit.
+	return w.BaseTx.Commit()
 }
 
-func (t *txWrapper) Rollback() error {
-	defer t.Database.Close() // Automatic close on rollback.
-	return t.BaseTx.Rollback()
+func (w *databaseTx) Rollback() error {
+	defer w.Database.Close() // Automatic close on rollback.
+	return w.BaseTx.Rollback()
 }
 
 // RunTx creates a transaction context and runs fn within it.
@@ -98,6 +100,7 @@ func RunTx(d sqlbuilder.Database, ctx context.Context, fn func(tx sqlbuilder.Tx)
 	if err != nil {
 		return err
 	}
+
 	defer tx.Close()
 	if err := fn(tx); err != nil {
 		tx.Rollback()
@@ -107,5 +110,6 @@ func RunTx(d sqlbuilder.Database, ctx context.Context, fn func(tx sqlbuilder.Tx)
 }
 
 var (
-	_ = BaseTx(&sqlTx{})
+	_ = BaseTx(&baseTx{})
+	_ = DatabaseTx(&databaseTx{})
 )

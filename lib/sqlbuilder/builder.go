@@ -78,14 +78,14 @@ type sqlBuilder struct {
 }
 
 // WithSession returns a query builder that is bound to the given database session.
-func WithSession(sess interface{}, t *exql.Template) (SQLBuilder, error) {
+func WithSession(sess interface{}, t *exql.Template) SQLBuilder {
 	if sqlDB, ok := sess.(*sql.DB); ok {
 		sess = sqlDB
 	}
 	return &sqlBuilder{
 		sess: sess.(exprDB), // Let it panic, it will show the developer an informative error.
 		t:    newTemplateWithUtils(t),
-	}, nil
+	}
 }
 
 // WithTemplate returns a builder that is based on the given template.
