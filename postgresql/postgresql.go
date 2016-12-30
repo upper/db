@@ -44,64 +44,46 @@ func init() {
 }
 
 // Open opens a new connection with the PostgreSQL server. The returned session
-// is validated first by Ping and then with a test query before being returned,
-// if either the Ping or the query fail, an error value is returned.  You can
-// call Open() once and use it on multiple goroutines on a long-running
+// is validated first by Ping and then with a test query before being returned.
+// You can call Open() once and use it on multiple goroutines on a long-running
 // program. See https://golang.org/pkg/database/sql/#Open and
 // http://go-database-sql.org/accessing.html
 func Open(settings db.ConnectionURL) (sqlbuilder.Database, error) {
-	d, err := newDatabase(settings)
-	if err != nil {
-		return nil, err
-	}
+	d := newDatabase(settings)
 	if err := d.Open(settings); err != nil {
 		return nil, err
 	}
 	return d, nil
 }
 
-// NewTx wraps a regular *sql.Tx and returns a transactional session backed by
+// NewTx wraps a regular *sql.Tx and returns a new SQL transaction session with
 // it.
 func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
-	d, err := newDatabase(nil)
-	if err != nil {
-		return nil, err
-	}
+	d := newDatabase(nil)
 
 	// Binding with sqladapter's logic.
 	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
 
 	// Binding with sqlbuilder.
-	b, err := sqlbuilder.WithSession(d.BaseDatabase, template)
-	if err != nil {
-		return nil, err
-	}
-	d.SQLBuilder = b
+	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
 
 	if err := d.BaseDatabase.BindTx(d.Context(), sqlTx); err != nil {
 		return nil, err
 	}
 
-	newTx := sqladapter.NewTx(d)
+	newTx := sqladapter.NewDatabaseTx(d)
 	return &tx{DatabaseTx: newTx}, nil
 }
 
-// New wraps a regular *sql.DB and creates a new session backed by it.
+// New wraps a regular *sql.DB and creates a new SQL session with it.
 func New(sess *sql.DB) (sqlbuilder.Database, error) {
-	d, err := newDatabase(nil)
-	if err != nil {
-		return nil, err
-	}
+	d := newDatabase(nil)
 
 	// Binding with sqladapter's logic.
 	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
 
 	// Binding with sqlbuilder.
-	b, err := sqlbuilder.WithSession(d.BaseDatabase, template)
-	if err != nil {
-		return nil, err
-	}
-	d.SQLBuilder = b
+	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
 
 	if err := d.BaseDatabase.BindSession(sess); err != nil {
 		return nil, err

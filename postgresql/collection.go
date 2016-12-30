@@ -29,8 +29,8 @@ import (
 	"upper.io/db.v3/lib/sqlbuilder"
 )
 
-// table is the actual implementation of a collection.
-type table struct {
+// collection is the actual implementation of a collection.
+type collection struct {
 	sqladapter.BaseCollection // Leveraged by sqladapter
 
 	d    *database
@@ -38,29 +38,29 @@ type table struct {
 }
 
 var (
-	_ = sqladapter.Collection(&table{})
-	_ = db.Collection(&table{})
+	_ = sqladapter.Collection(&collection{})
+	_ = db.Collection(&collection{})
 )
 
-// newTable binds *table with sqladapter.
-func newTable(d *database, name string) *table {
-	t := &table{
+// newCollection binds *collection with sqladapter.
+func newCollection(d *database, name string) *collection {
+	c := &collection{
 		name: name,
 		d:    d,
 	}
-	t.BaseCollection = sqladapter.NewBaseCollection(t)
-	return t
+	c.BaseCollection = sqladapter.NewBaseCollection(c)
+	return c
 }
 
-func (t *table) Name() string {
-	return t.name
+func (c *collection) Name() string {
+	return c.name
 }
 
-func (t *table) Database() sqladapter.Database {
-	return t.d
+func (c *collection) Database() sqladapter.Database {
+	return c.d
 }
 
-func (t *table) Conds(conds ...interface{}) []interface{} {
+func (c *collection) FilterConds(conds ...interface{}) []interface{} {
 	if len(conds) == 1 {
 		switch id := conds[0].(type) {
 		case int64:
@@ -74,15 +74,15 @@ func (t *table) Conds(conds ...interface{}) []interface{} {
 }
 
 // Insert inserts an item (map or struct) into the collection.
-func (t *table) Insert(item interface{}) (interface{}, error) {
+func (c *collection) Insert(item interface{}) (interface{}, error) {
 	columnNames, columnValues, err := sqlbuilder.Map(item, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	pKey := t.BaseCollection.PrimaryKeys()
+	pKey := c.BaseCollection.PrimaryKeys()
 
-	q := t.d.InsertInto(t.Name()).
+	q := c.Database().InsertInto(c.Name()).
 		Columns(columnNames...).
 		Values(columnValues...)
 
