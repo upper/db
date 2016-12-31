@@ -22,8 +22,10 @@
 package mysql
 
 import (
-	"upper.io/db.v3"
+	"context"
+
 	"upper.io/db.v3/internal/sqladapter"
+	"upper.io/db.v3/lib/sqlbuilder"
 )
 
 type tx struct {
@@ -31,5 +33,12 @@ type tx struct {
 }
 
 var (
-	_ = db.Tx(&tx{})
+	_ = sqlbuilder.Tx(&tx{})
 )
+
+func (t *tx) WithContext(ctx context.Context) sqlbuilder.Tx {
+	var newTx tx
+	newTx = *t
+	newTx.DatabaseTx.SetContext(ctx)
+	return &newTx
+}

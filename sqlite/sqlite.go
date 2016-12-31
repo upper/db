@@ -45,10 +45,7 @@ func init() {
 
 // Open stablishes a new connection with the SQL server.
 func Open(settings db.ConnectionURL) (sqlbuilder.Database, error) {
-	d, err := newDatabase(settings)
-	if err != nil {
-		return nil, err
-	}
+	d := newDatabase(settings)
 	if err := d.Open(settings); err != nil {
 		return nil, err
 	}
@@ -57,45 +54,31 @@ func Open(settings db.ConnectionURL) (sqlbuilder.Database, error) {
 
 // NewTx returns a transaction session.
 func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
-	d, err := newDatabase(nil)
-	if err != nil {
-		return nil, err
-	}
+	d := newDatabase(nil)
 
 	// Binding with sqladapter's logic.
 	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
 
 	// Binding with sqlbuilder.
-	b, err := sqlbuilder.WithSession(d.BaseDatabase, template)
-	if err != nil {
-		return nil, err
-	}
-	d.SQLBuilder = b
+	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
 
 	if err := d.BaseDatabase.BindTx(d.Context(), sqlTx); err != nil {
 		return nil, err
 	}
 
-	newTx := sqladapter.NewTx(d)
+	newTx := sqladapter.NewDatabaseTx(d)
 	return &tx{DatabaseTx: newTx}, nil
 }
 
 // New wraps the given *sql.DB session and creates a new db session.
 func New(sess *sql.DB) (sqlbuilder.Database, error) {
-	d, err := newDatabase(nil)
-	if err != nil {
-		return nil, err
-	}
+	d := newDatabase(nil)
 
 	// Binding with sqladapter's logic.
 	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
 
 	// Binding with sqlbuilder.
-	b, err := sqlbuilder.WithSession(d.BaseDatabase, template)
-	if err != nil {
-		return nil, err
-	}
-	d.SQLBuilder = b
+	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
 
 	if err := d.BaseDatabase.BindSession(sess); err != nil {
 		return nil, err

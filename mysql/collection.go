@@ -60,7 +60,7 @@ func (t *table) Database() sqladapter.Database {
 	return t.d
 }
 
-func (t *table) Conds(conds ...interface{}) []interface{} {
+func (t *table) FilterConds(conds ...interface{}) []interface{} {
 	if len(conds) == 1 {
 		switch id := conds[0].(type) {
 		case int64:

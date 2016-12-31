@@ -27,13 +27,26 @@ import (
 	"fmt"
 )
 
-// SQLBuilder defines methods that can serve as starting points for SQL queries.
+// SQLBuilder defines methods that can be used to build a SQL query with
+// chainable method calls.
+//
+// Queries are immutable, so every call to any method will return a new
+// pointer, if you want to build a query using variables you need to reassign
+// them, like this:
+//
+//  a = builder.Select("name").From("foo") // "a" is created
+//
+//  a.Where(...) // No effect, the value returned from Where is ignored.
+//
+//  a = a.Where(...) // "a" is reassigned and points to a different address.
+//
 type SQLBuilder interface {
 
-	// Select initializes and returns a Selector pointed at the given columns.
+	// Select initializes and returns a Selector, it accepts column names as
+	// parameters.
 	//
-	// This Selector does not initially point to any table, a call to From() is
-	// expected after Select().
+	// The returned Selector does not initially point to any table, a call to
+	// From() is required after Select() to complete a valid query.
 	//
 	// Example:
 	//
@@ -48,70 +61,85 @@ type SQLBuilder interface {
 	//  q := sqlbuilder.SelectFrom("people").Where(...)
 	SelectFrom(table ...interface{}) Selector
 
-	// InsertInto prepares an returns a Inserter that points at the given table.
+	// InsertInto prepares and returns an Inserter targeted at the given table.
 	//
 	// Example:
 	//
 	//   q := sqlbuilder.InsertInto("books").Columns(...).Values(...)
 	InsertInto(table string) Inserter
 
-	// DeleteFrom prepares a Deleter that points at the given table.
+	// DeleteFrom prepares a Deleter targeted at the given table.
 	//
 	// Example:
 	//
 	//  q := sqlbuilder.DeleteFrom("tasks").Where(...)
 	DeleteFrom(table string) Deleter
 
-	// Update prepares and returns an Updater that points at the given table.
+	// Update prepares and returns an Updater targeted at the given table.
 	//
 	// Example:
 	//
 	//  q := sqlbuilder.Update("profile").Set(...).Where(...)
 	Update(table string) Updater
 
-	// Exec executes the given SQL query and returns the sql.Result.
+	// Exec executes a SQL query that does not return any rows, like sql.Exec.
+	// Queries can be either strings or upper-db statements.
 	//
 	// Example:
 	//
 	//  sqlbuilder.Exec(`INSERT INTO books (title) VALUES("La Ciudad y los Perros")`)
 	Exec(query interface{}, args ...interface{}) (sql.Result, error)
 
-	// Query executes the given SQL query and returns *sql.Rows.
+	// ExecContext executes a SQL query that does not return any rows, like sql.ExecContext.
+	// Queries can be either strings or upper-db statements.
+	//
+	// Example:
+	//
+	//  sqlbuilder.ExecContext(ctx, `INSERT INTO books (title) VALUES(?)`, "La Ciudad y los Perros")
+	ExecContext(ctx context.Context, query interface{}, args ...interface{}) (sql.Result, error)
+
+	// Query executes a SQL query that returns rows, like sql.Query.  Queries can
+	// be either strings or upper-db statements.
 	//
 	// Example:
 	//
 	//  sqlbuilder.Query(`SELECT * FROM people WHERE name = "Mateo"`)
 	Query(query interface{}, args ...interface{}) (*sql.Rows, error)
 
-	// QueryContext executes the given SQL query and returns *sql.Rows.
+	// QueryContext executes a SQL query that returns rows, like
+	// sql.QueryContext.  Queries can be either strings or upper-db statements.
 	//
 	// Example:
 	//
-	//  sqlbuilder.QueryContext(ctx, `SELECT * FROM people WHERE name = "Mateo"`)
+	//  sqlbuilder.QueryContext(ctx, `SELECT * FROM people WHERE name = ?`, "Mateo")
 	QueryContext(ctx context.Context, query interface{}, args ...interface{}) (*sql.Rows, error)
 
-	// QueryRow executes the given SQL query and returns *sql.Row.
+	// QueryRow executes a SQL query that returns one row, like sql.QueryRow.
+	// Queries can be either strings or upper-db statements.
 	//
 	// Example:
 	//
 	//  sqlbuilder.QueryRow(`SELECT * FROM people WHERE name = "Haruki" AND last_name = "Murakami" LIMIT 1`)
 	QueryRow(query interface{}, args ...interface{}) (*sql.Row, error)
 
-	// QueryRowContext executes the given SQL query and returns *sql.Row.
+	// QueryRowContext executes a SQL query that returns one row, like
+	// sql.QueryRowContext.  Queries can be either strings or upper-db statements.
 	//
 	// Example:
 	//
 	//  sqlbuilder.QueryRowContext(ctx, `SELECT * FROM people WHERE name = "Haruki" AND last_name = "Murakami" LIMIT 1`)
 	QueryRowContext(ctx context.Context, query interface{}, args ...interface{}) (*sql.Row, error)
 
-	// Iterator executes the given SQL query and returns an Iterator.
+	// Iterator executes a SQL query that returns rows and creates an Iterator
+	// with it.
 	//
 	// Example:
 	//
 	//  sqlbuilder.Iterator(`SELECT * FROM people WHERE name LIKE "M%"`)
 	Iterator(query interface{}, args ...interface{}) Iterator
 
-	// IteratorContext executes the given SQL query and returns an Iterator.
+	// IteratorContext executes a SQL query that returns rows and creates an Iterator
+	// with it.
 	//
 	// Example:
 	//

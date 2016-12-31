@@ -22,6 +22,8 @@
 package sqlite
 
 import (
+	"context"
+
 	"upper.io/db.v3/internal/sqladapter"
 	"upper.io/db.v3/lib/sqlbuilder"
 )
@@ -33,3 +35,10 @@ type tx struct {
 var (
 	_ = sqlbuilder.Tx(&tx{})
 )
+
+func (t *tx) WithContext(ctx context.Context) sqlbuilder.Tx {
+	var newTx tx
+	newTx = *t
+	newTx.DatabaseTx.SetContext(ctx)
+	return &newTx
+}

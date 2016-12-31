@@ -32,7 +32,7 @@ import (
 
 const sqlDriver = `postgres`
 
-// Adapter is the public name of the adapter.
+// Adapter is the unique name that you can use to refer to this adapter.
 const Adapter = `postgresql`
 
 func init() {
@@ -45,8 +45,8 @@ func init() {
 
 // Open opens a new connection with the PostgreSQL server. The returned session
 // is validated first by Ping and then with a test query before being returned.
-// You can call Open() once and use it on multiple goroutines on a long-running
-// program. See https://golang.org/pkg/database/sql/#Open and
+// You may call Open() just once and use it on multiple goroutines on a
+// long-running program. See https://golang.org/pkg/database/sql/#Open and
 // http://go-database-sql.org/accessing.html
 func Open(settings db.ConnectionURL) (sqlbuilder.Database, error) {
 	d := newDatabase(settings)
@@ -56,8 +56,8 @@ func Open(settings db.ConnectionURL) (sqlbuilder.Database, error) {
 	return d, nil
 }
 
-// NewTx wraps a regular *sql.Tx and returns a new SQL transaction session with
-// it.
+// NewTx wraps a regular *sql.Tx transaction and returns a new upper-db
+// transaction backed by it.
 func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 	d := newDatabase(nil)
 
@@ -75,7 +75,8 @@ func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 	return &tx{DatabaseTx: newTx}, nil
 }
 
-// New wraps a regular *sql.DB and creates a new SQL session with it.
+// New wraps a regular *sql.DB session and creates a new upper-db session
+// backed by it.
 func New(sess *sql.DB) (sqlbuilder.Database, error) {
 	d := newDatabase(nil)
 

@@ -45,7 +45,6 @@ type database struct {
 
 	connURL db.ConnectionURL
 	mu      sync.Mutex
-	ctx     context.Context
 }
 
 var (
@@ -53,7 +52,7 @@ var (
 	_ = sqladapter.Database(&database{})
 )
 
-// newDatabase creates a new *database session for internal usage.
+// newDatabase creates a new *database session for internal use.
 func newDatabase(settings db.ConnectionURL) *database {
 	return &database{
 		connURL: settings,
@@ -65,7 +64,7 @@ func (d *database) ConnectionURL() db.ConnectionURL {
 	return d.connURL
 }
 
-// Open attempts to open a connection to the database server.
+// Open attempts to open a connection with the database server.
 func (d *database) Open(connURL db.ConnectionURL) error {
 	if connURL == nil {
 		return db.ErrMissingConnURL
@@ -188,6 +187,8 @@ func (d *database) NewDatabaseTx(ctx context.Context) (sqladapter.DatabaseTx, er
 	if err != nil {
 		return nil, err
 	}
+	clone.mu.Lock()
+	defer clone.mu.Unlock()
 
 	connFn := func() error {
 		sqlTx, err := clone.BaseDatabase.Session().BeginTx(ctx, nil)
