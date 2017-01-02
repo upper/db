@@ -31,6 +31,7 @@ import (
 	_ "github.com/go-sql-driver/mysql" // MySQL driver.
 	"upper.io/db.v3"
 	"upper.io/db.v3/internal/sqladapter"
+	"upper.io/db.v3/internal/sqladapter/compat"
 	"upper.io/db.v3/internal/sqladapter/exql"
 	"upper.io/db.v3/lib/sqlbuilder"
 )
@@ -188,7 +189,7 @@ func (d *database) NewDatabaseTx(ctx context.Context) (sqladapter.DatabaseTx, er
 	defer clone.mu.Unlock()
 
 	connFn := func() error {
-		sqlTx, err := clone.BaseDatabase.Session().BeginTx(ctx, nil)
+		sqlTx, err := compat.BeginTx(clone.BaseDatabase.Session(), ctx, nil)
 		if err == nil {
 			return clone.BindTx(ctx, sqlTx)
 		}

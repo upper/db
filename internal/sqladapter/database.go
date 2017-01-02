@@ -11,6 +11,7 @@ import (
 
 	"upper.io/db.v3"
 	"upper.io/db.v3/internal/cache"
+	"upper.io/db.v3/internal/sqladapter/compat"
 	"upper.io/db.v3/internal/sqladapter/exql"
 	"upper.io/db.v3/lib/sqlbuilder"
 )
@@ -405,17 +406,17 @@ func (d *database) StatementExec(ctx context.Context, stmt *exql.Statement, args
 		}
 		defer p.Close()
 
-		res, err = p.ExecContext(ctx, args...)
+		res, err = compat.PreparedExecContext(p, ctx, args)
 		return
 	}
 
 	query, args = d.compileStatement(stmt, args)
 	if tx != nil {
-		res, err = tx.(*baseTx).ExecContext(ctx, query, args...)
+		res, err = compat.ExecContext(tx.(*baseTx), ctx, query, args)
 		return
 	}
 
-	res, err = d.sess.ExecContext(ctx, query, args...)
+	res, err = compat.ExecContext(d.sess, ctx, query, args)
 	return
 }
 
@@ -446,17 +447,17 @@ func (d *database) StatementQuery(ctx context.Context, stmt *exql.Statement, arg
 		}
 		defer p.Close()
 
-		rows, err = p.QueryContext(ctx, args...)
+		rows, err = compat.PreparedQueryContext(p, ctx, args)
 		return
 	}
 
 	query, args = d.compileStatement(stmt, args)
 	if tx != nil {
-		rows, err = tx.(*baseTx).QueryContext(ctx, query, args...)
+		rows, err = compat.QueryContext(tx.(*baseTx), ctx, query, args)
 		return
 	}
 
-	rows, err = d.sess.QueryContext(ctx, query, args...)
+	rows, err = compat.QueryContext(d.sess, ctx, query, args)
 	return
 
 }
@@ -489,17 +490,17 @@ func (d *database) StatementQueryRow(ctx context.Context, stmt *exql.Statement, 
 		}
 		defer p.Close()
 
-		row = p.QueryRowContext(ctx, args...)
+		row = compat.PreparedQueryRowContext(p, ctx, args)
 		return
 	}
 
 	query, args = d.compileStatement(stmt, args)
 	if tx != nil {
-		row = tx.(*baseTx).QueryRowContext(ctx, query, args...)
+		row = compat.QueryRowContext(tx.(*baseTx), ctx, query, args)
 		return
 	}
 
-	row = d.sess.QueryRowContext(ctx, query, args...)
+	row = compat.QueryRowContext(d.sess, ctx, query, args)
 	return
 }
 
@@ -541,9 +542,9 @@ func (d *database) prepareStatement(ctx context.Context, stmt *exql.Statement, a
 	query, args := d.compileStatement(stmt, args)
 	sqlStmt, err := func(query *string) (*sql.Stmt, error) {
 		if tx != nil {
-			return tx.(*baseTx).PrepareContext(ctx, *query)
+			return compat.PrepareContext(tx.(*baseTx), ctx, *query)
 		}
-		return sess.PrepareContext(ctx, *query)
+		return compat.PrepareContext(sess, ctx, *query)
 	}(&query)
 	if err != nil {
 		return nil, "", nil, err

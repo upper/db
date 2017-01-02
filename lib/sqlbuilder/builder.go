@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"upper.io/db.v3"
+	"upper.io/db.v3/internal/sqladapter/compat"
 	"upper.io/db.v3/internal/sqladapter/exql"
 	"upper.io/db.v3/lib/reflectx"
 )
@@ -515,17 +516,17 @@ func (p *exprProxy) Context() context.Context {
 
 func (p *exprProxy) StatementExec(ctx context.Context, stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
 	s := stmt.Compile(p.t)
-	return p.db.ExecContext(ctx, s, args...)
+	return compat.ExecContext(p.db, ctx, s, args)
 }
 
 func (p *exprProxy) StatementQuery(ctx context.Context, stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
 	s := stmt.Compile(p.t)
-	return p.db.QueryContext(ctx, s, args...)
+	return compat.QueryContext(p.db, ctx, s, args)
 }
 
 func (p *exprProxy) StatementQueryRow(ctx context.Context, stmt *exql.Statement, args ...interface{}) (*sql.Row, error) {
 	s := stmt.Compile(p.t)
-	return p.db.QueryRowContext(ctx, s, args...), nil
+	return compat.QueryRowContext(p.db, ctx, s, args), nil
 }
 
 var (

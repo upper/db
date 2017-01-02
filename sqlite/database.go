@@ -32,6 +32,7 @@ import (
 	_ "github.com/mattn/go-sqlite3" // SQLite3 driver.
 	"upper.io/db.v3"
 	"upper.io/db.v3/internal/sqladapter"
+	"upper.io/db.v3/internal/sqladapter/compat"
 	"upper.io/db.v3/internal/sqladapter/exql"
 	"upper.io/db.v3/lib/sqlbuilder"
 )
@@ -178,20 +179,20 @@ func (d *database) Err(err error) error {
 }
 
 // StatementExec wraps the statement to execute around a transaction.
-func (d *database) StatementExec(query string, args ...interface{}) (res sql.Result, err error) {
+func (d *database) StatementExec(ctx context.Context, query string, args ...interface{}) (res sql.Result, err error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	if d.Transaction() != nil {
-		return d.Driver().(*sql.Tx).Exec(query, args...)
+		return compat.ExecContext(d.Driver().(*sql.Tx), ctx, query, args)
 	}
 
-	sqlTx, err := d.Session().Begin()
+	sqlTx, err := compat.BeginTx(d.Session(), ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	if res, err = sqlTx.Exec(query, args...); err != nil {
+	if res, err = compat.ExecContext(sqlTx, ctx, query, args); err != nil {
 		return nil, err
 	}
 
@@ -223,7 +224,7 @@ func (d *database) NewDatabaseTx(ctx context.Context) (sqladapter.DatabaseTx, er
 	defer clone.mu.Unlock()
 
 	openFn := func() error {
-		sqlTx, err := clone.BaseDatabase.Session().Begin()
+		sqlTx, err := compat.BeginTx(clone.BaseDatabase.Session(), ctx, nil)
 		if err == nil {
 			return clone.BindTx(ctx, sqlTx)
 		}
