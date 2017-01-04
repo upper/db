@@ -96,9 +96,10 @@ func (c *collection) Insert(item interface{}) (interface{}, error) {
 
 		// Attempt to use LastInsertId() (probably won't work, but the Exec()
 		// succeeded, so we can safely ignore the error from LastInsertId()).
-		lastID, _ := res.LastInsertId()
-
-		return lastID, nil
+		if lastID, _ := res.LastInsertId(); lastID > 0 {
+			return lastID, nil
+		}
+		return nil, nil // Row was inserted but it does not have a primary key.
 	}
 
 	// Asking the database to return the primary key after insertion.

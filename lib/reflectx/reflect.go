@@ -127,6 +127,24 @@ func (m *Mapper) FieldMap(v reflect.Value) map[string]reflect.Value {
 	return r
 }
 
+// ValidFieldMap returns the mapper's mapping of field names to reflect valid
+// field values.  Panics if v's Kind is not Struct, or v is not Indirectable to
+// a struct kind.
+func (m *Mapper) ValidFieldMap(v reflect.Value) map[string]reflect.Value {
+	v = reflect.Indirect(v)
+	mustBe(v, reflect.Struct)
+
+	r := map[string]reflect.Value{}
+	tm := m.TypeMap(v.Type())
+	for tagName, fi := range tm.Names {
+		v := ValidFieldByIndexes(v, fi.Index)
+		if v.IsValid() {
+			r[tagName] = v
+		}
+	}
+	return r
+}
+
 // FieldByName returns a field by the its mapped name as a reflect.Value.
 // Panics if v's Kind is not Struct or v is not Indirectable to a struct Kind.
 // Returns zero Value if the name is not found.
@@ -184,6 +202,7 @@ func (m *Mapper) TraversalsByName(t reflect.Type, names []string) [][]int {
 
 // FieldByIndexes returns a value for a particular struct traversal.
 func FieldByIndexes(v reflect.Value, indexes []int) reflect.Value {
+
 	for _, i := range indexes {
 		v = reflect.Indirect(v).Field(i)
 		// if this is a pointer, it's possible it is nil
@@ -195,6 +214,25 @@ func FieldByIndexes(v reflect.Value, indexes []int) reflect.Value {
 			v.Set(reflect.MakeMap(v.Type()))
 		}
 	}
+
+	return v
+}
+
+// ValidFieldByIndexes returns a value for a particular struct traversal.
+func ValidFieldByIndexes(v reflect.Value, indexes []int) reflect.Value {
+
+	for _, i := range indexes {
+		v = reflect.Indirect(v)
+		if !v.IsValid() {
+			return reflect.Value{}
+		}
+		v = v.Field(i)
+		// if this is a pointer, it's possible it is nil
+		if (v.Kind() == reflect.Ptr || v.Kind() == reflect.Map) && v.IsNil() {
+			return reflect.Value{}
+		}
+	}
+
 	return v
 }
 

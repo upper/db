@@ -6,7 +6,10 @@ import (
 
 	"upper.io/db.v3"
 	"upper.io/db.v3/internal/sqladapter/exql"
+	"upper.io/db.v3/lib/reflectx"
 )
+
+var mapper = reflectx.NewMapper("db")
 
 // Collection represents a SQL table.
 type Collection interface {
@@ -112,22 +115,33 @@ func (c *collection) InsertReturning(item interface{}) error {
 		defer tx.(Database).Close()
 	}
 
-	var res db.Result
+	// Allocate a clone of item.
+	newItem := reflect.New(reflect.ValueOf(item).Elem().Type()).Interface()
+	var newItemFieldMap map[string]reflect.Value
+
+	itemValue := reflect.ValueOf(item)
 
 	col := tx.(Database).Collection(c.Name())
 
+	// Insert item as is and grab the returning ID.
 	id, err := col.Insert(item)
 	if err != nil {
 		goto cancel
 	}
 	if id == nil {
-		err = fmt.Errorf("Insertion did not return any ID, aborted.")
+		err = fmt.Errorf("InsertReturning: Could not get a valid ID after inserting. Does the %q table have a primary key?", c.Name())
 		goto cancel
 	}
 
-	res = col.Find(id)
-	if err = res.One(item); err != nil {
+	// Fetch the row that was just interted into newItem
+	if err = col.Find(id).One(newItem); err != nil {
 		goto cancel
+	}
+
+	// Get valid fields from newItem to overwrite those that are on item.
+	newItemFieldMap = mapper.ValidFieldMap(reflect.ValueOf(newItem))
+	for fieldName := range newItemFieldMap {
+		mapper.FieldByName(itemValue, fieldName).Set(newItemFieldMap[fieldName])
 	}
 
 	if !inTx {
