@@ -301,6 +301,10 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 		return nil, nil, ErrExpectingPointerToEitherMapOrStruct
 	}
 
+	if len(fv.fields) == 0 {
+		return nil, nil, errors.New("No values mapped.")
+	}
+
 	sort.Sort(&fv)
 
 	return fv.fields, fv.values, nil
