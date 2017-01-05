@@ -959,6 +959,13 @@ func TestUpdate(t *testing.T) {
 			"id = id + ?", 10,
 		).Where("id > ?", 0).String(),
 	)
+
+	assert.Equal(
+		`UPDATE "posts" SET "tags" = array_remove(tags, $1) WHERE (hub_id = $2 AND $3 = ANY(tags) AND $4 = ANY(tags))`,
+		b.Update("posts").Set(
+			db.Cond{"tags": db.Raw("array_remove(tags, ?)", "foo")},
+		).Where(db.Raw("hub_id = ? AND ? = ANY(tags) AND ? = ANY(tags)", 1, "bar", "baz")).String(),
+	)
 }
 
 func TestDelete(t *testing.T) {
