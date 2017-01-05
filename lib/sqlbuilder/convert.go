@@ -172,7 +172,7 @@ func (tu *templateWithUtils) ToWhereWithArguments(term interface{}) (where exql.
 func (tu *templateWithUtils) PlaceholderValue(in interface{}) (exql.Fragment, []interface{}) {
 	switch t := in.(type) {
 	case db.RawValue:
-		return exql.RawValue(t.String()), nil
+		return exql.RawValue(t.String()), t.Arguments()
 	case db.Function:
 		fnName := t.Name()
 		fnArgs := []interface{}{}
@@ -230,7 +230,14 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv exql.ColumnVal
 	case []interface{}:
 		l := len(t)
 		for i := 0; i < l; i++ {
-			column := t[i].(string)
+			column, ok := t[i].(string)
+
+			if !ok {
+				p, q := tu.ToColumnValues(t[i])
+				cv.ColumnValues = append(cv.ColumnValues, p.ColumnValues...)
+				args = append(args, q...)
+				continue
+			}
 
 			if !strings.ContainsAny(column, "=") {
 				column = fmt.Sprintf("%s = ?", column)
@@ -337,6 +344,15 @@ func (tu *templateWithUtils) ToColumnValues(term interface{}) (cv exql.ColumnVal
 
 		cv.ColumnValues = append(cv.ColumnValues, &columnValue)
 
+		return cv, args
+	case db.RawValue:
+		columnValue := exql.ColumnValue{}
+		p, q := Preprocess(t.Raw(), t.Arguments())
+
+		columnValue.Column = exql.RawValue(p)
+		args = append(args, q...)
+
+		cv.ColumnValues = append(cv.ColumnValues, &columnValue)
 		return cv, args
 	case db.Constraints:
 		for _, c := range t.Constraints() {

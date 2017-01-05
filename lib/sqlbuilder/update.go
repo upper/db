@@ -23,33 +23,37 @@ type updater struct {
 	mu sync.Mutex
 }
 
-func (qu *updater) Set(terms ...interface{}) Updater {
-	if len(terms) == 1 {
-		ff, vv, _ := Map(terms[0], nil)
+func (qu *updater) Set(columns ...interface{}) Updater {
 
-		cvs := make([]exql.Fragment, 0, len(ff))
-		args := make([]interface{}, 0, len(vv))
+	if len(columns) == 1 {
+		ff, vv, err := Map(columns[0], nil)
+		if err == nil {
 
-		for i := range ff {
-			cv := &exql.ColumnValue{
-				Column:   exql.ColumnWithName(ff[i]),
-				Operator: qu.builder.t.AssignmentOperator,
+			cvs := make([]exql.Fragment, 0, len(ff))
+			args := make([]interface{}, 0, len(vv))
+
+			for i := range ff {
+				cv := &exql.ColumnValue{
+					Column:   exql.ColumnWithName(ff[i]),
+					Operator: qu.builder.t.AssignmentOperator,
+				}
+
+				var localArgs []interface{}
+				cv.Value, localArgs = qu.builder.t.PlaceholderValue(vv[i])
+
+				args = append(args, localArgs...)
+				cvs = append(cvs, cv)
 			}
 
-			var localArgs []interface{}
-			cv.Value, localArgs = qu.builder.t.PlaceholderValue(vv[i])
-
-			args = append(args, localArgs...)
-			cvs = append(cvs, cv)
+			qu.columnValues.Insert(cvs...)
+			qu.columnValuesArgs = append(qu.columnValuesArgs, args...)
+			return qu
 		}
-
-		qu.columnValues.Insert(cvs...)
-		qu.columnValuesArgs = append(qu.columnValuesArgs, args...)
-	} else if len(terms) > 1 {
-		cv, arguments := qu.builder.t.ToColumnValues(terms)
-		qu.columnValues.Insert(cv.ColumnValues...)
-		qu.columnValuesArgs = append(qu.columnValuesArgs, arguments...)
 	}
+
+	cv, arguments := qu.builder.t.ToColumnValues(columns)
+	qu.columnValues.Insert(cv.ColumnValues...)
+	qu.columnValuesArgs = append(qu.columnValuesArgs, arguments...)
 
 	return qu
 }

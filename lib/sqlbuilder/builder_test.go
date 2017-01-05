@@ -959,6 +959,50 @@ func TestUpdate(t *testing.T) {
 			"id = id + ?", 10,
 		).Where("id > ?", 0).String(),
 	)
+
+	{
+		q := b.Update("posts").Set("column = ?", "foo")
+
+		assert.Equal(
+			`UPDATE "posts" SET "column" = $1`,
+			q.String(),
+		)
+
+		assert.Equal(
+			[]interface{}{"foo"},
+			q.Arguments(),
+		)
+	}
+
+	{
+		q := b.Update("posts").Set(db.Raw("column = ?", "foo"))
+
+		assert.Equal(
+			`UPDATE "posts" SET column = $1`,
+			q.String(),
+		)
+
+		assert.Equal(
+			[]interface{}{"foo"},
+			q.Arguments(),
+		)
+	}
+
+	{
+		q := b.Update("posts").Set(
+			db.Cond{"tags": db.Raw("array_remove(tags, ?)", "foo")},
+		).Where(db.Raw("hub_id = ? AND ? = ANY(tags) AND ? = ANY(tags)", 1, "bar", "baz"))
+
+		assert.Equal(
+			`UPDATE "posts" SET "tags" = array_remove(tags, $1) WHERE (hub_id = $2 AND $3 = ANY(tags) AND $4 = ANY(tags))`,
+			q.String(),
+		)
+
+		assert.Equal(
+			[]interface{}{"foo", 1, "bar", "baz"},
+			q.Arguments(),
+		)
+	}
 }
 
 func TestDelete(t *testing.T) {
