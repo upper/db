@@ -279,6 +279,10 @@ type Selector interface {
 	// return results.
 	Offset(int) Selector
 
+	// Amend lets you alter the query's text just before sending it to the
+	// database server.
+	Amend(func(queryIn string) (queryOut string)) Selector
+
 	// Iterator provides methods to iterate over the results returned by the
 	// Selector.
 	Iterator() Iterator
@@ -330,6 +334,10 @@ type Inserter interface {
 	// Inserter. This is only possible when using Returning().
 	Iterator() Iterator
 
+	// Amend lets you alter the query's text just before sending it to the
+	// database server.
+	Amend(func(queryIn string) (queryOut string)) Inserter
+
 	// Batch provies a BatchInserter that can be used to insert many elements at
 	// once by issuing several calls to Values(). It accepts a size parameter
 	// which defines the batch size. If size is < 1, the batch size is set to 1.
@@ -358,6 +366,10 @@ type Deleter interface {
 	//
 	// See Selector.Limit for documentation and usage examples.
 	Limit(int) Deleter
+
+	// Amend lets you alter the query's text just before sending it to the
+	// database server.
+	Amend(func(queryIn string) (queryOut string)) Deleter
 
 	// Execer provides the Exec method.
 	Execer
@@ -394,6 +406,10 @@ type Updater interface {
 
 	// Arguments returns the arguments that are prepared for this query.
 	Arguments() []interface{}
+
+	// Amend lets you alter the query's text just before sending it to the
+	// database server.
+	Amend(func(queryIn string) (queryOut string)) Updater
 }
 
 // Execer provides methods for executing statements that do not return results.

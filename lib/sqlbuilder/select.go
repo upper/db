@@ -47,7 +47,8 @@ type selector struct {
 	joins     []*exql.Join
 	joinsArgs []interface{}
 
-	mu sync.Mutex
+	mu      sync.Mutex
+	amendFn func(string) string
 
 	err error
 }
@@ -114,6 +115,11 @@ func (qs *selector) And(terms ...interface{}) Selector {
 	qs.whereArgs = append(qs.whereArgs, whereArgs...)
 	qs.mu.Unlock()
 
+	return qs
+}
+
+func (qs *selector) Amend(fn func(string) string) Selector {
+	qs.amendFn = fn
 	return qs
 }
 
@@ -326,7 +332,7 @@ func (qs *selector) Offset(n int) Selector {
 }
 
 func (qs *selector) statement() *exql.Statement {
-	return &exql.Statement{
+	stmt := &exql.Statement{
 		Type:    exql.Select,
 		Table:   qs.table,
 		Columns: qs.columns,
@@ -337,6 +343,10 @@ func (qs *selector) statement() *exql.Statement {
 		OrderBy: qs.orderBy,
 		GroupBy: qs.groupBy,
 	}
+
+	stmt.SetAmendment(qs.amendFn)
+
+	return stmt
 }
 
 func (qs *selector) Query() (*sql.Rows, error) {

@@ -18,7 +18,9 @@ type inserter struct {
 	returning []exql.Fragment
 	columns   []exql.Fragment
 	arguments []interface{}
-	extra     string
+
+	amendFn func(string) string
+	extra   string
 }
 
 func (qi *inserter) clone() *inserter {
@@ -29,6 +31,11 @@ func (qi *inserter) clone() *inserter {
 
 func (qi *inserter) Batch(n int) *BatchInserter {
 	return newBatchInserter(qi.clone(), n)
+}
+
+func (qi *inserter) Amend(fn func(string) string) Inserter {
+	qi.amendFn = fn
+	return qi
 }
 
 func (qi *inserter) Arguments() []interface{} {
@@ -168,6 +175,8 @@ func (qi *inserter) statement() *exql.Statement {
 	if len(qi.returning) > 0 {
 		stmt.Returning = exql.ReturningColumns(qi.returning...)
 	}
+
+	stmt.SetAmendment(qi.amendFn)
 
 	return stmt
 }

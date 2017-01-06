@@ -13,6 +13,7 @@ type deleter struct {
 	limit     int
 	where     *exql.Where
 	arguments []interface{}
+	amendFn   func(string) string
 }
 
 func (qd *deleter) Where(terms ...interface{}) Deleter {
@@ -24,6 +25,11 @@ func (qd *deleter) Where(terms ...interface{}) Deleter {
 
 func (qd *deleter) Limit(limit int) Deleter {
 	qd.limit = limit
+	return qd
+}
+
+func (qd *deleter) Amend(fn func(string) string) Deleter {
+	qd.amendFn = fn
 	return qd
 }
 
@@ -48,6 +54,8 @@ func (qd *deleter) statement() *exql.Statement {
 	if qd.limit != 0 {
 		stmt.Limit = exql.Limit(qd.limit)
 	}
+
+	stmt.SetAmendment(qd.amendFn)
 
 	return stmt
 }

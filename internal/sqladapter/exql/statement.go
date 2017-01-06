@@ -26,7 +26,8 @@ type Statement struct {
 
 	SQL string
 
-	hash hash
+	hash    hash
+	amendFn func(string) string
 }
 
 type statementT struct {
@@ -63,6 +64,17 @@ func (s *Statement) Hash() string {
 	return s.hash.Hash(s)
 }
 
+func (s *Statement) SetAmendment(amendFn func(string) string) {
+	s.amendFn = amendFn
+}
+
+func (s *Statement) Amend(in string) string {
+	if s.amendFn == nil {
+		return in
+	}
+	return s.amendFn(in)
+}
+
 // Compile transforms the Statement into an equivalent SQL query.
 func (s *Statement) Compile(layout *Template) (compiled string) {
 	if s.Type == SQL {
@@ -71,7 +83,7 @@ func (s *Statement) Compile(layout *Template) (compiled string) {
 	}
 
 	if z, ok := layout.Read(s); ok {
-		return z
+		return s.Amend(z)
 	}
 
 	data := statementT{
@@ -112,7 +124,8 @@ func (s *Statement) Compile(layout *Template) (compiled string) {
 
 	compiled = strings.TrimSpace(compiled)
 	layout.Write(s, compiled)
-	return compiled
+
+	return s.Amend(compiled)
 }
 
 // RawSQL represents a raw SQL statement.

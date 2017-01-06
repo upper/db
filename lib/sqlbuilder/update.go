@@ -20,6 +20,8 @@ type updater struct {
 	where     *exql.Where
 	whereArgs []interface{}
 
+	amendFn func(string) string
+
 	mu sync.Mutex
 }
 
@@ -55,6 +57,11 @@ func (qu *updater) Set(columns ...interface{}) Updater {
 	qu.columnValues.Insert(cv.ColumnValues...)
 	qu.columnValuesArgs = append(qu.columnValuesArgs, arguments...)
 
+	return qu
+}
+
+func (qu *updater) Amend(fn func(string) string) Updater {
+	qu.amendFn = fn
 	return qu
 }
 
@@ -98,6 +105,8 @@ func (qu *updater) statement() *exql.Statement {
 	if qu.limit != 0 {
 		stmt.Limit = exql.Limit(qu.limit)
 	}
+
+	stmt.SetAmendment(qu.amendFn)
 
 	return stmt
 }
