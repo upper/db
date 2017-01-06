@@ -19,6 +19,13 @@ func TestSelect(t *testing.T) {
 	)
 
 	assert.Equal(
+		`SELECT DATE() FOR UPDATE`,
+		b.Select(db.Func("DATE")).Amend(func(query string) string {
+			return query + " FOR UPDATE"
+		}).String(),
+	)
+
+	assert.Equal(
 		`SELECT * FROM "artist"`,
 		b.SelectFrom("artist").String(),
 	)
@@ -694,6 +701,13 @@ func TestInsert(t *testing.T) {
 	)
 
 	assert.Equal(
+		`INSERT INTO "artist" ("id", "name") VALUES ($1, $2) RETURNING "id"`,
+		b.InsertInto("artist").Values(map[string]string{"id": "12", "name": "Chavela Vargas"}).Amend(func(query string) string {
+			return query + ` RETURNING "id"`
+		}).String(),
+	)
+
+	assert.Equal(
 		`INSERT INTO "artist" ("id", "name") VALUES ($1, $2)`,
 		b.InsertInto("artist").Values(map[string]interface{}{"name": "Chavela Vargas", "id": 12}).String(),
 	)
@@ -882,6 +896,13 @@ func TestUpdate(t *testing.T) {
 		b.Update("artist").Set("name", "Artist").String(),
 	)
 
+	assert.Equal(
+		`UPDATE "artist" SET "name" = $1 RETURNING "name"`,
+		b.Update("artist").Set("name", "Artist").Amend(func(query string) string {
+			return query + ` RETURNING "name"`
+		}).String(),
+	)
+
 	{
 		idSlice := []int64{8, 7, 6}
 		q := b.Update("artist").Set(db.Cond{"some_column": 10}).Where(db.Cond{"id": 1}, db.Cond{"another_val": idSlice})
@@ -1012,6 +1033,13 @@ func TestDelete(t *testing.T) {
 	assert.Equal(
 		`DELETE FROM "artist" WHERE (name = $1)`,
 		bt.DeleteFrom("artist").Where("name = ?", "Chavela Vargas").String(),
+	)
+
+	assert.Equal(
+		`DELETE FROM "artist" WHERE (name = $1) RETURNING 1`,
+		bt.DeleteFrom("artist").Where("name = ?", "Chavela Vargas").Amend(func(query string) string {
+			return fmt.Sprintf("%s RETURNING 1", query)
+		}).String(),
 	)
 
 	assert.Equal(

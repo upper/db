@@ -1294,7 +1294,16 @@ func TestBatchInsert(t *testing.T) {
 		err := sess.Collection("artist").Truncate()
 		assert.NoError(t, err)
 
-		batch := sess.InsertInto("artist").Columns("name").Batch(batchSize)
+		q := sess.InsertInto("artist").Columns("name")
+
+		if Adapter == "postgresql" {
+			q = q.Amend(func(query string) string {
+				return query + ` ON CONFLICT DO NOTHING`
+			})
+		}
+
+
+		batch := q.Batch(batchSize)
 
 		totalItems := int(rand.Int31n(21))
 
