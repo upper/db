@@ -266,6 +266,10 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 						if t.IsZero() {
 							continue
 						}
+					} else if fld.Kind() == reflect.Array || fld.Kind() == reflect.Slice {
+						if value == nil {
+							continue
+						}
 					} else if value == fi.Zero.Interface() {
 						continue
 					}
