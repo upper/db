@@ -217,6 +217,30 @@ func TestExpectCursorError(t *testing.T) {
 	assert.NoError(t, sess.Close())
 }
 
+func TestInsertDefault(t *testing.T) {
+	if Adapter == "ql" {
+		t.Skip("Currently not supported.")
+	}
+
+	sess := mustOpen()
+
+	artist := sess.Collection("artist")
+
+	err := artist.Truncate()
+	assert.NoError(t, err)
+
+	id, err := artist.Insert(&artistType{})
+	assert.NoError(t, err)
+	assert.NotNil(t, id)
+
+	err = artist.Truncate()
+	assert.NoError(t, err)
+
+	id, err = artist.Insert(nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, id)
+}
+
 func TestInsertReturning(t *testing.T) {
 	sess := mustOpen()
 
@@ -1301,7 +1325,6 @@ func TestBatchInsert(t *testing.T) {
 				return query + ` ON CONFLICT DO NOTHING`
 			})
 		}
-
 
 		batch := q.Batch(batchSize)
 

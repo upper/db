@@ -203,6 +203,10 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 	}
 
 	itemV := reflect.ValueOf(item)
+	if !itemV.IsValid() {
+		return nil, nil, nil
+	}
+
 	itemT := itemV.Type()
 
 	if itemT.Kind() == reflect.Ptr {
