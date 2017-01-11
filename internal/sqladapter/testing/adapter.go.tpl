@@ -231,14 +231,14 @@ func TestInsertDefault(t *testing.T) {
 
 	id, err := artist.Insert(&artistType{})
 	assert.NoError(t, err)
-  assert.NotNil(t, id)
+	assert.NotNil(t, id)
 
-  err = artist.Truncate()
+	err = artist.Truncate()
 	assert.NoError(t, err)
 
-  id, err = artist.Insert(nil)
+	id, err = artist.Insert(nil)
 	assert.NoError(t, err)
-  assert.NotNil(t, id)
+	assert.NotNil(t, id)
 }
 
 func TestInsertReturning(t *testing.T) {
@@ -1325,7 +1325,6 @@ func TestBatchInsert(t *testing.T) {
 				return query + ` ON CONFLICT DO NOTHING`
 			})
 		}
-
 
 		batch := q.Batch(batchSize)
 
