@@ -353,9 +353,14 @@ func TestSchemaCollection(t *testing.T) {
 	defer sess.Close()
 
 	col := sess.Collection("test_schema.test")
-	_, err := col.Insert(map[string]int{"id": 1})
-
+	_, err := col.Insert(map[string]int{"id": 9})
 	assert.Equal(t, nil, err)
+
+	var dump []map[string]int
+	err = col.Find().All(&dump)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, 1, len(dump))
+	assert.Equal(t, 9, dump[0]["id"])
 }
 
 func getStats(sess sqlbuilder.Database) (map[string]int, error) {
