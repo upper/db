@@ -128,6 +128,14 @@ func tearUp() error {
 			tags varchar(64)[],
 			settings jsonb
 		)`,
+
+		`DROP TABLE IF EXISTS test_schema.test`,
+
+		`DROP SCHEMA IF EXISTS test_schema`,
+
+		`CREATE SCHEMA test_schema`,
+
+		`CREATE TABLE test_schema.test (id integer)`,
 	}
 
 	for _, s := range batch {
@@ -338,6 +346,21 @@ func TestOptionTypeJsonbStruct(t *testing.T) {
 	assert.Equal(t, "aah", item1Chk.Tags[0])
 	assert.Equal(t, "a", item1Chk.Settings.Name)
 	assert.Equal(t, int64(123), item1Chk.Settings.Num)
+}
+
+func TestSchemaCollection(t *testing.T) {
+	sess := mustOpen()
+	defer sess.Close()
+
+	col := sess.Collection("test_schema.test")
+	_, err := col.Insert(map[string]int{"id": 9})
+	assert.Equal(t, nil, err)
+
+	var dump []map[string]int
+	err = col.Find().All(&dump)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, 1, len(dump))
+	assert.Equal(t, 9, dump[0]["id"])
 }
 
 func getStats(sess sqlbuilder.Database) (map[string]int, error) {
