@@ -885,6 +885,11 @@ func TestInsert(t *testing.T) {
 		`INSERT INTO "artist" ("name", "id") VALUES ($1, $2)`,
 		b.InsertInto("artist").Columns("name", "id").Values("Chavela Vargas", 12).String(),
 	)
+
+	assert.Equal(
+		`INSERT INTO "artist" VALUES (default)`,
+		b.InsertInto("artist").String(),
+	)
 }
 
 func TestUpdate(t *testing.T) {
