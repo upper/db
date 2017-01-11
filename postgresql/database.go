@@ -242,7 +242,7 @@ func (d *database) FindTablePrimaryKeys(tableName string) ([]string, error) {
 	q := d.Select("pg_attribute.attname AS pkey").
 		From("pg_index", "pg_class", "pg_attribute").
 		Where(`
-			pg_class.oid = '"` + tableName + `"'::regclass
+			pg_class.oid = '` + tableName + `'::regclass
 			AND indrelid = pg_class.oid
 			AND pg_attribute.attrelid = pg_class.oid
 			AND pg_attribute.attnum = ANY(pg_index.indkey)
