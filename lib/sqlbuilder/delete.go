@@ -2,24 +2,42 @@ package sqlbuilder
 
 import (
 	"database/sql"
+	"sync"
 
 	"upper.io/db.v2/internal/sqladapter/exql"
 )
 
 type deleter struct {
 	*stringer
-	builder   *sqlBuilder
-	table     string
-	limit     int
+	builder *sqlBuilder
+	table   string
+	limit   int
+
 	where     *exql.Where
-	arguments []interface{}
-	amendFn   func(string) string
+	whereArgs []interface{}
+
+	amendFn func(string) string
+	mu      sync.Mutex
 }
 
 func (qd *deleter) Where(terms ...interface{}) Deleter {
-	where, arguments := qd.builder.t.ToWhereWithArguments(terms)
-	qd.where = &where
-	qd.arguments = append(qd.arguments, arguments...)
+	qd.mu.Lock()
+	qd.where, qd.whereArgs = &exql.Where{}, []interface{}{}
+	qd.mu.Unlock()
+	return qd.And(terms...)
+}
+
+func (qd *deleter) And(terms ...interface{}) Deleter {
+	where, whereArgs := qd.builder.t.ToWhereWithArguments(terms)
+
+	qd.mu.Lock()
+	if qd.where == nil {
+		qd.where, qd.whereArgs = &exql.Where{}, []interface{}{}
+	}
+	qd.where.Append(&where)
+	qd.whereArgs = append(qd.whereArgs, whereArgs...)
+	qd.mu.Unlock()
+
 	return qd
 }
 
@@ -34,11 +52,11 @@ func (qd *deleter) Amend(fn func(string) string) Deleter {
 }
 
 func (qd *deleter) Arguments() []interface{} {
-	return qd.arguments
+	return qd.whereArgs
 }
 
 func (qd *deleter) Exec() (sql.Result, error) {
-	return qd.builder.sess.StatementExec(qd.statement(), qd.arguments...)
+	return qd.builder.sess.StatementExec(qd.statement(), qd.whereArgs...)
 }
 
 func (qd *deleter) statement() *exql.Statement {

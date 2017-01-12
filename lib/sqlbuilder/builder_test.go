@@ -602,6 +602,18 @@ func TestSelect(t *testing.T) {
 	}
 
 	{
+		sel := b.SelectFrom("foo").Where("group_id", 1).And("user_id", 2)
+		assert.Equal(
+			`SELECT * FROM "foo" WHERE ("group_id" = $1 AND "user_id" = $2)`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{1, 2},
+			sel.Arguments(),
+		)
+	}
+
+	{
 		s := `SUM(CASE WHEN foo in ? THEN 1 ELSE 0 END) AS _sum`
 		sel := b.Select("c1").Columns(db.Raw(s, []int{5, 4, 3, 2})).From("foo").Where("bar = ?", 1)
 		assert.Equal(

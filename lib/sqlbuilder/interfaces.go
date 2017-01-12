@@ -362,6 +362,10 @@ type Deleter interface {
 	// See Selector.Where for documentation and usage examples.
 	Where(...interface{}) Deleter
 
+	// And appends more constraints to the WHERE clause without overwriting
+	// conditions that have been already set.
+	And(conds ...interface{}) Deleter
+
 	// Limit represents the LIMIT clause.
 	//
 	// See Selector.Limit for documentation and usage examples.
@@ -391,6 +395,10 @@ type Updater interface {
 	//
 	// See Selector.Where for documentation and usage examples.
 	Where(...interface{}) Updater
+
+	// And appends more constraints to the WHERE clause without overwriting
+	// conditions that have been already set.
+	And(conds ...interface{}) Updater
 
 	// Limit represents the LIMIT parameter.
 	//
