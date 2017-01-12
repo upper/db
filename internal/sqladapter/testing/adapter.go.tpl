@@ -446,6 +446,10 @@ func TestInsertIntoArtistsTable(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), count)
 
+  count, err = artist.Find("name", "Ozzie").And("name", "Flea").Count()
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(0), count)
+
 	count, err = artist.Find(db.Or(db.Cond{"name": "Ozzie"}, db.Cond{"name": "Flea"})).Count()
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(2), count)

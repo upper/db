@@ -39,14 +39,10 @@ type Result struct {
 	columns []interface{}
 	orderBy []interface{}
 	groupBy []interface{}
-	conds   []interface{}
+	conds   [][]interface{}
 	err     error
 	errMu   sync.RWMutex
 	iterMu  sync.Mutex
-}
-
-func filter(conds []interface{}) []interface{} {
-	return conds
 }
 
 // NewResult creates and Results a new Result set on the given table, this set
@@ -55,7 +51,7 @@ func NewResult(b sqlbuilder.Builder, table string, conds []interface{}) *Result 
 	return &Result{
 		b:     b,
 		table: table,
-		conds: conds,
+		conds: [][]interface{}{conds},
 	}
 }
 
@@ -81,13 +77,13 @@ func (r *Result) Err() error {
 
 // Where sets conditions for the result set.
 func (r *Result) Where(conds ...interface{}) db.Result {
-	r.conds = conds
+	r.conds = append(r.conds, conds)
 	return r
 }
 
 // And adds more conditions on top of the existing ones.
 func (r *Result) And(conds ...interface{}) db.Result {
-	r.conds = append(r.conds, conds...)
+	r.conds = append(r.conds, conds)
 	return r
 }
 
@@ -162,8 +158,11 @@ func (r *Result) Next(dst interface{}) bool {
 // Delete deletes all matching items from the collection.
 func (r *Result) Delete() error {
 	q := r.b.DeleteFrom(r.table).
-		Where(filter(r.conds)...).
 		Limit(r.limit)
+
+	for i := range r.conds {
+		q = q.And(r.conds[i]...)
+	}
 
 	_, err := q.Exec()
 	return r.setErr(err)
@@ -182,8 +181,11 @@ func (r *Result) Close() error {
 func (r *Result) Update(values interface{}) error {
 	q := r.b.Update(r.table).
 		Set(values).
-		Where(filter(r.conds)...).
 		Limit(r.limit)
+
+	for i := range r.conds {
+		q = q.And(r.conds[i]...)
+	}
 
 	_, err := q.Exec()
 	return r.setErr(err)
@@ -197,9 +199,12 @@ func (r *Result) Count() (uint64, error) {
 
 	q := r.b.Select(db.Raw("count(1) AS _t")).
 		From(r.table).
-		Where(filter(r.conds)...).
 		GroupBy(r.groupBy...).
 		Limit(1)
+
+	for i := range r.conds {
+		q = q.And(r.conds[i]...)
+	}
 
 	if err := q.Iterator().One(&counter); err != nil {
 		if err == db.ErrNoMoreRows {
@@ -215,9 +220,12 @@ func (r *Result) buildSelect() sqlbuilder.Selector {
 	q := r.b.Select(r.fields...)
 
 	q.From(r.table)
-	q.Where(filter(r.conds)...)
 	q.Limit(r.limit)
 	q.Offset(r.offset)
+
+	for i := range r.conds {
+		q = q.And(r.conds[i]...)
+	}
 
 	q.GroupBy(r.groupBy...)
 	q.OrderBy(r.orderBy...)
