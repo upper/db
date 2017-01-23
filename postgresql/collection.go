@@ -60,19 +60,6 @@ func (t *table) Database() sqladapter.Database {
 	return t.d
 }
 
-func (t *table) Conds(conds ...interface{}) []interface{} {
-	if len(conds) == 1 {
-		switch id := conds[0].(type) {
-		case int64:
-			conds[0] = db.Cond{"id": id}
-		case int:
-			conds[0] = db.Cond{"id": id}
-		default:
-		}
-	}
-	return conds
-}
-
 // Insert inserts an item (map or struct) into the collection.
 func (t *table) Insert(item interface{}) (interface{}, error) {
 	columnNames, columnValues, err := sqlbuilder.Map(item, nil)
