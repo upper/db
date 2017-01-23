@@ -18,7 +18,6 @@ type Collection interface {
 type PartialCollection interface {
 	Database() Database
 	Name() string
-	Conds(...interface{}) []interface{}
 	Insert(interface{}) (interface{}, error)
 }
 
@@ -29,6 +28,10 @@ type BaseCollection interface {
 	Truncate() error
 	InsertReturning(interface{}) error
 	PrimaryKeys() []string
+}
+
+type condsFilter interface {
+	FilterConds(...interface{}) []interface{}
 }
 
 // collection is the implementation of Collection.
@@ -49,12 +52,24 @@ func (c *collection) PrimaryKeys() []string {
 	return c.pk
 }
 
+func (c *collection) filterConds(conds ...interface{}) []interface{} {
+	if tr, ok := c.p.(condsFilter); ok {
+		return tr.FilterConds(conds...)
+	}
+	if len(conds) == 1 && len(c.pk) == 1 {
+		if id := conds[0]; IsKeyValue(id) {
+			conds[0] = db.Cond{c.pk[0]: id}
+		}
+	}
+	return conds
+}
+
 // Find creates a result set with the given conditions.
 func (c *collection) Find(conds ...interface{}) db.Result {
 	return NewResult(
 		c.p.Database(),
 		c.p.Name(),
-		c.p.Conds(conds...),
+		c.filterConds(conds...),
 	)
 }
 

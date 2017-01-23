@@ -23,7 +23,6 @@ package postgresql
 
 import (
 	"database/sql"
-	"database/sql/driver"
 
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter"
@@ -59,18 +58,6 @@ func (t *table) Name() string {
 
 func (t *table) Database() sqladapter.Database {
 	return t.d
-}
-
-func (t *table) Conds(conds ...interface{}) []interface{} {
-	if len(conds) == 1 {
-		if pKey := t.BaseCollection.PrimaryKeys(); len(pKey) == 1 {
-			id := conds[0]
-			if _, ok := id.(driver.Valuer); ok || driver.IsValue(id) {
-				conds[0] = db.Cond{pKey[0]: id}
-			}
-		}
-	}
-	return conds
 }
 
 // Insert inserts an item (map or struct) into the collection.
