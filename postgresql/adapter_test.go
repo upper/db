@@ -24,8 +24,11 @@ package postgresql
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
+	"math/rand"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -136,6 +139,19 @@ func tearUp() error {
 		`CREATE SCHEMA test_schema`,
 
 		`CREATE TABLE test_schema.test (id integer)`,
+
+		`DROP TABLE IF EXISTS pg_types`,
+
+		`CREATE TABLE pg_types (
+			id serial primary key,
+			integer_array integer[],
+			string_value varchar(255),
+			integer_valuer_value smallint[],
+			string_array text[],
+			field1 int,
+			field2 varchar(64),
+			field3 decimal
+		)`,
 	}
 
 	for _, s := range batch {
@@ -358,9 +374,177 @@ func TestSchemaCollection(t *testing.T) {
 
 	var dump []map[string]int
 	err = col.Find().All(&dump)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, 1, len(dump))
 	assert.Equal(t, 9, dump[0]["id"])
+}
+
+type AssetType uint8
+type IntegerValuer []AssetType
+
+func (iv IntegerValuer) Value() (driver.Value, error) {
+	if iv == nil {
+		return nil, nil
+	}
+
+	if n := len(iv); n > 0 {
+		// There will be at least two curly brackeiv, N bytes of values,
+		// and N-1 bytes of delimiters.
+		b := make([]byte, 1, 1+2*n)
+		b[0] = '{'
+
+		b = strconv.AppendUint(b, uint64((iv)[0]), 10)
+		for i := 1; i < n; i++ {
+			b = append(b, ',')
+			b = strconv.AppendUint(b, uint64((iv)[i]), 10)
+		}
+
+		return append(b, '}'), nil
+	}
+
+	return []byte{'{', '}'}, nil
+}
+
+func TestPgTypes(t *testing.T) {
+	type PGType struct {
+		ID            int64         `db:"id,omitempty"`
+		IntegerArray  []int64       `db:"integer_array,int64array,omitempty"`
+		StringValue   *string       `db:"string_value,omitempty"`
+		IntegerValuer IntegerValuer `db:"integer_valuer_value,omitempty"`
+		StringArray   []string      `db:"string_array,stringarray,omitempty"`
+		Field1        *int64        `db:"field1,omitempty"`
+		Field2        *string       `db:"field2,omitempty"`
+		Field3        *float64      `db:"field3,omitempty"`
+	}
+
+	field1 := int64(10)
+	field2 := string("ten")
+	field3 := float64(10.0)
+
+	testValue := "Hello world!"
+
+	origPgTypeTests := []PGType{
+		PGType{
+			IntegerValuer: IntegerValuer{1},
+		},
+		PGType{
+			Field1: &field1,
+			Field2: &field2,
+			Field3: &field3,
+		},
+		PGType{
+			IntegerArray: []int64{1, 2, 3, 4},
+		},
+		PGType{
+			IntegerArray: []int64{1, 2, 3, 4},
+			StringArray:  []string{"a", "boo", "bar"},
+		},
+		PGType{
+			Field2: &field2,
+			Field3: &field3,
+		},
+		PGType{
+			IntegerArray: []int64{},
+			StringArray:  []string{},
+		},
+		PGType{
+			IntegerValuer: IntegerValuer{1, 2, 3},
+		},
+		PGType{},
+		PGType{
+			IntegerArray: []int64{1},
+			StringArray:  []string{"a"},
+		},
+		PGType{
+			IntegerArray: []int64{0, 0, 0, 0},
+			StringValue:  &testValue,
+			StringArray:  []string{"", "", "", ""},
+		},
+		PGType{
+			StringValue: &testValue,
+		},
+		PGType{
+			Field1: &field1,
+		},
+		PGType{
+			StringArray: []string{"a", "boo", "bar"},
+		},
+		PGType{
+			IntegerArray: []int64{0},
+			StringArray:  []string{""},
+		},
+		PGType{
+			IntegerValuer: IntegerValuer{},
+		},
+	}
+
+	sess := mustOpen()
+	defer sess.Close()
+
+	for i := 0; i < 100; i++ {
+		pgTypeTests := make([]PGType, len(origPgTypeTests))
+		perm := rand.Perm(len(origPgTypeTests))
+		for i, v := range perm {
+			pgTypeTests[v] = origPgTypeTests[i]
+		}
+
+		pgTypesCollection := sess.Collection("pg_types")
+
+		for i := range pgTypeTests {
+			_, err := pgTypesCollection.Insert(pgTypeTests[i])
+			assert.NoError(t, err)
+
+			/*
+				var testPGType PGType
+				err = pgTypesCollection.Find(id).One(&testPGType)
+				assert.NoError(t, err)
+
+				assert.Equal(t, pgTypeTests[i].IntegerArray, testPGType.IntegerArray)
+				assert.Equal(t, pgTypeTests[i].StringArray, testPGType.StringArray)
+			*/
+		}
+
+		for i := range pgTypeTests {
+			inserter := sess.InsertInto("pg_types")
+			inserter = inserter.Values(pgTypeTests[i])
+			_, err := inserter.Exec()
+			assert.NoError(t, err)
+
+			/*
+				row, err := inserter.Values(pgTypeTests[i]).Returning("id").QueryRow()
+				assert.NoError(t, err)
+
+				var id int64
+				err = row.Scan(&id)
+				assert.NoError(t, err)
+
+				var testPGType PGType
+				err = pgTypesCollection.Find(id).One(&testPGType)
+				assert.NoError(t, err)
+
+				assert.Equal(t, pgTypeTests[i].IntegerArray, testPGType.IntegerArray)
+				assert.Equal(t, pgTypeTests[i].StringArray, testPGType.StringArray)
+			*/
+		}
+
+		inserter := sess.InsertInto("pg_types")
+		for i := range pgTypeTests {
+			inserter = inserter.Values(pgTypeTests[i])
+		}
+		_, err := inserter.Exec()
+		assert.NoError(t, err)
+
+		batch := sess.InsertInto("pg_types").Batch(2)
+		go func() {
+			defer batch.Done()
+			for i := range pgTypeTests {
+				batch.Values(pgTypeTests[i])
+			}
+		}()
+
+		err = batch.Wait()
+		assert.NoError(t, err)
+	}
 }
 
 func getStats(sess sqlbuilder.Database) (map[string]int, error) {

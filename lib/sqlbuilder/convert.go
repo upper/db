@@ -12,6 +12,7 @@ import (
 
 var (
 	sqlNull            = exql.RawValue(`NULL`)
+	sqlDefault         = exql.RawValue(`DEFAULT`)
 	sqlIsOperator      = `IS`
 	sqlInOperator      = `IN`
 	sqlDefaultOperator = `=`
@@ -385,6 +386,8 @@ func (tu *templateWithUtils) ToColumnsValuesAndArguments(columnNames []string, c
 
 	for i := range columnValues {
 		switch v := columnValues[i].(type) {
+		case *exql.Raw, exql.Raw:
+			values.Values = append(values.Values, sqlDefault)
 		case *exql.Value:
 			// Adding value.
 			values.Values = append(values.Values, v)

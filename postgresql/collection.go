@@ -26,7 +26,6 @@ import (
 
 	"upper.io/db.v2"
 	"upper.io/db.v2/internal/sqladapter"
-	"upper.io/db.v2/lib/sqlbuilder"
 )
 
 // table is the actual implementation of a collection.
@@ -62,16 +61,11 @@ func (t *table) Database() sqladapter.Database {
 
 // Insert inserts an item (map or struct) into the collection.
 func (t *table) Insert(item interface{}) (interface{}, error) {
-	columnNames, columnValues, err := sqlbuilder.Map(item, nil)
-	if err != nil {
-		return nil, err
-	}
+	var err error
 
 	pKey := t.BaseCollection.PrimaryKeys()
 
-	q := t.d.InsertInto(t.Name()).
-		Columns(columnNames...).
-		Values(columnValues...)
+	q := t.d.InsertInto(t.Name()).Values(item)
 
 	if len(pKey) == 0 {
 		// There is no primary key.
