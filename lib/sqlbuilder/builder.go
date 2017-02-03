@@ -241,7 +241,7 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 				if tagOmitEmpty {
 					fv.values = append(fv.values, sqlDefault)
 				} else {
-					fv.values = append(fv.values, fld.Interface())
+					fv.values = append(fv.values, nil)
 				}
 				continue
 			}
@@ -288,7 +288,7 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 			if err != nil {
 				return nil, nil, err
 			}
-			if tagOmitEmpty && isZero {
+			if isZero && tagOmitEmpty {
 				v = sqlDefault
 			}
 			fv.values = append(fv.values, v)

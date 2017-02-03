@@ -96,7 +96,7 @@ func (qi *inserter) processValues() (values []*exql.Values, arguments []interfac
 	// TODO: simplify with immutable queries
 
 	var mapOptions *MapOptions
-	if len(qi.enqueuedValues) > 0 {
+	if len(qi.enqueuedValues) > 1 {
 		mapOptions = &MapOptions{IncludeZeroed: true, IncludeNil: true}
 	}
 
