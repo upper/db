@@ -62,7 +62,13 @@ func mustOpen() sqlbuilder.Database {
 }
 
 func TestOpenMustFail(t *testing.T) {
-	_, err := Open(ConnectionURL{User: "bad-username"})
+	var err error
+	switch Adapter {
+	case "ql", "sqlite":
+		_, err = Open(ConnectionURL{})
+	default:
+		_, err = Open(ConnectionURL{User: "bad-username"})
+	}
 	assert.Error(t, err)
 }
 
@@ -446,7 +452,7 @@ func TestInsertIntoArtistsTable(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), count)
 
-  count, err = artist.Find("name", "Ozzie").And("name", "Flea").Count()
+	count, err = artist.Find("name", "Ozzie").And("name", "Flea").Count()
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(0), count)
 
