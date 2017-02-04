@@ -14,8 +14,13 @@ services:
   - mysql
   - postgresql
 
+env:
+  global:
+    - PGPORT=5432
+    - PGHOST=127.0.0.1
+
 addons:
-  postgresql: "9.6"
+  postgresql: 9.5
   apt:
     sources:
     - mongodb-3.0-precise
