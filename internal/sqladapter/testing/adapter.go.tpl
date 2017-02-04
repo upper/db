@@ -62,7 +62,7 @@ func mustOpen() sqlbuilder.Database {
 }
 
 func TestOpenMustFail(t *testing.T) {
-	_, err := Open(ConnectionURL{})
+	_, err := Open(ConnectionURL{User: "bad-username"})
 	assert.Error(t, err)
 }
 
