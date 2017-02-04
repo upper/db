@@ -29,7 +29,7 @@ func (qu *updater) Set(columns ...interface{}) Updater {
 
 	if len(columns) == 1 {
 		ff, vv, err := Map(columns[0], nil)
-		if err == nil {
+		if err == nil && len(ff) > 0 {
 
 			cvs := make([]exql.Fragment, 0, len(ff))
 			args := make([]interface{}, 0, len(vv))
