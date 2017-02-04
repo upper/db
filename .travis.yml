@@ -1,4 +1,5 @@
-sudo: false
+sudo: required
+dist: precise
 
 notifications:
   email: false
@@ -13,11 +14,6 @@ services:
   - mongodb
   - mysql
   - postgresql
-
-env:
-  global:
-    - PGPORT=5432
-    - PGHOST=127.0.0.1
 
 addons:
   postgresql: 9.5
