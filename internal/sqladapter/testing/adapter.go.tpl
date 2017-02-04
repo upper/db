@@ -61,17 +61,6 @@ func mustOpen() sqlbuilder.Database {
 	return sess
 }
 
-func TestOpenMustFail(t *testing.T) {
-	var err error
-	switch Adapter {
-	case "ql", "sqlite":
-		_, err = Open(ConnectionURL{})
-	default:
-		_, err = Open(ConnectionURL{User: "bad-username"})
-	}
-	assert.Error(t, err)
-}
-
 func TestOpenMustSucceed(t *testing.T) {
 	sess, err := Open(settings)
 	assert.NoError(t, err)
