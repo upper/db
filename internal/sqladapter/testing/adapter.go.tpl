@@ -61,11 +61,6 @@ func mustOpen() sqlbuilder.Database {
 	return sess
 }
 
-func TestOpenMustFail(t *testing.T) {
-	_, err := Open(ConnectionURL{})
-	assert.Error(t, err)
-}
-
 func TestOpenMustSucceed(t *testing.T) {
 	sess, err := Open(settings)
 	assert.NoError(t, err)
@@ -446,7 +441,7 @@ func TestInsertIntoArtistsTable(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), count)
 
-  count, err = artist.Find("name", "Ozzie").And("name", "Flea").Count()
+	count, err = artist.Find("name", "Ozzie").And("name", "Flea").Count()
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(0), count)
 

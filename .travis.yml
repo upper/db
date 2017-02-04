@@ -1,4 +1,5 @@
-sudo: false
+sudo: required
+dist: precise
 
 notifications:
   email: false
@@ -6,10 +7,8 @@ notifications:
 language: go
 
 go:
-  - "1.6.2"
-  - "1.6.3"
-  - "1.7"
-  - "1.7.1"
+  - "1.6.4"
+  - "1.7.5"
 
 services:
   - mongodb
@@ -17,7 +16,7 @@ services:
   - postgresql
 
 addons:
-  postgresql: "9.4"
+  postgresql: 9.5
   apt:
     sources:
     - mongodb-3.0-precise

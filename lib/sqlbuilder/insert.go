@@ -15,9 +15,10 @@ type inserter struct {
 	enqueuedValues [][]interface{}
 	mu             sync.Mutex
 
-	returning []exql.Fragment
-	columns   []exql.Fragment
-	arguments []interface{}
+	returning   []exql.Fragment
+	columns     []exql.Fragment
+	columnNames []string
+	arguments   []interface{}
 
 	amendFn func(string) string
 	extra   string
@@ -93,11 +94,15 @@ func (qi *inserter) Values(values ...interface{}) Inserter {
 
 func (qi *inserter) processValues() (values []*exql.Values, arguments []interface{}) {
 	// TODO: simplify with immutable queries
-	var insertNils bool
+
+	var mapOptions *MapOptions
+	if len(qi.enqueuedValues) > 1 {
+		mapOptions = &MapOptions{IncludeZeroed: true, IncludeNil: true}
+	}
 
 	for _, enqueuedValue := range qi.enqueuedValues {
 		if len(enqueuedValue) == 1 {
-			ff, vv, err := Map(enqueuedValue[0], nil)
+			ff, vv, err := Map(enqueuedValue[0], mapOptions)
 			if err == nil {
 				columns, vals, args, _ := qi.builder.t.ToColumnsValuesAndArguments(ff, vv)
 
@@ -106,11 +111,6 @@ func (qi *inserter) processValues() (values []*exql.Values, arguments []interfac
 				if len(qi.columns) == 0 {
 					for _, c := range columns.Columns {
 						qi.columns = append(qi.columns, c)
-					}
-				} else {
-					if len(qi.columns) != len(columns.Columns) {
-						insertNils = true
-						break
 					}
 				}
 				continue
@@ -126,28 +126,6 @@ func (qi *inserter) processValues() (values []*exql.Values, arguments []interfac
 				placeholders[i] = exql.RawValue(`?`)
 			}
 			values = append(values, exql.NewValueGroup(placeholders...))
-		}
-	}
-
-	if insertNils {
-		values, arguments = values[0:0], arguments[0:0]
-
-		for _, enqueuedValue := range qi.enqueuedValues {
-			if len(enqueuedValue) == 1 {
-				ff, vv, err := Map(enqueuedValue[0], &MapOptions{IncludeZeroed: true, IncludeNil: true})
-				if err == nil {
-					columns, vals, args, _ := qi.builder.t.ToColumnsValuesAndArguments(ff, vv)
-					values, arguments = append(values, vals), append(arguments, args...)
-
-					if len(qi.columns) != len(columns.Columns) {
-						qi.columns = qi.columns[0:0]
-						for _, c := range columns.Columns {
-							qi.columns = append(qi.columns, c)
-						}
-					}
-				}
-				continue
-			}
 		}
 	}
 

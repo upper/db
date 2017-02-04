@@ -73,12 +73,7 @@ func TestStringAndInt64Array(t *testing.T) {
 		assert.Len(t, itemCheck.Integers, len(item.Integers))
 		assert.Len(t, itemCheck.Strings, len(item.Strings))
 
-		// Check nil/zero values just to make sure that the arrays won't
-		// be JSON-marshalled into `null` instead of empty array `[]`.
-		assert.NotNil(t, itemCheck.Integers)
-		assert.NotNil(t, itemCheck.Strings)
-		assert.NotZero(t, itemCheck.Integers)
-		assert.NotZero(t, itemCheck.Strings)
+		assert.Equal(t, item, itemCheck)
 	}
 }
 

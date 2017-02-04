@@ -26,10 +26,20 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
 	"upper.io/db.v2"
+)
+
+const (
+	stateInit = iota
+	stateOpenBracket
+	stateOpenQuote
+	stateLiteral
+	stateEscape
+	stateStop
 )
 
 type scanner struct {
@@ -79,21 +89,88 @@ type stringArray []string
 
 func (a *stringArray) Scan(src interface{}) error {
 	if src == nil {
-		*a = stringArray{}
+		*a = nil
 		return nil
 	}
+
 	b, ok := src.([]byte)
 	if !ok {
 		return errors.New("Scan source was not []bytes")
 	}
 	if len(b) == 0 {
+		*a = nil
 		return nil
 	}
-	s := string(b)[1 : len(b)-1]
-	if s == "" {
-		return nil
+
+	results := []string{}
+
+	state := stateOpenBracket
+	var buffer []byte
+
+	for i := 1; i < len(b); i++ {
+		c := b[i]
+
+		switch state {
+		case stateStop:
+			return fmt.Errorf("Got additional data beyond expected bounds")
+		case stateInit:
+			switch c {
+			case '{':
+				buffer = nil
+				state = stateOpenBracket
+			default:
+				return fmt.Errorf("Expecting { at position %d", i)
+			}
+		case stateOpenBracket:
+			switch c {
+			case '}':
+				if buffer != nil {
+					results = append(results, string(buffer))
+				}
+				state = stateStop
+				break
+			case ' ':
+				continue
+			case ',':
+				results = append(results, string(buffer))
+				buffer = []byte{}
+				continue
+			case '"':
+				state = stateOpenQuote
+				buffer = []byte{}
+			default:
+				state = stateLiteral
+				buffer = []byte{c}
+			}
+		case stateLiteral:
+			switch c {
+			case '}':
+				results = append(results, string(buffer))
+				state = stateStop
+			case ',':
+				results = append(results, string(buffer))
+				buffer = []byte{}
+
+				state = stateOpenBracket
+			default:
+				buffer = append(buffer, c)
+			}
+		case stateEscape:
+			buffer = append(buffer, c)
+			state = stateOpenQuote
+		case stateOpenQuote:
+			switch c {
+			case '\\':
+				state = stateEscape
+				continue
+			case '"':
+				state = stateOpenBracket
+			default:
+				buffer = append(buffer, c)
+			}
+		}
 	}
-	results := strings.Split(s, ",")
+
 	*a = stringArray(results)
 	return nil
 }
@@ -145,7 +222,7 @@ type int64Array []int64
 
 func (a *int64Array) Scan(src interface{}) error {
 	if src == nil {
-		*a = int64Array{}
+		*a = nil
 		return nil
 	}
 	b, ok := src.([]byte)
@@ -153,6 +230,7 @@ func (a *int64Array) Scan(src interface{}) error {
 		return errors.New("Scan source was not []bytes")
 	}
 	if len(b) == 0 {
+		*a = nil
 		return nil
 	}
 
