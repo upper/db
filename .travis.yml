@@ -15,7 +15,7 @@ services:
   - postgresql
 
 addons:
-  postgresql: "9.5"
+  postgresql: "9.6"
   apt:
     sources:
     - mongodb-3.0-precise
