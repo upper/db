@@ -25,7 +25,7 @@ func TestOnAndRawOrAnd(t *testing.T) {
 		),
 	)
 
-	s = trim(on.Compile(defaultTemplate))
+	s = mustTrim(on.Compile(defaultTemplate))
 	e = `ON (("id" > 8 AND "id" < 99) AND "name" = 'John' AND city_id = 728 AND ("last_name" = 'Smith' OR "last_name" = 'Reyes') AND ("age" > 18 AND "age" < 41))`
 
 	if s != e {
@@ -41,7 +41,7 @@ func TestUsing(t *testing.T) {
 		&Column{Name: "state"},
 	)
 
-	s = trim(using.Compile(defaultTemplate))
+	s = mustTrim(using.Compile(defaultTemplate))
 	e = `USING ("country", "state")`
 
 	if s != e {
@@ -70,7 +70,7 @@ func TestJoinOn(t *testing.T) {
 		},
 	)
 
-	s = trim(join.Compile(defaultTemplate))
+	s = mustTrim(join.Compile(defaultTemplate))
 	e = `JOIN "countries" AS "c" ON ("p"."country_id" = "a"."id" AND "p"."country_code" = "a"."code")`
 
 	if s != e {
@@ -98,7 +98,7 @@ func TestInnerJoinOn(t *testing.T) {
 		),
 	})
 
-	s = trim(join.Compile(defaultTemplate))
+	s = mustTrim(join.Compile(defaultTemplate))
 	e = `INNER JOIN "countries" AS "c" ON ("p"."country_id" = "a"."id" AND "p"."country_code" = "a"."code")`
 
 	if s != e {
@@ -115,7 +115,7 @@ func TestLeftJoinUsing(t *testing.T) {
 		Using: UsingColumns(ColumnWithName("name")),
 	})
 
-	s = trim(join.Compile(defaultTemplate))
+	s = mustTrim(join.Compile(defaultTemplate))
 	e = `LEFT JOIN "countries" USING ("name")`
 
 	if s != e {
@@ -130,7 +130,7 @@ func TestNaturalJoinOn(t *testing.T) {
 		Table: TableWithName("countries"),
 	})
 
-	s = trim(join.Compile(defaultTemplate))
+	s = mustTrim(join.Compile(defaultTemplate))
 	e = `NATURAL JOIN "countries"`
 
 	if s != e {
@@ -146,7 +146,7 @@ func TestNaturalInnerJoinOn(t *testing.T) {
 		Table: TableWithName("countries"),
 	})
 
-	s = trim(join.Compile(defaultTemplate))
+	s = mustTrim(join.Compile(defaultTemplate))
 	e = `NATURAL INNER JOIN "countries"`
 
 	if s != e {
@@ -162,7 +162,7 @@ func TestCrossJoin(t *testing.T) {
 		Table: TableWithName("countries"),
 	})
 
-	s = trim(join.Compile(defaultTemplate))
+	s = mustTrim(join.Compile(defaultTemplate))
 	e = `CROSS JOIN "countries"`
 
 	if s != e {
@@ -180,7 +180,7 @@ func TestMultipleJoins(t *testing.T) {
 		Table: TableWithName("cities"),
 	})
 
-	s = trim(join.Compile(defaultTemplate))
+	s = mustTrim(join.Compile(defaultTemplate))
 	e = `NATURAL LEFT JOIN "countries" NATURAL JOIN "cities"`
 
 	if s != e {

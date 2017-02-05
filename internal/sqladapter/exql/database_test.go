@@ -19,13 +19,14 @@ func TestDatabaseHash(t *testing.T) {
 }
 
 func TestDatabaseCompile(t *testing.T) {
-	var s, e string
-
 	column := Database{Name: "name"}
 
-	s = column.Compile(defaultTemplate)
-	e = `"name"`
+	s, err := column.Compile(defaultTemplate)
+	if err != nil {
+		t.Fatal()
+	}
 
+	e := `"name"`
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}

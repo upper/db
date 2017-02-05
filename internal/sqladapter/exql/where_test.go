@@ -5,41 +5,41 @@ import (
 )
 
 func TestWhereAnd(t *testing.T) {
-	var s, e string
-
 	and := JoinWithAnd(
 		&ColumnValue{Column: &Column{Name: "id"}, Operator: ">", Value: NewValue(&Raw{Value: "8"})},
 		&ColumnValue{Column: &Column{Name: "id"}, Operator: "<", Value: NewValue(&Raw{Value: "99"})},
 		&ColumnValue{Column: &Column{Name: "name"}, Operator: "=", Value: NewValue("John")},
 	)
 
-	s = and.Compile(defaultTemplate)
-	e = `("id" > 8 AND "id" < 99 AND "name" = 'John')`
+	s, err := and.Compile(defaultTemplate)
+	if err != nil {
+		t.Fatal()
+	}
 
+	e := `("id" > 8 AND "id" < 99 AND "name" = 'John')`
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 }
 
 func TestWhereOr(t *testing.T) {
-	var s, e string
-
 	or := JoinWithOr(
 		&ColumnValue{Column: &Column{Name: "id"}, Operator: "=", Value: NewValue(&Raw{Value: "8"})},
 		&ColumnValue{Column: &Column{Name: "id"}, Operator: "=", Value: NewValue(&Raw{Value: "99"})},
 	)
 
-	s = or.Compile(defaultTemplate)
-	e = `("id" = 8 OR "id" = 99)`
+	s, err := or.Compile(defaultTemplate)
+	if err != nil {
+		t.Fatal()
+	}
 
+	e := `("id" = 8 OR "id" = 99)`
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 }
 
 func TestWhereAndOr(t *testing.T) {
-	var s, e string
-
 	and := JoinWithAnd(
 		&ColumnValue{Column: &Column{Name: "id"}, Operator: ">", Value: NewValue(&Raw{Value: "8"})},
 		&ColumnValue{Column: &Column{Name: "id"}, Operator: "<", Value: NewValue(&Raw{Value: "99"})},
@@ -50,17 +50,18 @@ func TestWhereAndOr(t *testing.T) {
 		),
 	)
 
-	s = and.Compile(defaultTemplate)
-	e = `("id" > 8 AND "id" < 99 AND "name" = 'John' AND ("last_name" = 'Smith' OR "last_name" = 'Reyes'))`
+	s, err := and.Compile(defaultTemplate)
+	if err != nil {
+		t.Fatal()
+	}
 
+	e := `("id" > 8 AND "id" < 99 AND "name" = 'John' AND ("last_name" = 'Smith' OR "last_name" = 'Reyes'))`
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 }
 
 func TestWhereAndRawOrAnd(t *testing.T) {
-	var s, e string
-
 	where := WhereConditions(
 		JoinWithAnd(
 			&ColumnValue{Column: &Column{Name: "id"}, Operator: ">", Value: NewValue(&Raw{Value: "8"})},
@@ -78,9 +79,9 @@ func TestWhereAndRawOrAnd(t *testing.T) {
 		),
 	)
 
-	s = trim(where.Compile(defaultTemplate))
-	e = `WHERE (("id" > 8 AND "id" < 99) AND "name" = 'John' AND city_id = 728 AND ("last_name" = 'Smith' OR "last_name" = 'Reyes') AND ("age" > 18 AND "age" < 41))`
+	s := mustTrim(where.Compile(defaultTemplate))
 
+	e := `WHERE (("id" > 8 AND "id" < 99) AND "name" = 'John' AND city_id = 728 AND ("last_name" = 'Smith' OR "last_name" = 'Reyes') AND ("age" > 18 AND "age" < 41))`
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}

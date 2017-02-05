@@ -41,17 +41,23 @@ func (v *Value) Hash() string {
 }
 
 // Compile transforms the Value into an equivalent SQL representation.
-func (v *Value) Compile(layout *Template) (compiled string) {
+func (v *Value) Compile(layout *Template) (compiled string, err error) {
 
 	if z, ok := layout.Read(v); ok {
-		return z
+		return z, nil
 	}
 
 	switch t := v.V.(type) {
 	case Raw:
-		compiled = t.Compile(layout)
+		compiled, err = t.Compile(layout)
+		if err != nil {
+			return "", err
+		}
 	case Fragment:
-		compiled = t.Compile(layout)
+		compiled, err = t.Compile(layout)
+		if err != nil {
+			return "", err
+		}
 	default:
 		compiled = mustParse(layout.ValueQuote, RawValue(fmt.Sprintf(`%v`, v.V)))
 	}
@@ -79,16 +85,20 @@ func (vs *Values) Hash() string {
 }
 
 // Compile transforms the Values into an equivalent SQL representation.
-func (vs *Values) Compile(layout *Template) (compiled string) {
+func (vs *Values) Compile(layout *Template) (compiled string, err error) {
 	if c, ok := layout.Read(vs); ok {
-		return c
+		return c, nil
 	}
 
 	l := len(vs.Values)
 	if l > 0 {
 		chunks := make([]string, 0, l)
 		for i := 0; i < l; i++ {
-			chunks = append(chunks, vs.Values[i].Compile(layout))
+			chunk, err := vs.Values[i].Compile(layout)
+			if err != nil {
+				return "", err
+			}
+			chunks = append(chunks, chunk)
 		}
 		compiled = mustParse(layout.ClauseGroup, strings.Join(chunks, layout.ValueSeparator))
 	}
@@ -114,16 +124,20 @@ func (vg *ValueGroups) Hash() string {
 }
 
 // Compile transforms the ValueGroups into an equivalent SQL representation.
-func (vg *ValueGroups) Compile(layout *Template) (compiled string) {
+func (vg *ValueGroups) Compile(layout *Template) (compiled string, err error) {
 	if c, ok := layout.Read(vg); ok {
-		return c
+		return c, nil
 	}
 
 	l := len(vg.Values)
 	if l > 0 {
 		chunks := make([]string, 0, l)
 		for i := 0; i < l; i++ {
-			chunks = append(chunks, vg.Values[i].Compile(layout))
+			chunk, err := vg.Values[i].Compile(layout)
+			if err != nil {
+				return "", err
+			}
+			chunks = append(chunks, chunk)
 		}
 		compiled = strings.Join(chunks, layout.ValueSeparator)
 	}

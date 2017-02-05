@@ -1,11 +1,14 @@
 package exql
 
 import (
+	"errors"
 	"reflect"
 	"strings"
 
 	"upper.io/db.v3/internal/cache"
 )
+
+var errUnknownTemplateType = errors.New("Unknown template type")
 
 // Statement represents different kinds of SQL statements.
 type Statement struct {
@@ -45,11 +48,11 @@ type statementT struct {
 	Offset
 }
 
-func (layout *Template) doCompile(c Fragment) string {
+func (layout *Template) doCompile(c Fragment) (string, error) {
 	if c != nil && !reflect.ValueOf(c).IsNil() {
 		return c.Compile(layout)
 	}
-	return ""
+	return "", nil
 }
 
 func getHash(h cache.Hashable) string {
@@ -76,29 +79,69 @@ func (s *Statement) Amend(in string) string {
 }
 
 // Compile transforms the Statement into an equivalent SQL query.
-func (s *Statement) Compile(layout *Template) (compiled string) {
+func (s *Statement) Compile(layout *Template) (compiled string, err error) {
 	if s.Type == SQL {
 		// No need to hit the cache.
-		return s.SQL
+		return s.SQL, nil
 	}
 
 	if z, ok := layout.Read(s); ok {
-		return s.Amend(z)
+		return s.Amend(z), nil
 	}
 
 	data := statementT{
-		Table:        layout.doCompile(s.Table),
-		Database:     layout.doCompile(s.Database),
-		Limit:        s.Limit,
-		Offset:       s.Offset,
-		Columns:      layout.doCompile(s.Columns),
-		Values:       layout.doCompile(s.Values),
-		ColumnValues: layout.doCompile(s.ColumnValues),
-		OrderBy:      layout.doCompile(s.OrderBy),
-		GroupBy:      layout.doCompile(s.GroupBy),
-		Where:        layout.doCompile(s.Where),
-		Returning:    layout.doCompile(s.Returning),
-		Joins:        layout.doCompile(s.Joins),
+		Limit:  s.Limit,
+		Offset: s.Offset,
+	}
+
+	data.Table, err = layout.doCompile(s.Table)
+	if err != nil {
+		return "", err
+	}
+
+	data.Database, err = layout.doCompile(s.Database)
+	if err != nil {
+		return "", err
+	}
+
+	data.Columns, err = layout.doCompile(s.Columns)
+	if err != nil {
+		return "", err
+	}
+
+	data.Values, err = layout.doCompile(s.Values)
+	if err != nil {
+		return "", err
+	}
+
+	data.ColumnValues, err = layout.doCompile(s.ColumnValues)
+	if err != nil {
+		return "", err
+	}
+
+	data.OrderBy, err = layout.doCompile(s.OrderBy)
+	if err != nil {
+		return "", err
+	}
+
+	data.GroupBy, err = layout.doCompile(s.GroupBy)
+	if err != nil {
+		return "", err
+	}
+
+	data.Where, err = layout.doCompile(s.Where)
+	if err != nil {
+		return "", err
+	}
+
+	data.Returning, err = layout.doCompile(s.Returning)
+	if err != nil {
+		return "", err
+	}
+
+	data.Joins, err = layout.doCompile(s.Joins)
+	if err != nil {
+		return "", err
 	}
 
 	switch s.Type {
@@ -119,13 +162,13 @@ func (s *Statement) Compile(layout *Template) (compiled string) {
 	case Insert:
 		compiled = mustParse(layout.InsertLayout, data)
 	default:
-		panic("Unknown template type.")
+		return "", errUnknownTemplateType
 	}
 
 	compiled = strings.TrimSpace(compiled)
 	layout.Write(s, compiled)
 
-	return s.Amend(compiled)
+	return s.Amend(compiled), nil
 }
 
 // RawSQL represents a raw SQL statement.

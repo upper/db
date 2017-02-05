@@ -60,10 +60,10 @@ func (t *Table) Hash() string {
 }
 
 // Compile transforms a table struct into a SQL chunk.
-func (t *Table) Compile(layout *Template) (compiled string) {
+func (t *Table) Compile(layout *Template) (compiled string, err error) {
 
 	if z, ok := layout.Read(t); ok {
-		return z
+		return z, nil
 	}
 
 	switch value := t.Name.(type) {

@@ -5,8 +5,6 @@ import (
 )
 
 func TestColumns(t *testing.T) {
-	var s, e string
-
 	columns := JoinColumns(
 		&Column{Name: "id"},
 		&Column{Name: "customer"},
@@ -15,9 +13,12 @@ func TestColumns(t *testing.T) {
 		&Column{Name: "role.id"},
 	)
 
-	s = columns.Compile(defaultTemplate)
-	e = `"id", "customer", "service_id", "role"."name", "role"."id"`
+	s, err := columns.Compile(defaultTemplate)
+	if err != nil {
+		t.Fatal()
+	}
 
+	e := `"id", "customer", "service_id", "role"."name", "role"."id"`
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}

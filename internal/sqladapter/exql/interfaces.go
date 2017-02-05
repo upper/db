@@ -11,5 +11,5 @@ type Fragment interface {
 }
 
 type compilable interface {
-	Compile(*Template) string
+	Compile(*Template) (string, error)
 }

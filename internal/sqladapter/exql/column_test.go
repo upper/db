@@ -18,52 +18,57 @@ func TestColumnHash(t *testing.T) {
 }
 
 func TestColumnString(t *testing.T) {
-	var s, e string
 
 	column := Column{Name: "role.name"}
 
-	s = column.Compile(defaultTemplate)
-	e = `"role"."name"`
+	s, err := column.Compile(defaultTemplate)
+	if err != nil {
+		t.Fatal()
+	}
 
+	e := `"role"."name"`
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 }
 
 func TestColumnAs(t *testing.T) {
-	var s, e string
-
 	column := Column{Name: "role.name as foo"}
 
-	s = column.Compile(defaultTemplate)
-	e = `"role"."name" AS "foo"`
+	s, err := column.Compile(defaultTemplate)
+	if err != nil {
+		t.Fatal()
+	}
 
+	e := `"role"."name" AS "foo"`
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 }
 
 func TestColumnImplicitAs(t *testing.T) {
-	var s, e string
-
 	column := Column{Name: "role.name foo"}
 
-	s = column.Compile(defaultTemplate)
-	e = `"role"."name" AS "foo"`
+	s, err := column.Compile(defaultTemplate)
+	if err != nil {
+		t.Fatal()
+	}
 
+	e := `"role"."name" AS "foo"`
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 }
 
 func TestColumnRaw(t *testing.T) {
-	var s, e string
-
 	column := Column{Name: Raw{Value: "role.name As foo"}}
 
-	s = column.Compile(defaultTemplate)
-	e = `role.name As foo`
+	s, err := column.Compile(defaultTemplate)
+	if err != nil {
+		t.Fatal()
+	}
 
+	e := `role.name As foo`
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}

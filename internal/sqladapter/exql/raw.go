@@ -25,8 +25,8 @@ func (r *Raw) Hash() string {
 }
 
 // Compile returns the raw value.
-func (r *Raw) Compile(*Template) string {
-	return r.Value
+func (r *Raw) Compile(*Template) (string, error) {
+	return r.Value, nil
 }
 
 // String returns the raw value.

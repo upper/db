@@ -36,10 +36,10 @@ func (c *Columns) Append(a *Columns) *Columns {
 }
 
 // Compile transforms the Columns into an equivalent SQL representation.
-func (c *Columns) Compile(layout *Template) (compiled string) {
+func (c *Columns) Compile(layout *Template) (compiled string, err error) {
 
 	if z, ok := layout.Read(c); ok {
-		return z
+		return z, nil
 	}
 
 	l := len(c.Columns)
@@ -48,7 +48,10 @@ func (c *Columns) Compile(layout *Template) (compiled string) {
 		out := make([]string, l)
 
 		for i := 0; i < l; i++ {
-			out[i] = c.Columns[i].Compile(layout)
+			out[i], err = c.Columns[i].Compile(layout)
+			if err != nil {
+				return "", err
+			}
 		}
 
 		compiled = strings.Join(out, layout.IdentifierSeparator)

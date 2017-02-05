@@ -5,8 +5,6 @@ import (
 )
 
 func TestGroupBy(t *testing.T) {
-	var s, e string
-
 	columns := GroupByColumns(
 		&Column{Name: "id"},
 		&Column{Name: "customer"},
@@ -15,10 +13,9 @@ func TestGroupBy(t *testing.T) {
 		&Column{Name: "role.id"},
 	)
 
-	s = columns.Compile(defaultTemplate)
-	e = `GROUP BY "id", "customer", "service_id", "role"."name", "role"."id"`
-
-	if trim(s) != e {
+	s := mustTrim(columns.Compile(defaultTemplate))
+	e := `GROUP BY "id", "customer", "service_id", "role"."name", "role"."id"`
+	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 }

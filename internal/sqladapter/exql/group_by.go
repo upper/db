@@ -21,15 +21,19 @@ func GroupByColumns(columns ...Fragment) *GroupBy {
 }
 
 // Compile transforms the GroupBy into an equivalent SQL representation.
-func (g *GroupBy) Compile(layout *Template) (compiled string) {
+func (g *GroupBy) Compile(layout *Template) (compiled string, err error) {
 
 	if c, ok := layout.Read(g); ok {
-		return c
+		return c, nil
 	}
 
 	if g.Columns != nil {
+		columns, err := g.Columns.Compile(layout)
+		if err != nil {
+			return "", err
+		}
 		data := groupByT{
-			GroupColumns: g.Columns.Compile(layout),
+			GroupColumns: columns,
 		}
 
 		compiled = mustParse(layout.GroupByLayout, data)

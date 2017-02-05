@@ -17,12 +17,15 @@ func ReturningColumns(columns ...Fragment) *Returning {
 }
 
 // Compile transforms the clause into its equivalent SQL representation.
-func (r *Returning) Compile(layout *Template) (compiled string) {
+func (r *Returning) Compile(layout *Template) (compiled string, err error) {
 	if z, ok := layout.Read(r); ok {
-		return z
+		return z, nil
 	}
 
-	compiled = r.Columns.Compile(layout)
+	compiled, err = r.Columns.Compile(layout)
+	if err != nil {
+		return "", err
+	}
 
 	layout.Write(r, compiled)
 

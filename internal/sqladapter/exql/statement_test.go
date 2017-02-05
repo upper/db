@@ -11,7 +11,10 @@ var (
 	reSpace     = regexp.MustCompile(`\s+`)
 )
 
-func trim(a string) string {
+func mustTrim(a string, err error) string {
+	if err != nil {
+		panic(err.Error())
+	}
 	a = reInvisible.ReplaceAllString(strings.TrimSpace(a), " ")
 	a = reSpace.ReplaceAllString(strings.TrimSpace(a), " ")
 	return a
@@ -26,7 +29,7 @@ func TestTruncateTable(t *testing.T) {
 		Table: TableWithName("table_name"),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `TRUNCATE TABLE "table_name"`
 
 	if s != e {
@@ -43,7 +46,7 @@ func TestDropTable(t *testing.T) {
 		Table: TableWithName("table_name"),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `DROP TABLE "table_name"`
 
 	if s != e {
@@ -60,7 +63,7 @@ func TestDropDatabase(t *testing.T) {
 		Database: &Database{Name: "table_name"},
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `DROP DATABASE "table_name"`
 
 	if s != e {
@@ -77,7 +80,7 @@ func TestCount(t *testing.T) {
 		Table: TableWithName("table_name"),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT COUNT(1) AS _t FROM "table_name"`
 
 	if s != e {
@@ -94,7 +97,7 @@ func TestCountRelation(t *testing.T) {
 		Table: TableWithName("information_schema.tables"),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT COUNT(1) AS _t FROM "information_schema"."tables"`
 
 	if s != e {
@@ -114,7 +117,7 @@ func TestCountWhere(t *testing.T) {
 		),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT COUNT(1) AS _t FROM "table_name" WHERE ("a" = 7)`
 
 	if s != e {
@@ -131,7 +134,7 @@ func TestSelectStarFrom(t *testing.T) {
 		Table: TableWithName("table_name"),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT * FROM "table_name"`
 
 	if s != e {
@@ -148,7 +151,7 @@ func TestSelectStarFromAlias(t *testing.T) {
 		Table: TableWithName("table.name AS foo"),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT * FROM "table"."name" AS "foo"`
 
 	if s != e {
@@ -168,7 +171,7 @@ func TestSelectStarFromRawWhere(t *testing.T) {
 		),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT * FROM "table"."name" AS "foo" WHERE (foo.id = bar.foo_id)`
 
 	if s != e {
@@ -184,7 +187,7 @@ func TestSelectStarFromRawWhere(t *testing.T) {
 		),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT * FROM "table"."name" AS "foo" WHERE (foo.id = bar.foo_id AND baz.id = exp.baz_id)`
 
 	if s != e {
@@ -201,7 +204,7 @@ func TestSelectStarFromMany(t *testing.T) {
 		Table: TableWithName("first.table AS foo, second.table as BAR, third.table aS baz"),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT * FROM "first"."table" AS "foo", "second"."table" AS "BAR", "third"."table" AS "baz"`
 
 	if s != e {
@@ -221,7 +224,7 @@ func TestSelectArtistNameFrom(t *testing.T) {
 		),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT "artist"."name" FROM "artist"`
 
 	if s != e {
@@ -250,7 +253,7 @@ func TestSelectJoin(t *testing.T) {
 		}),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT "a"."name" FROM "artist" AS "a" JOIN "books" AS "b" ON ("b"."author_id" = "a"."id")`
 
 	if s != e {
@@ -276,7 +279,7 @@ func TestSelectJoinUsing(t *testing.T) {
 		}),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT "a"."name" FROM "artist" AS "a" JOIN "books" AS "b" USING ("artist_id", "country")`
 
 	if s != e {
@@ -285,8 +288,6 @@ func TestSelectJoinUsing(t *testing.T) {
 }
 
 func TestSelectUnfinishedJoin(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:  Select,
 		Table: TableWithName("artist a"),
@@ -296,9 +297,8 @@ func TestSelectUnfinishedJoin(t *testing.T) {
 		Joins: JoinConditions(&Join{}),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
-	e = `SELECT "a"."name" FROM "artist" AS "a"`
-
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	e := `SELECT "a"."name" FROM "artist" AS "a"`
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
@@ -315,7 +315,7 @@ func TestSelectNaturalJoin(t *testing.T) {
 		}),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT * FROM "artist" NATURAL JOIN "books"`
 
 	if s != e {
@@ -336,7 +336,7 @@ func TestSelectRawFrom(t *testing.T) {
 		),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT "artist"."name", CONCAT(artist.name, " ", artist.last_name) FROM "artist"`
 
 	if s != e {
@@ -358,7 +358,7 @@ func TestSelectFieldsFrom(t *testing.T) {
 		Table: TableWithName("table_name"),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table_name"`
 
 	if s != e {
@@ -382,7 +382,7 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 		Table: TableWithName("table_name"),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table_name" LIMIT 42`
 
 	if s != e {
@@ -401,7 +401,7 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 		Table:  TableWithName("table_name"),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table_name" OFFSET 17`
 
 	if s != e {
@@ -421,7 +421,7 @@ func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
 		Table:  TableWithName("table_name"),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table_name" LIMIT 42 OFFSET 17`
 
 	if s != e {
@@ -447,7 +447,7 @@ func TestStatementGroupBy(t *testing.T) {
 		Table: TableWithName("table_name"),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table_name" GROUP BY "foo"`
 
 	if s != e {
@@ -468,7 +468,7 @@ func TestStatementGroupBy(t *testing.T) {
 		Table: TableWithName("table_name"),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table_name" GROUP BY "foo", "bar"`
 
 	if s != e {
@@ -496,7 +496,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 		Table: TableWithName("table_name"),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY "foo"`
 
 	if s != e {
@@ -519,7 +519,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 		Table: TableWithName("table_name"),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY "foo" ASC`
 
 	if s != e {
@@ -542,7 +542,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 		Table: TableWithName("table_name"),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY "foo" DESC`
 
 	if s != e {
@@ -567,7 +567,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 		Table: TableWithName("table_name"),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY "foo" DESC, "bar" ASC, "baz" DESC`
 
 	if s != e {
@@ -591,7 +591,7 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 		Table: TableWithName("table_name"),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY FOO() DESC, BAR() ASC`
 
 	if s != e {
@@ -616,7 +616,7 @@ func TestSelectFieldsFromWhere(t *testing.T) {
 		),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table_name" WHERE ("baz" = '99')`
 
 	if s != e {
@@ -643,7 +643,7 @@ func TestSelectFieldsFromWhereLimitOffset(t *testing.T) {
 		Offset: 23,
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `SELECT "foo", "bar", "baz" FROM "table_name" WHERE ("baz" = '99') LIMIT 10 OFFSET 23`
 
 	if s != e {
@@ -663,7 +663,7 @@ func TestDelete(t *testing.T) {
 		),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `DELETE FROM "table_name" WHERE ("baz" = '99')`
 
 	if s != e {
@@ -686,7 +686,7 @@ func TestUpdate(t *testing.T) {
 		),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `UPDATE "table_name" SET "foo" = '76' WHERE ("baz" = '99')`
 
 	if s != e {
@@ -705,7 +705,7 @@ func TestUpdate(t *testing.T) {
 		),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `UPDATE "table_name" SET "foo" = '76', "bar" = 88 WHERE ("baz" = '99')`
 
 	if s != e {
@@ -732,7 +732,7 @@ func TestInsert(t *testing.T) {
 		),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `INSERT INTO "table_name" ("foo", "bar", "baz") VALUES ('1', '2', 3)`
 
 	if s != e {
@@ -766,7 +766,7 @@ func TestInsertMultiple(t *testing.T) {
 		),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `INSERT INTO "table_name" ("foo", "bar", "baz") VALUES ('1', '2', 3), (4, 5, 6)`
 
 	if s != e {
@@ -796,7 +796,7 @@ func TestInsertReturning(t *testing.T) {
 		),
 	}
 
-	s = trim(stmt.Compile(defaultTemplate))
+	s = mustTrim(stmt.Compile(defaultTemplate))
 	e = `INSERT INTO "table_name" ("foo", "bar", "baz") VALUES ('1', '2', 3) RETURNING "id"`
 
 	if s != e {
@@ -807,7 +807,7 @@ func TestInsertReturning(t *testing.T) {
 func TestRawSQLStatement(t *testing.T) {
 	stmt := RawSQL(`SELECT * FROM "foo" ORDER BY "bar"`)
 
-	s := trim(stmt.Compile(defaultTemplate))
+	s := mustTrim(stmt.Compile(defaultTemplate))
 	e := `SELECT * FROM "foo" ORDER BY "bar"`
 
 	if s != e {
@@ -825,7 +825,7 @@ func BenchmarkStatementSimpleQuery(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		_ = stmt.Compile(defaultTemplate)
+		_, _ = stmt.Compile(defaultTemplate)
 	}
 }
 
@@ -852,7 +852,7 @@ func BenchmarkStatementSimpleQueryNoCache(b *testing.B) {
 				&ColumnValue{Column: &Column{Name: "a"}, Operator: "=", Value: NewValue(Raw{Value: "7"})},
 			),
 		}
-		_ = stmt.Compile(defaultTemplate)
+		_, _ = stmt.Compile(defaultTemplate)
 	}
 }
 
@@ -873,7 +873,7 @@ func BenchmarkStatementComplexQuery(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		_ = stmt.Compile(defaultTemplate)
+		_, _ = stmt.Compile(defaultTemplate)
 	}
 }
 
@@ -893,6 +893,6 @@ func BenchmarkStatementComplexQueryNoCache(b *testing.B) {
 				&Value{V: Raw{Value: "3"}},
 			),
 		}
-		_ = stmt.Compile(defaultTemplate)
+		_, _ = stmt.Compile(defaultTemplate)
 	}
 }

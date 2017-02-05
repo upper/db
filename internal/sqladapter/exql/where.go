@@ -61,13 +61,15 @@ func (a *And) Hash() string {
 }
 
 // Compile transforms the Or into an equivalent SQL representation.
-func (o *Or) Compile(layout *Template) (compiled string) {
-
+func (o *Or) Compile(layout *Template) (compiled string, err error) {
 	if z, ok := layout.Read(o); ok {
-		return z
+		return z, nil
 	}
 
-	compiled = groupCondition(layout, o.Conditions, mustParse(layout.ClauseOperator, layout.OrKeyword))
+	compiled, err = groupCondition(layout, o.Conditions, mustParse(layout.ClauseOperator, layout.OrKeyword))
+	if err != nil {
+		return "", err
+	}
 
 	layout.Write(o, compiled)
 
@@ -75,12 +77,15 @@ func (o *Or) Compile(layout *Template) (compiled string) {
 }
 
 // Compile transforms the And into an equivalent SQL representation.
-func (a *And) Compile(layout *Template) (compiled string) {
+func (a *And) Compile(layout *Template) (compiled string, err error) {
 	if c, ok := layout.Read(a); ok {
-		return c
+		return c, nil
 	}
 
-	compiled = groupCondition(layout, a.Conditions, mustParse(layout.ClauseOperator, layout.AndKeyword))
+	compiled, err = groupCondition(layout, a.Conditions, mustParse(layout.ClauseOperator, layout.AndKeyword))
+	if err != nil {
+		return "", err
+	}
 
 	layout.Write(a, compiled)
 
@@ -88,12 +93,15 @@ func (a *And) Compile(layout *Template) (compiled string) {
 }
 
 // Compile transforms the Where into an equivalent SQL representation.
-func (w *Where) Compile(layout *Template) (compiled string) {
+func (w *Where) Compile(layout *Template) (compiled string, err error) {
 	if c, ok := layout.Read(w); ok {
-		return c
+		return c, nil
 	}
 
-	grouped := groupCondition(layout, w.Conditions, mustParse(layout.ClauseOperator, layout.AndKeyword))
+	grouped, err := groupCondition(layout, w.Conditions, mustParse(layout.ClauseOperator, layout.AndKeyword))
+	if err != nil {
+		return "", err
+	}
 
 	if grouped != "" {
 		compiled = mustParse(layout.WhereLayout, conds{grouped})
@@ -104,20 +112,24 @@ func (w *Where) Compile(layout *Template) (compiled string) {
 	return
 }
 
-func groupCondition(layout *Template, terms []Fragment, joinKeyword string) string {
+func groupCondition(layout *Template, terms []Fragment, joinKeyword string) (string, error) {
 	l := len(terms)
 
 	chunks := make([]string, 0, l)
 
 	if l > 0 {
 		for i := 0; i < l; i++ {
-			chunks = append(chunks, terms[i].Compile(layout))
+			chunk, err := terms[i].Compile(layout)
+			if err != nil {
+				return "", err
+			}
+			chunks = append(chunks, chunk)
 		}
 	}
 
 	if len(chunks) > 0 {
-		return mustParse(layout.ClauseGroup, strings.Join(chunks, joinKeyword))
+		return mustParse(layout.ClauseGroup, strings.Join(chunks, joinKeyword)), nil
 	}
 
-	return ""
+	return "", nil
 }

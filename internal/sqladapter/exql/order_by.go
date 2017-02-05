@@ -59,16 +59,23 @@ func (s *SortColumn) Hash() string {
 }
 
 // Compile transforms the SortColumn into an equivalent SQL representation.
-func (s *SortColumn) Compile(layout *Template) (compiled string) {
+func (s *SortColumn) Compile(layout *Template) (compiled string, err error) {
 
 	if c, ok := layout.Read(s); ok {
-		return c
+		return c, nil
 	}
 
-	data := sortColumnT{
-		Column: s.Column.Compile(layout),
-		Order:  s.Order.Compile(layout),
+	column, err := s.Column.Compile(layout)
+	if err != nil {
+		return "", err
 	}
+
+	orderBy, err := s.Order.Compile(layout)
+	if err != nil {
+		return "", err
+	}
+
+	data := sortColumnT{Column: column, Order: orderBy}
 
 	compiled = mustParse(layout.SortByColumnLayout, data)
 
@@ -83,16 +90,18 @@ func (s *SortColumns) Hash() string {
 }
 
 // Compile transforms the SortColumns into an equivalent SQL representation.
-func (s *SortColumns) Compile(layout *Template) (compiled string) {
-
+func (s *SortColumns) Compile(layout *Template) (compiled string, err error) {
 	if z, ok := layout.Read(s); ok {
-		return z
+		return z, nil
 	}
 
 	z := make([]string, len(s.Columns))
 
 	for i := range s.Columns {
-		z[i] = s.Columns[i].Compile(layout)
+		z[i], err = s.Columns[i].Compile(layout)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	compiled = strings.Join(z, layout.IdentifierSeparator)
@@ -108,15 +117,19 @@ func (s *OrderBy) Hash() string {
 }
 
 // Compile transforms the SortColumn into an equivalent SQL representation.
-func (s *OrderBy) Compile(layout *Template) (compiled string) {
-
+func (s *OrderBy) Compile(layout *Template) (compiled string, err error) {
 	if z, ok := layout.Read(s); ok {
-		return z
+		return z, nil
 	}
 
 	if s.SortColumns != nil {
+		sortColumns, err := s.SortColumns.Compile(layout)
+		if err != nil {
+			return "", err
+		}
+
 		data := orderByT{
-			SortColumns: s.SortColumns.Compile(layout),
+			SortColumns: sortColumns,
 		}
 		compiled = mustParse(layout.OrderByLayout, data)
 	}
@@ -132,12 +145,12 @@ func (s *Order) Hash() string {
 }
 
 // Compile transforms the SortColumn into an equivalent SQL representation.
-func (s Order) Compile(layout *Template) string {
+func (s Order) Compile(layout *Template) (string, error) {
 	switch s {
 	case Ascendent:
-		return layout.AscKeyword
+		return layout.AscKeyword, nil
 	case Descendent:
-		return layout.DescKeyword
+		return layout.DescKeyword, nil
 	}
-	return ""
+	return "", nil
 }

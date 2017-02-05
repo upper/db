@@ -23,9 +23,9 @@ func (j *Joins) Hash() string {
 }
 
 // Compile transforms the Where into an equivalent SQL representation.
-func (j *Joins) Compile(layout *Template) (compiled string) {
+func (j *Joins) Compile(layout *Template) (compiled string, err error) {
 	if c, ok := layout.Read(j); ok {
-		return c
+		return c, nil
 	}
 
 	l := len(j.Conditions)
@@ -34,7 +34,11 @@ func (j *Joins) Compile(layout *Template) (compiled string) {
 
 	if l > 0 {
 		for i := 0; i < l; i++ {
-			chunks = append(chunks, j.Conditions[i].Compile(layout))
+			chunk, err := j.Conditions[i].Compile(layout)
+			if err != nil {
+				return "", err
+			}
+			chunks = append(chunks, chunk)
 		}
 	}
 
@@ -69,24 +73,39 @@ func (j *Join) Hash() string {
 }
 
 // Compile transforms the Join into its equivalent SQL representation.
-func (j *Join) Compile(layout *Template) (compiled string) {
-
+func (j *Join) Compile(layout *Template) (compiled string, err error) {
 	if c, ok := layout.Read(j); ok {
-		return c
+		return c, nil
 	}
 
-	if j.Table != nil {
-		data := innerJoinT{
-			Type:  j.Type,
-			Table: j.Table.Compile(layout),
-			On:    layout.doCompile(j.On),
-			Using: layout.doCompile(j.Using),
-		}
-		compiled = mustParse(layout.JoinLayout, data)
+	if j.Table == nil {
+		return "", nil
 	}
 
+	table, err := j.Table.Compile(layout)
+	if err != nil {
+		return "", err
+	}
+
+	on, err := layout.doCompile(j.On)
+	if err != nil {
+		return "", err
+	}
+
+	using, err := layout.doCompile(j.Using)
+	if err != nil {
+		return "", err
+	}
+
+	data := innerJoinT{
+		Type:  j.Type,
+		Table: table,
+		On:    on,
+		Using: using,
+	}
+
+	compiled = mustParse(layout.JoinLayout, data)
 	layout.Write(j, compiled)
-
 	return
 }
 
@@ -99,19 +118,21 @@ func (o *On) Hash() string {
 }
 
 // Compile transforms the On into an equivalent SQL representation.
-func (o *On) Compile(layout *Template) (compiled string) {
+func (o *On) Compile(layout *Template) (compiled string, err error) {
 	if c, ok := layout.Read(o); ok {
-		return c
+		return c, nil
 	}
 
-	grouped := groupCondition(layout, o.Conditions, mustParse(layout.ClauseOperator, layout.AndKeyword))
+	grouped, err := groupCondition(layout, o.Conditions, mustParse(layout.ClauseOperator, layout.AndKeyword))
+	if err != nil {
+		return "", err
+	}
 
 	if grouped != "" {
 		compiled = mustParse(layout.OnLayout, conds{grouped})
 	}
 
 	layout.Write(o, compiled)
-
 	return
 }
 
@@ -128,24 +149,25 @@ func (u *Using) Hash() string {
 }
 
 // Compile transforms the Using into an equivalent SQL representation.
-func (u *Using) Compile(layout *Template) (compiled string) {
+func (u *Using) Compile(layout *Template) (compiled string, err error) {
 	if u == nil {
-		return ""
+		return "", nil
 	}
 
 	if c, ok := layout.Read(u); ok {
-		return c
+		return c, nil
 	}
 
 	if len(u.Columns) > 0 {
 		c := Columns(*u)
-		data := usingT{
-			Columns: c.Compile(layout),
+		columns, err := c.Compile(layout)
+		if err != nil {
+			return "", err
 		}
+		data := usingT{Columns: columns}
 		compiled = mustParse(layout.UsingLayout, data)
 	}
 
 	layout.Write(u, compiled)
-
 	return
 }

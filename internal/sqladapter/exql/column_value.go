@@ -24,19 +24,26 @@ func (c *ColumnValue) Hash() string {
 }
 
 // Compile transforms the ColumnValue into an equivalent SQL representation.
-func (c *ColumnValue) Compile(layout *Template) (compiled string) {
-
+func (c *ColumnValue) Compile(layout *Template) (compiled string, err error) {
 	if z, ok := layout.Read(c); ok {
-		return z
+		return z, nil
+	}
+
+	column, err := c.Column.Compile(layout)
+	if err != nil {
+		return "", err
 	}
 
 	data := columnValueT{
-		Column:   c.Column.Compile(layout),
+		Column:   column,
 		Operator: c.Operator,
 	}
 
 	if c.Value != nil {
-		data.Value = c.Value.Compile(layout)
+		data.Value, err = c.Value.Compile(layout)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	compiled = mustParse(layout.ColumnValue, data)
@@ -72,10 +79,10 @@ func (c *ColumnValues) Hash() string {
 }
 
 // Compile transforms the ColumnValues into its SQL representation.
-func (c *ColumnValues) Compile(layout *Template) (compiled string) {
+func (c *ColumnValues) Compile(layout *Template) (compiled string, err error) {
 
 	if z, ok := layout.Read(c); ok {
-		return z
+		return z, nil
 	}
 
 	l := len(c.ColumnValues)
@@ -83,7 +90,10 @@ func (c *ColumnValues) Compile(layout *Template) (compiled string) {
 	out := make([]string, l)
 
 	for i := range c.ColumnValues {
-		out[i] = c.ColumnValues[i].Compile(layout)
+		out[i], err = c.ColumnValues[i].Compile(layout)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	compiled = strings.Join(out, layout.IdentifierSeparator)

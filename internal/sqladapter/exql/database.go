@@ -17,14 +17,13 @@ func (d *Database) Hash() string {
 }
 
 // Compile transforms the Database into an equivalent SQL representation.
-func (d *Database) Compile(layout *Template) (compiled string) {
+func (d *Database) Compile(layout *Template) (compiled string, err error) {
 	if c, ok := layout.Read(d); ok {
-		return c
+		return c, nil
 	}
 
 	compiled = mustParse(layout.IdentifierQuote, Raw{Value: d.Name})
 
 	layout.Write(d, compiled)
-
 	return
 }

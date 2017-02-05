@@ -9,7 +9,7 @@ func TestTableSimple(t *testing.T) {
 
 	table := TableWithName("artist")
 
-	s = trim(table.Compile(defaultTemplate))
+	s = mustTrim(table.Compile(defaultTemplate))
 	e = `"artist"`
 
 	if s != e {
@@ -22,7 +22,7 @@ func TestTableCompound(t *testing.T) {
 
 	table := TableWithName("artist.foo")
 
-	s = trim(table.Compile(defaultTemplate))
+	s = mustTrim(table.Compile(defaultTemplate))
 	e = `"artist"."foo"`
 
 	if s != e {
@@ -35,7 +35,7 @@ func TestTableCompoundAlias(t *testing.T) {
 
 	table := TableWithName("artist.foo AS baz")
 
-	s = trim(table.Compile(defaultTemplate))
+	s = mustTrim(table.Compile(defaultTemplate))
 	e = `"artist"."foo" AS "baz"`
 
 	if s != e {
@@ -48,7 +48,7 @@ func TestTableImplicitAlias(t *testing.T) {
 
 	table := TableWithName("artist.foo baz")
 
-	s = trim(table.Compile(defaultTemplate))
+	s = mustTrim(table.Compile(defaultTemplate))
 	e = `"artist"."foo" AS "baz"`
 
 	if s != e {
@@ -61,7 +61,7 @@ func TestTableMultiple(t *testing.T) {
 
 	table := TableWithName("artist.foo, artist.bar, artist.baz")
 
-	s = trim(table.Compile(defaultTemplate))
+	s = mustTrim(table.Compile(defaultTemplate))
 	e = `"artist"."foo", "artist"."bar", "artist"."baz"`
 
 	if s != e {
@@ -74,7 +74,7 @@ func TestTableMultipleAlias(t *testing.T) {
 
 	table := TableWithName("artist.foo AS foo, artist.bar as bar, artist.baz As baz")
 
-	s = trim(table.Compile(defaultTemplate))
+	s = mustTrim(table.Compile(defaultTemplate))
 	e = `"artist"."foo" AS "foo", "artist"."bar" AS "bar", "artist"."baz" AS "baz"`
 
 	if s != e {
@@ -87,7 +87,7 @@ func TestTableMinimal(t *testing.T) {
 
 	table := TableWithName("a")
 
-	s = trim(table.Compile(defaultTemplate))
+	s = mustTrim(table.Compile(defaultTemplate))
 	e = `"a"`
 
 	if s != e {
@@ -100,7 +100,7 @@ func TestTableEmpty(t *testing.T) {
 
 	table := TableWithName("")
 
-	s = trim(table.Compile(defaultTemplate))
+	s = mustTrim(table.Compile(defaultTemplate))
 	e = ``
 
 	if s != e {

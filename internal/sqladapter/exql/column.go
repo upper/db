@@ -28,9 +28,9 @@ func (c *Column) Hash() string {
 }
 
 // Compile transforms the ColumnValue into an equivalent SQL representation.
-func (c *Column) Compile(layout *Template) (compiled string) {
+func (c *Column) Compile(layout *Template) (compiled string, err error) {
 	if z, ok := layout.Read(c); ok {
-		return z
+		return z, nil
 	}
 
 	alias := c.Alias

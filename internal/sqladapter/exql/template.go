@@ -13,7 +13,9 @@ type Type uint
 
 // Values for Type.
 const (
-	Truncate = Type(iota)
+	NoOp = Type(iota)
+
+	Truncate
 	DropTable
 	DropDatabase
 	Count

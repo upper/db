@@ -5,26 +5,28 @@ import (
 )
 
 func TestRawString(t *testing.T) {
-	var s, e string
-
 	raw := &Raw{Value: "foo"}
 
-	s = raw.Compile(defaultTemplate)
-	e = `foo`
+	s, err := raw.Compile(defaultTemplate)
+	if err != nil {
+		t.Fatal()
+	}
 
+	e := `foo`
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 }
 
 func TestRawCompile(t *testing.T) {
-	var s, e string
-
 	raw := &Raw{Value: "foo"}
 
-	s = raw.Compile(defaultTemplate)
-	e = `foo`
+	s, err := raw.Compile(defaultTemplate)
+	if err != nil {
+		t.Fatal()
+	}
 
+	e := `foo`
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}

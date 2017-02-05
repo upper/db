@@ -11,10 +11,9 @@ func TestOrderBy(t *testing.T) {
 		),
 	)
 
-	s := o.Compile(defaultTemplate)
+	s := mustTrim(o.Compile(defaultTemplate))
 	e := `ORDER BY "foo"`
-
-	if trim(s) != e {
+	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 }
@@ -26,10 +25,9 @@ func TestOrderByRaw(t *testing.T) {
 		),
 	)
 
-	s := o.Compile(defaultTemplate)
+	s := mustTrim(o.Compile(defaultTemplate))
 	e := `ORDER BY CASE WHEN id IN ? THEN 0 ELSE 1 END`
-
-	if trim(s) != e {
+	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 }
@@ -41,10 +39,9 @@ func TestOrderByDesc(t *testing.T) {
 		),
 	)
 
-	s := o.Compile(defaultTemplate)
+	s := mustTrim(o.Compile(defaultTemplate))
 	e := `ORDER BY "foo" DESC`
-
-	if trim(s) != e {
+	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 }

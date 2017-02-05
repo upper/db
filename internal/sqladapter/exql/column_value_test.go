@@ -34,31 +34,32 @@ func TestColumnValuesHash(t *testing.T) {
 }
 
 func TestColumnValue(t *testing.T) {
-	var s, e string
-	var cv *ColumnValue
+	cv := &ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(1)}
 
-	cv = &ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(1)}
+	s, err := cv.Compile(defaultTemplate)
+	if err != nil {
+		t.Fatal()
+	}
 
-	s = cv.Compile(defaultTemplate)
-	e = `"id" = '1'`
-
+	e := `"id" = '1'`
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 
 	cv = &ColumnValue{Column: ColumnWithName("date"), Operator: "=", Value: NewValue(RawValue("NOW()"))}
 
-	s = cv.Compile(defaultTemplate)
-	e = `"date" = NOW()`
+	s, err = cv.Compile(defaultTemplate)
+	if err != nil {
+		t.Fatal()
+	}
 
+	e = `"date" = NOW()`
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
 }
 
 func TestColumnValues(t *testing.T) {
-	var s, e string
-
 	cvs := JoinColumnValues(
 		&ColumnValue{Column: ColumnWithName("id"), Operator: ">", Value: NewValue(8)},
 		&ColumnValue{Column: ColumnWithName("other.id"), Operator: "<", Value: NewValue(&Raw{Value: "100"})},
@@ -67,9 +68,12 @@ func TestColumnValues(t *testing.T) {
 		&ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(&Raw{Value: "NOW()"})},
 	)
 
-	s = cvs.Compile(defaultTemplate)
-	e = `"id" > '8', "other"."id" < 100, "name" = 'Haruki Murakami', "created" >= NOW(), "modified" <= NOW()`
+	s, err := cvs.Compile(defaultTemplate)
+	if err != nil {
+		t.Fatal()
+	}
 
+	e := `"id" > '8', "other"."id" < 100, "name" = 'Haruki Murakami', "created" >= NOW(), "modified" <= NOW()`
 	if s != e {
 		t.Fatalf("Got: %s, Expecting: %s", s, e)
 	}
