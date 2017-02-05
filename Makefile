@@ -20,10 +20,7 @@ test-internal:
 
 test-libs: test-lib test-internal
 
-test-%:
-	$(MAKE) -C $* test || exit 1;
-
-test-adapters: test-postgresql test-mysql test-sqlite test-ql test-mongo
+test-adapters: test-adapter-postgresql test-adapter-mysql test-adapter-sqlite test-adapter-ql test-adapter-mongo
 
 reset-db:
 	$(MAKE) -C postgresql reset-db && \
@@ -36,3 +33,6 @@ test-main: reset-db
 	go test -v
 
 test: test-adapters test-libs test-main
+
+test-adapter-%:
+	$(MAKE) -C $* test || exit 1;
