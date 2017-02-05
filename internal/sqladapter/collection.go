@@ -36,14 +36,15 @@ type condsFilter interface {
 
 // collection is the implementation of Collection.
 type collection struct {
-	p  PartialCollection
-	pk []string
+	p   PartialCollection
+	pk  []string
+	err error
 }
 
 // NewBaseCollection returns a collection with basic methods.
 func NewBaseCollection(p PartialCollection) BaseCollection {
 	c := &collection{p: p}
-	c.pk, _ = c.p.Database().FindTablePrimaryKeys(c.p.Name())
+	c.pk, c.err = c.p.Database().FindTablePrimaryKeys(c.p.Name())
 	return c
 }
 
@@ -66,11 +67,14 @@ func (c *collection) filterConds(conds ...interface{}) []interface{} {
 
 // Find creates a result set with the given conditions.
 func (c *collection) Find(conds ...interface{}) db.Result {
-	return NewResult(
-		c.p.Database(),
-		c.p.Name(),
-		c.filterConds(conds...),
-	)
+	if c.err != nil {
+		return &Result{err: c.err}
+	}
+	return &Result{
+		b:     c.p.Database(),
+		table: c.p.Name(),
+		conds: [][]interface{}{c.filterConds(conds...)},
+	}
 }
 
 // Exists returns true if the collection exists.

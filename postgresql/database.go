@@ -261,6 +261,8 @@ func (d *database) FindTablePrimaryKeys(tableName string) ([]string, error) {
 		}
 		pk = append(pk, k)
 	}
-
+	if err := iter.Err(); err != nil {
+		return nil, err
+	}
 	return pk, nil
 }
