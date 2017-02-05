@@ -24,7 +24,14 @@ addons:
     - mongodb-org-server
     - mongodb-org-shell
 
-env: GOARCH=amd64 DB_HOST=127.0.0.1
+env:
+  global:
+    - MAKEFLAGS="-j4"
+    - GOARCH=amd64
+    - DB_HOST=127.0.0.1
+  matrix:
+    - TEST_CMD="make benchmark test-main"
+    - TEST_CMD="make test-adapters"
 
 install:
   - mkdir -p $GOPATH/src/upper.io
@@ -38,5 +45,4 @@ before_script:
   - mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql
 
 script:
-# - UPPERIO_DB_DEBUG=1 make test
-  - make test
+  - ${TEST_CMD}

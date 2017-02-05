@@ -45,16 +45,6 @@ type Result struct {
 	iterMu  sync.Mutex
 }
 
-// NewResult creates and Results a new Result set on the given table, this set
-// is limited by the given exql.Where conditions.
-func NewResult(b sqlbuilder.Builder, table string, conds []interface{}) *Result {
-	return &Result{
-		b:     b,
-		table: table,
-		conds: [][]interface{}{conds},
-	}
-}
-
 func (r *Result) setErr(err error) error {
 	if err == nil {
 		return nil
@@ -128,12 +118,18 @@ func (r *Result) String() string {
 
 // All dumps all Results into a pointer to an slice of structs or maps.
 func (r *Result) All(dst interface{}) error {
+	if err := r.Err(); err != nil {
+		return err
+	}
 	err := r.buildSelect().Iterator().All(dst)
 	return r.setErr(err)
 }
 
 // One fetches only one Result from the set.
 func (r *Result) One(dst interface{}) error {
+	if err := r.Err(); err != nil {
+		return err
+	}
 	err := r.buildSelect().Iterator().One(dst)
 	return r.setErr(err)
 }
@@ -157,6 +153,10 @@ func (r *Result) Next(dst interface{}) bool {
 
 // Delete deletes all matching items from the collection.
 func (r *Result) Delete() error {
+	if err := r.Err(); err != nil {
+		return err
+	}
+
 	q := r.b.DeleteFrom(r.table).
 		Limit(r.limit)
 
@@ -170,6 +170,9 @@ func (r *Result) Delete() error {
 
 // Close closes the Result set.
 func (r *Result) Close() error {
+	if err := r.Err(); err != nil {
+		return err
+	}
 	if r.iter != nil {
 		return r.setErr(r.iter.Close())
 	}
@@ -179,6 +182,9 @@ func (r *Result) Close() error {
 // Update updates matching items from the collection with values of the given
 // map or struct.
 func (r *Result) Update(values interface{}) error {
+	if err := r.Err(); err != nil {
+		return err
+	}
 	q := r.b.Update(r.table).
 		Set(values).
 		Limit(r.limit)
@@ -193,6 +199,10 @@ func (r *Result) Update(values interface{}) error {
 
 // Count counts the elements on the set.
 func (r *Result) Count() (uint64, error) {
+	if err := r.Err(); err != nil {
+		return 0, err
+	}
+
 	counter := struct {
 		Count uint64 `db:"_t"`
 	}{}
