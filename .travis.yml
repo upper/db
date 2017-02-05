@@ -30,9 +30,8 @@ env:
     - GOARCH=amd64
     - DB_HOST=127.0.0.1
   matrix:
-    - TEST_CMD="make benchmark"
+    - TEST_CMD="make benchmark test-main"
     - TEST_CMD="make test-adapters"
-    - TEST_CMD="make test-libs test"
 
 install:
   - mkdir -p $GOPATH/src/upper.io

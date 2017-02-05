@@ -25,5 +25,14 @@ test-%:
 
 test-adapters: test-postgresql test-mysql test-sqlite test-ql test-mongo
 
-test:
+reset-db:
+	$(MAKE) -C postgresql reset-db && \
+	$(MAKE) -C mysql reset-db && \
+	$(MAKE) -C sqlite reset-db && \
+	$(MAKE) -C ql reset-db && \
+	$(MAKE) -C mongo reset-db
+
+test-main: reset-db
 	go test -v
+
+test: test-adapters test-libs test-main
