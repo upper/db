@@ -39,4 +39,4 @@ before_script:
 
 script:
 # - UPPERIO_DB_DEBUG=1 make test
-  - make test
+  - make -j4 test
