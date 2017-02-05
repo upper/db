@@ -31,12 +31,12 @@ func (c *ColumnValue) Compile(layout *Template) (compiled string) {
 	}
 
 	data := columnValueT{
-		c.Column.Compile(layout),
-		c.Operator,
-		c.Value.Compile(layout),
+		Column:   c.Column.Compile(layout),
+		Operator: c.Operator,
 	}
-	if c.Operator == "" {
-		data.Operator = layout.DefaultOperator
+
+	if c.Value != nil {
+		data.Value = c.Value.Compile(layout)
 	}
 
 	compiled = mustParse(layout.ColumnValue, data)
