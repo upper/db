@@ -24,6 +24,18 @@ type updaterQuery struct {
 	amendFn func(string) string
 }
 
+func (uq *updaterQuery) and(b *sqlBuilder, terms ...interface{}) error {
+	where, whereArgs := b.t.toWhereWithArguments(terms)
+
+	if uq.where == nil {
+		uq.where, uq.whereArgs = &exql.Where{}, []interface{}{}
+	}
+	uq.where.Append(&where)
+	uq.whereArgs = append(uq.whereArgs, whereArgs...)
+
+	return nil
+}
+
 func (uq *updaterQuery) statement() *exql.Statement {
 	stmt := &exql.Statement{
 		Type:         exql.Update,
@@ -146,10 +158,14 @@ func (upd *updater) Arguments() []interface{} {
 
 func (upd *updater) Where(terms ...interface{}) Updater {
 	return upd.frame(func(uq *updaterQuery) error {
-		where, arguments := upd.SQLBuilder().t.toWhereWithArguments(terms)
-		uq.where = &where
-		uq.whereArgs = append(uq.whereArgs, arguments...)
-		return nil
+		uq.where, uq.whereArgs = &exql.Where{}, []interface{}{}
+		return uq.and(upd.SQLBuilder(), terms...)
+	})
+}
+
+func (upd *updater) And(terms ...interface{}) Updater {
+	return upd.frame(func(uq *updaterQuery) error {
+		return uq.and(upd.SQLBuilder(), terms...)
 	})
 }
 

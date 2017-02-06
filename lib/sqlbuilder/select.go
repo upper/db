@@ -191,8 +191,7 @@ func (sel *selector) Where(terms ...interface{}) Selector {
 
 func (sel *selector) And(terms ...interface{}) Selector {
 	return sel.frame(func(sq *selectorQuery) error {
-		sq.and(sel.SQLBuilder(), terms...)
-		return nil
+		return sq.and(sel.SQLBuilder(), terms...)
 	})
 }
 

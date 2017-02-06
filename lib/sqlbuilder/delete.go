@@ -9,11 +9,25 @@ import (
 )
 
 type deleterQuery struct {
-	table     string
-	limit     int
+	table string
+	limit int
+
 	where     *exql.Where
-	arguments []interface{}
-	amendFn   func(string) string
+	whereArgs []interface{}
+
+	amendFn func(string) string
+}
+
+func (dq *deleterQuery) and(b *sqlBuilder, terms ...interface{}) error {
+	where, whereArgs := b.t.toWhereWithArguments(terms)
+
+	if dq.where == nil {
+		dq.where, dq.whereArgs = &exql.Where{}, []interface{}{}
+	}
+	dq.where.Append(&where)
+	dq.whereArgs = append(dq.whereArgs, whereArgs...)
+
+	return nil
 }
 
 func (dq *deleterQuery) statement() *exql.Statement {
@@ -76,10 +90,14 @@ func (del *deleter) frame(fn func(*deleterQuery) error) *deleter {
 
 func (del *deleter) Where(terms ...interface{}) Deleter {
 	return del.frame(func(dq *deleterQuery) error {
-		where, arguments := del.SQLBuilder().t.toWhereWithArguments(terms)
-		dq.where = &where
-		dq.arguments = append(dq.arguments, arguments...)
-		return nil
+		dq.where, dq.whereArgs = &exql.Where{}, []interface{}{}
+		return dq.and(del.SQLBuilder(), terms...)
+	})
+}
+
+func (del *deleter) And(terms ...interface{}) Deleter {
+	return del.frame(func(dq *deleterQuery) error {
+		return dq.and(del.SQLBuilder(), terms...)
 	})
 }
 
@@ -97,12 +115,16 @@ func (del *deleter) Amend(fn func(string) string) Deleter {
 	})
 }
 
+func (dq *deleterQuery) arguments() []interface{} {
+	return joinArguments(dq.whereArgs)
+}
+
 func (del *deleter) Arguments() []interface{} {
 	dq, err := del.build()
 	if err != nil {
 		return nil
 	}
-	return dq.arguments
+	return dq.arguments()
 }
 
 func (del *deleter) Exec() (sql.Result, error) {
@@ -114,7 +136,7 @@ func (del *deleter) ExecContext(ctx context.Context) (sql.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return del.SQLBuilder().sess.StatementExec(ctx, dq.statement(), dq.arguments...)
+	return del.SQLBuilder().sess.StatementExec(ctx, dq.statement(), dq.arguments()...)
 }
 
 func (del *deleter) statement() (*exql.Statement, error) {
