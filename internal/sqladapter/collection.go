@@ -138,10 +138,24 @@ func (c *collection) InsertReturning(item interface{}) error {
 		goto cancel
 	}
 
-	// Get valid fields from newItem to overwrite those that are on item.
-	newItemFieldMap = mapper.ValidFieldMap(reflect.ValueOf(newItem))
-	for fieldName := range newItemFieldMap {
-		mapper.FieldByName(itemValue, fieldName).Set(newItemFieldMap[fieldName])
+	switch reflect.ValueOf(newItem).Elem().Kind() {
+	case reflect.Struct:
+		// Get valid fields from newItem to overwrite those that are on item.
+		newItemFieldMap = mapper.ValidFieldMap(reflect.ValueOf(newItem))
+		for fieldName := range newItemFieldMap {
+			mapper.FieldByName(itemValue, fieldName).Set(newItemFieldMap[fieldName])
+		}
+	case reflect.Map:
+		newItemV := reflect.ValueOf(newItem).Elem()
+		itemV := reflect.ValueOf(item)
+		if itemV.Kind() == reflect.Ptr {
+			itemV = itemV.Elem()
+		}
+		for _, keyV := range newItemV.MapKeys() {
+			itemV.SetMapIndex(keyV, newItemV.MapIndex(keyV))
+		}
+	default:
+		panic("default")
 	}
 
 	if !inTx {

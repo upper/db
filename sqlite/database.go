@@ -165,7 +165,11 @@ func (d *database) clone(ctx context.Context, checkConn bool) (*database, error)
 // CompileStatement allows sqladapter to compile the given statement into the
 // format SQLite expects.
 func (d *database) CompileStatement(stmt *exql.Statement, args []interface{}) (string, []interface{}) {
-	return sqlbuilder.Preprocess(stmt.Compile(template), args)
+	compiled, err := stmt.Compile(template)
+	if err != nil {
+		panic(err.Error())
+	}
+	return sqlbuilder.Preprocess(compiled, args)
 }
 
 // Err allows sqladapter to translate some known errors into generic errors.
@@ -224,7 +228,8 @@ func (d *database) NewDatabaseTx(ctx context.Context) (sqladapter.DatabaseTx, er
 	defer clone.mu.Unlock()
 
 	openFn := func() error {
-		sqlTx, err := compat.BeginTx(clone.BaseDatabase.Session(), ctx, nil)
+		//sqlTx, err := compat.BeginTx(clone.BaseDatabase.Session(), ctx, nil) // Temporal fix.
+		sqlTx, err := clone.BaseDatabase.Session().Begin()
 		if err == nil {
 			return clone.BindTx(ctx, sqlTx)
 		}

@@ -51,7 +51,7 @@ type result struct {
 	columns []interface{}
 	orderBy []interface{}
 	groupBy []interface{}
-	conds   []interface{}
+	conds   [][]interface{}
 }
 
 func filter(conds []interface{}) []interface{} {
@@ -87,7 +87,7 @@ func (r *Result) from(table string) *Result {
 
 func (r *Result) where(conds []interface{}) *Result {
 	return r.frame(func(res *result) error {
-		res.conds = conds
+		res.conds = [][]interface{}{conds}
 		return nil
 	})
 }
@@ -117,7 +117,7 @@ func (r *Result) Where(conds ...interface{}) db.Result {
 // And adds more conditions on top of the existing ones.
 func (r *Result) And(conds ...interface{}) db.Result {
 	return r.frame(func(res *result) error {
-		res.conds = append(res.conds, conds...)
+		res.conds = append(res.conds, conds)
 		return nil
 	})
 }
@@ -276,11 +276,14 @@ func (r *Result) buildSelect() (sqlbuilder.Selector, error) {
 
 	sel := r.SQLBuilder().Select(res.fields...).
 		From(res.table).
-		Where(filter(res.conds)...).
 		Limit(res.limit).
 		Offset(res.offset).
 		GroupBy(res.groupBy...).
 		OrderBy(res.orderBy...)
+
+	for i := range res.conds {
+		sel = sel.And(filter(res.conds[i])...)
+	}
 
 	return sel, nil
 }
@@ -292,8 +295,11 @@ func (r *Result) buildDelete() (sqlbuilder.Deleter, error) {
 	}
 
 	del := r.SQLBuilder().DeleteFrom(res.table).
-		Where(filter(res.conds)...).
 		Limit(res.limit)
+
+	for i := range res.conds {
+		del = del.And(filter(res.conds[i])...)
+	}
 
 	return del, nil
 }
@@ -306,8 +312,11 @@ func (r *Result) buildUpdate(values interface{}) (sqlbuilder.Updater, error) {
 
 	upd := r.SQLBuilder().Update(res.table).
 		Set(values).
-		Where(filter(res.conds)...).
 		Limit(res.limit)
+
+	for i := range res.conds {
+		upd = upd.And(filter(res.conds[i])...)
+	}
 
 	return upd, nil
 }
@@ -328,9 +337,12 @@ func (r *Result) buildCount() (sqlbuilder.Selector, error) {
 
 	sel := r.SQLBuilder().Select(db.Raw("count(1) AS _t")).
 		From(res.table).
-		Where(filter(res.conds)...).
 		GroupBy(res.groupBy...).
 		Limit(1)
+
+	for i := range res.conds {
+		sel = sel.And(filter(res.conds[i])...)
+	}
 
 	return sel, nil
 }

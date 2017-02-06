@@ -25,6 +25,7 @@ package postgresql
 import (
 	"database/sql"
 	"fmt"
+	"math/rand"
 	"os"
 	"testing"
 
@@ -127,6 +128,27 @@ func tearUp() error {
 			name varchar(255) default '',
 			tags varchar(64)[],
 			settings jsonb
+		)`,
+
+		`DROP TABLE IF EXISTS test_schema.test`,
+
+		`DROP SCHEMA IF EXISTS test_schema`,
+
+		`CREATE SCHEMA test_schema`,
+
+		`CREATE TABLE test_schema.test (id integer)`,
+
+		`DROP TABLE IF EXISTS pg_types`,
+
+		`CREATE TABLE pg_types (
+			id serial primary key,
+			integer_array integer[],
+			string_value varchar(255),
+			integer_valuer_value smallint[],
+			string_array text[],
+			field1 int,
+			field2 varchar(64),
+			field3 decimal
 		)`,
 	}
 
@@ -338,6 +360,155 @@ func TestOptionTypeJsonbStruct(t *testing.T) {
 	assert.Equal(t, "aah", item1Chk.Tags[0])
 	assert.Equal(t, "a", item1Chk.Settings.Name)
 	assert.Equal(t, int64(123), item1Chk.Settings.Num)
+}
+
+func TestSchemaCollection(t *testing.T) {
+	sess := mustOpen()
+	defer sess.Close()
+
+	col := sess.Collection("test_schema.test")
+	_, err := col.Insert(map[string]int{"id": 9})
+	assert.Equal(t, nil, err)
+
+	var dump []map[string]int
+	err = col.Find().All(&dump)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(dump))
+	assert.Equal(t, 9, dump[0]["id"])
+}
+
+func TestPgTypes(t *testing.T) {
+	type PGType struct {
+		ID           int64    `db:"id,omitempty"`
+		IntegerArray []int64  `db:"integer_array,int64array"`
+		StringValue  *string  `db:"string_value,omitempty"`
+		StringArray  []string `db:"string_array,stringarray"`
+		Field1       *int64   `db:"field1,omitempty"`
+		Field2       *string  `db:"field2,omitempty"`
+		Field3       *float64 `db:"field3,omitempty"`
+	}
+
+	field1 := int64(10)
+	field2 := string("ten")
+	field3 := float64(10.0)
+
+	testValue := "Hello world!"
+
+	origPgTypeTests := []PGType{
+		PGType{
+			Field1: &field1,
+			Field2: &field2,
+			Field3: &field3,
+		},
+		PGType{
+			IntegerArray: []int64{1, 2, 3, 4},
+		},
+		PGType{
+			IntegerArray: []int64{1, 2, 3, 4},
+			StringArray:  []string{"a", "boo", "bar"},
+		},
+		PGType{
+			Field2: &field2,
+			Field3: &field3,
+		},
+		PGType{
+			IntegerArray: []int64{},
+		},
+		PGType{
+			StringArray: []string{},
+		},
+		PGType{
+			IntegerArray: []int64{},
+			StringArray:  []string{},
+		},
+		PGType{},
+		PGType{
+			IntegerArray: []int64{1},
+			StringArray:  []string{"a"},
+		},
+		PGType{
+			IntegerArray: []int64{0, 0, 0, 0},
+			StringValue:  &testValue,
+			StringArray:  []string{"", "", "", ``, `""`},
+		},
+		PGType{
+			StringValue: &testValue,
+		},
+		PGType{
+			Field1: &field1,
+		},
+		PGType{
+			StringArray: []string{"a", "boo", "bar"},
+		},
+		PGType{
+			StringArray: []string{"a", "boo", "bar", `""`},
+		},
+		PGType{
+			IntegerArray: []int64{0},
+			StringArray:  []string{""},
+		},
+	}
+
+	sess := mustOpen()
+	defer sess.Close()
+
+	for i := 0; i < 100; i++ {
+
+		pgTypeTests := make([]PGType, len(origPgTypeTests))
+		perm := rand.Perm(len(origPgTypeTests))
+		for i, v := range perm {
+			pgTypeTests[v] = origPgTypeTests[i]
+		}
+
+		for i := range pgTypeTests {
+			id, err := sess.Collection("pg_types").Insert(pgTypeTests[i])
+			assert.NoError(t, err)
+
+			var actual PGType
+			err = sess.Collection("pg_types").Find(id).One(&actual)
+			assert.NoError(t, err)
+
+			expected := pgTypeTests[i]
+			expected.ID = id.(int64)
+			assert.Equal(t, expected, actual)
+		}
+
+		for i := range pgTypeTests {
+			row, err := sess.InsertInto("pg_types").Values(pgTypeTests[i]).Returning("id").QueryRow()
+			assert.NoError(t, err)
+
+			var id int64
+			err = row.Scan(&id)
+			assert.NoError(t, err)
+
+			var actual PGType
+			err = sess.Collection("pg_types").Find(id).One(&actual)
+			assert.NoError(t, err)
+
+			expected := pgTypeTests[i]
+			expected.ID = id
+
+			assert.Equal(t, expected, actual)
+		}
+
+		inserter := sess.InsertInto("pg_types")
+		for i := range pgTypeTests {
+			inserter = inserter.Values(pgTypeTests[i])
+		}
+		_, err := inserter.Exec()
+		assert.NoError(t, err)
+
+		batch := sess.InsertInto("pg_types").Batch(50)
+		go func() {
+			defer batch.Done()
+			for i := range pgTypeTests {
+				batch.Values(pgTypeTests[i])
+			}
+		}()
+
+		err = batch.Wait()
+		assert.NoError(t, err)
+	}
 }
 
 func getStats(sess sqlbuilder.Database) (map[string]int, error) {

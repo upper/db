@@ -150,7 +150,11 @@ func (d *database) clone(ctx context.Context, checkConn bool) (*database, error)
 // CompileStatement compiles a *exql.Statement into arguments that sql/database
 // accepts.
 func (d *database) CompileStatement(stmt *exql.Statement, args []interface{}) (string, []interface{}) {
-	return sqlbuilder.Preprocess(stmt.Compile(template), args)
+	compiled, err := stmt.Compile(template)
+	if err != nil {
+		panic(err.Error())
+	}
+	return sqlbuilder.Preprocess(compiled, args)
 }
 
 // Err allows sqladapter to translate specific MySQL string errors into custom

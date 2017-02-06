@@ -152,7 +152,11 @@ func (d *database) clone(ctx context.Context, checkConn bool) (*database, error)
 // CompileStatement compiles a *exql.Statement into arguments that sql/database
 // accepts.
 func (d *database) CompileStatement(stmt *exql.Statement, args []interface{}) (string, []interface{}) {
-	query, args := sqlbuilder.Preprocess(stmt.Compile(template), args)
+	compiled, err := stmt.Compile(template)
+	if err != nil {
+		panic(err.Error())
+	}
+	query, args := sqlbuilder.Preprocess(compiled, args)
 	return sqladapter.ReplaceWithDollarSign(query), args
 }
 
