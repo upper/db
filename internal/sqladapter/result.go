@@ -67,7 +67,7 @@ func (r *Result) Err() error {
 
 // Where sets conditions for the result set.
 func (r *Result) Where(conds ...interface{}) db.Result {
-	r.conds = append(r.conds, conds)
+	r.conds = [][]interface{}{conds}
 	return r
 }
 
