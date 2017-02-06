@@ -44,10 +44,12 @@ type selectorQuery struct {
 
 	joins     []*exql.Join
 	joinsArgs []interface{}
+
+	amendFn func(string) string
 }
 
-func (sq *selectorQuery) and(terms ...interface{}) error {
-	where, whereArgs := toWhereWithArguments(terms)
+func (sq *selectorQuery) and(b *sqlBuilder, terms ...interface{}) error {
+	where, whereArgs := b.t.toWhereWithArguments(terms)
 
 	if sq.where == nil {
 		sq.where, sq.whereArgs = &exql.Where{}, []interface{}{}
@@ -84,6 +86,8 @@ func (sq *selectorQuery) statement() *exql.Statement {
 	if len(sq.joins) > 0 {
 		stmt.Joins = exql.JoinConditions(sq.joins...)
 	}
+
+	stmt.SetAmendment(sq.amendFn)
 
 	return stmt
 }
@@ -124,7 +128,11 @@ func (sel *selector) SQLBuilder() *sqlBuilder {
 }
 
 func (sel *selector) String() string {
-	return prepareQueryForDisplay(sel.Compile())
+	s, err := sel.Compile()
+	if err != nil {
+		panic(err.Error())
+	}
+	return prepareQueryForDisplay(s)
 }
 
 func (sel *selector) frame(fn func(*selectorQuery) error) *selector {
@@ -177,13 +185,20 @@ func (sel *selector) Distinct() Selector {
 func (sel *selector) Where(terms ...interface{}) Selector {
 	return sel.frame(func(sq *selectorQuery) error {
 		sq.where, sq.whereArgs = &exql.Where{}, []interface{}{}
-		return sq.and(terms...)
+		return sq.and(sel.SQLBuilder(), terms...)
 	})
 }
 
 func (sel *selector) And(terms ...interface{}) Selector {
 	return sel.frame(func(sq *selectorQuery) error {
-		sq.and(terms...)
+		sq.and(sel.SQLBuilder(), terms...)
+		return nil
+	})
+}
+
+func (sel *selector) Amend(fn func(string) string) Selector {
+	return sel.frame(func(sq *selectorQuery) error {
+		sq.amendFn = fn
 		return nil
 	})
 }
@@ -339,7 +354,7 @@ func (sel *selector) On(terms ...interface{}) Selector {
 			return errors.New(`Cannot use Using() and On() with the same Join() expression.`)
 		}
 
-		w, a := toWhereWithArguments(terms)
+		w, a := sel.SQLBuilder().t.toWhereWithArguments(terms)
 		o := exql.On(w)
 
 		lastJoin.On = &o
@@ -375,7 +390,11 @@ func (sel *selector) As(alias string) Selector {
 		}
 		last := len(sq.table.Columns) - 1
 		if raw, ok := sq.table.Columns[last].(*exql.Raw); ok {
-			sq.table.Columns[last] = exql.RawValue("(" + raw.Value + ") AS " + exql.ColumnWithName(alias).Compile(sel.template()))
+			compiled, err := exql.ColumnWithName(alias).Compile(sel.template())
+			if err != nil {
+				return err
+			}
+			sq.table.Columns[last] = exql.RawValue("(" + raw.Value + ") AS " + compiled)
 		}
 		return nil
 	})
@@ -441,7 +460,7 @@ func (sel *selector) build() (*selectorQuery, error) {
 	return sq.(*selectorQuery), nil
 }
 
-func (sel *selector) Compile() string {
+func (sel *selector) Compile() (string, error) {
 	return sel.statement().Compile(sel.template())
 }
 

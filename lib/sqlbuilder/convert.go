@@ -11,9 +11,11 @@ import (
 )
 
 var (
-	sqlNull       = exql.RawValue(`NULL`)
-	sqlIsOperator = `IS`
-	sqlInOperator = `IN`
+	sqlNull            = exql.RawValue(`NULL`)
+	sqlDefault         = exql.RawValue(`DEFAULT`)
+	sqlIsOperator      = `IS`
+	sqlInOperator      = `IN`
+	sqlDefaultOperator = `=`
 )
 
 type templateWithUtils struct {
@@ -52,7 +54,7 @@ func expandQuery(in string, args []interface{}, fn func(interface{}) (string, []
 func (tu *templateWithUtils) PlaceholderValue(in interface{}) (exql.Fragment, []interface{}) {
 	switch t := in.(type) {
 	case db.RawValue:
-		return exql.RawValue(t.String()), nil
+		return exql.RawValue(t.String()), t.Arguments()
 	case db.Function:
 		fnName := t.Name()
 		fnArgs := []interface{}{}
@@ -61,8 +63,11 @@ func (tu *templateWithUtils) PlaceholderValue(in interface{}) (exql.Fragment, []
 		fragments := []string{}
 		for i := range args {
 			frag, args := tu.PlaceholderValue(args[i])
-			fragments = append(fragments, frag.Compile(tu.Template))
-			fnArgs = append(fnArgs, args...)
+			fragment, err := frag.Compile(tu.Template)
+			if err == nil {
+				fragments = append(fragments, fragment)
+				fnArgs = append(fnArgs, args...)
+			}
 		}
 		return exql.RawValue(fnName + `(` + strings.Join(fragments, `, `) + `)`), fnArgs
 	default:
@@ -122,6 +127,8 @@ func toColumnsValuesAndArguments(columnNames []string, columnValues []interface{
 
 	for i := range columnValues {
 		switch v := columnValues[i].(type) {
+		case *exql.Raw, exql.Raw:
+			values.Values = append(values.Values, sqlDefault)
 		case *exql.Value:
 			// Adding value.
 			values.Values = append(values.Values, v)
@@ -153,7 +160,11 @@ func preprocessFn(arg interface{}) (string, []interface{}) {
 		case db.RawValue:
 			return Preprocess(t.Raw(), t.Arguments())
 		case compilable:
-			return `(` + t.Compile() + `)`, t.Arguments()
+			c, err := t.Compile()
+			if err == nil {
+				return `(` + c + `)`, t.Arguments()
+			}
+			panic(err.Error())
 		}
 	} else if len(values) == 0 {
 		return `NULL`, nil
@@ -168,7 +179,7 @@ func Preprocess(in string, args []interface{}) (string, []interface{}) {
 
 // toWhereWithArguments converts the given parameters into a exql.Where
 // value.
-func toWhereWithArguments(term interface{}) (where exql.Where, args []interface{}) {
+func (tu *templateWithUtils) toWhereWithArguments(term interface{}) (where exql.Where, args []interface{}) {
 	args = []interface{}{}
 
 	switch t := term.(type) {
@@ -186,7 +197,7 @@ func toWhereWithArguments(term interface{}) (where exql.Where, args []interface{
 					} else {
 						val = t[1]
 					}
-					cv, v := toColumnValues(db.NewConstraint(key, val))
+					cv, v := tu.toColumnValues(db.NewConstraint(key, val))
 					args = append(args, v...)
 					for i := range cv.ColumnValues {
 						where.Conditions = append(where.Conditions, cv.ColumnValues[i])
@@ -196,7 +207,7 @@ func toWhereWithArguments(term interface{}) (where exql.Where, args []interface{
 			}
 		}
 		for i := range t {
-			w, v := toWhereWithArguments(t[i])
+			w, v := tu.toWhereWithArguments(t[i])
 			if len(w.Conditions) == 0 {
 				continue
 			}
@@ -211,7 +222,7 @@ func toWhereWithArguments(term interface{}) (where exql.Where, args []interface{
 		return
 	case db.Constraints:
 		for _, c := range t.Constraints() {
-			w, v := toWhereWithArguments(c)
+			w, v := tu.toWhereWithArguments(c)
 			if len(w.Conditions) == 0 {
 				continue
 			}
@@ -223,7 +234,7 @@ func toWhereWithArguments(term interface{}) (where exql.Where, args []interface{
 		var cond exql.Where
 
 		for _, c := range t.Sentences() {
-			w, v := toWhereWithArguments(c)
+			w, v := tu.toWhereWithArguments(c)
 			if len(w.Conditions) == 0 {
 				continue
 			}
@@ -248,7 +259,7 @@ func toWhereWithArguments(term interface{}) (where exql.Where, args []interface{
 
 		return
 	case db.Constraint:
-		cv, v := toColumnValues(t)
+		cv, v := tu.toColumnValues(t)
 		args = append(args, v...)
 		where.Conditions = append(where.Conditions, cv.ColumnValues...)
 		return where, args
@@ -257,14 +268,21 @@ func toWhereWithArguments(term interface{}) (where exql.Where, args []interface{
 	panic(fmt.Sprintf("Unknown condition type %T", term))
 }
 
-func toColumnValues(term interface{}) (cv exql.ColumnValues, args []interface{}) {
+func (tu *templateWithUtils) toColumnValues(term interface{}) (cv exql.ColumnValues, args []interface{}) {
 	args = []interface{}{}
 
 	switch t := term.(type) {
 	case []interface{}:
 		l := len(t)
 		for i := 0; i < l; i++ {
-			column := t[i].(string)
+			column, isString := t[i].(string)
+
+			if !isString {
+				p, q := tu.toColumnValues(t[i])
+				cv.ColumnValues = append(cv.ColumnValues, p.ColumnValues...)
+				args = append(args, q...)
+				continue
+			}
 
 			if !strings.ContainsAny(column, "=") {
 				column = fmt.Sprintf("%s = ?", column)
@@ -357,16 +375,33 @@ func toColumnValues(term interface{}) (cv exql.ColumnValues, args []interface{})
 					args = append(args, v...)
 				}
 			}
+		}
 
+		// Using guessed operator if no operator was given.
+		if columnValue.Operator == "" {
+			if tu.DefaultOperator != "" {
+				columnValue.Operator = tu.DefaultOperator
+			} else {
+				columnValue.Operator = sqlDefaultOperator
+			}
 		}
 
 		// Using guessed operator if no operator was given.
 		cv.ColumnValues = append(cv.ColumnValues, &columnValue)
 
 		return cv, args
+	case db.RawValue:
+		columnValue := exql.ColumnValue{}
+		p, q := Preprocess(t.Raw(), t.Arguments())
+
+		columnValue.Column = exql.RawValue(p)
+		args = append(args, q...)
+
+		cv.ColumnValues = append(cv.ColumnValues, &columnValue)
+		return cv, args
 	case db.Constraints:
 		for _, c := range t.Constraints() {
-			p, q := toColumnValues(c)
+			p, q := tu.toColumnValues(c)
 			cv.ColumnValues = append(cv.ColumnValues, p.ColumnValues...)
 			args = append(args, q...)
 		}

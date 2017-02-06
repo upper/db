@@ -18,6 +18,10 @@ type updaterQuery struct {
 
 	where     *exql.Where
 	whereArgs []interface{}
+
+	err error
+
+	amendFn func(string) string
 }
 
 func (uq *updaterQuery) statement() *exql.Statement {
@@ -34,6 +38,8 @@ func (uq *updaterQuery) statement() *exql.Statement {
 	if uq.limit != 0 {
 		stmt.Limit = exql.Limit(uq.limit)
 	}
+
+	stmt.SetAmendment(uq.amendFn)
 
 	return stmt
 }
@@ -66,7 +72,11 @@ func (upd *updater) template() *exql.Template {
 }
 
 func (upd *updater) String() string {
-	return prepareQueryForDisplay(upd.Compile())
+	s, err := upd.Compile()
+	if err != nil {
+		panic(err.Error())
+	}
+	return prepareQueryForDisplay(s)
 }
 
 func (upd *updater) setTable(table string) *updater {
@@ -87,32 +97,41 @@ func (upd *updater) Set(terms ...interface{}) Updater {
 		}
 
 		if len(terms) == 1 {
-			ff, vv, _ := Map(terms[0], nil)
+			ff, vv, err := Map(terms[0], nil)
+			if err == nil && len(ff) > 0 {
+				cvs := make([]exql.Fragment, 0, len(ff))
+				args := make([]interface{}, 0, len(vv))
 
-			cvs := make([]exql.Fragment, 0, len(ff))
-			args := make([]interface{}, 0, len(vv))
+				for i := range ff {
+					cv := &exql.ColumnValue{
+						Column:   exql.ColumnWithName(ff[i]),
+						Operator: upd.SQLBuilder().t.AssignmentOperator,
+					}
 
-			for i := range ff {
-				cv := &exql.ColumnValue{
-					Column:   exql.ColumnWithName(ff[i]),
-					Operator: upd.SQLBuilder().t.AssignmentOperator,
+					var localArgs []interface{}
+					cv.Value, localArgs = upd.SQLBuilder().t.PlaceholderValue(vv[i])
+
+					args = append(args, localArgs...)
+					cvs = append(cvs, cv)
 				}
 
-				var localArgs []interface{}
-				cv.Value, localArgs = upd.SQLBuilder().t.PlaceholderValue(vv[i])
+				uq.columnValues.Insert(cvs...)
+				uq.columnValuesArgs = append(uq.columnValuesArgs, args...)
 
-				args = append(args, localArgs...)
-				cvs = append(cvs, cv)
+				return nil
 			}
-
-			uq.columnValues.Insert(cvs...)
-			uq.columnValuesArgs = append(uq.columnValuesArgs, args...)
-		} else if len(terms) > 1 {
-			cv, arguments := toColumnValues(terms)
-			uq.columnValues.Insert(cv.ColumnValues...)
-			uq.columnValuesArgs = append(uq.columnValuesArgs, arguments...)
 		}
 
+		cv, arguments := upd.SQLBuilder().t.toColumnValues(terms)
+		uq.columnValues.Insert(cv.ColumnValues...)
+		uq.columnValuesArgs = append(uq.columnValuesArgs, arguments...)
+		return nil
+	})
+}
+
+func (upd *updater) Amend(fn func(string) string) Updater {
+	return upd.frame(func(uq *updaterQuery) error {
+		uq.amendFn = fn
 		return nil
 	})
 }
@@ -127,7 +146,7 @@ func (upd *updater) Arguments() []interface{} {
 
 func (upd *updater) Where(terms ...interface{}) Updater {
 	return upd.frame(func(uq *updaterQuery) error {
-		where, arguments := toWhereWithArguments(terms)
+		where, arguments := upd.SQLBuilder().t.toWhereWithArguments(terms)
 		uq.where = &where
 		uq.whereArgs = append(uq.whereArgs, arguments...)
 		return nil
@@ -153,9 +172,12 @@ func (upd *updater) Limit(limit int) Updater {
 	})
 }
 
-func (upd *updater) statement() *exql.Statement {
-	iq, _ := upd.build()
-	return iq.statement()
+func (upd *updater) statement() (*exql.Statement, error) {
+	iq, err := upd.build()
+	if err != nil {
+		return nil, err
+	}
+	return iq.statement(), nil
 }
 
 func (upd *updater) build() (*updaterQuery, error) {
@@ -166,8 +188,12 @@ func (upd *updater) build() (*updaterQuery, error) {
 	return uq.(*updaterQuery), nil
 }
 
-func (upd *updater) Compile() string {
-	return upd.statement().Compile(upd.template())
+func (upd *updater) Compile() (string, error) {
+	s, err := upd.statement()
+	if err != nil {
+		return "", err
+	}
+	return s.Compile(upd.template())
 }
 
 func (upd *updater) Prev() immutable.Immutable {

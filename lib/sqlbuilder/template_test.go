@@ -125,7 +125,11 @@ const (
     INSERT INTO {{.Table}}
       {{if .Columns }}({{.Columns}}){{end}}
     VALUES
+		{{if .Values}}
       {{.Values}}
+		{{else}}
+			(default)
+		{{end}}
 		{{if .Returning}}
 			RETURNING {{.Returning}}
 		{{end}}

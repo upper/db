@@ -19,6 +19,13 @@ func TestSelect(t *testing.T) {
 	)
 
 	assert.Equal(
+		`SELECT DATE() FOR UPDATE`,
+		b.Select(db.Func("DATE")).Amend(func(query string) string {
+			return query + " FOR UPDATE"
+		}).String(),
+	)
+
+	assert.Equal(
 		`SELECT * FROM "artist"`,
 		b.SelectFrom("artist").String(),
 	)
@@ -595,6 +602,18 @@ func TestSelect(t *testing.T) {
 	}
 
 	{
+		sel := b.SelectFrom("foo").Where("group_id", 1).And("user_id", 2)
+		assert.Equal(
+			`SELECT * FROM "foo" WHERE ("group_id" = $1 AND "user_id" = $2)`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{1, 2},
+			sel.Arguments(),
+		)
+	}
+
+	{
 		s := `SUM(CASE WHEN foo in ? THEN 1 ELSE 0 END) AS _sum`
 		sel := b.Select("c1").Columns(db.Raw(s, []int{5, 4, 3, 2})).From("foo").Where("bar = ?", 1)
 		assert.Equal(
@@ -680,6 +699,7 @@ func TestSelect(t *testing.T) {
 			[]interface{}{3, 1, 2, 4, 5, 6, `%word%`, `%word%`},
 			sel.Arguments(),
 		)
+
 	}
 }
 
@@ -704,6 +724,13 @@ func TestInsert(t *testing.T) {
 	assert.Equal(
 		`INSERT INTO "artist" ("id", "name") VALUES ($1, $2) RETURNING "id"`,
 		b.InsertInto("artist").Values(map[string]string{"id": "12", "name": "Chavela Vargas"}).Returning("id").String(),
+	)
+
+	assert.Equal(
+		`INSERT INTO "artist" ("id", "name") VALUES ($1, $2) RETURNING "id"`,
+		b.InsertInto("artist").Values(map[string]string{"id": "12", "name": "Chavela Vargas"}).Amend(func(query string) string {
+			return query + ` RETURNING "id"`
+		}).String(),
 	)
 
 	assert.Equal(
@@ -749,12 +776,12 @@ func TestInsert(t *testing.T) {
 			Values(artistStruct{0, ""})
 
 		assert.Equal(
-			`INSERT INTO "artist" ("id", "name") VALUES ($1, $2), ($3, $4), ($5, $6), ($7, $8), ($9, $10)`,
+			`INSERT INTO "artist" ("id", "name") VALUES (DEFAULT, DEFAULT), ($1, $2), (DEFAULT, $3), ($4, DEFAULT), (DEFAULT, DEFAULT)`,
 			q.String(),
 		)
 
 		assert.Equal(
-			[]interface{}{0, "", 12, "Chavela Vargas", 0, "Alondra de la Parra", 14, "", 0, ""},
+			[]interface{}{12, "Chavela Vargas", "Alondra de la Parra", 14},
 			q.Arguments(),
 		)
 	}
@@ -803,7 +830,7 @@ func TestInsert(t *testing.T) {
 			q := b.InsertInto("artist").Values(artistStruct{Name: "Chavela Vargas"}).Values(artistStruct{Name: "Alondra de la Parra"})
 
 			assert.Equal(
-				`INSERT INTO "artist" ("name") VALUES ($1), ($2)`,
+				`INSERT INTO "artist" ("id", "name") VALUES (DEFAULT, $1), (DEFAULT, $2)`,
 				q.String(),
 			)
 			assert.Equal(
@@ -830,7 +857,7 @@ func TestInsert(t *testing.T) {
 			q := b.InsertInto("artist").Values(artistStruct{ID: 1}).Values(artistStruct{ID: 2})
 
 			assert.Equal(
-				`INSERT INTO "artist" ("id") VALUES ($1), ($2)`,
+				`INSERT INTO "artist" ("id", "name") VALUES ($1, DEFAULT), ($2, DEFAULT)`,
 				q.String(),
 			)
 
@@ -870,12 +897,12 @@ func TestInsert(t *testing.T) {
 			Values(artistStruct{intRef(0), strRef("")})
 
 		assert.Equal(
-			`INSERT INTO "artist" ("id", "name") VALUES ($1, $2), ($3, $4), ($5, $6), ($7, $8), ($9, $10)`,
+			`INSERT INTO "artist" ("id", "name") VALUES (DEFAULT, DEFAULT), ($1, $2), (DEFAULT, $3), ($4, DEFAULT), (DEFAULT, DEFAULT)`,
 			q.String(),
 		)
 
 		assert.Equal(
-			[]interface{}{intRef(0), strRef(""), intRef(12), strRef("Chavela Vargas"), intRef(0), strRef("Alondra de la Parra"), intRef(14), strRef(""), intRef(0), strRef("")},
+			[]interface{}{intRef(12), strRef("Chavela Vargas"), strRef("Alondra de la Parra"), intRef(14)},
 			q.Arguments(),
 		)
 	}
@@ -883,6 +910,11 @@ func TestInsert(t *testing.T) {
 	assert.Equal(
 		`INSERT INTO "artist" ("name", "id") VALUES ($1, $2)`,
 		b.InsertInto("artist").Columns("name", "id").Values("Chavela Vargas", 12).String(),
+	)
+
+	assert.Equal(
+		`INSERT INTO "artist" VALUES (default)`,
+		b.InsertInto("artist").String(),
 	)
 }
 
@@ -893,6 +925,13 @@ func TestUpdate(t *testing.T) {
 	assert.Equal(
 		`UPDATE "artist" SET "name" = $1`,
 		b.Update("artist").Set("name", "Artist").String(),
+	)
+
+	assert.Equal(
+		`UPDATE "artist" SET "name" = $1 RETURNING "name"`,
+		b.Update("artist").Set("name", "Artist").Amend(func(query string) string {
+			return query + ` RETURNING "name"`
+		}).String(),
 	)
 
 	{
@@ -972,6 +1011,64 @@ func TestUpdate(t *testing.T) {
 			"id = id + ?", 10,
 		).Where("id > ?", 0).String(),
 	)
+
+	{
+		q := b.Update("posts").Set("column = ?", "foo")
+
+		assert.Equal(
+			`UPDATE "posts" SET "column" = $1`,
+			q.String(),
+		)
+
+		assert.Equal(
+			[]interface{}{"foo"},
+			q.Arguments(),
+		)
+	}
+
+	{
+		q := b.Update("posts").Set(db.Raw("column = ?", "foo"))
+
+		assert.Equal(
+			`UPDATE "posts" SET column = $1`,
+			q.String(),
+		)
+
+		assert.Equal(
+			[]interface{}{"foo"},
+			q.Arguments(),
+		)
+	}
+
+	{
+		q := b.Update("posts").Set("foo = bar")
+
+		assert.Equal(
+			[]interface{}(nil),
+			q.Arguments(),
+		)
+
+		assert.Equal(
+			`UPDATE "posts" SET "foo" = bar`,
+			q.String(),
+		)
+	}
+
+	{
+		q := b.Update("posts").Set(
+			db.Cond{"tags": db.Raw("array_remove(tags, ?)", "foo")},
+		).Where(db.Raw("hub_id = ? AND ? = ANY(tags) AND ? = ANY(tags)", 1, "bar", "baz"))
+
+		assert.Equal(
+			`UPDATE "posts" SET "tags" = array_remove(tags, $1) WHERE (hub_id = $2 AND $3 = ANY(tags) AND $4 = ANY(tags))`,
+			q.String(),
+		)
+
+		assert.Equal(
+			[]interface{}{"foo", 1, "bar", "baz"},
+			q.Arguments(),
+		)
+	}
 }
 
 func TestDelete(t *testing.T) {
@@ -981,6 +1078,13 @@ func TestDelete(t *testing.T) {
 	assert.Equal(
 		`DELETE FROM "artist" WHERE (name = $1)`,
 		bt.DeleteFrom("artist").Where("name = ?", "Chavela Vargas").String(),
+	)
+
+	assert.Equal(
+		`DELETE FROM "artist" WHERE (name = $1) RETURNING 1`,
+		bt.DeleteFrom("artist").Where("name = ?", "Chavela Vargas").Amend(func(query string) string {
+			return fmt.Sprintf("%s RETURNING 1", query)
+		}).String(),
 	)
 
 	assert.Equal(

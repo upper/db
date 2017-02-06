@@ -13,6 +13,7 @@ type deleterQuery struct {
 	limit     int
 	where     *exql.Where
 	arguments []interface{}
+	amendFn   func(string) string
 }
 
 func (dq *deleterQuery) statement() *exql.Statement {
@@ -28,6 +29,8 @@ func (dq *deleterQuery) statement() *exql.Statement {
 	if dq.limit != 0 {
 		stmt.Limit = exql.Limit(dq.limit)
 	}
+
+	stmt.SetAmendment(dq.amendFn)
 
 	return stmt
 }
@@ -53,7 +56,11 @@ func (del *deleter) template() *exql.Template {
 }
 
 func (del *deleter) String() string {
-	return prepareQueryForDisplay(del.Compile())
+	s, err := del.Compile()
+	if err != nil {
+		panic(err.Error())
+	}
+	return prepareQueryForDisplay(s)
 }
 
 func (del *deleter) setTable(table string) *deleter {
@@ -69,7 +76,7 @@ func (del *deleter) frame(fn func(*deleterQuery) error) *deleter {
 
 func (del *deleter) Where(terms ...interface{}) Deleter {
 	return del.frame(func(dq *deleterQuery) error {
-		where, arguments := toWhereWithArguments(terms)
+		where, arguments := del.SQLBuilder().t.toWhereWithArguments(terms)
 		dq.where = &where
 		dq.arguments = append(dq.arguments, arguments...)
 		return nil
@@ -79,6 +86,13 @@ func (del *deleter) Where(terms ...interface{}) Deleter {
 func (del *deleter) Limit(limit int) Deleter {
 	return del.frame(func(dq *deleterQuery) error {
 		dq.limit = limit
+		return nil
+	})
+}
+
+func (del *deleter) Amend(fn func(string) string) Deleter {
+	return del.frame(func(dq *deleterQuery) error {
+		dq.amendFn = fn
 		return nil
 	})
 }
@@ -103,9 +117,12 @@ func (del *deleter) ExecContext(ctx context.Context) (sql.Result, error) {
 	return del.SQLBuilder().sess.StatementExec(ctx, dq.statement(), dq.arguments...)
 }
 
-func (del *deleter) statement() *exql.Statement {
-	iq, _ := del.build()
-	return iq.statement()
+func (del *deleter) statement() (*exql.Statement, error) {
+	iq, err := del.build()
+	if err != nil {
+		return nil, err
+	}
+	return iq.statement(), nil
 }
 
 func (del *deleter) build() (*deleterQuery, error) {
@@ -116,8 +133,12 @@ func (del *deleter) build() (*deleterQuery, error) {
 	return dq.(*deleterQuery), nil
 }
 
-func (del *deleter) Compile() string {
-	return del.statement().Compile(del.template())
+func (del *deleter) Compile() (string, error) {
+	s, err := del.statement()
+	if err != nil {
+		return "", err
+	}
+	return s.Compile(del.template())
 }
 
 func (del *deleter) Prev() immutable.Immutable {

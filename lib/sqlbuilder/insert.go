@@ -16,14 +16,18 @@ type inserterQuery struct {
 	values         []*exql.Values
 	arguments      []interface{}
 	extra          string
+	amendFn        func(string) string
 }
 
 func (iq *inserterQuery) processValues() (values []*exql.Values, arguments []interface{}) {
-	var insertNils bool
+	var mapOptions *MapOptions
+	if len(iq.enqueuedValues) > 1 {
+		mapOptions = &MapOptions{IncludeZeroed: true, IncludeNil: true}
+	}
 
 	for _, enqueuedValue := range iq.enqueuedValues {
 		if len(enqueuedValue) == 1 {
-			ff, vv, err := Map(enqueuedValue[0], nil)
+			ff, vv, err := Map(enqueuedValue[0], mapOptions)
 			if err == nil {
 				columns, vals, args, _ := toColumnsValuesAndArguments(ff, vv)
 
@@ -32,11 +36,6 @@ func (iq *inserterQuery) processValues() (values []*exql.Values, arguments []int
 				if len(iq.columns) == 0 {
 					for _, c := range columns.Columns {
 						iq.columns = append(iq.columns, c)
-					}
-				} else {
-					if len(iq.columns) != len(columns.Columns) {
-						insertNils = true
-						break
 					}
 				}
 				continue
@@ -55,27 +54,6 @@ func (iq *inserterQuery) processValues() (values []*exql.Values, arguments []int
 		}
 	}
 
-	if insertNils {
-		values, arguments = values[0:0], arguments[0:0]
-
-		for _, enqueuedValue := range iq.enqueuedValues {
-			if len(enqueuedValue) == 1 {
-				ff, vv, err := Map(enqueuedValue[0], &MapOptions{IncludeZeroed: true, IncludeNil: true})
-				if err == nil {
-					columns, vals, args, _ := toColumnsValuesAndArguments(ff, vv)
-					values, arguments = append(values, vals), append(arguments, args...)
-
-					if len(iq.columns) != len(columns.Columns) {
-						iq.columns = iq.columns[0:0]
-						for _, c := range columns.Columns {
-							iq.columns = append(iq.columns, c)
-						}
-					}
-				}
-				continue
-			}
-		}
-	}
 	return
 }
 
@@ -96,6 +74,8 @@ func (iq *inserterQuery) statement() *exql.Statement {
 	if len(iq.returning) > 0 {
 		stmt.Returning = exql.ReturningColumns(iq.returning...)
 	}
+
+	stmt.SetAmendment(iq.amendFn)
 
 	return stmt
 }
@@ -121,7 +101,11 @@ func (ins *inserter) template() *exql.Template {
 }
 
 func (ins *inserter) String() string {
-	return prepareQueryForDisplay(ins.Compile())
+	s, err := ins.Compile()
+	if err != nil {
+		panic(err.Error())
+	}
+	return prepareQueryForDisplay(s)
 }
 
 func (ins *inserter) frame(fn func(*inserterQuery) error) *inserter {
@@ -130,6 +114,13 @@ func (ins *inserter) frame(fn func(*inserterQuery) error) *inserter {
 
 func (ins *inserter) Batch(n int) *BatchInserter {
 	return newBatchInserter(ins, n)
+}
+
+func (ins *inserter) Amend(fn func(string) string) Inserter {
+	return ins.frame(func(iq *inserterQuery) error {
+		iq.amendFn = fn
+		return nil
+	})
 }
 
 func (ins *inserter) Arguments() []interface{} {
@@ -213,9 +204,12 @@ func (ins *inserter) Values(values ...interface{}) Inserter {
 	})
 }
 
-func (ins *inserter) statement() *exql.Statement {
-	iq, _ := ins.build()
-	return iq.statement()
+func (ins *inserter) statement() (*exql.Statement, error) {
+	iq, err := ins.build()
+	if err != nil {
+		return nil, err
+	}
+	return iq.statement(), nil
 }
 
 func (ins *inserter) build() (*inserterQuery, error) {
@@ -228,8 +222,12 @@ func (ins *inserter) build() (*inserterQuery, error) {
 	return ret, nil
 }
 
-func (ins *inserter) Compile() string {
-	return ins.statement().Compile(ins.template())
+func (ins *inserter) Compile() (string, error) {
+	s, err := ins.statement()
+	if err != nil {
+		return "", err
+	}
+	return s.Compile(ins.template())
 }
 
 func (ins *inserter) Prev() immutable.Immutable {
