@@ -8,7 +8,7 @@ language: go
 
 go:
   - "1.7"
-  - "go1.8beta3"
+#  - "go1.8beta3"
   - "tip"
 
 services:
