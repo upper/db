@@ -27,6 +27,7 @@ package postgresql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -247,12 +248,22 @@ func (d *database) TableExists(name string) error {
 	return db.ErrCollectionDoesNotExist
 }
 
+// quotedTableName returns a valid regclass name for both regular tables and
+// for schemas.
+func quotedTableName(s string) string {
+	chunks := strings.Split(s, ".")
+	for i := range chunks {
+		chunks[i] = fmt.Sprintf("%q", chunks[i])
+	}
+	return strings.Join(chunks, ".")
+}
+
 // PrimaryKeys returns the names of all the primary keys on the table.
 func (d *database) PrimaryKeys(tableName string) ([]string, error) {
 	q := d.Select("pg_attribute.attname AS pkey").
 		From("pg_index", "pg_class", "pg_attribute").
 		Where(`
-			pg_class.oid = '"` + tableName + `"'::regclass
+			pg_class.oid = '` + quotedTableName(tableName) + `'::regclass
 			AND indrelid = pg_class.oid
 			AND pg_attribute.attrelid = pg_class.oid
 			AND pg_attribute.attnum = ANY(pg_index.indkey)
@@ -270,6 +281,9 @@ func (d *database) PrimaryKeys(tableName string) ([]string, error) {
 			return nil, err
 		}
 		pk = append(pk, k)
+	}
+	if err := iter.Err(); err != nil {
+		return nil, err
 	}
 
 	return pk, nil

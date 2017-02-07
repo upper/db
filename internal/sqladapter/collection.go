@@ -25,9 +25,6 @@ type PartialCollection interface {
 	// Name returns the name of the table.
 	Name() string
 
-	// FilterConds filters the given conditions and transforms them if necessary.
-	FilterConds(...interface{}) []interface{}
-
 	// Insert inserts a new item into the collection.
 	Insert(interface{}) (interface{}, error)
 }
@@ -52,12 +49,17 @@ type BaseCollection interface {
 	PrimaryKeys() []string
 }
 
+type condsFilter interface {
+	FilterConds(...interface{}) []interface{}
+}
+
 // collection is the implementation of Collection.
 type collection struct {
 	BaseCollection
 	PartialCollection
 
-	pk []string
+	pk  []string
+	err error
 }
 
 var (
@@ -67,7 +69,7 @@ var (
 // NewBaseCollection returns a collection with basic methods.
 func NewBaseCollection(p PartialCollection) BaseCollection {
 	c := &collection{PartialCollection: p}
-	c.pk, _ = c.Database().PrimaryKeys(c.Name())
+	c.pk, c.err = c.Database().PrimaryKeys(c.Name())
 	return c
 }
 
@@ -76,12 +78,29 @@ func (c *collection) PrimaryKeys() []string {
 	return c.pk
 }
 
+func (c *collection) filterConds(conds ...interface{}) []interface{} {
+	if tr, ok := c.PartialCollection.(condsFilter); ok {
+		return tr.FilterConds(conds...)
+	}
+	if len(conds) == 1 && len(c.pk) == 1 {
+		if id := conds[0]; IsKeyValue(id) {
+			conds[0] = db.Cond{c.pk[0]: id}
+		}
+	}
+	return conds
+}
+
 // Find creates a result set with the given conditions.
 func (c *collection) Find(conds ...interface{}) db.Result {
+	if c.err != nil {
+		res := &Result{}
+		res.setErr(c.err)
+		return res
+	}
 	return NewResult(
 		c.Database(),
 		c.Name(),
-		c.FilterConds(conds...),
+		c.filterConds(conds...),
 	)
 }
 

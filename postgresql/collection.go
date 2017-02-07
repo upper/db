@@ -26,7 +26,6 @@ import (
 
 	"upper.io/db.v3"
 	"upper.io/db.v3/internal/sqladapter"
-	"upper.io/db.v3/lib/sqlbuilder"
 )
 
 // collection is the actual implementation of a collection.
@@ -60,31 +59,13 @@ func (c *collection) Database() sqladapter.Database {
 	return c.d
 }
 
-func (c *collection) FilterConds(conds ...interface{}) []interface{} {
-	if len(conds) == 1 {
-		switch id := conds[0].(type) {
-		case int64:
-			conds[0] = db.Cond{"id": id}
-		case int:
-			conds[0] = db.Cond{"id": id}
-		default:
-		}
-	}
-	return conds
-}
-
 // Insert inserts an item (map or struct) into the collection.
 func (c *collection) Insert(item interface{}) (interface{}, error) {
-	columnNames, columnValues, err := sqlbuilder.Map(item, nil)
-	if err != nil {
-		return nil, err
-	}
+	var err error
 
 	pKey := c.BaseCollection.PrimaryKeys()
 
-	q := c.Database().InsertInto(c.Name()).
-		Columns(columnNames...).
-		Values(columnValues...)
+	q := c.d.InsertInto(c.Name()).Values(item)
 
 	if len(pKey) == 0 {
 		// There is no primary key.
@@ -96,10 +77,9 @@ func (c *collection) Insert(item interface{}) (interface{}, error) {
 
 		// Attempt to use LastInsertId() (probably won't work, but the Exec()
 		// succeeded, so we can safely ignore the error from LastInsertId()).
-		if lastID, _ := res.LastInsertId(); lastID > 0 {
-			return lastID, nil
-		}
-		return nil, nil // Row was inserted but it does not have a primary key.
+		lastID, _ := res.LastInsertId()
+
+		return lastID, nil
 	}
 
 	// Asking the database to return the primary key after insertion.

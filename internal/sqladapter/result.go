@@ -168,7 +168,10 @@ func (r *Result) Select(fields ...interface{}) db.Result {
 
 // String satisfies fmt.Stringer
 func (r *Result) String() string {
-	query, _ := r.buildSelect()
+	query, err := r.buildSelect()
+	if err != nil {
+		panic(err.Error())
+	}
 	return query.String()
 }
 
@@ -269,6 +272,10 @@ func (r *Result) Count() (uint64, error) {
 }
 
 func (r *Result) buildSelect() (sqlbuilder.Selector, error) {
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
+
 	res, err := r.fastForward()
 	if err != nil {
 		return nil, err
@@ -289,6 +296,10 @@ func (r *Result) buildSelect() (sqlbuilder.Selector, error) {
 }
 
 func (r *Result) buildDelete() (sqlbuilder.Deleter, error) {
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
+
 	res, err := r.fastForward()
 	if err != nil {
 		return nil, err
@@ -305,6 +316,10 @@ func (r *Result) buildDelete() (sqlbuilder.Deleter, error) {
 }
 
 func (r *Result) buildUpdate(values interface{}) (sqlbuilder.Updater, error) {
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
+
 	res, err := r.fastForward()
 	if err != nil {
 		return nil, err
@@ -321,15 +336,11 @@ func (r *Result) buildUpdate(values interface{}) (sqlbuilder.Updater, error) {
 	return upd, nil
 }
 
-func (r *Result) fastForward() (*result, error) {
-	ff, err := immutable.FastForward(r)
-	if err != nil {
+func (r *Result) buildCount() (sqlbuilder.Selector, error) {
+	if err := r.Err(); err != nil {
 		return nil, err
 	}
-	return ff.(*result), nil
-}
 
-func (r *Result) buildCount() (sqlbuilder.Selector, error) {
 	res, err := r.fastForward()
 	if err != nil {
 		return nil, err
@@ -363,6 +374,14 @@ func (r *Result) Fn(in interface{}) error {
 
 func (r *Result) Base() interface{} {
 	return &result{}
+}
+
+func (r *Result) fastForward() (*result, error) {
+	ff, err := immutable.FastForward(r)
+	if err != nil {
+		return nil, err
+	}
+	return ff.(*result), nil
 }
 
 var _ = immutable.Immutable(&Result{})

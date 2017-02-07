@@ -89,14 +89,11 @@ func (t *table) Database() sqladapter.Database {
 
 func (t *table) FilterConds(conds ...interface{}) []interface{} {
 	if len(conds) == 1 {
-		switch id := conds[0].(type) {
-		case uint64:
-			conds[0] = db.Cond{"id()": id}
-		case int64:
-			conds[0] = db.Cond{"id()": id}
-		case int:
-			conds[0] = db.Cond{"id()": id}
-		default:
+		switch conds[0].(type) {
+		case int, int64, uint, uint64:
+			// This is an special QL index, I'm not sure if it allows the user to
+			// create special indexes with custom names.
+			conds[0] = db.Cond{"id()": conds[0]}
 		}
 	}
 	return conds
