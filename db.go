@@ -580,6 +580,13 @@ type Collection interface {
 	// db.ErrUnsupported.
 	InsertReturning(interface{}) error
 
+	// UpdateReturning takes a pointer to map or struct and tries to update the
+	// given item on the collection based on the item's primary keys. Once the
+	// element is updated, UpdateReturning will query the element that was just
+	// updated. If the database does not support transactions this method returns
+	// db.ErrUnsupported
+	UpdateReturning(interface{}) error
+
 	// Exists returns true if the collection exists, false otherwise.
 	Exists() bool
 

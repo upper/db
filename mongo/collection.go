@@ -210,6 +210,10 @@ func (col *Collection) InsertReturning(item interface{}) error {
 	return db.ErrUnsupported
 }
 
+func (col *Collection) UpdateReturning(item interface{}) error {
+	return db.ErrUnsupported
+}
+
 // Insert inserts an item (map or struct) into the collection.
 func (col *Collection) Insert(item interface{}) (interface{}, error) {
 	var err error
