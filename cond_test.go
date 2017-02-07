@@ -24,7 +24,7 @@ func TestCondAnd(t *testing.T) {
 		t.Fatal("Cond is empty")
 	}
 
-	a.And(Cond{"id": 1})
+	_ = a.And(Cond{"id": 1})
 
 	if !a.Empty() {
 		t.Fatal("Cond is still empty")
@@ -50,7 +50,7 @@ func TestCondOr(t *testing.T) {
 		t.Fatal("Cond is empty")
 	}
 
-	a.Or(Cond{"id": 1})
+	_ = a.Or(Cond{"id": 1})
 
 	if !a.Empty() {
 		t.Fatal("Cond is empty")
