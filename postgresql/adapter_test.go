@@ -470,7 +470,18 @@ func TestPgTypes(t *testing.T) {
 
 			expected := pgTypeTests[i]
 			expected.ID = id.(int64)
-			assert.Equal(t, expected, actual)
+
+			// db.v2: db.v2 forces empty arrays instead of nil values.
+			assert.Equal(t, expected.ID, actual.ID)
+			assert.Equal(t, expected.Field1, actual.Field1)
+			assert.Equal(t, expected.Field2, actual.Field2)
+			assert.Equal(t, expected.Field3, actual.Field3)
+			assert.Equal(t, expected.StringValue, actual.StringValue)
+			assert.Equal(t, len(expected.IntegerArray), len(actual.IntegerArray))
+			assert.Equal(t, len(expected.StringArray), len(actual.StringArray))
+
+			// db.v3: This will be the expected behaviour on db.v3.
+			// assert.Equal(t, expected, actual)
 		}
 
 		for i := range pgTypeTests {
@@ -488,7 +499,17 @@ func TestPgTypes(t *testing.T) {
 			expected := pgTypeTests[i]
 			expected.ID = id
 
-			assert.Equal(t, expected, actual)
+			// db.v2: db.v2 forces empty arrays instead of nil values.
+			assert.Equal(t, expected.ID, actual.ID)
+			assert.Equal(t, expected.Field1, actual.Field1)
+			assert.Equal(t, expected.Field2, actual.Field2)
+			assert.Equal(t, expected.Field3, actual.Field3)
+			assert.Equal(t, expected.StringValue, actual.StringValue)
+			assert.Equal(t, len(expected.IntegerArray), len(actual.IntegerArray))
+			assert.Equal(t, len(expected.StringArray), len(actual.StringArray))
+
+			// db.v3: This will be the expected behaviour on db.v3.
+			// assert.Equal(t, expected, actual)
 		}
 
 		inserter := sess.InsertInto("pg_types")
