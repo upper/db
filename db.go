@@ -225,7 +225,9 @@ func (c Cond) Keys() []interface{} {
 	for k := range c {
 		keys = append(keys, k)
 	}
-	sort.Sort(keys)
+	if len(c) > 1 {
+		sort.Sort(keys)
+	}
 	return keys
 }
 
