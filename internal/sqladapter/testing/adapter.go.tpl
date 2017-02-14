@@ -43,6 +43,34 @@ type itemWithCompoundKey struct {
 	SomeVal string `db:"some_val"`
 }
 
+type customType struct {
+    Val string
+}
+
+type artistWithCustomType struct {
+    Custom customType `db:"name"`
+}
+
+func (f customType) String() string {
+    return fmt.Sprintf("foo: %s", f.Val)
+}
+
+func (f customType) MarshalDB() (interface{}, error) {
+  return f.String(), nil
+}
+
+func (f *customType) UnmarshalDB(in interface{}) error {
+  if v, ok := in.(string); ok {
+    f.Val = string(v)
+  }
+  return nil
+}
+
+var (
+  _ = db.Marshaler(&customType{})
+  _ = db.Unmarshaler(&customType{})
+)
+
 func TestMain(m *testing.M) {
 	flag.Parse()
 
@@ -1664,4 +1692,26 @@ func TestExhaustConnectionPool(t *testing.T) {
 
 	assert.NoError(t, cleanUpCheck(sess))
 	assert.NoError(t, sess.Close())
+}
+
+func TestCustomType(t *testing.T) {
+  // See https://github.com/upper/db/issues/332
+	sess := mustOpen()
+
+	artist := sess.Collection("artist")
+
+	err := artist.Truncate()
+	assert.NoError(t, err)
+
+  id, err := artist.Insert(artistWithCustomType{
+    Custom:customType{Val: "some name"},
+  })
+	assert.NoError(t, err)
+	assert.NotNil(t, id)
+
+  var bar artistWithCustomType
+  err = artist.Find(id).One(&bar)
+	assert.NoError(t, err)
+
+  assert.Equal(t, bar.Custom.Val, "foo: some name")
 }
