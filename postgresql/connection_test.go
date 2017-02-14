@@ -88,8 +88,34 @@ func TestParseConnectionURL(t *testing.T) {
 	var s string
 	var err error
 
-	s = "postgres://anakin:skywalker@localhost:1234/jedis"
+	s = "postgres://anakin:skywalker@localhost/jedis"
 
+	if u, err = ParseURL(s); err != nil {
+		t.Fatal(err)
+	}
+
+	if u.User != "anakin" {
+		t.Fatal("Failed to parse username.")
+	}
+
+	if u.Password != "skywalker" {
+		t.Fatal("Failed to parse password.")
+	}
+
+	if u.Host != "localhost" {
+		t.Fatal("Failed to parse hostname.")
+	}
+
+	if u.Database != "jedis" {
+		t.Fatal("Failed to parse database.")
+	}
+
+	if u.Options["sslmode"] != "" {
+		t.Fatal("Failed to parse SSLMode.")
+	}
+
+	// case with port
+	s = "postgres://anakin:skywalker@localhost:1234/jedis"
 	if u, err = ParseURL(s); err != nil {
 		t.Fatal(err)
 	}
