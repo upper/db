@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -509,6 +510,30 @@ func TestPgTypes(t *testing.T) {
 		err = batch.Wait()
 		assert.NoError(t, err)
 	}
+}
+
+func TestMaxOpenConnsIssue340(t *testing.T) {
+	SetMaxOpenConns(5)
+
+	sess := mustOpen()
+	defer sess.Close()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 30; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+
+			_, err := sess.Exec(fmt.Sprintf(`SELECT pg_sleep(1.%d)`, i))
+			if err != nil {
+				t.Fatal(err)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	SetMaxOpenConns(0)
 }
 
 func getStats(sess sqlbuilder.Database) (map[string]int, error) {
