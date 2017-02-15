@@ -513,10 +513,10 @@ func TestPgTypes(t *testing.T) {
 }
 
 func TestMaxOpenConnsIssue340(t *testing.T) {
-	SetMaxOpenConns(5)
-
 	sess := mustOpen()
 	defer sess.Close()
+
+	sess.SetMaxOpenConns(5)
 
 	var wg sync.WaitGroup
 	for i := 0; i < 30; i++ {
@@ -533,7 +533,7 @@ func TestMaxOpenConnsIssue340(t *testing.T) {
 
 	wg.Wait()
 
-	SetMaxOpenConns(0)
+	sess.SetMaxOpenConns(0)
 }
 
 func getStats(sess sqlbuilder.Database) (map[string]int, error) {
