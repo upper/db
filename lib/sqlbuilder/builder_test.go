@@ -66,10 +66,19 @@ func TestSelect(t *testing.T) {
 		b.Select().Distinct(db.Raw(`ON ? col1`, []interface{}{db.Raw(`SELECT foo FROM bar`), db.Raw(`SELECT baz from qux`)})).Columns("col2", "col3").Distinct("col4", "col5").From("artist").String(),
 	)
 
-	assert.Equal(
-		`SELECT DISTINCT ON ((SELECT foo FROM bar, SELECT baz from qux)) col1, "col2", "col3", "col4", "col5" FROM "artist"`,
-		b.Select().Distinct(db.Raw(`ON (?) col1`, []db.RawValue{db.Raw(`SELECT foo FROM bar`), db.Raw(`SELECT baz from qux`)})).Columns("col2", "col3").Distinct("col4", "col5").From("artist").String(),
-	)
+	{
+		q := b.Select().Distinct(db.Raw(`ON (?) col1`, []db.RawValue{db.Raw(`SELECT foo FROM bar WHERE id = ?`, 1), db.Raw(`SELECT baz from qux WHERE id = 2`)})).Columns("col2", "col3").Distinct("col4", "col5").From("artist").
+			Where("id", 3)
+		assert.Equal(
+			`SELECT DISTINCT ON ((SELECT foo FROM bar WHERE id = $1, SELECT baz from qux WHERE id = 2)) col1, "col2", "col3", "col4", "col5" FROM "artist" WHERE ("id" = $2)`,
+			q.String(),
+		)
+
+		assert.Equal(
+			[]interface{}{1, 3},
+			q.Arguments(),
+		)
+	}
 
 	{
 		rawCase := db.Raw("CASE WHEN id IN ? THEN 0 ELSE 1 END", []int{1000, 2000})
