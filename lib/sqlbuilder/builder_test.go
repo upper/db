@@ -2,6 +2,7 @@ package sqlbuilder
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,6 +29,21 @@ func TestSelect(t *testing.T) {
 	assert.Equal(
 		`SELECT * FROM "artist"`,
 		b.SelectFrom("artist").String(),
+	)
+
+	assert.Equal(
+		`SELECT DISTINCT "bcolor" FROM "artist"`,
+		b.Select().Distinct("bcolor").From("artist").String(),
+	)
+
+	assert.Equal(
+		`SELECT DISTINCT * FROM "artist"`,
+		b.Select().Distinct().From("artist").String(),
+	)
+
+	assert.Equal(
+		`SELECT DISTINCT ON("col1"), "col2" FROM "artist"`,
+		b.Select().Distinct(db.Raw(`ON("col1")`), "col2").From("artist").String(),
 	)
 
 	{
@@ -658,6 +674,52 @@ func TestSelect(t *testing.T) {
 	}
 
 	{
+		series := b.Select(
+			db.Raw("start + interval ? - interval '1s' AS end", "1 day"),
+		).From(
+			b.Select(
+				db.Raw("generate_series(?::timestamp, ?::timestamp, ?::interval) AS start", 1, 2, 3),
+			),
+		).As("series")
+
+		distinct := b.Select().Distinct(
+			db.Raw("ON(dt.email)"),
+			db.Raw(`SUBSTRING(email,(POSITION('@' in email) + 1),252) AS email_domain`),
+			"dt.event_type AS event_type",
+			db.Raw("count(dt.*) AS count"),
+			"intervals.start AS start",
+			"intervals.end AS start",
+		).From("email_events AS dt").
+			RightJoin("intervals").On("dt.ts BETWEEN intervals.stast AND intervals.END AND dt.hub_id = ? AND dt.object_id = ?", 67, 68).
+			GroupBy("email_domain", "event_type", "start").
+			OrderBy("email", "start", "event_type")
+
+		sq, args := Preprocess(
+			`WITH intervals AS ? ?`,
+			[]interface{}{
+				series,
+				distinct,
+			},
+		)
+
+		assert.Equal(
+			stripWhitespace(`
+				WITH intervals AS (SELECT start + interval ? - interval '1s' AS end FROM (SELECT generate_series(?::timestamp, ?::timestamp, ?::interval) AS start) AS "series")
+					(SELECT DISTINCT ON(dt.email), SUBSTRING(email,(POSITION('@' in email) + 1),252) AS email_domain, "dt"."event_type" AS "event_type", count(dt.*) AS count, "intervals"."start" AS "start", "intervals"."end" AS "start"
+						FROM "email_events" AS "dt"
+						RIGHT JOIN "intervals" ON (dt.ts BETWEEN intervals.stast AND intervals.END AND dt.hub_id = ? AND dt.object_id = ?)
+						GROUP BY "email_domain", "event_type", "start"
+						ORDER BY "email" ASC, "start" ASC, "event_type" ASC)`),
+			stripWhitespace(sq),
+		)
+
+		assert.Equal(
+			[]interface{}{"1 day", 1, 2, 3, 67, 68},
+			args,
+		)
+	}
+
+	{
 		sq := b.
 			Select("user_id").
 			From("user_access").
@@ -1210,4 +1272,9 @@ func BenchmarkUpdate5(b *testing.B) {
 			"id = id + ?", 10,
 		).Where("id > ?", 0).String()
 	}
+}
+
+func stripWhitespace(in string) string {
+	q := reInvisibleChars.ReplaceAllString(in, ` `)
+	return strings.TrimSpace(q)
 }
