@@ -44,7 +44,7 @@ type itemWithCompoundKey struct {
 }
 
 type customType struct {
-	Val string
+	Val []byte
 }
 
 type artistWithCustomType struct {
@@ -52,7 +52,7 @@ type artistWithCustomType struct {
 }
 
 func (f customType) String() string {
-	return fmt.Sprintf("foo: %s", f.Val)
+	return fmt.Sprintf("foo: %s", string(f.Val))
 }
 
 func (f customType) MarshalDB() (interface{}, error) {
@@ -62,9 +62,9 @@ func (f customType) MarshalDB() (interface{}, error) {
 func (f *customType) UnmarshalDB(in interface{}) error {
 	switch t := in.(type) {
 	case []byte:
-		f.Val = string(t)
-	case string:
 		f.Val = t
+	case string:
+		f.Val = []byte(t)
 	}
 	return nil
 }
@@ -1707,7 +1707,7 @@ func TestCustomType(t *testing.T) {
 	assert.NoError(t, err)
 
 	id, err := artist.Insert(artistWithCustomType{
-		Custom: customType{Val: "some name"},
+		Custom: customType{Val: []byte("some name")},
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, id)
@@ -1716,5 +1716,5 @@ func TestCustomType(t *testing.T) {
 	err = artist.Find(id).One(&bar)
 	assert.NoError(t, err)
 
-	assert.Equal(t, "foo: some name", bar.Custom.Val)
+	assert.Equal(t, "foo: some name", string(bar.Custom.Val))
 }
