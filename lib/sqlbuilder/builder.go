@@ -275,7 +275,7 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 				if fld.Len() == 0 {
 					isZero = true
 				}
-			} else if value == fi.Zero.Interface() {
+			} else if reflect.DeepEqual(fi.Zero.Interface(), value) {
 				isZero = true
 			}
 
