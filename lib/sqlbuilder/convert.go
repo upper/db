@@ -35,10 +35,13 @@ func expandQuery(in string, args []interface{}, fn func(interface{}) (string, []
 		}
 		if len(args) > argn {
 			k, values := fn(args[argn])
+			k, values = expandQuery(k, values, fn)
+
 			if k != "" {
 				in = in[:i] + k + in[i+1:]
 				i += len(k) - 1
 			}
+
 			if len(values) > 0 {
 				argx = append(argx, values...)
 			}

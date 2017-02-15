@@ -61,6 +61,16 @@ func TestSelect(t *testing.T) {
 		b.Select().Distinct(db.Raw(`ON(?) col1`, db.Raw(`SELECT foo FROM bar`))).Columns("col2", "col3").Distinct("col4", "col5").From("artist").String(),
 	)
 
+	assert.Equal(
+		`SELECT DISTINCT ON (SELECT foo FROM bar, SELECT baz from qux) col1, "col2", "col3", "col4", "col5" FROM "artist"`,
+		b.Select().Distinct(db.Raw(`ON ? col1`, []interface{}{db.Raw(`SELECT foo FROM bar`), db.Raw(`SELECT baz from qux`)})).Columns("col2", "col3").Distinct("col4", "col5").From("artist").String(),
+	)
+
+	assert.Equal(
+		`SELECT DISTINCT ON ((SELECT foo FROM bar, SELECT baz from qux)) col1, "col2", "col3", "col4", "col5" FROM "artist"`,
+		b.Select().Distinct(db.Raw(`ON (?) col1`, []db.RawValue{db.Raw(`SELECT foo FROM bar`), db.Raw(`SELECT baz from qux`)})).Columns("col2", "col3").Distinct("col4", "col5").From("artist").String(),
+	)
+
 	{
 		rawCase := db.Raw("CASE WHEN id IN ? THEN 0 ELSE 1 END", []int{1000, 2000})
 		sel := b.SelectFrom("artist").OrderBy(rawCase)
