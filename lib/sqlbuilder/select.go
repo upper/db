@@ -11,23 +11,17 @@ import (
 	"upper.io/db.v2/internal/sqladapter/exql"
 )
 
-type selectMode uint8
-
-const (
-	selectModeAll selectMode = iota
-	selectModeDistinct
-)
-
 type selector struct {
 	*stringer
 
-	mode    selectMode
 	builder *sqlBuilder
 
 	table     *exql.Columns
 	tableArgs []interface{}
 
 	as string
+
+	distinct bool
 
 	where     *exql.Where
 	whereArgs []interface{}
@@ -90,11 +84,9 @@ func (qs *selector) Columns(columns ...interface{}) Selector {
 	return qs
 }
 
-func (qs *selector) Distinct() Selector {
-	qs.mu.Lock()
-	qs.mode = selectModeDistinct
-	qs.mu.Unlock()
-	return qs
+func (qs *selector) Distinct(columns ...interface{}) Selector {
+	qs.distinct = true
+	return qs.Columns(columns...)
 }
 
 func (qs *selector) Where(terms ...interface{}) Selector {
@@ -128,8 +120,8 @@ func (qs *selector) Arguments() []interface{} {
 	defer qs.mu.Unlock()
 
 	return joinArguments(
-		qs.tableArgs,
 		qs.columnsArgs,
+		qs.tableArgs,
 		qs.joinsArgs,
 		qs.whereArgs,
 		qs.groupByArgs,
@@ -333,15 +325,16 @@ func (qs *selector) Offset(n int) Selector {
 
 func (qs *selector) statement() *exql.Statement {
 	stmt := &exql.Statement{
-		Type:    exql.Select,
-		Table:   qs.table,
-		Columns: qs.columns,
-		Limit:   qs.limit,
-		Offset:  qs.offset,
-		Joins:   exql.JoinConditions(qs.joins...),
-		Where:   qs.where,
-		OrderBy: qs.orderBy,
-		GroupBy: qs.groupBy,
+		Type:     exql.Select,
+		Distinct: qs.distinct,
+		Table:    qs.table,
+		Columns:  qs.columns,
+		Limit:    qs.limit,
+		Offset:   qs.offset,
+		Joins:    exql.JoinConditions(qs.joins...),
+		Where:    qs.where,
+		OrderBy:  qs.orderBy,
+		GroupBy:  qs.groupBy,
 	}
 
 	stmt.SetAmendment(qs.amendFn)

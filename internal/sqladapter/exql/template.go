@@ -38,38 +38,39 @@ var (
 
 // Template is an SQL template.
 type Template struct {
-	ColumnSeparator     string
-	IdentifierSeparator string
-	IdentifierQuote     string
-	ValueSeparator      string
-	ValueQuote          string
 	AndKeyword          string
-	OrKeyword           string
-	NotKeyword          string
-	DescKeyword         string
 	AscKeyword          string
-	DefaultOperator     string
 	AssignmentOperator  string
 	ClauseGroup         string
 	ClauseOperator      string
-	ColumnValue         string
-	TableAliasLayout    string
 	ColumnAliasLayout   string
-	SortByColumnLayout  string
-	WhereLayout         string
-	OnLayout            string
-	UsingLayout         string
-	JoinLayout          string
-	OrderByLayout       string
-	InsertLayout        string
-	SelectLayout        string
-	UpdateLayout        string
+	ColumnSeparator     string
+	ColumnValue         string
+	CountLayout         string
+	DefaultOperator     string
 	DeleteLayout        string
-	TruncateLayout      string
+	DescKeyword         string
 	DropDatabaseLayout  string
 	DropTableLayout     string
-	CountLayout         string
 	GroupByLayout       string
+	IdentifierQuote     string
+	IdentifierSeparator string
+	InsertLayout        string
+	JoinLayout          string
+	NotKeyword          string
+	OnLayout            string
+	OrKeyword           string
+	OrderByLayout       string
+	SelectLayout        string
+	SortByColumnLayout  string
+	TableAliasLayout    string
+	TruncateLayout      string
+	UpdateLayout        string
+	UsingLayout         string
+	ValueQuote          string
+	ValueSeparator      string
+	WhereLayout         string
+
 	*cache.Cache
 }
 

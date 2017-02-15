@@ -46,6 +46,16 @@ func TestSelect(t *testing.T) {
 		b.Select().Distinct(db.Raw(`ON("col1")`), "col2").From("artist").String(),
 	)
 
+	assert.Equal(
+		`SELECT DISTINCT ON("col1") AS col1, "col2" FROM "artist"`,
+		b.Select().Distinct(db.Raw(`ON("col1") AS col1`)).Distinct("col2").From("artist").String(),
+	)
+
+	assert.Equal(
+		`SELECT DISTINCT ON("col1") AS col1, "col2", "col3", "col4", "col5" FROM "artist"`,
+		b.Select().Distinct(db.Raw(`ON("col1") AS col1`)).Columns("col2", "col3").Distinct("col4", "col5").From("artist").String(),
+	)
+
 	{
 		rawCase := db.Raw("CASE WHEN id IN ? THEN 0 ELSE 1 END", []int{1000, 2000})
 		sel := b.SelectFrom("artist").OrderBy(rawCase)
@@ -681,6 +691,11 @@ func TestSelect(t *testing.T) {
 				db.Raw("generate_series(?::timestamp, ?::timestamp, ?::interval) AS start", 1, 2, 3),
 			),
 		).As("series")
+
+		assert.Equal(
+			[]interface{}{"1 day", 1, 2, 3},
+			series.Arguments(),
+		)
 
 		distinct := b.Select().Distinct(
 			db.Raw("ON(dt.email)"),

@@ -17,6 +17,7 @@ type Statement struct {
 	ColumnValues Fragment
 	OrderBy      Fragment
 	GroupBy      Fragment
+	Distinct     bool
 	Joins        Fragment
 	Where        Fragment
 	Returning    Fragment
@@ -38,6 +39,7 @@ type statementT struct {
 	ColumnValues string
 	OrderBy      string
 	GroupBy      string
+	Distinct     bool
 	Where        string
 	Joins        string
 	Returning    string
@@ -89,6 +91,7 @@ func (s *Statement) Compile(layout *Template) (compiled string) {
 	data := statementT{
 		Table:        layout.doCompile(s.Table),
 		Database:     layout.doCompile(s.Database),
+		Distinct:     s.Distinct,
 		Limit:        s.Limit,
 		Offset:       s.Offset,
 		Columns:      layout.doCompile(s.Columns),
