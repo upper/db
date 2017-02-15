@@ -698,8 +698,7 @@ func TestSelect(t *testing.T) {
 		)
 
 		distinct := b.Select().Distinct(
-			db.Raw("ON(dt.email)"),
-			db.Raw(`SUBSTRING(email,(POSITION('@' in email) + 1),252) AS email_domain`),
+			db.Raw(`ON(dt.email) SUBSTRING(email,(POSITION('@' in email) + 1),252) AS email_domain`),
 			"dt.event_type AS event_type",
 			db.Raw("count(dt.*) AS count"),
 			"intervals.start AS start",
@@ -720,7 +719,7 @@ func TestSelect(t *testing.T) {
 		assert.Equal(
 			stripWhitespace(`
 				WITH intervals AS (SELECT start + interval ? - interval '1s' AS end FROM (SELECT generate_series(?::timestamp, ?::timestamp, ?::interval) AS start) AS "series")
-					(SELECT DISTINCT ON(dt.email), SUBSTRING(email,(POSITION('@' in email) + 1),252) AS email_domain, "dt"."event_type" AS "event_type", count(dt.*) AS count, "intervals"."start" AS "start", "intervals"."end" AS "start"
+					(SELECT DISTINCT ON(dt.email) SUBSTRING(email,(POSITION('@' in email) + 1),252) AS email_domain, "dt"."event_type" AS "event_type", count(dt.*) AS count, "intervals"."start" AS "start", "intervals"."end" AS "start"
 						FROM "email_events" AS "dt"
 						RIGHT JOIN "intervals" ON (dt.ts BETWEEN intervals.stast AND intervals.END AND dt.hub_id = ? AND dt.object_id = ?)
 						GROUP BY "email_domain", "event_type", "start"
