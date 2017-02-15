@@ -167,11 +167,16 @@ func ParseURL(s string) (u ConnectionURL, err error) {
 	u.Password = o.Get("password")
 
 	h := o.Get("host")
+	p := o.Get("port")
 
 	if strings.HasPrefix(h, "/") {
 		u.Socket = h
 	} else {
-		u.Host = h
+		if p == "" {
+			u.Host = h
+		} else {
+			u.Host = fmt.Sprintf("%s:%s", h, p)
+		}
 	}
 
 	u.Database = o.Get("dbname")

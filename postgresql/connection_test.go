@@ -21,9 +21,7 @@
 
 package postgresql
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestConnectionURL(t *testing.T) {
 	c := ConnectionURL{}
@@ -31,6 +29,13 @@ func TestConnectionURL(t *testing.T) {
 	// Default connection string is empty.
 	if c.String() != "" {
 		t.Fatal(`Expecting default connectiong string to be empty, got:`, c.String())
+	}
+
+	// Adding a host with port.
+	c.Host = "localhost:1234"
+
+	if c.String() != "host=localhost port=1234 sslmode=disable" {
+		t.Fatal(`Test failed, got:`, c.String())
 	}
 
 	// Adding a host.
@@ -98,6 +103,32 @@ func TestParseConnectionURL(t *testing.T) {
 	}
 
 	if u.Host != "localhost" {
+		t.Fatal("Failed to parse hostname.")
+	}
+
+	if u.Database != "jedis" {
+		t.Fatal("Failed to parse database.")
+	}
+
+	if u.Options["sslmode"] != "" {
+		t.Fatal("Failed to parse SSLMode.")
+	}
+
+	// case with port
+	s = "postgres://anakin:skywalker@localhost:1234/jedis"
+	if u, err = ParseURL(s); err != nil {
+		t.Fatal(err)
+	}
+
+	if u.User != "anakin" {
+		t.Fatal("Failed to parse username.")
+	}
+
+	if u.Password != "skywalker" {
+		t.Fatal("Failed to parse password.")
+	}
+
+	if u.Host != "localhost:1234" {
 		t.Fatal("Failed to parse hostname.")
 	}
 
