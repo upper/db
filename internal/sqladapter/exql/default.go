@@ -25,47 +25,50 @@ const (
 	defaultSortByColumnLayout  = `{{.Column}} {{.Order}}`
 
 	defaultOrderByLayout = `
-		{{if .SortColumns}}
-			ORDER BY {{.SortColumns}}
-		{{end}}
-	`
+    {{if .SortColumns}}
+      ORDER BY {{.SortColumns}}
+    {{end}}
+  `
 
 	defaultWhereLayout = `
-		{{if .Conds}}
-			WHERE {{.Conds}}
-		{{end}}
-	`
+    {{if .Conds}}
+      WHERE {{.Conds}}
+    {{end}}
+  `
 
 	defaultUsingLayout = `
-		{{if .Columns}}
-			USING ({{.Columns}})
-		{{end}}
-	`
+    {{if .Columns}}
+      USING ({{.Columns}})
+    {{end}}
+  `
 
 	defaultJoinLayout = `
-		{{if .Table}}
-			{{ if .On }}
-				{{.Type}} JOIN {{.Table}}
-				{{.On}}
-			{{ else if .Using }}
-				{{.Type}} JOIN {{.Table}}
-				{{.Using}}
-			{{ else if .Type | eq "CROSS" }}
-				{{.Type}} JOIN {{.Table}}
-			{{else}}
-				NATURAL {{.Type}} JOIN {{.Table}}
-			{{end}}
-		{{end}}
-	`
+    {{if .Table}}
+      {{ if .On }}
+        {{.Type}} JOIN {{.Table}}
+        {{.On}}
+      {{ else if .Using }}
+        {{.Type}} JOIN {{.Table}}
+        {{.Using}}
+      {{ else if .Type | eq "CROSS" }}
+        {{.Type}} JOIN {{.Table}}
+      {{else}}
+        NATURAL {{.Type}} JOIN {{.Table}}
+      {{end}}
+    {{end}}
+  `
 
 	defaultOnLayout = `
-		{{if .Conds}}
-			ON {{.Conds}}
-		{{end}}
-	`
+    {{if .Conds}}
+      ON {{.Conds}}
+    {{end}}
+  `
 
 	defaultSelectLayout = `
     SELECT
+      {{if .Distinct}}
+        DISTINCT
+      {{end}}
 
       {{if .Columns}}
         {{.Columns}}
@@ -92,7 +95,7 @@ const (
       {{if .Offset}}
         OFFSET {{.Offset}}
       {{end}}
-	`
+  `
 	defaultDeleteLayout = `
     DELETE
       FROM {{.Table}}
@@ -103,92 +106,93 @@ const (
     {{if .Offset}}
       OFFSET {{.Offset}}
     {{end}}
-	`
+  `
 	defaultUpdateLayout = `
-		UPDATE
-			{{.Table}}
-		SET {{.ColumnValues}}
-			{{ .Where }}
-	`
+    UPDATE
+      {{.Table}}
+    SET {{.ColumnValues}}
+      {{ .Where }}
+  `
 
 	defaultCountLayout = `
-		SELECT
-			COUNT(1) AS _t
-		FROM {{.Table}}
-			{{.Where}}
+    SELECT
+      COUNT(1) AS _t
+    FROM {{.Table}}
+      {{.Where}}
 
-			{{if .Limit}}
-				LIMIT {{.Limit}}
-			{{end}}
+      {{if .Limit}}
+        LIMIT {{.Limit}}
+      {{end}}
 
-			{{if .Offset}}
-				OFFSET {{.Offset}}
-			{{end}}
-	`
+      {{if .Offset}}
+        OFFSET {{.Offset}}
+      {{end}}
+  `
 
 	defaultInsertLayout = `
     INSERT INTO {{.Table}}
       {{if .Columns }}({{.Columns}}){{end}}
     VALUES
       {{.Values}}
-		{{if .Returning}}
-			RETURNING {{.Returning}}
-		{{end}}
-	`
+    {{if .Returning}}
+      RETURNING {{.Returning}}
+    {{end}}
+  `
 
 	defaultTruncateLayout = `
-		TRUNCATE TABLE {{.Table}}
-	`
+    TRUNCATE TABLE {{.Table}}
+  `
 
 	defaultDropDatabaseLayout = `
-		DROP DATABASE {{.Database}}
-	`
+    DROP DATABASE {{.Database}}
+  `
 
 	defaultDropTableLayout = `
-		DROP TABLE {{.Table}}
-	`
+    DROP TABLE {{.Table}}
+  `
 
 	defaultGroupByColumnLayout = `{{.Column}}`
 
 	defaultGroupByLayout = `
-		{{if .GroupColumns}}
-			GROUP BY {{.GroupColumns}}
-		{{end}}
-	`
+    {{if .GroupColumns}}
+      GROUP BY {{.GroupColumns}}
+    {{end}}
+  `
 )
 
 var defaultTemplate = &Template{
-	ColumnSeparator:     defaultColumnSeparator,
-	IdentifierSeparator: defaultIdentifierSeparator,
-	IdentifierQuote:     defaultIdentifierQuote,
-	ValueSeparator:      defaultValueSeparator,
-	ValueQuote:          defaultValueQuote,
 	AndKeyword:          defaultAndKeyword,
-	OrKeyword:           defaultOrKeyword,
-	NotKeyword:          defaultNotKeyword,
-	DescKeyword:         defaultDescKeyword,
 	AscKeyword:          defaultAscKeyword,
-	DefaultOperator:     defaultDefaultOperator,
 	AssignmentOperator:  defaultAssignmentOperator,
 	ClauseGroup:         defaultClauseGroup,
 	ClauseOperator:      defaultClauseOperator,
-	ColumnValue:         defaultColumnValue,
-	TableAliasLayout:    defaultTableAliasLayout,
 	ColumnAliasLayout:   defaultColumnAliasLayout,
-	SortByColumnLayout:  defaultSortByColumnLayout,
-	WhereLayout:         defaultWhereLayout,
-	OnLayout:            defaultOnLayout,
-	UsingLayout:         defaultUsingLayout,
-	JoinLayout:          defaultJoinLayout,
-	OrderByLayout:       defaultOrderByLayout,
-	InsertLayout:        defaultInsertLayout,
-	SelectLayout:        defaultSelectLayout,
-	UpdateLayout:        defaultUpdateLayout,
+	ColumnSeparator:     defaultColumnSeparator,
+	ColumnValue:         defaultColumnValue,
+	CountLayout:         defaultCountLayout,
+	DefaultOperator:     defaultDefaultOperator,
 	DeleteLayout:        defaultDeleteLayout,
-	TruncateLayout:      defaultTruncateLayout,
+	DescKeyword:         defaultDescKeyword,
 	DropDatabaseLayout:  defaultDropDatabaseLayout,
 	DropTableLayout:     defaultDropTableLayout,
-	CountLayout:         defaultCountLayout,
 	GroupByLayout:       defaultGroupByLayout,
-	Cache:               cache.NewCache(),
+	IdentifierQuote:     defaultIdentifierQuote,
+	IdentifierSeparator: defaultIdentifierSeparator,
+	InsertLayout:        defaultInsertLayout,
+	JoinLayout:          defaultJoinLayout,
+	NotKeyword:          defaultNotKeyword,
+	OnLayout:            defaultOnLayout,
+	OrKeyword:           defaultOrKeyword,
+	OrderByLayout:       defaultOrderByLayout,
+	SelectLayout:        defaultSelectLayout,
+	SortByColumnLayout:  defaultSortByColumnLayout,
+	TableAliasLayout:    defaultTableAliasLayout,
+	TruncateLayout:      defaultTruncateLayout,
+	UpdateLayout:        defaultUpdateLayout,
+	UsingLayout:         defaultUsingLayout,
+	ValueQuote:          defaultValueQuote,
+	ValueSeparator:      defaultValueSeparator,
+	WhereLayout:         defaultWhereLayout,
+
+	Cache: cache.NewCache(),
 }

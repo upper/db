@@ -17,6 +17,7 @@ type Statement struct {
 	Database     Fragment
 	Columns      Fragment
 	Values       Fragment
+	Distinct     bool
 	ColumnValues Fragment
 	OrderBy      Fragment
 	GroupBy      Fragment
@@ -38,6 +39,7 @@ type statementT struct {
 	Database     string
 	Columns      string
 	Values       string
+	Distinct     bool
 	ColumnValues string
 	OrderBy      string
 	GroupBy      string
@@ -90,8 +92,9 @@ func (s *Statement) Compile(layout *Template) (compiled string, err error) {
 	}
 
 	data := statementT{
-		Limit:  s.Limit,
-		Offset: s.Offset,
+		Limit:    s.Limit,
+		Offset:   s.Offset,
+		Distinct: s.Distinct,
 	}
 
 	data.Table, err = layout.doCompile(s.Table)

@@ -47,124 +47,127 @@ const (
 	adapterSortByColumnLayout  = `{{.Column}} {{.Order}}`
 
 	adapterOrderByLayout = `
-		{{if .SortColumns}}
-			ORDER BY {{.SortColumns}}
-		{{end}}
-	`
+    {{if .SortColumns}}
+      ORDER BY {{.SortColumns}}
+    {{end}}
+  `
 
 	adapterWhereLayout = `
-		{{if .Conds}}
-			WHERE {{.Conds}}
-		{{end}}
-	`
+    {{if .Conds}}
+      WHERE {{.Conds}}
+    {{end}}
+  `
 
 	adapterUsingLayout = `
-		{{if .Columns}}
-			USING ({{.Columns}})
-		{{end}}
-	`
+    {{if .Columns}}
+      USING ({{.Columns}})
+    {{end}}
+  `
 
 	adapterJoinLayout = `
-		{{if .Table}}
-			{{ if .On }}
-				{{.Type}} JOIN {{.Table}}
-				{{.On}}
-			{{ else if .Using }}
-				{{.Type}} JOIN {{.Table}}
-				{{.Using}}
-			{{ else if .Type | eq "CROSS" }}
-				{{.Type}} JOIN {{.Table}}
-			{{else}}
-				NATURAL {{.Type}} JOIN {{.Table}}
-			{{end}}
-		{{end}}
-	`
+    {{if .Table}}
+      {{ if .On }}
+        {{.Type}} JOIN {{.Table}}
+        {{.On}}
+      {{ else if .Using }}
+        {{.Type}} JOIN {{.Table}}
+        {{.Using}}
+      {{ else if .Type | eq "CROSS" }}
+        {{.Type}} JOIN {{.Table}}
+      {{else}}
+        NATURAL {{.Type}} JOIN {{.Table}}
+      {{end}}
+    {{end}}
+  `
 
 	adapterOnLayout = `
-		{{if .Conds}}
-			ON {{.Conds}}
-		{{end}}
-	`
+    {{if .Conds}}
+      ON {{.Conds}}
+    {{end}}
+  `
 
 	adapterSelectLayout = `
-		SELECT
+    SELECT
+      {{if .Distinct}}
+        DISTINCT
+      {{end}}
 
-			{{if .Columns}}
-				{{.Columns}}
-			{{else}}
-				*
-			{{end}}
+      {{if .Columns}}
+        {{.Columns}}
+      {{else}}
+        *
+      {{end}}
 
-			{{if .Table}}
-				FROM {{.Table}}
-			{{end}}
+      {{if .Table}}
+        FROM {{.Table}}
+      {{end}}
 
-			{{.Joins}}
+      {{.Joins}}
 
-			{{.Where}}
+      {{.Where}}
 
-			{{.GroupBy}}
+      {{.GroupBy}}
 
-			{{.OrderBy}}
+      {{.OrderBy}}
 
-			{{if .Limit}}
-				LIMIT {{.Limit}}
-			{{end}}
+      {{if .Limit}}
+        LIMIT {{.Limit}}
+      {{end}}
 
-			{{if .Offset}}
-				OFFSET {{.Offset}}
-			{{end}}
-	`
+      {{if .Offset}}
+        OFFSET {{.Offset}}
+      {{end}}
+  `
 	adapterDeleteLayout = `
-		DELETE
-			FROM {{.Table}}
-			{{.Where}}
-	`
+    DELETE
+      FROM {{.Table}}
+      {{.Where}}
+  `
 	adapterUpdateLayout = `
-		UPDATE
-			{{.Table}}
-		SET {{.ColumnValues}}
-			{{ .Where }}
-	`
+    UPDATE
+      {{.Table}}
+    SET {{.ColumnValues}}
+      {{ .Where }}
+  `
 
 	adapterSelectCountLayout = `
-		SELECT
-			COUNT(1) AS _t
-		FROM {{.Table}}
-			{{.Where}}
-	`
+    SELECT
+      COUNT(1) AS _t
+    FROM {{.Table}}
+      {{.Where}}
+  `
 
 	adapterInsertLayout = `
-		INSERT INTO {{.Table}}
+    INSERT INTO {{.Table}}
       {{if .Columns }}({{.Columns}}){{end}}
-		VALUES
-		{{if .Values}}
-			{{.Values}}
-		{{else}}
-			()
-		{{end}}
-		{{if .Returning}}
-			RETURNING {{.Returning}}
-		{{end}}
-	`
+    VALUES
+    {{if .Values}}
+      {{.Values}}
+    {{else}}
+      ()
+    {{end}}
+    {{if .Returning}}
+      RETURNING {{.Returning}}
+    {{end}}
+  `
 
 	adapterTruncateLayout = `
-		TRUNCATE TABLE {{.Table}}
-	`
+    TRUNCATE TABLE {{.Table}}
+  `
 
 	adapterDropDatabaseLayout = `
-		DROP DATABASE {{.Database}}
-	`
+    DROP DATABASE {{.Database}}
+  `
 
 	adapterDropTableLayout = `
-		DROP TABLE {{.Table}}
-	`
+    DROP TABLE {{.Table}}
+  `
 
 	adapterGroupByLayout = `
-		{{if .GroupColumns}}
-			GROUP BY {{.GroupColumns}}
-		{{end}}
-	`
+    {{if .GroupColumns}}
+      GROUP BY {{.GroupColumns}}
+    {{end}}
+  `
 )
 
 var template = &exql.Template{

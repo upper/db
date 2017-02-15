@@ -12,20 +12,13 @@ import (
 	"upper.io/db.v3/internal/sqladapter/exql"
 )
 
-type selectMode uint8
-
-const (
-	selectModeAll selectMode = iota
-	selectModeDistinct
-)
-
 type selectorQuery struct {
-	mode selectMode
-
 	table     *exql.Columns
 	tableArgs []interface{}
 
 	as string
+
+	distinct bool
 
 	where     *exql.Where
 	whereArgs []interface{}
@@ -62,8 +55,8 @@ func (sq *selectorQuery) and(b *sqlBuilder, terms ...interface{}) error {
 
 func (sq *selectorQuery) arguments() []interface{} {
 	return joinArguments(
-		sq.tableArgs,
 		sq.columnsArgs,
+		sq.tableArgs,
 		sq.joinsArgs,
 		sq.whereArgs,
 		sq.groupByArgs,
@@ -73,14 +66,15 @@ func (sq *selectorQuery) arguments() []interface{} {
 
 func (sq *selectorQuery) statement() *exql.Statement {
 	stmt := &exql.Statement{
-		Type:    exql.Select,
-		Table:   sq.table,
-		Columns: sq.columns,
-		Limit:   sq.limit,
-		Offset:  sq.offset,
-		Where:   sq.where,
-		OrderBy: sq.orderBy,
-		GroupBy: sq.groupBy,
+		Type:     exql.Select,
+		Table:    sq.table,
+		Columns:  sq.columns,
+		Distinct: sq.distinct,
+		Limit:    sq.limit,
+		Offset:   sq.offset,
+		Where:    sq.where,
+		OrderBy:  sq.orderBy,
+		GroupBy:  sq.groupBy,
 	}
 
 	if len(sq.joins) > 0 {
@@ -154,31 +148,33 @@ func (sel *selector) From(tables ...interface{}) Selector {
 }
 
 func (sel *selector) Columns(columns ...interface{}) Selector {
-	return sel.frame(
-		func(sq *selectorQuery) error {
-			f, args, err := columnFragments(columns)
-			if err != nil {
-				return err
-			}
-
-			c := exql.JoinColumns(f...)
-
-			if sq.columns != nil {
-				sq.columns.Append(c)
-			} else {
-				sq.columns = c
-			}
-
-			sq.columnsArgs = append(sq.columnsArgs, args...)
-			return nil
-		},
-	)
+	return sel.frame(func(sq *selectorQuery) error {
+		return sq.pushColumns(columns...)
+	})
 }
 
-func (sel *selector) Distinct() Selector {
+func (sq *selectorQuery) pushColumns(columns ...interface{}) error {
+	f, args, err := columnFragments(columns)
+	if err != nil {
+		return err
+	}
+
+	c := exql.JoinColumns(f...)
+
+	if sq.columns != nil {
+		sq.columns.Append(c)
+	} else {
+		sq.columns = c
+	}
+
+	sq.columnsArgs = append(sq.columnsArgs, args...)
+	return nil
+}
+
+func (sel *selector) Distinct(exps ...interface{}) Selector {
 	return sel.frame(func(sq *selectorQuery) error {
-		sq.mode = selectModeDistinct
-		return nil
+		sq.distinct = true
+		return sq.pushColumns(exps...)
 	})
 }
 

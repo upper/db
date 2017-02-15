@@ -2,6 +2,7 @@ package sqlbuilder
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,6 +30,55 @@ func TestSelect(t *testing.T) {
 		`SELECT * FROM "artist"`,
 		b.SelectFrom("artist").String(),
 	)
+
+	assert.Equal(
+		`SELECT DISTINCT "bcolor" FROM "artist"`,
+		b.Select().Distinct("bcolor").From("artist").String(),
+	)
+
+	assert.Equal(
+		`SELECT DISTINCT * FROM "artist"`,
+		b.Select().Distinct().From("artist").String(),
+	)
+
+	assert.Equal(
+		`SELECT DISTINCT ON("col1"), "col2" FROM "artist"`,
+		b.Select().Distinct(db.Raw(`ON("col1")`), "col2").From("artist").String(),
+	)
+
+	assert.Equal(
+		`SELECT DISTINCT ON("col1") AS col1, "col2" FROM "artist"`,
+		b.Select().Distinct(db.Raw(`ON("col1") AS col1`)).Distinct("col2").From("artist").String(),
+	)
+
+	assert.Equal(
+		`SELECT DISTINCT ON("col1") AS col1, "col2", "col3", "col4", "col5" FROM "artist"`,
+		b.Select().Distinct(db.Raw(`ON("col1") AS col1`)).Columns("col2", "col3").Distinct("col4", "col5").From("artist").String(),
+	)
+
+	assert.Equal(
+		`SELECT DISTINCT ON(SELECT foo FROM bar) col1, "col2", "col3", "col4", "col5" FROM "artist"`,
+		b.Select().Distinct(db.Raw(`ON(?) col1`, db.Raw(`SELECT foo FROM bar`))).Columns("col2", "col3").Distinct("col4", "col5").From("artist").String(),
+	)
+
+	assert.Equal(
+		`SELECT DISTINCT ON (SELECT foo FROM bar, SELECT baz from qux) col1, "col2", "col3", "col4", "col5" FROM "artist"`,
+		b.Select().Distinct(db.Raw(`ON ? col1`, []interface{}{db.Raw(`SELECT foo FROM bar`), db.Raw(`SELECT baz from qux`)})).Columns("col2", "col3").Distinct("col4", "col5").From("artist").String(),
+	)
+
+	{
+		q := b.Select().Distinct(db.Raw(`ON (?) col1`, []db.RawValue{db.Raw(`SELECT foo FROM bar WHERE id = ?`, 1), db.Raw(`SELECT baz from qux WHERE id = 2`)})).Columns("col2", "col3").Distinct("col4", "col5").From("artist").
+			Where("id", 3)
+		assert.Equal(
+			`SELECT DISTINCT ON ((SELECT foo FROM bar WHERE id = $1, SELECT baz from qux WHERE id = 2)) col1, "col2", "col3", "col4", "col5" FROM "artist" WHERE ("id" = $2)`,
+			q.String(),
+		)
+
+		assert.Equal(
+			[]interface{}{1, 3},
+			q.Arguments(),
+		)
+	}
 
 	{
 		rawCase := db.Raw("CASE WHEN id IN ? THEN 0 ELSE 1 END", []int{1000, 2000})
@@ -658,6 +708,56 @@ func TestSelect(t *testing.T) {
 	}
 
 	{
+		series := b.Select(
+			db.Raw("start + interval ? - interval '1s' AS end", "1 day"),
+		).From(
+			b.Select(
+				db.Raw("generate_series(?::timestamp, ?::timestamp, ?::interval) AS start", 1, 2, 3),
+			),
+		).As("series")
+
+		assert.Equal(
+			[]interface{}{"1 day", 1, 2, 3},
+			series.Arguments(),
+		)
+
+		distinct := b.Select().Distinct(
+			db.Raw(`ON(dt.email) SUBSTRING(email,(POSITION('@' in email) + 1),252) AS email_domain`),
+			"dt.event_type AS event_type",
+			db.Raw("count(dt.*) AS count"),
+			"intervals.start AS start",
+			"intervals.end AS start",
+		).From("email_events AS dt").
+			RightJoin("intervals").On("dt.ts BETWEEN intervals.stast AND intervals.END AND dt.hub_id = ? AND dt.object_id = ?", 67, 68).
+			GroupBy("email_domain", "event_type", "start").
+			OrderBy("email", "start", "event_type")
+
+		sq, args := Preprocess(
+			`WITH intervals AS ? ?`,
+			[]interface{}{
+				series,
+				distinct,
+			},
+		)
+
+		assert.Equal(
+			stripWhitespace(`
+				WITH intervals AS (SELECT start + interval ? - interval '1s' AS end FROM (SELECT generate_series(?::timestamp, ?::timestamp, ?::interval) AS start) AS "series")
+					(SELECT DISTINCT ON(dt.email) SUBSTRING(email,(POSITION('@' in email) + 1),252) AS email_domain, "dt"."event_type" AS "event_type", count(dt.*) AS count, "intervals"."start" AS "start", "intervals"."end" AS "start"
+						FROM "email_events" AS "dt"
+						RIGHT JOIN "intervals" ON (dt.ts BETWEEN intervals.stast AND intervals.END AND dt.hub_id = ? AND dt.object_id = ?)
+						GROUP BY "email_domain", "event_type", "start"
+						ORDER BY "email" ASC, "start" ASC, "event_type" ASC)`),
+			stripWhitespace(sq),
+		)
+
+		assert.Equal(
+			[]interface{}{"1 day", 1, 2, 3, 67, 68},
+			args,
+		)
+	}
+
+	{
 		sq := b.
 			Select("user_id").
 			From("user_access").
@@ -1238,4 +1338,9 @@ func BenchmarkUpdate5(b *testing.B) {
 			"id = id + ?", 10,
 		).Where("id > ?", 0).String()
 	}
+}
+
+func stripWhitespace(in string) string {
+	q := reInvisibleChars.ReplaceAllString(in, ` `)
+	return strings.TrimSpace(q)
 }
