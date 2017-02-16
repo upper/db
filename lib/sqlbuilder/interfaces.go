@@ -141,11 +141,11 @@ type Selector interface {
 	//   s.Columns(...).From("people p").Where("p.name = ?", ...)
 	From(tables ...interface{}) Selector
 
-	// Distict represents a DISCTING clause.
+	// Distict represents a DISTINCT clause.
 	//
 	// DISCTINC is used to ask the database to return only values that are
 	// different.
-	Distinct() Selector
+	Distinct(columns ...interface{}) Selector
 
 	// As defines an alias for a table.
 	As(string) Selector
