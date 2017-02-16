@@ -104,8 +104,8 @@ func TestOpenMustSucceed(t *testing.T) {
 func TestPreparedStatementsCache(t *testing.T) {
 	sess := mustOpen()
 
-	db.Conf.SetPreparedStatementCache(true)
-	defer db.Conf.SetPreparedStatementCache(false)
+	sess.SetPreparedStatementCache(true)
+	defer sess.SetPreparedStatementCache(false)
 
 	var tMu sync.Mutex
 	tFatal := func(err error) {
@@ -210,9 +210,9 @@ func TestTruncateAllCollections(t *testing.T) {
 func TestCustomQueryLogger(t *testing.T) {
 	sess := mustOpen()
 
-	db.Conf.SetLogger(&customLogger{})
+	sess.SetLogger(&customLogger{})
 	defer func() {
-		db.Conf.SetLogger(nil)
+		sess.SetLogger(nil)
 	}()
 
 	_, err := sess.Collection("artist").Find().Count()
