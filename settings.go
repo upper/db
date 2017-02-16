@@ -171,14 +171,14 @@ func (c *settings) MaxOpenConns() int {
 	return c.maxOpenConns
 }
 
-// NewSettings returns a new settings value with the current default settings.
+// NewSettings returns a new settings value prefilled with the current default
+// settings.
 func NewSettings() Settings {
-	newSettings := &settings{}
-	*newSettings = *(DefaultSettings.(*settings))
-	return newSettings
+	newSettings := *(DefaultSettings.(*settings))
+	return &newSettings
 }
 
-// Settings provides global configuration settings for upper-db.
+// Settings provides global configuration settings for database sessions.
 var DefaultSettings Settings = &settings{
 	preparedStatementCacheEnabled: 0,
 	connMaxLifetime:               time.Duration(0),
