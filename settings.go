@@ -71,7 +71,7 @@ type Settings interface {
 	MaxOpenConns() int
 }
 
-type conf struct {
+type settings struct {
 	sync.RWMutex
 
 	preparedStatementCacheEnabled uint32
@@ -86,7 +86,7 @@ type conf struct {
 	defaultLogger  defaultLogger
 }
 
-func (c *conf) Logger() Logger {
+func (c *settings) Logger() Logger {
 	c.queryLoggerMu.RLock()
 	defer c.queryLoggerMu.RUnlock()
 
@@ -97,21 +97,21 @@ func (c *conf) Logger() Logger {
 	return c.queryLogger
 }
 
-func (c *conf) SetLogger(lg Logger) {
+func (c *settings) SetLogger(lg Logger) {
 	c.queryLoggerMu.Lock()
 	defer c.queryLoggerMu.Unlock()
 
 	c.queryLogger = lg
 }
 
-func (c *conf) binaryOption(opt *uint32) bool {
+func (c *settings) binaryOption(opt *uint32) bool {
 	if atomic.LoadUint32(opt) == 1 {
 		return true
 	}
 	return false
 }
 
-func (c *conf) setBinaryOption(opt *uint32, value bool) {
+func (c *settings) setBinaryOption(opt *uint32, value bool) {
 	if value {
 		atomic.StoreUint32(opt, 1)
 		return
@@ -119,60 +119,67 @@ func (c *conf) setBinaryOption(opt *uint32, value bool) {
 	atomic.StoreUint32(opt, 0)
 }
 
-func (c *conf) SetLogging(value bool) {
+func (c *settings) SetLogging(value bool) {
 	c.setBinaryOption(&c.loggingEnabled, value)
 }
 
-func (c *conf) LoggingEnabled() bool {
+func (c *settings) LoggingEnabled() bool {
 	return c.binaryOption(&c.loggingEnabled)
 }
 
-func (c *conf) SetPreparedStatementCache(value bool) {
+func (c *settings) SetPreparedStatementCache(value bool) {
 	c.setBinaryOption(&c.preparedStatementCacheEnabled, value)
 }
 
-func (c *conf) PreparedStatementCacheEnabled() bool {
+func (c *settings) PreparedStatementCacheEnabled() bool {
 	return c.binaryOption(&c.preparedStatementCacheEnabled)
 }
 
-func (c *conf) SetConnMaxLifetime(t time.Duration) {
+func (c *settings) SetConnMaxLifetime(t time.Duration) {
 	c.Lock()
 	c.connMaxLifetime = t
 	c.Unlock()
 }
 
-func (c *conf) ConnMaxLifetime() time.Duration {
+func (c *settings) ConnMaxLifetime() time.Duration {
 	c.RLock()
 	defer c.RUnlock()
 	return c.connMaxLifetime
 }
 
-func (c *conf) SetMaxIdleConns(n int) {
+func (c *settings) SetMaxIdleConns(n int) {
 	c.Lock()
 	c.maxIdleConns = n
 	c.Unlock()
 }
 
-func (c *conf) MaxIdleConns() int {
+func (c *settings) MaxIdleConns() int {
 	c.RLock()
 	defer c.RUnlock()
 	return c.maxIdleConns
 }
 
-func (c *conf) SetMaxOpenConns(n int) {
+func (c *settings) SetMaxOpenConns(n int) {
 	c.Lock()
 	c.maxOpenConns = n
 	c.Unlock()
 }
 
-func (c *conf) MaxOpenConns() int {
+func (c *settings) MaxOpenConns() int {
 	c.RLock()
 	defer c.RUnlock()
 	return c.maxOpenConns
 }
 
-// Conf provides global configuration settings for upper-db.
-var Conf Settings = &conf{
+// NewSettings returns a new settings value with the current default settings.
+func NewSettings() Settings {
+	newSettings := &settings{}
+	*newSettings = *(DefaultSettings.(*settings))
+	return newSettings
+}
+
+// Settings provides global configuration settings for upper-db.
+var DefaultSettings Settings = &settings{
 	preparedStatementCacheEnabled: 0,
 	connMaxLifetime:               time.Duration(0),
 	maxIdleConns:                  10,

@@ -118,9 +118,9 @@ func (d *database) open() error {
 	connFn := func() error {
 		sess, err := sql.Open("postgres", d.ConnectionURL().String())
 		if err == nil {
-			sess.SetConnMaxLifetime(db.Conf.ConnMaxLifetime())
-			sess.SetMaxIdleConns(db.Conf.MaxIdleConns())
-			sess.SetMaxOpenConns(db.Conf.MaxOpenConns())
+			sess.SetConnMaxLifetime(d.ConnMaxLifetime())
+			sess.SetMaxIdleConns(d.MaxIdleConns())
+			sess.SetMaxOpenConns(d.MaxOpenConns())
 			return d.BaseDatabase.BindSession(sess)
 		}
 		return err

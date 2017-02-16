@@ -37,6 +37,8 @@ var connTimeout = time.Second * 5
 
 // Source represents a MongoDB database.
 type Source struct {
+	db.Settings
+
 	name          string
 	connURL       db.ConnectionURL
 	session       *mgo.Session
@@ -54,7 +56,7 @@ func init() {
 
 // Open stablishes a new connection to a SQL server.
 func Open(settings db.ConnectionURL) (db.Database, error) {
-	d := &Source{}
+	d := &Source{Settings: db.NewSettings()}
 	if err := d.Open(settings); err != nil {
 		return nil, err
 	}
@@ -67,17 +69,17 @@ func (s *Source) ConnectionURL() db.ConnectionURL {
 
 // SetConnMaxLifetime is not supported.
 func (s *Source) SetConnMaxLifetime(time.Duration) {
-
+	s.Settings.SetConnMaxLifetime(time.Duration(0))
 }
 
 // SetMaxIdleConns is not supported.
 func (s *Source) SetMaxIdleConns(int) {
-
+	s.Settings.SetMaxIdleConns(0)
 }
 
 // SetMaxOpenConns is not supported.
 func (s *Source) SetMaxOpenConns(int) {
-
+	s.Settings.SetMaxOpenConns(0)
 }
 
 // Name returns the name of the database.
@@ -95,6 +97,8 @@ func (s *Source) Open(connURL db.ConnectionURL) error {
 func (s *Source) Clone() (db.Database, error) {
 	newSession := s.session.Copy()
 	clone := &Source{
+		Settings: db.NewSettings(),
+
 		name:        s.name,
 		connURL:     s.connURL,
 		session:     newSession,

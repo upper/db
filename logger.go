@@ -117,15 +117,10 @@ const (
 )
 
 // Logger represents a logging collector. You can pass a logging collector to
-// db.Conf.SetLogger(myCollector) to make it collect db.QueryStatus messages
+// db.DefaultSettings.SetLogger(myCollector) to make it collect db.QueryStatus messages
 // after executing a query.
 type Logger interface {
 	Log(*QueryStatus)
-}
-
-// Log sends a query status report to the configured logger.
-func Log(m *QueryStatus) {
-	Conf.Logger().Log(m)
 }
 
 type defaultLogger struct {
@@ -135,10 +130,10 @@ func (lg *defaultLogger) Log(m *QueryStatus) {
 	log.Printf("\n\t%s\n\n", strings.Replace(m.String(), "\n", "\n\t", -1))
 }
 
-var _ Logger = &defaultLogger{}
+var _ = Logger(&defaultLogger{})
 
 func init() {
 	if envEnabled(EnvEnableDebug) {
-		Conf.SetLogging(true)
+		DefaultSettings.SetLogging(true)
 	}
 }

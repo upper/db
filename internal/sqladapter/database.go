@@ -79,6 +79,8 @@ type PartialDatabase interface {
 // BaseDatabase provides logic for methods that can be shared across all SQL
 // adapters.
 type BaseDatabase interface {
+	db.Settings
+
 	// Name returns the name of the database.
 	Name() string
 
@@ -113,18 +115,6 @@ type BaseDatabase interface {
 	// Returns the current transaction the session is using.
 	Transaction() BaseTx
 
-	// SetConnMaxLifetime sets the maximum amount of time a connection may be
-	// reused.
-	SetConnMaxLifetime(time.Duration)
-
-	// SetMaxIdleConns sets the maximum number of connections in the idle
-	// connection pool.
-	SetMaxIdleConns(int)
-
-	// SetMaxOpenConns sets the maximum number of open connections to the
-	// database.
-	SetMaxOpenConns(int)
-
 	// NewClone clones the database using the given PartialDatabase as base.
 	NewClone(PartialDatabase, bool) (BaseDatabase, error)
 
@@ -138,6 +128,7 @@ type BaseDatabase interface {
 // NewBaseDatabase provides a BaseDatabase given a PartialDatabase
 func NewBaseDatabase(p PartialDatabase) BaseDatabase {
 	d := &database{
+		Settings:          db.NewSettings(),
 		PartialDatabase:   p,
 		cachedCollections: cache.NewCache(),
 		cachedStatements:  cache.NewCache(),
@@ -150,6 +141,8 @@ func NewBaseDatabase(p PartialDatabase) BaseDatabase {
 type database struct {
 	PartialDatabase
 	baseTx BaseTx
+
+	db.Settings
 
 	ctx context.Context
 
@@ -263,24 +256,27 @@ func (d *database) Ping() error {
 // SetConnMaxLifetime sets the maximum amount of time a connection may be
 // reused.
 func (d *database) SetConnMaxLifetime(t time.Duration) {
+	d.Settings.SetConnMaxLifetime(t)
 	if sess := d.Session(); sess != nil {
-		sess.SetConnMaxLifetime(t)
+		sess.SetConnMaxLifetime(d.Settings.ConnMaxLifetime())
 	}
 }
 
 // SetMaxIdleConns sets the maximum number of connections in the idle
 // connection pool.
 func (d *database) SetMaxIdleConns(n int) {
+	d.Settings.SetMaxIdleConns(n)
 	if sess := d.Session(); sess != nil {
-		sess.SetMaxIdleConns(n)
+		sess.SetMaxIdleConns(d.MaxIdleConns())
 	}
 }
 
 // SetMaxOpenConns sets the maximum number of open connections to the
 // database.
 func (d *database) SetMaxOpenConns(n int) {
+	d.Settings.SetMaxOpenConns(n)
 	if sess := d.Session(); sess != nil {
-		sess.SetMaxOpenConns(n)
+		sess.SetMaxOpenConns(d.MaxOpenConns())
 	}
 }
 
@@ -364,7 +360,7 @@ func (d *database) Collection(name string) db.Collection {
 func (d *database) StatementExec(ctx context.Context, stmt *exql.Statement, args ...interface{}) (res sql.Result, err error) {
 	var query string
 
-	if db.Conf.LoggingEnabled() {
+	if d.Settings.LoggingEnabled() {
 		defer func(start time.Time) {
 
 			status := db.QueryStatus{
@@ -387,7 +383,7 @@ func (d *database) StatementExec(ctx context.Context, stmt *exql.Statement, args
 				}
 			}
 
-			db.Log(&status)
+			d.Logger().Log(&status)
 		}(time.Now())
 	}
 
@@ -399,7 +395,7 @@ func (d *database) StatementExec(ctx context.Context, stmt *exql.Statement, args
 
 	tx := d.Transaction()
 
-	if db.Conf.PreparedStatementCacheEnabled() && tx == nil {
+	if d.Settings.PreparedStatementCacheEnabled() && tx == nil {
 		var p *Stmt
 		if p, query, args, err = d.prepareStatement(ctx, stmt, args); err != nil {
 			return nil, err
@@ -424,9 +420,9 @@ func (d *database) StatementExec(ctx context.Context, stmt *exql.Statement, args
 func (d *database) StatementQuery(ctx context.Context, stmt *exql.Statement, args ...interface{}) (rows *sql.Rows, err error) {
 	var query string
 
-	if db.Conf.LoggingEnabled() {
+	if d.Settings.LoggingEnabled() {
 		defer func(start time.Time) {
-			db.Log(&db.QueryStatus{
+			d.Logger().Log(&db.QueryStatus{
 				TxID:   d.txID,
 				SessID: d.sessID,
 				Query:  query,
@@ -440,7 +436,7 @@ func (d *database) StatementQuery(ctx context.Context, stmt *exql.Statement, arg
 
 	tx := d.Transaction()
 
-	if db.Conf.PreparedStatementCacheEnabled() && tx == nil {
+	if d.Settings.PreparedStatementCacheEnabled() && tx == nil {
 		var p *Stmt
 		if p, query, args, err = d.prepareStatement(ctx, stmt, args); err != nil {
 			return nil, err
@@ -467,9 +463,9 @@ func (d *database) StatementQuery(ctx context.Context, stmt *exql.Statement, arg
 func (d *database) StatementQueryRow(ctx context.Context, stmt *exql.Statement, args ...interface{}) (row *sql.Row, err error) {
 	var query string
 
-	if db.Conf.LoggingEnabled() {
+	if d.Settings.LoggingEnabled() {
 		defer func(start time.Time) {
-			db.Log(&db.QueryStatus{
+			d.Logger().Log(&db.QueryStatus{
 				TxID:   d.txID,
 				SessID: d.sessID,
 				Query:  query,
@@ -483,7 +479,7 @@ func (d *database) StatementQueryRow(ctx context.Context, stmt *exql.Statement, 
 
 	tx := d.Transaction()
 
-	if db.Conf.PreparedStatementCacheEnabled() && tx == nil {
+	if d.Settings.PreparedStatementCacheEnabled() && tx == nil {
 		var p *Stmt
 		if p, query, args, err = d.prepareStatement(ctx, stmt, args); err != nil {
 			return nil, err
