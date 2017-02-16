@@ -314,7 +314,7 @@ func (d *database) TableExists(name string) error {
 
 // PrimaryKeys allows sqladapter find a table's primary keys.
 func (d *database) PrimaryKeys(tableName string) ([]string, error) {
-	return nil, nil
+	return []string{"id()"}, nil
 }
 
 // WithContext creates a copy of the session on the given context.
