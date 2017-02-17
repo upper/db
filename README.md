@@ -16,9 +16,9 @@ go get upper.io/db.v3
 
 ## User documentation
 
-This is the source code repository, see examples and documentation at
-[upper.io/db.v3][1] and check out our [release
-notes](https://github.com/upper/db/releases/tag/v3.0.0).
+This is the source code repository, check out our [release
+notes](https://github.com/upper/db/releases/tag/v3.0.0) and see examples and
+documentation at [upper.io/db.v3][1].
 
 ## Demo
 
