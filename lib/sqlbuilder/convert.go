@@ -175,6 +175,8 @@ func preprocessFn(arg interface{}) (string, []interface{}) {
 	return "", []interface{}{arg}
 }
 
+// Preprocess expands arguments that needs to be expanded and compiles a query
+// into a single string.
 func Preprocess(in string, args []interface{}) (string, []interface{}) {
 	return expandQuery(in, args, preprocessFn)
 }

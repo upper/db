@@ -1,12 +1,12 @@
 <p align="center">
-  <img src="https://upper.io/db.v2/images/gopher.svg" width="256" />
+  <img src="https://upper.io/db.v3/images/gopher.svg" width="256" />
 </p>
 
 # upper.io/db.v3 [![Build Status](https://travis-ci.org/upper/db.svg?branch=master)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/upper.io/db.v3?status.svg)](https://godoc.org/upper.io/db.v3)
 
-The `upper.io/db.v3` package for [Go][2] is *not* an ORM, it's just a productive
-data access layer for Go which provides a common interface to work with
-different data sources such as [PostgreSQL](https://upper.io/db.v3/postgresql),
+The `upper.io/db.v3` package for [Go][2] is a productive data access layer for
+Go that provides a common interface to work with different data sources such as
+[PostgreSQL](https://upper.io/db.v3/postgresql),
 [MySQL](https://upper.io/db.v3/mysql), [SQLite](https://upper.io/db.v3/sqlite),
 [QL](https://upper.io/db.v3/ql) and [MongoDB](https://upper.io/db.v3/mongodb).
 
@@ -17,7 +17,8 @@ go get upper.io/db.v3
 ## User documentation
 
 This is the source code repository, see examples and documentation at
-[upper.io/db.v3][1].
+[upper.io/db.v3][1] and check out our [release
+notes](https://github.com/upper/db/releases/tag/v3.0.0).
 
 ## Demo
 

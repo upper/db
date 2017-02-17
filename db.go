@@ -207,6 +207,7 @@ func (c Cond) Constraints() []Constraint {
 	return z
 }
 
+// Keys returns the keys of this map sorted by name.
 func (c Cond) Keys() []interface{} {
 	keys := make(condKeys, 0, len(c))
 	for k := range c {
@@ -293,6 +294,7 @@ func newCompound(conds ...Compound) *compound {
 
 var _ = immutable.Immutable(&compound{})
 
+// Sentences returns each one of the conditions as a compound.
 func (c *compound) Sentences() []Compound {
 	conds, err := immutable.FastForward(c)
 	if err == nil {
@@ -301,10 +303,12 @@ func (c *compound) Sentences() []Compound {
 	return nil
 }
 
+// Operator returns no operator.
 func (c *compound) Operator() CompoundOperator {
 	return OperatorNone
 }
 
+// Empty returns true if this condition has no elements. False otherwise.
 func (c *compound) Empty() bool {
 	if c.fn != nil {
 		return false
@@ -319,6 +323,7 @@ func (c *compound) frame(fn func(*[]Compound) error) *compound {
 	return &compound{prev: c, fn: fn}
 }
 
+// Prev is for internal usage.
 func (c *compound) Prev() immutable.Immutable {
 	if c == nil {
 		return nil
@@ -326,6 +331,7 @@ func (c *compound) Prev() immutable.Immutable {
 	return c.prev
 }
 
+// Fn is for internal usage.
 func (c *compound) Fn(in interface{}) error {
 	if c.fn == nil {
 		return nil
@@ -333,6 +339,7 @@ func (c *compound) Fn(in interface{}) error {
 	return c.fn(in.(*[]Compound))
 }
 
+// Base is for internal usage.
 func (c *compound) Base() interface{} {
 	return &[]Compound{}
 }

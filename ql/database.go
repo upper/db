@@ -19,6 +19,9 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Package ql wraps the github.com/cznic/ql/driver QL driver. See
+// https://upper.io/db.v3/ql for documentation, particularities and usage
+// examples.
 package ql
 
 import (
