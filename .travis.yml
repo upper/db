@@ -8,8 +8,8 @@ language: go
 
 go:
   - "1.7"
-#  - "go1.8beta3"
-  - "tip"
+  - "1.8"
+#  - "tip"
 
 services:
   - mongodb
