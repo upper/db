@@ -79,6 +79,7 @@ package db // import "upper.io/db.v2"
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"time"
 )
 
@@ -95,11 +96,13 @@ type Constraint interface {
 	Value() interface{}
 }
 
-// Constraints interface represents an array or constraints, like "a = 1, b =
+// Constraints interface represents an array of constraints, like "a = 1, b =
 // 2, c = 3".
 type Constraints interface {
 	// Constraints returns an array of constraints.
 	Constraints() []Constraint
+	// Keys returns the map keys always in the same order.
+	Keys() []interface{}
 }
 
 // Compound represents an statement that has one or many sentences joined by by
@@ -197,17 +200,42 @@ type Cond map[interface{}]interface{}
 // Constraints returns each one of the Cond map records as a constraint.
 func (c Cond) Constraints() []Constraint {
 	z := make([]Constraint, 0, len(c))
-	for k, v := range c {
-		z = append(z, NewConstraint(k, v))
+	for _, k := range c.Keys() {
+		z = append(z, NewConstraint(k, c[k]))
 	}
 	return z
+}
+
+type condKeys []interface{}
+
+func (ck condKeys) Len() int {
+	return len(ck)
+}
+
+func (ck condKeys) Less(i, j int) bool {
+	return fmt.Sprintf("%v", ck[i]) < fmt.Sprintf("%v", ck[j])
+}
+
+func (ck condKeys) Swap(i, j int) {
+	ck[i], ck[j] = ck[j], ck[i]
+}
+
+func (c Cond) Keys() []interface{} {
+	keys := make(condKeys, 0, len(c))
+	for k := range c {
+		keys = append(keys, k)
+	}
+	if len(c) > 1 {
+		sort.Sort(keys)
+	}
+	return keys
 }
 
 // Sentences return each one of the map records as a compound.
 func (c Cond) Sentences() []Compound {
 	z := make([]Compound, 0, len(c))
-	for k, v := range c {
-		z = append(z, Cond{k: v})
+	for _, k := range c.Keys() {
+		z = append(z, Cond{k: c[k]})
 	}
 	return z
 }

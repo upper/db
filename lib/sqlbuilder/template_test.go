@@ -26,47 +26,51 @@ const (
 	defaultSortByColumnLayout  = `{{.Column}} {{.Order}}`
 
 	defaultOrderByLayout = `
-		{{if .SortColumns}}
-			ORDER BY {{.SortColumns}}
-		{{end}}
-	`
+    {{if .SortColumns}}
+      ORDER BY {{.SortColumns}}
+    {{end}}
+  `
 
 	defaultWhereLayout = `
-		{{if .Conds}}
-			WHERE {{.Conds}}
-		{{end}}
-	`
+    {{if .Conds}}
+      WHERE {{.Conds}}
+    {{end}}
+  `
 
 	defaultUsingLayout = `
-		{{if .Columns}}
-			USING ({{.Columns}})
-		{{end}}
-	`
+    {{if .Columns}}
+      USING ({{.Columns}})
+    {{end}}
+  `
 
 	defaultJoinLayout = `
-		{{if .Table}}
-			{{ if .On }}
-				{{.Type}} JOIN {{.Table}}
-				{{.On}}
-			{{ else if .Using }}
-				{{.Type}} JOIN {{.Table}}
-				{{.Using}}
-			{{ else if .Type | eq "CROSS" }}
-				{{.Type}} JOIN {{.Table}}
-			{{else}}
-				NATURAL {{.Type}} JOIN {{.Table}}
-			{{end}}
-		{{end}}
-	`
+    {{if .Table}}
+      {{ if .On }}
+        {{.Type}} JOIN {{.Table}}
+        {{.On}}
+      {{ else if .Using }}
+        {{.Type}} JOIN {{.Table}}
+        {{.Using}}
+      {{ else if .Type | eq "CROSS" }}
+        {{.Type}} JOIN {{.Table}}
+      {{else}}
+        NATURAL {{.Type}} JOIN {{.Table}}
+      {{end}}
+    {{end}}
+  `
 
 	defaultOnLayout = `
-		{{if .Conds}}
-			ON {{.Conds}}
-		{{end}}
-	`
+    {{if .Conds}}
+      ON {{.Conds}}
+    {{end}}
+  `
 
 	defaultSelectLayout = `
     SELECT
+
+      {{if .Distinct}}
+        DISTINCT
+      {{end}}
 
       {{if .Columns}}
         {{.Columns}}
@@ -93,67 +97,67 @@ const (
       {{if .Offset}}
         OFFSET {{.Offset}}
       {{end}}
-	`
+  `
 	defaultDeleteLayout = `
     DELETE
       FROM {{.Table}}
       {{.Where}}
-	`
+  `
 	defaultUpdateLayout = `
-		UPDATE
-			{{.Table}}
-		SET {{.ColumnValues}}
-			{{ .Where }}
-	`
+    UPDATE
+      {{.Table}}
+    SET {{.ColumnValues}}
+      {{ .Where }}
+  `
 
 	defaultCountLayout = `
-		SELECT
-			COUNT(1) AS _t
-		FROM {{.Table}}
-			{{.Where}}
+    SELECT
+      COUNT(1) AS _t
+    FROM {{.Table}}
+      {{.Where}}
 
-			{{if .Limit}}
-				LIMIT {{.Limit}}
-			{{end}}
+      {{if .Limit}}
+        LIMIT {{.Limit}}
+      {{end}}
 
-			{{if .Offset}}
-				OFFSET {{.Offset}}
-			{{end}}
-	`
+      {{if .Offset}}
+        OFFSET {{.Offset}}
+      {{end}}
+  `
 
 	defaultInsertLayout = `
     INSERT INTO {{.Table}}
       {{if .Columns }}({{.Columns}}){{end}}
     VALUES
-		{{if .Values}}
+    {{if .Values}}
       {{.Values}}
-		{{else}}
-			(default)
-		{{end}}
-		{{if .Returning}}
-			RETURNING {{.Returning}}
-		{{end}}
-	`
+    {{else}}
+      (default)
+    {{end}}
+    {{if .Returning}}
+      RETURNING {{.Returning}}
+    {{end}}
+  `
 
 	defaultTruncateLayout = `
-		TRUNCATE TABLE {{.Table}}
-	`
+    TRUNCATE TABLE {{.Table}}
+  `
 
 	defaultDropDatabaseLayout = `
-		DROP DATABASE {{.Database}}
-	`
+    DROP DATABASE {{.Database}}
+  `
 
 	defaultDropTableLayout = `
-		DROP TABLE {{.Table}}
-	`
+    DROP TABLE {{.Table}}
+  `
 
 	defaultGroupByColumnLayout = `{{.Column}}`
 
 	defaultGroupByLayout = `
-		{{if .GroupColumns}}
-			GROUP BY {{.GroupColumns}}
-		{{end}}
-	`
+    {{if .GroupColumns}}
+      GROUP BY {{.GroupColumns}}
+    {{end}}
+  `
 )
 
 var testTemplate = exql.Template{
