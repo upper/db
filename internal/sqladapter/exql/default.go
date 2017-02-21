@@ -65,6 +65,9 @@ const (
 	`
 
 	defaultSelectLayout = `
+    {{if .CTEs}}
+      WITH {{.CTEs}}
+    {{end}}
     SELECT
 
       {{if .Columns}}
@@ -94,6 +97,9 @@ const (
       {{end}}
 	`
 	defaultDeleteLayout = `
+    {{if .CTEs}}
+      WITH {{.CTEs}}
+    {{end}}
     DELETE
       FROM {{.Table}}
       {{.Where}}
@@ -105,6 +111,9 @@ const (
     {{end}}
 	`
 	defaultUpdateLayout = `
+    {{if .CTEs}}
+      WITH {{.CTEs}}
+    {{end}}
 		UPDATE
 			{{.Table}}
 		SET {{.ColumnValues}}
@@ -112,6 +121,9 @@ const (
 	`
 
 	defaultCountLayout = `
+    {{if .CTEs}}
+      WITH {{.CTEs}}
+    {{end}}
 		SELECT
 			COUNT(1) AS _t
 		FROM {{.Table}}
@@ -127,6 +139,9 @@ const (
 	`
 
 	defaultInsertLayout = `
+    {{if .CTEs}}
+      WITH {{.CTEs}}
+    {{end}}
     INSERT INTO {{.Table}}
       {{if .Columns }}({{.Columns}}){{end}}
     VALUES
@@ -155,6 +170,7 @@ const (
 			GROUP BY {{.GroupColumns}}
 		{{end}}
 	`
+	defaultCTELayout = `{{.Alias}} AS ({{.Statement}})`
 )
 
 var defaultTemplate = &Template{
@@ -190,5 +206,6 @@ var defaultTemplate = &Template{
 	DropTableLayout:     defaultDropTableLayout,
 	CountLayout:         defaultCountLayout,
 	GroupByLayout:       defaultGroupByLayout,
+	CTELayout:           defaultCTELayout,
 	Cache:               cache.NewCache(),
 }

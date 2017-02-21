@@ -20,6 +20,7 @@ type Statement struct {
 	Joins        Fragment
 	Where        Fragment
 	Returning    Fragment
+	CTEs         Fragment
 
 	Limit
 	Offset
@@ -41,6 +42,7 @@ type statementT struct {
 	Where        string
 	Joins        string
 	Returning    string
+	CTEs         string
 	Limit
 	Offset
 }
@@ -99,6 +101,7 @@ func (s *Statement) Compile(layout *Template) (compiled string) {
 		Where:        layout.doCompile(s.Where),
 		Returning:    layout.doCompile(s.Returning),
 		Joins:        layout.doCompile(s.Joins),
+		CTEs:         layout.doCompile(s.CTEs),
 	}
 
 	switch s.Type {
