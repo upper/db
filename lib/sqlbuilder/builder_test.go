@@ -66,6 +66,16 @@ func TestSelect(t *testing.T) {
 		b.Select().Distinct(db.Raw(`ON ? col1`, []interface{}{db.Raw(`SELECT foo FROM bar`), db.Raw(`SELECT baz from qux`)})).Columns("col2", "col3").Distinct("col4", "col5").From("artist").String(),
 	)
 
+	assert.Equal(
+		`SELECT DISTINCT ON (dt.email) dt.something, "col1" FROM "artist"`,
+		b.Select().Distinct(db.Raw(`ON ? ?`, []interface{}{db.Raw(`dt.email`)}, db.Raw(`dt.something`))).Columns("col1").From("artist").String(),
+	)
+
+	assert.Equal(
+		`SELECT DISTINCT ON (dt.email) FROM "email_events" AS "dt"`,
+		b.Select().Distinct(db.Raw("ON ?", []interface{}{db.Raw(`dt.email`)})).From("email_events AS dt").String(),
+	)
+
 	{
 		q := b.Select().Distinct(db.Raw(`ON (?) col1`, []db.RawValue{db.Raw(`SELECT foo FROM bar WHERE id = ?`, 1), db.Raw(`SELECT baz from qux WHERE id = 2`)})).Columns("col2", "col3").Distinct("col4", "col5").From("artist").
 			Where("id", 3)
