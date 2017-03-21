@@ -169,6 +169,18 @@ func (upd *updater) And(terms ...interface{}) Updater {
 	})
 }
 
+func (upd *updater) Prepare() (*sql.Stmt, error) {
+	return upd.PrepareContext(upd.SQLBuilder().sess.Context())
+}
+
+func (upd *updater) PrepareContext(ctx context.Context) (*sql.Stmt, error) {
+	uq, err := upd.build()
+	if err != nil {
+		return nil, err
+	}
+	return upd.SQLBuilder().sess.StatementPrepare(ctx, uq.statement())
+}
+
 func (upd *updater) Exec() (sql.Result, error) {
 	return upd.ExecContext(upd.SQLBuilder().sess.Context())
 }

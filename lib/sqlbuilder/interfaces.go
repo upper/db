@@ -98,6 +98,16 @@ type SQLBuilder interface {
 	//  sqlbuilder.ExecContext(ctx, `INSERT INTO books (title) VALUES(?)`, "La Ciudad y los Perros")
 	ExecContext(ctx context.Context, query interface{}, args ...interface{}) (sql.Result, error)
 
+	// Prepare creates a prepared statement for later queries or executions. The
+	// caller must call the statement's Close method when the statement is no
+	// longer needed.
+	Prepare(query interface{}) (*sql.Stmt, error)
+
+	// Prepare creates a prepared statement on the guiven context for later
+	// queries or executions. The caller must call the statement's Close method
+	// when the statement is no longer needed.
+	PrepareContext(ctx context.Context, query interface{}) (*sql.Stmt, error)
+
 	// Query executes a SQL query that returns rows, like sql.Query.  Queries can
 	// be either strings or upper-db statements.
 	//
@@ -341,6 +351,9 @@ type Selector interface {
 	// the Selector.
 	IteratorContext(ctx context.Context) Iterator
 
+	// Preparer provides methods for creating prepared statements.
+	Preparer
+
 	// Getter provides methods to compile and execute a query that returns
 	// results.
 	Getter
@@ -404,6 +417,9 @@ type Inserter interface {
 	// Execer provides the Exec method.
 	Execer
 
+	// Preparer provides methods for creating prepared statements.
+	Preparer
+
 	// Getter provides methods to return query results from INSERT statements
 	// that support such feature (e.g.: queries with Returning).
 	Getter
@@ -432,6 +448,9 @@ type Deleter interface {
 	// Amend lets you alter the query's text just before sending it to the
 	// database server.
 	Amend(func(queryIn string) (queryOut string)) Deleter
+
+	// Preparer provides methods for creating prepared statements.
+	Preparer
 
 	// Execer provides the Exec method.
 	Execer
@@ -463,6 +482,9 @@ type Updater interface {
 	// See Selector.Limit for documentation and usage examples.
 	Limit(int) Updater
 
+	// Preparer provides methods for creating prepared statements.
+	Preparer
+
 	// Execer provides the Exec method.
 	Execer
 
@@ -485,6 +507,16 @@ type Execer interface {
 
 	// ExecContext executes a statement and returns sql.Result.
 	ExecContext(context.Context) (sql.Result, error)
+}
+
+// Preparer provides the Prepare and PrepareContext methods for creating
+// prepared statements.
+type Preparer interface {
+	// Prepare creates a prepared statement.
+	Prepare() (*sql.Stmt, error)
+
+	// PrepareContext creates a prepared statement.
+	PrepareContext(context.Context) (*sql.Stmt, error)
 }
 
 // Getter provides methods for executing statements that return results.

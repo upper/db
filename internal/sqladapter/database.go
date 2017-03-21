@@ -355,6 +355,35 @@ func (d *database) Collection(name string) db.Collection {
 	return col
 }
 
+// StatementPrepare creates a prepared statement.
+func (d *database) StatementPrepare(ctx context.Context, stmt *exql.Statement) (sqlStmt *sql.Stmt, err error) {
+	var query string
+
+	if d.Settings.LoggingEnabled() {
+		defer func(start time.Time) {
+			d.Logger().Log(&db.QueryStatus{
+				TxID:   d.txID,
+				SessID: d.sessID,
+				Query:  query,
+				Err:    err,
+				Start:  start,
+				End:    time.Now(),
+			})
+		}(time.Now())
+	}
+
+	tx := d.Transaction()
+
+	query, _ = d.compileStatement(stmt, nil)
+	if tx != nil {
+		sqlStmt, err = compat.PrepareContext(tx.(*baseTx), ctx, query)
+		return
+	}
+
+	sqlStmt, err = compat.PrepareContext(d.sess, ctx, query)
+	return
+}
+
 // StatementExec compiles and executes a statement that does not return any
 // rows.
 func (d *database) StatementExec(ctx context.Context, stmt *exql.Statement, args ...interface{}) (res sql.Result, err error) {

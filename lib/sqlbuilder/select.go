@@ -413,6 +413,18 @@ func (sel *selector) QueryRowContext(ctx context.Context) (*sql.Row, error) {
 	return sel.SQLBuilder().sess.StatementQueryRow(ctx, sq.statement(), sq.arguments()...)
 }
 
+func (sel *selector) Prepare() (*sql.Stmt, error) {
+	return sel.PrepareContext(sel.SQLBuilder().sess.Context())
+}
+
+func (sel *selector) PrepareContext(ctx context.Context) (*sql.Stmt, error) {
+	sq, err := sel.build()
+	if err != nil {
+		return nil, err
+	}
+	return sel.SQLBuilder().sess.StatementPrepare(ctx, sq.statement())
+}
+
 func (sel *selector) Query() (*sql.Rows, error) {
 	return sel.QueryContext(sel.SQLBuilder().sess.Context())
 }

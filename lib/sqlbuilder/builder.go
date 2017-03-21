@@ -88,6 +88,7 @@ var (
 )
 
 type exprDB interface {
+	StatementPrepare(ctx context.Context, stmt *exql.Statement) (*sql.Stmt, error)
 	StatementQuery(ctx context.Context, stmt *exql.Statement, args ...interface{}) (*sql.Rows, error)
 	StatementQueryRow(ctx context.Context, stmt *exql.Statement, args ...interface{}) (*sql.Row, error)
 	StatementExec(ctx context.Context, stmt *exql.Statement, args ...interface{}) (sql.Result, error)
@@ -130,6 +131,23 @@ func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) Iterator {
 func (b *sqlBuilder) IteratorContext(ctx context.Context, query interface{}, args ...interface{}) Iterator {
 	rows, err := b.QueryContext(ctx, query, args...)
 	return &iterator{rows, err}
+}
+
+func (b *sqlBuilder) Prepare(query interface{}) (*sql.Stmt, error) {
+	return b.PrepareContext(b.sess.Context(), query)
+}
+
+func (b *sqlBuilder) PrepareContext(ctx context.Context, query interface{}) (*sql.Stmt, error) {
+	switch q := query.(type) {
+	case *exql.Statement:
+		return b.sess.StatementPrepare(ctx, q)
+	case string:
+		return b.sess.StatementPrepare(ctx, exql.RawSQL(q))
+	case db.RawValue:
+		return b.PrepareContext(ctx, q.Raw())
+	default:
+		return nil, fmt.Errorf("Unsupported query type %T.", query)
+	}
 }
 
 func (b *sqlBuilder) Exec(query interface{}, args ...interface{}) (sql.Result, error) {
@@ -389,6 +407,8 @@ func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, err
 			f[i] = v
 		case string:
 			f[i] = exql.ColumnWithName(v)
+		case int:
+			f[i] = exql.RawValue(fmt.Sprintf("%v", v))
 		case interface{}:
 			f[i] = exql.ColumnWithName(fmt.Sprintf("%v", v))
 		default:
@@ -560,6 +580,14 @@ func (p *exprProxy) StatementExec(ctx context.Context, stmt *exql.Statement, arg
 		return nil, err
 	}
 	return compat.ExecContext(p.db, ctx, s, args)
+}
+
+func (p *exprProxy) StatementPrepare(ctx context.Context, stmt *exql.Statement) (*sql.Stmt, error) {
+	s, err := stmt.Compile(p.t)
+	if err != nil {
+		return nil, err
+	}
+	return compat.PrepareContext(p.db, ctx, s)
 }
 
 func (p *exprProxy) StatementQuery(ctx context.Context, stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
