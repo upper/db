@@ -342,6 +342,10 @@ func (qs *selector) statement() *exql.Statement {
 	return stmt
 }
 
+func (qs *selector) Prepare() (*sql.Stmt, error) {
+	return qs.builder.sess.StatementPrepare(qs.statement())
+}
+
 func (qs *selector) Query() (*sql.Rows, error) {
 	return qs.builder.sess.StatementQuery(qs.statement(), qs.Arguments()...)
 }

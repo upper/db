@@ -55,6 +55,10 @@ func (qd *deleter) Arguments() []interface{} {
 	return qd.whereArgs
 }
 
+func (qd *deleter) Prepare() (*sql.Stmt, error) {
+	return qd.builder.sess.StatementPrepare(qd.statement())
+}
+
 func (qd *deleter) Exec() (sql.Result, error) {
 	return qd.builder.sess.StatementExec(qd.statement(), qd.whereArgs...)
 }

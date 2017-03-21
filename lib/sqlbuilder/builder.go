@@ -63,6 +63,7 @@ var (
 )
 
 type exprDB interface {
+	StatementPrepare(stmt *exql.Statement) (*sql.Stmt, error)
 	StatementQuery(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error)
 	StatementQueryRow(stmt *exql.Statement, args ...interface{}) (*sql.Row, error)
 	StatementExec(stmt *exql.Statement, args ...interface{}) (sql.Result, error)
@@ -105,6 +106,19 @@ func NewIterator(rows *sql.Rows) Iterator {
 func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) Iterator {
 	rows, err := b.Query(query, args...)
 	return &iterator{rows, err}
+}
+
+func (b *sqlBuilder) Prepare(query interface{}) (*sql.Stmt, error) {
+	switch q := query.(type) {
+	case *exql.Statement:
+		return b.sess.StatementPrepare(q)
+	case string:
+		return b.sess.StatementPrepare(exql.RawSQL(q))
+	case db.RawValue:
+		return b.Prepare(q.Raw())
+	default:
+		return nil, fmt.Errorf("Unsupported query type %T.", query)
+	}
 }
 
 func (b *sqlBuilder) Exec(query interface{}, args ...interface{}) (sql.Result, error) {
@@ -361,6 +375,8 @@ func columnFragments(template *templateWithUtils, columns []interface{}) ([]exql
 			f[i] = v
 		case string:
 			f[i] = exql.ColumnWithName(v)
+		case int:
+			f[i] = exql.RawValue(fmt.Sprintf("%v", v))
 		case interface{}:
 			f[i] = exql.ColumnWithName(fmt.Sprintf("%v", v))
 		default:
@@ -534,6 +550,11 @@ func newSqlgenProxy(db *sql.DB, t *exql.Template) *exprProxy {
 func (p *exprProxy) StatementExec(stmt *exql.Statement, args ...interface{}) (sql.Result, error) {
 	s := stmt.Compile(p.t)
 	return p.db.Exec(s, args...)
+}
+
+func (p *exprProxy) StatementPrepare(stmt *exql.Statement) (*sql.Stmt, error) {
+	s := stmt.Compile(p.t)
+	return p.db.Prepare(s)
 }
 
 func (p *exprProxy) StatementQuery(stmt *exql.Statement, args ...interface{}) (*sql.Rows, error) {
