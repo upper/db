@@ -96,6 +96,10 @@ func (qu *updater) And(terms ...interface{}) Updater {
 	return qu
 }
 
+func (qu *updater) Prepare() (*sql.Stmt, error) {
+	return qu.builder.sess.StatementPrepare(qu.statement())
+}
+
 func (qu *updater) Exec() (sql.Result, error) {
 	return qu.builder.sess.StatementExec(qu.statement(), qu.Arguments()...)
 }

@@ -344,6 +344,35 @@ func (d *database) StatementExec(stmt *exql.Statement, args ...interface{}) (res
 	return
 }
 
+// StatementPrepare creates a prepared statement.
+func (d *database) StatementPrepare(stmt *exql.Statement) (sqlStmt *sql.Stmt, err error) {
+	var query string
+
+	if db.Conf.LoggingEnabled() {
+		defer func(start time.Time) {
+			db.Log(&db.QueryStatus{
+				TxID:   d.txID,
+				SessID: d.sessID,
+				Query:  query,
+				Err:    err,
+				Start:  start,
+				End:    time.Now(),
+			})
+		}(time.Now())
+	}
+
+	tx := d.Transaction()
+
+	query, _ = d.compileStatement(stmt, nil)
+	if tx != nil {
+		sqlStmt, err = tx.(*sqlTx).Prepare(query)
+		return
+	}
+
+	sqlStmt, err = d.sess.Prepare(query)
+	return
+}
+
 // StatementQuery compiles and executes a statement that returns rows.
 func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (rows *sql.Rows, err error) {
 	var query string
@@ -383,7 +412,6 @@ func (d *database) StatementQuery(stmt *exql.Statement, args ...interface{}) (ro
 
 	rows, err = d.sess.Query(query, args...)
 	return
-
 }
 
 // StatementQueryRow compiles and executes a statement that returns at most one

@@ -75,6 +75,11 @@ type Builder interface {
 	//  sqlbuilder.Exec(`INSERT INTO books (title) VALUES("La Ciudad y los Perros")`)
 	Exec(query interface{}, args ...interface{}) (sql.Result, error)
 
+	// Prepare creates a prepared statement for later queries or executions. The
+	// caller must call the statement's Close method when the statement is no
+	// longer needed.
+	Prepare(query interface{}) (*sql.Stmt, error)
+
 	// Query executes the given SQL query and returns *sql.Rows.
 	//
 	// Example:
@@ -291,6 +296,9 @@ type Selector interface {
 	// results.
 	Getter
 
+	// Preparer provides the Prepare method.
+	Preparer
+
 	// ResultMapper provides methods to retrieve and map results.
 	ResultMapper
 
@@ -350,6 +358,9 @@ type Inserter interface {
 	// that support such feature (e.g.: queries with Returning).
 	Getter
 
+	// Preparer provides the Prepare method.
+	Preparer
+
 	// fmt.Stringer provides `String() string`, you can use `String()` to compile
 	// the `Inserter` into a string.
 	fmt.Stringer
@@ -377,6 +388,9 @@ type Deleter interface {
 
 	// Execer provides the Exec method.
 	Execer
+
+	// Preparer provides the Prepare method.
+	Preparer
 
 	// fmt.Stringer provides `String() string`, you can use `String()` to compile
 	// the `Inserter` into a string.
@@ -408,6 +422,9 @@ type Updater interface {
 	// Execer provides the Exec method.
 	Execer
 
+	// Preparer provides the Prepare method.
+	Preparer
+
 	// fmt.Stringer provides `String() string`, you can use `String()` to compile
 	// the `Inserter` into a string.
 	fmt.Stringer
@@ -424,6 +441,11 @@ type Updater interface {
 type Execer interface {
 	// Exec executes a statement and returns sql.Result.
 	Exec() (sql.Result, error)
+}
+
+// Preparer provides the Prepare method.
+type Preparer interface {
+	Prepare() (*sql.Stmt, error)
 }
 
 // Getter provides methods for executing statements that return results.

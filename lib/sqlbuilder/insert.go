@@ -63,6 +63,10 @@ func (qi *inserter) Exec() (sql.Result, error) {
 	return qi.builder.sess.StatementExec(qi.statement(), qi.arguments...)
 }
 
+func (qi *inserter) Prepare() (*sql.Stmt, error) {
+	return qi.builder.sess.StatementPrepare(qi.statement())
+}
+
 func (qi *inserter) Query() (*sql.Rows, error) {
 	return qi.builder.sess.StatementQuery(qi.statement(), qi.arguments...)
 }

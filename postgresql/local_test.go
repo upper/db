@@ -127,6 +127,85 @@ func TestIssue210(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestPreparedStatements(t *testing.T) {
+	sess := mustOpen()
+	defer sess.Close()
+
+	var val int
+
+	{
+		stmt, err := sess.Prepare(`SELECT 1`)
+		assert.NoError(t, err)
+		assert.NotNil(t, stmt)
+
+		q, err := stmt.Query()
+		assert.NoError(t, err)
+		assert.NotNil(t, q)
+		assert.True(t, q.Next())
+
+		err = q.Scan(&val)
+		assert.NoError(t, err)
+
+		err = q.Close()
+		assert.NoError(t, err)
+
+		assert.Equal(t, 1, val)
+
+		err = stmt.Close()
+		assert.NoError(t, err)
+	}
+
+	{
+		tx, err := sess.NewTx()
+		assert.NoError(t, err)
+
+		stmt, err := tx.Prepare(`SELECT 2`)
+		assert.NoError(t, err)
+		assert.NotNil(t, stmt)
+
+		q, err := stmt.Query()
+		assert.NoError(t, err)
+		assert.NotNil(t, q)
+		assert.True(t, q.Next())
+
+		err = q.Scan(&val)
+		assert.NoError(t, err)
+
+		err = q.Close()
+		assert.NoError(t, err)
+
+		assert.Equal(t, 2, val)
+
+		err = stmt.Close()
+		assert.NoError(t, err)
+
+		err = tx.Commit()
+		assert.NoError(t, err)
+	}
+
+	{
+		stmt, err := sess.Select(3).Prepare()
+		assert.NoError(t, err)
+		assert.NotNil(t, stmt)
+
+		q, err := stmt.Query()
+		assert.NoError(t, err)
+		assert.NotNil(t, q)
+		assert.True(t, q.Next())
+
+		err = q.Scan(&val)
+		assert.NoError(t, err)
+
+		err = q.Close()
+		assert.NoError(t, err)
+
+		assert.Equal(t, 3, val)
+
+		err = stmt.Close()
+		assert.NoError(t, err)
+	}
+}
+
 func TestNonTrivialSubqueries(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()
