@@ -91,6 +91,33 @@ func TestSelect(t *testing.T) {
 	}
 
 	{
+		rawCase := db.Raw("CASE WHEN id = ? THEN ? WHEN id = ? THEN ? WHEN id = ? THEN ? END", 10, 0, 20, 1, 30, 2)
+		ids := []int{1, 2, 3, 4}
+		sel := b.SelectFrom("artist").And(db.Cond{"id": ids}).OrderBy(rawCase)
+		assert.Equal(
+			`SELECT * FROM "artist" WHERE ("id" IN ($1, $2, $3, $4)) ORDER BY CASE WHEN id = $5 THEN $6 WHEN id = $7 THEN $8 WHEN id = $9 THEN $10 END`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{1, 2, 3, 4, 10, 0, 20, 1, 30, 2},
+			sel.Arguments(),
+		)
+	}
+
+	{
+		rawCase := db.Raw("CASE WHEN id = ? THEN ? WHEN id = ? THEN ? WHEN id = ? THEN ? END", 10, 0, 20, 1, 30, 2)
+		sel := b.SelectFrom("artist").OrderBy(rawCase)
+		assert.Equal(
+			`SELECT * FROM "artist" ORDER BY CASE WHEN id = $1 THEN $2 WHEN id = $3 THEN $4 WHEN id = $5 THEN $6 END`,
+			sel.String(),
+		)
+		assert.Equal(
+			[]interface{}{10, 0, 20, 1, 30, 2},
+			sel.Arguments(),
+		)
+	}
+
+	{
 		rawCase := db.Raw("CASE WHEN id IN ? THEN 0 ELSE 1 END", []int{1000, 2000})
 		sel := b.SelectFrom("artist").OrderBy(rawCase)
 		assert.Equal(
