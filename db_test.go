@@ -35,6 +35,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db.v3"
 	"upper.io/db.v3/mongo"
+	"upper.io/db.v3/mssql"
 	"upper.io/db.v3/mysql"
 	"upper.io/db.v3/postgresql"
 	"upper.io/db.v3/ql"
@@ -42,11 +43,12 @@ import (
 )
 
 var wrappers = []string{
-	sqlite.Adapter,
+	mongo.Adapter,
+	mssql.Adapter,
 	mysql.Adapter,
 	postgresql.Adapter,
-	mongo.Adapter,
 	ql.Adapter,
+	sqlite.Adapter,
 }
 
 const (
@@ -102,6 +104,12 @@ func init() {
 			Options: map[string]string{
 				"timezone": "UTC",
 			},
+		},
+		`mssql`: &mssql.ConnectionURL{
+			Database: `upperio_tests`,
+			Host:     host,
+			User:     `upperio_tests`,
+			Password: `upperio_Secre3t`,
 		},
 		`ql`: &ql.ConnectionURL{
 			Database: `ql-test.db`,
@@ -244,6 +252,65 @@ var setupFn = map[string]func(driver interface{}) error{
 				id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY(id),
 				case_test VARCHAR(60)
 			) CHARSET=utf8`)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}
+		return fmt.Errorf("Expecting *sql.DB got %T (%#v).", driver, driver)
+	},
+	`mssql`: func(driver interface{}) error {
+		if sqld, ok := driver.(*sql.DB); ok {
+			var err error
+
+			_, err = sqld.Exec(`DROP TABLE IF EXISTS [birthdays]`)
+			if err != nil {
+				return err
+			}
+			_, err = sqld.Exec(`CREATE TABLE [birthdays] (
+				id BIGINT PRIMARY KEY NOT NULL IDENTITY(1,1),
+				name NVARCHAR(50),
+				born DATETIME,
+				born_ut BIGINT
+			)`)
+			if err != nil {
+				return err
+			}
+
+			_, err = sqld.Exec(`DROP TABLE IF EXISTS [fibonacci]`)
+			if err != nil {
+				return err
+			}
+			_, err = sqld.Exec(`CREATE TABLE [fibonacci] (
+				id BIGINT PRIMARY KEY NOT NULL IDENTITY(1,1),
+				input BIGINT NOT NULL,
+				output BIGINT NOT NULL
+			)`)
+			if err != nil {
+				return err
+			}
+
+			_, err = sqld.Exec(`DROP TABLE IF EXISTS [is_even]`)
+			if err != nil {
+				return err
+			}
+			_, err = sqld.Exec(`CREATE TABLE [is_even] (
+				input BIGINT NOT NULL,
+				is_even TINYINT
+			)`)
+			if err != nil {
+				return err
+			}
+
+			_, err = sqld.Exec(`DROP TABLE IF EXISTS [CaSe_TesT]`)
+			if err != nil {
+				return err
+			}
+			_, err = sqld.Exec(`CREATE TABLE [CaSe_TesT] (
+				id BIGINT PRIMARY KEY NOT NULL IDENTITY(1,1),
+				case_test NVARCHAR(60)
+			)`)
 			if err != nil {
 				return err
 			}
@@ -635,7 +702,7 @@ func TestSimpleCRUD(t *testing.T) {
 			}
 
 			if reflect.DeepEqual(testItem, controlItem) == false {
-				t.Fatalf("Struct is different with wrapper %s.", wrapper)
+				t.Fatalf("Struct is different with wrapper %s, got: %#v, expecting: %#v.", wrapper, testItem, controlItem)
 			}
 
 			err = res.Delete()
@@ -716,6 +783,8 @@ func TestFibonacci(t *testing.T) {
 				res = res.OrderBy(db.Raw(`RANDOM()`))
 			case `mysql`:
 				res = res.OrderBy(db.Raw(`RAND()`))
+			case `sqlserver`:
+				res = res.OrderBy(db.Raw(`NEWID()`))
 			}
 
 			total, err = res.Count()

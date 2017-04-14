@@ -15,6 +15,7 @@ services:
   - mongodb
   - mysql
   - postgresql
+  - docker
 
 addons:
   postgresql: 9.5
@@ -24,6 +25,9 @@ addons:
     packages:
     - mongodb-org-server
     - mongodb-org-shell
+
+before_install:
+  - docker pull microsoft/mssql-server-linux:ctp1-4
 
 env:
   global:
@@ -41,6 +45,7 @@ install:
   - go get -t -v -d ./...
   - go get -v github.com/cznic/ql/ql
   - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db.v3
+  - docker run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=my$Password' --name mssql -p 1433:1433 -d microsoft/mssql-server-linux:ctp1-4
 
 before_script:
   - mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql

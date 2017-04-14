@@ -46,11 +46,7 @@ const (
 	adapterColumnAliasLayout   = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
 	adapterSortByColumnLayout  = `{{.Column}} {{.Order}}`
 
-	adapterOrderByLayout = `
-    {{if .SortColumns}}
-      ORDER BY {{.SortColumns}}
-    {{end}}
-  `
+	adapterOrderByLayout = `{{if .SortColumns}}ORDER BY {{.SortColumns}}{{end}}`
 
 	adapterWhereLayout = `
     {{if .Conds}}
@@ -98,6 +94,8 @@ const (
 				{{if .Distinct}}
 					DISTINCT
 				{{end}}
+
+				{{if .OrderBy}}TOP 100 PERCENT{{end}}
 
 				{{if .Columns}}
 					{{.Columns}}

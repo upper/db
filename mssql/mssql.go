@@ -30,7 +30,7 @@ import (
 	"upper.io/db.v3/lib/sqlbuilder"
 )
 
-const sqlDriver = `sqlserver`
+const sqlDriver = `mssql`
 
 // Adapter is the public name of the adapter.
 const Adapter = sqlDriver
