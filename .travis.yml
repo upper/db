@@ -22,6 +22,7 @@ addons:
     sources:
     - mongodb-3.0-precise
     packages:
+    - freetds-bin
     - mongodb-org-server
     - mongodb-org-shell
 

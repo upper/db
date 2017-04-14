@@ -23,22 +23,22 @@ func TestTemplateSelect(t *testing.T) {
 	)
 
 	assert.Equal(
-		"SELECT * FROM [artist] ORDER BY [name] DESC",
+		"SELECT TOP 100 PERCENT * FROM [artist] ORDER BY [name] DESC",
 		b.Select().From("artist").OrderBy("name DESC").String(),
 	)
 
 	assert.Equal(
-		"SELECT * FROM [artist] ORDER BY [name] DESC",
+		"SELECT TOP 100 PERCENT * FROM [artist] ORDER BY [name] DESC",
 		b.Select().From("artist").OrderBy("-name").String(),
 	)
 
 	assert.Equal(
-		"SELECT * FROM [artist] ORDER BY [name] ASC",
+		"SELECT TOP 100 PERCENT * FROM [artist] ORDER BY [name] ASC",
 		b.Select().From("artist").OrderBy("name").String(),
 	)
 
 	assert.Equal(
-		"SELECT * FROM [artist] ORDER BY [name] ASC",
+		"SELECT TOP 100 PERCENT * FROM [artist] ORDER BY [name] ASC",
 		b.Select().From("artist").OrderBy("name ASC").String(),
 	)
 
