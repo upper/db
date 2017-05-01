@@ -348,8 +348,7 @@ func (r *Result) buildCount() (sqlbuilder.Selector, error) {
 
 	sel := r.SQLBuilder().Select(db.Raw("count(1) AS _t")).
 		From(res.table).
-		GroupBy(res.groupBy...).
-		Limit(1)
+		GroupBy(res.groupBy...)
 
 	for i := range res.conds {
 		sel = sel.And(filter(res.conds[i])...)
