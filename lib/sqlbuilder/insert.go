@@ -150,6 +150,18 @@ func (ins *inserter) ExecContext(ctx context.Context) (sql.Result, error) {
 	return ins.SQLBuilder().sess.StatementExec(ctx, iq.statement(), iq.arguments...)
 }
 
+func (ins *inserter) Prepare() (*sql.Stmt, error) {
+	return ins.PrepareContext(ins.SQLBuilder().sess.Context())
+}
+
+func (ins *inserter) PrepareContext(ctx context.Context) (*sql.Stmt, error) {
+	iq, err := ins.build()
+	if err != nil {
+		return nil, err
+	}
+	return ins.SQLBuilder().sess.StatementPrepare(ctx, iq.statement())
+}
+
 func (ins *inserter) Query() (*sql.Rows, error) {
 	return ins.QueryContext(ins.SQLBuilder().sess.Context())
 }

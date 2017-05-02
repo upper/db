@@ -212,6 +212,28 @@ func TestSelectStarFromMany(t *testing.T) {
 	}
 }
 
+func TestSelectTableStarFromMany(t *testing.T) {
+	var s, e string
+	var stmt Statement
+
+	stmt = Statement{
+		Type: Select,
+		Columns: JoinColumns(
+			&Column{Name: "foo.name"},
+			&Column{Name: "BAR.*"},
+			&Column{Name: "baz.last_name"},
+		),
+		Table: TableWithName("first.table AS foo, second.table as BAR, third.table aS baz"),
+	}
+
+	s = mustTrim(stmt.Compile(defaultTemplate))
+	e = `SELECT "foo"."name", "BAR".*, "baz"."last_name" FROM "first"."table" AS "foo", "second"."table" AS "BAR", "third"."table" AS "baz"`
+
+	if s != e {
+		t.Fatalf("Got: %s, Expecting: %s", s, e)
+	}
+}
+
 func TestSelectArtistNameFrom(t *testing.T) {
 	var s, e string
 	var stmt Statement

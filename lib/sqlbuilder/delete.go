@@ -127,6 +127,18 @@ func (del *deleter) Arguments() []interface{} {
 	return dq.arguments()
 }
 
+func (del *deleter) Prepare() (*sql.Stmt, error) {
+	return del.PrepareContext(del.SQLBuilder().sess.Context())
+}
+
+func (del *deleter) PrepareContext(ctx context.Context) (*sql.Stmt, error) {
+	dq, err := del.build()
+	if err != nil {
+		return nil, err
+	}
+	return del.SQLBuilder().sess.StatementPrepare(ctx, dq.statement())
+}
+
 func (del *deleter) Exec() (sql.Result, error) {
 	return del.ExecContext(del.SQLBuilder().sess.Context())
 }

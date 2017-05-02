@@ -1,5 +1,4 @@
 sudo: required
-dist: precise
 
 notifications:
   email: false
@@ -9,9 +8,10 @@ language: go
 go:
   - "1.7"
   - "1.8"
-#  - "tip"
+# - "tip"
 
 services:
+  - docker
   - mongodb
   - mysql
   - postgresql
@@ -22,8 +22,14 @@ addons:
     sources:
     - mongodb-3.0-precise
     packages:
+    - freetds-bin
     - mongodb-org-server
     - mongodb-org-shell
+
+before_install:
+  - docker pull microsoft/mssql-server-linux:ctp1-4
+  - docker run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=my$Password' --name mssql -p 1433:1433 -d microsoft/mssql-server-linux:ctp1-4
+  - docker ps -a
 
 env:
   global:

@@ -51,6 +51,9 @@ func (c *Column) Compile(layout *Template) (compiled string, err error) {
 
 		for i := range nameChunks {
 			nameChunks[i] = trimString(nameChunks[i])
+			if nameChunks[i] == "*" {
+				continue
+			}
 			nameChunks[i] = mustParse(layout.IdentifierQuote, Raw{Value: nameChunks[i]})
 		}
 

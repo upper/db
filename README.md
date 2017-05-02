@@ -14,13 +14,14 @@ Go that provides a common interface to work with different data sources such as
 go get upper.io/db.v3
 ```
 
-## User documentation
+## The tour
 
-This is the source code repository, check out our [release
-notes](https://github.com/upper/db/releases/tag/v3.0.0) and see examples and
-documentation at [upper.io/db.v3][1].
+![screen shot 2017-05-01 at 19 23 22](https://cloud.githubusercontent.com/assets/385670/25599675/b6fe9fea-2ea3-11e7-9f76-002931dfbbc1.png)
 
-## Demo
+Take the [tour](https://tour.upper.io) to see real live examples in your
+browser.
+
+## Live demos
 
 You can run the following example on our [playground](https://demo.upper.io):
 
@@ -86,6 +87,13 @@ go run _examples/booktown-books/main.go
 2016/08/10 08:42:48 "Perl Cookbook" (ID: 41478)
 2016/08/10 08:42:48 "Practical PostgreSQL" (ID: 41472)
 ```
+
+## Documentation for users
+
+This is the source code repository, check out our [release
+notes](https://github.com/upper/db/releases/tag/v3.0.0) and see examples and
+documentation at [upper.io/db.v3][1].
+
 
 ## Changelog
 

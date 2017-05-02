@@ -1095,7 +1095,6 @@ func TestTransactionsAndRollback(t *testing.T) {
 	err = artist.Truncate()
 	assert.NoError(t, err)
 
-	// Simple transaction
 	_, err = artist.Insert(artistType{1, "First"})
 	assert.NoError(t, err)
 
@@ -1263,9 +1262,12 @@ func TestDataTypes(t *testing.T) {
 	testValues := testValuesStruct{
 		1, 1, 1, 1, 1,
 		-1, -1, -1, -1, -1,
+
 		1.337, 1.337,
+
 		true,
 		"Hello world!",
+
 		ts,
 		nil,
 		&tnz,
