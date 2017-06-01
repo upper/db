@@ -22,6 +22,7 @@
 package sqlbuilder
 
 import (
+	"bytes"
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
@@ -74,13 +75,16 @@ func (j *jsonbType) Scan(src interface{}) error {
 
 func (j jsonbType) Value() (driver.Value, error) {
 	if v, ok := j.V.(json.RawMessage); ok {
-		return string(v), nil
+		if v != nil {
+			return string(v), nil
+		}
+		return v, nil
 	}
 	b, err := json.Marshal(j.V)
 	if err != nil {
 		return nil, err
 	}
-	return b, nil
+	return string(b), nil
 }
 
 //------
@@ -186,22 +190,22 @@ func (a stringArray) Value() (driver.Value, error) {
 		b := make([]byte, 1, 1+3*n)
 		b[0] = '{'
 
-		b = appendArrayQuotedString(b, a[0])
+		b = appendArrayQuotedBytes(b, []byte(a[0]))
 		for i := 1; i < n; i++ {
 			b = append(b, ',')
-			b = appendArrayQuotedString(b, a[i])
+			b = appendArrayQuotedBytes(b, []byte(a[i]))
 		}
 
-		return append(b, '}'), nil
+		return string(append(b, '}')), nil
 	}
 
-	return []byte{'{', '}'}, nil
+	return "{}", nil
 }
 
-func appendArrayQuotedString(b []byte, v string) []byte {
+func appendArrayQuotedBytes(b, v []byte) []byte {
 	b = append(b, '"')
 	for {
-		i := strings.IndexAny(v, `"\`)
+		i := bytes.IndexAny(v, `"\`)
 		if i < 0 {
 			b = append(b, v...)
 			break
@@ -220,31 +224,39 @@ func appendArrayQuotedString(b []byte, v string) []byte {
 type int64Array []int64
 
 func (a *int64Array) Scan(src interface{}) error {
-	if src == nil {
-		*a = int64Array{}
-		return nil
-	}
-	b, ok := src.([]byte)
-	if !ok {
-		return errors.New("Scan source was not []bytes")
-	}
-	if len(b) == 0 {
+	switch src := src.(type) {
+	case []byte:
+		return a.scanBytes(src)
+	case string:
+		return a.scanBytes([]byte(src))
+	case nil:
+		*a = nil
 		return nil
 	}
 
-	s := string(b)[1 : len(b)-1]
-	results := []int64{}
-	if s != "" {
-		parts := strings.Split(s, ",")
-		for _, n := range parts {
-			i, err := strconv.ParseInt(n, 10, 64)
-			if err != nil {
-				return err
-			}
-			results = append(results, i)
-		}
+	return fmt.Errorf("pq: cannot convert %T to int64Array", src)
+}
+
+func (a *int64Array) scanBytes(src []byte) error {
+	if src == nil {
+		*a = nil
+		return nil
 	}
-	*a = int64Array(results)
+	elems, err := scanLinearArray(src, []byte{','}, "int64Array")
+	if err != nil {
+		return err
+	}
+	if *a != nil && len(elems) == 0 {
+		*a = (*a)[:0]
+	} else {
+		b := make(int64Array, len(elems))
+		for i, v := range elems {
+			if b[i], err = strconv.ParseInt(string(v), 10, 64); err != nil {
+				return fmt.Errorf("pq: parsing array element index %d: %v", i, err)
+			}
+		}
+		*a = b
+	}
 	return nil
 }
 
@@ -266,8 +278,124 @@ func (a int64Array) Value() (driver.Value, error) {
 			b = strconv.AppendInt(b, a[i], 10)
 		}
 
-		return append(b, '}'), nil
+		return string(append(b, '}')), nil
 	}
 
-	return []byte{'{', '}'}, nil
+	return "{}", nil
+}
+
+func parseArray(src, del []byte) (dims []int, elems [][]byte, err error) {
+	var depth, i int
+
+	if len(src) < 1 || src[0] != '{' {
+		return nil, nil, fmt.Errorf("unable to parse array; expected %q at offset %d", '{', 0)
+	}
+
+Open:
+	for i < len(src) {
+		switch src[i] {
+		case '{':
+			depth++
+			i++
+		case '}':
+			elems = make([][]byte, 0)
+			goto Close
+		default:
+			break Open
+		}
+	}
+	dims = make([]int, i)
+
+Element:
+	for i < len(src) {
+		switch src[i] {
+		case '{':
+			if depth == len(dims) {
+				break Element
+			}
+			depth++
+			dims[depth-1] = 0
+			i++
+		case '"':
+			var elem = []byte{}
+			var escape bool
+			for i++; i < len(src); i++ {
+				if escape {
+					elem = append(elem, src[i])
+					escape = false
+				} else {
+					switch src[i] {
+					default:
+						elem = append(elem, src[i])
+					case '\\':
+						escape = true
+					case '"':
+						elems = append(elems, elem)
+						i++
+						break Element
+					}
+				}
+			}
+		default:
+			for start := i; i < len(src); i++ {
+				if bytes.HasPrefix(src[i:], del) || src[i] == '}' {
+					elem := src[start:i]
+					if len(elem) == 0 {
+						return nil, nil, fmt.Errorf("unable to parse array; unexpected %q at offset %d", src[i], i)
+					}
+					if bytes.Equal(elem, []byte("NULL")) {
+						elem = nil
+					}
+					elems = append(elems, elem)
+					break Element
+				}
+			}
+		}
+	}
+
+	for i < len(src) {
+		if bytes.HasPrefix(src[i:], del) && depth > 0 {
+			dims[depth-1]++
+			i += len(del)
+			goto Element
+		} else if src[i] == '}' && depth > 0 {
+			dims[depth-1]++
+			depth--
+			i++
+		} else {
+			return nil, nil, fmt.Errorf("unable to parse array; unexpected %q at offset %d", src[i], i)
+		}
+	}
+
+Close:
+	for i < len(src) {
+		if src[i] == '}' && depth > 0 {
+			depth--
+			i++
+		} else {
+			return nil, nil, fmt.Errorf("unable to parse array; unexpected %q at offset %d", src[i], i)
+		}
+	}
+	if depth > 0 {
+		err = fmt.Errorf("unable to parse array; expected %q at offset %d", '}', i)
+	}
+	if err == nil {
+		for _, d := range dims {
+			if (len(elems) % d) != 0 {
+				err = fmt.Errorf("multidimensional arrays must have elements with matching dimensions")
+			}
+		}
+	}
+	return
+}
+
+func scanLinearArray(src, del []byte, typ string) (elems [][]byte, err error) {
+	dims, elems, err := parseArray(src, del)
+	if err != nil {
+		return nil, err
+	}
+	if len(dims) > 1 {
+		return nil, fmt.Errorf("pq: cannot convert ARRAY%s to %s", strings.Replace(fmt.Sprint(dims), " ", "][", -1), typ)
+	}
+	return elems, err
 }
