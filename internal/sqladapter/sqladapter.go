@@ -23,6 +23,8 @@
 package sqladapter
 
 import (
+	"reflect"
+
 	"database/sql/driver"
 )
 
@@ -32,8 +34,15 @@ func IsKeyValue(v interface{}) bool {
 	if v == nil {
 		return true
 	}
+	if reflect.TypeOf(v).Kind() == reflect.Slice {
+		return true
+	}
 	switch v.(type) {
-	case int64, int, uint, uint64, driver.Valuer:
+	case int64, int, uint, uint64,
+		[]int64, []int, []uint, []uint64,
+		[]byte, []string,
+		[]interface{},
+		driver.Valuer:
 		return true
 	}
 	return false

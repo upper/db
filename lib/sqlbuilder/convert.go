@@ -352,8 +352,14 @@ func (tu *templateWithUtils) toColumnValues(term interface{}) (cv exql.ColumnVal
 			q, a := Preprocess(value.Raw(), value.Arguments())
 			columnValue.Value = exql.RawValue(q)
 			args = append(args, a...)
+		case driver.Valuer:
+			columnValue.Value = exql.RawValue("?")
+			args = append(args, value)
 		default:
 			v, isSlice := toInterfaceArguments(value)
+
+			//valuer, ok := value.(driver.Valuer)
+			//log.Printf("valuer: %v, ok: %v, (%v) %T", valuer, ok, value, value)
 
 			if isSlice {
 				if columnValue.Operator == "" {
