@@ -23,8 +23,6 @@
 package sqladapter
 
 import (
-	"reflect"
-
 	"database/sql/driver"
 )
 
@@ -32,9 +30,6 @@ import (
 // used with Find(pKey).
 func IsKeyValue(v interface{}) bool {
 	if v == nil {
-		return true
-	}
-	if reflect.TypeOf(v).Kind() == reflect.Slice {
 		return true
 	}
 	switch v.(type) {
