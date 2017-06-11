@@ -1053,26 +1053,41 @@ func TestCompositeKeys(t *testing.T) {
 
 	compositeKeys := sess.Collection("composite_keys")
 
-	n := rand.Intn(100000)
+	{
+		n := rand.Intn(100000)
 
-	item := itemWithCompoundKey{
-		"ABCDEF",
-		strconv.Itoa(n),
-		"Some value",
+		item := itemWithCompoundKey{
+			"ABCDEF",
+			strconv.Itoa(n),
+			"Some value",
+		}
+
+		id, err := compositeKeys.Insert(&item)
+		assert.NoError(t, err)
+		assert.NotZero(t, id)
+
+		var item2 itemWithCompoundKey
+		assert.NotEqual(t, item2.SomeVal, item.SomeVal)
+
+		// Finding by ID
+		err = compositeKeys.Find(id).One(&item2)
+		assert.NoError(t, err)
+
+		assert.Equal(t, item2.SomeVal, item.SomeVal)
 	}
 
-	id, err := compositeKeys.Insert(&item)
-	assert.NoError(t, err)
-	assert.NotZero(t, id)
+	{
+		n := rand.Intn(100000)
 
-	var item2 itemWithCompoundKey
-	assert.NotEqual(t, item2.SomeVal, item.SomeVal)
+		item := itemWithCompoundKey{
+			"ABCDEF",
+			strconv.Itoa(n),
+			"Some value",
+		}
 
-	// Finding by ID
-	err = compositeKeys.Find(id).One(&item2)
-	assert.NoError(t, err)
-
-	assert.Equal(t, item2.SomeVal, item.SomeVal)
+		err := compositeKeys.InsertReturning(&item)
+		assert.NoError(t, err)
+	}
 
 	assert.NoError(t, cleanUpCheck(sess))
 	assert.NoError(t, sess.Close())

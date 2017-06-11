@@ -30,6 +30,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"upper.io/db.v3"
 	"upper.io/db.v3/internal/sqladapter"
@@ -143,13 +144,39 @@ func tearUp() error {
 
 		`CREATE TABLE pg_types (
 			id serial primary key,
+
+			auto_integer_array integer[],
+			auto_string_array text[],
+
+			auto_integer_array_ptr integer[],
+			auto_string_array_ptr text[],
+
 			integer_array integer[],
 			string_value varchar(255),
+
+			auto_jsonb jsonb,
+			auto_jsonb_ptr jsonb,
+
 			integer_valuer_value smallint[],
 			string_array text[],
+
 			field1 int,
 			field2 varchar(64),
 			field3 decimal
+		)`,
+
+		`DROP TABLE IF EXISTS issue_370`,
+
+		`CREATE TABLE issue_370 (
+			id UUID PRIMARY KEY,
+			name VARCHAR(25)
+		)`,
+
+		`DROP TABLE IF EXISTS issue_370_2`,
+
+		`CREATE TABLE issue_370_2 (
+			id INTEGER[3] PRIMARY KEY,
+			name VARCHAR(25)
 		)`,
 	}
 
@@ -380,13 +407,23 @@ func TestSchemaCollection(t *testing.T) {
 
 func TestPgTypes(t *testing.T) {
 	type PGType struct {
-		ID           int64    `db:"id,omitempty"`
+		ID int64 `db:"id,omitempty"`
+
 		IntegerArray []int64  `db:"integer_array,int64array"`
 		StringValue  *string  `db:"string_value,omitempty"`
 		StringArray  []string `db:"string_array,stringarray"`
-		Field1       *int64   `db:"field1,omitempty"`
-		Field2       *string  `db:"field2,omitempty"`
-		Field3       *float64 `db:"field3,omitempty"`
+
+		Field1 *int64   `db:"field1,omitempty"`
+		Field2 *string  `db:"field2,omitempty"`
+		Field3 *float64 `db:"field3,omitempty"`
+
+		AutoIntegerArray Int64Array  `db:"auto_integer_array"`
+		AutoStringArray  StringArray `db:"auto_string_array"`
+		AutoJSONB        JSONB       `db:"auto_jsonb"`
+
+		AutoIntegerArrayPtr *Int64Array  `db:"auto_integer_array_ptr,omitempty"`
+		AutoStringArrayPtr  *StringArray `db:"auto_string_array_ptr,omitempty"`
+		AutoJSONBPtr        *JSONB       `db:"auto_jsonb_ptr,omitempty"`
 	}
 
 	field1 := int64(10)
@@ -403,6 +440,30 @@ func TestPgTypes(t *testing.T) {
 		},
 		PGType{
 			IntegerArray: []int64{1, 2, 3, 4},
+		},
+		PGType{
+			AutoIntegerArray:    Int64Array{1, 2, 3, 4},
+			AutoIntegerArrayPtr: nil,
+		},
+		PGType{
+			AutoIntegerArray:    nil,
+			AutoIntegerArrayPtr: &Int64Array{4, 5, 6, 7},
+		},
+		PGType{
+			AutoStringArray:    StringArray{"aaa", "bbb", "ccc"},
+			AutoStringArrayPtr: nil,
+		},
+		PGType{
+			AutoStringArray:    nil,
+			AutoStringArrayPtr: &StringArray{"ddd", "eee", "ffff"},
+		},
+		PGType{
+			AutoJSONB:    JSONB{map[string]interface{}{"hello": "world!"}},
+			AutoJSONBPtr: nil,
+		},
+		PGType{
+			AutoJSONB:    JSONB{nil},
+			AutoJSONBPtr: &JSONB{[]interface{}{float64(9), float64(9), float64(9)}},
 		},
 		PGType{
 			IntegerArray: []int64{1, 2, 3, 4},
@@ -512,7 +573,7 @@ func TestPgTypes(t *testing.T) {
 	}
 }
 
-func TestMaxOpenConnsIssue340(t *testing.T) {
+func TestMaxOpenConns_Issue340(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()
 
@@ -534,6 +595,100 @@ func TestMaxOpenConnsIssue340(t *testing.T) {
 	wg.Wait()
 
 	sess.SetMaxOpenConns(0)
+}
+
+func TestUUIDInsert_Issue370(t *testing.T) {
+	sess := mustOpen()
+	defer sess.Close()
+
+	{
+		type itemT struct {
+			ID   *uuid.UUID `db:"id"`
+			Name string     `db:"name"`
+		}
+
+		newUUID := uuid.NewV4()
+
+		item1 := itemT{
+			ID:   &newUUID,
+			Name: "Jonny",
+		}
+
+		col := sess.Collection("issue_370")
+		err := col.Truncate()
+		assert.NoError(t, err)
+
+		err = col.InsertReturning(&item1)
+		assert.NoError(t, err)
+
+		var item2 itemT
+		err = col.Find(item1.ID).One(&item2)
+		assert.NoError(t, err)
+		assert.Equal(t, item1.Name, item2.Name)
+
+		var item3 itemT
+		err = col.Find(db.Cond{"id": item1.ID}).One(&item3)
+		assert.NoError(t, err)
+		assert.Equal(t, item1.Name, item3.Name)
+	}
+
+	{
+		type itemT struct {
+			ID   uuid.UUID `db:"id"`
+			Name string    `db:"name"`
+		}
+
+		item1 := itemT{
+			ID:   uuid.NewV4(),
+			Name: "Jonny",
+		}
+
+		col := sess.Collection("issue_370")
+		err := col.Truncate()
+		assert.NoError(t, err)
+
+		err = col.InsertReturning(&item1)
+		assert.NoError(t, err)
+
+		var item2 itemT
+		err = col.Find(item1.ID).One(&item2)
+		assert.NoError(t, err)
+		assert.Equal(t, item1.Name, item2.Name)
+
+		var item3 itemT
+		err = col.Find(db.Cond{"id": item1.ID}).One(&item3)
+		assert.NoError(t, err)
+		assert.Equal(t, item1.Name, item3.Name)
+	}
+
+	{
+		type itemT struct {
+			ID   Int64Array `db:"id"`
+			Name string     `db:"name"`
+		}
+
+		item1 := itemT{
+			ID:   Int64Array{1, 2, 3},
+			Name: "Vojtech",
+		}
+
+		col := sess.Collection("issue_370_2")
+		err := col.Truncate()
+		assert.NoError(t, err)
+
+		err = col.InsertReturning(&item1)
+		assert.NoError(t, err)
+
+		var item2 itemT
+		err = col.Find(item1.ID).One(&item2)
+		assert.NoError(t, err)
+		assert.Equal(t, item1.Name, item2.Name)
+
+		var item3 itemT
+		err = col.Find(db.Cond{"id": item1.ID}).One(&item3)
+		assert.NoError(t, err)
+		assert.Equal(t, item1.Name, item3.Name)
+	}
 }
 
 func getStats(sess sqlbuilder.Database) (map[string]int, error) {

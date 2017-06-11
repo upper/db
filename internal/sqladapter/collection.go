@@ -163,7 +163,8 @@ func (c *collection) InsertReturning(item interface{}) error {
 	}
 
 	// Fetch the row that was just interted into newItem
-	if err = col.Find(id).One(newItem); err != nil {
+	err = col.Find(id).One(newItem)
+	if err != nil {
 		goto cancel
 	}
 
@@ -184,7 +185,8 @@ func (c *collection) InsertReturning(item interface{}) error {
 			itemV.SetMapIndex(keyV, newItemV.MapIndex(keyV))
 		}
 	default:
-		panic("default")
+		err = fmt.Errorf("InsertReturning: expecting a pointer to map or struct, got %T", newItem)
+		goto cancel
 	}
 
 	if !inTx {
@@ -192,6 +194,7 @@ func (c *collection) InsertReturning(item interface{}) error {
 		// sess was created with sess.NewTransaction().
 		return tx.Commit()
 	}
+
 	return err
 
 cancel:

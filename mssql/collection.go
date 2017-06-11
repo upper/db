@@ -23,8 +23,6 @@ package mssql
 
 import (
 	"database/sql"
-	"log"
-	"strings"
 
 	"upper.io/db.v3"
 	"upper.io/db.v3/internal/sqladapter"
@@ -37,6 +35,8 @@ type table struct {
 
 	d    *database
 	name string
+
+	hasIdentityColumn *bool
 }
 
 var (
@@ -76,7 +76,6 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 		for j := 0; j < len(pKey); j++ {
 			if pKey[j] == columnNames[i] {
 				if columnValues[i] != nil {
-					log.Printf("%v -- %v", pKey[j], columnValues[i])
 					hasKeys = true
 					break
 				}
@@ -85,13 +84,34 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 	}
 
 	if hasKeys {
-		_, err = t.d.Exec("SET IDENTITY_INSERT " + t.Name() + " ON")
-		// TODO: Find a way to check if the table has composite keys without an
-		// identity property.
-		if err != nil && !strings.Contains(err.Error(), "does not have the identity property") {
-			return nil, err
+		if t.hasIdentityColumn == nil {
+			var hasIdentityColumn bool
+			var identityColumns int
+
+			row, err := t.d.QueryRow("SELECT COUNT(1) FROM sys.identity_columns WHERE OBJECT_NAME(object_id) = ?", t.Name())
+			if err != nil {
+				return nil, err
+			}
+
+			err = row.Scan(&identityColumns)
+			if err != nil {
+				return nil, err
+			}
+
+			if identityColumns > 0 {
+				hasIdentityColumn = true
+			}
+
+			t.hasIdentityColumn = &hasIdentityColumn
 		}
-		defer t.d.Exec("SET IDENTITY_INSERT " + t.Name() + " OFF")
+
+		if *t.hasIdentityColumn {
+			_, err = t.d.Exec("SET IDENTITY_INSERT " + t.Name() + " ON")
+			if err != nil {
+				return nil, err
+			}
+			defer t.d.Exec("SET IDENTITY_INSERT " + t.Name() + " OFF")
+		}
 	}
 
 	q := t.d.InsertInto(t.Name()).
