@@ -426,8 +426,8 @@ func TestSelect(t *testing.T) {
 	)
 
 	assert.Equal(
-		`SELECT * FROM "artist" AS "a" JOIN "publication" AS "p" ON (p.title LIKE $1 OR p.title LIKE $2) WHERE (a.id = $3) LIMIT 1`,
-		b.SelectFrom("artist a").Join("publication p").On("p.title LIKE ? OR p.title LIKE ?", "%Totoro%", "%Robot%").Where("a.id = ?", 2).Where("a.id = ?", 3).Limit(1).String(),
+		`SELECT * FROM "artist" AS "a" JOIN "publication" AS "p" ON (p.title LIKE $1 OR p.title LIKE $2) WHERE (a.id = $3 AND a.sub_id = $4) LIMIT 1`,
+		b.SelectFrom("artist a").Join("publication p").On("p.title LIKE ? OR p.title LIKE ?", "%Totoro%", "%Robot%").Where("a.id = ?", 2).Where("a.sub_id = ?", 3).Limit(1).String(),
 	)
 
 	assert.Equal(
@@ -620,11 +620,11 @@ func TestSelect(t *testing.T) {
 	{
 		sel := b.SelectFrom("foo").Where("bar", 2).Where(db.Cond{"baz": 1})
 		assert.Equal(
-			`SELECT * FROM "foo" WHERE ("baz" = $1)`,
+			`SELECT * FROM "foo" WHERE ("bar" = $1 AND "baz" = $2)`,
 			sel.String(),
 		)
 		assert.Equal(
-			[]interface{}{1},
+			[]interface{}{2, 1},
 			sel.Arguments(),
 		)
 	}

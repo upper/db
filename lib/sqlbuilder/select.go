@@ -180,7 +180,6 @@ func (sel *selector) Distinct(exps ...interface{}) Selector {
 
 func (sel *selector) Where(terms ...interface{}) Selector {
 	return sel.frame(func(sq *selectorQuery) error {
-		sq.where, sq.whereArgs = &exql.Where{}, []interface{}{}
 		return sq.and(sel.SQLBuilder(), terms...)
 	})
 }
