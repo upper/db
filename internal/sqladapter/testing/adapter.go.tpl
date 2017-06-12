@@ -898,10 +898,7 @@ func TestFunction(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(4), total)
 
-	// Testing DISTINCT (function)
-	res = artist.Find().Select(
-		db.Func("DISTINCT", "name"),
-	)
+	res = artist.Find().Select("name")
 
 	var rowMap map[string]interface{}
 	err = res.One(&rowMap)
@@ -911,10 +908,7 @@ func TestFunction(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(4), total)
 
-	// Testing DISTINCT (raw)
-	res = artist.Find().Select(
-		db.Raw("DISTINCT(name)"),
-	)
+	res = artist.Find().Select("name")
 
 	err = res.One(&rowMap)
 	assert.NoError(t, err)
@@ -1518,6 +1512,10 @@ func TestPaginator(t *testing.T) {
 
 	q := sess.SelectFrom("artist")
 
+	if Adapter == "ql" {
+		q = sess.Select("id() as id", "name").From("artist")
+	}
+
 	paginator := q.Paginate(13)
 
 	var zerothPage []artistType
@@ -1566,14 +1564,20 @@ func TestPaginator(t *testing.T) {
 		if len(items) < 1 {
 			break
 		}
-		//t.Logf("items: %v", items)
+		for j := 0; j < len(items); j++ {
+			assert.Equal(t, fmt.Sprintf("artist-%d", int64(13*int(i)+j)), items[j].Name)
+		}
 	}
 
-	paginator = paginator.Cursor("id")
+	if Adapter == "ql" {
+		paginator = paginator.Cursor("id()")
+	} else {
+		paginator = paginator.Cursor("id")
+	}
 
 	{
 		current := paginator.Page(0)
-		for {
+		for i := 0; ; i++ {
 			var items []artistType
 			err := current.All(&items)
 			if err != nil {
@@ -1582,15 +1586,17 @@ func TestPaginator(t *testing.T) {
 			if len(items) < 1 {
 				break
 			}
-			//t.Logf("items: %v", items)
 
+			for j := 0; j < len(items); j++ {
+				assert.Equal(t, fmt.Sprintf("artist-%d", int64(13*int(i)+j)), items[j].Name)
+			}
 			current = current.NextPage(items[len(items)-1].ID)
 		}
 	}
 
 	{
 		current := paginator.Page(76)
-		for {
+		for i := 76; ; i-- {
 			var items []artistType
 			err := current.All(&items)
 			if err != nil {
@@ -1599,7 +1605,9 @@ func TestPaginator(t *testing.T) {
 			if len(items) < 1 {
 				break
 			}
-			//t.Logf("items: %v", items)
+			for j := 0; j < len(items); j++ {
+				assert.Equal(t, fmt.Sprintf("artist-%d", 13*int(i)+j), items[j].Name)
+			}
 
 			current = current.PrevPage(items[0].ID)
 		}

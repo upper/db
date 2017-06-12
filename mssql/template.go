@@ -85,17 +85,18 @@ const (
 	adapterSelectLayout = `
 		{{if or .Limit .Offset}}
 			SELECT __q0.* FROM (
-				SELECT {{if gt .Limit 0}}TOP ({{.Limit}}{{if gt .Offset 0}} + {{.Offset}}{{end}}){{end}} __q1.*,
+				SELECT TOP 100 PERCENT __q1.*,
 				ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS rnum FROM
 			(
 		{{end}}
 
 			SELECT
+
 				{{if .Distinct}}
 					DISTINCT
 				{{end}}
 
-				{{if .OrderBy}}TOP 100 PERCENT{{end}}
+				{{if or .Limit .Offset}}TOP ({{if gt .Limit 0}}{{.Limit}}{{else}}0{{end}} + {{if gt .Offset 0}}{{.Offset}}{{else}}0{{end}}){{end}}
 
 				{{if .Columns}}
 					{{.Columns}}
