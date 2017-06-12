@@ -112,7 +112,7 @@ type selector struct {
 	prev *selector
 }
 
-var _ = immutable.Immutable(&inserter{})
+var _ = immutable.Immutable(&selector{})
 
 func (sel *selector) SQLBuilder() *sqlBuilder {
 	if sel.prev == nil {
@@ -133,6 +133,12 @@ func (sel *selector) frame(fn func(*selectorQuery) error) *selector {
 	return &selector{prev: sel, fn: fn}
 }
 
+func (sel *selector) clone() Selector {
+	return sel.frame(func(*selectorQuery) error {
+		return nil
+	})
+}
+
 func (sel *selector) From(tables ...interface{}) Selector {
 	return sel.frame(
 		func(sq *selectorQuery) error {
@@ -145,6 +151,13 @@ func (sel *selector) From(tables ...interface{}) Selector {
 			return nil
 		},
 	)
+}
+
+func (sel *selector) setColumns(columns ...interface{}) Selector {
+	return sel.frame(func(sq *selectorQuery) error {
+		sq.columns = nil
+		return sq.pushColumns(columns...)
+	})
 }
 
 func (sel *selector) Columns(columns ...interface{}) Selector {
@@ -448,6 +461,10 @@ func (sel *selector) IteratorContext(ctx context.Context) Iterator {
 
 	rows, err := sel.SQLBuilder().sess.StatementQuery(ctx, sq.statement(), sq.arguments()...)
 	return &iterator{rows, err}
+}
+
+func (sel *selector) Paginate(pageSize uint) Paginator {
+	return newPaginator(sel.clone(), pageSize)
 }
 
 func (sel *selector) All(destSlice interface{}) error {

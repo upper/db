@@ -343,6 +343,10 @@ type Selector interface {
 	// database server.
 	Amend(func(queryIn string) (queryOut string)) Selector
 
+	// Paginate returns a paginator that can display a paginated lists of items.
+	// Paginators ignore previous Offset and Limit settings.
+	Paginate(uint) Paginator
+
 	// Iterator provides methods to iterate over the results returned by the
 	// Selector.
 	Iterator() Iterator
@@ -532,6 +536,72 @@ type Getter interface {
 
 	// QueryRowContext returns only one row.
 	QueryRowContext(ctx context.Context) (*sql.Row, error)
+}
+
+// Paginator provides tools for splitting query results into pages.
+type Paginator interface {
+	// Page sets the page number.
+	Page(uint) Paginator
+
+	// Cursor defines the column that is going to be taken as basis for
+	// cursor-based pagination.
+	//
+	// Example:
+	//
+	// a = q.Paginate(10).Cursor("id")
+	// b = q.Paginate(12).Cursor("-id")
+	//
+	// You can set "" as cursorColumn to disable cursors.
+	Cursor(cursorColumn string) Paginator
+
+	// NextPage returns the next page according to the cursor. It expects a
+	// cursorValue, which is the value the cursor column has on the last item of
+	// the current result set.
+	//
+	// Example:
+	//
+	// current = current.NextPage(items[len(items)-1].ID)
+	NextPage(cursorValue interface{}) Paginator
+
+	// PrevPage returns the previous page according to the cursor. It expects a
+	// cursorValue, which is the value the cursor column has on the fist item of
+	// the current result set.
+	//
+	// Example:
+	//
+	// current = current.PrevPage(items[0].ID)
+	PrevPage(cursorValue interface{}) Paginator
+
+	// TotalPages returns the total number of pages in the query.
+	TotalPages() (uint, error)
+
+	// TotalItems returns the total number of items in the query.
+	TotalItems() (uint, error)
+
+	// Preparer provides methods for creating prepared statements.
+	Preparer
+
+	// Getter provides methods to compile and execute a query that returns
+	// results.
+	Getter
+
+	// Iterator provides methods to iterate over the results returned by the
+	// Selector.
+	Iterator() Iterator
+
+	// IteratorContext provides methods to iterate over the results returned by
+	// the Selector.
+	IteratorContext(ctx context.Context) Iterator
+
+	// ResultMapper provides methods to retrieve and map results.
+	ResultMapper
+
+	// fmt.Stringer provides `String() string`, you can use `String()` to compile
+	// the `Selector` into a string.
+	fmt.Stringer
+
+	// Arguments returns the arguments that are prepared for this query.
+	Arguments() []interface{}
 }
 
 // ResultMapper defined methods for a result mapper.

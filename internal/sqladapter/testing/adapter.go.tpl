@@ -1494,6 +1494,121 @@ func TestBatchInsertReturningKeys(t *testing.T) {
 	assert.NoError(t, sess.Close())
 }
 
+func TestPaginator(t *testing.T) {
+	sess := mustOpen()
+
+	err := sess.Collection("artist").Truncate()
+	assert.NoError(t, err)
+
+	batch := sess.InsertInto("artist").Batch(100)
+
+	go func() {
+		defer batch.Done()
+		for i := 0; i < 999; i++ {
+			value := struct {
+				Name string `db:"name"`
+			}{fmt.Sprintf("artist-%d", i)}
+			batch.Values(value)
+		}
+	}()
+
+	err = batch.Wait()
+	assert.NoError(t, err)
+	assert.NoError(t, batch.Err())
+
+	q := sess.SelectFrom("artist")
+
+	paginator := q.Paginate(13)
+
+	var zerothPage []artistType
+	err = paginator.Page(0).All(&zerothPage)
+	assert.NoError(t, err)
+	assert.Equal(t, 13, len(zerothPage))
+
+	var secondPage []artistType
+	err = paginator.Page(2).All(&secondPage)
+	assert.NoError(t, err)
+	assert.Equal(t, 13, len(secondPage))
+
+	tp, err := paginator.TotalPages()
+	assert.NoError(t, err)
+	assert.NotZero(t, tp)
+	assert.Equal(t, uint(77), tp)
+
+	ti, err := paginator.TotalItems()
+	assert.NoError(t, err)
+	assert.NotZero(t, ti)
+	assert.Equal(t, uint(999), ti)
+
+	var seventySixthPage []artistType
+	err = paginator.Page(76).All(&seventySixthPage)
+	assert.NoError(t, err)
+	assert.Equal(t, 11, len(seventySixthPage))
+
+	var seventySeventhPage []artistType
+	err = paginator.Page(77).All(&seventySeventhPage)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(seventySeventhPage))
+
+	var hundredthPage []artistType
+	err = paginator.Page(100).All(&hundredthPage)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(hundredthPage))
+
+	for i := uint(0); i < tp; i++ {
+		current := paginator.Page(i)
+
+		var items []artistType
+		err := current.All(&items)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(items) < 1 {
+			break
+		}
+		//t.Logf("items: %v", items)
+	}
+
+	paginator = paginator.Cursor("id")
+
+	{
+		current := paginator.Page(0)
+		for {
+			var items []artistType
+			err := current.All(&items)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(items) < 1 {
+				break
+			}
+			//t.Logf("items: %v", items)
+
+			current = current.NextPage(items[len(items)-1].ID)
+		}
+	}
+
+	{
+		current := paginator.Page(76)
+		for {
+			var items []artistType
+			err := current.All(&items)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(items) < 1 {
+				break
+			}
+			//t.Logf("items: %v", items)
+
+			current = current.PrevPage(items[0].ID)
+		}
+	}
+
+	assert.NoError(t, cleanUpCheck(sess))
+	assert.NoError(t, sess.Close())
+}
+
 func TestSQLBuilder(t *testing.T) {
 	sess := mustOpen()
 
