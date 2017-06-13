@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"math"
-	"reflect"
 	"strings"
 
 	"upper.io/db.v3"
@@ -25,23 +24,23 @@ type paginatorQuery struct {
 	cursorCond         db.Cond
 	cursorReverseOrder bool
 
-	pageSize   uint
-	pageNumber uint
+	pageSize   int
+	pageNumber int
 }
 
-func newPaginator(sel Selector, pageSize uint) Paginator {
+func newPaginator(sel Selector, pageSize int) Paginator {
 	pag := &paginator{}
 	return pag.frame(func(pq *paginatorQuery) error {
-		if pageSize < 1 {
-			return errZeroPageSize
+		if pageSize < 0 {
+			pageSize = -1
 		}
 		pq.pageSize = pageSize
-		pq.sel = sel.Limit(int(pq.pageSize))
+		pq.sel = sel.Limit(pq.pageSize)
 		return nil
 	}).Page(0)
 }
 
-func (pq *paginatorQuery) count() (uint, error) {
+func (pq *paginatorQuery) count() (int, error) {
 	var count int
 	row, err := pq.sel.(*selector).setColumns(db.Raw("count(1) AS _t")).Limit(0).Offset(0).QueryRow()
 
@@ -50,7 +49,7 @@ func (pq *paginatorQuery) count() (uint, error) {
 		return 0, err
 	}
 
-	return uint(count), nil
+	return count, nil
 }
 
 type paginator struct {
@@ -64,9 +63,16 @@ func (pag *paginator) frame(fn func(*paginatorQuery) error) *paginator {
 	return &paginator{prev: pag, fn: fn}
 }
 
-func (pag *paginator) Page(pageNumber uint) Paginator {
+func (pag *paginator) Page(pageNumber int) Paginator {
 	return pag.frame(func(pq *paginatorQuery) error {
+		if pageNumber < 0 {
+			pageNumber = -1
+		}
 		pq.pageNumber = pageNumber
+		if pq.pageNumber < 0 {
+			pq.sel = pq.sel.Offset(-1)
+			return nil
+		}
 		pq.sel = pq.sel.Offset(int(pq.pageSize * pq.pageNumber))
 		return nil
 	})
@@ -108,7 +114,7 @@ func (pag *paginator) PrevPage(cursorValue interface{}) Paginator {
 	})
 }
 
-func (pag *paginator) TotalPages() (uint, error) {
+func (pag *paginator) TotalPages() (uint64, error) {
 	pq, err := pag.build()
 	if err != nil {
 		return 0, err
@@ -119,12 +125,11 @@ func (pag *paginator) TotalPages() (uint, error) {
 		return 0, err
 	}
 
-	if pq.pageSize == 0 {
-		return 0, errZeroPageSize
+	if pq.pageSize <= 0 {
+		return 1, nil
 	}
 
-	pages := uint(math.Ceil(float64(count) / float64(pq.pageSize)))
-
+	pages := uint64(math.Ceil(float64(count) / float64(pq.pageSize)))
 	return pages, nil
 }
 
@@ -136,14 +141,6 @@ func (pag *paginator) All(dest interface{}) error {
 	err = pq.sel.All(dest)
 	if err != nil {
 		return err
-	}
-	if pq.cursorReverseOrder {
-		val := reflect.ValueOf(dest)
-		size := val.Elem().Len()
-		swap := reflect.Swapper(val.Elem().Interface())
-		for i, j := 0, size-1; i < j; i, j = i+1, j-1 {
-			swap(i, j)
-		}
 	}
 	return nil
 }
@@ -236,7 +233,7 @@ func (pag *paginator) PrepareContext(ctx context.Context) (*sql.Stmt, error) {
 	return pq.sel.PrepareContext(ctx)
 }
 
-func (pag *paginator) TotalItems() (uint, error) {
+func (pag *paginator) TotalItems() (int, error) {
 	pq, err := pag.build()
 	if err != nil {
 		return 0, err
@@ -273,6 +270,13 @@ func (pag *paginator) buildWithCursor() (*paginatorQuery, error) {
 
 	if pqq.cursorCond != nil {
 		pqq.sel = pqq.sel.Where(pqq.cursorCond).Offset(0)
+	}
+
+	if pqq.cursorReverseOrder {
+		pqq.sel = pqq.sel.(*selector).SQLBuilder().
+			Select("_q0.*").
+			From(db.Raw("? AS _q0", pqq.sel)).
+			OrderBy(pqq.cursorColumn)
 	}
 
 	return pqq, nil

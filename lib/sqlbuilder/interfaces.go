@@ -345,7 +345,7 @@ type Selector interface {
 
 	// Paginate returns a paginator that can display a paginated lists of items.
 	// Paginators ignore previous Offset and Limit settings.
-	Paginate(uint) Paginator
+	Paginate(int) Paginator
 
 	// Iterator provides methods to iterate over the results returned by the
 	// Selector.
@@ -541,7 +541,7 @@ type Getter interface {
 // Paginator provides tools for splitting query results into pages.
 type Paginator interface {
 	// Page sets the page number.
-	Page(uint) Paginator
+	Page(int) Paginator
 
 	// Cursor defines the column that is going to be taken as basis for
 	// cursor-based pagination.
@@ -573,10 +573,10 @@ type Paginator interface {
 	PrevPage(cursorValue interface{}) Paginator
 
 	// TotalPages returns the total number of pages in the query.
-	TotalPages() (uint, error)
+	TotalPages() (uint64, error)
 
 	// TotalItems returns the total number of items in the query.
-	TotalItems() (uint, error)
+	TotalItems() (int, error)
 
 	// Preparer provides methods for creating prepared statements.
 	Preparer

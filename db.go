@@ -690,6 +690,43 @@ type Result interface {
 	// using All().
 	All(sliceOfStructs interface{}) error
 
+	Paginate(int) Result
+
+	// Page sets the page number.
+	Page(int) Result
+
+	// Cursor defines the column that is going to be taken as basis for
+	// cursor-based pagination.
+	//
+	// Example:
+	//
+	// a = q.Paginate(10).Cursor("id")
+	// b = q.Paginate(12).Cursor("-id")
+	//
+	// You can set "" as cursorColumn to disable cursors.
+	Cursor(cursorColumn string) Result
+
+	// NextPage returns the next page according to the cursor. It expects a
+	// cursorValue, which is the value the cursor column has on the last item of
+	// the current result set.
+	//
+	// Example:
+	//
+	// current = current.NextPage(items[len(items)-1].ID)
+	NextPage(cursorValue interface{}) Result
+
+	// PrevPage returns the previous page according to the cursor. It expects a
+	// cursorValue, which is the value the cursor column has on the fist item of
+	// the current result set.
+	//
+	// Example:
+	//
+	// current = current.PrevPage(items[0].ID)
+	PrevPage(cursorValue interface{}) Result
+
+	// TotalPages returns the total number of pages in the query.
+	TotalPages() (uint64, error)
+
 	// Close closes the result set and frees all locked resources.
 	Close() error
 }

@@ -387,6 +387,9 @@ func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, err
 				return nil, nil, err
 			}
 			q, a := Preprocess(c, v.Arguments())
+			if _, ok := v.(Selector); ok {
+				q = "(" + q + ")"
+			}
 			f[i] = exql.RawValue(q)
 			args = append(args, a...)
 		case db.Function:

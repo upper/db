@@ -193,6 +193,10 @@ func (sel *selector) Distinct(exps ...interface{}) Selector {
 
 func (sel *selector) Where(terms ...interface{}) Selector {
 	return sel.frame(func(sq *selectorQuery) error {
+		if len(terms) == 1 && terms[0] == nil {
+			sq.where, sq.whereArgs = &exql.Where{}, []interface{}{}
+			return nil
+		}
 		return sq.and(sel.SQLBuilder(), terms...)
 	})
 }
@@ -374,6 +378,9 @@ func (sel *selector) On(terms ...interface{}) Selector {
 
 func (sel *selector) Limit(n int) Selector {
 	return sel.frame(func(sq *selectorQuery) error {
+		if n < 0 {
+			n = 0
+		}
 		sq.limit = exql.Limit(n)
 		return nil
 	})
@@ -381,6 +388,9 @@ func (sel *selector) Limit(n int) Selector {
 
 func (sel *selector) Offset(n int) Selector {
 	return sel.frame(func(sq *selectorQuery) error {
+		if n < 0 {
+			n = 0
+		}
 		sq.offset = exql.Offset(n)
 		return nil
 	})
@@ -463,7 +473,7 @@ func (sel *selector) IteratorContext(ctx context.Context) Iterator {
 	return &iterator{rows, err}
 }
 
-func (sel *selector) Paginate(pageSize uint) Paginator {
+func (sel *selector) Paginate(pageSize int) Paginator {
 	return newPaginator(sel.clone(), pageSize)
 }
 
