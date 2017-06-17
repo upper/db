@@ -882,12 +882,13 @@ func TestPaginator(t *testing.T) {
 		for i := 76; ; i-- {
 			var items []artistType
 
-			log.Printf("Fetch all")
 			err := current.All(&items)
 			assert.NoError(t, err)
 
-			log.Printf("ITEMS: %v", items)
 			if len(items) < 1 {
+				if i > 0 {
+					t.Fatal("Expecting more pages")
+				}
 				break
 			}
 			for j := 0; j < len(items); j++ {

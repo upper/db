@@ -172,7 +172,7 @@ func (col *Collection) compileQuery(terms ...interface{}) interface{} {
 			query = mapped
 		}
 	} else {
-		query = map[string]interface{}{}
+		query = nil
 	}
 
 	return query

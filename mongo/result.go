@@ -72,9 +72,12 @@ func (res *result) frame(fn func(*resultQuery) error) *result {
 }
 
 func (r *resultQuery) and(terms ...interface{}) error {
+	log.Printf("AND: %#v -- %v -- %T", r.conditions, terms, terms)
+
 	if r.conditions == nil {
-		return r.where(terms)
+		return r.where(terms...)
 	}
+
 	r.conditions = map[string]interface{}{
 		"$and": []interface{}{
 			r.conditions,
@@ -85,7 +88,7 @@ func (r *resultQuery) and(terms ...interface{}) error {
 }
 
 func (r *resultQuery) where(terms ...interface{}) error {
-	r.conditions = terms
+	r.conditions = r.c.compileQuery(terms...)
 	return nil
 }
 
@@ -412,51 +415,71 @@ func (res *result) build() (*resultQuery, error) {
 
 	if rq.cursorColumn != "" {
 		if rq.cursorReverseOrder {
-			rq.sort = append(rq.sort, rq.cursorColumn)
-		} else {
 			rq.sort = append(rq.sort, "-"+rq.cursorColumn)
+		} else {
+			rq.sort = append(rq.sort, rq.cursorColumn)
 		}
 	}
+	log.Printf("QUERY: %#v", rq)
 
 	return rq, nil
 }
 
 // query executes a mgo query.
 func (r *resultQuery) query() (*mgo.Query, error) {
-	q := r.c.collection.Find(r.conditions)
-
 	if len(r.groupBy) > 0 {
 		return nil, db.ErrUnsupported
 	}
 
-	if r.pageSize > 0 {
-		log.Printf("pagesize: %v", r.pageSize)
-		q.Skip(r.pageSize * r.pageNumber).Limit(r.pageSize)
-	} else {
-		if r.offset > 0 {
-			q.Skip(r.offset)
-		}
+	q := r.c.collection.Find(r.conditions)
 
-		if r.limit > 0 {
-			q.Limit(r.limit)
-		}
+	if r.pageSize > 0 {
+		r.offset = r.pageSize * r.pageNumber
+		r.limit = r.pageSize
 	}
 
+	if r.offset > 0 {
+		q.Skip(r.offset)
+	}
+
+	if r.limit > 0 {
+		q.Limit(r.limit)
+	}
+
+	if len(r.sort) > 0 {
+		q.Sort(r.sort...)
+	}
+
+	selectedFields := bson.M{}
 	if len(r.fields) > 0 {
-		selectedFields := bson.M{}
 		for _, field := range r.fields {
 			if field == `*` {
 				break
 			}
 			selectedFields[field] = true
 		}
-		if len(selectedFields) > 0 {
-			q.Select(selectedFields)
-		}
 	}
 
-	if len(r.sort) > 0 {
-		q.Sort(r.sort...)
+	if r.cursorReverseOrder {
+		ids := make([]bson.ObjectId, 0, r.limit)
+
+		iter := q.Select(bson.M{"_id": true}).Iter()
+		defer iter.Close()
+
+		var item map[string]bson.ObjectId
+		for iter.Next(&item) {
+			ids = append(ids, item["_id"])
+		}
+
+		r.conditions = bson.M{"_id": bson.M{"$in": ids}}
+
+		q = r.c.collection.Find(r.conditions)
+
+		log.Printf("IDS: %#v", ids)
+	}
+
+	if len(selectedFields) > 0 {
+		q.Select(selectedFields)
 	}
 
 	return q, nil
