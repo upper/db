@@ -22,8 +22,9 @@
 package mongo
 
 import (
-	"errors"
 	"fmt"
+	"log"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -33,115 +34,199 @@ import (
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db.v3"
+
+	"upper.io/db.v3/internal/immutable"
 )
 
-// result represents a query result.
+type resultQuery struct {
+	c *Collection
+
+	fields     []string
+	limit      int
+	offset     int
+	sort       []string
+	conditions interface{}
+	groupBy    []interface{}
+
+	pageSize           int
+	pageNumber         int
+	cursorColumn       string
+	cursorValue        interface{}
+	cursorCond         db.Cond
+	cursorReverseOrder bool
+}
+
 type result struct {
-	c           *Collection
-	queryChunks *chunks
-	iter        *mgo.Iter
-	errMu       sync.RWMutex
-	err         error
+	iter  *mgo.Iter
+	err   error
+	errMu sync.Mutex
+
+	fn   func(*resultQuery) error
+	prev *result
 }
 
-var (
-	errUnknownSortValue = errors.New(`Unknown sort value "%s".`)
-)
+var _ = immutable.Immutable(&result{})
 
-func (r *result) setErr(err error) error {
-	r.errMu.Lock()
-	defer r.errMu.Unlock()
+func (res *result) frame(fn func(*resultQuery) error) *result {
+	return &result{prev: res, fn: fn}
+}
 
-	if err != nil {
-		r.err = err
+func (r *resultQuery) and(terms ...interface{}) error {
+	if r.conditions == nil {
+		return r.where(terms)
 	}
-	return err
-}
-
-func (r *result) Err() error {
-	r.errMu.RLock()
-	defer r.errMu.RUnlock()
-
-	return r.err
-}
-
-// setCursor creates a *mgo.Iter we can use in Next(), All() or One().
-func (r *result) setCursor() error {
-	if r.iter == nil {
-		q, err := r.query()
-		if err != nil {
-			return err
-		}
-		r.iter = q.Iter()
+	r.conditions = map[string]interface{}{
+		"$and": []interface{}{
+			r.conditions,
+			r.c.compileQuery(terms...),
+		},
 	}
 	return nil
 }
 
-func (r *result) And(terms ...interface{}) db.Result {
-	if r.queryChunks.Conditions == nil {
-		return r.Where(terms)
-	}
-	r.queryChunks.Conditions = map[string]interface{}{
-		"$and": []interface{}{
-			r.queryChunks.Conditions,
-			r.c.compileQuery(terms...),
-		},
-	}
-	return r
+func (r *resultQuery) where(terms ...interface{}) error {
+	r.conditions = terms
+	return nil
 }
 
-func (r *result) Where(terms ...interface{}) db.Result {
-	r.queryChunks.Conditions = r.c.compileQuery(terms...)
-	return r
+func (res *result) And(terms ...interface{}) db.Result {
+	return res.frame(func(r *resultQuery) error {
+		return r.and(terms...)
+	})
+}
+
+func (res *result) Where(terms ...interface{}) db.Result {
+	return res.frame(func(r *resultQuery) error {
+		return r.where(terms...)
+	})
+}
+
+func (res *result) Paginate(pageSize int) db.Result {
+	return res.frame(func(r *resultQuery) error {
+		r.pageSize = pageSize
+		return nil
+	})
+}
+
+func (res *result) Page(pageNumber int) db.Result {
+	return res.frame(func(r *resultQuery) error {
+		r.pageNumber = pageNumber
+		return nil
+	})
+}
+
+func (res *result) Cursor(cursorColumn string) db.Result {
+	return res.frame(func(r *resultQuery) error {
+		r.cursorColumn = cursorColumn
+		return nil
+	})
+}
+
+func (res *result) NextPage(cursorValue interface{}) db.Result {
+	return res.frame(func(r *resultQuery) error {
+		r.cursorValue = cursorValue
+		r.cursorReverseOrder = false
+		r.cursorCond = db.Cond{
+			r.cursorColumn: bson.M{"$gt": cursorValue},
+		}
+		return nil
+	})
+}
+
+func (res *result) PrevPage(cursorValue interface{}) db.Result {
+	return res.frame(func(r *resultQuery) error {
+		r.cursorValue = cursorValue
+		r.cursorReverseOrder = true
+		r.cursorCond = db.Cond{
+			r.cursorColumn: bson.M{"$lt": cursorValue},
+		}
+		return nil
+	})
+}
+
+func (res *result) TotalPages() (uint64, error) {
+	count, err := res.Count()
+	if err != nil {
+		return 0, err
+	}
+
+	rq, err := res.build()
+	if err != nil {
+		return 0, err
+	}
+
+	if rq.pageSize < 1 {
+		return 1, nil
+	}
+
+	total := uint64(math.Ceil(float64(count) / float64(rq.pageSize)))
+	return total, nil
 }
 
 // Limit determines the maximum limit of results to be returned.
-func (r *result) Limit(n int) db.Result {
-	r.queryChunks.Limit = n
-	return r
+func (res *result) Limit(n int) db.Result {
+	return res.frame(func(r *resultQuery) error {
+		r.limit = n
+		return nil
+	})
 }
 
 // Offset determines how many documents will be skipped before starting to grab
 // results.
-func (r *result) Offset(n int) db.Result {
-	r.queryChunks.Offset = n
-	return r
+func (res *result) Offset(n int) db.Result {
+	return res.frame(func(r *resultQuery) error {
+		r.offset = n
+		return nil
+	})
 }
 
 // OrderBy determines sorting of results according to the provided names. Fields
 // may be prefixed by - (minus) which means descending order, ascending order
 // would be used otherwise.
-func (r *result) OrderBy(fields ...interface{}) db.Result {
-	ss := make([]string, len(fields))
-	for i, field := range fields {
-		ss[i] = fmt.Sprintf(`%v`, field)
-	}
-	r.queryChunks.Sort = ss
-	return r
+func (res *result) OrderBy(fields ...interface{}) db.Result {
+	return res.frame(func(r *resultQuery) error {
+		ss := make([]string, len(fields))
+		for i, field := range fields {
+			ss[i] = fmt.Sprintf(`%v`, field)
+		}
+		r.sort = ss
+		return nil
+	})
 }
 
 // String satisfies fmt.Stringer
-func (r *result) String() string {
-	return fmt.Sprintf("%v", r.queryChunks)
+func (res *result) String() string {
+	return ""
 }
 
 // Select marks the specific fields the user wants to retrieve.
-func (r *result) Select(fields ...interface{}) db.Result {
-	fieldslen := len(fields)
-	r.queryChunks.Fields = make([]string, 0, fieldslen)
-	for i := 0; i < fieldslen; i++ {
-		r.queryChunks.Fields = append(r.queryChunks.Fields, fmt.Sprintf(`%v`, fields[i]))
-	}
-	return r
+func (res *result) Select(fields ...interface{}) db.Result {
+	return res.frame(func(r *resultQuery) error {
+		fieldslen := len(fields)
+		r.fields = make([]string, 0, fieldslen)
+		for i := 0; i < fieldslen; i++ {
+			r.fields = append(r.fields, fmt.Sprintf(`%v`, fields[i]))
+		}
+		return nil
+	})
 }
 
 // All dumps all results into a pointer to an slice of structs or maps.
-func (r *result) All(dst interface{}) (err error) {
+func (res *result) All(dst interface{}) error {
+	rq, err := res.build()
+	if err != nil {
+		return err
+	}
 
-	if r.c.parent.LoggingEnabled() {
+	q, err := rq.query()
+	if err != nil {
+		return err
+	}
+
+	if rq.c.parent.LoggingEnabled() {
 		defer func(start time.Time) {
-			r.c.parent.Logger().Log(&db.QueryStatus{
-				Query: fmt.Sprintf("find(%s)", mustJSON(r.queryChunks.Conditions)),
+			rq.c.parent.Logger().Log(&db.QueryStatus{
+				Query: rq.debugQuery("Find.All"),
 				Err:   err,
 				Start: start,
 				End:   time.Now(),
@@ -149,36 +234,42 @@ func (r *result) All(dst interface{}) (err error) {
 		}(time.Now())
 	}
 
-	err = r.setCursor()
+	res.iter = q.Iter()
+	defer res.iter.Close()
 
+	err = res.iter.All(dst)
 	if err != nil {
-		return err
+		return res.setErr(err)
 	}
-
-	err = r.iter.All(dst)
-
-	if err != nil {
-		return err
-	}
-
-	r.Close()
 
 	return nil
 }
 
 // Group is used to group results that have the same value in the same column
 // or columns.
-func (r *result) Group(fields ...interface{}) db.Result {
-	r.queryChunks.GroupBy = fields
-	return r
+func (res *result) Group(fields ...interface{}) db.Result {
+	return res.frame(func(r *resultQuery) error {
+		r.groupBy = fields
+		return nil
+	})
 }
 
 // One fetches only one result from the resultset.
-func (r *result) One(dst interface{}) (err error) {
-	if r.c.parent.LoggingEnabled() {
+func (res *result) One(dst interface{}) error {
+	rq, err := res.build()
+	if err != nil {
+		return err
+	}
+
+	q, err := rq.query()
+	if err != nil {
+		return err
+	}
+
+	if rq.c.parent.LoggingEnabled() {
 		defer func(start time.Time) {
-			r.c.parent.Logger().Log(&db.QueryStatus{
-				Query: fmt.Sprintf("findOne(%s)", mustJSON(r.queryChunks.Conditions)),
+			rq.c.parent.Logger().Log(&db.QueryStatus{
+				Query: rq.debugQuery("Find.One"),
 				Err:   err,
 				Start: start,
 				End:   time.Now(),
@@ -186,33 +277,75 @@ func (r *result) One(dst interface{}) (err error) {
 		}(time.Now())
 	}
 
-	defer r.Close()
-	if !r.Next(dst) {
-		return r.Err()
+	res.iter = q.Iter()
+	defer res.iter.Close()
+
+	if !res.iter.Next(dst) {
+		return res.setErr(res.iter.Err())
 	}
+
 	return nil
 }
 
-// Next fetches the next result from the resultset.
-func (r *result) Next(dst interface{}) bool {
-	err := r.setCursor()
-	if err != nil {
-		r.setErr(err)
+func (res *result) Err() error {
+	res.errMu.Lock()
+	defer res.errMu.Unlock()
+
+	return res.err
+}
+
+func (res *result) setErr(err error) error {
+	res.errMu.Lock()
+	defer res.errMu.Unlock()
+
+	return err
+}
+
+func (res *result) Next(dst interface{}) bool {
+	if res.iter == nil {
+		rq, err := res.build()
+		if err != nil {
+			return false
+		}
+
+		q, err := rq.query()
+		if err != nil {
+			return false
+		}
+
+		if rq.c.parent.LoggingEnabled() {
+			defer func(start time.Time) {
+				rq.c.parent.Logger().Log(&db.QueryStatus{
+					Query: rq.debugQuery("Find.Next"),
+					Err:   err,
+					Start: start,
+					End:   time.Now(),
+				})
+			}(time.Now())
+		}
+
+		res.iter = q.Iter()
+	}
+
+	if !res.iter.Next(dst) {
+		res.setErr(res.iter.Err())
 		return false
 	}
-	if !r.iter.Next(dst) {
-		r.setErr(err)
-		return false
-	}
+
 	return true
 }
 
 // Delete remove the matching items from the collection.
-func (r *result) Delete() (err error) {
-	if r.c.parent.LoggingEnabled() {
+func (res *result) Delete() error {
+	rq, err := res.build()
+	if err != nil {
+		return err
+	}
+
+	if rq.c.parent.LoggingEnabled() {
 		defer func(start time.Time) {
-			r.c.parent.Logger().Log(&db.QueryStatus{
-				Query: fmt.Sprintf("remove(%s)", mustJSON(r.queryChunks.Conditions)),
+			rq.c.parent.Logger().Log(&db.QueryStatus{
+				Query: rq.debugQuery("Remove"),
 				Err:   err,
 				Start: start,
 				End:   time.Now(),
@@ -220,10 +353,11 @@ func (r *result) Delete() (err error) {
 		}(time.Now())
 	}
 
-	_, err = r.c.collection.RemoveAll(r.queryChunks.Conditions)
+	_, err = rq.c.collection.RemoveAll(rq.conditions)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -239,13 +373,18 @@ func (r *result) Close() error {
 
 // Update modified matching items from the collection with values of the given
 // map or struct.
-func (r *result) Update(src interface{}) (err error) {
+func (res *result) Update(src interface{}) (err error) {
 	updateSet := map[string]interface{}{"$set": src}
 
-	if r.c.parent.LoggingEnabled() {
+	rq, err := res.build()
+	if err != nil {
+		return err
+	}
+
+	if rq.c.parent.LoggingEnabled() {
 		defer func(start time.Time) {
-			r.c.parent.Logger().Log(&db.QueryStatus{
-				Query: fmt.Sprintf("update(%s, %s)", mustJSON(r.queryChunks.Conditions), mustJSON(updateSet)),
+			rq.c.parent.Logger().Log(&db.QueryStatus{
+				Query: rq.debugQuery("Update"),
 				Err:   err,
 				Start: start,
 				End:   time.Now(),
@@ -253,57 +392,87 @@ func (r *result) Update(src interface{}) (err error) {
 		}(time.Now())
 	}
 
-	_, err = r.c.collection.UpdateAll(r.queryChunks.Conditions, updateSet)
+	_, err = rq.c.collection.UpdateAll(rq.conditions, updateSet)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
+func (res *result) build() (*resultQuery, error) {
+	rqi, err := immutable.FastForward(res)
+	if err != nil {
+		return nil, err
+	}
+
+	rq := rqi.(*resultQuery)
+	if !rq.cursorCond.Empty() {
+		rq.and(rq.cursorCond)
+	}
+
+	if rq.cursorColumn != "" {
+		if rq.cursorReverseOrder {
+			rq.sort = append(rq.sort, rq.cursorColumn)
+		} else {
+			rq.sort = append(rq.sort, "-"+rq.cursorColumn)
+		}
+	}
+
+	return rq, nil
+}
+
 // query executes a mgo query.
-func (r *result) query() (*mgo.Query, error) {
-	var err error
+func (r *resultQuery) query() (*mgo.Query, error) {
+	q := r.c.collection.Find(r.conditions)
 
-	q := r.c.collection.Find(r.queryChunks.Conditions)
-
-	if len(r.queryChunks.GroupBy) > 0 {
+	if len(r.groupBy) > 0 {
 		return nil, db.ErrUnsupported
 	}
 
-	if r.queryChunks.Offset > 0 {
-		q = q.Skip(r.queryChunks.Offset)
+	if r.pageSize > 0 {
+		log.Printf("pagesize: %v", r.pageSize)
+		q.Skip(r.pageSize * r.pageNumber).Limit(r.pageSize)
+	} else {
+		if r.offset > 0 {
+			q.Skip(r.offset)
+		}
+
+		if r.limit > 0 {
+			q.Limit(r.limit)
+		}
 	}
 
-	if r.queryChunks.Limit > 0 {
-		q = q.Limit(r.queryChunks.Limit)
-	}
-
-	if len(r.queryChunks.Fields) > 0 {
+	if len(r.fields) > 0 {
 		selectedFields := bson.M{}
-		for _, field := range r.queryChunks.Fields {
+		for _, field := range r.fields {
 			if field == `*` {
 				break
 			}
 			selectedFields[field] = true
 		}
 		if len(selectedFields) > 0 {
-			q = q.Select(selectedFields)
+			q.Select(selectedFields)
 		}
 	}
 
-	if len(r.queryChunks.Sort) > 0 {
-		q.Sort(r.queryChunks.Sort...)
+	if len(r.sort) > 0 {
+		q.Sort(r.sort...)
 	}
 
-	return q, err
+	return q, nil
 }
 
 // Count counts matching elements.
-func (r *result) Count() (total uint64, err error) {
-	if r.c.parent.LoggingEnabled() {
+func (res *result) Count() (total uint64, err error) {
+	rq, err := res.build()
+	if err != nil {
+		return 0, err
+	}
+
+	if rq.c.parent.LoggingEnabled() {
 		defer func(start time.Time) {
-			r.c.parent.Logger().Log(&db.QueryStatus{
-				Query: fmt.Sprintf("find(%s).count()", mustJSON(r.queryChunks.Conditions)),
+			rq.c.parent.Logger().Log(&db.QueryStatus{
+				Query: rq.debugQuery("Find.Count"),
 				Err:   err,
 				Start: start,
 				End:   time.Now(),
@@ -311,24 +480,47 @@ func (r *result) Count() (total uint64, err error) {
 		}(time.Now())
 	}
 
-	q := r.c.collection.Find(r.queryChunks.Conditions)
+	q := rq.c.collection.Find(rq.conditions)
+
 	var c int
 	c, err = q.Count()
+
 	return uint64(c), err
 }
 
-func (r *result) debugQuery(action string) string {
+func (res *result) Prev() immutable.Immutable {
+	if res == nil {
+		return nil
+	}
+	return res.prev
+}
+
+func (res *result) Fn(in interface{}) error {
+	if res.fn == nil {
+		return nil
+	}
+	return res.fn(in.(*resultQuery))
+}
+
+func (res *result) Base() interface{} {
+	return &resultQuery{}
+}
+
+func (r *resultQuery) debugQuery(action string) string {
 	query := fmt.Sprintf("db.%s.%s", r.c.collection.Name, action)
 
-	if r.queryChunks.Limit > 0 {
-		query = fmt.Sprintf("%s.limit(%d)", query, r.queryChunks.Limit)
+	if r.conditions != nil {
+		query = fmt.Sprintf("%s.conds(%v)", query, r.conditions)
 	}
-	if r.queryChunks.Offset > 0 {
-		query = fmt.Sprintf("%s.offset(%d)", query, r.queryChunks.Offset)
+	if r.limit > 0 {
+		query = fmt.Sprintf("%s.limit(%d)", query, r.limit)
 	}
-	if len(r.queryChunks.Fields) > 0 {
+	if r.offset > 0 {
+		query = fmt.Sprintf("%s.offset(%d)", query, r.offset)
+	}
+	if len(r.fields) > 0 {
 		selectedFields := bson.M{}
-		for _, field := range r.queryChunks.Fields {
+		for _, field := range r.fields {
 			if field == `*` {
 				break
 			}
@@ -338,17 +530,17 @@ func (r *result) debugQuery(action string) string {
 			query = fmt.Sprintf("%s.select(%v)", query, selectedFields)
 		}
 	}
-	if len(r.queryChunks.GroupBy) > 0 {
-		escaped := make([]string, len(r.queryChunks.GroupBy))
-		for i := range r.queryChunks.GroupBy {
-			escaped[i] = string(mustJSON(r.queryChunks.GroupBy[i]))
+	if len(r.groupBy) > 0 {
+		escaped := make([]string, len(r.groupBy))
+		for i := range r.groupBy {
+			escaped[i] = string(mustJSON(r.groupBy[i]))
 		}
 		query = fmt.Sprintf("%s.groupBy(%v)", query, strings.Join(escaped, ", "))
 	}
-	if len(r.queryChunks.Sort) > 0 {
-		escaped := make([]string, len(r.queryChunks.Sort))
-		for i := range r.queryChunks.Sort {
-			escaped[i] = string(mustJSON(r.queryChunks.Sort[i]))
+	if len(r.sort) > 0 {
+		escaped := make([]string, len(r.sort))
+		for i := range r.sort {
+			escaped[i] = string(mustJSON(r.sort[i]))
 		}
 		query = fmt.Sprintf("%s.sort(%s)", query, strings.Join(escaped, ", "))
 	}
