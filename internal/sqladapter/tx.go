@@ -78,10 +78,12 @@ func (b *baseTx) Committed() bool {
 }
 
 func (b *baseTx) Commit() (err error) {
-	if err = b.Tx.Commit(); err == nil {
-		b.committed.Store(struct{}{})
+	err = b.Tx.Commit()
+	if err != nil {
+		return err
 	}
-	return err
+	b.committed.Store(struct{}{})
+	return nil
 }
 
 func (w *databaseTx) Commit() error {

@@ -33,7 +33,11 @@ func IsKeyValue(v interface{}) bool {
 		return true
 	}
 	switch v.(type) {
-	case int64, int, uint, uint64, driver.Valuer:
+	case int64, int, uint, uint64,
+		[]int64, []int, []uint, []uint64,
+		[]byte, []string,
+		[]interface{},
+		driver.Valuer:
 		return true
 	}
 	return false

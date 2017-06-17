@@ -198,10 +198,10 @@ func (d *database) NewDatabaseTx(ctx context.Context) (sqladapter.DatabaseTx, er
 
 	connFn := func() error {
 		sqlTx, err := compat.BeginTx(clone.BaseDatabase.Session(), ctx, nil)
-		if err == nil {
-			return clone.BindTx(ctx, sqlTx)
+		if err != nil {
+			return err
 		}
-		return err
+		return clone.BindTx(ctx, sqlTx)
 	}
 
 	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
