@@ -46,11 +46,7 @@ const (
 	adapterColumnAliasLayout   = `{{.Name}}{{if .Alias}} AS {{.Alias}}{{end}}`
 	adapterSortByColumnLayout  = `{{.Column}} {{.Order}}`
 
-	adapterOrderByLayout = `
-    {{if .SortColumns}}
-      ORDER BY {{.SortColumns}}
-    {{end}}
-  `
+	adapterOrderByLayout = `{{if .SortColumns}}ORDER BY {{.SortColumns}}{{end}}`
 
 	adapterWhereLayout = `
     {{if .Conds}}
@@ -92,7 +88,6 @@ const (
         DISTINCT
       {{end}}
 
-
       {{if .Columns}}
         {{.Columns}}
       {{else}}
@@ -109,7 +104,13 @@ const (
 
       {{.GroupBy}}
 
-      {{.OrderBy}}
+      {{if .OrderBy}}
+				{{.OrderBy}}
+			{{else}}
+				{{if .Table}}
+					ORDER BY id() ASC
+				{{end}}
+			{{end}}
 
       {{if .Limit}}
         LIMIT {{.Limit}}
