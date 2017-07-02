@@ -26,8 +26,10 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"upper.io/db.v3/internal/sqladapter"
 	"upper.io/db.v3/lib/sqlbuilder"
 )
@@ -124,6 +126,14 @@ func tearUp() error {
 			some_val VARCHAR(255) default '',
 			primary key (code, user_id)
 		)`,
+
+		`CREATE TABLE admin (
+			ID int(11) NOT NULL AUTO_INCREMENT,
+			Accounts varchar(255) DEFAULT '',
+			LoginPassWord varchar(255) DEFAULT '',
+			Date TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+			PRIMARY KEY (ID,Date)
+			) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8`,
 	}
 
 	for _, s := range batch {
@@ -154,6 +164,49 @@ func getStats(sess sqlbuilder.Database) (map[string]int, error) {
 	}
 
 	return stats, nil
+}
+
+func TestInsertReturningCompositeKey_Issue383(t *testing.T) {
+	sess := mustOpen()
+	defer sess.Close()
+
+	type Admin struct {
+		ID            int       `db:"ID,omitempty"`
+		Accounts      string    `db:"Accounts"`
+		LoginPassWord string    `db:"LoginPassWord"`
+		Date          time.Time `db:"Date"`
+	}
+
+	dateNow := time.Now()
+
+	a := Admin{
+		Accounts:      "admin",
+		LoginPassWord: "E10ADC3949BA59ABBE56E057F20F883E",
+		Date:          dateNow,
+	}
+
+	adminCollection := sess.Collection("admin")
+	err := adminCollection.InsertReturning(&a)
+	assert.NoError(t, err)
+
+	assert.NotZero(t, a.ID)
+	assert.NotZero(t, a.Date)
+	assert.Equal(t, "admin", a.Accounts)
+	assert.Equal(t, "E10ADC3949BA59ABBE56E057F20F883E", a.LoginPassWord)
+
+	b := Admin{
+		Accounts:      "admin2",
+		LoginPassWord: "E10ADC3949BA59ABBE56E057F20F883E",
+		Date:          dateNow,
+	}
+
+	err = adminCollection.InsertReturning(&b)
+	assert.NoError(t, err)
+
+	assert.NotZero(t, b.ID)
+	assert.NotZero(t, b.Date)
+	assert.Equal(t, "admin2", b.Accounts)
+	assert.Equal(t, "E10ADC3949BA59ABBE56E057F20F883E", a.LoginPassWord)
 }
 
 func cleanUpCheck(sess sqlbuilder.Database) (err error) {

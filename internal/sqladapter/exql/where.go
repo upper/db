@@ -16,6 +16,8 @@ type Where struct {
 	hash       hash
 }
 
+var _ = Fragment(&Where{})
+
 type conds struct {
 	Conds string
 }

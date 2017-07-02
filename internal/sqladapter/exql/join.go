@@ -17,6 +17,8 @@ type Joins struct {
 	hash       hash
 }
 
+var _ = Fragment(&Joins{})
+
 // Hash returns a unique identifier for the struct.
 func (j *Joins) Hash() string {
 	return j.hash.Hash(j)
@@ -60,12 +62,14 @@ func JoinConditions(joins ...*Join) *Joins {
 
 // Join represents a generic JOIN statement.
 type Join struct {
-	Type string
-	*Table
-	*On
-	*Using
-	hash hash
+	Type  string
+	Table Fragment
+	On    Fragment
+	Using Fragment
+	hash  hash
 }
+
+var _ = Fragment(&Join{})
 
 // Hash returns a unique identifier for the struct.
 func (j *Join) Hash() string {
@@ -112,6 +116,8 @@ func (j *Join) Compile(layout *Template) (compiled string, err error) {
 // On represents JOIN conditions.
 type On Where
 
+var _ = Fragment(&On{})
+
 // Hash returns a unique identifier.
 func (o *On) Hash() string {
 	return o.hash.Hash(o)
@@ -138,6 +144,8 @@ func (o *On) Compile(layout *Template) (compiled string, err error) {
 
 // Using represents a USING function.
 type Using Columns
+
+var _ = Fragment(&Using{})
 
 type usingT struct {
 	Columns string

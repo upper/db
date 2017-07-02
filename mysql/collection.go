@@ -78,20 +78,25 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	if len(pKey) <= 1 {
-		// Attempt to use LastInsertId() (probably won't work, but the Exec()
-		// succeeded, so we can safely ignore the error from LastInsertId()).
-		lastID, _ := res.LastInsertId()
-
+	lastID, err := res.LastInsertId()
+	if err == nil && len(pKey) <= 1 {
 		return lastID, nil
 	}
 
 	keyMap := db.Cond{}
-
 	for i := range columnNames {
 		for j := 0; j < len(pKey); j++ {
 			if pKey[j] == columnNames[i] {
 				keyMap[pKey[j]] = columnValues[i]
+			}
+		}
+	}
+
+	// There was an auto column among primary keys, let's search for it.
+	if lastID > 0 {
+		for j := 0; j < len(pKey); j++ {
+			if keyMap[pKey[j]] == nil {
+				keyMap[pKey[j]] = lastID
 			}
 		}
 	}
