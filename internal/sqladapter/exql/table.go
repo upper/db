@@ -15,6 +15,8 @@ type Table struct {
 	hash hash
 }
 
+var _ = Fragment(&Table{})
+
 func quotedTableName(layout *Template, input string) string {
 	input = trimString(input)
 

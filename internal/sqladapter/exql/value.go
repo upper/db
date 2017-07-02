@@ -13,17 +13,23 @@ type ValueGroups struct {
 	hash   hash
 }
 
+var _ = Fragment(&ValueGroups{})
+
 // Values represents an array of Value.
 type Values struct {
 	Values []Fragment
 	hash   hash
 }
 
+var _ = Fragment(&Values{})
+
 // Value represents an escaped SQL value.
 type Value struct {
 	V    interface{}
 	hash hash
 }
+
+var _ = Fragment(&Value{})
 
 // NewValue creates and returns a Value.
 func NewValue(v interface{}) *Value {

@@ -22,10 +22,14 @@ type SortColumn struct {
 	hash hash
 }
 
+var _ = Fragment(&SortColumn{})
+
 type sortColumnT struct {
 	Column string
 	Order  string
 }
+
+var _ = Fragment(&SortColumn{})
 
 // SortColumns represents the columns in an ORDER BY clause.
 type SortColumns struct {
@@ -33,11 +37,15 @@ type SortColumns struct {
 	hash    hash
 }
 
+var _ = Fragment(&SortColumns{})
+
 // OrderBy represents an ORDER BY clause.
 type OrderBy struct {
 	SortColumns Fragment
 	hash        hash
 }
+
+var _ = Fragment(&OrderBy{})
 
 type orderByT struct {
 	SortColumns string

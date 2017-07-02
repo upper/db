@@ -11,6 +11,8 @@ func (r *Returning) Hash() string {
 	return r.hash.Hash(r)
 }
 
+var _ = Fragment(&Returning{})
+
 // ReturningColumns creates and returns an array of Column.
 func ReturningColumns(columns ...Fragment) *Returning {
 	return &Returning{Columns: &Columns{Columns: columns}}
