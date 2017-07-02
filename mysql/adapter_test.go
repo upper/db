@@ -177,7 +177,7 @@ func TestInsertReturningCompositeKey_Issue383(t *testing.T) {
 		Date          time.Time `db:"Date"`
 	}
 
-	dateNow := time.Now().Truncate(time.Second)
+	dateNow := time.Now()
 
 	a := Admin{
 		Accounts:      "admin",
