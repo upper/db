@@ -411,7 +411,7 @@ func (sel *selector) As(alias string) Selector {
 			if err != nil {
 				return err
 			}
-			sq.table.Columns[last] = exql.RawValue("(" + raw.Value + ") AS " + compiled)
+			sq.table.Columns[last] = exql.RawValue(raw.Value + " AS " + compiled)
 		}
 		return nil
 	})

@@ -1511,22 +1511,24 @@ func TestPaginator(t *testing.T) {
 	assert.NoError(t, batch.Err())
 
 	q := sess.SelectFrom("artist")
-
 	if Adapter == "ql" {
-		q = sess.Select("id() as id", "name").From("artist")
+		q = sess.SelectFrom(sess.Select("id() AS id", "name").From("artist"))
 	}
 
-	paginator := q.Paginate(13)
+	const pageSize = 13
+	cursorColumn := "id"
+
+	paginator := q.Paginate(pageSize)
 
 	var zerothPage []artistType
 	err = paginator.Page(0).All(&zerothPage)
 	assert.NoError(t, err)
-	assert.Equal(t, 13, len(zerothPage))
+	assert.Equal(t, pageSize, len(zerothPage))
 
 	var secondPage []artistType
 	err = paginator.Page(2).All(&secondPage)
 	assert.NoError(t, err)
-	assert.Equal(t, 13, len(secondPage))
+	assert.Equal(t, pageSize, len(secondPage))
 
 	tp, err := paginator.TotalPages()
 	assert.NoError(t, err)
@@ -1553,7 +1555,7 @@ func TestPaginator(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(hundredthPage))
 
-	for i := uint64(0); i < tp; i++ {
+	for i := uint64(0); i < 1; i++ {
 		current := paginator.Page(int(i))
 
 		var items []artistType
@@ -1562,19 +1564,15 @@ func TestPaginator(t *testing.T) {
 			t.Fatal(err)
 		}
 		if len(items) < 1 {
+			assert.Equal(t, tp + 1, i)
 			break
 		}
 		for j := 0; j < len(items); j++ {
-			assert.Equal(t, fmt.Sprintf("artist-%d", int64(13*int(i)+j)), items[j].Name)
+			assert.Equal(t, fmt.Sprintf("artist-%d", int64(pageSize*int(i)+j)), items[j].Name)
 		}
 	}
 
-	if Adapter == "ql" {
-		paginator = paginator.Cursor("id()")
-	} else {
-		paginator = paginator.Cursor("id")
-	}
-
+	paginator = paginator.Cursor(cursorColumn)
 	{
 		current := paginator.Page(0)
 		for i := 0; ; i++ {
@@ -1584,11 +1582,12 @@ func TestPaginator(t *testing.T) {
 				t.Fatal(err)
 			}
 			if len(items) < 1 {
+				assert.Equal(t, int(tp), i)
 				break
 			}
 
 			for j := 0; j < len(items); j++ {
-				assert.Equal(t, fmt.Sprintf("artist-%d", int64(13*int(i)+j)), items[j].Name)
+				assert.Equal(t, fmt.Sprintf("artist-%d", int64(pageSize*int(i)+j)), items[j].Name)
 			}
 			current = current.NextPage(items[len(items)-1].ID)
 		}
@@ -1603,18 +1602,27 @@ func TestPaginator(t *testing.T) {
 			assert.NoError(t, err)
 
 			if len(items) < 1 {
+				assert.Equal(t, -1, i)
 				break
 			}
 			for j := 0; j < len(items); j++ {
-				assert.Equal(t, fmt.Sprintf("artist-%d", 13*int(i)+j), items[j].Name)
+				assert.Equal(t, fmt.Sprintf("artist-%d", pageSize*int(i)+j), items[j].Name)
 			}
 
 			current = current.PrevPage(items[0].ID)
 		}
 	}
 
+	if Adapter == "ql" {
+		t.Skip("Unsupported, see https://github.com/cznic/ql/issues/182")
+	}
+
 	{
-		resultPaginator := sess.Collection("artist").Find().Paginate(15)
+		result := sess.Collection("artist").Find()
+		if Adapter == "ql" {
+			result = result.Select("id() AS id", "name")
+		}
+		resultPaginator := result.Paginate(15)
 
 		count, err := resultPaginator.TotalPages()
 		assert.Equal(t, uint64(67), count)
@@ -1628,7 +1636,7 @@ func TestPaginator(t *testing.T) {
 			assert.Equal(t, fmt.Sprintf("artist-%d", 15*5+j), items[j].Name)
 		}
 
-		resultPaginator = resultPaginator.Cursor("id").Page(0)
+		resultPaginator = resultPaginator.Cursor(cursorColumn).Page(0)
 		for i := 0; ; i++ {
 			var items []artistType
 
@@ -1645,7 +1653,7 @@ func TestPaginator(t *testing.T) {
 			resultPaginator = resultPaginator.NextPage(items[len(items)-1].ID)
 		}
 
-		resultPaginator = resultPaginator.Cursor("id").Page(66)
+		resultPaginator = resultPaginator.Cursor(cursorColumn).Page(66)
 		for i := 66; ; i-- {
 			var items []artistType
 

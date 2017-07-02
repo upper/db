@@ -31,11 +31,11 @@ type paginatorQuery struct {
 func newPaginator(sel Selector, pageSize int) Paginator {
 	pag := &paginator{}
 	return pag.frame(func(pq *paginatorQuery) error {
-		if pageSize < 0 {
-			pageSize = -1
+		if pageSize < 1 {
+			pageSize = 0
 		}
 		pq.pageSize = pageSize
-		pq.sel = sel.Limit(pq.pageSize)
+		pq.sel = sel
 		return nil
 	}).Page(0)
 }
@@ -65,15 +65,10 @@ func (pag *paginator) frame(fn func(*paginatorQuery) error) *paginator {
 
 func (pag *paginator) Page(pageNumber int) Paginator {
 	return pag.frame(func(pq *paginatorQuery) error {
-		if pageNumber < 0 {
-			pageNumber = -1
+		if pageNumber < 1 {
+			pageNumber = 0
 		}
 		pq.pageNumber = pageNumber
-		if pq.pageNumber < 0 {
-			pq.sel = pq.sel.Offset(-1)
-			return nil
-		}
-		pq.sel = pq.sel.Offset(int(pq.pageSize * pq.pageNumber))
 		return nil
 	})
 }
@@ -256,16 +251,27 @@ func (pag *paginator) buildWithCursor() (*paginatorQuery, error) {
 	}
 
 	pqq := pq.(*paginatorQuery)
-	if pqq.cursorColumn != "" {
-		orderBy := pqq.cursorColumn
-		if pqq.cursorReverseOrder {
-			if strings.HasPrefix(orderBy, "-") {
-				orderBy = orderBy[1:]
-			} else {
-				orderBy = "-" + orderBy
-			}
+
+	orderBy := pqq.cursorColumn
+	if pqq.cursorReverseOrder {
+		if orderBy == "" {
+			return nil, errors.New("Missing cursor column")
 		}
+
+		if strings.HasPrefix(orderBy, "-") {
+			orderBy = orderBy[1:]
+		} else {
+			orderBy = "-" + orderBy
+		}
+
 		pqq.sel = pqq.sel.OrderBy(orderBy)
+	}
+
+	if pqq.pageSize > 0 {
+		pqq.sel = pqq.sel.Limit(pqq.pageSize)
+		if pqq.pageNumber > 0 {
+			pqq.sel = pqq.sel.Offset(int(pqq.pageSize * pqq.pageNumber))
+		}
 	}
 
 	if pqq.cursorCond != nil {
@@ -274,8 +280,7 @@ func (pag *paginator) buildWithCursor() (*paginatorQuery, error) {
 
 	if pqq.cursorReverseOrder {
 		pqq.sel = pqq.sel.(*selector).SQLBuilder().
-			Select("_q0.*").
-			From(db.Raw("? AS _q0", pqq.sel)).
+			SelectFrom(db.Raw("? AS p0", pqq.sel)).
 			OrderBy(pqq.cursorColumn)
 	}
 
