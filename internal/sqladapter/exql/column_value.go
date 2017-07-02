@@ -12,6 +12,8 @@ type ColumnValue struct {
 	hash     hash
 }
 
+var _ = Fragment(&ColumnValue{})
+
 type columnValueT struct {
 	Column   string
 	Operator string
@@ -58,6 +60,8 @@ type ColumnValues struct {
 	ColumnValues []Fragment
 	hash         hash
 }
+
+var _ = Fragment(&ColumnValues{})
 
 // JoinColumnValues returns an array of ColumnValue
 func JoinColumnValues(values ...Fragment) *ColumnValues {

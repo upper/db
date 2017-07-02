@@ -61,16 +61,24 @@ func TestSelect(t *testing.T) {
 		b.Select().Distinct(db.Raw(`ON(?) col1`, db.Raw(`SELECT foo FROM bar`))).Columns("col2", "col3").Distinct("col4", "col5").From("artist").String(),
 	)
 
+	{
+		q0 := b.Select("foo").From("bar")
+		assert.Equal(
+			`SELECT DISTINCT ON (SELECT "foo" FROM "bar") col1, "col2", "col3", "col4", "col5" FROM "artist"`,
+			b.Select().Distinct(db.Raw(`ON ? col1`, q0)).Columns("col2", "col3").Distinct("col4", "col5").From("artist").String(),
+		)
+	}
+
 	assert.Equal(
 		`SELECT DISTINCT ON (SELECT foo FROM bar, SELECT baz from qux) col1, "col2", "col3", "col4", "col5" FROM "artist"`,
 		b.Select().Distinct(db.Raw(`ON ? col1`, []interface{}{db.Raw(`SELECT foo FROM bar`), db.Raw(`SELECT baz from qux`)})).Columns("col2", "col3").Distinct("col4", "col5").From("artist").String(),
 	)
 
 	{
-		q := b.Select().Distinct(db.Raw(`ON (?) col1`, []db.RawValue{db.Raw(`SELECT foo FROM bar WHERE id = ?`, 1), db.Raw(`SELECT baz from qux WHERE id = 2`)})).Columns("col2", "col3").Distinct("col4", "col5").From("artist").
+		q := b.Select().Distinct(db.Raw(`ON ? col1`, []db.RawValue{db.Raw(`SELECT foo FROM bar WHERE id = ?`, 1), db.Raw(`SELECT baz from qux WHERE id = 2`)})).Columns("col2", "col3").Distinct("col4", "col5").From("artist").
 			Where("id", 3)
 		assert.Equal(
-			`SELECT DISTINCT ON ((SELECT foo FROM bar WHERE id = $1, SELECT baz from qux WHERE id = 2)) col1, "col2", "col3", "col4", "col5" FROM "artist" WHERE ("id" = $2)`,
+			`SELECT DISTINCT ON (SELECT foo FROM bar WHERE id = $1, SELECT baz from qux WHERE id = 2) col1, "col2", "col3", "col4", "col5" FROM "artist" WHERE ("id" = $2)`,
 			q.String(),
 		)
 
@@ -467,6 +475,41 @@ func TestSelect(t *testing.T) {
 		`SELECT * FROM "artist" WHERE ("id" IN ($1))`,
 		b.SelectFrom("artist").Where(db.Cond{"id": []int64{0}}).String(),
 	)
+
+	assert.Equal(
+		`SELECT COUNT(*) AS total FROM "user" AS "u" JOIN (SELECT DISTINCT user_id FROM user_profile) AS up ON (u.id = up.user_id)`,
+		b.Select(db.Raw(`COUNT(*) AS total`)).From("user u").Join(db.Raw("(SELECT DISTINCT user_id FROM user_profile) AS up")).On("u.id = up.user_id").String(),
+	)
+
+	{
+		q0 := b.Select("user_id").Distinct().From("user_profile")
+
+		assert.Equal(
+			`SELECT COUNT(*) AS total FROM "user" AS "u" JOIN (SELECT DISTINCT "user_id" FROM "user_profile") AS up ON (u.id = up.user_id)`,
+			b.Select(db.Raw(`COUNT(*) AS total`)).From("user u").Join(db.Raw("? AS up", q0)).On("u.id = up.user_id").String(),
+		)
+	}
+
+	{
+		q0 := b.Select("user_id").Distinct().From("user_profile").Where("t", []int{1, 2, 4, 5})
+
+		assert.Equal(
+			[]interface{}{1, 2, 4, 5},
+			q0.Arguments(),
+		)
+
+		q1 := b.Select(db.Raw(`COUNT(*) AS total`)).From("user u").Join(db.Raw("? AS up", q0)).On("u.id = up.user_id AND foo = ?", 8)
+
+		assert.Equal(
+			`SELECT COUNT(*) AS total FROM "user" AS "u" JOIN (SELECT DISTINCT "user_id" FROM "user_profile" WHERE ("t" IN ($1, $2, $3, $4))) AS up ON (u.id = up.user_id AND foo = $5)`,
+			q1.String(),
+		)
+
+		assert.Equal(
+			[]interface{}{1, 2, 4, 5, 8},
+			q1.Arguments(),
+		)
+	}
 
 	assert.Equal(
 		`SELECT DATE()`,
