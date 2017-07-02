@@ -211,8 +211,10 @@ func TestCustomQueryLogger(t *testing.T) {
 	sess := mustOpen()
 
 	sess.SetLogger(&customLogger{})
+	sess.SetLogging(true)
 	defer func() {
 		sess.SetLogger(nil)
+		sess.SetLogging(false)
 	}()
 
 	_, err := sess.Collection("artist").Find().Count()
@@ -1624,6 +1626,11 @@ func TestExhaustConnectionPool(t *testing.T) {
 
 	sess := mustOpen()
 
+	sess.SetLogging(true)
+	defer func() {
+		sess.SetLogging(false)
+	}()
+
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
 		tLogf("Tx %d: Pending", i)
@@ -1640,6 +1647,14 @@ func TestExhaustConnectionPool(t *testing.T) {
 				tFatal(err)
 			}
 			tLogf("Tx %d: OK (time to connect: %v)", i, time.Now().Sub(start))
+
+			if !sess.LoggingEnabled() {
+				tLogf("Expecting logging to be enabled")
+			}
+
+			if !tx.LoggingEnabled() {
+				tLogf("Expecting logging to be enabled (enabled by parent session)")
+			}
 
 			// Let's suppose that we do a bunch of complex stuff and that the
 			// transaction lasts 3 seconds.
