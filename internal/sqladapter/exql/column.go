@@ -17,6 +17,8 @@ type Column struct {
 	hash  hash
 }
 
+var _ = Fragment(&Column{})
+
 // ColumnWithName creates and returns a Column with the given name.
 func ColumnWithName(name string) *Column {
 	return &Column{Name: name}

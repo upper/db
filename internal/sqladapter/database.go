@@ -296,14 +296,21 @@ func (d *database) ClearCache() {
 // session.
 func (d *database) NewClone(p PartialDatabase, checkConn bool) (BaseDatabase, error) {
 	nd := NewBaseDatabase(p).(*database)
+
 	nd.name = d.name
 	nd.sess = d.sess
+
 	if checkConn {
 		if err := nd.Ping(); err != nil {
 			return nil, err
 		}
 	}
+
 	nd.sessID = newSessionID()
+
+	// New transaction should inherit parent settings
+	copySettings(d, nd)
+
 	return nd, nil
 }
 
@@ -644,6 +651,15 @@ func ReplaceWithDollarSign(in string) string {
 	out = append(out, buf[k:i]...)
 
 	return string(out)
+}
+
+func copySettings(from BaseDatabase, into BaseDatabase) {
+	into.SetLogging(from.LoggingEnabled())
+	into.SetLogger(from.Logger())
+	into.SetPreparedStatementCache(from.PreparedStatementCacheEnabled())
+	into.SetConnMaxLifetime(from.ConnMaxLifetime())
+	into.SetMaxIdleConns(from.MaxIdleConns())
+	into.SetMaxOpenConns(from.MaxOpenConns())
 }
 
 func newSessionID() uint64 {

@@ -6,6 +6,8 @@ type Database struct {
 	hash hash
 }
 
+var _ = Fragment(&Database{})
+
 // DatabaseWithName returns a Database with the given name.
 func DatabaseWithName(name string) *Database {
 	return &Database{Name: name}

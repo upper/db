@@ -87,9 +87,9 @@ func (sq *selectorQuery) statement() *exql.Statement {
 }
 
 func (sq *selectorQuery) pushJoin(t string, tables []interface{}) error {
-	tableNames := make([]string, len(tables))
-	for i := range tables {
-		tableNames[i] = fmt.Sprintf("%s", tables[i])
+	fragments, args, err := columnFragments(tables)
+	if err != nil {
+		return err
 	}
 
 	if sq.joins == nil {
@@ -98,9 +98,11 @@ func (sq *selectorQuery) pushJoin(t string, tables []interface{}) error {
 	sq.joins = append(sq.joins,
 		&exql.Join{
 			Type:  t,
-			Table: exql.TableWithName(strings.Join(tableNames, ", ")),
+			Table: exql.JoinColumns(fragments...),
 		},
 	)
+
+	sq.joinsArgs = append(sq.joinsArgs, args...)
 
 	return nil
 }
@@ -142,11 +144,11 @@ func (sel *selector) clone() Selector {
 func (sel *selector) From(tables ...interface{}) Selector {
 	return sel.frame(
 		func(sq *selectorQuery) error {
-			f, args, err := columnFragments(tables)
+			fragments, args, err := columnFragments(tables)
 			if err != nil {
 				return err
 			}
-			sq.table = exql.JoinColumns(f...)
+			sq.table = exql.JoinColumns(fragments...)
 			sq.tableArgs = args
 			return nil
 		},
@@ -300,7 +302,6 @@ func (sel *selector) Using(columns ...interface{}) Selector {
 	return sel.frame(func(sq *selectorQuery) error {
 
 		joins := len(sq.joins)
-
 		if joins == 0 {
 			return errors.New(`Cannot use Using() without a preceding Join() expression.`)
 		}

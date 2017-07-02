@@ -33,3 +33,5 @@ func (r *Raw) Compile(*Template) (string, error) {
 func (r *Raw) String() string {
 	return r.Value
 }
+
+var _ = Fragment(&Raw{})

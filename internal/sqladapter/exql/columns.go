@@ -10,6 +10,8 @@ type Columns struct {
 	hash    hash
 }
 
+var _ = Fragment(&Columns{})
+
 // Hash returns a unique identifier.
 func (c *Columns) Hash() string {
 	return c.hash.Hash(c)

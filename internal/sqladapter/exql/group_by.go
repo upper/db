@@ -6,6 +6,8 @@ type GroupBy struct {
 	hash    hash
 }
 
+var _ = Fragment(&GroupBy{})
+
 type groupByT struct {
 	GroupColumns string
 }
