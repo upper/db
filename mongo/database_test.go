@@ -886,9 +886,7 @@ func TestPaginator(t *testing.T) {
 			assert.NoError(t, err)
 
 			if len(items) < 1 {
-				if i > 0 {
-					t.Fatal("Expecting more pages")
-				}
+				assert.Equal(t, 0, len(items))
 				break
 			}
 			for j := 0; j < len(items); j++ {

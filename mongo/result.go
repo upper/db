@@ -23,7 +23,6 @@ package mongo
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"strings"
 	"sync"
@@ -72,8 +71,6 @@ func (res *result) frame(fn func(*resultQuery) error) *result {
 }
 
 func (r *resultQuery) and(terms ...interface{}) error {
-	log.Printf("AND: %#v -- %v -- %T", r.conditions, terms, terms)
-
 	if r.conditions == nil {
 		return r.where(terms...)
 	}
@@ -420,8 +417,6 @@ func (res *result) build() (*resultQuery, error) {
 			rq.sort = append(rq.sort, rq.cursorColumn)
 		}
 	}
-	log.Printf("QUERY: %#v", rq)
-
 	return rq, nil
 }
 
@@ -474,8 +469,6 @@ func (r *resultQuery) query() (*mgo.Query, error) {
 		r.conditions = bson.M{"_id": bson.M{"$in": ids}}
 
 		q = r.c.collection.Find(r.conditions)
-
-		log.Printf("IDS: %#v", ids)
 	}
 
 	if len(selectedFields) > 0 {
