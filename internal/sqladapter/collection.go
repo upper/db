@@ -1,6 +1,7 @@
 package sqladapter
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -10,6 +11,8 @@ import (
 )
 
 var mapper = reflectx.NewMapper("db")
+
+var errMissingPrimaryKeys = errors.New("Table %q has no primary keys")
 
 // Collection represents a SQL table.
 type Collection interface {
@@ -125,7 +128,10 @@ func (c *collection) InsertReturning(item interface{}) error {
 	// Grab primary keys
 	pks := c.PrimaryKeys()
 	if len(pks) == 0 {
-		return fmt.Errorf("InsertReturning: Cannot update an item without primary keys")
+		if !c.Exists() {
+			return db.ErrCollectionDoesNotExist
+		}
+		return fmt.Errorf(errMissingPrimaryKeys.Error(), c.Name())
 	}
 
 	var tx DatabaseTx
@@ -217,7 +223,10 @@ func (c *collection) UpdateReturning(item interface{}) error {
 	// Grab primary keys
 	pks := c.PrimaryKeys()
 	if len(pks) == 0 {
-		return fmt.Errorf("InsertReturning: Cannot update an item without primary keys")
+		if !c.Exists() {
+			return db.ErrCollectionDoesNotExist
+		}
+		return fmt.Errorf(errMissingPrimaryKeys.Error(), c.Name())
 	}
 
 	var tx DatabaseTx
