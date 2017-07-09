@@ -345,7 +345,7 @@ type Selector interface {
 
 	// Paginate returns a paginator that can display a paginated lists of items.
 	// Paginators ignore previous Offset and Limit settings.
-	Paginate(int) Paginator
+	Paginate(uint) Paginator
 
 	// Iterator provides methods to iterate over the results returned by the
 	// Selector.
@@ -538,10 +538,11 @@ type Getter interface {
 	QueryRowContext(ctx context.Context) (*sql.Row, error)
 }
 
-// Paginator provides tools for splitting query results into pages.
+// Paginator provides tools for splitting the results of a query into chunks
+// containing a fixed number of items.
 type Paginator interface {
 	// Page sets the page number.
-	Page(int) Paginator
+	Page(uint) Paginator
 
 	// Cursor defines the column that is going to be taken as basis for
 	// cursor-based pagination.
@@ -573,10 +574,10 @@ type Paginator interface {
 	PrevPage(cursorValue interface{}) Paginator
 
 	// TotalPages returns the total number of pages in the query.
-	TotalPages() (uint64, error)
+	TotalPages() (uint, error)
 
-	// TotalItems returns the total number of items in the query.
-	TotalItems() (int, error)
+	// TotalEntries returns the total number of entries in the query.
+	TotalEntries() (uint64, error)
 
 	// Preparer provides methods for creating prepared statements.
 	Preparer

@@ -24,11 +24,11 @@ type paginatorQuery struct {
 	cursorCond         db.Cond
 	cursorReverseOrder bool
 
-	pageSize   int
-	pageNumber int
+	pageSize   uint
+	pageNumber uint
 }
 
-func newPaginator(sel Selector, pageSize int) Paginator {
+func newPaginator(sel Selector, pageSize uint) Paginator {
 	pag := &paginator{}
 	return pag.frame(func(pq *paginatorQuery) error {
 		if pageSize < 1 {
@@ -40,8 +40,8 @@ func newPaginator(sel Selector, pageSize int) Paginator {
 	}).Page(0)
 }
 
-func (pq *paginatorQuery) count() (int, error) {
-	var count int
+func (pq *paginatorQuery) count() (uint64, error) {
+	var count uint64
 	row, err := pq.sel.(*selector).setColumns(db.Raw("count(1) AS _t")).Limit(0).Offset(0).QueryRow()
 
 	err = row.Scan(&count)
@@ -63,7 +63,7 @@ func (pag *paginator) frame(fn func(*paginatorQuery) error) *paginator {
 	return &paginator{prev: pag, fn: fn}
 }
 
-func (pag *paginator) Page(pageNumber int) Paginator {
+func (pag *paginator) Page(pageNumber uint) Paginator {
 	return pag.frame(func(pq *paginatorQuery) error {
 		if pageNumber < 1 {
 			pageNumber = 0
@@ -109,7 +109,7 @@ func (pag *paginator) PrevPage(cursorValue interface{}) Paginator {
 	})
 }
 
-func (pag *paginator) TotalPages() (uint64, error) {
+func (pag *paginator) TotalPages() (uint, error) {
 	pq, err := pag.build()
 	if err != nil {
 		return 0, err
@@ -124,7 +124,7 @@ func (pag *paginator) TotalPages() (uint64, error) {
 		return 1, nil
 	}
 
-	pages := uint64(math.Ceil(float64(count) / float64(pq.pageSize)))
+	pages := uint(math.Ceil(float64(count) / float64(pq.pageSize)))
 	return pages, nil
 }
 
@@ -228,7 +228,7 @@ func (pag *paginator) PrepareContext(ctx context.Context) (*sql.Stmt, error) {
 	return pq.sel.PrepareContext(ctx)
 }
 
-func (pag *paginator) TotalItems() (int, error) {
+func (pag *paginator) TotalEntries() (uint64, error) {
 	pq, err := pag.build()
 	if err != nil {
 		return 0, err
@@ -268,7 +268,7 @@ func (pag *paginator) buildWithCursor() (*paginatorQuery, error) {
 	}
 
 	if pqq.pageSize > 0 {
-		pqq.sel = pqq.sel.Limit(pqq.pageSize)
+		pqq.sel = pqq.sel.Limit(int(pqq.pageSize))
 		if pqq.pageNumber > 0 {
 			pqq.sel = pqq.sel.Offset(int(pqq.pageSize * pqq.pageNumber))
 		}

@@ -47,8 +47,8 @@ type resultQuery struct {
 	conditions interface{}
 	groupBy    []interface{}
 
-	pageSize           int
-	pageNumber         int
+	pageSize           uint
+	pageNumber         uint
 	cursorColumn       string
 	cursorValue        interface{}
 	cursorCond         db.Cond
@@ -101,14 +101,14 @@ func (res *result) Where(terms ...interface{}) db.Result {
 	})
 }
 
-func (res *result) Paginate(pageSize int) db.Result {
+func (res *result) Paginate(pageSize uint) db.Result {
 	return res.frame(func(r *resultQuery) error {
 		r.pageSize = pageSize
 		return nil
 	})
 }
 
-func (res *result) Page(pageNumber int) db.Result {
+func (res *result) Page(pageNumber uint) db.Result {
 	return res.frame(func(r *resultQuery) error {
 		r.pageNumber = pageNumber
 		return nil
@@ -144,7 +144,11 @@ func (res *result) PrevPage(cursorValue interface{}) db.Result {
 	})
 }
 
-func (res *result) TotalPages() (uint64, error) {
+func (res *result) TotalEntries() (uint64, error) {
+	return res.Count()
+}
+
+func (res *result) TotalPages() (uint, error) {
 	count, err := res.Count()
 	if err != nil {
 		return 0, err
@@ -159,7 +163,7 @@ func (res *result) TotalPages() (uint64, error) {
 		return 1, nil
 	}
 
-	total := uint64(math.Ceil(float64(count) / float64(rq.pageSize)))
+	total := uint(math.Ceil(float64(count) / float64(rq.pageSize)))
 	return total, nil
 }
 
@@ -429,8 +433,8 @@ func (r *resultQuery) query() (*mgo.Query, error) {
 	q := r.c.collection.Find(r.conditions)
 
 	if r.pageSize > 0 {
-		r.offset = r.pageSize * r.pageNumber
-		r.limit = r.pageSize
+		r.offset = int(r.pageSize * r.pageNumber)
+		r.limit = int(r.pageSize)
 	}
 
 	if r.offset > 0 {

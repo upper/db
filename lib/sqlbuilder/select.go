@@ -474,7 +474,7 @@ func (sel *selector) IteratorContext(ctx context.Context) Iterator {
 	return &iterator{rows, err}
 }
 
-func (sel *selector) Paginate(pageSize int) Paginator {
+func (sel *selector) Paginate(pageSize uint) Paginator {
 	return newPaginator(sel.clone(), pageSize)
 }
 

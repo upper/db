@@ -48,8 +48,8 @@ type result struct {
 	limit  int
 	offset int
 
-	pageSize   int
-	pageNumber int
+	pageSize   uint
+	pageNumber uint
 
 	cursorColumn        string
 	nextPageCursorValue interface{}
@@ -138,14 +138,14 @@ func (r *Result) Limit(n int) db.Result {
 	})
 }
 
-func (r *Result) Paginate(pageSize int) db.Result {
+func (r *Result) Paginate(pageSize uint) db.Result {
 	return r.frame(func(res *result) error {
 		res.pageSize = pageSize
 		return nil
 	})
 }
 
-func (r *Result) Page(pageNumber int) db.Result {
+func (r *Result) Page(pageNumber uint) db.Result {
 	return r.frame(func(res *result) error {
 		res.pageNumber = pageNumber
 		res.nextPageCursorValue = nil
@@ -298,13 +298,32 @@ func (r *Result) Update(values interface{}) error {
 	return r.setErr(err)
 }
 
-func (r *Result) TotalPages() (uint64, error) {
+func (r *Result) TotalPages() (uint, error) {
 	query, err := r.buildPaginator()
 	if err != nil {
 		return 0, r.setErr(err)
 	}
 
-	return query.TotalPages()
+	total, err := query.TotalPages()
+	if err != nil {
+		return 0, r.setErr(err)
+	}
+
+	return total, nil
+}
+
+func (r *Result) TotalEntries() (uint64, error) {
+	query, err := r.buildPaginator()
+	if err != nil {
+		return 0, r.setErr(err)
+	}
+
+	total, err := query.TotalEntries()
+	if err != nil {
+		return 0, r.setErr(err)
+	}
+
+	return total, nil
 }
 
 // Count counts the elements on the set.

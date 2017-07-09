@@ -690,10 +690,24 @@ type Result interface {
 	// using All().
 	All(sliceOfStructs interface{}) error
 
-	Paginate(int) Result
+	// Paginate splits the results of the query into pages containing pageSize
+	// items.  When using pagination previous settings for Limit and Offset are
+	// ignored.
+	//
+	// Use Page() to define the specific page to get results from.
+	//
+	// Example:
+	//
+	// r = q.Paginate(12)
+	Paginate(pageSize uint) Result
 
-	// Page sets the page number.
-	Page(int) Result
+	// Page makes the result set return results only from the page identified by
+	// pageNumber. Page numbering starts from 0.
+	//
+	// Example:
+	//
+	// r = q.Paginate(12).Page(4)
+	Page(pageNumber uint) Result
 
 	// Cursor defines the column that is going to be taken as basis for
 	// cursor-based pagination.
@@ -706,26 +720,30 @@ type Result interface {
 	// You can set "" as cursorColumn to disable cursors.
 	Cursor(cursorColumn string) Result
 
-	// NextPage returns the next page according to the cursor. It expects a
-	// cursorValue, which is the value the cursor column has on the last item of
-	// the current result set.
+	// NextPage returns the next results page according to the cursor. It expects
+	// a cursorValue, which is the value the cursor column had on the last item
+	// of the current result set.
 	//
 	// Example:
 	//
 	// current = current.NextPage(items[len(items)-1].ID)
 	NextPage(cursorValue interface{}) Result
 
-	// PrevPage returns the previous page according to the cursor. It expects a
-	// cursorValue, which is the value the cursor column has on the fist item of
-	// the current result set.
+	// PrevPage returns the previous results page according to the cursor. It
+	// expects a cursorValue, which is the value the cursor column had on the
+	// fist item of the current result set.
 	//
 	// Example:
 	//
 	// current = current.PrevPage(items[0].ID)
 	PrevPage(cursorValue interface{}) Result
 
-	// TotalPages returns the total number of pages in the query.
-	TotalPages() (uint64, error)
+	// TotalPages returns the total number of pages the result could produce.  If
+	// no pagination has been set this value equals 1.
+	TotalPages() (uint, error)
+
+	// TotalEntries returns the total number of entries in the query.
+	TotalEntries() (uint64, error)
 
 	// Close closes the result set and frees all locked resources.
 	Close() error

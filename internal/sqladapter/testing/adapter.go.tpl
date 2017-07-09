@@ -1535,12 +1535,12 @@ func TestPaginator(t *testing.T) {
 	tp, err := paginator.TotalPages()
 	assert.NoError(t, err)
 	assert.NotZero(t, tp)
-	assert.Equal(t, uint64(77), tp)
+	assert.Equal(t, uint(77), tp)
 
-	ti, err := paginator.TotalItems()
+	ti, err := paginator.TotalEntries()
 	assert.NoError(t, err)
 	assert.NotZero(t, ti)
-	assert.Equal(t, 999, ti)
+	assert.Equal(t, uint64(999), ti)
 
 	var seventySixthPage []artistType
 	err = paginator.Page(76).All(&seventySixthPage)
@@ -1557,8 +1557,8 @@ func TestPaginator(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(hundredthPage))
 
-	for i := uint64(0); i < 1; i++ {
-		current := paginator.Page(int(i))
+	for i := uint(0); i < 1; i++ {
+		current := paginator.Page(i)
 
 		var items []artistType
 		err := current.All(&items)
@@ -1627,7 +1627,7 @@ func TestPaginator(t *testing.T) {
 		resultPaginator := result.Paginate(15)
 
 		count, err := resultPaginator.TotalPages()
-		assert.Equal(t, uint64(67), count)
+		assert.Equal(t, uint(67), count)
 		assert.NoError(t, err)
 
 		var items []artistType
