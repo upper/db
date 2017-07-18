@@ -8,6 +8,7 @@ The `upper.io/db.v3` package for [Go][2] is a productive data access layer for
 Go that provides a common interface to work with different data sources such as
 [PostgreSQL](https://upper.io/db.v3/postgresql),
 [MySQL](https://upper.io/db.v3/mysql), [SQLite](https://upper.io/db.v3/sqlite),
+[MSSQL](https://upper.io/db.v3/mssql),
 [QL](https://upper.io/db.v3/ql) and [MongoDB](https://upper.io/db.v3/mongodb).
 
 ```
