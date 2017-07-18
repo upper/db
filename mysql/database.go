@@ -26,6 +26,7 @@ package mysql
 
 import (
 	"context"
+	"log"
 	"strings"
 	"sync"
 
@@ -247,33 +248,38 @@ func (d *database) TableExists(name string) error {
 	return db.ErrCollectionDoesNotExist
 }
 
-// PrimaryKeys returns the names of all the primary keys on the table.
-func (d *database) PrimaryKeys(tableName string) ([]string, error) {
-	q := d.Select("k.column_name").
-		From("information_schema.table_constraints AS t").
-		Join("information_schema.key_column_usage AS k").
-		Using("constraint_name", "table_schema", "table_name").
-		Where(`
-			t.constraint_type = 'primary key'
-			AND t.table_schema = ?
-			AND t.table_name = ?
-		`, d.BaseDatabase.Name(), tableName).
-		OrderBy("k.ordinal_position")
-
-	iter := q.Iterator()
+// Columns returns the names of all the primary keys and columns on the table.
+func (d *database) Columns(tableName string) (primaryKeys []string, columns []string, err error) {
+	log.Printf("columns")
+	iter := d.Iterator(`
+		SELECT column_name, constraint_name
+		FROM information_schema.columns AS c
+		LEFT JOIN information_schema.key_column_usage AS k
+			USING(table_schema, table_name, column_name)
+		WHERE
+			c.table_schema = ? and c.table_name = ?
+	`, d.Name(), tableName)
 	defer iter.Close()
 
-	pk := []string{}
-
 	for iter.Next() {
-		var k string
-		if err := iter.Scan(&k); err != nil {
-			return nil, err
+		var column string
+		var isPrimary bool
+		if err := iter.Scan(&column, &isPrimary); err != nil {
+			log.Printf("err: %v", err)
+			return nil, nil, err
 		}
-		pk = append(pk, k)
+		if isPrimary {
+			primaryKeys = append(primaryKeys, column)
+		}
+		columns = append(columns, column)
 	}
+	if err := iter.Err(); err != nil {
+		log.Printf("err: %v", err)
+		return nil, nil, err
+	}
+	log.Printf("coumns: %#v, primaryKeys: %#v", primaryKeys, columns)
 
-	return pk, nil
+	return primaryKeys, columns, nil
 }
 
 // WithContext creates a copy of the session on the given context.

@@ -3,6 +3,7 @@ package sqladapter
 import (
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 
 	"upper.io/db.v3"
@@ -54,6 +55,9 @@ type BaseCollection interface {
 
 	// PrimaryKeys returns the table's primary keys.
 	PrimaryKeys() []string
+
+	// Columns returns the table's columns.
+	Columns() []string
 }
 
 type condsFilter interface {
@@ -65,7 +69,9 @@ type collection struct {
 	BaseCollection
 	PartialCollection
 
-	pk  []string
+	primaryKeys []string
+	columns     []string
+
 	err error
 }
 
@@ -76,22 +82,28 @@ var (
 // NewBaseCollection returns a collection with basic methods.
 func NewBaseCollection(p PartialCollection) BaseCollection {
 	c := &collection{PartialCollection: p}
-	c.pk, c.err = c.Database().PrimaryKeys(c.Name())
+	c.primaryKeys, c.columns, c.err = c.Database().Columns(c.Name())
+	log.Printf("cerr: %v", c.err)
 	return c
 }
 
 // PrimaryKeys returns the collection's primary keys, if any.
 func (c *collection) PrimaryKeys() []string {
-	return c.pk
+	return c.primaryKeys
+}
+
+// PrimaryKeys returns the collection's columns, if any.
+func (c *collection) Columns() []string {
+	return c.columns
 }
 
 func (c *collection) filterConds(conds ...interface{}) []interface{} {
 	if tr, ok := c.PartialCollection.(condsFilter); ok {
 		return tr.FilterConds(conds...)
 	}
-	if len(conds) == 1 && len(c.pk) == 1 {
+	if len(conds) == 1 && len(c.primaryKeys) == 1 {
 		if id := conds[0]; IsKeyValue(id) {
-			conds[0] = db.Cond{c.pk[0]: id}
+			conds[0] = db.Cond{c.primaryKeys[0]: id}
 		}
 	}
 	return conds

@@ -27,7 +27,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 	"regexp"
 	"sort"
@@ -269,10 +268,15 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 		for _, fi := range fieldMap {
 
 			// Field options
+			_, tagAssoc := fi.Options["assoc"]
 			_, tagOmitEmpty := fi.Options["omitempty"]
 			_, tagStringArray := fi.Options["stringarray"]
 			_, tagInt64Array := fi.Options["int64array"]
 			_, tagJSONB := fi.Options["jsonb"]
+
+			if tagAssoc {
+				// continue
+			}
 
 			fld := reflectx.FieldByIndexesReadOnly(itemV, fi.Index)
 			if fld.Kind() == reflect.Ptr && fld.IsNil() {
@@ -304,6 +308,8 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 				value = int64Array(v)
 			case tagJSONB:
 				value = jsonbType{fld.Interface()}
+			case !fld.IsValid():
+				continue
 			default:
 				value = fld.Interface()
 			}
@@ -570,7 +576,6 @@ func newSqlgenProxy(db *sql.DB, t *exql.Template) *exprProxy {
 }
 
 func (p *exprProxy) Context() context.Context {
-	log.Printf("Missing context")
 	return context.Background()
 }
 

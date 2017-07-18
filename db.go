@@ -657,6 +657,8 @@ type Result interface {
 	// or columns.
 	Group(...interface{}) Result
 
+	Assoc(res Result, column string) Result
+
 	// Delete deletes all items within the result set. `Offset()` and `Limit()` are
 	// not honoured by `Delete()`.
 	Delete() error

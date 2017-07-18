@@ -22,6 +22,9 @@
 package sqladapter
 
 import (
+	"errors"
+	"fmt"
+	"log"
 	"sync"
 	"sync/atomic"
 
@@ -29,6 +32,10 @@ import (
 	"upper.io/db.v3/internal/immutable"
 	"upper.io/db.v3/lib/sqlbuilder"
 )
+
+type hasColumns interface {
+	Columns(table string) ([]string, []string, error)
+}
 
 type Result struct {
 	builder sqlbuilder.SQLBuilder
@@ -42,6 +49,11 @@ type Result struct {
 	fn   func(*result) error
 }
 
+type assoc struct {
+	res   db.Result
+	alias string
+}
+
 // result represents a delimited set of items bound by a condition.
 type result struct {
 	table   string
@@ -52,6 +64,7 @@ type result struct {
 	orderBy []interface{}
 	groupBy []interface{}
 	conds   [][]interface{}
+	assocs  []assoc
 }
 
 func filter(conds []interface{}) []interface{} {
@@ -251,6 +264,13 @@ func (r *Result) Update(values interface{}) error {
 	return r.setErr(err)
 }
 
+func (r *Result) Assoc(ext db.Result, alias string) db.Result {
+	return r.frame(func(res *result) error {
+		res.assocs = append(res.assocs, assoc{res: ext, alias: alias})
+		return nil
+	})
+}
+
 // Count counts the elements on the set.
 func (r *Result) Count() (uint64, error) {
 	query, err := r.buildCount()
@@ -272,21 +292,73 @@ func (r *Result) Count() (uint64, error) {
 }
 
 func (r *Result) buildSelect() (sqlbuilder.Selector, error) {
+	log.Printf("buildSelect:")
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
+	log.Printf("res: %#v", r)
 
 	res, err := r.fastForward()
 	if err != nil {
 		return nil, err
 	}
 
-	sel := r.SQLBuilder().Select(res.fields...).
-		From(res.table).
+	log.Printf("res: %#v", res)
+	log.Printf("res: %#v", r.SQLBuilder())
+
+	sel := r.SQLBuilder().SelectFrom(res.table).
 		Limit(res.limit).
 		Offset(res.offset).
 		GroupBy(res.groupBy...).
 		OrderBy(res.orderBy...)
+
+	if len(res.fields) > 0 {
+		sel = sel.Columns(res.fields...)
+	}
+
+	if len(res.assocs) > 0 {
+		sess, ok := r.SQLBuilder().(hasColumns)
+		if !ok {
+			return nil, errors.New("Could not create join")
+		}
+
+		columns := []interface{}{}
+
+		_, cs, err := sess.Columns(res.table)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, c := range cs {
+			columns = append(columns, fmt.Sprintf("%s.%s AS %s", res.table, c, c))
+		}
+		sel = sel.Columns(columns...)
+
+		for _, assoc := range res.assocs {
+
+			ff, err := assoc.res.(*Result).fastForward()
+			if err != nil {
+				return nil, r.setErr(err)
+			}
+
+			ffConds := []interface{}{}
+			for i := range ff.conds {
+				ffConds = append(ffConds, filter(ff.conds[i])...)
+			}
+			sel = sel.Join(ff.table).On(ffConds...)
+
+			_, cs, err := sess.Columns(ff.table)
+			if err != nil {
+				return nil, r.setErr(err)
+			}
+
+			columns := []interface{}{}
+			for _, c := range cs {
+				columns = append(columns, fmt.Sprintf("%s.%s AS %s.%s", ff.table, c, assoc.alias, c))
+			}
+			sel = sel.Columns(columns...)
+		}
+	}
 
 	for i := range res.conds {
 		sel = sel.And(filter(res.conds[i])...)
