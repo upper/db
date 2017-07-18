@@ -19,27 +19,32 @@ type inserterQuery struct {
 	amendFn        func(string) string
 }
 
-func (iq *inserterQuery) processValues() (values []*exql.Values, arguments []interface{}) {
+func (iq *inserterQuery) processValues() ([]*exql.Values, []interface{}, error) {
+	var values []*exql.Values
+	var arguments []interface{}
+
 	var mapOptions *MapOptions
 	if len(iq.enqueuedValues) > 1 {
 		mapOptions = &MapOptions{IncludeZeroed: true, IncludeNil: true}
 	}
 
 	for _, enqueuedValue := range iq.enqueuedValues {
+
 		if len(enqueuedValue) == 1 {
 			ff, vv, err := Map(enqueuedValue[0], mapOptions)
-			if err == nil {
-				columns, vals, args, _ := toColumnsValuesAndArguments(ff, vv)
-
-				values, arguments = append(values, vals), append(arguments, args...)
-
-				if len(iq.columns) == 0 {
-					for _, c := range columns.Columns {
-						iq.columns = append(iq.columns, c)
-					}
-				}
-				continue
+			if err != nil {
+				return nil, nil, err
 			}
+			columns, vals, args, _ := toColumnsValuesAndArguments(ff, vv)
+
+			values, arguments = append(values, vals), append(arguments, args...)
+
+			if len(iq.columns) == 0 {
+				for _, c := range columns.Columns {
+					iq.columns = append(iq.columns, c)
+				}
+			}
+			continue
 		}
 
 		if len(iq.columns) == 0 || len(enqueuedValue) == len(iq.columns) {
@@ -54,7 +59,7 @@ func (iq *inserterQuery) processValues() (values []*exql.Values, arguments []int
 		}
 	}
 
-	return
+	return values, arguments, nil
 }
 
 func (iq *inserterQuery) statement() *exql.Statement {
@@ -230,7 +235,10 @@ func (ins *inserter) build() (*inserterQuery, error) {
 		return nil, err
 	}
 	ret := iq.(*inserterQuery)
-	ret.values, ret.arguments = ret.processValues()
+	ret.values, ret.arguments, err = ret.processValues()
+	if err != nil {
+		return nil, err
+	}
 	return ret, nil
 }
 
