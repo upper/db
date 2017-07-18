@@ -696,10 +696,10 @@ func TestTextMode_Issue391(t *testing.T) {
 }
 
 func TestBinaryMode_Issue391(t *testing.T) {
-	settingsWithBinary := settings
-	settingsWithBinary.Options["binary_parameters"] = "yes"
+	settingsWithBinaryMode := settings
+	settingsWithBinaryMode.Options["binary_parameters"] = "yes"
 
-	sess, err := Open(settingsWithBinary)
+	sess, err := Open(settingsWithBinaryMode)
 	if err != nil {
 		t.Fatal(err)
 	}
