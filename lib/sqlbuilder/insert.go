@@ -31,20 +31,29 @@ func (iq *inserterQuery) processValues() ([]*exql.Values, []interface{}, error) 
 	for _, enqueuedValue := range iq.enqueuedValues {
 
 		if len(enqueuedValue) == 1 {
+			// If and only if we passed one argument to Values.
 			ff, vv, err := Map(enqueuedValue[0], mapOptions)
-			if err != nil {
+
+			if err == nil {
+				// If we didn't have any problem with mapping we can convert it into
+				// columns and values.
+				columns, vals, args, _ := toColumnsValuesAndArguments(ff, vv)
+
+				values, arguments = append(values, vals), append(arguments, args...)
+
+				if len(iq.columns) == 0 {
+					for _, c := range columns.Columns {
+						iq.columns = append(iq.columns, c)
+					}
+				}
+				continue
+			}
+
+			// The only error we can expect without exiting is this argument not
+			// being a map or struct, in which case we can continue.
+			if err != ErrExpectingPointerToEitherMapOrStruct {
 				return nil, nil, err
 			}
-			columns, vals, args, _ := toColumnsValuesAndArguments(ff, vv)
-
-			values, arguments = append(values, vals), append(arguments, args...)
-
-			if len(iq.columns) == 0 {
-				for _, c := range columns.Columns {
-					iq.columns = append(iq.columns, c)
-				}
-			}
-			continue
 		}
 
 		if len(iq.columns) == 0 || len(enqueuedValue) == len(iq.columns) {
