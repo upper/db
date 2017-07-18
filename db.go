@@ -539,7 +539,7 @@ type Database interface {
 	// clone did not succeed.
 	// Clone() (Database, error)
 
-	// Ping returns an error if the database manager could be reached.
+	// Ping returns an error if the database manager could not be reached.
 	Ping() error
 
 	// Close closes the currently active connection to the database and clears
