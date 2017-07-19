@@ -368,6 +368,11 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 			expected.ID = id
 
 			assert.Equal(t, expected, actual)
+
+			var actual2 PGType
+			err = sess.SelectFrom("pg_types").Where("id = ?", id).One(&actual2)
+			assert.NoError(t, err)
+			assert.Equal(t, expected, actual2)
 		}
 
 		inserter := sess.InsertInto("pg_types")
@@ -375,6 +380,9 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 			inserter = inserter.Values(pgTypeTests[i])
 		}
 		_, err := inserter.Exec()
+		assert.NoError(t, err)
+
+		err = sess.Collection("pg_types").Truncate()
 		assert.NoError(t, err)
 
 		batch := sess.InsertInto("pg_types").Batch(50)
@@ -387,6 +395,16 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 
 		err = batch.Wait()
 		assert.NoError(t, err)
+
+		var values []PGType
+		err = sess.SelectFrom("pg_types").All(&values)
+		assert.NoError(t, err)
+
+		for i := range values {
+			expected := pgTypeTests[i]
+			expected.ID = values[i].ID
+			assert.Equal(t, expected, values[i])
+		}
 	}
 }
 
