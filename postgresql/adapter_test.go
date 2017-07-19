@@ -156,6 +156,8 @@ func tearUp() error {
 			string_value varchar(255),
 
 			auto_jsonb jsonb,
+			auto_jsonb_map jsonb,
+			auto_jsonb_array jsonb,
 			custom_jsonb jsonb,
 			auto_jsonb_ptr jsonb,
 
@@ -226,6 +228,8 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 		AutoIntegerArray Int64Array  `db:"auto_integer_array"`
 		AutoStringArray  StringArray `db:"auto_string_array"`
 		AutoJSONB        JSONB       `db:"auto_jsonb"`
+		AutoJSONBMap     JSONBMap    `db:"auto_jsonb_map"`
+		AutoJSONBArray   JSONBArray  `db:"auto_jsonb_array"`
 		CustomJSONB      customJSONB `db:"custom_jsonb"`
 
 		AutoIntegerArrayPtr *Int64Array  `db:"auto_integer_array_ptr,omitempty"`
@@ -253,8 +257,23 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 			AutoIntegerArrayPtr: nil,
 		},
 		PGType{
+			AutoJSONBMap: JSONBMap{
+				"Hello": "world",
+				"Roses": "red",
+			},
+			AutoJSONBArray: JSONBArray{float64(1), float64(2), float64(3), float64(4)},
+		},
+		PGType{
 			AutoIntegerArray:    nil,
 			AutoIntegerArrayPtr: &Int64Array{4, 5, 6, 7},
+		},
+		PGType{
+			AutoJSONBMap:   JSONBMap{},
+			AutoJSONBArray: JSONBArray{},
+		},
+		PGType{
+			AutoJSONBMap:   JSONBMap(nil),
+			AutoJSONBArray: JSONBArray(nil),
 		},
 		PGType{
 			AutoStringArray:    StringArray{"aaa", "bbb", "ccc"},

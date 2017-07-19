@@ -170,6 +170,27 @@ func (g *GenericArray) Scan(src interface{}) error {
 	return nil
 }
 
+type JSONBMap map[string]interface{}
+
+func (m JSONBMap) Value() (driver.Value, error) {
+	return EncodeJSONB(m)
+}
+
+func (m *JSONBMap) Scan(src interface{}) error {
+	*m = map[string]interface{}(nil)
+	return DecodeJSONB(m, src)
+}
+
+type JSONBArray []interface{}
+
+func (a JSONBArray) Value() (driver.Value, error) {
+	return EncodeJSONB(a)
+}
+
+func (a *JSONBArray) Scan(src interface{}) error {
+	return DecodeJSONB(a, src)
+}
+
 // EncodeJSONB takes an interface and provides a driver.Value that can be
 // stored as a JSONB column.
 func EncodeJSONB(i interface{}) (driver.Value, error) {
@@ -194,4 +215,6 @@ var (
 	_ = scannerValuer(&Float64Array{})
 	_ = scannerValuer(&BoolArray{})
 	_ = scannerValuer(&GenericArray{})
+	_ = scannerValuer(&JSONBMap{})
+	_ = scannerValuer(&JSONBArray{})
 )
