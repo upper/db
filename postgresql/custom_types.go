@@ -55,7 +55,7 @@ func (j *JSONB) Scan(src interface{}) error {
 		return errors.New("Scan source was not []bytes")
 	}
 
-	v := JSONB{}
+	v := JSONB{j.V}
 	if err := json.Unmarshal(b, &v.V); err != nil {
 		return err
 	}
@@ -168,6 +168,19 @@ func (g *GenericArray) Scan(src interface{}) error {
 	}
 	*g = GenericArray(s)
 	return nil
+}
+
+// EncodeJSONB takes an interface and provides a driver.Value that can be
+// stored as a JSONB column.
+func EncodeJSONB(i interface{}) (driver.Value, error) {
+	v := JSONB{i}
+	return v.Value()
+}
+
+// DecodeJSONB decodes a JSON byte stream into the passed dst value.
+func DecodeJSONB(dst interface{}, src interface{}) error {
+	v := JSONB{dst}
+	return v.Scan(src)
 }
 
 type scannerValuer interface {

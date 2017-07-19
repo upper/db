@@ -24,6 +24,7 @@ package postgresql
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"math/rand"
 	"os"
@@ -155,6 +156,7 @@ func tearUp() error {
 			string_value varchar(255),
 
 			auto_jsonb jsonb,
+			custom_jsonb jsonb,
 			auto_jsonb_ptr jsonb,
 
 			integer_valuer_value smallint[],
@@ -190,7 +192,26 @@ func tearUp() error {
 	return nil
 }
 
+type customJSONB struct {
+	N string  `json:"name"`
+	V float64 `json:"value"`
+}
+
+func (c customJSONB) Value() (driver.Value, error) {
+	return EncodeJSONB(c)
+}
+
+func (c *customJSONB) Scan(src interface{}) error {
+	return DecodeJSONB(c, src)
+}
+
+var (
+	_ = driver.Valuer(&customJSONB{})
+	_ = sql.Scanner(&customJSONB{})
+)
+
 func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
+
 	type PGType struct {
 		ID int64 `db:"id,omitempty"`
 
@@ -205,6 +226,7 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 		AutoIntegerArray Int64Array  `db:"auto_integer_array"`
 		AutoStringArray  StringArray `db:"auto_string_array"`
 		AutoJSONB        JSONB       `db:"auto_jsonb"`
+		CustomJSONB      customJSONB `db:"custom_jsonb"`
 
 		AutoIntegerArrayPtr *Int64Array  `db:"auto_integer_array_ptr,omitempty"`
 		AutoStringArrayPtr  *StringArray `db:"auto_string_array_ptr,omitempty"`
@@ -276,23 +298,36 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 		PGType{
 			IntegerArray: []int64{0, 0, 0, 0},
 			StringValue:  &testValue,
-			StringArray:  []string{"", "", "", ``, `""`},
+			CustomJSONB: customJSONB{
+				N: "Hello",
+			},
+			StringArray: []string{"", "", "", ``, `""`},
 		},
 		PGType{
 			StringValue: &testValue,
 		},
 		PGType{
 			Field1: &field1,
+			CustomJSONB: customJSONB{
+				V: 4.4,
+			},
 		},
 		PGType{
 			StringArray: []string{"a", "boo", "bar"},
 		},
 		PGType{
 			StringArray: []string{"a", "boo", "bar", `""`},
+			CustomJSONB: customJSONB{},
 		},
 		PGType{
 			IntegerArray: []int64{0},
 			StringArray:  []string{""},
+		},
+		PGType{
+			CustomJSONB: customJSONB{
+				N: "Peter",
+				V: 5.56,
+			},
 		},
 	}
 
