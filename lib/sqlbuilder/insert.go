@@ -19,16 +19,24 @@ type inserterQuery struct {
 	amendFn        func(string) string
 }
 
-func (iq *inserterQuery) processValues() (values []*exql.Values, arguments []interface{}) {
+func (iq *inserterQuery) processValues() ([]*exql.Values, []interface{}, error) {
+	var values []*exql.Values
+	var arguments []interface{}
+
 	var mapOptions *MapOptions
 	if len(iq.enqueuedValues) > 1 {
 		mapOptions = &MapOptions{IncludeZeroed: true, IncludeNil: true}
 	}
 
 	for _, enqueuedValue := range iq.enqueuedValues {
+
 		if len(enqueuedValue) == 1 {
+			// If and only if we passed one argument to Values.
 			ff, vv, err := Map(enqueuedValue[0], mapOptions)
+
 			if err == nil {
+				// If we didn't have any problem with mapping we can convert it into
+				// columns and values.
 				columns, vals, args, _ := toColumnsValuesAndArguments(ff, vv)
 
 				values, arguments = append(values, vals), append(arguments, args...)
@@ -39,6 +47,12 @@ func (iq *inserterQuery) processValues() (values []*exql.Values, arguments []int
 					}
 				}
 				continue
+			}
+
+			// The only error we can expect without exiting is this argument not
+			// being a map or struct, in which case we can continue.
+			if err != ErrExpectingPointerToEitherMapOrStruct {
+				return nil, nil, err
 			}
 		}
 
@@ -54,7 +68,7 @@ func (iq *inserterQuery) processValues() (values []*exql.Values, arguments []int
 		}
 	}
 
-	return
+	return values, arguments, nil
 }
 
 func (iq *inserterQuery) statement() *exql.Statement {
@@ -230,7 +244,10 @@ func (ins *inserter) build() (*inserterQuery, error) {
 		return nil, err
 	}
 	ret := iq.(*inserterQuery)
-	ret.values, ret.arguments = ret.processValues()
+	ret.values, ret.arguments, err = ret.processValues()
+	if err != nil {
+		return nil, err
+	}
 	return ret, nil
 }
 
