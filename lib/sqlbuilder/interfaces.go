@@ -553,28 +553,28 @@ type Paginator interface {
 	//
 	// Example:
 	//
-	// a = q.Paginate(10).Cursor("id")
-	// b = q.Paginate(12).Cursor("-id")
+	//   a = q.Paginate(10).Cursor("id")
+	//	 b = q.Paginate(12).Cursor("-id")
 	//
 	// You can set "" as cursorColumn to disable cursors.
 	Cursor(cursorColumn string) Paginator
 
 	// NextPage returns the next page according to the cursor. It expects a
 	// cursorValue, which is the value the cursor column has on the last item of
-	// the current result set.
+	// the current result set (lower bound).
 	//
 	// Example:
 	//
-	// current = current.NextPage(items[len(items)-1].ID)
+	//   p = q.NextPage(items[len(items)-1].ID)
 	NextPage(cursorValue interface{}) Paginator
 
 	// PrevPage returns the previous page according to the cursor. It expects a
 	// cursorValue, which is the value the cursor column has on the fist item of
-	// the current result set.
+	// the current result set (upper bound).
 	//
 	// Example:
 	//
-	// current = current.PrevPage(items[0].ID)
+	//   p = q.PrevPage(items[0].ID)
 	PrevPage(cursorValue interface{}) Paginator
 
 	// TotalPages returns the total number of pages in the query.

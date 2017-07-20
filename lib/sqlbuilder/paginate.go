@@ -272,8 +272,6 @@ func (pag *paginator) buildWithCursor() (*paginatorQuery, error) {
 		if pqq.pageNumber > 1 {
 			pqq.sel = pqq.sel.Offset(int(pqq.pageSize * (pqq.pageNumber - 1)))
 		}
-	} else {
-		pqq.sel = pqq.sel.Limit(-1).Offset(0)
 	}
 
 	if pqq.cursorCond != nil {
