@@ -328,7 +328,8 @@ type Selector interface {
 
 	// Limit represents the LIMIT parameter.
 	//
-	// LIMIT defines the maximum number of rows to return from the table.
+	// LIMIT defines the maximum number of rows to return from the table.  A
+	// negative limit cancels any previous limit settings.
 	//
 	//  s.Limit(42)
 	Limit(int) Selector
@@ -336,7 +337,9 @@ type Selector interface {
 	// Offset represents the OFFSET parameter.
 	//
 	// OFFSET defines how many results are going to be skipped before starting to
-	// return results.
+	// return results. A negative offset cancels any previous offset settings.
+	//
+	// s.Offset(56)
 	Offset(int) Selector
 
 	// Amend lets you alter the query's text just before sending it to the
@@ -344,7 +347,8 @@ type Selector interface {
 	Amend(func(queryIn string) (queryOut string)) Selector
 
 	// Paginate returns a paginator that can display a paginated lists of items.
-	// Paginators ignore previous Offset and Limit settings.
+	// Paginators ignore previous Offset and Limit settings. Page numbering
+	// starts at 1.
 	Paginate(uint) Paginator
 
 	// Iterator provides methods to iterate over the results returned by the

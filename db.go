@@ -619,11 +619,13 @@ type Result interface {
 	String() string
 
 	// Limit defines the maximum number of results in this set. It only has
-	// effect on `One()`, `All()` and `Next()`.
+	// effect on `One()`, `All()` and `Next()`. A negative limit cancels any
+	// previous limit settings.
 	Limit(int) Result
 
-	// Offset ignores the first *n* results. It only has effect on `One()`, `All()`
-	// and `Next()`.
+	// Offset ignores the first *n* results. It only has effect on `One()`,
+	// `All()` and `Next()`. A negative offset cancels any previous offset
+	// settings.
 	Offset(int) Result
 
 	// OrderBy receives field names that define the order in which elements will be
@@ -692,7 +694,7 @@ type Result interface {
 
 	// Paginate splits the results of the query into pages containing pageSize
 	// items.  When using pagination previous settings for Limit and Offset are
-	// ignored.
+	// ignored. Page numbering starts at 1.
 	//
 	// Use Page() to define the specific page to get results from.
 	//

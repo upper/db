@@ -31,13 +31,10 @@ type paginatorQuery struct {
 func newPaginator(sel Selector, pageSize uint) Paginator {
 	pag := &paginator{}
 	return pag.frame(func(pq *paginatorQuery) error {
-		if pageSize < 1 {
-			pageSize = 0
-		}
 		pq.pageSize = pageSize
 		pq.sel = sel
 		return nil
-	}).Page(0)
+	}).Page(1)
 }
 
 func (pq *paginatorQuery) count() (uint64, error) {
@@ -66,7 +63,7 @@ func (pag *paginator) frame(fn func(*paginatorQuery) error) *paginator {
 func (pag *paginator) Page(pageNumber uint) Paginator {
 	return pag.frame(func(pq *paginatorQuery) error {
 		if pageNumber < 1 {
-			pageNumber = 0
+			pageNumber = 1
 		}
 		pq.pageNumber = pageNumber
 		return nil
@@ -118,6 +115,9 @@ func (pag *paginator) TotalPages() (uint, error) {
 	count, err := pq.count()
 	if err != nil {
 		return 0, err
+	}
+	if count < 1 {
+		return 0, nil
 	}
 
 	if pq.pageSize <= 0 {
@@ -269,9 +269,11 @@ func (pag *paginator) buildWithCursor() (*paginatorQuery, error) {
 
 	if pqq.pageSize > 0 {
 		pqq.sel = pqq.sel.Limit(int(pqq.pageSize))
-		if pqq.pageNumber > 0 {
-			pqq.sel = pqq.sel.Offset(int(pqq.pageSize * pqq.pageNumber))
+		if pqq.pageNumber > 1 {
+			pqq.sel = pqq.sel.Offset(int(pqq.pageSize * (pqq.pageNumber - 1)))
 		}
+	} else {
+		pqq.sel = pqq.sel.Limit(-1).Offset(0)
 	}
 
 	if pqq.cursorCond != nil {
