@@ -26,6 +26,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+
 	"github.com/lib/pq"
 )
 
