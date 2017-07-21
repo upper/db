@@ -44,6 +44,16 @@ type JSONB struct {
 	V interface{}
 }
 
+// MarshalJSON implements json.Marshaler
+func (j JSONB) MarshalJSON() ([]byte, error) {
+	return json.Marshal(j.V)
+}
+
+// UnmarshalJSON implements json.Unmarshaler
+func (j *JSONB) UnmarshalJSON(b []byte) error {
+	return json.Unmarshal(b, j.V)
+}
+
 // Scan implements the sql.Scanner interface.
 func (j *JSONB) Scan(src interface{}) error {
 	if src == nil {
