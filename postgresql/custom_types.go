@@ -51,7 +51,7 @@ func (j JSONB) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements json.Unmarshaler
 func (j *JSONB) UnmarshalJSON(b []byte) error {
-	return json.Unmarshal(b, j.V)
+	return json.Unmarshal(b, &j.V)
 }
 
 // Scan implements the sql.Scanner interface.
@@ -66,11 +66,9 @@ func (j *JSONB) Scan(src interface{}) error {
 		return errors.New("Scan source was not []bytes")
 	}
 
-	v := JSONB{j.V}
-	if err := json.Unmarshal(b, &v.V); err != nil {
+	if err := json.Unmarshal(b, &j.V); err != nil {
 		return err
 	}
-	*j = v
 	return nil
 }
 
@@ -221,11 +219,11 @@ type scannerValuer interface {
 }
 
 var (
-	_ = scannerValuer(&StringArray{})
-	_ = scannerValuer(&Int64Array{})
-	_ = scannerValuer(&Float64Array{})
-	_ = scannerValuer(&BoolArray{})
-	_ = scannerValuer(&GenericArray{})
-	_ = scannerValuer(&JSONBMap{})
-	_ = scannerValuer(&JSONBArray{})
+	_ scannerValuer = &StringArray{}
+	_ scannerValuer = &Int64Array{}
+	_ scannerValuer = &Float64Array{}
+	_ scannerValuer = &BoolArray{}
+	_ scannerValuer = &GenericArray{}
+	_ scannerValuer = &JSONBMap{}
+	_ scannerValuer = &JSONBArray{}
 )
