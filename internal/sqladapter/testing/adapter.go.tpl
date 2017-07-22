@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"upper.io/db.v3"
 	"upper.io/db.v3/lib/sqlbuilder"
+	"upper.io/db.v3/upper"
 )
 
 type customLogger struct {
@@ -1741,6 +1742,33 @@ func TestCustomType(t *testing.T) {
 	id, err := artist.Insert(artistWithCustomType{
 		Custom: customType{Val: []byte("some name")},
 	})
+	assert.NoError(t, err)
+	assert.NotNil(t, id)
+
+	var bar artistWithCustomType
+	err = artist.Find(id).One(&bar)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "foo: some name", string(bar.Custom.Val))
+}
+
+func TestDirtyEntity(t *testing.T) {
+	type entityTest struct {
+		Artist artistType `db:",inline"`
+
+		db.Model
+	}
+	var item entityTest
+	item.Name = "Hello"
+
+	sess := mustOpen()
+
+	artist := sess.Collection("artist")
+
+	err := artist.Truncate()
+	assert.NoError(t, err)
+
+	id, err := artist.InsertReturning(newArtist)
 	assert.NoError(t, err)
 	assert.NotNil(t, id)
 
