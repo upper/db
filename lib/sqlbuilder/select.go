@@ -242,6 +242,13 @@ func (sel *selector) GroupBy(columns ...interface{}) Selector {
 
 func (sel *selector) OrderBy(columns ...interface{}) Selector {
 	return sel.frame(func(sq *selectorQuery) error {
+
+		if len(columns) == 1 && columns[0] == nil {
+			sq.orderBy = nil
+			sq.orderByArgs = nil
+			return nil
+		}
+
 		var sortColumns exql.SortColumns
 
 		for i := range columns {

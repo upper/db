@@ -39,7 +39,11 @@ func newPaginator(sel Selector, pageSize uint) Paginator {
 
 func (pq *paginatorQuery) count() (uint64, error) {
 	var count uint64
-	row, err := pq.sel.(*selector).setColumns(db.Raw("count(1) AS _t")).Limit(0).Offset(0).QueryRow()
+	row, err := pq.sel.(*selector).setColumns(db.Raw("count(1) AS _t")).
+		Limit(0).
+		Offset(0).
+		OrderBy(nil).
+		QueryRow()
 
 	err = row.Scan(&count)
 	if err != nil {
