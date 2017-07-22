@@ -56,9 +56,17 @@ type assoc struct {
 
 // result represents a delimited set of items bound by a condition.
 type result struct {
-	table   string
-	limit   int
-	offset  int
+	table  string
+	limit  int
+	offset int
+
+	pageSize   uint
+	pageNumber uint
+
+	cursorColumn        string
+	nextPageCursorValue interface{}
+	prevPageCursorValue interface{}
+
 	fields  []interface{}
 	columns []interface{}
 	orderBy []interface{}
@@ -143,6 +151,45 @@ func (r *Result) Limit(n int) db.Result {
 	})
 }
 
+func (r *Result) Paginate(pageSize uint) db.Result {
+	return r.frame(func(res *result) error {
+		res.pageSize = pageSize
+		return nil
+	})
+}
+
+func (r *Result) Page(pageNumber uint) db.Result {
+	return r.frame(func(res *result) error {
+		res.pageNumber = pageNumber
+		res.nextPageCursorValue = nil
+		res.prevPageCursorValue = nil
+		return nil
+	})
+}
+
+func (r *Result) Cursor(cursorColumn string) db.Result {
+	return r.frame(func(res *result) error {
+		res.cursorColumn = cursorColumn
+		return nil
+	})
+}
+
+func (r *Result) NextPage(cursorValue interface{}) db.Result {
+	return r.frame(func(res *result) error {
+		res.nextPageCursorValue = cursorValue
+		res.prevPageCursorValue = nil
+		return nil
+	})
+}
+
+func (r *Result) PrevPage(cursorValue interface{}) db.Result {
+	return r.frame(func(res *result) error {
+		res.nextPageCursorValue = nil
+		res.prevPageCursorValue = cursorValue
+		return nil
+	})
+}
+
 // Offset determines how many documents will be skipped before starting to grab
 // Results.
 func (r *Result) Offset(n int) db.Result {
@@ -181,7 +228,7 @@ func (r *Result) Select(fields ...interface{}) db.Result {
 
 // String satisfies fmt.Stringer
 func (r *Result) String() string {
-	query, err := r.buildSelect()
+	query, err := r.buildPaginator()
 	if err != nil {
 		panic(err.Error())
 	}
@@ -190,7 +237,7 @@ func (r *Result) String() string {
 
 // All dumps all Results into a pointer to an slice of structs or maps.
 func (r *Result) All(dst interface{}) error {
-	query, err := r.buildSelect()
+	query, err := r.buildPaginator()
 	if err != nil {
 		return r.setErr(err)
 	}
@@ -200,7 +247,7 @@ func (r *Result) All(dst interface{}) error {
 
 // One fetches only one Result from the set.
 func (r *Result) One(dst interface{}) error {
-	query, err := r.buildSelect()
+	query, err := r.buildPaginator()
 	if err != nil {
 		return r.setErr(err)
 	}
@@ -214,7 +261,7 @@ func (r *Result) Next(dst interface{}) bool {
 	defer r.iterMu.Unlock()
 
 	if r.iter == nil {
-		query, err := r.buildSelect()
+		query, err := r.buildPaginator()
 		if err != nil {
 			r.setErr(err)
 			return false
@@ -271,6 +318,34 @@ func (r *Result) Assoc(ext db.Result, alias string) db.Result {
 	})
 }
 
+func (r *Result) TotalPages() (uint, error) {
+	query, err := r.buildPaginator()
+	if err != nil {
+		return 0, r.setErr(err)
+	}
+
+	total, err := query.TotalPages()
+	if err != nil {
+		return 0, r.setErr(err)
+	}
+
+	return total, nil
+}
+
+func (r *Result) TotalEntries() (uint64, error) {
+	query, err := r.buildPaginator()
+	if err != nil {
+		return 0, r.setErr(err)
+	}
+
+	total, err := query.TotalEntries()
+	if err != nil {
+		return 0, r.setErr(err)
+	}
+
+	return total, nil
+}
+
 // Count counts the elements on the set.
 func (r *Result) Count() (uint64, error) {
 	query, err := r.buildCount()
@@ -281,7 +356,7 @@ func (r *Result) Count() (uint64, error) {
 	counter := struct {
 		Count uint64 `db:"_t"`
 	}{}
-	if err := query.Iterator().One(&counter); err != nil {
+	if err := query.One(&counter); err != nil {
 		if err == db.ErrNoMoreRows {
 			return 0, nil
 		}
@@ -291,8 +366,7 @@ func (r *Result) Count() (uint64, error) {
 	return counter.Count, nil
 }
 
-func (r *Result) buildSelect() (sqlbuilder.Selector, error) {
-	log.Printf("buildSelect:")
+func (r *Result) buildPaginator() (sqlbuilder.Paginator, error) {
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -364,7 +438,19 @@ func (r *Result) buildSelect() (sqlbuilder.Selector, error) {
 		sel = sel.And(filter(res.conds[i])...)
 	}
 
-	return sel, nil
+	pag := sel.Paginate(res.pageSize).
+		Page(res.pageNumber).
+		Cursor(res.cursorColumn)
+
+	if res.nextPageCursorValue != nil {
+		pag = pag.NextPage(res.nextPageCursorValue)
+	}
+
+	if res.prevPageCursorValue != nil {
+		pag = pag.PrevPage(res.prevPageCursorValue)
+	}
+
+	return pag, nil
 }
 
 func (r *Result) buildDelete() (sqlbuilder.Deleter, error) {
