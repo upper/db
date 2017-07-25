@@ -51,7 +51,12 @@ func (j JSONB) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements json.Unmarshaler
 func (j *JSONB) UnmarshalJSON(b []byte) error {
-	return json.Unmarshal(b, &j.V)
+	var v interface{}
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	j.V = v
+	return nil
 }
 
 // Scan implements the sql.Scanner interface.
