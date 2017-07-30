@@ -1969,6 +1969,7 @@ func TestDirtyEntity(t *testing.T) {
 	}
 
 	sess := mustOpen()
+	defer sess.Close()
 
 	artist := sess.Collection("artist")
 
@@ -1977,11 +1978,55 @@ func TestDirtyEntity(t *testing.T) {
 
 	var newArtist entityTest
 	newArtist.Name = "Celia"
-	err = artist.InsertReturning(&newArtist)
-	assert.NoError(t, err)
-	assert.NotZero(t, newArtist.ID)
 
-	newArtist.Name = "Another name"
-	err = artist.UpdateReturning(&newArtist)
+	for i := 0; i < 5; i++ {
+		err = artist.InsertReturning(&newArtist)
+		if i == 0 {
+			assert.NoError(t, err)
+			assert.NotZero(t, newArtist.ID)
+		} else {
+			assert.Error(t, err)
+		}
+	}
+
+	var newArtist2 entityTest
+	newArtist2.Name = "María"
+	err = artist.InsertReturning(&newArtist2)
 	assert.NoError(t, err)
+	assert.NotZero(t, newArtist2.ID)
+
+	for i := 0; i < 5; i++ {
+		newArtist2.Name = "Another name"
+		err = artist.UpdateReturning(&newArtist2)
+		assert.NoError(t, err)
+	}
+
+	var newArtist3 entityTest
+	artist.Find().One(&newArtist3)
+
+	err = artist.UpdateReturning(&newArtist3)
+	assert.NoError(t, err)
+
+	newArtist3.Name = "Waka"
+	err = artist.UpdateReturning(&newArtist3)
+	assert.NoError(t, err)
+
+	for i := 0; i < 5; i++ {
+		newArtist3.Name = fmt.Sprintf("Artist %d", i)
+		err = artist.UpdateReturning(&newArtist3)
+		assert.NoError(t, err)
+	}
+
+	newArtist4 := entityTest{}
+	newArtist4.Name = "Alex"
+	for i := 0; i < 5; i++ {
+		id, err := artist.Insert(&newArtist4)
+		assert.NoError(t, err)
+
+		err = artist.Find(id).Update(&newArtist4)
+		assert.NoError(t, err)
+
+		err = artist.Find(id).Update(&newArtist4)
+		assert.NoError(t, err)
+	}
 }

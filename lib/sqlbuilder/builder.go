@@ -27,7 +27,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 	"regexp"
 	"sort"
@@ -242,6 +241,33 @@ func (b *sqlBuilder) Update(table string) Updater {
 
 // Map receives a pointer to map or struct and maps it to columns and values.
 func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error) {
+
+	if mapper, ok := item.(Mapper); ok {
+		changeset, err := mapper.changesetWithOptions(options)
+		if err != nil {
+			if err == ErrMapperNotInitialized {
+				return doMap(item, options)
+			}
+			return nil, nil, err
+		}
+
+		var fv fieldValue
+		fv.values = make([]interface{}, 0, len(changeset))
+		fv.fields = make([]string, 0, len(changeset))
+
+		for field := range changeset {
+			fv.fields = append(fv.fields, field)
+			fv.values = append(fv.values, changeset[field])
+		}
+
+		sort.Sort(&fv)
+		return fv.fields, fv.values, nil
+	}
+
+	return doMap(item, options)
+}
+
+func doMap(item interface{}, options *MapOptions) ([]string, []interface{}, error) {
 	var fv fieldValue
 	if options == nil {
 		options = &defaultMapOptions
@@ -527,6 +553,11 @@ func (iter *iterator) next(dst ...interface{}) error {
 			defer iter.Close()
 			return err
 		}
+		if mapper, ok := dst[0].(Mapper); ok {
+			if err := mapper.Store(dst[0]); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 
@@ -574,7 +605,6 @@ func newSqlgenProxy(db *sql.DB, t *exql.Template) *exprProxy {
 }
 
 func (p *exprProxy) Context() context.Context {
-	log.Printf("Missing context")
 	return context.Background()
 }
 

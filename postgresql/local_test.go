@@ -196,6 +196,16 @@ func TestNonTrivialSubqueries(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()
 
+	artist := sess.Collection("artist")
+
+	err := artist.Truncate()
+	assert.NoError(t, err)
+
+	_, err = artist.Insert(map[string]interface{}{
+		"name": "Artist",
+	})
+	assert.NoError(t, err)
+
 	{
 		q, err := sess.Query(`WITH test AS (?) ?`,
 			sess.Select("id AS foo").From("artist"),

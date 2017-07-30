@@ -1,13 +1,19 @@
 package sqlbuilder
 
 import (
+	"errors"
 	"sync"
+
 	"upper.io/db.v3"
 )
+
+var ErrMapperNotInitialized = errors.New("Mapper not initialized")
 
 type Mapper interface {
 	Store(interface{}) error
 	Changeset() (db.Changeset, error)
+
+	changesetWithOptions(options *MapOptions) (db.Changeset, error)
 }
 
 type Entity struct {
@@ -18,11 +24,15 @@ type Entity struct {
 
 var _ = Mapper(&Entity{})
 
-func (e *Entity) Changeset() (db.Changeset, error) {
+func (e *Entity) changesetWithOptions(options *MapOptions) (db.Changeset, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	cols, vals, err := Map(e.ref, nil)
+	if e.ref == nil {
+		return nil, ErrMapperNotInitialized
+	}
+
+	cols, vals, err := doMap(e.ref, options)
 	if err != nil {
 		return nil, err
 	}
@@ -40,8 +50,12 @@ func (e *Entity) Changeset() (db.Changeset, error) {
 	return changeset, nil
 }
 
+func (e *Entity) Changeset() (db.Changeset, error) {
+	return e.changesetWithOptions(nil)
+}
+
 func (e *Entity) Store(v interface{}) error {
-	cols, vals, err := Map(v, nil)
+	cols, vals, err := doMap(v, nil)
 	if err != nil {
 		return err
 	}
