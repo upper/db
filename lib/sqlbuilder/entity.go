@@ -9,6 +9,9 @@ import (
 
 var ErrMapperNotInitialized = errors.New("Mapper not initialized")
 
+// Mapper defines methods for structs that can keep track of their values at
+// some point. Store is used to record the state of a struct and Changeset is
+// used to return the differences between that state and the current state.
 type Mapper interface {
 	Store(interface{}) error
 	Changeset() (db.Changeset, error)
@@ -16,6 +19,15 @@ type Mapper interface {
 	changesetWithOptions(options *MapOptions) (db.Changeset, error)
 }
 
+// Entity can be embedded by structs in order for them to keep track of changes
+// automatically.
+//
+// Example:
+//
+//   type Foo struct {
+//     ...
+//     sqlbuilder.Entity
+//   }
 type Entity struct {
 	initialValues db.Changeset
 	ref           interface{}
@@ -50,10 +62,13 @@ func (e *Entity) changesetWithOptions(options *MapOptions) (db.Changeset, error)
 	return changeset, nil
 }
 
+// Changeset returns the differences between the current state and the last
+// recorded state.
 func (e *Entity) Changeset() (db.Changeset, error) {
 	return e.changesetWithOptions(nil)
 }
 
+// Store records the current state of the struct.
 func (e *Entity) Store(v interface{}) error {
 	cols, vals, err := doMap(v, nil)
 	if err != nil {
