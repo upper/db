@@ -276,6 +276,7 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 			deprecatedTags := map[string]string{
 				"stringarray": "postgresql.StringArray",
 				"int64array":  "postgresql.Int64Array",
+				"jsonb":       "postgresql.JSONB",
 			}
 			for k, v := range deprecatedTags {
 				if _, hasDeprecatedTag := fi.Options[k]; hasDeprecatedTag {
@@ -285,7 +286,6 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 
 			// Field options
 			_, tagOmitEmpty := fi.Options["omitempty"]
-			_, tagJSONB := fi.Options["jsonb"]
 
 			fld := reflectx.FieldByIndexesReadOnly(itemV, fi.Index)
 			if fld.Kind() == reflect.Ptr && fld.IsNil() {
@@ -301,13 +301,7 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 				continue
 			}
 
-			var value interface{}
-			switch {
-			case tagJSONB:
-				value = jsonbType{fld.Interface()}
-			default:
-				value = fld.Interface()
-			}
+			value := fld.Interface()
 
 			isZero := false
 			if t, ok := fld.Interface().(hasIsZero); ok {

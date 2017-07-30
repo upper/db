@@ -23,7 +23,7 @@ package sqlbuilder
 
 import (
 	"database/sql"
-	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"upper.io/db.v3"
@@ -154,7 +154,6 @@ func fetchResult(itemT reflect.Type, rows *sql.Rows, columns []string) (reflect.
 		values := make([]interface{}, len(columns))
 		typeMap := mapper.TypeMap(itemT)
 		fieldMap := typeMap.Names
-		wrappedValues := map[*reflectx.FieldInfo]interface{}{}
 
 		for i, k := range columns {
 			fi, ok := fieldMap[k]
@@ -163,98 +162,29 @@ func fetchResult(itemT reflect.Type, rows *sql.Rows, columns []string) (reflect.
 				continue
 			}
 
-			// TODO: refactor into a nice pattern
-			if _, ok := fi.Options["stringarray"]; ok {
-				values[i] = &[]byte{}
-				wrappedValues[fi] = values[i]
-			} else if _, ok := fi.Options["int64array"]; ok {
-				values[i] = &[]byte{}
-				wrappedValues[fi] = values[i]
-			} else if _, ok := fi.Options["jsonb"]; ok {
-				values[i] = &[]byte{}
-				wrappedValues[fi] = values[i]
-			} else {
-				f := reflectx.FieldByIndexes(item, fi.Index)
-				values[i] = f.Addr().Interface()
+			// Check for deprecated tags and give suggestions on how to fix them.
+			deprecatedTags := map[string]string{
+				"stringarray": "postgresql.StringArray",
+				"int64array":  "postgresql.Int64Array",
+				"jsonb":       "postgresql.JSONB",
 			}
+			for k, v := range deprecatedTags {
+				if _, hasDeprecatedTag := fi.Options[k]; hasDeprecatedTag {
+					return item, fmt.Errorf(errDeprecatedTag.Error(), k, v)
+				}
+			}
+
+			f := reflectx.FieldByIndexes(item, fi.Index)
+			values[i] = f.Addr().Interface()
+
 			if u, ok := values[i].(db.Unmarshaler); ok {
 				values[i] = scanner{u}
 			}
 		}
 
-		// Scanner - for reads
-		// Valuer  - for writes
-
-		// OptionTypes
-		// - before/after scan
-		// - before/after valuer..
-
 		if err = rows.Scan(values...); err != nil {
 			return item, err
 		}
-
-		// TODO: move this stuff out of here.. find a nice pattern
-		for fi, v := range wrappedValues {
-			var opt string
-			if _, ok := fi.Options["stringarray"]; ok {
-				opt = "stringarray"
-			} else if _, ok := fi.Options["int64array"]; ok {
-				opt = "int64array"
-			} else if _, ok := fi.Options["jsonb"]; ok {
-				opt = "jsonb"
-			}
-
-			b := v.(*[]byte)
-
-			f := reflectx.FieldByIndexesReadOnly(item, fi.Index)
-
-			switch opt {
-			case "stringarray":
-				v := stringArray{}
-				err := v.Scan(*b)
-				if err != nil {
-					return item, err
-				}
-				f.Set(reflect.ValueOf(v))
-			case "int64array":
-				v := int64Array{}
-				err := v.Scan(*b)
-				if err != nil {
-					return item, err
-				}
-				f.Set(reflect.ValueOf(v))
-			case "jsonb":
-				if len(*b) == 0 {
-					continue
-				}
-
-				var vv reflect.Value
-				t := reflect.PtrTo(f.Type())
-
-				switch t.Kind() {
-				case reflect.Map:
-					vv = reflect.MakeMap(t)
-				case reflect.Slice:
-					vv = reflect.MakeSlice(t, 0, 0)
-				default:
-					vv = reflect.New(t)
-				}
-
-				err := json.Unmarshal(*b, vv.Interface())
-				if err != nil {
-					return item, err
-				}
-
-				vv = vv.Elem().Elem()
-
-				if !vv.IsValid() || (vv.Kind() == reflect.Ptr && vv.IsNil()) {
-					continue
-				}
-
-				f.Set(vv)
-			}
-		}
-
 	case reflect.Map:
 
 		columns, err := rows.Columns()

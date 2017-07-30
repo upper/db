@@ -442,17 +442,17 @@ func TestOptionTypes(t *testing.T) {
 	// A struct with wrapped option types defined in the struct tags
 	// for postgres string array and jsonb types
 	type optionType struct {
-		ID       int64                  `db:"id,omitempty"`
-		Name     string                 `db:"name"`
-		Tags     StringArray            `db:"tags"`
-		Settings map[string]interface{} `db:"settings,jsonb"`
+		ID       int64       `db:"id,omitempty"`
+		Name     string      `db:"name"`
+		Tags     StringArray `db:"tags"`
+		Settings JSONBMap    `db:"settings"`
 	}
 
 	// Item 1
 	item1 := optionType{
 		Name:     "Food",
 		Tags:     []string{"toronto", "pizza"},
-		Settings: map[string]interface{}{"a": 1, "b": 2},
+		Settings: JSONBMap{"a": 1, "b": 2},
 	}
 
 	id, err := optionTypes.Insert(item1)
@@ -511,10 +511,10 @@ func TestOptionTypes(t *testing.T) {
 
 	// An option type to pointer jsonb field
 	type optionType2 struct {
-		ID       int64                   `db:"id,omitempty"`
-		Name     string                  `db:"name"`
-		Tags     StringArray             `db:"tags"`
-		Settings *map[string]interface{} `db:"settings,jsonb"`
+		ID       int64       `db:"id,omitempty"`
+		Name     string      `db:"name"`
+		Tags     StringArray `db:"tags"`
+		Settings *JSONBMap   `db:"settings"`
 	}
 
 	item2 := optionType2{
@@ -541,7 +541,7 @@ func TestOptionTypes(t *testing.T) {
 	assert.Equal(t, len(item2Chk.Tags), len(item2.Tags))
 
 	// Update the value
-	m := map[string]interface{}{}
+	m := JSONBMap{}
 	m["lang"] = "javascript"
 	m["num"] = 31337
 	item2.Settings = &m
@@ -557,16 +557,16 @@ func TestOptionTypes(t *testing.T) {
 
 	// An option type to pointer string array field
 	type optionType3 struct {
-		ID       int64                  `db:"id,omitempty"`
-		Name     string                 `db:"name"`
-		Tags     *StringArray           `db:"tags"`
-		Settings map[string]interface{} `db:"settings,jsonb"`
+		ID       int64        `db:"id,omitempty"`
+		Name     string       `db:"name"`
+		Tags     *StringArray `db:"tags"`
+		Settings JSONBMap     `db:"settings"`
 	}
 
 	item3 := optionType3{
 		Name:     "Julia",
 		Tags:     nil,
-		Settings: map[string]interface{}{"girl": true, "lang": true},
+		Settings: JSONBMap{"girl": true, "lang": true},
 	}
 
 	id, err = optionTypes.Insert(item3)
@@ -581,6 +581,18 @@ func TestOptionTypes(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+type Settings struct {
+	Name string `json:"name"`
+	Num  int64  `json:"num"`
+}
+
+func (s *Settings) Scan(src interface{}) error {
+	return DecodeJSONB(s, src)
+}
+func (s Settings) Value() (driver.Value, error) {
+	return EncodeJSONB(s)
+}
+
 func TestOptionTypeJsonbStruct(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()
@@ -590,18 +602,11 @@ func TestOptionTypeJsonbStruct(t *testing.T) {
 	err := optionTypes.Truncate()
 	assert.NoError(t, err)
 
-	// A struct with wrapped option types defined in the struct tags
-	// for postgres string array and jsonb types
-	type Settings struct {
-		Name string `json:"name"`
-		Num  int64  `json:"num"`
-	}
-
 	type OptionType struct {
 		ID       int64       `db:"id,omitempty"`
 		Name     string      `db:"name"`
 		Tags     StringArray `db:"tags"`
-		Settings Settings    `db:"settings,jsonb"`
+		Settings Settings    `db:"settings"`
 	}
 
 	item1 := &OptionType{
