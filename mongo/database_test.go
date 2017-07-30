@@ -23,6 +23,8 @@
 package mongo
 
 import (
+	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"reflect"
@@ -30,6 +32,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db.v3"
 )
@@ -770,5 +773,177 @@ func TestDataTypes(t *testing.T) {
 	// The original value and the test subject must match.
 	if reflect.DeepEqual(item, testValues) == false {
 		t.Errorf("Struct is different.")
+	}
+}
+
+func TestPaginator(t *testing.T) {
+	type artistType struct {
+		ID   bson.ObjectId `bson:"_id,omitempty"`
+		Name string        `bson:"name"`
+	}
+
+	// Opening database.
+	sess, err := Open(settings)
+	assert.NoError(t, err)
+
+	// We should close the database when it's no longer in use.
+	defer sess.Close()
+
+	// Getting a pointer to the "artist" collection.
+	artist := sess.Collection("artist")
+
+	err = artist.Truncate()
+	assert.NoError(t, err)
+
+	for i := 0; i < 999; i++ {
+		_, err = artist.Insert(artistType{
+			Name: fmt.Sprintf("artist-%d", i),
+		})
+		assert.NoError(t, err)
+	}
+
+	q := sess.Collection("artist").Find().Paginate(15)
+	paginator := q.Paginate(13)
+
+	var zerothPage []artistType
+	err = paginator.Page(0).All(&zerothPage)
+	assert.NoError(t, err)
+	assert.Equal(t, 13, len(zerothPage))
+
+	var secondPage []artistType
+	err = paginator.Page(2).All(&secondPage)
+	assert.NoError(t, err)
+	assert.Equal(t, 13, len(secondPage))
+
+	tp, err := paginator.TotalPages()
+	assert.NoError(t, err)
+	assert.NotZero(t, tp)
+	assert.Equal(t, uint(77), tp)
+
+	ti, err := paginator.TotalEntries()
+	assert.NoError(t, err)
+	assert.NotZero(t, ti)
+	assert.Equal(t, uint64(999), ti)
+
+	var seventySixthPage []artistType
+	err = paginator.Page(76).All(&seventySixthPage)
+	assert.NoError(t, err)
+	assert.Equal(t, 11, len(seventySixthPage))
+
+	var seventySeventhPage []artistType
+	err = paginator.Page(77).All(&seventySeventhPage)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(seventySeventhPage))
+
+	var hundredthPage []artistType
+	err = paginator.Page(100).All(&hundredthPage)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(hundredthPage))
+
+	for i := uint(0); i < tp; i++ {
+		current := paginator.Page(i)
+
+		var items []artistType
+		err := current.All(&items)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(items) < 1 {
+			break
+		}
+		for j := 0; j < len(items); j++ {
+			assert.Equal(t, fmt.Sprintf("artist-%d", int64(13*int(i)+j)), items[j].Name)
+		}
+	}
+
+	paginator = paginator.Cursor("_id")
+	{
+		current := paginator.Page(0)
+		for i := 0; ; i++ {
+			var items []artistType
+			err := current.All(&items)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(items) < 1 {
+				break
+			}
+
+			for j := 0; j < len(items); j++ {
+				assert.Equal(t, fmt.Sprintf("artist-%d", int64(13*int(i)+j)), items[j].Name)
+			}
+			current = current.NextPage(items[len(items)-1].ID)
+		}
+	}
+
+	{
+		log.Printf("Page 76")
+		current := paginator.Page(76)
+		for i := 76; ; i-- {
+			var items []artistType
+
+			err := current.All(&items)
+			assert.NoError(t, err)
+
+			if len(items) < 1 {
+				assert.Equal(t, 0, len(items))
+				break
+			}
+			for j := 0; j < len(items); j++ {
+				assert.Equal(t, fmt.Sprintf("artist-%d", 13*int(i)+j), items[j].Name)
+			}
+
+			current = current.PrevPage(items[0].ID)
+		}
+	}
+
+	{
+		resultPaginator := sess.Collection("artist").Find().Paginate(15)
+
+		count, err := resultPaginator.TotalPages()
+		assert.Equal(t, uint(67), count)
+		assert.NoError(t, err)
+
+		var items []artistType
+		err = resultPaginator.Page(5).All(&items)
+		assert.NoError(t, err)
+
+		for j := 0; j < len(items); j++ {
+			assert.Equal(t, fmt.Sprintf("artist-%d", 15*5+j), items[j].Name)
+		}
+
+		resultPaginator = resultPaginator.Cursor("_id").Page(0)
+		for i := 0; ; i++ {
+			var items []artistType
+
+			err = resultPaginator.All(&items)
+			assert.NoError(t, err)
+
+			if len(items) < 1 {
+				break
+			}
+
+			for j := 0; j < len(items); j++ {
+				assert.Equal(t, fmt.Sprintf("artist-%d", 15*i+j), items[j].Name)
+			}
+			resultPaginator = resultPaginator.NextPage(items[len(items)-1].ID)
+		}
+
+		resultPaginator = resultPaginator.Cursor("_id").Page(66)
+		for i := 66; ; i-- {
+			var items []artistType
+
+			err = resultPaginator.All(&items)
+			assert.NoError(t, err)
+
+			if len(items) < 1 {
+				break
+			}
+
+			for j := 0; j < len(items); j++ {
+				assert.Equal(t, fmt.Sprintf("artist-%d", 15*i+j), items[j].Name)
+			}
+			resultPaginator = resultPaginator.PrevPage(items[0].ID)
+		}
 	}
 }

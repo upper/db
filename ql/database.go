@@ -28,6 +28,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -155,6 +156,9 @@ func (d *database) Collections() (collections []string, err error) {
 		var tableName string
 		if err := iter.Scan(&tableName); err != nil {
 			return nil, err
+		}
+		if strings.HasPrefix(tableName, "__") {
+			continue
 		}
 		collections = append(collections, tableName)
 	}

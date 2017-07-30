@@ -31,9 +31,9 @@ func TestStringAndInt64Array(t *testing.T) {
 	assert.NoError(t, err)
 
 	type arrayType struct {
-		ID       int64    `db:"id,pk"`
-		Integers []int64  `db:"integers,int64array"`
-		Strings  []string `db:"strings,stringarray"`
+		ID       int64       `db:"id,pk"`
+		Integers Int64Array  `db:"integers"`
+		Strings  StringArray `db:"strings"`
 	}
 
 	tt := []arrayType{

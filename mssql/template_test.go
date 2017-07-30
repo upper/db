@@ -23,27 +23,27 @@ func TestTemplateSelect(t *testing.T) {
 	)
 
 	assert.Equal(
-		"SELECT TOP 100 PERCENT * FROM [artist] ORDER BY [name] DESC",
+		"SELECT * FROM [artist] ORDER BY [name] DESC",
 		b.Select().From("artist").OrderBy("name DESC").String(),
 	)
 
 	assert.Equal(
-		"SELECT TOP 100 PERCENT * FROM [artist] ORDER BY [name] DESC",
+		"SELECT * FROM [artist] ORDER BY [name] DESC",
 		b.Select().From("artist").OrderBy("-name").String(),
 	)
 
 	assert.Equal(
-		"SELECT TOP 100 PERCENT * FROM [artist] ORDER BY [name] ASC",
+		"SELECT * FROM [artist] ORDER BY [name] ASC",
 		b.Select().From("artist").OrderBy("name").String(),
 	)
 
 	assert.Equal(
-		"SELECT TOP 100 PERCENT * FROM [artist] ORDER BY [name] ASC",
+		"SELECT * FROM [artist] ORDER BY [name] ASC",
 		b.Select().From("artist").OrderBy("name ASC").String(),
 	)
 
 	assert.Equal(
-		"SELECT __q0.* FROM ( SELECT __q1.*, ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS rnum FROM ( SELECT * FROM [artist] ) __q1) __q0 WHERE rnum > 5",
+		"SELECT __q0.* FROM ( SELECT TOP 100 PERCENT __q1.*, ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS rnum FROM ( SELECT TOP (0 + 5) * FROM [artist] ) __q1) __q0 WHERE rnum > 5",
 		b.Select().From("artist").Limit(-1).Offset(5).String(),
 	)
 
@@ -93,7 +93,7 @@ func TestTemplateSelect(t *testing.T) {
 	)
 
 	assert.Equal(
-		"SELECT __q0.* FROM ( SELECT TOP (1) __q1.*, ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS rnum FROM ( SELECT * FROM [artist] AS [a], [publication] AS [p] WHERE (p.author_id = a.id) ) __q1) __q0 WHERE rnum > 0",
+		"SELECT __q0.* FROM ( SELECT TOP 100 PERCENT __q1.*, ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS rnum FROM ( SELECT TOP (1 + 0) * FROM [artist] AS [a], [publication] AS [p] WHERE (p.author_id = a.id) ) __q1) __q0 WHERE rnum > 0",
 		b.Select().From("artist a", "publication as p").Where("p.author_id = a.id").Limit(1).String(),
 	)
 
@@ -103,22 +103,22 @@ func TestTemplateSelect(t *testing.T) {
 	)
 
 	assert.Equal(
-		"SELECT __q0.* FROM ( SELECT TOP (1) __q1.*, ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS rnum FROM ( SELECT * FROM [artist] AS [a] JOIN [publication] AS [p] ON (p.author_id = a.id) ) __q1) __q0 WHERE rnum > 0",
+		"SELECT __q0.* FROM ( SELECT TOP 100 PERCENT __q1.*, ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS rnum FROM ( SELECT TOP (1 + 0) * FROM [artist] AS [a] JOIN [publication] AS [p] ON (p.author_id = a.id) ) __q1) __q0 WHERE rnum > 0",
 		b.SelectFrom("artist a").Join("publication p").On("p.author_id = a.id").Limit(1).String(),
 	)
 
 	assert.Equal(
-		"SELECT __q0.* FROM ( SELECT TOP (1) __q1.*, ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS rnum FROM ( SELECT * FROM [artist] AS [a] JOIN [publication] AS [p] ON (p.author_id = a.id) WHERE ([a].[id] = $1) ) __q1) __q0 WHERE rnum > 0",
+		"SELECT __q0.* FROM ( SELECT TOP 100 PERCENT __q1.*, ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS rnum FROM ( SELECT TOP (1 + 0) * FROM [artist] AS [a] JOIN [publication] AS [p] ON (p.author_id = a.id) WHERE ([a].[id] = $1) ) __q1) __q0 WHERE rnum > 0",
 		b.SelectFrom("artist a").Join("publication p").On("p.author_id = a.id").Where("a.id", 2).Limit(1).String(),
 	)
 
 	assert.Equal(
-		"SELECT __q0.* FROM ( SELECT TOP (1) __q1.*, ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS rnum FROM ( SELECT * FROM [artist] JOIN [publication] AS [p] ON (p.author_id = a.id) WHERE (a.id = 2) ) __q1) __q0 WHERE rnum > 0",
+		"SELECT __q0.* FROM ( SELECT TOP 100 PERCENT __q1.*, ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS rnum FROM ( SELECT TOP (1 + 0) * FROM [artist] JOIN [publication] AS [p] ON (p.author_id = a.id) WHERE (a.id = 2) ) __q1) __q0 WHERE rnum > 0",
 		b.SelectFrom("artist").Join("publication p").On("p.author_id = a.id").Where("a.id = 2").Limit(1).String(),
 	)
 
 	assert.Equal(
-		"SELECT __q0.* FROM ( SELECT TOP (1) __q1.*, ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS rnum FROM ( SELECT * FROM [artist] AS [a] JOIN [publication] AS [p] ON (p.title LIKE $1 OR p.title LIKE $2) WHERE (a.id = $3) ) __q1) __q0 WHERE rnum > 0",
+		"SELECT __q0.* FROM ( SELECT TOP 100 PERCENT __q1.*, ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS rnum FROM ( SELECT TOP (1 + 0) * FROM [artist] AS [a] JOIN [publication] AS [p] ON (p.title LIKE $1 OR p.title LIKE $2) WHERE (a.id = $3) ) __q1) __q0 WHERE rnum > 0",
 		b.SelectFrom("artist a").Join("publication p").On("p.title LIKE ? OR p.title LIKE ?", "%Totoro%", "%Robot%").Where("a.id = ?", 2).Limit(1).String(),
 	)
 

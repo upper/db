@@ -40,15 +40,6 @@ type Collection struct {
 	collection *mgo.Collection
 }
 
-type chunks struct {
-	Fields     []string
-	Limit      int
-	Offset     int
-	Sort       []string
-	Conditions interface{}
-	GroupBy    []interface{}
-}
-
 var (
 	// idCache should be a struct if we're going to cache more than just
 	// _id field here
@@ -58,22 +49,19 @@ var (
 
 // Find creates a result set with the given conditions.
 func (col *Collection) Find(terms ...interface{}) db.Result {
-	queryChunks := &chunks{}
+	fields := []string{"*"}
 
-	// No specific fields given.
-	if len(queryChunks.Fields) == 0 {
-		queryChunks.Fields = []string{"*"}
-	}
+	conditions := col.compileQuery(terms...)
 
-	queryChunks.Conditions = col.compileQuery(terms...)
+	res := &result{}
+	res = res.frame(func(r *resultQuery) error {
+		r.c = col
+		r.conditions = conditions
+		r.fields = fields
+		return nil
+	})
 
-	// Actually executing query.
-	r := &result{
-		c:           col,
-		queryChunks: queryChunks,
-	}
-
-	return r
+	return res
 }
 
 // compileStatement transforms conditions into something *mgo.Session can
@@ -184,7 +172,7 @@ func (col *Collection) compileQuery(terms ...interface{}) interface{} {
 			query = mapped
 		}
 	} else {
-		query = map[string]interface{}{}
+		query = nil
 	}
 
 	return query

@@ -69,7 +69,7 @@ func (r *resultProxy) Select(fields ...interface{}) db.Result {
 				Iterator().All(&columns)
 			if err == nil {
 				fields = make([]interface{}, 0, len(columns)+1)
-				fields = append(fields, "id() as id")
+				fields = append(fields, "id() AS id")
 				for _, column := range columns {
 					fields = append(fields, column.Name)
 				}

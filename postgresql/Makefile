@@ -7,6 +7,8 @@ DB_USERNAME ?= upperio_tests
 DB_PASSWORD ?= upperio_secret
 DB_NAME     ?= upperio_tests
 
+TEST_FLAGS ?=
+
 export DB_HOST
 export DB_NAME
 export DB_PASSWORD
@@ -42,4 +44,4 @@ reset-db: require-client
 
 test: reset-db generate
 	#go test -tags generated -v -race # race: limit on 8192 simultaneously alive goroutines is exceeded, dying
-	go test -tags generated -v
+	go test -tags generated -v $(TEST_FLAGS)

@@ -43,7 +43,7 @@ func TestTemplateSelect(t *testing.T) {
 	)
 
 	assert.Equal(
-		"SELECT * FROM `artist` LIMIT -1 OFFSET 5",
+		"SELECT * FROM `artist` OFFSET 5",
 		b.Select().From("artist").Limit(-1).Offset(5).String(),
 	)
 

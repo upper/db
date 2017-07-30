@@ -87,6 +87,10 @@ var (
 	sqlPlaceholder = exql.RawValue(`?`)
 )
 
+var (
+	errDeprecatedTag = errors.New("Tag %v is deprecated, please use type %v instead")
+)
+
 type exprDB interface {
 	StatementPrepare(ctx context.Context, stmt *exql.Statement) (*sql.Stmt, error)
 	StatementQuery(ctx context.Context, stmt *exql.Statement, args ...interface{}) (*sql.Rows, error)
@@ -268,10 +272,19 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 
 		for _, fi := range fieldMap {
 
+			// Check for deprecated tags and give suggestions on how to fix them.
+			deprecatedTags := map[string]string{
+				"stringarray": "postgresql.StringArray",
+				"int64array":  "postgresql.Int64Array",
+			}
+			for k, v := range deprecatedTags {
+				if _, hasDeprecatedTag := fi.Options[k]; hasDeprecatedTag {
+					return nil, nil, fmt.Errorf(errDeprecatedTag.Error(), k, v)
+				}
+			}
+
 			// Field options
 			_, tagOmitEmpty := fi.Options["omitempty"]
-			_, tagStringArray := fi.Options["stringarray"]
-			_, tagInt64Array := fi.Options["int64array"]
 			_, tagJSONB := fi.Options["jsonb"]
 
 			fld := reflectx.FieldByIndexesReadOnly(itemV, fi.Index)
@@ -290,18 +303,6 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 
 			var value interface{}
 			switch {
-			case tagStringArray:
-				v, ok := fld.Interface().([]string)
-				if !ok {
-					return nil, nil, fmt.Errorf(`Expecting field %q to be []string (using "stringarray" tag)`, fi.Name)
-				}
-				value = stringArray(v)
-			case tagInt64Array:
-				v, ok := fld.Interface().([]int64)
-				if !ok {
-					return nil, nil, fmt.Errorf(`Expecting field %q to be []int64 (using "int64array" tag)`, fi.Name)
-				}
-				value = int64Array(v)
 			case tagJSONB:
 				value = jsonbType{fld.Interface()}
 			default:
@@ -387,6 +388,9 @@ func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, err
 				return nil, nil, err
 			}
 			q, a := Preprocess(c, v.Arguments())
+			if _, ok := v.(Selector); ok {
+				q = "(" + q + ")"
+			}
 			f[i] = exql.RawValue(q)
 			args = append(args, a...)
 		case db.Function:
