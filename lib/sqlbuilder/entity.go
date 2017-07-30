@@ -1,9 +1,8 @@
-package repo
+package sqlbuilder
 
 import (
 	"sync"
 	"upper.io/db.v3"
-	"upper.io/db.v3/lib/sqlbuilder"
 )
 
 type Mapper interface {
@@ -23,7 +22,7 @@ func (e *Entity) Changeset() (db.Changeset, error) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	cols, vals, err := sqlbuilder.Map(e.ref, nil)
+	cols, vals, err := Map(e.ref, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +41,7 @@ func (e *Entity) Changeset() (db.Changeset, error) {
 }
 
 func (e *Entity) Store(v interface{}) error {
-	cols, vals, err := sqlbuilder.Map(v, nil)
+	cols, vals, err := Map(v, nil)
 	if err != nil {
 		return err
 	}

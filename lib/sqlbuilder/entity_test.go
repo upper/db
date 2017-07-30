@@ -1,4 +1,4 @@
-package repo
+package sqlbuilder
 
 import (
 	"fmt"
@@ -123,6 +123,37 @@ var testCases = []struct {
 		&testStruct{},
 		nil,
 		nil,
+	},
+	{
+		&testStruct{
+			FloatValue: 6.6,
+		},
+		nil,
+		nil,
+	},
+	{
+		&testStruct{
+			FloatValue: 6.6,
+		},
+		func(update interface{}) {
+			u := update.(*testStruct)
+			u.FloatValue = 0
+		},
+		db.Changeset{
+			"float_value": float64(0),
+		},
+	},
+	{
+		&testStruct{
+			PointerToStringValue: &stringValue,
+		},
+		func(update interface{}) {
+			u := update.(*testStruct)
+			u.PointerToStringValue = nil
+		},
+		db.Changeset{
+			"ptr_string_value": nil,
+		},
 	},
 }
 
