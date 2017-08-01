@@ -539,7 +539,7 @@ type Database interface {
 	// clone did not succeed.
 	// Clone() (Database, error)
 
-	// Ping returns an error if the database manager could be reached.
+	// Ping returns an error if the database manager could not be reached.
 	Ping() error
 
 	// Close closes the currently active connection to the database and clears
@@ -619,11 +619,13 @@ type Result interface {
 	String() string
 
 	// Limit defines the maximum number of results in this set. It only has
-	// effect on `One()`, `All()` and `Next()`.
+	// effect on `One()`, `All()` and `Next()`. A negative limit cancels any
+	// previous limit settings.
 	Limit(int) Result
 
-	// Offset ignores the first *n* results. It only has effect on `One()`, `All()`
-	// and `Next()`.
+	// Offset ignores the first *n* results. It only has effect on `One()`,
+	// `All()` and `Next()`. A negative offset cancels any previous offset
+	// settings.
 	Offset(int) Result
 
 	// OrderBy receives field names that define the order in which elements will be
@@ -689,6 +691,85 @@ type Result interface {
 	// automatically closed, so there is no need to call Close() after
 	// using All().
 	All(sliceOfStructs interface{}) error
+
+	// Paginate splits the results of the query into pages containing pageSize
+	// items.  When using pagination previous settings for Limit and Offset are
+	// ignored. Page numbering starts at 1.
+	//
+	// Use Page() to define the specific page to get results from.
+	//
+	// Example:
+	//
+	//   r = q.Paginate(12)
+	//
+	// You can provide constraints an order settings when using pagination:
+	//
+	// Example:
+	//
+	//   res := q.Where(conds).OrderBy("-id").Paginate(12)
+	//   err := res.Page(4).All(&items)
+	Paginate(pageSize uint) Result
+
+	// Page makes the result set return results only from the page identified by
+	// pageNumber. Page numbering starts from 0.
+	//
+	// Example:
+	//
+	//   r = q.Paginate(12).Page(4)
+	Page(pageNumber uint) Result
+
+	// Cursor defines the column that is going to be taken as basis for
+	// cursor-based pagination.
+	//
+	// Example:
+	//
+	//   a = q.Paginate(10).Cursor("id")
+	//   b = q.Paginate(12).Cursor("-id")
+	//
+	// You can set "" as cursorColumn to disable cursors.
+	Cursor(cursorColumn string) Result
+
+	// NextPage returns the next results page according to the cursor. It expects
+	// a cursorValue, which is the value the cursor column had on the last item
+	// of the current result set (lower bound).
+	//
+	// Example:
+	//
+	//   cursor = q.Paginate(12).Cursor("id")
+	//   res = cursor.NextPage(items[len(items)-1].ID)
+	//
+	// Note that NextPage requires a cursor, any column with an absolute order
+	// (given two values one always precedes the other) can be a cursor.
+	//
+	// You can define the pagination order and add constraints to your result:
+	//
+	//	 cursor = q.Where(...).OrderBy("id").Paginate(10).Cursor("id")
+	//   res = cursor.NextPage(lowerBound)
+	NextPage(cursorValue interface{}) Result
+
+	// PrevPage returns the previous results page according to the cursor. It
+	// expects a cursorValue, which is the value the cursor column had on the
+	// fist item of the current result set (upper bound).
+	//
+	// Example:
+	//
+	//   current = current.PrevPage(items[0].ID)
+	//
+	// Note that PrevPage requires a cursor, any column with an absolute order
+	// (given two values one always precedes the other) can be a cursor.
+	//
+	// You can define the pagination order and add constraints to your result:
+	//
+	//   cursor = q.Where(...).OrderBy("id").Paginate(10).Cursor("id")
+	//   res = cursor.PrevPage(upperBound)
+	PrevPage(cursorValue interface{}) Result
+
+	// TotalPages returns the total number of pages the result could produce.  If
+	// no pagination has been set this value equals 1.
+	TotalPages() (uint, error)
+
+	// TotalEntries returns the total number of entries in the query.
+	TotalEntries() (uint64, error)
 
 	// Close closes the result set and frees all locked resources.
 	Close() error
