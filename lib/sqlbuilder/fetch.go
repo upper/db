@@ -32,6 +32,12 @@ import (
 
 var mapper = reflectx.NewMapper("db")
 
+var deprecatedTags = map[string]string{
+	"stringarray": "postgresql.StringArray",
+	"int64array":  "postgresql.Int64Array",
+	"jsonb":       "postgresql.JSONB",
+}
+
 // fetchRow receives a *sql.Rows value and tries to map all the rows into a
 // single struct given by the pointer `dst`.
 func fetchRow(rows *sql.Rows, dst interface{}) error {
@@ -163,11 +169,6 @@ func fetchResult(itemT reflect.Type, rows *sql.Rows, columns []string) (reflect.
 			}
 
 			// Check for deprecated tags and give suggestions on how to fix them.
-			deprecatedTags := map[string]string{
-				"stringarray": "postgresql.StringArray",
-				"int64array":  "postgresql.Int64Array",
-				"jsonb":       "postgresql.JSONB",
-			}
 			for k, v := range deprecatedTags {
 				if _, hasDeprecatedTag := fi.Options[k]; hasDeprecatedTag {
 					return item, fmt.Errorf(errDeprecatedTag.Error(), k, v)
