@@ -273,11 +273,6 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 		for _, fi := range fieldMap {
 
 			// Check for deprecated tags and give suggestions on how to fix them.
-			deprecatedTags := map[string]string{
-				"stringarray": "postgresql.StringArray",
-				"int64array":  "postgresql.Int64Array",
-				"jsonb":       "postgresql.JSONB",
-			}
 			for k, v := range deprecatedTags {
 				if _, hasDeprecatedTag := fi.Options[k]; hasDeprecatedTag {
 					return nil, nil, fmt.Errorf(errDeprecatedTag.Error(), k, v)
