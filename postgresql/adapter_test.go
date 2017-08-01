@@ -765,6 +765,40 @@ func TestUUIDInsert_Issue370(t *testing.T) {
 	}
 }
 
+func TestEscapeQuestionMark(t *testing.T) {
+	sess := mustOpen()
+	defer sess.Close()
+
+	var val bool
+
+	{
+		res, err := sess.QueryRow(`SELECT '{"mykey":["val1", "val2"]}'::jsonb->'mykey' ?? ?`, "val2")
+		assert.NoError(t, err)
+
+		err = res.Scan(&val)
+		assert.NoError(t, err)
+		assert.Equal(t, true, val)
+	}
+
+	{
+		res, err := sess.QueryRow(`SELECT ?::jsonb->'mykey' ?? ?`, `{"mykey":["val1", "val2"]}`, `val2`)
+		assert.NoError(t, err)
+
+		err = res.Scan(&val)
+		assert.NoError(t, err)
+		assert.Equal(t, true, val)
+	}
+
+	{
+		res, err := sess.QueryRow(`SELECT ?::jsonb->? ?? ?`, `{"mykey":["val1", "val2"]}`, `mykey`, `val2`)
+		assert.NoError(t, err)
+
+		err = res.Scan(&val)
+		assert.NoError(t, err)
+		assert.Equal(t, true, val)
+	}
+}
+
 func TestTextMode_Issue391(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()
