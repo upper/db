@@ -30,15 +30,6 @@ import (
 	"github.com/lib/pq"
 )
 
-const (
-	stateInit = iota
-	stateOpenBracket
-	stateOpenQuote
-	stateLiteral
-	stateEscape
-	stateStop
-)
-
 // Type JSONB represents a PostgreSQL's JSONB value.
 type JSONB struct {
 	V interface{}

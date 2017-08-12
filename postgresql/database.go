@@ -150,6 +150,37 @@ func (d *database) clone(ctx context.Context, checkConn bool) (*database, error)
 	return clone, nil
 }
 
+func (d *database) ConvertValues(values []interface{}) []interface{} {
+	for i := range values {
+		switch v := values[i].(type) {
+
+		case *[]int64:
+			values[i] = (*Int64Array)(v)
+		case *[]string:
+			values[i] = (*StringArray)(v)
+		case *[]float64:
+			values[i] = (*Float64Array)(v)
+		case *[]bool:
+			values[i] = (*BoolArray)(v)
+		case *map[string]interface{}:
+			values[i] = (*JSONBMap)(v)
+
+		case []int64:
+			values[i] = (*Int64Array)(&v)
+		case []string:
+			values[i] = (*StringArray)(&v)
+		case []float64:
+			values[i] = (*Float64Array)(&v)
+		case []bool:
+			values[i] = (*BoolArray)(&v)
+		case map[string]interface{}:
+			values[i] = (*JSONBMap)(&v)
+
+		}
+	}
+	return values
+}
+
 // CompileStatement compiles a *exql.Statement into arguments that sql/database
 // accepts.
 func (d *database) CompileStatement(stmt *exql.Statement, args []interface{}) (string, []interface{}) {

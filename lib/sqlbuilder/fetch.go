@@ -22,13 +22,16 @@
 package sqlbuilder
 
 import (
-	"database/sql"
 	"fmt"
 	"reflect"
 
 	"upper.io/db.v3"
 	"upper.io/db.v3/lib/reflectx"
 )
+
+type hasConvertValues interface {
+	ConvertValues(values []interface{}) []interface{}
+}
 
 var mapper = reflectx.NewMapper("db")
 
@@ -40,9 +43,11 @@ var deprecatedTags = map[string]string{
 
 // fetchRow receives a *sql.Rows value and tries to map all the rows into a
 // single struct given by the pointer `dst`.
-func fetchRow(rows *sql.Rows, dst interface{}) error {
+func fetchRow(iter *iterator, dst interface{}) error {
 	var columns []string
 	var err error
+
+	rows := iter.cursor
 
 	dstv := reflect.ValueOf(dst)
 
@@ -68,7 +73,7 @@ func fetchRow(rows *sql.Rows, dst interface{}) error {
 	}
 
 	itemT := itemV.Type()
-	item, err := fetchResult(itemT, rows, columns)
+	item, err := fetchResult(iter, itemT, columns)
 
 	if err != nil {
 		return err
@@ -85,9 +90,9 @@ func fetchRow(rows *sql.Rows, dst interface{}) error {
 
 // fetchRows receives a *sql.Rows value and tries to map all the rows into a
 // slice of structs given by the pointer `dst`.
-func fetchRows(rows *sql.Rows, dst interface{}) error {
+func fetchRows(iter *iterator, dst interface{}) error {
 	var err error
-
+	rows := iter.cursor
 	defer rows.Close()
 
 	// Destination.
@@ -116,7 +121,7 @@ func fetchRows(rows *sql.Rows, dst interface{}) error {
 	reset(dst)
 
 	for rows.Next() {
-		item, err := fetchResult(itemT, rows, columns)
+		item, err := fetchResult(iter, itemT, columns)
 		if err != nil {
 			return err
 		}
@@ -132,9 +137,10 @@ func fetchRows(rows *sql.Rows, dst interface{}) error {
 	return nil
 }
 
-func fetchResult(itemT reflect.Type, rows *sql.Rows, columns []string) (reflect.Value, error) {
+func fetchResult(iter *iterator, itemT reflect.Type, columns []string) (reflect.Value, error) {
 	var item reflect.Value
 	var err error
+	rows := iter.cursor
 
 	objT := itemT
 
@@ -154,7 +160,6 @@ func fetchResult(itemT reflect.Type, rows *sql.Rows, columns []string) (reflect.
 	}
 
 	switch objT.Kind() {
-
 	case reflect.Struct:
 
 		values := make([]interface{}, len(columns))
@@ -183,6 +188,10 @@ func fetchResult(itemT reflect.Type, rows *sql.Rows, columns []string) (reflect.
 			}
 		}
 
+		if converter, ok := iter.sess.(hasConvertValues); ok {
+			values = converter.ConvertValues(values)
+		}
+
 		if err = rows.Scan(values...); err != nil {
 			return item, err
 		}
@@ -209,7 +218,6 @@ func fetchResult(itemT reflect.Type, rows *sql.Rows, columns []string) (reflect.
 		for i, column := range columns {
 			item.SetMapIndex(reflect.ValueOf(column), reflect.Indirect(reflect.ValueOf(values[i])))
 		}
-
 	}
 
 	return item, nil

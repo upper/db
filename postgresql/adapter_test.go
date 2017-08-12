@@ -143,30 +143,35 @@ func tearUp() error {
 
 		`DROP TABLE IF EXISTS pg_types`,
 
-		`CREATE TABLE pg_types (
-			id serial primary key,
+		`CREATE TABLE pg_types (id serial primary key
 
-			auto_integer_array integer[],
-			auto_string_array text[],
+			, integer_array integer[]
+			, string_array text[]
+			, jsonb_map jsonb
 
-			auto_integer_array_ptr integer[],
-			auto_string_array_ptr text[],
+			, integer_array_ptr integer[]
+			, string_array_ptr text[]
+			, jsonb_map_ptr jsonb
 
-			integer_array integer[],
-			string_value varchar(255),
+			, auto_integer_array integer[]
+			, auto_string_array text[]
+			, auto_jsonb_map jsonb
 
-			auto_jsonb jsonb,
-			auto_jsonb_map jsonb,
-			auto_jsonb_array jsonb,
-			custom_jsonb jsonb,
-			auto_jsonb_ptr jsonb,
+			, jsonb_object jsonb
+			, jsonb_array jsonb
 
-			integer_valuer_value smallint[],
-			string_array text[],
+			, custom_jsonb_object jsonb
 
-			field1 int,
-			field2 varchar(64),
-			field3 decimal
+			, string_value varchar(255)
+			, integer_value int
+			, varchar_value varchar(64)
+			, decimal_value decimal
+
+			, string_value_ptr varchar(255)
+			, integer_value_ptr int
+			, varchar_value_ptr varchar(64)
+			, decimal_value_ptr decimal
+
 		)`,
 
 		`DROP TABLE IF EXISTS issue_370`,
@@ -218,86 +223,95 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 		ID int64 `db:"id,omitempty"`
 
 		IntegerArray Int64Array  `db:"integer_array"`
-		StringValue  *string     `db:"string_value,omitempty"`
 		StringArray  StringArray `db:"string_array"`
+		JSONBMap     JSONBMap    `db:"jsonb_map"`
 
-		Field1 *int64   `db:"field1,omitempty"`
-		Field2 *string  `db:"field2,omitempty"`
-		Field3 *float64 `db:"field3,omitempty"`
+		IntegerArrayPtr *Int64Array  `db:"integer_array_ptr,omitempty"`
+		StringArrayPtr  *StringArray `db:"string_array_ptr,omitempty"`
+		JSONBMapPtr     *JSONBMap    `db:"jsonb_map_ptr,omitempty"`
 
-		AutoIntegerArray Int64Array  `db:"auto_integer_array"`
-		AutoStringArray  StringArray `db:"auto_string_array"`
-		AutoJSONB        JSONB       `db:"auto_jsonb"`
-		AutoJSONBMap     JSONBMap    `db:"auto_jsonb_map"`
-		AutoJSONBArray   JSONBArray  `db:"auto_jsonb_array"`
-		CustomJSONB      customJSONB `db:"custom_jsonb"`
+		AutoIntegerArray []int64                `db:"auto_integer_array"`
+		AutoStringArray  []string               `db:"auto_string_array"`
+		AutoJSONBMap     map[string]interface{} `db:"auto_jsonb_map"`
 
-		AutoIntegerArrayPtr *Int64Array  `db:"auto_integer_array_ptr,omitempty"`
-		AutoStringArrayPtr  *StringArray `db:"auto_string_array_ptr,omitempty"`
-		AutoJSONBPtr        *JSONB       `db:"auto_jsonb_ptr,omitempty"`
+		JSONBObject JSONB      `db:"jsonb_object"`
+		JSONBArray  JSONBArray `db:"jsonb_array"`
+
+		CustomJSONBObject customJSONB `db:"custom_jsonb_object"`
+
+		StringValue  string  `db:"string_value"`
+		IntegerValue int64   `db:"integer_value"`
+		VarcharValue string  `db:"varchar_value"`
+		DecimalValue float64 `db:"decimal_value"`
+
+		StringValuePtr  *string  `db:"string_value_ptr,omitempty"`
+		IntegerValuePtr *int64   `db:"integer_value_ptr,omitempty"`
+		VarcharValuePtr *string  `db:"varchar_value_ptr,omitempty"`
+		DecimalValuePtr *float64 `db:"decimal_value_ptr,omitempty"`
 	}
 
-	field1 := int64(10)
-	field2 := string("ten")
-	field3 := float64(10.0)
+	integerValue := int64(10)
+	stringValue := string("ten")
+	decimalValue := float64(10.0)
+
+	integerArrayValue := Int64Array{1, 2, 3, 4}
+	stringArrayValue := StringArray{"a", "b", "c"}
+	jsonbMapValue := JSONBMap{"Hello": "World"}
 
 	testValue := "Hello world!"
 
 	origPgTypeTests := []PGType{
 		PGType{
-			Field1: &field1,
-			Field2: &field2,
-			Field3: &field3,
+			IntegerValuePtr: &integerValue,
+			StringValuePtr:  &stringValue,
+			DecimalValuePtr: &decimalValue,
+		},
+		PGType{
+			IntegerValue: integerValue,
+			StringValue:  stringValue,
+			DecimalValue: decimalValue,
 		},
 		PGType{
 			IntegerArray: []int64{1, 2, 3, 4},
 		},
 		PGType{
-			AutoIntegerArray:    Int64Array{1, 2, 3, 4},
-			AutoIntegerArrayPtr: nil,
+			AutoIntegerArray: Int64Array{1, 2, 3, 4},
+			AutoStringArray:  nil,
 		},
 		PGType{
 			AutoJSONBMap: JSONBMap{
 				"Hello": "world",
 				"Roses": "red",
 			},
-			AutoJSONBArray: JSONBArray{float64(1), float64(2), float64(3), float64(4)},
+			JSONBArray: JSONBArray{float64(1), float64(2), float64(3), float64(4)},
 		},
 		PGType{
-			AutoIntegerArray:    nil,
-			AutoIntegerArrayPtr: &Int64Array{4, 5, 6, 7},
+			AutoIntegerArray: nil,
 		},
 		PGType{
-			AutoJSONBMap:   JSONBMap{},
-			AutoJSONBArray: JSONBArray{},
+			AutoJSONBMap: JSONBMap{},
+			JSONBArray:   JSONBArray{},
 		},
 		PGType{
-			AutoJSONBMap:   JSONBMap(nil),
-			AutoJSONBArray: JSONBArray(nil),
+			AutoJSONBMap: map[string]interface{}(nil),
+			JSONBArray:   JSONBArray(nil),
 		},
 		PGType{
-			AutoStringArray:    StringArray{"aaa", "bbb", "ccc"},
-			AutoStringArrayPtr: nil,
+			AutoStringArray: []string{"aaa", "bbb", "ccc"},
 		},
 		PGType{
-			AutoStringArray:    nil,
-			AutoStringArrayPtr: &StringArray{"ddd", "eee", "ffff"},
+			AutoStringArray: nil,
 		},
 		PGType{
-			AutoJSONB:    JSONB{map[string]interface{}{"hello": "world!"}},
-			AutoJSONBPtr: nil,
-		},
-		PGType{
-			AutoJSONB:    JSONB{nil},
-			AutoJSONBPtr: &JSONB{[]interface{}{float64(9), float64(9), float64(9)}},
+			AutoJSONBMap: map[string]interface{}{"hello": "world!"},
 		},
 		PGType{
 			IntegerArray: []int64{1, 2, 3, 4},
 			StringArray:  []string{"a", "boo", "bar"},
 		},
 		PGType{
-			Field2: &field2,
-			Field3: &field3,
+			StringValue:  stringValue,
+			DecimalValue: decimalValue,
 		},
 		PGType{
 			IntegerArray: []int64{},
@@ -315,19 +329,25 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 			StringArray:  []string{"a"},
 		},
 		PGType{
+			IntegerArrayPtr: &integerArrayValue,
+			StringArrayPtr:  &stringArrayValue,
+			JSONBMapPtr:     &jsonbMapValue,
+		},
+		PGType{
 			IntegerArray: []int64{0, 0, 0, 0},
-			StringValue:  &testValue,
-			CustomJSONB: customJSONB{
+			StringValue:  testValue,
+			CustomJSONBObject: customJSONB{
 				N: "Hello",
 			},
 			StringArray: []string{"", "", "", ``, `""`},
 		},
 		PGType{
-			StringValue: &testValue,
+			StringValue: testValue,
 		},
 		PGType{
-			Field1: &field1,
-			CustomJSONB: customJSONB{
+			IntegerValue:    integerValue,
+			IntegerValuePtr: &integerValue,
+			CustomJSONBObject: customJSONB{
 				V: 4.4,
 			},
 		},
@@ -335,15 +355,15 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 			StringArray: []string{"a", "boo", "bar"},
 		},
 		PGType{
-			StringArray: []string{"a", "boo", "bar", `""`},
-			CustomJSONB: customJSONB{},
+			StringArray:       []string{"a", "boo", "bar", `""`},
+			CustomJSONBObject: customJSONB{},
 		},
 		PGType{
 			IntegerArray: []int64{0},
 			StringArray:  []string{""},
 		},
 		PGType{
-			CustomJSONB: customJSONB{
+			CustomJSONBObject: customJSONB{
 				N: "Peter",
 				V: 5.56,
 			},
