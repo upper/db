@@ -167,6 +167,10 @@ func tearUp() error {
 			, varchar_value varchar(64)
 			, decimal_value decimal
 
+			, integer_compat_value int
+			, uinteger_compat_value int
+			, string_compat_value text
+
 			, string_value_ptr varchar(255)
 			, integer_value_ptr int
 			, varchar_value_ptr varchar(64)
@@ -219,6 +223,10 @@ var (
 
 func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 
+	type int64Compat int64
+	type uintCompat uint
+	type stringCompat string
+
 	type PGType struct {
 		ID int64 `db:"id,omitempty"`
 
@@ -244,6 +252,10 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 		VarcharValue string  `db:"varchar_value"`
 		DecimalValue float64 `db:"decimal_value"`
 
+		Int64CompatValue  int64Compat  `db:"integer_compat_value"`
+		UIntCompatValue   uintCompat   `db:"uinteger_compat_value"`
+		StringCompatValue stringCompat `db:"string_compat_value"`
+
 		StringValuePtr  *string  `db:"string_value_ptr,omitempty"`
 		IntegerValuePtr *int64   `db:"integer_value_ptr,omitempty"`
 		VarcharValuePtr *string  `db:"varchar_value_ptr,omitempty"`
@@ -261,6 +273,11 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 	testValue := "Hello world!"
 
 	origPgTypeTests := []PGType{
+		PGType{
+			Int64CompatValue:  -5,
+			UIntCompatValue:   3,
+			StringCompatValue: "abc",
+		},
 		PGType{
 			IntegerValuePtr: &integerValue,
 			StringValuePtr:  &stringValue,
