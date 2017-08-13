@@ -479,17 +479,17 @@ func TestOptionTypes(t *testing.T) {
 	// A struct with wrapped option types defined in the struct tags
 	// for postgres string array and jsonb types
 	type optionType struct {
-		ID       int64       `db:"id,omitempty"`
-		Name     string      `db:"name"`
-		Tags     StringArray `db:"tags"`
-		Settings JSONBMap    `db:"settings"`
+		ID       int64                  `db:"id,omitempty"`
+		Name     string                 `db:"name"`
+		Tags     []string               `db:"tags"`
+		Settings map[string]interface{} `db:"settings"`
 	}
 
 	// Item 1
 	item1 := optionType{
 		Name:     "Food",
 		Tags:     []string{"toronto", "pizza"},
-		Settings: JSONBMap{"a": 1, "b": 2},
+		Settings: map[string]interface{}{"a": 1, "b": 2},
 	}
 
 	id, err := optionTypes.Insert(item1)
