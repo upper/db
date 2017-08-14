@@ -373,12 +373,13 @@ func (d *database) StatementPrepare(ctx context.Context, stmt *exql.Statement) (
 	if d.Settings.LoggingEnabled() {
 		defer func(start time.Time) {
 			d.Logger().Log(&db.QueryStatus{
-				TxID:   d.txID,
-				SessID: d.sessID,
-				Query:  query,
-				Err:    err,
-				Start:  start,
-				End:    time.Now(),
+				TxID:    d.txID,
+				SessID:  d.sessID,
+				Query:   query,
+				Err:     err,
+				Start:   start,
+				End:     time.Now(),
+				Context: ctx,
 			})
 		}(time.Now())
 	}
@@ -412,13 +413,14 @@ func (d *database) StatementExec(ctx context.Context, stmt *exql.Statement, args
 		defer func(start time.Time) {
 
 			status := db.QueryStatus{
-				TxID:   d.txID,
-				SessID: d.sessID,
-				Query:  query,
-				Args:   args,
-				Err:    err,
-				Start:  start,
-				End:    time.Now(),
+				TxID:    d.txID,
+				SessID:  d.sessID,
+				Query:   query,
+				Args:    args,
+				Err:     err,
+				Start:   start,
+				End:     time.Now(),
+				Context: ctx,
 			}
 
 			if res != nil {
@@ -471,13 +473,14 @@ func (d *database) StatementQuery(ctx context.Context, stmt *exql.Statement, arg
 	if d.Settings.LoggingEnabled() {
 		defer func(start time.Time) {
 			d.Logger().Log(&db.QueryStatus{
-				TxID:   d.txID,
-				SessID: d.sessID,
-				Query:  query,
-				Args:   args,
-				Err:    err,
-				Start:  start,
-				End:    time.Now(),
+				TxID:    d.txID,
+				SessID:  d.sessID,
+				Query:   query,
+				Args:    args,
+				Err:     err,
+				Start:   start,
+				End:     time.Now(),
+				Context: ctx,
 			})
 		}(time.Now())
 	}
@@ -514,13 +517,14 @@ func (d *database) StatementQueryRow(ctx context.Context, stmt *exql.Statement, 
 	if d.Settings.LoggingEnabled() {
 		defer func(start time.Time) {
 			d.Logger().Log(&db.QueryStatus{
-				TxID:   d.txID,
-				SessID: d.sessID,
-				Query:  query,
-				Args:   args,
-				Err:    err,
-				Start:  start,
-				End:    time.Now(),
+				TxID:    d.txID,
+				SessID:  d.sessID,
+				Query:   query,
+				Args:    args,
+				Err:     err,
+				Start:   start,
+				End:     time.Now(),
+				Context: ctx,
 			})
 		}(time.Now())
 	}
