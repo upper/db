@@ -156,6 +156,8 @@ func tearUp() error {
 			, auto_integer_array integer[]
 			, auto_string_array text[]
 			, auto_jsonb_map jsonb
+			, auto_jsonb_map_string jsonb
+			, auto_jsonb_map_integer jsonb
 
 			, jsonb_object jsonb
 			, jsonb_array jsonb
@@ -246,9 +248,11 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 		StringArrayPtr  *StringArray `db:"string_array_ptr,omitempty"`
 		JSONBMapPtr     *JSONBMap    `db:"jsonb_map_ptr,omitempty"`
 
-		AutoIntegerArray []int64                `db:"auto_integer_array"`
-		AutoStringArray  []string               `db:"auto_string_array"`
-		AutoJSONBMap     map[string]interface{} `db:"auto_jsonb_map"`
+		AutoIntegerArray    []int64                `db:"auto_integer_array"`
+		AutoStringArray     []string               `db:"auto_string_array"`
+		AutoJSONBMap        map[string]interface{} `db:"auto_jsonb_map"`
+		AutoJSONBMapString  map[string]string      `db:"auto_jsonb_map_string"`
+		AutoJSONBMapInteger map[string]int64       `db:"auto_jsonb_map_integer"`
 
 		JSONBObject JSONB      `db:"jsonb_object"`
 		JSONBArray  JSONBArray `db:"jsonb_array"`
@@ -288,9 +292,11 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 			StringCompatValue: "abc",
 		},
 		PGType{
-			IntegerValuePtr: &integerValue,
-			StringValuePtr:  &stringValue,
-			DecimalValuePtr: &decimalValue,
+			IntegerValuePtr:     &integerValue,
+			StringValuePtr:      &stringValue,
+			DecimalValuePtr:     &decimalValue,
+			AutoJSONBMapString:  map[string]string{"a": "x", "b": "67"},
+			AutoJSONBMapInteger: map[string]int64{"a": 12, "b": 13},
 		},
 		PGType{
 			IntegerValue: integerValue,
@@ -305,7 +311,7 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 			AutoStringArray:  nil,
 		},
 		PGType{
-			AutoJSONBMap: JSONBMap{
+			AutoJSONBMap: map[string]interface{}{
 				"Hello": "world",
 				"Roses": "red",
 			},
@@ -315,7 +321,7 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 			AutoIntegerArray: nil,
 		},
 		PGType{
-			AutoJSONBMap: JSONBMap{},
+			AutoJSONBMap: map[string]interface{}{},
 			JSONBArray:   JSONBArray{},
 		},
 		PGType{
