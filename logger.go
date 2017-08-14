@@ -22,6 +22,7 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"regexp"
@@ -38,6 +39,7 @@ const (
 	fmtLogLastInsertID = `Last insert ID: %d`
 	fmtLogError        = `Error:          %v`
 	fmtLogTimeTaken    = `Time taken:     %0.5fs`
+	fmtLogContext      = `Context:        %v`
 )
 
 var (
@@ -60,6 +62,8 @@ type QueryStatus struct {
 
 	Start time.Time
 	End   time.Time
+
+	Context context.Context
 }
 
 // String returns a formatted log message.
@@ -96,6 +100,10 @@ func (q *QueryStatus) String() string {
 	}
 
 	lines = append(lines, fmt.Sprintf(fmtLogTimeTaken, float64(q.End.UnixNano()-q.Start.UnixNano())/float64(1e9)))
+
+	if q.Context != nil {
+		lines = append(lines, fmt.Sprintf(fmtLogContext, q.Context))
+	}
 
 	return strings.Join(lines, "\n")
 }
