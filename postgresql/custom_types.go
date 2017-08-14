@@ -178,33 +178,33 @@ func (g *GenericArray) Scan(src interface{}) error {
 type JSONBMap map[string]interface{}
 
 func (m JSONBMap) Value() (driver.Value, error) {
-	return EncodeJSONB(m)
+	return ToJSONBValue(m)
 }
 
 func (m *JSONBMap) Scan(src interface{}) error {
 	*m = map[string]interface{}(nil)
-	return DecodeJSONB(m, src)
+	return FromJSONBValue(m, src)
 }
 
 type JSONBArray []interface{}
 
 func (a JSONBArray) Value() (driver.Value, error) {
-	return EncodeJSONB(a)
+	return ToJSONBValue(a)
 }
 
 func (a *JSONBArray) Scan(src interface{}) error {
-	return DecodeJSONB(a, src)
+	return FromJSONBValue(a, src)
 }
 
-// EncodeJSONB takes an interface and provides a driver.Value that can be
+// ToJSONBValue takes an interface and provides a driver.Value that can be
 // stored as a JSONB column.
-func EncodeJSONB(i interface{}) (driver.Value, error) {
+func ToJSONBValue(i interface{}) (driver.Value, error) {
 	v := JSONB{i}
 	return v.Value()
 }
 
-// DecodeJSONB decodes a JSON byte stream into the passed dst value.
-func DecodeJSONB(dst interface{}, src interface{}) error {
+// FromJSONBValue decodes a JSON byte stream into the passed dst value.
+func FromJSONBValue(dst interface{}, src interface{}) error {
 	v := JSONB{dst}
 	return v.Scan(src)
 }
@@ -214,7 +214,19 @@ type scannerValuer interface {
 	sql.Scanner
 }
 
+type valueWrapper interface {
+	WrapValue(src interface{}) interface{}
+}
+
+type JSONBConverter struct {
+}
+
+func (jc *JSONBConverter) WrapValue(src interface{}) interface{} {
+	return &JSONB{src}
+}
+
 var (
+	_ valueWrapper  = &JSONBConverter{}
 	_ scannerValuer = &StringArray{}
 	_ scannerValuer = &Int64Array{}
 	_ scannerValuer = &Float64Array{}

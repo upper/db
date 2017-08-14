@@ -161,6 +161,7 @@ func tearUp() error {
 			, jsonb_array jsonb
 
 			, custom_jsonb_object jsonb
+			, auto_custom_jsonb_object jsonb
 
 			, string_value varchar(255)
 			, integer_value int
@@ -209,11 +210,18 @@ type customJSONB struct {
 }
 
 func (c customJSONB) Value() (driver.Value, error) {
-	return EncodeJSONB(c)
+	return ToJSONBValue(c)
 }
 
 func (c *customJSONB) Scan(src interface{}) error {
-	return DecodeJSONB(c, src)
+	return FromJSONBValue(c, src)
+}
+
+type autoCustomJSONB struct {
+	N string  `json:"name"`
+	V float64 `json:"value"`
+
+	*JSONBConverter
 }
 
 var (
@@ -245,7 +253,8 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 		JSONBObject JSONB      `db:"jsonb_object"`
 		JSONBArray  JSONBArray `db:"jsonb_array"`
 
-		CustomJSONBObject customJSONB `db:"custom_jsonb_object"`
+		CustomJSONBObject     customJSONB     `db:"custom_jsonb_object"`
+		AutoCustomJSONBObject autoCustomJSONB `db:"auto_custom_jsonb_object"`
 
 		StringValue  string  `db:"string_value"`
 		IntegerValue int64   `db:"integer_value"`
@@ -355,6 +364,9 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 			StringValue:  testValue,
 			CustomJSONBObject: customJSONB{
 				N: "Hello",
+			},
+			AutoCustomJSONBObject: autoCustomJSONB{
+				N: "World",
 			},
 			StringArray: []string{"", "", "", ``, `""`},
 		},
@@ -624,10 +636,10 @@ type Settings struct {
 }
 
 func (s *Settings) Scan(src interface{}) error {
-	return DecodeJSONB(s, src)
+	return FromJSONBValue(s, src)
 }
 func (s Settings) Value() (driver.Value, error) {
-	return EncodeJSONB(s)
+	return ToJSONBValue(s)
 }
 
 func TestOptionTypeJsonbStruct(t *testing.T) {

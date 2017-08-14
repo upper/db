@@ -12,10 +12,10 @@ type testStruct struct {
 	V JSONB  `json:"v"`
 }
 
-func TestDecodeJSONB(t *testing.T) {
+func TestFromJSONBValue(t *testing.T) {
 	{
 		a := testStruct{}
-		err := DecodeJSONB(&a, []byte(`{"x": 5, "z": "Hello", "v": 1}`))
+		err := FromJSONBValue(&a, []byte(`{"x": 5, "z": "Hello", "v": 1}`))
 		assert.NoError(t, err)
 		assert.Equal(t, "Hello", a.Z)
 		assert.Equal(t, float64(1), a.V.V)
@@ -23,7 +23,7 @@ func TestDecodeJSONB(t *testing.T) {
 	}
 	{
 		a := testStruct{}
-		err := DecodeJSONB(&a, []byte(`{"x": 5, "z": "Hello", "v": null}`))
+		err := FromJSONBValue(&a, []byte(`{"x": 5, "z": "Hello", "v": null}`))
 		assert.NoError(t, err)
 		assert.Equal(t, "Hello", a.Z)
 		assert.Equal(t, nil, a.V.V)
@@ -31,7 +31,7 @@ func TestDecodeJSONB(t *testing.T) {
 	}
 	{
 		a := testStruct{}
-		err := DecodeJSONB(&a, []byte(`{"x": 5, "z": "Hello"}`))
+		err := FromJSONBValue(&a, []byte(`{"x": 5, "z": "Hello"}`))
 		assert.NoError(t, err)
 		assert.Equal(t, "Hello", a.Z)
 		assert.Equal(t, nil, a.V.V)
@@ -39,19 +39,19 @@ func TestDecodeJSONB(t *testing.T) {
 	}
 	{
 		a := testStruct{}
-		err := DecodeJSONB(&a, []byte(`{"v": "Hello"}`))
+		err := FromJSONBValue(&a, []byte(`{"v": "Hello"}`))
 		assert.NoError(t, err)
 		assert.Equal(t, "Hello", a.V.V)
 	}
 	{
 		a := testStruct{}
-		err := DecodeJSONB(&a, []byte(`{"v": true}`))
+		err := FromJSONBValue(&a, []byte(`{"v": true}`))
 		assert.NoError(t, err)
 		assert.Equal(t, true, a.V.V)
 	}
 	{
 		a := testStruct{}
-		err := DecodeJSONB(&a, []byte(`{}`))
+		err := FromJSONBValue(&a, []byte(`{}`))
 		assert.NoError(t, err)
 		assert.Equal(t, nil, a.V.V)
 	}
