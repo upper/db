@@ -88,7 +88,7 @@ var (
 )
 
 var (
-	errDeprecatedTag = errors.New("Tag %v is deprecated, please use type %v instead")
+	errDeprecatedJSONBTag = errors.New(`Tag "jsonb" is deprecated. See "PostgreSQL: jsonb tag" at https://github.com/upper/db/releases/tag/v3.4.0`)
 )
 
 type exprDB interface {
@@ -272,11 +272,9 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 
 		for _, fi := range fieldMap {
 
-			// Check for deprecated tags and give suggestions on how to fix them.
-			for k, v := range deprecatedTags {
-				if _, hasDeprecatedTag := fi.Options[k]; hasDeprecatedTag {
-					return nil, nil, fmt.Errorf(errDeprecatedTag.Error(), k, v)
-				}
+			// Check for deprecated JSONB tag
+			if _, hasJSONBTag := fi.Options["jsonb"]; hasJSONBTag {
+				return nil, nil, errDeprecatedJSONBTag
 			}
 
 			// Field options

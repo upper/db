@@ -23,7 +23,6 @@ package sqlbuilder
 
 import (
 	"database/sql"
-	"fmt"
 	"reflect"
 
 	"upper.io/db.v3"
@@ -31,12 +30,6 @@ import (
 )
 
 var mapper = reflectx.NewMapper("db")
-
-var deprecatedTags = map[string]string{
-	"stringarray": "postgresql.StringArray",
-	"int64array":  "postgresql.Int64Array",
-	"jsonb":       "postgresql.JSONB",
-}
 
 // fetchRow receives a *sql.Rows value and tries to map all the rows into a
 // single struct given by the pointer `dst`.
@@ -168,11 +161,9 @@ func fetchResult(itemT reflect.Type, rows *sql.Rows, columns []string) (reflect.
 				continue
 			}
 
-			// Check for deprecated tags and give suggestions on how to fix them.
-			for k, v := range deprecatedTags {
-				if _, hasDeprecatedTag := fi.Options[k]; hasDeprecatedTag {
-					return item, fmt.Errorf(errDeprecatedTag.Error(), k, v)
-				}
+			// Check for deprecated jsonb tag.
+			if _, hasJSONBTag := fi.Options["jsonb"]; hasJSONBTag {
+				return item, errDeprecatedJSONBTag
 			}
 
 			f := reflectx.FieldByIndexes(item, fi.Index)
