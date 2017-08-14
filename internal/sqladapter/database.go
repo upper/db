@@ -642,9 +642,14 @@ func ReplaceWithDollarSign(in string) string {
 	for i < t {
 		if buf[i] == '?' {
 			out = append(out, buf[k:i]...)
-			out = append(out, []byte("$"+strconv.Itoa(j))...)
 			k = i + 1
-			j++
+
+			if k < t && buf[k] == '?' {
+				i = k
+			} else {
+				out = append(out, []byte("$"+strconv.Itoa(j))...)
+				j++
+			}
 		}
 		i++
 	}

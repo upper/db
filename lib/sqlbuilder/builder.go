@@ -272,10 +272,6 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 		for _, fi := range fieldMap {
 
 			// Check for deprecated tags and give suggestions on how to fix them.
-			deprecatedTags := map[string]string{
-				"stringarray": "postgresql.StringArray",
-				"int64array":  "postgresql.Int64Array",
-			}
 			for k, v := range deprecatedTags {
 				if _, hasDeprecatedTag := fi.Options[k]; hasDeprecatedTag {
 					return nil, nil, fmt.Errorf(errDeprecatedTag.Error(), k, v)
@@ -285,7 +281,6 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 			// Field options
 			_, tagAssoc := fi.Options["assoc"]
 			_, tagOmitEmpty := fi.Options["omitempty"]
-			_, tagJSONB := fi.Options["jsonb"]
 
 			if tagAssoc {
 				// continue
@@ -305,15 +300,10 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 				continue
 			}
 
-			var value interface{}
-			switch {
-			case tagJSONB:
-				value = jsonbType{fld.Interface()}
-			case !fld.IsValid():
+			if !fld.IsValid() {
 				continue
-			default:
-				value = fld.Interface()
 			}
+			value := fld.Interface()
 
 			isZero := false
 			if t, ok := fld.Interface().(hasIsZero); ok {

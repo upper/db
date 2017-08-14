@@ -346,6 +346,33 @@ func (r *Result) TotalEntries() (uint64, error) {
 	return total, nil
 }
 
+// Exists returns true if at least one item on the collection exists.
+func (r *Result) Exists() (bool, error) {
+	query, err := r.buildCount()
+	if err != nil {
+		return false, r.setErr(err)
+	}
+
+	query = query.Limit(1)
+
+	value := struct {
+		Exists uint64 `db:"_t"`
+	}{}
+
+	if err := query.One(&value); err != nil {
+		if err == db.ErrNoMoreRows {
+			return false, nil
+		}
+		return false, r.setErr(err)
+	}
+
+	if value.Exists > 0 {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 // Count counts the elements on the set.
 func (r *Result) Count() (uint64, error) {
 	query, err := r.buildCount()
