@@ -26,6 +26,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"reflect"
 
 	"github.com/lib/pq"
 )
@@ -223,6 +224,29 @@ type JSONBConverter struct {
 
 func (jc *JSONBConverter) WrapValue(src interface{}) interface{} {
 	return &JSONB{src}
+}
+
+var valueWrapperType = reflect.TypeOf((*valueWrapper)(nil)).Elem()
+
+func autoWrap(elem reflect.Value, v interface{}) interface{} {
+	switch elem.Kind() {
+	case reflect.Ptr:
+		return autoWrap(elem.Elem(), v)
+	case reflect.Slice:
+		if elem.Type().Elem().Implements(valueWrapperType) {
+			return &JSONB{v}
+		}
+	case reflect.Map:
+		if elem.Type().Elem().Implements(valueWrapperType) {
+			if reflect.TypeOf(v).Kind() == reflect.Ptr {
+				w := reflect.ValueOf(v)
+				z := reflect.New(w.Elem().Type())
+				w.Elem().Set(z.Elem())
+			}
+			return &JSONB{v}
+		}
+	}
+	return v
 }
 
 var (

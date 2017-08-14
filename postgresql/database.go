@@ -27,9 +27,12 @@ package postgresql
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	_ "github.com/lib/pq" // PostgreSQL driver.
 	"upper.io/db.v3"
@@ -153,6 +156,10 @@ func (d *database) clone(ctx context.Context, checkConn bool) (*database, error)
 func (d *database) ConvertValues(values []interface{}) []interface{} {
 	for i := range values {
 		switch v := values[i].(type) {
+		case *string, *int64, *uint64, *int32, *uint32, *int16, *uint16, *int8, *uint8, *[]byte, *float32, *float64, sql.Scanner, *time.Time:
+			continue // Handled by pq.
+		case string, int64, uint64, int32, uint32, int16, uint16, int8, uint8, []byte, float32, float64, driver.Valuer, time.Time:
+			continue // Handled by pq.
 
 		case *[]int64:
 			values[i] = (*Int64Array)(v)
@@ -203,7 +210,12 @@ func (d *database) ConvertValues(values []interface{}) []interface{} {
 
 		case valueWrapper:
 			values[i] = v.WrapValue(values[i])
+
+		default:
+			// Will auto-convert slices/maps of valueWrapper and ignore everything else.
+			values[i] = autoWrap(reflect.ValueOf(values[i]), values[i])
 		}
+
 	}
 	return values
 }

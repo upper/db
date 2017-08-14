@@ -165,6 +165,10 @@ func tearUp() error {
 			, custom_jsonb_object jsonb
 			, auto_custom_jsonb_object jsonb
 
+			, custom_jsonb_object_array jsonb
+			, auto_custom_jsonb_object_array jsonb
+			, auto_custom_jsonb_object_map jsonb
+
 			, string_value varchar(255)
 			, integer_value int
 			, varchar_value varchar(64)
@@ -260,6 +264,9 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 		CustomJSONBObject     customJSONB     `db:"custom_jsonb_object"`
 		AutoCustomJSONBObject autoCustomJSONB `db:"auto_custom_jsonb_object"`
 
+		AutoCustomJSONBObjectArray []autoCustomJSONB          `db:"auto_custom_jsonb_object_array"`
+		AutoCustomJSONBObjectMap   map[string]autoCustomJSONB `db:"auto_custom_jsonb_object_map"`
+
 		StringValue  string  `db:"string_value"`
 		IntegerValue int64   `db:"integer_value"`
 		VarcharValue string  `db:"varchar_value"`
@@ -311,6 +318,22 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 			AutoStringArray:  nil,
 		},
 		PGType{
+			AutoCustomJSONBObjectArray: []autoCustomJSONB{
+				autoCustomJSONB{
+					N: "Hello",
+				},
+				autoCustomJSONB{
+					N: "World",
+				},
+			},
+			AutoCustomJSONBObjectMap: map[string]autoCustomJSONB{
+				"a": autoCustomJSONB{
+					N: "Hello",
+				},
+				"b": autoCustomJSONB{
+					N: "World",
+				},
+			},
 			AutoJSONBMap: map[string]interface{}{
 				"Hello": "world",
 				"Roses": "red",
