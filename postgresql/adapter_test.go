@@ -143,30 +143,50 @@ func tearUp() error {
 
 		`DROP TABLE IF EXISTS pg_types`,
 
-		`CREATE TABLE pg_types (
-			id serial primary key,
+		`CREATE TABLE pg_types (id serial primary key
 
-			auto_integer_array integer[],
-			auto_string_array text[],
+			, integer_array integer[]
+			, string_array text[]
+			, jsonb_map jsonb
 
-			auto_integer_array_ptr integer[],
-			auto_string_array_ptr text[],
+			, integer_array_ptr integer[]
+			, string_array_ptr text[]
+			, jsonb_map_ptr jsonb
 
-			integer_array integer[],
-			string_value varchar(255),
+			, auto_integer_array integer[]
+			, auto_string_array text[]
+			, auto_jsonb_map jsonb
+			, auto_jsonb_map_string jsonb
+			, auto_jsonb_map_integer jsonb
 
-			auto_jsonb jsonb,
-			auto_jsonb_map jsonb,
-			auto_jsonb_array jsonb,
-			custom_jsonb jsonb,
-			auto_jsonb_ptr jsonb,
+			, jsonb_object jsonb
+			, jsonb_array jsonb
 
-			integer_valuer_value smallint[],
-			string_array text[],
+			, custom_jsonb_object jsonb
+			, auto_custom_jsonb_object jsonb
 
-			field1 int,
-			field2 varchar(64),
-			field3 decimal
+			, custom_jsonb_object_array jsonb
+			, auto_custom_jsonb_object_array jsonb
+			, auto_custom_jsonb_object_map jsonb
+
+			, string_value varchar(255)
+			, integer_value int
+			, varchar_value varchar(64)
+			, decimal_value decimal
+
+			, integer_compat_value int
+			, uinteger_compat_value int
+			, string_compat_value text
+
+			, integer_compat_value_jsonb_array jsonb
+			, string_compat_value_jsonb_array jsonb
+			, uinteger_compat_value_jsonb_array jsonb
+
+			, string_value_ptr varchar(255)
+			, integer_value_ptr int
+			, varchar_value_ptr varchar(64)
+			, decimal_value_ptr decimal
+
 		)`,
 
 		`DROP TABLE IF EXISTS issue_370`,
@@ -200,11 +220,18 @@ type customJSONB struct {
 }
 
 func (c customJSONB) Value() (driver.Value, error) {
-	return EncodeJSONB(c)
+	return ToJSONBValue(c)
 }
 
 func (c *customJSONB) Scan(src interface{}) error {
-	return DecodeJSONB(c, src)
+	return FromJSONBValue(c, src)
+}
+
+type autoCustomJSONB struct {
+	N string  `json:"name"`
+	V float64 `json:"value"`
+
+	*JSONBConverter
 }
 
 var (
@@ -214,90 +241,152 @@ var (
 
 func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 
+	type int64Compat int64
+
+	type uintCompat uint
+
+	type stringCompat string
+
 	type PGType struct {
 		ID int64 `db:"id,omitempty"`
 
 		IntegerArray Int64Array  `db:"integer_array"`
-		StringValue  *string     `db:"string_value,omitempty"`
 		StringArray  StringArray `db:"string_array"`
+		JSONBMap     JSONBMap    `db:"jsonb_map"`
 
-		Field1 *int64   `db:"field1,omitempty"`
-		Field2 *string  `db:"field2,omitempty"`
-		Field3 *float64 `db:"field3,omitempty"`
+		IntegerArrayPtr *Int64Array  `db:"integer_array_ptr,omitempty"`
+		StringArrayPtr  *StringArray `db:"string_array_ptr,omitempty"`
+		JSONBMapPtr     *JSONBMap    `db:"jsonb_map_ptr,omitempty"`
 
-		AutoIntegerArray Int64Array  `db:"auto_integer_array"`
-		AutoStringArray  StringArray `db:"auto_string_array"`
-		AutoJSONB        JSONB       `db:"auto_jsonb"`
-		AutoJSONBMap     JSONBMap    `db:"auto_jsonb_map"`
-		AutoJSONBArray   JSONBArray  `db:"auto_jsonb_array"`
-		CustomJSONB      customJSONB `db:"custom_jsonb"`
+		AutoIntegerArray    []int64                `db:"auto_integer_array"`
+		AutoStringArray     []string               `db:"auto_string_array"`
+		AutoJSONBMap        map[string]interface{} `db:"auto_jsonb_map"`
+		AutoJSONBMapString  map[string]string      `db:"auto_jsonb_map_string"`
+		AutoJSONBMapInteger map[string]int64       `db:"auto_jsonb_map_integer"`
 
-		AutoIntegerArrayPtr *Int64Array  `db:"auto_integer_array_ptr,omitempty"`
-		AutoStringArrayPtr  *StringArray `db:"auto_string_array_ptr,omitempty"`
-		AutoJSONBPtr        *JSONB       `db:"auto_jsonb_ptr,omitempty"`
+		JSONBObject JSONB      `db:"jsonb_object"`
+		JSONBArray  JSONBArray `db:"jsonb_array"`
+
+		CustomJSONBObject     customJSONB     `db:"custom_jsonb_object"`
+		AutoCustomJSONBObject autoCustomJSONB `db:"auto_custom_jsonb_object"`
+
+		AutoCustomJSONBObjectArray []autoCustomJSONB          `db:"auto_custom_jsonb_object_array"`
+		AutoCustomJSONBObjectMap   map[string]autoCustomJSONB `db:"auto_custom_jsonb_object_map"`
+
+		StringValue  string  `db:"string_value"`
+		IntegerValue int64   `db:"integer_value"`
+		VarcharValue string  `db:"varchar_value"`
+		DecimalValue float64 `db:"decimal_value"`
+
+		Int64CompatValue  int64Compat  `db:"integer_compat_value"`
+		UIntCompatValue   uintCompat   `db:"uinteger_compat_value"`
+		StringCompatValue stringCompat `db:"string_compat_value"`
+
+		Int64CompatValueJSONBArray  []int64Compat  `db:"integer_compat_value_jsonb_array"`
+		UIntCompatValueJSONBArray   []uintCompat   `db:"uinteger_compat_value_jsonb_array"`
+		StringCompatValueJSONBArray []stringCompat `db:"string_compat_value_jsonb_array"`
+
+		StringValuePtr  *string  `db:"string_value_ptr,omitempty"`
+		IntegerValuePtr *int64   `db:"integer_value_ptr,omitempty"`
+		VarcharValuePtr *string  `db:"varchar_value_ptr,omitempty"`
+		DecimalValuePtr *float64 `db:"decimal_value_ptr,omitempty"`
 	}
 
-	field1 := int64(10)
-	field2 := string("ten")
-	field3 := float64(10.0)
+	integerValue := int64(10)
+	stringValue := string("ten")
+	decimalValue := float64(10.0)
+
+	integerArrayValue := Int64Array{1, 2, 3, 4}
+	stringArrayValue := StringArray{"a", "b", "c"}
+	jsonbMapValue := JSONBMap{"Hello": "World"}
 
 	testValue := "Hello world!"
 
 	origPgTypeTests := []PGType{
 		PGType{
-			Field1: &field1,
-			Field2: &field2,
-			Field3: &field3,
+			Int64CompatValue:  -5,
+			UIntCompatValue:   3,
+			StringCompatValue: "abc",
+		},
+		PGType{
+			Int64CompatValueJSONBArray:  []int64Compat{1, -2, 3, -4},
+			UIntCompatValueJSONBArray:   []uintCompat{1, 2, 3, 4},
+			StringCompatValueJSONBArray: []stringCompat{"a", "b", "", "c"},
+		},
+		PGType{
+			Int64CompatValueJSONBArray:  []int64Compat(nil),
+			UIntCompatValueJSONBArray:   []uintCompat(nil),
+			StringCompatValueJSONBArray: []stringCompat(nil),
+		},
+		PGType{
+			IntegerValuePtr:     &integerValue,
+			StringValuePtr:      &stringValue,
+			DecimalValuePtr:     &decimalValue,
+			AutoJSONBMapString:  map[string]string{"a": "x", "b": "67"},
+			AutoJSONBMapInteger: map[string]int64{"a": 12, "b": 13},
+		},
+		PGType{
+			IntegerValue: integerValue,
+			StringValue:  stringValue,
+			DecimalValue: decimalValue,
 		},
 		PGType{
 			IntegerArray: []int64{1, 2, 3, 4},
 		},
 		PGType{
-			AutoIntegerArray:    Int64Array{1, 2, 3, 4},
-			AutoIntegerArrayPtr: nil,
+			AutoIntegerArray: Int64Array{1, 2, 3, 4},
+			AutoStringArray:  nil,
 		},
 		PGType{
-			AutoJSONBMap: JSONBMap{
+			AutoCustomJSONBObjectArray: []autoCustomJSONB{
+				autoCustomJSONB{
+					N: "Hello",
+				},
+				autoCustomJSONB{
+					N: "World",
+				},
+			},
+			AutoCustomJSONBObjectMap: map[string]autoCustomJSONB{
+				"a": autoCustomJSONB{
+					N: "Hello",
+				},
+				"b": autoCustomJSONB{
+					N: "World",
+				},
+			},
+			AutoJSONBMap: map[string]interface{}{
 				"Hello": "world",
 				"Roses": "red",
 			},
-			AutoJSONBArray: JSONBArray{float64(1), float64(2), float64(3), float64(4)},
+			JSONBArray: JSONBArray{float64(1), float64(2), float64(3), float64(4)},
 		},
 		PGType{
-			AutoIntegerArray:    nil,
-			AutoIntegerArrayPtr: &Int64Array{4, 5, 6, 7},
+			AutoIntegerArray: nil,
 		},
 		PGType{
-			AutoJSONBMap:   JSONBMap{},
-			AutoJSONBArray: JSONBArray{},
+			AutoJSONBMap: map[string]interface{}{},
+			JSONBArray:   JSONBArray{},
 		},
 		PGType{
-			AutoJSONBMap:   JSONBMap(nil),
-			AutoJSONBArray: JSONBArray(nil),
+			AutoJSONBMap: map[string]interface{}(nil),
+			JSONBArray:   JSONBArray(nil),
 		},
 		PGType{
-			AutoStringArray:    StringArray{"aaa", "bbb", "ccc"},
-			AutoStringArrayPtr: nil,
+			AutoStringArray: []string{"aaa", "bbb", "ccc"},
 		},
 		PGType{
-			AutoStringArray:    nil,
-			AutoStringArrayPtr: &StringArray{"ddd", "eee", "ffff"},
+			AutoStringArray: nil,
 		},
 		PGType{
-			AutoJSONB:    JSONB{map[string]interface{}{"hello": "world!"}},
-			AutoJSONBPtr: nil,
-		},
-		PGType{
-			AutoJSONB:    JSONB{nil},
-			AutoJSONBPtr: &JSONB{[]interface{}{float64(9), float64(9), float64(9)}},
+			AutoJSONBMap: map[string]interface{}{"hello": "world!"},
 		},
 		PGType{
 			IntegerArray: []int64{1, 2, 3, 4},
 			StringArray:  []string{"a", "boo", "bar"},
 		},
 		PGType{
-			Field2: &field2,
-			Field3: &field3,
+			StringValue:  stringValue,
+			DecimalValue: decimalValue,
 		},
 		PGType{
 			IntegerArray: []int64{},
@@ -315,19 +404,28 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 			StringArray:  []string{"a"},
 		},
 		PGType{
+			IntegerArrayPtr: &integerArrayValue,
+			StringArrayPtr:  &stringArrayValue,
+			JSONBMapPtr:     &jsonbMapValue,
+		},
+		PGType{
 			IntegerArray: []int64{0, 0, 0, 0},
-			StringValue:  &testValue,
-			CustomJSONB: customJSONB{
+			StringValue:  testValue,
+			CustomJSONBObject: customJSONB{
 				N: "Hello",
+			},
+			AutoCustomJSONBObject: autoCustomJSONB{
+				N: "World",
 			},
 			StringArray: []string{"", "", "", ``, `""`},
 		},
 		PGType{
-			StringValue: &testValue,
+			StringValue: testValue,
 		},
 		PGType{
-			Field1: &field1,
-			CustomJSONB: customJSONB{
+			IntegerValue:    integerValue,
+			IntegerValuePtr: &integerValue,
+			CustomJSONBObject: customJSONB{
 				V: 4.4,
 			},
 		},
@@ -335,15 +433,15 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 			StringArray: []string{"a", "boo", "bar"},
 		},
 		PGType{
-			StringArray: []string{"a", "boo", "bar", `""`},
-			CustomJSONB: customJSONB{},
+			StringArray:       []string{"a", "boo", "bar", `""`},
+			CustomJSONBObject: customJSONB{},
 		},
 		PGType{
 			IntegerArray: []int64{0},
 			StringArray:  []string{""},
 		},
 		PGType{
-			CustomJSONB: customJSONB{
+			CustomJSONBObject: customJSONB{
 				N: "Peter",
 				V: 5.56,
 			},
@@ -442,17 +540,17 @@ func TestOptionTypes(t *testing.T) {
 	// A struct with wrapped option types defined in the struct tags
 	// for postgres string array and jsonb types
 	type optionType struct {
-		ID       int64       `db:"id,omitempty"`
-		Name     string      `db:"name"`
-		Tags     StringArray `db:"tags"`
-		Settings JSONBMap    `db:"settings"`
+		ID       int64                  `db:"id,omitempty"`
+		Name     string                 `db:"name"`
+		Tags     []string               `db:"tags"`
+		Settings map[string]interface{} `db:"settings"`
 	}
 
 	// Item 1
 	item1 := optionType{
 		Name:     "Food",
 		Tags:     []string{"toronto", "pizza"},
-		Settings: JSONBMap{"a": 1, "b": 2},
+		Settings: map[string]interface{}{"a": 1, "b": 2},
 	}
 
 	id, err := optionTypes.Insert(item1)
@@ -587,10 +685,10 @@ type Settings struct {
 }
 
 func (s *Settings) Scan(src interface{}) error {
-	return DecodeJSONB(s, src)
+	return FromJSONBValue(s, src)
 }
 func (s Settings) Value() (driver.Value, error) {
-	return EncodeJSONB(s)
+	return ToJSONBValue(s)
 }
 
 func TestOptionTypeJsonbStruct(t *testing.T) {

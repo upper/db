@@ -69,6 +69,7 @@ type hasStatement interface {
 }
 
 type iterator struct {
+	sess   exprDB
 	cursor *sql.Rows // This is the main query cursor. It starts as a nil value.
 	err    error
 }
@@ -92,10 +93,10 @@ var (
 )
 
 type exprDB interface {
+	StatementExec(ctx context.Context, stmt *exql.Statement, args ...interface{}) (sql.Result, error)
 	StatementPrepare(ctx context.Context, stmt *exql.Statement) (*sql.Stmt, error)
 	StatementQuery(ctx context.Context, stmt *exql.Statement, args ...interface{}) (*sql.Rows, error)
 	StatementQueryRow(ctx context.Context, stmt *exql.Statement, args ...interface{}) (*sql.Row, error)
-	StatementExec(ctx context.Context, stmt *exql.Statement, args ...interface{}) (sql.Result, error)
 
 	Context() context.Context
 }
@@ -125,7 +126,7 @@ func WithTemplate(t *exql.Template) SQLBuilder {
 
 // NewIterator creates an iterator using the given *sql.Rows.
 func NewIterator(rows *sql.Rows) Iterator {
-	return &iterator{rows, nil}
+	return &iterator{nil, rows, nil}
 }
 
 func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) Iterator {
@@ -134,7 +135,7 @@ func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) Iterator {
 
 func (b *sqlBuilder) IteratorContext(ctx context.Context, query interface{}, args ...interface{}) Iterator {
 	rows, err := b.QueryContext(ctx, query, args...)
-	return &iterator{rows, err}
+	return &iterator{b.sess, rows, err}
 }
 
 func (b *sqlBuilder) Prepare(query interface{}) (*sql.Stmt, error) {
@@ -466,7 +467,7 @@ func (iter *iterator) All(dst interface{}) error {
 	defer iter.Close()
 
 	// Fetching all results within the cursor.
-	if err := fetchRows(iter.cursor, dst); err != nil {
+	if err := fetchRows(iter, dst); err != nil {
 		return iter.setErr(err)
 	}
 
@@ -510,7 +511,7 @@ func (iter *iterator) next(dst ...interface{}) error {
 		}
 		return nil
 	case 1:
-		if err := fetchRow(iter.cursor, dst[0]); err != nil {
+		if err := fetchRow(iter, dst[0]); err != nil {
 			defer iter.Close()
 			return err
 		}

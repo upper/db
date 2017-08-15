@@ -29,7 +29,6 @@ func (iq *inserterQuery) processValues() ([]*exql.Values, []interface{}, error) 
 	}
 
 	for _, enqueuedValue := range iq.enqueuedValues {
-
 		if len(enqueuedValue) == 1 {
 			// If and only if we passed one argument to Values.
 			ff, vv, err := Map(enqueuedValue[0], mapOptions)
@@ -206,7 +205,7 @@ func (ins *inserter) Iterator() Iterator {
 
 func (ins *inserter) IteratorContext(ctx context.Context) Iterator {
 	rows, err := ins.QueryContext(ctx)
-	return &iterator{rows, err}
+	return &iterator{ins.SQLBuilder().sess, rows, err}
 }
 
 func (ins *inserter) Into(table string) Inserter {

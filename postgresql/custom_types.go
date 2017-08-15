@@ -26,17 +26,9 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"reflect"
 
 	"github.com/lib/pq"
-)
-
-const (
-	stateInit = iota
-	stateOpenBracket
-	stateOpenQuote
-	stateLiteral
-	stateEscape
-	stateStop
 )
 
 // Type JSONB represents a PostgreSQL's JSONB value.
@@ -187,35 +179,46 @@ func (g *GenericArray) Scan(src interface{}) error {
 type JSONBMap map[string]interface{}
 
 func (m JSONBMap) Value() (driver.Value, error) {
-	return EncodeJSONB(m)
+	return ToJSONBValue(m)
 }
 
 func (m *JSONBMap) Scan(src interface{}) error {
 	*m = map[string]interface{}(nil)
-	return DecodeJSONB(m, src)
+	return FromJSONBValue(m, src)
 }
 
 type JSONBArray []interface{}
 
 func (a JSONBArray) Value() (driver.Value, error) {
-	return EncodeJSONB(a)
+	return ToJSONBValue(a)
 }
 
 func (a *JSONBArray) Scan(src interface{}) error {
-	return DecodeJSONB(a, src)
+	return FromJSONBValue(a, src)
 }
 
-// EncodeJSONB takes an interface and provides a driver.Value that can be
+// ToJSONBValue takes an interface and provides a driver.Value that can be
 // stored as a JSONB column.
-func EncodeJSONB(i interface{}) (driver.Value, error) {
+func ToJSONBValue(i interface{}) (driver.Value, error) {
 	v := JSONB{i}
 	return v.Value()
 }
 
-// DecodeJSONB decodes a JSON byte stream into the passed dst value.
-func DecodeJSONB(dst interface{}, src interface{}) error {
+// FromJSONBValue decodes a JSON byte stream into the passed dst value.
+func FromJSONBValue(dst interface{}, src interface{}) error {
 	v := JSONB{dst}
 	return v.Scan(src)
+}
+
+type valueWrapper interface {
+	WrapValue(interface{}) interface{}
+}
+
+type JSONBConverter struct {
+}
+
+func (obj *JSONBConverter) WrapValue(src interface{}) interface{} {
+	return &JSONB{src}
 }
 
 type scannerValuer interface {
@@ -224,6 +227,44 @@ type scannerValuer interface {
 }
 
 var (
+	driverValuerType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
+	sqlScannerType   = reflect.TypeOf((*sql.Scanner)(nil)).Elem()
+)
+
+func autoWrap(elem reflect.Value, v interface{}) interface{} {
+	kind := elem.Kind()
+
+	if kind == reflect.Invalid {
+		return v
+	}
+
+	if elem.Type().Implements(sqlScannerType) {
+		return v
+	}
+
+	if elem.Type().Implements(driverValuerType) {
+		return v
+	}
+
+	switch kind {
+	case reflect.Ptr:
+		return autoWrap(elem.Elem(), v)
+	case reflect.Slice:
+		return &JSONB{v}
+	case reflect.Map:
+		if reflect.TypeOf(v).Kind() == reflect.Ptr {
+			w := reflect.ValueOf(v)
+			z := reflect.New(w.Elem().Type())
+			w.Elem().Set(z.Elem())
+		}
+		return &JSONB{v}
+	}
+
+	return v
+}
+
+var (
+	_ valueWrapper  = &JSONBConverter{}
 	_ scannerValuer = &StringArray{}
 	_ scannerValuer = &Int64Array{}
 	_ scannerValuer = &Float64Array{}
