@@ -178,6 +178,10 @@ func tearUp() error {
 			, uinteger_compat_value int
 			, string_compat_value text
 
+			, integer_compat_value_jsonb_array jsonb
+			, string_compat_value_jsonb_array jsonb
+			, uinteger_compat_value_jsonb_array jsonb
+
 			, string_value_ptr varchar(255)
 			, integer_value_ptr int
 			, varchar_value_ptr varchar(64)
@@ -238,7 +242,9 @@ var (
 func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 
 	type int64Compat int64
+
 	type uintCompat uint
+
 	type stringCompat string
 
 	type PGType struct {
@@ -276,6 +282,10 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 		UIntCompatValue   uintCompat   `db:"uinteger_compat_value"`
 		StringCompatValue stringCompat `db:"string_compat_value"`
 
+		Int64CompatValueJSONBArray  []int64Compat  `db:"integer_compat_value_jsonb_array"`
+		UIntCompatValueJSONBArray   []uintCompat   `db:"uinteger_compat_value_jsonb_array"`
+		StringCompatValueJSONBArray []stringCompat `db:"string_compat_value_jsonb_array"`
+
 		StringValuePtr  *string  `db:"string_value_ptr,omitempty"`
 		IntegerValuePtr *int64   `db:"integer_value_ptr,omitempty"`
 		VarcharValuePtr *string  `db:"varchar_value_ptr,omitempty"`
@@ -297,6 +307,16 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 			Int64CompatValue:  -5,
 			UIntCompatValue:   3,
 			StringCompatValue: "abc",
+		},
+		PGType{
+			Int64CompatValueJSONBArray:  []int64Compat{1, -2, 3, -4},
+			UIntCompatValueJSONBArray:   []uintCompat{1, 2, 3, 4},
+			StringCompatValueJSONBArray: []stringCompat{"a", "b", "", "c"},
+		},
+		PGType{
+			Int64CompatValueJSONBArray:  []int64Compat(nil),
+			UIntCompatValueJSONBArray:   []uintCompat(nil),
+			StringCompatValueJSONBArray: []stringCompat(nil),
 		},
 		PGType{
 			IntegerValuePtr:     &integerValue,

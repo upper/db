@@ -210,42 +210,56 @@ func FromJSONBValue(dst interface{}, src interface{}) error {
 	return v.Scan(src)
 }
 
-type scannerValuer interface {
-	driver.Valuer
-	sql.Scanner
-}
-
 type valueWrapper interface {
-	WrapValue(src interface{}) interface{}
+	WrapValue(interface{}) interface{}
 }
 
 type JSONBConverter struct {
 }
 
-func (jc *JSONBConverter) WrapValue(src interface{}) interface{} {
+func (obj *JSONBConverter) WrapValue(src interface{}) interface{} {
 	return &JSONB{src}
 }
 
-var valueWrapperType = reflect.TypeOf((*valueWrapper)(nil)).Elem()
+type scannerValuer interface {
+	driver.Valuer
+	sql.Scanner
+}
+
+var (
+	driverValuerType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
+	sqlScannerType   = reflect.TypeOf((*sql.Scanner)(nil)).Elem()
+)
 
 func autoWrap(elem reflect.Value, v interface{}) interface{} {
-	switch elem.Kind() {
+	kind := elem.Kind()
+
+	if kind == reflect.Invalid {
+		return v
+	}
+
+	if elem.Type().Implements(sqlScannerType) {
+		return v
+	}
+
+	if elem.Type().Implements(driverValuerType) {
+		return v
+	}
+
+	switch kind {
 	case reflect.Ptr:
 		return autoWrap(elem.Elem(), v)
 	case reflect.Slice:
-		if elem.Type().Elem().Implements(valueWrapperType) {
-			return &JSONB{v}
-		}
+		return &JSONB{v}
 	case reflect.Map:
-		if elem.Type().Elem().Implements(valueWrapperType) {
-			if reflect.TypeOf(v).Kind() == reflect.Ptr {
-				w := reflect.ValueOf(v)
-				z := reflect.New(w.Elem().Type())
-				w.Elem().Set(z.Elem())
-			}
-			return &JSONB{v}
+		if reflect.TypeOf(v).Kind() == reflect.Ptr {
+			w := reflect.ValueOf(v)
+			z := reflect.New(w.Elem().Type())
+			w.Elem().Set(z.Elem())
 		}
+		return &JSONB{v}
 	}
+
 	return v
 }
 

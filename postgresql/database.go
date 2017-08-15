@@ -156,10 +156,14 @@ func (d *database) clone(ctx context.Context, checkConn bool) (*database, error)
 func (d *database) ConvertValues(values []interface{}) []interface{} {
 	for i := range values {
 		switch v := values[i].(type) {
-		case *string, *int64, *uint64, *int32, *uint32, *int16, *uint16, *int8, *uint8, *[]byte, *float32, *float64, sql.Scanner, *time.Time:
-			continue // Handled by pq.
-		case string, int64, uint64, int32, uint32, int16, uint16, int8, uint8, []byte, float32, float64, driver.Valuer, time.Time:
-			continue // Handled by pq.
+		case *string, *bool, *int, *uint, *int64, *uint64, *int32, *uint32, *int16, *uint16, *int8, *uint8, *[]byte, *float32, *float64, sql.Scanner, *sql.Scanner, *time.Time:
+			// Handled by pq.
+		case string, bool, int, uint, int64, uint64, int32, uint32, int16, uint16, int8, uint8, []byte, float32, float64, driver.Valuer, *driver.Valuer, time.Time:
+			// Handled by pq.
+		case StringArray, Int64Array, BoolArray, GenericArray, Float64Array, JSONBMap, JSONB:
+			// Already with scanner/valuer.
+		case *StringArray, *Int64Array, *BoolArray, *GenericArray, *Float64Array, *JSONBMap, *JSONB:
+			// Already with scanner/valuer.
 
 		case *[]int64:
 			values[i] = (*Int64Array)(v)
@@ -171,21 +175,6 @@ func (d *database) ConvertValues(values []interface{}) []interface{} {
 			values[i] = (*BoolArray)(v)
 		case *map[string]interface{}:
 			values[i] = (*JSONBMap)(v)
-		case *map[string]string:
-			*v = (map[string]string)(nil)
-			values[i] = &JSONB{v}
-		case *map[string]int64:
-			*v = (map[string]int64)(nil)
-			values[i] = &JSONB{v}
-		case *map[string]float64:
-			*v = (map[string]float64)(nil)
-			values[i] = &JSONB{v}
-		case *map[string]bool:
-			*v = (map[string]bool)(nil)
-			values[i] = &JSONB{v}
-		case *map[interface{}]interface{}:
-			*v = (map[interface{}]interface{})(nil)
-			values[i] = &JSONB{v}
 
 		case []int64:
 			values[i] = (*Int64Array)(&v)
@@ -197,22 +186,11 @@ func (d *database) ConvertValues(values []interface{}) []interface{} {
 			values[i] = (*BoolArray)(&v)
 		case map[string]interface{}:
 			values[i] = (*JSONBMap)(&v)
-		case map[string]string:
-			values[i] = JSONB{&v}
-		case map[string]int64:
-			values[i] = JSONB{&v}
-		case map[string]float64:
-			values[i] = JSONB{&v}
-		case map[string]bool:
-			values[i] = JSONB{&v}
-		case map[interface{}]interface{}:
-			values[i] = JSONB{&v}
 
 		case valueWrapper:
 			values[i] = v.WrapValue(values[i])
 
 		default:
-			// Will auto-convert slices/maps of valueWrapper and ignore everything else.
 			values[i] = autoWrap(reflect.ValueOf(values[i]), values[i])
 		}
 
