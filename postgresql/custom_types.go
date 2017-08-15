@@ -31,6 +31,12 @@ import (
 	"github.com/lib/pq"
 )
 
+var (
+	driverValuerType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
+	sqlScannerType   = reflect.TypeOf((*sql.Scanner)(nil)).Elem()
+	valueWrapperType = reflect.TypeOf((*valueWrapper)(nil)).Elem()
+)
+
 // Type JSONB represents a PostgreSQL's JSONB value.
 type JSONB struct {
 	V interface{}
@@ -226,11 +232,6 @@ type scannerValuer interface {
 	sql.Scanner
 }
 
-var (
-	driverValuerType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
-	sqlScannerType   = reflect.TypeOf((*sql.Scanner)(nil)).Elem()
-)
-
 func autoWrap(elem reflect.Value, v interface{}) interface{} {
 	kind := elem.Kind()
 
@@ -244,6 +245,19 @@ func autoWrap(elem reflect.Value, v interface{}) interface{} {
 
 	if elem.Type().Implements(driverValuerType) {
 		return v
+	}
+
+	if elem.Type().Implements(valueWrapperType) {
+		if elem.Type().Kind() == reflect.Ptr {
+			w := reflect.ValueOf(v)
+			if w.Kind() == reflect.Ptr {
+				z := reflect.Zero(w.Elem().Type())
+				w.Elem().Set(z)
+				return &JSONB{v}
+			}
+		}
+		vw := elem.Interface().(valueWrapper)
+		return vw.WrapValue(elem.Interface())
 	}
 
 	switch kind {
