@@ -156,9 +156,9 @@ func (d *database) clone(ctx context.Context, checkConn bool) (*database, error)
 func (d *database) ConvertValues(values []interface{}) []interface{} {
 	for i := range values {
 		switch v := values[i].(type) {
-		case *string, *bool, *int, *uint, *int64, *uint64, *int32, *uint32, *int16, *uint16, *int8, *uint8, *[]byte, *float32, *float64, sql.Scanner, *sql.Scanner, *time.Time:
+		case *string, *bool, *int, *uint, *int64, *uint64, *int32, *uint32, *int16, *uint16, *int8, *uint8, *float32, *float64, *[]uint8, sql.Scanner, *sql.Scanner, *time.Time:
 			// Handled by pq.
-		case string, bool, int, uint, int64, uint64, int32, uint32, int16, uint16, int8, uint8, []byte, float32, float64, driver.Valuer, *driver.Valuer, time.Time:
+		case string, bool, int, uint, int64, uint64, int32, uint32, int16, uint16, int8, uint8, float32, float64, []uint8, driver.Valuer, *driver.Valuer, time.Time:
 			// Handled by pq.
 		case StringArray, Int64Array, BoolArray, GenericArray, Float64Array, JSONBMap, JSONB:
 			// Already with scanner/valuer.

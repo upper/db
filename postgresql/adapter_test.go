@@ -27,6 +27,8 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"math/rand"
+	"strconv"
+
 	"os"
 	"sync"
 	"testing"
@@ -144,6 +146,11 @@ func tearUp() error {
 		`DROP TABLE IF EXISTS pg_types`,
 
 		`CREATE TABLE pg_types (id serial primary key
+			, uint8_value smallint
+			, uint8_value_array smallint[]
+
+			, int64_value smallint
+			, int64_value_array smallint[]
 
 			, integer_array integer[]
 			, string_array text[]
@@ -242,30 +249,96 @@ var (
 	_ = sql.Scanner(&customJSONB{})
 )
 
+type int64Compat int64
+
+type uintCompat uint
+
+type stringCompat string
+
+type uint8Compat uint8
+
+type int64CompatArray []int64Compat
+
+type uint8CompatArray []uint8Compat
+
+type uintCompatArray []uintCompat
+
+func (u *uint8Compat) Scan(src interface{}) error {
+	if src != nil {
+		switch v := src.(type) {
+		case int64:
+			*u = uint8Compat((src).(int64))
+		case []byte:
+			i, err := strconv.ParseInt(string(v), 10, 64)
+			if err != nil {
+				return err
+			}
+			*u = uint8Compat(i)
+		default:
+			panic(fmt.Sprintf("expected type %T", src))
+		}
+	}
+	return nil
+}
+
+func (u uint8CompatArray) WrapValue(src interface{}) interface{} {
+	return Array(src)
+}
+
+func (u *int64Compat) Scan(src interface{}) error {
+	if src != nil {
+		switch v := src.(type) {
+		case int64:
+			*u = int64Compat((src).(int64))
+		case []byte:
+			i, err := strconv.ParseInt(string(v), 10, 64)
+			if err != nil {
+				return err
+			}
+			*u = int64Compat(i)
+		default:
+			panic(fmt.Sprintf("expected type %T", src))
+		}
+	}
+	return nil
+}
+
+func (u int64CompatArray) WrapValue(src interface{}) interface{} {
+	return Array(src)
+}
+
 func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 
-	type int64Compat int64
-
-	type uintCompat uint
-
-	type stringCompat string
-
-	type PGType struct {
-		ID int64 `db:"id,omitempty"`
-
-		IntegerArray Int64Array  `db:"integer_array"`
-		StringArray  StringArray `db:"string_array"`
-		JSONBMap     JSONBMap    `db:"jsonb_map"`
-
+	type PGTypeInline struct {
 		IntegerArrayPtr *Int64Array  `db:"integer_array_ptr,omitempty"`
 		StringArrayPtr  *StringArray `db:"string_array_ptr,omitempty"`
 		JSONBMapPtr     *JSONBMap    `db:"jsonb_map_ptr,omitempty"`
+	}
 
+	type PGTypeAutoInline struct {
 		AutoIntegerArray    []int64                `db:"auto_integer_array"`
 		AutoStringArray     []string               `db:"auto_string_array"`
 		AutoJSONBMap        map[string]interface{} `db:"auto_jsonb_map"`
 		AutoJSONBMapString  map[string]string      `db:"auto_jsonb_map_string"`
 		AutoJSONBMapInteger map[string]int64       `db:"auto_jsonb_map_integer"`
+	}
+
+	type PGType struct {
+		ID int64 `db:"id,omitempty"`
+
+		UInt8Value      uint8Compat      `db:"uint8_value"`
+		UInt8ValueArray uint8CompatArray `db:"uint8_value_array"`
+
+		Int64Value      int64Compat      `db:"int64_value"`
+		Int64ValueArray int64CompatArray `db:"int64_value_array"`
+
+		IntegerArray Int64Array  `db:"integer_array"`
+		StringArray  StringArray `db:"string_array"`
+		JSONBMap     JSONBMap    `db:"jsonb_map"`
+
+		PGTypeInline `db:",inline"`
+
+		PGTypeAutoInline `db:",inline"`
 
 		JSONBObject JSONB      `db:"jsonb_object"`
 		JSONBArray  JSONBArray `db:"jsonb_array"`
@@ -288,9 +361,9 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 		UIntCompatValue   uintCompat   `db:"uinteger_compat_value"`
 		StringCompatValue stringCompat `db:"string_compat_value"`
 
-		Int64CompatValueJSONBArray  []int64Compat  `db:"integer_compat_value_jsonb_array"`
-		UIntCompatValueJSONBArray   []uintCompat   `db:"uinteger_compat_value_jsonb_array"`
-		StringCompatValueJSONBArray []stringCompat `db:"string_compat_value_jsonb_array"`
+		Int64CompatValueJSONBArray  []int64Compat   `db:"integer_compat_value_jsonb_array"`
+		UIntCompatValueJSONBArray   uintCompatArray `db:"uinteger_compat_value_jsonb_array"`
+		StringCompatValueJSONBArray []stringCompat  `db:"string_compat_value_jsonb_array"`
 
 		StringValuePtr  *string  `db:"string_value_ptr,omitempty"`
 		IntegerValuePtr *int64   `db:"integer_value_ptr,omitempty"`
@@ -310,6 +383,30 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 
 	origPgTypeTests := []PGType{
 		PGType{
+			UInt8Value:      7,
+			UInt8ValueArray: uint8CompatArray{1, 2, 3, 4, 5, 6},
+		},
+		PGType{
+			Int64Value:      -1,
+			Int64ValueArray: int64CompatArray{1, 2, 3, -4, 5, 6},
+		},
+		PGType{
+			UInt8Value:      1,
+			UInt8ValueArray: uint8CompatArray{1, 2, 3, 4, 5, 6},
+		},
+		PGType{
+			Int64Value:      1,
+			Int64ValueArray: int64CompatArray{7, 7, 7},
+		},
+		PGType{
+			Int64Value:      1,
+			Int64ValueArray: int64CompatArray{},
+		},
+		PGType{
+			Int64Value:      99,
+			Int64ValueArray: nil,
+		},
+		PGType{
 			Int64CompatValue:  -5,
 			UIntCompatValue:   3,
 			StringCompatValue: "abc",
@@ -325,11 +422,13 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 			StringCompatValueJSONBArray: []stringCompat(nil),
 		},
 		PGType{
-			IntegerValuePtr:     &integerValue,
-			StringValuePtr:      &stringValue,
-			DecimalValuePtr:     &decimalValue,
-			AutoJSONBMapString:  map[string]string{"a": "x", "b": "67"},
-			AutoJSONBMapInteger: map[string]int64{"a": 12, "b": 13},
+			IntegerValuePtr: &integerValue,
+			StringValuePtr:  &stringValue,
+			DecimalValuePtr: &decimalValue,
+			PGTypeAutoInline: PGTypeAutoInline{
+				AutoJSONBMapString:  map[string]string{"a": "x", "b": "67"},
+				AutoJSONBMapInteger: map[string]int64{"a": 12, "b": 13},
+			},
 		},
 		PGType{
 			IntegerValue: integerValue,
@@ -340,8 +439,10 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 			IntegerArray: []int64{1, 2, 3, 4},
 		},
 		PGType{
-			AutoIntegerArray: Int64Array{1, 2, 3, 4},
-			AutoStringArray:  nil,
+			PGTypeAutoInline: PGTypeAutoInline{
+				AutoIntegerArray: Int64Array{1, 2, 3, 4},
+				AutoStringArray:  nil,
+			},
 		},
 		PGType{
 			AutoCustomJSONBObjectArray: []autoCustomJSONB{
@@ -360,31 +461,45 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 					N: "World",
 				},
 			},
-			AutoJSONBMap: map[string]interface{}{
-				"Hello": "world",
-				"Roses": "red",
+			PGTypeAutoInline: PGTypeAutoInline{
+				AutoJSONBMap: map[string]interface{}{
+					"Hello": "world",
+					"Roses": "red",
+				},
 			},
 			JSONBArray: JSONBArray{float64(1), float64(2), float64(3), float64(4)},
 		},
 		PGType{
-			AutoIntegerArray: nil,
+			PGTypeAutoInline: PGTypeAutoInline{
+				AutoIntegerArray: nil,
+			},
 		},
 		PGType{
-			AutoJSONBMap: map[string]interface{}{},
-			JSONBArray:   JSONBArray{},
+			PGTypeAutoInline: PGTypeAutoInline{
+				AutoJSONBMap: map[string]interface{}{},
+			},
+			JSONBArray: JSONBArray{},
 		},
 		PGType{
-			AutoJSONBMap: map[string]interface{}(nil),
-			JSONBArray:   JSONBArray(nil),
+			PGTypeAutoInline: PGTypeAutoInline{
+				AutoJSONBMap: map[string]interface{}(nil),
+			},
+			JSONBArray: JSONBArray(nil),
 		},
 		PGType{
-			AutoStringArray: []string{"aaa", "bbb", "ccc"},
+			PGTypeAutoInline: PGTypeAutoInline{
+				AutoStringArray: []string{"aaa", "bbb", "ccc"},
+			},
 		},
 		PGType{
-			AutoStringArray: nil,
+			PGTypeAutoInline: PGTypeAutoInline{
+				AutoStringArray: nil,
+			},
 		},
 		PGType{
-			AutoJSONBMap: map[string]interface{}{"hello": "world!"},
+			PGTypeAutoInline: PGTypeAutoInline{
+				AutoJSONBMap: map[string]interface{}{"hello": "world!"},
+			},
 		},
 		PGType{
 			IntegerArray: []int64{1, 2, 3, 4},
@@ -410,9 +525,11 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 			StringArray:  []string{"a"},
 		},
 		PGType{
-			IntegerArrayPtr: &integerArrayValue,
-			StringArrayPtr:  &stringArrayValue,
-			JSONBMapPtr:     &jsonbMapValue,
+			PGTypeInline: PGTypeInline{
+				IntegerArrayPtr: &integerArrayValue,
+				StringArrayPtr:  &stringArrayValue,
+				JSONBMapPtr:     &jsonbMapValue,
+			},
 		},
 		PGType{
 			IntegerArray: []int64{0, 0, 0, 0},

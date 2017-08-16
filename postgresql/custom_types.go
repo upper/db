@@ -37,6 +37,10 @@ var (
 	valueWrapperType = reflect.TypeOf((*valueWrapper)(nil)).Elem()
 )
 
+func Array(in interface{}) scannerValuer {
+	return pq.Array(in)
+}
+
 // Type JSONB represents a PostgreSQL's JSONB value.
 type JSONB struct {
 	V interface{}
