@@ -202,13 +202,13 @@ type JSONBMap map[string]interface{}
 
 // Value satisfies the driver.Valuer interface.
 func (m JSONBMap) Value() (driver.Value, error) {
-	return ToJSONBValue(m)
+	return JSONBValue(m)
 }
 
 // Scan satisfies the sql.Scanner interface.
 func (m *JSONBMap) Scan(src interface{}) error {
 	*m = map[string]interface{}(nil)
-	return FromJSONBValue(m, src)
+	return ScanJSONB(m, src)
 }
 
 // JSONBArray represents an array of any type (`[]interface{}`) that is
@@ -218,25 +218,35 @@ type JSONBArray []interface{}
 
 // Value satisfies the driver.Valuer interface.
 func (a JSONBArray) Value() (driver.Value, error) {
-	return ToJSONBValue(a)
+	return JSONBValue(a)
 }
 
 // Scan satisfies the sql.Scanner interface.
 func (a *JSONBArray) Scan(src interface{}) error {
-	return FromJSONBValue(a, src)
+	return ScanJSONB(a, src)
 }
 
-// ToJSONBValue takes an interface and provides a driver.Value that can be
+// JSONBValue takes an interface and provides a driver.Value that can be
 // stored as a JSONB column.
-func ToJSONBValue(i interface{}) (driver.Value, error) {
+func JSONBValue(i interface{}) (driver.Value, error) {
 	v := JSONB{i}
 	return v.Value()
 }
 
-// FromJSONBValue decodes a JSON byte stream into the passed dst value.
-func FromJSONBValue(dst interface{}, src interface{}) error {
+// ScanJSONB decodes a JSON byte stream into the passed dst value.
+func ScanJSONB(dst interface{}, src interface{}) error {
 	v := JSONB{dst}
 	return v.Scan(src)
+}
+
+// EncodeJSONB is deprecated and going to be removed. Use ScanJSONB instead.
+func EncodeJSONB(i interface{}) (driver.Value, error) {
+	return JSONBValue(i)
+}
+
+// DecodeJSONB is deprecated and going to be removed. Use JSONBValue instead.
+func DecodeJSONB(dst interface{}, src interface{}) error {
+	return ScanJSONB(dst, src)
 }
 
 // JSONBConverter provides a helper method WrapValue that satisfies

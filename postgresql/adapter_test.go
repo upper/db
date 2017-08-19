@@ -230,11 +230,11 @@ type customJSONB struct {
 }
 
 func (c customJSONB) Value() (driver.Value, error) {
-	return ToJSONBValue(c)
+	return JSONBValue(c)
 }
 
 func (c *customJSONB) Scan(src interface{}) error {
-	return FromJSONBValue(c, src)
+	return ScanJSONB(c, src)
 }
 
 type autoCustomJSONB struct {
@@ -332,8 +332,8 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 		Int64Value      int64Compat      `db:"int64_value"`
 		Int64ValueArray int64CompatArray `db:"int64_value_array"`
 
-		IntegerArray Int64Array  `db:"integer_array"`
-		StringArray  StringArray `db:"string_array"`
+		IntegerArray Int64Array  `db:"integer_array,jsonb"`
+		StringArray  StringArray `db:"string_array,stringarray"`
 		JSONBMap     JSONBMap    `db:"jsonb_map"`
 
 		PGTypeInline `db:",inline"`
@@ -836,10 +836,10 @@ type Settings struct {
 }
 
 func (s *Settings) Scan(src interface{}) error {
-	return FromJSONBValue(s, src)
+	return ScanJSONB(s, src)
 }
 func (s Settings) Value() (driver.Value, error) {
-	return ToJSONBValue(s)
+	return JSONBValue(s)
 }
 
 func TestOptionTypeJsonbStruct(t *testing.T) {
