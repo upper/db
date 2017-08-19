@@ -178,7 +178,8 @@ func NewSettings() Settings {
 	return &newSettings
 }
 
-// Settings provides global configuration settings for database sessions.
+// DefaultSettings provides default global configuration settings for database
+// sessions.
 var DefaultSettings Settings = &settings{
 	preparedStatementCacheEnabled: 0,
 	connMaxLifetime:               time.Duration(0),

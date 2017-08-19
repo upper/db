@@ -482,6 +482,17 @@ func (r *resultQuery) query() (*mgo.Query, error) {
 	return q, nil
 }
 
+func (res *result) Exists() (bool, error) {
+	total, err := res.Count()
+	if err != nil {
+		return false, err
+	}
+	if total > 0 {
+		return true, nil
+	}
+	return false, nil
+}
+
 // Count counts matching elements.
 func (res *result) Count() (total uint64, err error) {
 	rq, err := res.build()

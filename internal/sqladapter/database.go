@@ -32,6 +32,10 @@ type hasStatementExec interface {
 	StatementExec(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
 }
 
+type hasConvertValues interface {
+	ConvertValues(values []interface{}) []interface{}
+}
+
 // Database represents a SQL database.
 type Database interface {
 	PartialDatabase
@@ -369,12 +373,13 @@ func (d *database) StatementPrepare(ctx context.Context, stmt *exql.Statement) (
 	if d.Settings.LoggingEnabled() {
 		defer func(start time.Time) {
 			d.Logger().Log(&db.QueryStatus{
-				TxID:   d.txID,
-				SessID: d.sessID,
-				Query:  query,
-				Err:    err,
-				Start:  start,
-				End:    time.Now(),
+				TxID:    d.txID,
+				SessID:  d.sessID,
+				Query:   query,
+				Err:     err,
+				Start:   start,
+				End:     time.Now(),
+				Context: ctx,
 			})
 		}(time.Now())
 	}
@@ -391,6 +396,14 @@ func (d *database) StatementPrepare(ctx context.Context, stmt *exql.Statement) (
 	return
 }
 
+// ConvertValues converts native values into driver specific values.
+func (d *database) ConvertValues(values []interface{}) []interface{} {
+	if converter, ok := d.PartialDatabase.(hasConvertValues); ok {
+		return converter.ConvertValues(values)
+	}
+	return values
+}
+
 // StatementExec compiles and executes a statement that does not return any
 // rows.
 func (d *database) StatementExec(ctx context.Context, stmt *exql.Statement, args ...interface{}) (res sql.Result, err error) {
@@ -400,13 +413,14 @@ func (d *database) StatementExec(ctx context.Context, stmt *exql.Statement, args
 		defer func(start time.Time) {
 
 			status := db.QueryStatus{
-				TxID:   d.txID,
-				SessID: d.sessID,
-				Query:  query,
-				Args:   args,
-				Err:    err,
-				Start:  start,
-				End:    time.Now(),
+				TxID:    d.txID,
+				SessID:  d.sessID,
+				Query:   query,
+				Args:    args,
+				Err:     err,
+				Start:   start,
+				End:     time.Now(),
+				Context: ctx,
 			}
 
 			if res != nil {
@@ -459,13 +473,14 @@ func (d *database) StatementQuery(ctx context.Context, stmt *exql.Statement, arg
 	if d.Settings.LoggingEnabled() {
 		defer func(start time.Time) {
 			d.Logger().Log(&db.QueryStatus{
-				TxID:   d.txID,
-				SessID: d.sessID,
-				Query:  query,
-				Args:   args,
-				Err:    err,
-				Start:  start,
-				End:    time.Now(),
+				TxID:    d.txID,
+				SessID:  d.sessID,
+				Query:   query,
+				Args:    args,
+				Err:     err,
+				Start:   start,
+				End:     time.Now(),
+				Context: ctx,
 			})
 		}(time.Now())
 	}
@@ -502,13 +517,14 @@ func (d *database) StatementQueryRow(ctx context.Context, stmt *exql.Statement, 
 	if d.Settings.LoggingEnabled() {
 		defer func(start time.Time) {
 			d.Logger().Log(&db.QueryStatus{
-				TxID:   d.txID,
-				SessID: d.sessID,
-				Query:  query,
-				Args:   args,
-				Err:    err,
-				Start:  start,
-				End:    time.Now(),
+				TxID:    d.txID,
+				SessID:  d.sessID,
+				Query:   query,
+				Args:    args,
+				Err:     err,
+				Start:   start,
+				End:     time.Now(),
+				Context: ctx,
 			})
 		}(time.Now())
 	}
@@ -547,6 +563,9 @@ func (d *database) Driver() interface{} {
 
 // compileStatement compiles the given statement into a string.
 func (d *database) compileStatement(stmt *exql.Statement, args []interface{}) (string, []interface{}) {
+	if converter, ok := d.PartialDatabase.(hasConvertValues); ok {
+		args = converter.ConvertValues(args)
+	}
 	return d.PartialDatabase.CompileStatement(stmt, args)
 }
 
@@ -642,9 +661,14 @@ func ReplaceWithDollarSign(in string) string {
 	for i < t {
 		if buf[i] == '?' {
 			out = append(out, buf[k:i]...)
-			out = append(out, []byte("$"+strconv.Itoa(j))...)
 			k = i + 1
-			j++
+
+			if k < t && buf[k] == '?' {
+				i = k
+			} else {
+				out = append(out, []byte("$"+strconv.Itoa(j))...)
+				j++
+			}
 		}
 		i++
 	}

@@ -23,15 +23,39 @@ package sqlbuilder
 
 import (
 	"database/sql"
-	"upper.io/db.v3"
+	"database/sql/driver"
+
+	"reflect"
 )
 
-type scanner struct {
-	v db.Unmarshaler
+var (
+	// ValuerType is the reflection type for the driver.Valuer interface.
+	ValuerType = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
+
+	// ScannerType is the reflection type for the sql.Scanner interface.
+	ScannerType = reflect.TypeOf((*sql.Scanner)(nil)).Elem()
+
+	// ValueWrapperType is the reflection type for the sql.ValueWrapper interface.
+	ValueWrapperType = reflect.TypeOf((*ValueWrapper)(nil)).Elem()
+)
+
+// ValueWrapper defines a method WrapValue that query arguments can use to wrap
+// themselves around helper types right before being used in a query.
+//
+// Example:
+//
+//   func (a MyCustomArray) WrapValue(value interface{}) interface{} {
+//     // postgresql.Array adds a driver.Valuer and sql.Scanner around
+//     // custom arrays.
+//	   return postgresql.Array(values)
+//   }
+type ValueWrapper interface {
+	WrapValue(value interface{}) interface{}
 }
 
-func (u scanner) Scan(v interface{}) error {
-	return u.v.UnmarshalDB(v)
+// ScannerValuer represents a value that satisfies both driver.Valuer and
+// sql.Scanner interfaces.
+type ScannerValuer interface {
+	driver.Valuer
+	sql.Scanner
 }
-
-var _ sql.Scanner = scanner{}

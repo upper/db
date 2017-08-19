@@ -674,6 +674,10 @@ type Result interface {
 	// and `Limit()` are not honoured by `Count()`
 	Count() (uint64, error)
 
+	// Exists returns true if at least one item on the collection exists. False
+	// otherwise.
+	Exists() (bool, error)
+
 	// Next fetches the next result within the result set and dumps it into the
 	// given pointer to struct or pointer to map. You must call
 	// `Close()` after finishing using `Next()`.

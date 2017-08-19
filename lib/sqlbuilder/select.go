@@ -310,12 +310,12 @@ func (sel *selector) Using(columns ...interface{}) Selector {
 
 		joins := len(sq.joins)
 		if joins == 0 {
-			return errors.New(`Cannot use Using() without a preceding Join() expression.`)
+			return errors.New(`cannot use Using() without a preceding Join() expression`)
 		}
 
 		lastJoin := sq.joins[joins-1]
 		if lastJoin.On != nil {
-			return errors.New(`Cannot use Using() and On() with the same Join() expression.`)
+			return errors.New(`cannot use Using() and On() with the same Join() expression`)
 		}
 
 		fragments, args, err := columnFragments(columns)
@@ -365,12 +365,12 @@ func (sel *selector) On(terms ...interface{}) Selector {
 		joins := len(sq.joins)
 
 		if joins == 0 {
-			return errors.New(`Cannot use On() without a preceding Join() expression.`)
+			return errors.New(`cannot use On() without a preceding Join() expression`)
 		}
 
 		lastJoin := sq.joins[joins-1]
 		if lastJoin.On != nil {
-			return errors.New(`Cannot use Using() and On() with the same Join() expression.`)
+			return errors.New(`cannot use Using() and On() with the same Join() expression`)
 		}
 
 		w, a := sel.SQLBuilder().t.toWhereWithArguments(terms)
@@ -472,13 +472,14 @@ func (sel *selector) Iterator() Iterator {
 }
 
 func (sel *selector) IteratorContext(ctx context.Context) Iterator {
+	sess := sel.SQLBuilder().sess
 	sq, err := sel.build()
 	if err != nil {
-		return &iterator{nil, err}
+		return &iterator{sess, nil, err}
 	}
 
-	rows, err := sel.SQLBuilder().sess.StatementQuery(ctx, sq.statement(), sq.arguments()...)
-	return &iterator{rows, err}
+	rows, err := sess.StatementQuery(ctx, sq.statement(), sq.arguments()...)
+	return &iterator{sess, rows, err}
 }
 
 func (sel *selector) Paginate(pageSize uint) Paginator {
