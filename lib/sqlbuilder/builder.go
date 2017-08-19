@@ -68,6 +68,7 @@ type hasStatement interface {
 }
 
 type iterator struct {
+	sess   exprDB
 	cursor *sql.Rows // This is the main query cursor. It starts as a nil value.
 	err    error
 }
@@ -87,14 +88,14 @@ var (
 )
 
 var (
-	errDeprecatedTag = errors.New("Tag %v is deprecated, please use type %v instead")
+	errDeprecatedJSONBTag = errors.New(`Tag "jsonb" is deprecated. See "PostgreSQL: jsonb tag" at https://github.com/upper/db/releases/tag/v3.4.0`)
 )
 
 type exprDB interface {
+	StatementExec(ctx context.Context, stmt *exql.Statement, args ...interface{}) (sql.Result, error)
 	StatementPrepare(ctx context.Context, stmt *exql.Statement) (*sql.Stmt, error)
 	StatementQuery(ctx context.Context, stmt *exql.Statement, args ...interface{}) (*sql.Rows, error)
 	StatementQueryRow(ctx context.Context, stmt *exql.Statement, args ...interface{}) (*sql.Row, error)
-	StatementExec(ctx context.Context, stmt *exql.Statement, args ...interface{}) (sql.Result, error)
 
 	Context() context.Context
 }
@@ -124,7 +125,7 @@ func WithTemplate(t *exql.Template) SQLBuilder {
 
 // NewIterator creates an iterator using the given *sql.Rows.
 func NewIterator(rows *sql.Rows) Iterator {
-	return &iterator{rows, nil}
+	return &iterator{nil, rows, nil}
 }
 
 func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) Iterator {
@@ -133,7 +134,7 @@ func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) Iterator {
 
 func (b *sqlBuilder) IteratorContext(ctx context.Context, query interface{}, args ...interface{}) Iterator {
 	rows, err := b.QueryContext(ctx, query, args...)
-	return &iterator{rows, err}
+	return &iterator{b.sess, rows, err}
 }
 
 func (b *sqlBuilder) Prepare(query interface{}) (*sql.Stmt, error) {
@@ -149,7 +150,7 @@ func (b *sqlBuilder) PrepareContext(ctx context.Context, query interface{}) (*sq
 	case db.RawValue:
 		return b.PrepareContext(ctx, q.Raw())
 	default:
-		return nil, fmt.Errorf("Unsupported query type %T.", query)
+		return nil, fmt.Errorf("unsupported query type %T", query)
 	}
 }
 
@@ -166,7 +167,7 @@ func (b *sqlBuilder) ExecContext(ctx context.Context, query interface{}, args ..
 	case db.RawValue:
 		return b.ExecContext(ctx, q.Raw(), q.Arguments()...)
 	default:
-		return nil, fmt.Errorf("Unsupported query type %T.", query)
+		return nil, fmt.Errorf("unsupported query type %T", query)
 	}
 }
 
@@ -183,7 +184,7 @@ func (b *sqlBuilder) QueryContext(ctx context.Context, query interface{}, args .
 	case db.RawValue:
 		return b.QueryContext(ctx, q.Raw(), q.Arguments()...)
 	default:
-		return nil, fmt.Errorf("Unsupported query type %T.", query)
+		return nil, fmt.Errorf("unsupported query type %T", query)
 	}
 }
 
@@ -200,7 +201,7 @@ func (b *sqlBuilder) QueryRowContext(ctx context.Context, query interface{}, arg
 	case db.RawValue:
 		return b.QueryRowContext(ctx, q.Raw(), q.Arguments()...)
 	default:
-		return nil, fmt.Errorf("Unsupported query type %T.", query)
+		return nil, fmt.Errorf("unsupported query type %T", query)
 	}
 }
 
@@ -271,11 +272,9 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 
 		for _, fi := range fieldMap {
 
-			// Check for deprecated tags and give suggestions on how to fix them.
-			for k, v := range deprecatedTags {
-				if _, hasDeprecatedTag := fi.Options[k]; hasDeprecatedTag {
-					return nil, nil, fmt.Errorf(errDeprecatedTag.Error(), k, v)
-				}
+			// Check for deprecated JSONB tag
+			if _, hasJSONBTag := fi.Options["jsonb"]; hasJSONBTag {
+				return nil, nil, errDeprecatedJSONBTag
 			}
 
 			// Field options
@@ -412,7 +411,7 @@ func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, err
 		case interface{}:
 			f[i] = exql.ColumnWithName(fmt.Sprintf("%v", v))
 		default:
-			return nil, nil, fmt.Errorf("Unexpected argument type %T for Select() argument.", v)
+			return nil, nil, fmt.Errorf("unexpected argument type %T for Select() argument", v)
 		}
 	}
 	return f, args, nil
@@ -475,7 +474,7 @@ func (iter *iterator) All(dst interface{}) error {
 	defer iter.Close()
 
 	// Fetching all results within the cursor.
-	if err := fetchRows(iter.cursor, dst); err != nil {
+	if err := fetchRows(iter, dst); err != nil {
 		return iter.setErr(err)
 	}
 
@@ -519,7 +518,7 @@ func (iter *iterator) next(dst ...interface{}) error {
 		}
 		return nil
 	case 1:
-		if err := fetchRow(iter.cursor, dst[0]); err != nil {
+		if err := fetchRow(iter, dst[0]); err != nil {
 			defer iter.Close()
 			return err
 		}

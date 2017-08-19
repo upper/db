@@ -27,9 +27,12 @@ package postgresql
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	_ "github.com/lib/pq" // PostgreSQL driver.
 	"upper.io/db.v3"
@@ -148,6 +151,51 @@ func (d *database) clone(ctx context.Context, checkConn bool) (*database, error)
 	clone.SQLBuilder = sqlbuilder.WithSession(clone.BaseDatabase, template)
 
 	return clone, nil
+}
+
+func (d *database) ConvertValues(values []interface{}) []interface{} {
+	for i := range values {
+		switch v := values[i].(type) {
+		case *string, *bool, *int, *uint, *int64, *uint64, *int32, *uint32, *int16, *uint16, *int8, *uint8, *float32, *float64, *[]uint8, sql.Scanner, *sql.Scanner, *time.Time:
+			// Handled by pq.
+		case string, bool, int, uint, int64, uint64, int32, uint32, int16, uint16, int8, uint8, float32, float64, []uint8, driver.Valuer, *driver.Valuer, time.Time:
+			// Handled by pq.
+		case StringArray, Int64Array, BoolArray, GenericArray, Float64Array, JSONBMap, JSONB:
+			// Already with scanner/valuer.
+		case *StringArray, *Int64Array, *BoolArray, *GenericArray, *Float64Array, *JSONBMap, *JSONB:
+			// Already with scanner/valuer.
+
+		case *[]int64:
+			values[i] = (*Int64Array)(v)
+		case *[]string:
+			values[i] = (*StringArray)(v)
+		case *[]float64:
+			values[i] = (*Float64Array)(v)
+		case *[]bool:
+			values[i] = (*BoolArray)(v)
+		case *map[string]interface{}:
+			values[i] = (*JSONBMap)(v)
+
+		case []int64:
+			values[i] = (*Int64Array)(&v)
+		case []string:
+			values[i] = (*StringArray)(&v)
+		case []float64:
+			values[i] = (*Float64Array)(&v)
+		case []bool:
+			values[i] = (*BoolArray)(&v)
+		case map[string]interface{}:
+			values[i] = (*JSONBMap)(&v)
+
+		case sqlbuilder.ValueWrapper:
+			values[i] = v.WrapValue(v)
+
+		default:
+			values[i] = autoWrap(reflect.ValueOf(values[i]), values[i])
+		}
+
+	}
+	return values
 }
 
 // CompileStatement compiles a *exql.Statement into arguments that sql/database
