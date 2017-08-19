@@ -310,12 +310,12 @@ func (sel *selector) Using(columns ...interface{}) Selector {
 
 		joins := len(sq.joins)
 		if joins == 0 {
-			return errors.New(`Cannot use Using() without a preceding Join() expression.`)
+			return errors.New(`cannot use Using() without a preceding Join() expression`)
 		}
 
 		lastJoin := sq.joins[joins-1]
 		if lastJoin.On != nil {
-			return errors.New(`Cannot use Using() and On() with the same Join() expression.`)
+			return errors.New(`cannot use Using() and On() with the same Join() expression`)
 		}
 
 		fragments, args, err := columnFragments(columns)
@@ -365,12 +365,12 @@ func (sel *selector) On(terms ...interface{}) Selector {
 		joins := len(sq.joins)
 
 		if joins == 0 {
-			return errors.New(`Cannot use On() without a preceding Join() expression.`)
+			return errors.New(`cannot use On() without a preceding Join() expression`)
 		}
 
 		lastJoin := sq.joins[joins-1]
 		if lastJoin.On != nil {
-			return errors.New(`Cannot use Using() and On() with the same Join() expression.`)
+			return errors.New(`cannot use Using() and On() with the same Join() expression`)
 		}
 
 		w, a := sel.SQLBuilder().t.toWhereWithArguments(terms)
