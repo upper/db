@@ -332,7 +332,7 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 		Int64Value      int64Compat      `db:"int64_value"`
 		Int64ValueArray int64CompatArray `db:"int64_value_array"`
 
-		IntegerArray Int64Array  `db:"integer_array,jsonb"`
+		IntegerArray Int64Array  `db:"integer_array"`
 		StringArray  StringArray `db:"string_array,stringarray"`
 		JSONBMap     JSONBMap    `db:"jsonb_map"`
 
