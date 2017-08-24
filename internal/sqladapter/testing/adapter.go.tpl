@@ -1959,4 +1959,89 @@ func TestCustomType(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "foo: some name", string(bar.Custom.Val))
+
+	assert.NoError(t, cleanUpCheck(sess))
+	assert.NoError(t, sess.Close())
+}
+
+func TestPreload(t *testing.T) {
+	type artistModel struct {
+		ID   uint64 `db:"id,omitempty"`
+		Name string `db:"name"`
+	}
+
+	type publicationModel struct {
+		ID       uint64 `db:"id,omitempty"`
+		Title    string `db:"title"`
+		AuthorID uint64 `db:"author_id"`
+
+		Author *artistModel `db:"author,omitempty"`
+	}
+
+	sess := mustOpen()
+
+	artistCollection := sess.Collection("artist")
+	publicationCollection := sess.Collection("publication")
+
+	err := publicationCollection.Truncate()
+	assert.NoError(t, err)
+
+	err = artistCollection.Truncate()
+	assert.NoError(t, err)
+
+	// Insert an artist
+	artist := artistModel{
+		Name: "Artist one",
+	}
+	err = artistCollection.InsertReturning(&artist)
+	assert.NoError(t, err)
+
+	// Insert a publication related to the artist above.
+	publication := publicationModel{
+		Title:    "Publication 1",
+		AuthorID: artist.ID,
+	}
+	err = publicationCollection.InsertReturning(&publication)
+	assert.NoError(t, err)
+
+	q := publicationCollection.Find().Preload(db.Relation{
+		"author": artistCollection.Find(
+			"artist.id = publication.author_id",
+		),
+	})
+
+	publicationsMap := []map[string]interface{}{}
+	err = q.All(&publicationsMap)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 1, len(publicationsMap))
+	assert.Equal(t, "Artist one", publicationsMap[0]["author.name"])
+
+	publicationsArray := []publicationModel{}
+	err = q.All(&publicationsArray)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 1, len(publicationsArray))
+	assert.NotNil(t, publicationsArray[0].Author)
+	assert.Equal(t, "Artist one", publicationsArray[0].Author.Name)
+
+	publication = publicationModel{}
+	err = q.One(&publication)
+	assert.NoError(t, err)
+
+	assert.NotNil(t, publication.Author)
+	assert.Equal(t, "Artist one", publication.Author.Name)
+
+	_, err = publicationCollection.Insert(publication)
+	assert.Error(t, err)
+
+	err = publicationCollection.Find(publication.ID).Update(publication)
+	assert.NoError(t, err)
+
+	publication.ID = 0
+	_, err = publicationCollection.Insert(publication)
+	assert.NoError(t, err)
+
+	assert.NoError(t, cleanUpCheck(sess))
+	assert.NoError(t, sess.Close())
 }

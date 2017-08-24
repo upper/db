@@ -7,7 +7,7 @@ DB_USERNAME ?= upperio_tests
 DB_PASSWORD ?= upperio_secret
 DB_NAME     ?= upperio_tests
 
-TEST_FLAGS ?=
+TEST_FLAGS  ?=
 
 export DB_HOST
 export DB_NAME

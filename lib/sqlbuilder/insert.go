@@ -19,21 +19,31 @@ type inserterQuery struct {
 	amendFn        func(string) string
 }
 
+var insertManyMapOptions = &MapOptions{
+	IncludeZeroed: true,
+	IncludeNil:    true,
+}
+
+var insertOneMapOptions = &MapOptions{
+	OmitEmbedded: true,
+}
+
 func (iq *inserterQuery) processValues() ([]*exql.Values, []interface{}, error) {
 	var values []*exql.Values
 	var arguments []interface{}
 
-	var mapOptions *MapOptions
+	mappingOptions := insertOneMapOptions
 	if len(iq.enqueuedValues) > 1 {
-		mapOptions = &MapOptions{IncludeZeroed: true, IncludeNil: true}
+		mappingOptions = insertManyMapOptions
 	}
 
 	for _, enqueuedValue := range iq.enqueuedValues {
 		if len(enqueuedValue) == 1 {
 			// If and only if we passed one argument to Values.
-			ff, vv, err := Map(enqueuedValue[0], mapOptions)
+			ff, vv, err := Map(enqueuedValue[0], mappingOptions)
 
 			if err == nil {
+
 				// If we didn't have any problem with mapping we can convert it into
 				// columns and values.
 				columns, vals, args, _ := toColumnsValuesAndArguments(ff, vv)

@@ -22,6 +22,8 @@
 package sqladapter
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -29,6 +31,10 @@ import (
 	"upper.io/db.v3/internal/immutable"
 	"upper.io/db.v3/lib/sqlbuilder"
 )
+
+type hasColumns interface {
+	Columns(table string) ([]string, []string, error)
+}
 
 type Result struct {
 	builder sqlbuilder.SQLBuilder
@@ -40,6 +46,11 @@ type Result struct {
 
 	prev *Result
 	fn   func(*result) error
+}
+
+type assocOne struct {
+	res   db.Result
+	alias string
 }
 
 // result represents a delimited set of items bound by a condition.
@@ -60,7 +71,11 @@ type result struct {
 	orderBy []interface{}
 	groupBy []interface{}
 	conds   [][]interface{}
+
+	preloadOne []assocOne
 }
+
+type preloadAllFn func(db.Cond) db.Result
 
 func filter(conds []interface{}) []interface{} {
 	return conds
@@ -298,6 +313,19 @@ func (r *Result) Update(values interface{}) error {
 	return r.setErr(err)
 }
 
+func (r *Result) Preload(relation db.Relation) db.Result {
+	return r.frame(func(res *result) error {
+		for key, val := range relation {
+			if finder, ok := val.(db.Result); ok {
+				res.preloadOne = append(res.preloadOne, assocOne{res: finder, alias: key})
+				continue
+			}
+			return fmt.Errorf("expecting a relation with db.Result value, got %T", val)
+		}
+		return nil
+	})
+}
+
 func (r *Result) TotalPages() (uint, error) {
 	query, err := r.buildPaginator()
 	if err != nil {
@@ -383,12 +411,59 @@ func (r *Result) buildPaginator() (sqlbuilder.Paginator, error) {
 		return nil, err
 	}
 
-	sel := r.SQLBuilder().Select(res.fields...).
-		From(res.table).
+	sel := r.SQLBuilder().SelectFrom(res.table).
 		Limit(res.limit).
 		Offset(res.offset).
 		GroupBy(res.groupBy...).
 		OrderBy(res.orderBy...)
+
+	if len(res.fields) > 0 {
+		sel = sel.Columns(res.fields...)
+	}
+
+	if len(res.preloadOne) > 0 {
+		sess, ok := r.SQLBuilder().(hasColumns)
+		if !ok {
+			return nil, errors.New("Could not create join")
+		}
+
+		columns := []interface{}{}
+
+		_, cs, err := sess.Columns(res.table)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, c := range cs {
+			columns = append(columns, fmt.Sprintf("%s.%s AS %s", res.table, c, c))
+		}
+		sel = sel.Columns(columns...)
+
+		for _, assocOne := range res.preloadOne {
+
+			ff, err := assocOne.res.(*Result).fastForward()
+			if err != nil {
+				return nil, r.setErr(err)
+			}
+
+			ffConds := []interface{}{}
+			for i := range ff.conds {
+				ffConds = append(ffConds, filter(ff.conds[i])...)
+			}
+			sel = sel.LeftJoin(ff.table).On(ffConds...)
+
+			_, cs, err := sess.Columns(ff.table)
+			if err != nil {
+				return nil, r.setErr(err)
+			}
+
+			columns := []interface{}{}
+			for _, c := range cs {
+				columns = append(columns, fmt.Sprintf("%s.%s AS %s.%s", ff.table, c, assocOne.alias, c))
+			}
+			sel = sel.Columns(columns...)
+		}
+	}
 
 	for i := range res.conds {
 		sel = sel.And(filter(res.conds[i])...)

@@ -58,8 +58,8 @@ type PartialDatabase interface {
 	// LookupName returns the name of the database.
 	LookupName() (string, error)
 
-	// PrimaryKeys returns all primary keys on the table.
-	PrimaryKeys(name string) ([]string, error)
+	// Columns returns all columns on the table.
+	Columns(name string) (primaryKeys []string, columns []string, err error)
 
 	// NewCollection allocates a new collection by name.
 	NewCollection(name string) db.Collection

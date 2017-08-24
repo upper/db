@@ -27,7 +27,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 	"regexp"
 	"sort"
@@ -44,6 +43,7 @@ import (
 type MapOptions struct {
 	IncludeZeroed bool
 	IncludeNil    bool
+	OmitEmbedded  bool
 }
 
 var defaultMapOptions = MapOptions{
@@ -272,6 +272,39 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 		fv.fields = make([]string, 0, nfields)
 
 		for _, fi := range fieldMap {
+			fieldName := fi.Name
+
+			if len(fi.Children) > 1 {
+				hasDBTags := false
+				for _, child := range fi.Children {
+					if child != nil && child.Name != "" {
+						hasDBTags = true
+						break
+					}
+				}
+				if hasDBTags && options.OmitEmbedded {
+					// Omit fields with structs that contain db tags.
+					continue
+				}
+			}
+
+			embedded := false
+			if len(fi.Index) > 1 {
+				// Field within a struct.
+				for parent := fi.Parent; parent != nil; parent = parent.Parent {
+					if len(parent.Index) < 1 {
+						break
+					}
+					if parent.Name != "" {
+						embedded = true
+						fieldName = parent.Name + "." + fieldName
+					}
+				}
+			}
+
+			if options.OmitEmbedded && embedded {
+				continue
+			}
 
 			// Check for deprecated JSONB tag
 			if _, hasJSONBTag := fi.Options["jsonb"]; hasJSONBTag {
@@ -286,7 +319,7 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 				if tagOmitEmpty && !options.IncludeNil {
 					continue
 				}
-				fv.fields = append(fv.fields, fi.Name)
+				fv.fields = append(fv.fields, fieldName)
 				if tagOmitEmpty {
 					fv.values = append(fv.values, sqlDefault)
 				} else {
@@ -295,6 +328,9 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 				continue
 			}
 
+			if !fld.IsValid() {
+				continue
+			}
 			value := fld.Interface()
 
 			isZero := false
@@ -314,7 +350,7 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 				continue
 			}
 
-			fv.fields = append(fv.fields, fi.Name)
+			fv.fields = append(fv.fields, fieldName)
 			v, err := marshal(value)
 			if err != nil {
 				return nil, nil, err
@@ -562,7 +598,6 @@ func newSqlgenProxy(db *sql.DB, t *exql.Template) *exprProxy {
 }
 
 func (p *exprProxy) Context() context.Context {
-	log.Printf("Missing context")
 	return context.Background()
 }
 

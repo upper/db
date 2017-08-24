@@ -241,7 +241,11 @@ func ValidFieldByIndexes(v reflect.Value, indexes []int) reflect.Value {
 // going to be used for reading and not setting.
 func FieldByIndexesReadOnly(v reflect.Value, indexes []int) reflect.Value {
 	for _, i := range indexes {
-		v = reflect.Indirect(v).Field(i)
+		v = reflect.Indirect(v)
+		if !v.IsValid() {
+			return reflect.Value{}
+		}
+		v = v.Field(i)
 	}
 	return v
 }

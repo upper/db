@@ -306,35 +306,44 @@ func quotedTableName(s string) string {
 	return strings.Join(chunks, ".")
 }
 
-// PrimaryKeys returns the names of all the primary keys on the table.
-func (d *database) PrimaryKeys(tableName string) ([]string, error) {
-	q := d.Select("pg_attribute.attname AS pkey").
-		From("pg_index", "pg_class", "pg_attribute").
-		Where(`
-			pg_class.oid = '` + quotedTableName(tableName) + `'::regclass
-			AND indrelid = pg_class.oid
-			AND pg_attribute.attrelid = pg_class.oid
-			AND pg_attribute.attnum = ANY(pg_index.indkey)
-			AND indisprimary
-		`).OrderBy("pkey")
-
-	iter := q.Iterator()
+// Columns returns the names of all the primary keys and columns on the table.
+func (d *database) Columns(tableName string) (primaryKeys []string, columns []string, err error) {
+	iter := d.Iterator(`
+		SELECT
+			pga.attname,
+			(CASE
+				WHEN pgi.indisprimary IS NOT NULL
+					THEN
+						pgi.indisprimary
+					ELSE
+						false
+			END) AS indisprimary
+		FROM pg_attribute pga
+		INNER JOIN pg_class pgc
+			ON pga.attrelid = pgc.oid
+		LEFT JOIN pg_index pgi
+			ON pgi.indrelid = pgc.oid AND pga.attnum = ANY(pgi.indkey)
+		WHERE pga.attrelid = '` + quotedTableName(tableName) + `'::regclass AND pga.attnum > 0 AND NOT pga.attisdropped
+		ORDER BY pga.attnum
+	`)
 	defer iter.Close()
 
-	pk := []string{}
-
 	for iter.Next() {
-		var k string
-		if err := iter.Scan(&k); err != nil {
-			return nil, err
+		var column string
+		var isPrimary bool
+		if err := iter.Scan(&column, &isPrimary); err != nil {
+			return nil, nil, err
 		}
-		pk = append(pk, k)
+		if isPrimary {
+			primaryKeys = append(primaryKeys, column)
+		}
+		columns = append(columns, column)
 	}
 	if err := iter.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return pk, nil
+	return primaryKeys, columns, nil
 }
 
 // WithContext creates a copy of the session on the given context.
