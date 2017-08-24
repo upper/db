@@ -146,6 +146,48 @@ type RawValue interface {
 	Arguments() []interface{}
 }
 
+// ComparisonOperator defines methods for representing comparison operators in
+// a portable way across databases.
+type ComparisonOperator interface {
+	Operator() ComparisonOperatorType
+
+	Values() []interface{}
+}
+
+type ComparisonOperatorType uint8
+
+// Comparison operators
+const (
+	ComparisonOperatorNone ComparisonOperatorType = iota
+	ComparisonOperatorEqual
+	ComparisonOperatorNotEqual
+	ComparisonOperatorLessThan
+	ComparisonOperatorGreaterThan
+	ComparisonOperatorLessThanOrEqualTo
+	ComparisonOperatorGreaterThanOrEqualTo
+	ComparisonOperatorBetween
+	ComparisonOperatorNotBetween
+	ComparisonOperatorIs
+	ComparisonOperatorIsNot
+	ComparisonOperatorIsDistinctFrom
+	ComparisonOperatorIsNotDistinctFrom
+)
+
+type dbComparisonOperator struct {
+	t ComparisonOperatorType
+	v []interface{}
+}
+
+func (c *dbComparisonOperator) Operator() ComparisonOperatorType {
+	return c.t
+}
+
+func (c *dbComparisonOperator) Values() []interface{} {
+	return c.v
+}
+
+var _ ComparisonOperator = &dbComparisonOperator{}
+
 // Function interface defines methods for representing database functions.
 // This is an exported interface but it's rarely used directly, you may want to
 // use the `db.Func()` function instead.
@@ -423,6 +465,76 @@ func (c constraint) Value() interface{} {
 // NewConstraint creates a constraint.
 func NewConstraint(key interface{}, value interface{}) Constraint {
 	return constraint{k: key, v: value}
+}
+
+func Gte(v interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorGreaterThanOrEqualTo,
+		v: []interface{}{v},
+	}
+}
+
+func Lte(v interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorLessThanOrEqualTo,
+		v: []interface{}{v},
+	}
+}
+
+func Eq(v interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorEqual,
+		v: []interface{}{v},
+	}
+}
+
+func NotEq(v interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorNotEqual,
+		v: []interface{}{v},
+	}
+}
+
+func Gt(v interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorGreaterThan,
+		v: []interface{}{v},
+	}
+}
+
+func Lt(v interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorLessThan,
+		v: []interface{}{v},
+	}
+}
+
+func Is(v interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorIs,
+		v: []interface{}{v},
+	}
+}
+
+func IsNot(v interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorIsNot,
+		v: []interface{}{v},
+	}
+}
+
+func IsDistinctFrom(v interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorIsDistinctFrom,
+		v: []interface{}{v},
+	}
+}
+
+func IsNotDistinctFrom(v interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorIsNotDistinctFrom,
+		v: []interface{}{v},
+	}
 }
 
 // Func represents a database function and satisfies the db.Function interface.

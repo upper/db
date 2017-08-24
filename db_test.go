@@ -768,10 +768,10 @@ func TestFibonacci(t *testing.T) {
 				// 5, 6, 7, 3
 				db.Or(
 					db.And(
-						db.Cond{"input >=": 5},
-						db.Cond{"input <=": 7},
+						db.Cond{"input": db.Gte(5)},
+						db.Cond{"input": db.Lte(7)},
 					),
-					db.Cond{"input": 3},
+					db.Cond{"input": db.Eq(3)},
 				),
 			)
 

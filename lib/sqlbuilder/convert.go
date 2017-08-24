@@ -272,6 +272,29 @@ func (tu *templateWithUtils) toWhereWithArguments(term interface{}) (where exql.
 	panic(fmt.Sprintf("Unknown condition type %T", term))
 }
 
+var comparisonOperators = map[db.ComparisonOperatorType]string{
+	db.ComparisonOperatorEqual:                "=",
+	db.ComparisonOperatorNotEqual:             "!=",
+	db.ComparisonOperatorGreaterThanOrEqualTo: ">=",
+	db.ComparisonOperatorLessThanOrEqualTo:    "<=",
+	db.ComparisonOperatorLessThan:             "<",
+	db.ComparisonOperatorGreaterThan:          ">",
+	db.ComparisonOperatorBetween:              "BETWEEN",
+	db.ComparisonOperatorIs:                   "IS",
+	db.ComparisonOperatorIsNot:                "IS NOT",
+	db.ComparisonOperatorIsDistinctFrom:       "IS DISTINCT FROM",
+	db.ComparisonOperatorIsNotDistinctFrom:    "IS NOT DISTINCT FROM",
+}
+
+func compare(cv *exql.ColumnValue, cmp db.ComparisonOperator) db.RawValue {
+	cv.Operator = comparisonOperators[cmp.Operator()]
+	switch cmp.Operator() {
+	case db.ComparisonOperatorBetween:
+		return db.Raw("BETWEEN ? AND ?", cmp.Values()...)
+	}
+	return db.Raw("?", cmp.Values()...)
+}
+
 func (tu *templateWithUtils) toColumnValues(term interface{}) (cv exql.ColumnValues, args []interface{}) {
 	args = []interface{}{}
 
@@ -321,7 +344,7 @@ func (tu *templateWithUtils) toColumnValues(term interface{}) (cv exql.ColumnVal
 
 		// Guessing operator from input, or using a default one.
 		if column, ok := t.Key().(string); ok {
-			chunks := strings.SplitN(strings.TrimSpace(column), ` `, 2)
+			chunks := strings.SplitN(strings.TrimSpace(column), " ", 2)
 			columnValue.Column = exql.ColumnWithName(chunks[0])
 			if len(chunks) > 1 {
 				columnValue.Operator = chunks[1]
@@ -355,11 +378,13 @@ func (tu *templateWithUtils) toColumnValues(term interface{}) (cv exql.ColumnVal
 		case driver.Valuer:
 			columnValue.Value = exql.RawValue("?")
 			args = append(args, value)
+		case db.ComparisonOperator:
+			raw := compare(&columnValue, value)
+			q, a := Preprocess(raw.Raw(), raw.Arguments())
+			columnValue.Value = exql.RawValue(q)
+			args = append(args, a...)
 		default:
 			v, isSlice := toInterfaceArguments(value)
-
-			//valuer, ok := value.(driver.Valuer)
-			//log.Printf("valuer: %v, ok: %v, (%v) %T", valuer, ok, value, value)
 
 			if isSlice {
 				if columnValue.Operator == "" {
