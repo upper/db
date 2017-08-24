@@ -1960,91 +1960,88 @@ func TestCustomType(t *testing.T) {
 
 	assert.Equal(t, "foo: some name", string(bar.Custom.Val))
 
-  assert.NoError(t, cleanUpCheck(sess))
+	assert.NoError(t, cleanUpCheck(sess))
 	assert.NoError(t, sess.Close())
 }
 
 func TestPreload(t *testing.T) {
-  type artistAssoc struct {
-    ID uint64 `db:"id,omitempty"`
-    Name string `db:"name"`
-  }
+	type artistModel struct {
+		ID   uint64 `db:"id,omitempty"`
+		Name string `db:"name"`
+	}
 
-  type reviewAssoc struct {
-    ID uint64 `db:"id,omitempty"`
-    PublicationID uint64 `db:"publication_id"`
-    Name string `db:"name"`
-    Comments string `db:"comments"`
-    Created time.Time `db:"created"`
-  }
+	type publicationModel struct {
+		ID       uint64 `db:"id,omitempty"`
+		Title    string `db:"title"`
+		AuthorID uint64 `db:"author_id"`
 
-  type publicationAssoc struct {
-    ID uint64 `db:"id,omitempty"`
-    Title string `db:"title"`
-    AuthorID uint64 `db:"author_id"`
+		Author *artistModel `db:"author,omitempty"`
+	}
 
-    Author *artistAssoc `db:"author,omitempty,assoc"`
-    Reviews []reviewAssoc `db:"review,omitempty,assoc"`
-  }
-
-  sess := mustOpen()
+	sess := mustOpen()
 
 	artistCollection := sess.Collection("artist")
 	publicationCollection := sess.Collection("publication")
-	reviewCollection := sess.Collection("review")
 
-  err := reviewCollection.Truncate()
-  assert.NoError(t, err)
+	err := publicationCollection.Truncate()
+	assert.NoError(t, err)
 
-  err = publicationCollection.Truncate()
-  assert.NoError(t, err)
+	err = artistCollection.Truncate()
+	assert.NoError(t, err)
 
-  err = artistCollection.Truncate()
-  assert.NoError(t, err)
+	// Insert an artist
+	artist := artistModel{
+		Name: "Artist one",
+	}
+	err = artistCollection.InsertReturning(&artist)
+	assert.NoError(t, err)
 
-  artistID, err := artistCollection.Insert(artistAssoc{
-    Name: "Artist one",
-  })
-  assert.NoError(t, err)
+	// Insert a publication related to the artist above.
+	publication := publicationModel{
+		Title:    "Publication 1",
+		AuthorID: artist.ID,
+	}
+	err = publicationCollection.InsertReturning(&publication)
+	assert.NoError(t, err)
 
-  publicationID, err := publicationCollection.Insert(publicationAssoc{
-    Title: "Publication 1",
-    AuthorID: uint64(artistID.(int64)),
-  })
-  assert.NoError(t, err)
-
-  for i := 1; i < 8; i++ {
-    _, err := reviewCollection.Insert(reviewAssoc{
-      PublicationID: uint64(publicationID.(int64)),
-      Name: fmt.Sprintf("Review %d", i),
-      Comments: "My comment",
-      Created:time.Now(),
-    })
-    assert.NoError(t, err)
-  }
-
-  var publications []publicationAssoc
-	q := publicationCollection.Find().Assoc(
-    artistCollection.Find("publication.author_id = artist.id"),
-    "author",
-  )
-
-  /*Assoc(
-    "review",
-  ).*/
+	q := publicationCollection.Find().Preload(db.Relation{
+		"author": artistCollection.Find(
+			"artist.id = publication.author_id",
+		),
+	})
 
 	publicationsMap := []map[string]interface{}{}
 	err = q.All(&publicationsMap)
-  assert.NoError(t, err)
+	assert.NoError(t, err)
 
-	err = q.All(&publications)
-  assert.NoError(t, err)
+	assert.Equal(t, 1, len(publicationsMap))
+	assert.Equal(t, "Artist one", publicationsMap[0]["author.name"])
 
-  assert.NotZero(t, len(publications))
-  assert.NotNil(t, publications[0].Author)
+	publicationsArray := []publicationModel{}
+	err = q.All(&publicationsArray)
+	assert.NoError(t, err)
 
-	assert.Equal(t, "Artist one", publications[0].Author.Name)
+	assert.Equal(t, 1, len(publicationsArray))
+	assert.NotNil(t, publicationsArray[0].Author)
+	assert.Equal(t, "Artist one", publicationsArray[0].Author.Name)
 
-  assert.NoError(t, cleanUpCheck(sess))
+	publication = publicationModel{}
+	err = q.One(&publication)
+	assert.NoError(t, err)
+
+	assert.NotNil(t, publication.Author)
+	assert.Equal(t, "Artist one", publication.Author.Name)
+
+	_, err = publicationCollection.Insert(publication)
+	assert.Error(t, err)
+
+	err = publicationCollection.Find(publication.ID).Update(publication)
+	assert.NoError(t, err)
+
+	publication.ID = 0
+	_, err = publicationCollection.Insert(publication)
+	assert.NoError(t, err)
+
+	assert.NoError(t, cleanUpCheck(sess))
 	assert.NoError(t, sess.Close())
 }

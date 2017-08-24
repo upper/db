@@ -3,7 +3,6 @@ package sqladapter
 import (
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 
 	"upper.io/db.v3"
@@ -83,7 +82,6 @@ var (
 func NewBaseCollection(p PartialCollection) BaseCollection {
 	c := &collection{PartialCollection: p}
 	c.primaryKeys, c.columns, c.err = c.Database().Columns(c.Name())
-	log.Printf("cerr: %v", c.err)
 	return c
 }
 

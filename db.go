@@ -34,42 +34,42 @@
 //  package main
 //
 //  import (
-//  	"log"
+//    "log"
 //
-//  	"upper.io/db.v3/postgresql" // Imports the postgresql adapter.
+//    "upper.io/db.v3/postgresql" // Imports the postgresql adapter.
 //  )
 //
 //  var settings = postgresql.ConnectionURL{
-//  	Database: `booktown`,
-//  	Host:     `demo.upper.io`,
-//  	User:     `demouser`,
-//  	Password: `demop4ss`,
+//    Database: `booktown`,
+//    Host:     `demo.upper.io`,
+//    User:     `demouser`,
+//    Password: `demop4ss`,
 //  }
 //
 //  // Book represents a book.
 //  type Book struct {
-//  	ID        uint   `db:"id"`
-//  	Title     string `db:"title"`
-//  	AuthorID  uint   `db:"author_id"`
-//  	SubjectID uint   `db:"subject_id"`
+//    ID        uint   `db:"id"`
+//    Title     string `db:"title"`
+//    AuthorID  uint   `db:"author_id"`
+//    SubjectID uint   `db:"subject_id"`
 //  }
 //
 //  func main() {
-//  	sess, err := postgresql.Open(settings)
-//  	if err != nil {
-//  		log.Fatal(err)
-//  	}
-//  	defer sess.Close()
+//    sess, err := postgresql.Open(settings)
+//    if err != nil {
+//      log.Fatal(err)
+//    }
+//    defer sess.Close()
 //
-//  	var books []Book
-//  	if err := sess.Collection("books").Find().OrderBy("title").All(&books); err != nil {
-//  		log.Fatal(err)
-//  	}
+//    var books []Book
+//    if err := sess.Collection("books").Find().OrderBy("title").All(&books); err != nil {
+//      log.Fatal(err)
+//    }
 //
-//  	log.Println("Books:")
-//  	for _, book := range books {
-//  		log.Printf("%q (ID: %d)\n", book.Title, book.ID)
-//  	}
+//    log.Println("Books:")
+//    for _, book := range books {
+//      log.Printf("%q (ID: %d)\n", book.Title, book.ID)
+//    }
 //  }
 //
 // See more usage examples and documentation for users at
@@ -184,7 +184,7 @@ type Unmarshaler interface {
 //
 //  // Where age equals 18.
 //  db.Cond{"age": 18}
-//  //	// Where age is greater than or equal to 18.
+//  //  // Where age is greater than or equal to 18.
 //  db.Cond{"age >=": 18}
 //
 //  // Where id is in a list of ids.
@@ -240,6 +240,9 @@ func (c Cond) Empty() bool {
 	}
 	return true
 }
+
+// Relation represents a relation between columns or tables.
+type Relation map[string]interface{}
 
 type rawValue struct {
 	v string
@@ -429,17 +432,17 @@ func NewConstraint(key interface{}, value interface{}) Constraint {
 //
 // Examples:
 //
-//	// MOD(29, 9)
-//	db.Func("MOD", 29, 9)
+//  // MOD(29, 9)
+//  db.Func("MOD", 29, 9)
 //
-//	// CONCAT("foo", "bar")
-//	db.Func("CONCAT", "foo", "bar")
+//  // CONCAT("foo", "bar")
+//  db.Func("CONCAT", "foo", "bar")
 //
-//	// NOW()
-//	db.Func("NOW")
+//  // NOW()
+//  db.Func("NOW")
 //
-//	// RTRIM("Hello  ")
-//	db.Func("RTRIM", "Hello  ")
+//  // RTRIM("Hello  ")
+//  db.Func("RTRIM", "Hello  ")
 func Func(name string, args ...interface{}) Function {
 	if len(args) == 1 {
 		if reflect.TypeOf(args[0]).Kind() == reflect.Slice {
@@ -471,20 +474,20 @@ func (f *dbFunc) Name() string {
 //
 // Examples:
 //
-//	// name = "Peter" AND last_name = "Parker"
-//	db.And(
-//		db.Cond{"name": "Peter"},
-//		db.Cond{"last_name": "Parker "},
-//	)
+//  // name = "Peter" AND last_name = "Parker"
+//  db.And(
+//    db.Cond{"name": "Peter"},
+//    db.Cond{"last_name": "Parker "},
+//  )
 //
-//	// (name = "Peter" OR name = "Mickey") AND last_name = "Mouse"
-//	db.And(
-//		db.Or(
-//			db.Cond{"name": "Peter"},
-//			db.Cond{"name": "Mickey"},
-//		),
-//		db.Cond{"last_name": "Mouse"},
-//	)
+//  // (name = "Peter" OR name = "Mickey") AND last_name = "Mouse"
+//  db.And(
+//    db.Or(
+//      db.Cond{"name": "Peter"},
+//      db.Cond{"name": "Mickey"},
+//    ),
+//    db.Cond{"last_name": "Mouse"},
+//  )
 func And(conds ...Compound) *Intersection {
 	return &Intersection{newCompound(conds...)}
 }
@@ -494,11 +497,11 @@ func And(conds ...Compound) *Intersection {
 //
 // Example:
 //
-//	// year = 2012 OR year = 1987
-//	db.Or(
-//		db.Cond{"year": 2012},
-//		db.Cond{"year": 1987},
-//	)
+//  // year = 2012 OR year = 1987
+//  db.Or(
+//    db.Cond{"year": 2012},
+//    db.Cond{"year": 1987},
+//  )
 func Or(conds ...Compound) *Union {
 	return &Union{newCompound(defaultJoin(conds...)...)}
 }
@@ -508,8 +511,8 @@ func Or(conds ...Compound) *Union {
 //
 // Example:
 //
-//	// SOUNDEX('Hello')
-//	Raw("SOUNDEX('Hello')")
+//  // SOUNDEX('Hello')
+//  Raw("SOUNDEX('Hello')")
 //
 // Raw returns a value that satifies the db.RawValue interface.
 func Raw(value string, args ...interface{}) RawValue {
@@ -659,7 +662,20 @@ type Result interface {
 	// or columns.
 	Group(...interface{}) Result
 
-	Assoc(res Result, column string) Result
+	// Preload direct one-to-one relations with other tables. It takes a
+	// db.Relation argument, which is a map of all relations you want to preload.
+	//
+	// Example:
+	//
+	//   q := publicationCollection.Find().Preload(db.Relation{
+	//     "artist": artistCollection.Find(
+	//       "artist.id = publication.author_id",
+	//     ),
+	//   })
+	//
+	// Preload returns all records from the left collection and only matching
+	// records on the right (left join).
+	Preload(Relation) Result
 
 	// Delete deletes all items within the result set. `Offset()` and `Limit()` are
 	// not honoured by `Delete()`.
@@ -749,7 +765,7 @@ type Result interface {
 	//
 	// You can define the pagination order and add constraints to your result:
 	//
-	//	 cursor = q.Where(...).OrderBy("id").Paginate(10).Cursor("id")
+	//   cursor = q.Where(...).OrderBy("id").Paginate(10).Cursor("id")
 	//   res = cursor.NextPage(lowerBound)
 	NextPage(cursorValue interface{}) Result
 

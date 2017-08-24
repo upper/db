@@ -24,6 +24,10 @@ type updaterQuery struct {
 	amendFn func(string) string
 }
 
+var updateMapOptions = MapOptions{
+	OmitEmbedded: true,
+}
+
 func (uq *updaterQuery) and(b *sqlBuilder, terms ...interface{}) error {
 	where, whereArgs := b.t.toWhereWithArguments(terms)
 
@@ -109,7 +113,7 @@ func (upd *updater) Set(terms ...interface{}) Updater {
 		}
 
 		if len(terms) == 1 {
-			ff, vv, err := Map(terms[0], nil)
+			ff, vv, err := Map(terms[0], &updateMapOptions)
 			if err == nil && len(ff) > 0 {
 				cvs := make([]exql.Fragment, 0, len(ff))
 				args := make([]interface{}, 0, len(vv))

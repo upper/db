@@ -24,7 +24,6 @@ package sqladapter
 import (
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 	"sync/atomic"
 
@@ -49,7 +48,7 @@ type Result struct {
 	fn   func(*result) error
 }
 
-type assoc struct {
+type assocOne struct {
 	res   db.Result
 	alias string
 }
@@ -72,8 +71,11 @@ type result struct {
 	orderBy []interface{}
 	groupBy []interface{}
 	conds   [][]interface{}
-	assocs  []assoc
+
+	preloadOne []assocOne
 }
+
+type preloadAllFn func(db.Cond) db.Result
 
 func filter(conds []interface{}) []interface{} {
 	return conds
@@ -311,9 +313,15 @@ func (r *Result) Update(values interface{}) error {
 	return r.setErr(err)
 }
 
-func (r *Result) Assoc(ext db.Result, alias string) db.Result {
+func (r *Result) Preload(relation db.Relation) db.Result {
 	return r.frame(func(res *result) error {
-		res.assocs = append(res.assocs, assoc{res: ext, alias: alias})
+		for key, val := range relation {
+			if finder, ok := val.(db.Result); ok {
+				res.preloadOne = append(res.preloadOne, assocOne{res: finder, alias: key})
+				continue
+			}
+			return fmt.Errorf("expecting a relation with db.Result value, got %T", val)
+		}
 		return nil
 	})
 }
@@ -397,15 +405,11 @@ func (r *Result) buildPaginator() (sqlbuilder.Paginator, error) {
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
-	log.Printf("res: %#v", r)
 
 	res, err := r.fastForward()
 	if err != nil {
 		return nil, err
 	}
-
-	log.Printf("res: %#v", res)
-	log.Printf("res: %#v", r.SQLBuilder())
 
 	sel := r.SQLBuilder().SelectFrom(res.table).
 		Limit(res.limit).
@@ -417,7 +421,7 @@ func (r *Result) buildPaginator() (sqlbuilder.Paginator, error) {
 		sel = sel.Columns(res.fields...)
 	}
 
-	if len(res.assocs) > 0 {
+	if len(res.preloadOne) > 0 {
 		sess, ok := r.SQLBuilder().(hasColumns)
 		if !ok {
 			return nil, errors.New("Could not create join")
@@ -435,9 +439,9 @@ func (r *Result) buildPaginator() (sqlbuilder.Paginator, error) {
 		}
 		sel = sel.Columns(columns...)
 
-		for _, assoc := range res.assocs {
+		for _, assocOne := range res.preloadOne {
 
-			ff, err := assoc.res.(*Result).fastForward()
+			ff, err := assocOne.res.(*Result).fastForward()
 			if err != nil {
 				return nil, r.setErr(err)
 			}
@@ -446,7 +450,7 @@ func (r *Result) buildPaginator() (sqlbuilder.Paginator, error) {
 			for i := range ff.conds {
 				ffConds = append(ffConds, filter(ff.conds[i])...)
 			}
-			sel = sel.Join(ff.table).On(ffConds...)
+			sel = sel.LeftJoin(ff.table).On(ffConds...)
 
 			_, cs, err := sess.Columns(ff.table)
 			if err != nil {
@@ -455,7 +459,7 @@ func (r *Result) buildPaginator() (sqlbuilder.Paginator, error) {
 
 			columns := []interface{}{}
 			for _, c := range cs {
-				columns = append(columns, fmt.Sprintf("%s.%s AS %s.%s", ff.table, c, assoc.alias, c))
+				columns = append(columns, fmt.Sprintf("%s.%s AS %s.%s", ff.table, c, assocOne.alias, c))
 			}
 			sel = sel.Columns(columns...)
 		}
