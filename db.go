@@ -80,6 +80,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"time"
 
 	"upper.io/db.v3/internal/immutable"
 )
@@ -154,11 +155,13 @@ type ComparisonOperator interface {
 	Values() []interface{}
 }
 
+// ComparisonOperatorType is a type we use to label comparison operators.
 type ComparisonOperatorType uint8
 
 // Comparison operators
 const (
 	ComparisonOperatorNone ComparisonOperatorType = iota
+
 	ComparisonOperatorEqual
 	ComparisonOperatorNotEqual
 	ComparisonOperatorLessThan
@@ -167,12 +170,22 @@ const (
 	ComparisonOperatorGreaterThanOrEqualTo
 	ComparisonOperatorBetween
 	ComparisonOperatorNotBetween
-	ComparisonOperatorIs
-	ComparisonOperatorIsNot
-	ComparisonOperatorIsDistinctFrom
-	ComparisonOperatorIsNotDistinctFrom
 	ComparisonOperatorIn
 	ComparisonOperatorNotIn
+
+	ComparisonOperatorIs
+	ComparisonOperatorIsNot
+
+	ComparisonOperatorLike
+	ComparisonOperatorNotLike
+
+	ComparisonOperatorIsDistinctFrom
+	ComparisonOperatorIsNotDistinctFrom
+
+	ComparisonOperatorAfter
+	ComparisonOperatorBefore
+	ComparisonOperatorOnOrAfter
+	ComparisonOperatorOnOrBefore
 )
 
 type dbComparisonOperator struct {
@@ -469,6 +482,8 @@ func NewConstraint(key interface{}, value interface{}) Constraint {
 	return constraint{k: key, v: value}
 }
 
+// Gte indicates whether the reference is greater than or equal to the given
+// argument.
 func Gte(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorGreaterThanOrEqualTo,
@@ -476,6 +491,8 @@ func Gte(v interface{}) ComparisonOperator {
 	}
 }
 
+// Lte indicates whether the reference is less than or equal to the given
+// argument.
 func Lte(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorLessThanOrEqualTo,
@@ -483,6 +500,7 @@ func Lte(v interface{}) ComparisonOperator {
 	}
 }
 
+// Eq indicates whether the constraint is equal to the given argument.
 func Eq(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorEqual,
@@ -490,6 +508,7 @@ func Eq(v interface{}) ComparisonOperator {
 	}
 }
 
+// NotEq indicates whether the constraint is not equal to the given argument.
 func NotEq(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorNotEqual,
@@ -497,6 +516,7 @@ func NotEq(v interface{}) ComparisonOperator {
 	}
 }
 
+// Gt indicates whether the constraint is greater than the given argument.
 func Gt(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorGreaterThan,
@@ -504,6 +524,7 @@ func Gt(v interface{}) ComparisonOperator {
 	}
 }
 
+// Lt indicates whether the constraint is less than the given argument.
 func Lt(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorLessThan,
@@ -511,20 +532,7 @@ func Lt(v interface{}) ComparisonOperator {
 	}
 }
 
-func Is(v interface{}) ComparisonOperator {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorIs,
-		v: []interface{}{v},
-	}
-}
-
-func IsNot(v interface{}) ComparisonOperator {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorIsNot,
-		v: []interface{}{v},
-	}
-}
-
+// In indicates whether the argument is part of the reference.
 func In(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorIn,
@@ -532,6 +540,7 @@ func In(v interface{}) ComparisonOperator {
 	}
 }
 
+// NotIn indicates whether the argument is not part of the reference.
 func NotIn(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorNotIn,
@@ -539,6 +548,76 @@ func NotIn(v interface{}) ComparisonOperator {
 	}
 }
 
+// After indicates whether the reference is after the given time.
+func After(t time.Time) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorAfter,
+		v: []interface{}{t},
+	}
+}
+
+// Before indicates whether the reference is before the given time.
+func Before(t time.Time) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorBefore,
+		v: []interface{}{t},
+	}
+}
+
+// OnOrAfter indicater whether the reference is after or equal to the given
+// time value.
+func OnOrAfter(t time.Time) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorOnOrAfter,
+		v: []interface{}{t},
+	}
+}
+
+// OnOrBefore indicates whether the reference is before or equal to the given
+// time value.
+func OnOrBefore(t time.Time) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorOnOrBefore,
+		v: []interface{}{t},
+	}
+}
+
+// Between indicates whether the reference is contained between the two given
+// values.
+func Between(a interface{}, b interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorBetween,
+		v: []interface{}{a, b},
+	}
+}
+
+// NotBetween indicates whether the reference is not contained between the two
+// given values.
+func NotBetween(a interface{}, b interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorNotBetween,
+		v: []interface{}{a, b},
+	}
+}
+
+// Is indicates whether the reference is nil, true or false.
+func Is(v interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorIs,
+		v: []interface{}{v},
+	}
+}
+
+// IsNot indicates whether the reference is not nil, true nor false.
+func IsNot(v interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorIsNot,
+		v: []interface{}{v},
+	}
+}
+
+// IsDistinctFrom indicates whether the reference is different from
+// the given value, including NULL values.
 func IsDistinctFrom(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorIsDistinctFrom,
@@ -546,9 +625,27 @@ func IsDistinctFrom(v interface{}) ComparisonOperator {
 	}
 }
 
+// IsNotDistinctFrom indicates whether the reference is not different from the
+// given value, including NULL values.
 func IsNotDistinctFrom(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorIsNotDistinctFrom,
+		v: []interface{}{v},
+	}
+}
+
+// Like indicates whether the reference matches the wildcard value.
+func Like(v interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorLike,
+		v: []interface{}{v},
+	}
+}
+
+// NotLike indicates whether the reference does not match the wildcard value.
+func NotLike(v interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorNotLike,
 		v: []interface{}{v},
 	}
 }
