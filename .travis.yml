@@ -8,7 +8,7 @@ language: go
 go:
   - "1.8"
   - "1.9"
-  - "tip"
+#  - "tip"
 
 services:
   - docker
