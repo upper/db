@@ -171,6 +171,8 @@ const (
 	ComparisonOperatorIsNot
 	ComparisonOperatorIsDistinctFrom
 	ComparisonOperatorIsNotDistinctFrom
+	ComparisonOperatorIn
+	ComparisonOperatorNotIn
 )
 
 type dbComparisonOperator struct {
@@ -519,6 +521,20 @@ func Is(v interface{}) ComparisonOperator {
 func IsNot(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorIsNot,
+		v: []interface{}{v},
+	}
+}
+
+func In(v interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorIn,
+		v: []interface{}{v},
+	}
+}
+
+func NotIn(v interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		t: ComparisonOperatorNotIn,
 		v: []interface{}{v},
 	}
 }
