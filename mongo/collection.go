@@ -88,9 +88,7 @@ func compileStatement(cond db.Cond) bson.M {
 		if dbCmp, ok := value.(db.ComparisonOperator); ok {
 			op, ok = comparisonOperators[dbCmp.Operator()]
 			if ok {
-				if v := dbCmp.Values(); len(v) > 0 {
-					value = v[0]
-				}
+				value = dbCmp.Value()
 			}
 		} else {
 			// Removing leading or trailing spaces.

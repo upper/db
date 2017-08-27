@@ -11,11 +11,7 @@ import (
 )
 
 var (
-	sqlNull            = exql.RawValue(`NULL`)
-	sqlDefault         = exql.RawValue(`DEFAULT`)
-	sqlIsOperator      = `IS`
-	sqlInOperator      = `IN`
-	sqlDefaultOperator = `=`
+	sqlDefault = exql.RawValue(`DEFAULT`)
 )
 
 type templateWithUtils struct {
@@ -282,67 +278,101 @@ var comparisonOperators = map[db.ComparisonOperatorType]string{
 	db.ComparisonOperatorBetween:              "BETWEEN",
 	db.ComparisonOperatorIs:                   "IS",
 	db.ComparisonOperatorIsNot:                "IS NOT",
+	db.ComparisonOperatorIn:                   "IN",
+	db.ComparisonOperatorNotIn:                "NOT IN",
 	db.ComparisonOperatorIsDistinctFrom:       "IS DISTINCT FROM",
 	db.ComparisonOperatorIsNotDistinctFrom:    "IS NOT DISTINCT FROM",
 }
 
-func compare(cv *exql.ColumnValue, cmp db.ComparisonOperator) db.RawValue {
-	cv.Operator = comparisonOperators[cmp.Operator()]
-	switch cmp.Operator() {
-	case db.ComparisonOperatorBetween:
-		return db.Raw("BETWEEN ? AND ?", cmp.Values()...)
+type hasCustomOperator interface {
+	CustomOperator() string
+}
+
+type operatorWrapper struct {
+	tu       *templateWithUtils
+	op       db.ComparisonOperator
+	customOp string
+	v        interface{}
+}
+
+func (ow *operatorWrapper) cmp() db.ComparisonOperator {
+	if ow.op != nil {
+		return ow.op
 	}
-	return db.Raw("?", cmp.Values()...)
+
+	if ow.customOp != "" {
+		return db.Op(ow.customOp, ow.v)
+	}
+
+	if ow.v == nil {
+		return db.Is(nil)
+	}
+
+	args, isSlice := toInterfaceArguments(ow.v)
+	if isSlice {
+		return db.In(args)
+	}
+
+	return db.Eq(ow.v)
+}
+
+func (ow *operatorWrapper) build() (string, string, []interface{}) {
+	cmp := ow.cmp()
+
+	op := ow.tu.comparisonOperatorMapper(cmp.Operator())
+
+	switch cmp.Operator() {
+	case db.ComparisonOperatorNone:
+		if c, ok := cmp.(hasCustomOperator); ok {
+			op = c.CustomOperator()
+		} else {
+			panic("no operator given")
+		}
+	case db.ComparisonOperatorIn, db.ComparisonOperatorNotIn:
+		values := cmp.Value().([]interface{})
+		if len(values) < 1 {
+			return op, "(NULL)", nil
+		}
+		if len(values) > 0 {
+			format := "(?" + strings.Repeat(", ?", len(values)-1) + ")"
+			return op, format, values
+		}
+		return op, "(NULL)", nil
+	case db.ComparisonOperatorIs, db.ComparisonOperatorIsNot:
+		switch cmp.Value() {
+		case nil:
+			return op, "NULL", nil
+		case false:
+			return op, "FALSE", nil
+		case true:
+			return op, "TRUE", nil
+		}
+	case db.ComparisonOperatorBetween:
+		values := cmp.Value()
+		return op, "BETWEEN ? AND ?", values.([]interface{})
+	}
+
+	v := cmp.Value()
+	return op, "?", []interface{}{v}
+}
+
+func (tu *templateWithUtils) comparisonOperatorMapper(t db.ComparisonOperatorType) string {
+	if tu.ComparisonOperator != nil {
+		if op, ok := tu.ComparisonOperator[t]; ok {
+			return op
+		}
+	}
+	return comparisonOperators[t]
 }
 
 func (tu *templateWithUtils) toColumnValues(term interface{}) (cv exql.ColumnValues, args []interface{}) {
 	args = []interface{}{}
 
 	switch t := term.(type) {
-	case []interface{}:
-		l := len(t)
-		for i := 0; i < l; i++ {
-			column, isString := t[i].(string)
-
-			if !isString {
-				p, q := tu.toColumnValues(t[i])
-				cv.ColumnValues = append(cv.ColumnValues, p.ColumnValues...)
-				args = append(args, q...)
-				continue
-			}
-
-			if !strings.ContainsAny(column, "=") {
-				column = fmt.Sprintf("%s = ?", column)
-			}
-
-			chunks := strings.SplitN(column, "=", 2)
-
-			column = chunks[0]
-			format := strings.TrimSpace(chunks[1])
-
-			columnValue := exql.ColumnValue{
-				Column:   exql.ColumnWithName(column),
-				Operator: "=",
-				Value:    exql.RawValue(format),
-			}
-
-			ps := strings.Count(format, "?")
-			if i+ps < l {
-				for j := 0; j < ps; j++ {
-					args = append(args, t[i+j+1])
-				}
-				i = i + ps
-			} else {
-				panic(fmt.Sprintf("Format string %q has more placeholders than given arguments.", format))
-			}
-
-			cv.ColumnValues = append(cv.ColumnValues, &columnValue)
-		}
-		return cv, args
 	case db.Constraint:
 		columnValue := exql.ColumnValue{}
 
-		// Guessing operator from input, or using a default one.
+		// Getting column and operator.
 		if column, ok := t.Key().(string); ok {
 			chunks := strings.SplitN(strings.TrimSpace(column), " ", 2)
 			columnValue.Column = exql.ColumnWithName(chunks[0])
@@ -379,66 +409,103 @@ func (tu *templateWithUtils) toColumnValues(term interface{}) (cv exql.ColumnVal
 			columnValue.Value = exql.RawValue("?")
 			args = append(args, value)
 		case db.ComparisonOperator:
-			raw := compare(&columnValue, value)
-			q, a := Preprocess(raw.Raw(), raw.Arguments())
-			columnValue.Value = exql.RawValue(q)
-			args = append(args, a...)
+
+			wrapper := &operatorWrapper{
+				tu: tu,
+				op: value,
+			}
+
+			op, opFormat, opArgs := wrapper.build()
+			columnValue.Operator = op
+
+			opFormat, opArgs = Preprocess(opFormat, opArgs)
+			columnValue.Value = exql.RawValue(opFormat)
+			if opArgs != nil {
+				args = append(args, opArgs...)
+			}
 		default:
-			v, isSlice := toInterfaceArguments(value)
+			wrapper := &operatorWrapper{
+				tu:       tu,
+				customOp: columnValue.Operator,
+				v:        value,
+			}
 
-			if isSlice {
-				if columnValue.Operator == "" {
-					columnValue.Operator = sqlInOperator
-				}
-				if len(v) > 0 {
-					// Array value given.
-					columnValue.Value = exql.RawValue(fmt.Sprintf(`(?%s)`, strings.Repeat(`, ?`, len(v)-1)))
-				} else {
-					// Single value given.
-					columnValue.Value = exql.RawValue(`(NULL)`)
-				}
-				args = append(args, v...)
-			} else {
-				if v == nil {
-					// Nil value given.
-					columnValue.Value = sqlNull
-					if columnValue.Operator == "" {
-						columnValue.Operator = sqlIsOperator
-					}
-				} else {
-					columnValue.Value = sqlPlaceholder
-					args = append(args, v...)
-				}
+			op, opFormat, opArgs := wrapper.build()
+			columnValue.Operator = op
+
+			opFormat, opArgs = Preprocess(opFormat, opArgs)
+			columnValue.Value = exql.RawValue(opFormat)
+			if opArgs != nil {
+				args = append(args, opArgs...)
 			}
 		}
 
-		// Using guessed operator if no operator was given.
 		if columnValue.Operator == "" {
-			if tu.DefaultOperator != "" {
-				columnValue.Operator = tu.DefaultOperator
-			} else {
-				columnValue.Operator = sqlDefaultOperator
-			}
+			columnValue.Operator = tu.comparisonOperatorMapper(db.ComparisonOperatorEqual)
 		}
-
-		// Using guessed operator if no operator was given.
 		cv.ColumnValues = append(cv.ColumnValues, &columnValue)
-
 		return cv, args
 	case db.RawValue:
 		columnValue := exql.ColumnValue{}
 		p, q := Preprocess(t.Raw(), t.Arguments())
-
 		columnValue.Column = exql.RawValue(p)
-		args = append(args, q...)
-
 		cv.ColumnValues = append(cv.ColumnValues, &columnValue)
+		args = append(args, q...)
 		return cv, args
 	case db.Constraints:
-		for _, c := range t.Constraints() {
-			p, q := tu.toColumnValues(c)
+		for _, constraint := range t.Constraints() {
+			p, q := tu.toColumnValues(constraint)
 			cv.ColumnValues = append(cv.ColumnValues, p.ColumnValues...)
 			args = append(args, q...)
+		}
+		return cv, args
+	}
+
+	panic(fmt.Sprintf("Unknown term type %T.", term))
+}
+
+func (tu *templateWithUtils) setColumnValues(term interface{}) (cv exql.ColumnValues, args []interface{}) {
+	args = []interface{}{}
+
+	switch t := term.(type) {
+	case []interface{}:
+		l := len(t)
+		for i := 0; i < l; i++ {
+			column, isString := t[i].(string)
+
+			if !isString {
+				p, q := tu.setColumnValues(t[i])
+				cv.ColumnValues = append(cv.ColumnValues, p.ColumnValues...)
+				args = append(args, q...)
+				continue
+			}
+
+			if !strings.ContainsAny(column, tu.AssignmentOperator) {
+				column = column + " " + tu.AssignmentOperator + " ?"
+			}
+
+			chunks := strings.SplitN(column, tu.AssignmentOperator, 2)
+
+			column = chunks[0]
+			format := strings.TrimSpace(chunks[1])
+
+			columnValue := exql.ColumnValue{
+				Column:   exql.ColumnWithName(column),
+				Operator: tu.AssignmentOperator,
+				Value:    exql.RawValue(format),
+			}
+
+			ps := strings.Count(format, "?")
+			if i+ps < l {
+				for j := 0; j < ps; j++ {
+					args = append(args, t[i+j+1])
+				}
+				i = i + ps
+			} else {
+				panic(fmt.Sprintf("Format string %q has more placeholders than given arguments.", format))
+			}
+
+			cv.ColumnValues = append(cv.ColumnValues, &columnValue)
 		}
 		return cv, args
 	}

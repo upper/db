@@ -152,7 +152,7 @@ type RawValue interface {
 type ComparisonOperator interface {
 	Operator() ComparisonOperatorType
 
-	Values() []interface{}
+	Value() interface{}
 }
 
 // ComparisonOperatorType is a type we use to label comparison operators.
@@ -189,15 +189,20 @@ const (
 )
 
 type dbComparisonOperator struct {
-	t ComparisonOperatorType
-	v []interface{}
+	t  ComparisonOperatorType
+	op string
+	v  interface{}
+}
+
+func (c *dbComparisonOperator) CustomOperator() string {
+	return c.op
 }
 
 func (c *dbComparisonOperator) Operator() ComparisonOperatorType {
 	return c.t
 }
 
-func (c *dbComparisonOperator) Values() []interface{} {
+func (c *dbComparisonOperator) Value() interface{} {
 	return c.v
 }
 
@@ -487,7 +492,7 @@ func NewConstraint(key interface{}, value interface{}) Constraint {
 func Gte(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorGreaterThanOrEqualTo,
-		v: []interface{}{v},
+		v: v,
 	}
 }
 
@@ -496,7 +501,7 @@ func Gte(v interface{}) ComparisonOperator {
 func Lte(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorLessThanOrEqualTo,
-		v: []interface{}{v},
+		v: v,
 	}
 }
 
@@ -504,7 +509,7 @@ func Lte(v interface{}) ComparisonOperator {
 func Eq(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorEqual,
-		v: []interface{}{v},
+		v: v,
 	}
 }
 
@@ -512,7 +517,7 @@ func Eq(v interface{}) ComparisonOperator {
 func NotEq(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorNotEqual,
-		v: []interface{}{v},
+		v: v,
 	}
 }
 
@@ -520,7 +525,7 @@ func NotEq(v interface{}) ComparisonOperator {
 func Gt(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorGreaterThan,
-		v: []interface{}{v},
+		v: v,
 	}
 }
 
@@ -528,7 +533,7 @@ func Gt(v interface{}) ComparisonOperator {
 func Lt(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorLessThan,
-		v: []interface{}{v},
+		v: v,
 	}
 }
 
@@ -536,7 +541,7 @@ func Lt(v interface{}) ComparisonOperator {
 func In(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorIn,
-		v: []interface{}{v},
+		v: v,
 	}
 }
 
@@ -544,7 +549,7 @@ func In(v interface{}) ComparisonOperator {
 func NotIn(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorNotIn,
-		v: []interface{}{v},
+		v: v,
 	}
 }
 
@@ -552,7 +557,7 @@ func NotIn(v interface{}) ComparisonOperator {
 func After(t time.Time) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorAfter,
-		v: []interface{}{t},
+		v: t,
 	}
 }
 
@@ -560,7 +565,7 @@ func After(t time.Time) ComparisonOperator {
 func Before(t time.Time) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorBefore,
-		v: []interface{}{t},
+		v: t,
 	}
 }
 
@@ -569,7 +574,7 @@ func Before(t time.Time) ComparisonOperator {
 func OnOrAfter(t time.Time) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorOnOrAfter,
-		v: []interface{}{t},
+		v: t,
 	}
 }
 
@@ -578,7 +583,7 @@ func OnOrAfter(t time.Time) ComparisonOperator {
 func OnOrBefore(t time.Time) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorOnOrBefore,
-		v: []interface{}{t},
+		v: t,
 	}
 }
 
@@ -604,7 +609,7 @@ func NotBetween(a interface{}, b interface{}) ComparisonOperator {
 func Is(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorIs,
-		v: []interface{}{v},
+		v: v,
 	}
 }
 
@@ -612,7 +617,7 @@ func Is(v interface{}) ComparisonOperator {
 func IsNot(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorIsNot,
-		v: []interface{}{v},
+		v: v,
 	}
 }
 
@@ -621,7 +626,7 @@ func IsNot(v interface{}) ComparisonOperator {
 func IsDistinctFrom(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorIsDistinctFrom,
-		v: []interface{}{v},
+		v: v,
 	}
 }
 
@@ -630,7 +635,7 @@ func IsDistinctFrom(v interface{}) ComparisonOperator {
 func IsNotDistinctFrom(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorIsNotDistinctFrom,
-		v: []interface{}{v},
+		v: v,
 	}
 }
 
@@ -638,7 +643,7 @@ func IsNotDistinctFrom(v interface{}) ComparisonOperator {
 func Like(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorLike,
-		v: []interface{}{v},
+		v: v,
 	}
 }
 
@@ -646,7 +651,16 @@ func Like(v interface{}) ComparisonOperator {
 func NotLike(v interface{}) ComparisonOperator {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorNotLike,
-		v: []interface{}{v},
+		v: v,
+	}
+}
+
+// Op represents a custom comparison operator against the reference.
+func Op(customOperator string, v interface{}) ComparisonOperator {
+	return &dbComparisonOperator{
+		op: customOperator,
+		t:  ComparisonOperatorNone,
+		v:  v,
 	}
 }
 
