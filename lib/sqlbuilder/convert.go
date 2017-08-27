@@ -349,7 +349,7 @@ func (ow *operatorWrapper) build() (string, string, []interface{}) {
 		}
 	case db.ComparisonOperatorBetween:
 		values := cmp.Value()
-		return op, "BETWEEN ? AND ?", values.([]interface{})
+		return op, "? AND ?", values.([]interface{})
 	}
 
 	v := cmp.Value()
@@ -507,6 +507,13 @@ func (tu *templateWithUtils) setColumnValues(term interface{}) (cv exql.ColumnVa
 
 			cv.ColumnValues = append(cv.ColumnValues, &columnValue)
 		}
+		return cv, args
+	case db.RawValue:
+		columnValue := exql.ColumnValue{}
+		p, q := Preprocess(t.Raw(), t.Arguments())
+		columnValue.Column = exql.RawValue(p)
+		cv.ColumnValues = append(cv.ColumnValues, &columnValue)
+		args = append(args, q...)
 		return cv, args
 	}
 
