@@ -2,6 +2,7 @@ package sqlbuilder
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -96,6 +97,9 @@ func toInterfaceArguments(value interface{}) (args []interface{}, isSlice bool) 
 
 		// Byte slice gets transformed into a string.
 		if v.Type().Elem().Kind() == reflect.Uint8 {
+			if rawMessage, ok := value.(json.RawMessage); ok {
+				return []interface{}{string(rawMessage)}, false
+			}
 			return []interface{}{string(value.([]byte))}, false
 		}
 
