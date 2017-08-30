@@ -26,6 +26,7 @@ addons:
     - mongodb-org-shell
 
 before_install:
+  - sudo service mysqld stop
   - docker pull microsoft/mssql-server-linux:ctp1-4
   - docker pull mysql:5.7
   - docker run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=my$Password' --name mssql -p 1433:1433 -d microsoft/mssql-server-linux:ctp1-4
