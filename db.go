@@ -633,6 +633,16 @@ func IsNot(v interface{}) Comparison {
 	}
 }
 
+// IsNull indicates whether the reference is a NULL value.
+func IsNull() Comparison {
+	return Is(nil)
+}
+
+// IsNotNull indicates whether the reference is a NULL value.
+func IsNotNull() Comparison {
+	return IsNot(nil)
+}
+
 // IsDistinctFrom indicates whether the reference is different from
 // the given value, including NULL values.
 func IsDistinctFrom(v interface{}) Comparison {
