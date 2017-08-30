@@ -64,7 +64,7 @@ func (col *Collection) Find(terms ...interface{}) db.Result {
 	return res
 }
 
-var comparisonOperators = map[db.ComparisonOperatorType]string{
+var comparisonOperators = map[db.ComparisonOperator]string{
 	db.ComparisonOperatorEqual:                "$eq",
 	db.ComparisonOperatorNotEqual:             "$ne",
 	db.ComparisonOperatorGreaterThan:          "$gt",
@@ -85,7 +85,7 @@ func compileStatement(cond db.Cond) bson.M {
 		var op string
 		field := strings.TrimSpace(fmt.Sprintf("%v", fieldI))
 
-		if dbCmp, ok := value.(db.ComparisonOperator); ok {
+		if dbCmp, ok := value.(db.Comparison); ok {
 			op, ok = comparisonOperators[dbCmp.Operator()]
 			if ok {
 				value = dbCmp.Value()

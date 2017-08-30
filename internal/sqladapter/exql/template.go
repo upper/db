@@ -72,7 +72,7 @@ type Template struct {
 	ValueSeparator      string
 	WhereLayout         string
 
-	ComparisonOperator map[db.ComparisonOperatorType]string
+	ComparisonOperator map[db.ComparisonOperator]string
 
 	*cache.Cache
 }

@@ -203,7 +203,7 @@ var template = &exql.Template{
 	CountLayout:         adapterSelectCountLayout,
 	GroupByLayout:       adapterGroupByLayout,
 	Cache:               cache.NewCache(),
-	ComparisonOperator: map[db.ComparisonOperatorType]string{
+	ComparisonOperator: map[db.ComparisonOperator]string{
 		db.ComparisonOperatorEqual: "==",
 	},
 }

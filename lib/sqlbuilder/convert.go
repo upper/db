@@ -268,7 +268,7 @@ func (tu *templateWithUtils) toWhereWithArguments(term interface{}) (where exql.
 	panic(fmt.Sprintf("Unknown condition type %T", term))
 }
 
-var comparisonOperators = map[db.ComparisonOperatorType]string{
+var comparisonOperators = map[db.ComparisonOperator]string{
 	db.ComparisonOperatorEqual:                "=",
 	db.ComparisonOperatorNotEqual:             "!=",
 	db.ComparisonOperatorGreaterThanOrEqualTo: ">=",
@@ -290,12 +290,12 @@ type hasCustomOperator interface {
 
 type operatorWrapper struct {
 	tu       *templateWithUtils
-	op       db.ComparisonOperator
+	op       db.Comparison
 	customOp string
 	v        interface{}
 }
 
-func (ow *operatorWrapper) cmp() db.ComparisonOperator {
+func (ow *operatorWrapper) cmp() db.Comparison {
 	if ow.op != nil {
 		return ow.op
 	}
@@ -356,7 +356,7 @@ func (ow *operatorWrapper) build() (string, string, []interface{}) {
 	return op, "?", []interface{}{v}
 }
 
-func (tu *templateWithUtils) comparisonOperatorMapper(t db.ComparisonOperatorType) string {
+func (tu *templateWithUtils) comparisonOperatorMapper(t db.ComparisonOperator) string {
 	if tu.ComparisonOperator != nil {
 		if op, ok := tu.ComparisonOperator[t]; ok {
 			return op
@@ -408,7 +408,7 @@ func (tu *templateWithUtils) toColumnValues(term interface{}) (cv exql.ColumnVal
 		case driver.Valuer:
 			columnValue.Value = exql.RawValue("?")
 			args = append(args, value)
-		case db.ComparisonOperator:
+		case db.Comparison:
 
 			wrapper := &operatorWrapper{
 				tu: tu,
