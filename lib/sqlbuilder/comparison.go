@@ -7,19 +7,34 @@ import (
 )
 
 var comparisonOperators = map[db.ComparisonOperator]string{
-	db.ComparisonOperatorEqual:                "=",
-	db.ComparisonOperatorNotEqual:             "!=",
-	db.ComparisonOperatorGreaterThanOrEqualTo: ">=",
+	db.ComparisonOperatorEqual:    "=",
+	db.ComparisonOperatorNotEqual: "!=",
+
+	db.ComparisonOperatorLessThan:    "<",
+	db.ComparisonOperatorGreaterThan: ">",
+
 	db.ComparisonOperatorLessThanOrEqualTo:    "<=",
-	db.ComparisonOperatorLessThan:             "<",
-	db.ComparisonOperatorGreaterThan:          ">",
-	db.ComparisonOperatorBetween:              "BETWEEN",
-	db.ComparisonOperatorIs:                   "IS",
-	db.ComparisonOperatorIsNot:                "IS NOT",
-	db.ComparisonOperatorIn:                   "IN",
-	db.ComparisonOperatorNotIn:                "NOT IN",
-	db.ComparisonOperatorIsDistinctFrom:       "IS DISTINCT FROM",
-	db.ComparisonOperatorIsNotDistinctFrom:    "IS NOT DISTINCT FROM",
+	db.ComparisonOperatorGreaterThanOrEqualTo: ">=",
+
+	db.ComparisonOperatorBetween:    "BETWEEN",
+	db.ComparisonOperatorNotBetween: "NOT BETWEEN",
+
+	db.ComparisonOperatorIn:    "IN",
+	db.ComparisonOperatorNotIn: "NOT IN",
+
+	db.ComparisonOperatorIs:    "IS",
+	db.ComparisonOperatorIsNot: "IS NOT",
+
+	db.ComparisonOperatorLike:     "LIKE",
+	db.ComparisonOperatorNotLike:  "NOT LIKE",
+	db.ComparisonOperatorILike:    "ILIKE",
+	db.ComparisonOperatorNotILike: "NOT ILIKE",
+
+	db.ComparisonOperatorRegExp:    "REGEXP",
+	db.ComparisonOperatorNotRegExp: "NOT REGEXP",
+
+	db.ComparisonOperatorIsDistinctFrom:    "IS DISTINCT FROM",
+	db.ComparisonOperatorIsNotDistinctFrom: "IS NOT DISTINCT FROM",
 }
 
 type hasCustomOperator interface {
@@ -85,7 +100,7 @@ func (ow *operatorWrapper) build() (string, string, []interface{}) {
 		case true:
 			return op, "TRUE", nil
 		}
-	case db.ComparisonOperatorBetween:
+	case db.ComparisonOperatorBetween, db.ComparisonOperatorNotBetween:
 		values := cmp.Value()
 		return op, "? AND ?", values.([]interface{})
 	}

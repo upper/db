@@ -65,14 +65,47 @@ func (col *Collection) Find(terms ...interface{}) db.Result {
 }
 
 var comparisonOperators = map[db.ComparisonOperator]string{
-	db.ComparisonOperatorEqual:                "$eq",
-	db.ComparisonOperatorNotEqual:             "$ne",
-	db.ComparisonOperatorGreaterThan:          "$gt",
-	db.ComparisonOperatorGreaterThanOrEqualTo: "$gte",
-	db.ComparisonOperatorLessThan:             "$lt",
+	db.ComparisonOperatorEqual:    "$eq",
+	db.ComparisonOperatorNotEqual: "$ne",
+
+	db.ComparisonOperatorLessThan:    "$lt",
+	db.ComparisonOperatorGreaterThan: "$gt",
+
 	db.ComparisonOperatorLessThanOrEqualTo:    "$lte",
-	db.ComparisonOperatorIn:                   "$in",
-	db.ComparisonOperatorNotIn:                "$nin",
+	db.ComparisonOperatorGreaterThanOrEqualTo: "$gte",
+
+	db.ComparisonOperatorIn:    "$in",
+	db.ComparisonOperatorNotIn: "$nin",
+}
+
+func compare(field string, cmp db.Comparison) (string, interface{}) {
+	op := cmp.Operator()
+	value := cmp.Value()
+
+	switch op {
+	case db.ComparisonOperatorEqual:
+		return field, value
+	case db.ComparisonOperatorBetween:
+		values := value.([]interface{})
+		return field, bson.M{
+			"$gte": values[0],
+			"$lte": values[1],
+		}
+	case db.ComparisonOperatorNotBetween:
+		values := value.([]interface{})
+		return "$or", []bson.M{
+			{field: bson.M{"$gt": values[1]}},
+			{field: bson.M{"$lt": values[0]}},
+		}
+	}
+
+	if cmpOp, ok := comparisonOperators[op]; ok {
+		return field, bson.M{
+			cmpOp: value,
+		}
+	}
+
+	panic(fmt.Sprintf("Unsupported operator %v", op))
 }
 
 // compileStatement transforms conditions into something *mgo.Session can
@@ -82,38 +115,36 @@ func compileStatement(cond db.Cond) bson.M {
 
 	// Walking over conditions
 	for fieldI, value := range cond {
-		var op string
 		field := strings.TrimSpace(fmt.Sprintf("%v", fieldI))
 
-		if dbCmp, ok := value.(db.Comparison); ok {
-			op, ok = comparisonOperators[dbCmp.Operator()]
-			if ok {
-				value = dbCmp.Value()
-			}
-		} else {
-			// Removing leading or trailing spaces.
-			chunks := strings.SplitN(field, ` `, 2)
-
-			if len(chunks) > 1 {
-				switch chunks[1] {
-				case `IN`:
-					op = `$in`
-				case `NOT IN`:
-					op = `$nin`
-				case `>`:
-					op = `$gt`
-				case `<`:
-					op = `$lt`
-				case `<=`:
-					op = `$lte`
-				case `>=`:
-					op = `$gte`
-				default:
-					op = chunks[1]
-				}
-			}
-			field = chunks[0]
+		if cmp, ok := value.(db.Comparison); ok {
+			k, v := compare(field, cmp)
+			conds[k] = v
+			continue
 		}
+
+		var op string
+		chunks := strings.SplitN(field, ` `, 2)
+
+		if len(chunks) > 1 {
+			switch chunks[1] {
+			case `IN`:
+				op = `$in`
+			case `NOT IN`:
+				op = `$nin`
+			case `>`:
+				op = `$gt`
+			case `<`:
+				op = `$lt`
+			case `<=`:
+				op = `$lte`
+			case `>=`:
+				op = `$gte`
+			default:
+				op = chunks[1]
+			}
+		}
+		field = chunks[0]
 
 		if op == "" {
 			conds[field] = value

@@ -65,8 +65,6 @@ const (
 
 	ComparisonOperatorRegExp
 	ComparisonOperatorNotRegExp
-	ComparisonOperatorIRegExp
-	ComparisonOperatorNotIRegExp
 
 	ComparisonOperatorIsDistinctFrom
 	ComparisonOperatorIsNotDistinctFrom
@@ -165,7 +163,7 @@ func NotIn(v interface{}) Comparison {
 // After indicates whether the reference is after the given time.
 func After(t time.Time) Comparison {
 	return &dbComparisonOperator{
-		t: ComparisonOperatorAfter,
+		t: ComparisonOperatorGreaterThan,
 		v: t,
 	}
 }
@@ -173,7 +171,7 @@ func After(t time.Time) Comparison {
 // Before indicates whether the reference is before the given time.
 func Before(t time.Time) Comparison {
 	return &dbComparisonOperator{
-		t: ComparisonOperatorBefore,
+		t: ComparisonOperatorLessThan,
 		v: t,
 	}
 }
@@ -182,7 +180,7 @@ func Before(t time.Time) Comparison {
 // time value.
 func OnOrAfter(t time.Time) Comparison {
 	return &dbComparisonOperator{
-		t: ComparisonOperatorOnOrAfter,
+		t: ComparisonOperatorGreaterThanOrEqualTo,
 		v: t,
 	}
 }
@@ -191,7 +189,7 @@ func OnOrAfter(t time.Time) Comparison {
 // time value.
 func OnOrBefore(t time.Time) Comparison {
 	return &dbComparisonOperator{
-		t: ComparisonOperatorOnOrBefore,
+		t: ComparisonOperatorLessThanOrEqualTo,
 		v: t,
 	}
 }
@@ -259,7 +257,7 @@ func IsNotDistinctFrom(v interface{}) Comparison {
 }
 
 // Like indicates whether the reference matches the wildcard value.
-func Like(v interface{}) Comparison {
+func Like(v string) Comparison {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorLike,
 		v: v,
@@ -267,7 +265,7 @@ func Like(v interface{}) Comparison {
 }
 
 // NotLike indicates whether the reference does not match the wildcard value.
-func NotLike(v interface{}) Comparison {
+func NotLike(v string) Comparison {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorNotLike,
 		v: v,
@@ -276,7 +274,7 @@ func NotLike(v interface{}) Comparison {
 
 // ILike indicates whether the reference matches the wildcard value (case
 // insensitive).
-func ILike(v interface{}) Comparison {
+func ILike(v string) Comparison {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorILike,
 		v: v,
@@ -285,7 +283,7 @@ func ILike(v interface{}) Comparison {
 
 // NotILike indicates whether the reference does not match the wildcard value
 // (case insensitive).
-func NotILike(v interface{}) Comparison {
+func NotILike(v string) Comparison {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorNotILike,
 		v: v,
@@ -293,7 +291,7 @@ func NotILike(v interface{}) Comparison {
 }
 
 // RegExp indicates whether the reference matches the regexp pattern.
-func RegExp(v interface{}) Comparison {
+func RegExp(v string) Comparison {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorRegExp,
 		v: v,
@@ -301,7 +299,7 @@ func RegExp(v interface{}) Comparison {
 }
 
 // NotRegExp indicates whether the reference does not match the regexp pattern.
-func NotRegExp(v interface{}) Comparison {
+func NotRegExp(v string) Comparison {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorNotRegExp,
 		v: v,
