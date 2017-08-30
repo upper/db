@@ -32,6 +32,7 @@ before_install:
   - docker run -d -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=my$Password' --name mssql -p 1433:1433 -d microsoft/mssql-server-linux:ctp1-4
   - docker run -d -e "MYSQL_USER=upperio_tests" -e "MYSQL_PASSWORD=upperio_secret" -e "MYSQL_ALLOW_EMPTY_PASSWORD=1" -e "MYSQL_DATABASE=upperio_tests" -p 3306:3306 --name mysql mysql:5.7
   - docker ps -a
+  - sleep 10
 
 env:
   global:
