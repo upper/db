@@ -8,6 +8,7 @@ import (
 	"upper.io/db.v3"
 	"upper.io/db.v3/internal/sqladapter/exql"
 	"upper.io/db.v3/lib/reflectx"
+	"upper.io/db.v3/lib/sqlbuilder"
 )
 
 var mapper = reflectx.NewMapper("db")
@@ -158,6 +159,10 @@ func (c *collection) InsertReturning(item interface{}) error {
 
 	col := tx.(Database).Collection(c.Name())
 
+	if mapper, ok := item.(sqlbuilder.Mapper); ok {
+		_ = mapper.Store(nil)
+	}
+
 	// Insert item as is and grab the returning ID.
 	id, err := col.Insert(item)
 	if err != nil {
@@ -195,6 +200,10 @@ func (c *collection) InsertReturning(item interface{}) error {
 		goto cancel
 	}
 
+	if mapper, ok := item.(sqlbuilder.Mapper); ok {
+		_ = mapper.Store(item)
+	}
+
 	if !inTx {
 		// This is only executed if t.Database() was **not** a transaction and if
 		// sess was created with sess.NewTransaction().
@@ -218,6 +227,14 @@ cancel:
 func (c *collection) UpdateReturning(item interface{}) error {
 	if item == nil || reflect.TypeOf(item).Kind() != reflect.Ptr {
 		return fmt.Errorf("Expecting a pointer but got %T", item)
+	}
+
+	if mapper, ok := item.(sqlbuilder.Mapper); ok {
+		values, err := mapper.Changeset()
+		if err == nil && len(values) == 0 {
+			// No operation.
+			return nil
+		}
 	}
 
 	// Grab primary keys
@@ -285,6 +302,10 @@ func (c *collection) UpdateReturning(item interface{}) error {
 		}
 	default:
 		panic("default")
+	}
+
+	if mapper, ok := item.(sqlbuilder.Mapper); ok {
+		mapper.Store(item)
 	}
 
 	if !inTx {

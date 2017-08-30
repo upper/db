@@ -246,6 +246,9 @@ type Unmarshaler interface {
 	UnmarshalDB(interface{}) error
 }
 
+// Changeset represents the differences between two states of the same struct.
+type Changeset map[string]interface{}
+
 // Cond is a map that defines conditions for a query and satisfies the
 // Constraints and Compound interfaces.
 //
