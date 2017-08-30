@@ -134,7 +134,7 @@ func (upd *updater) Set(terms ...interface{}) Updater {
 			}
 		}
 
-		cv, arguments := upd.SQLBuilder().t.toColumnValues(terms)
+		cv, arguments := upd.SQLBuilder().t.setColumnValues(terms)
 		uq.columnValues.Insert(cv.ColumnValues...)
 		uq.columnValuesArgs = append(uq.columnValuesArgs, arguments...)
 		return nil

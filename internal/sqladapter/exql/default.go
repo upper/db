@@ -12,10 +12,8 @@ const (
 	defaultValueQuote          = `'{{.}}'`
 	defaultAndKeyword          = `AND`
 	defaultOrKeyword           = `OR`
-	defaultNotKeyword          = `NOT`
 	defaultDescKeyword         = `DESC`
 	defaultAscKeyword          = `ASC`
-	defaultDefaultOperator     = `=`
 	defaultAssignmentOperator  = `=`
 	defaultClauseGroup         = `({{.}})`
 	defaultClauseOperator      = ` {{.}} `
@@ -170,7 +168,6 @@ var defaultTemplate = &Template{
 	ColumnSeparator:     defaultColumnSeparator,
 	ColumnValue:         defaultColumnValue,
 	CountLayout:         defaultCountLayout,
-	DefaultOperator:     defaultDefaultOperator,
 	DeleteLayout:        defaultDeleteLayout,
 	DescKeyword:         defaultDescKeyword,
 	DropDatabaseLayout:  defaultDropDatabaseLayout,
@@ -180,7 +177,6 @@ var defaultTemplate = &Template{
 	IdentifierSeparator: defaultIdentifierSeparator,
 	InsertLayout:        defaultInsertLayout,
 	JoinLayout:          defaultJoinLayout,
-	NotKeyword:          defaultNotKeyword,
 	OnLayout:            defaultOnLayout,
 	OrKeyword:           defaultOrKeyword,
 	OrderByLayout:       defaultOrderByLayout,
