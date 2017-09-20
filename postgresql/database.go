@@ -245,7 +245,7 @@ func (d *database) NewDatabaseTx(ctx context.Context) (sqladapter.DatabaseTx, er
 	defer clone.mu.Unlock()
 
 	connFn := func() error {
-		sqlTx, err := compat.BeginTx(clone.BaseDatabase.Session(), ctx, nil)
+		sqlTx, err := compat.BeginTx(clone.BaseDatabase.Session(), ctx, clone.TxOptions())
 		if err == nil {
 			return clone.BindTx(ctx, sqlTx)
 		}

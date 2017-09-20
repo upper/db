@@ -99,6 +99,13 @@ type Database interface {
 	// same *sql.DB. You may close a copy at any point but that won't close the
 	// parent session.
 	WithContext(context.Context) Database
+
+	// SetTxOptions sets the default TxOptions that is going to be used for new
+	// transactions created in the session.
+	SetTxOptions(sql.TxOptions)
+
+	// TxOptions returns the defaultx TxOptions.
+	TxOptions() *sql.TxOptions
 }
 
 // AdapterFuncMap is a struct that defines a set of functions that adapters

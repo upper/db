@@ -27,9 +27,9 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"math/rand"
-	"strconv"
-
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
@@ -1014,6 +1014,28 @@ func TestUUIDInsert_Issue370(t *testing.T) {
 	}
 }
 
+func TestTxOptions_Issue409(t *testing.T) {
+	sess := mustOpen()
+	defer sess.Close()
+
+	sess.SetTxOptions(sql.TxOptions{
+		ReadOnly: true,
+	})
+
+	{
+		col := sess.Collection("publication")
+
+		row := map[string]interface{}{
+			"title":     "foo",
+			"author_id": 1,
+		}
+		err := col.InsertReturning(&row)
+		assert.Error(t, err)
+
+		assert.True(t, strings.Contains(err.Error(), "read-only transaction"))
+	}
+}
+
 func TestEscapeQuestionMark(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()
@@ -1056,6 +1078,19 @@ func TestTextMode_Issue391(t *testing.T) {
 }
 
 func TestBinaryMode_Issue391(t *testing.T) {
+	settingsWithBinaryMode := settings
+	settingsWithBinaryMode.Options["binary_parameters"] = "yes"
+
+	sess, err := Open(settingsWithBinaryMode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+
+	testPostgreSQLTypes(t, sess)
+}
+
+func TestBinaryMode_ReadOnly(t *testing.T) {
 	settingsWithBinaryMode := settings
 	settingsWithBinaryMode.Options["binary_parameters"] = "yes"
 

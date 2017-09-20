@@ -127,6 +127,13 @@ type BaseDatabase interface {
 
 	// SetContext sets a default context for the session.
 	SetContext(context.Context)
+
+	// TxOptions returns the default TxOptions for new transactions in the
+	// session.
+	TxOptions() *sql.TxOptions
+
+	// SetTxOptions sets default TxOptions for the session.
+	SetTxOptions(txOptions sql.TxOptions)
 }
 
 // NewBaseDatabase provides a BaseDatabase given a PartialDatabase
@@ -148,7 +155,8 @@ type database struct {
 
 	db.Settings
 
-	ctx context.Context
+	ctx       context.Context
+	txOptions *sql.TxOptions
 
 	collectionMu sync.Mutex
 	mu           sync.Mutex
@@ -192,6 +200,24 @@ func (d *database) Context() context.Context {
 		return context.Background()
 	}
 	return d.ctx
+}
+
+// SetTxOptions sets the session's default TxOptions.
+func (d *database) SetTxOptions(txOptions sql.TxOptions) {
+	d.mu.Lock()
+	d.txOptions = &txOptions
+	d.mu.Unlock()
+}
+
+// TxOptions returns the session's default TxOptions.
+func (d *database) TxOptions() *sql.TxOptions {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.txOptions == nil {
+		return nil
+	}
+	return d.txOptions
 }
 
 // BindTx binds a *sql.Tx into *database
@@ -684,6 +710,11 @@ func copySettings(from BaseDatabase, into BaseDatabase) {
 	into.SetConnMaxLifetime(from.ConnMaxLifetime())
 	into.SetMaxIdleConns(from.MaxIdleConns())
 	into.SetMaxOpenConns(from.MaxOpenConns())
+
+	txOptions := from.TxOptions()
+	if txOptions != nil {
+		into.SetTxOptions(*txOptions)
+	}
 }
 
 func newSessionID() uint64 {
