@@ -1090,19 +1090,6 @@ func TestBinaryMode_Issue391(t *testing.T) {
 	testPostgreSQLTypes(t, sess)
 }
 
-func TestBinaryMode_ReadOnly(t *testing.T) {
-	settingsWithBinaryMode := settings
-	settingsWithBinaryMode.Options["binary_parameters"] = "yes"
-
-	sess, err := Open(settingsWithBinaryMode)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer sess.Close()
-
-	testPostgreSQLTypes(t, sess)
-}
-
 func getStats(sess sqlbuilder.Database) (map[string]int, error) {
 	stats := make(map[string]int)
 
