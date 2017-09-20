@@ -204,6 +204,7 @@ var template = &exql.Template{
 	GroupByLayout:       adapterGroupByLayout,
 	Cache:               cache.NewCache(),
 	ComparisonOperator: map[db.ComparisonOperator]string{
-		db.ComparisonOperatorEqual: "==",
+		db.ComparisonOperatorEqual:   "==",
+		db.ComparisonOperatorNotLike: "!(:column LIKE ?)",
 	},
 }

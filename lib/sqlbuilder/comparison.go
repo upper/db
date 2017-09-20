@@ -1,9 +1,11 @@
 package sqlbuilder
 
 import (
+	"fmt"
+	"log"
 	"strings"
-
 	"upper.io/db.v3"
+	"upper.io/db.v3/internal/sqladapter/exql"
 )
 
 var comparisonOperators = map[db.ComparisonOperator]string{
@@ -25,16 +27,20 @@ var comparisonOperators = map[db.ComparisonOperator]string{
 	db.ComparisonOperatorIs:    "IS",
 	db.ComparisonOperatorIsNot: "IS NOT",
 
-	db.ComparisonOperatorLike:     "LIKE",
-	db.ComparisonOperatorNotLike:  "NOT LIKE",
-	db.ComparisonOperatorILike:    "ILIKE",
-	db.ComparisonOperatorNotILike: "NOT ILIKE",
+	db.ComparisonOperatorLike:    "LIKE",
+	db.ComparisonOperatorNotLike: "NOT LIKE",
+	/*
+		db.ComparisonOperatorILike:    "ILIKE",
+		db.ComparisonOperatorNotILike: "NOT ILIKE",
+	*/
 
 	db.ComparisonOperatorRegExp:    "REGEXP",
 	db.ComparisonOperatorNotRegExp: "NOT REGEXP",
 
-	db.ComparisonOperatorIsDistinctFrom:    "IS DISTINCT FROM",
-	db.ComparisonOperatorIsNotDistinctFrom: "IS NOT DISTINCT FROM",
+	/*
+		db.ComparisonOperatorIsDistinctFrom:    "IS DISTINCT FROM",
+		db.ComparisonOperatorIsNotDistinctFrom: "IS NOT DISTINCT FROM",
+	*/
 }
 
 type hasCustomOperator interface {
@@ -42,10 +48,11 @@ type hasCustomOperator interface {
 }
 
 type operatorWrapper struct {
-	tu       *templateWithUtils
-	op       db.Comparison
-	customOp string
-	v        interface{}
+	tu *templateWithUtils
+	cv *exql.ColumnValue
+
+	op db.Comparison
+	v  interface{}
 }
 
 func (ow *operatorWrapper) cmp() db.Comparison {
@@ -53,8 +60,8 @@ func (ow *operatorWrapper) cmp() db.Comparison {
 		return ow.op
 	}
 
-	if ow.customOp != "" {
-		return db.Op(ow.customOp, ow.v)
+	if ow.cv.Operator != "" {
+		return db.Op(ow.cv.Operator, ow.v)
 	}
 
 	if ow.v == nil {
@@ -69,42 +76,53 @@ func (ow *operatorWrapper) cmp() db.Comparison {
 	return db.Eq(ow.v)
 }
 
-func (ow *operatorWrapper) build() (string, string, []interface{}) {
-	cmp := ow.cmp()
+func (ow *operatorWrapper) preprocess() (string, []interface{}) {
+	placeholder := "?"
 
-	op := ow.tu.comparisonOperatorMapper(cmp.Operator())
+	column, err := ow.cv.Column.Compile(ow.tu.Template)
+	if err != nil {
+		panic(fmt.Sprintf("could not compile column: %v", err.Error()))
+	}
 
-	switch cmp.Operator() {
+	c := ow.cmp()
+
+	op := ow.tu.comparisonOperatorMapper(c.Operator())
+
+	var args []interface{}
+
+	switch c.Operator() {
 	case db.ComparisonOperatorNone:
-		if c, ok := cmp.(hasCustomOperator); ok {
+		if c, ok := c.(hasCustomOperator); ok {
 			op = c.CustomOperator()
 		} else {
 			panic("no operator given")
 		}
 	case db.ComparisonOperatorIn, db.ComparisonOperatorNotIn:
-		values := cmp.Value().([]interface{})
+		values := c.Value().([]interface{})
 		if len(values) < 1 {
-			return op, "(NULL)", nil
+			placeholder, args = "(NULL)", []interface{}{}
+			break
 		}
-		if len(values) > 0 {
-			format := "(?" + strings.Repeat(", ?", len(values)-1) + ")"
-			return op, format, values
-		}
-		return op, "(NULL)", nil
+		placeholder, args = "(?"+strings.Repeat(", ?", len(values)-1)+")", values
 	case db.ComparisonOperatorIs, db.ComparisonOperatorIsNot:
-		switch cmp.Value() {
+		switch c.Value() {
 		case nil:
-			return op, "NULL", nil
+			placeholder, args = "NULL", []interface{}{}
 		case false:
-			return op, "FALSE", nil
+			placeholder, args = "FALSE", []interface{}{}
 		case true:
-			return op, "TRUE", nil
+			placeholder, args = "TRUE", []interface{}{}
 		}
 	case db.ComparisonOperatorBetween, db.ComparisonOperatorNotBetween:
-		values := cmp.Value()
-		return op, "? AND ?", values.([]interface{})
+		values := c.Value().([]interface{})
+		placeholder, args = "? AND ?", []interface{}{values[0], values[1]}
 	}
 
-	v := cmp.Value()
-	return op, "?", []interface{}{v}
+	if args == nil {
+		args = []interface{}{c.Value()}
+	}
+
+	log.Printf("VALUE: %#v", args)
+
+	return column + " " + op + " " + placeholder, args
 }

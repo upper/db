@@ -22,6 +22,7 @@
 package postgresql
 
 import (
+	"upper.io/db.v3"
 	"upper.io/db.v3/internal/cache"
 	"upper.io/db.v3/internal/sqladapter/exql"
 )
@@ -203,4 +204,8 @@ var template = &exql.Template{
 	CountLayout:         adapterSelectCountLayout,
 	GroupByLayout:       adapterGroupByLayout,
 	Cache:               cache.NewCache(),
+	ComparisonOperator: map[db.ComparisonOperator]string{
+		db.ComparisonOperatorRegExp:    "~",
+		db.ComparisonOperatorNotRegExp: "!~",
+	},
 }

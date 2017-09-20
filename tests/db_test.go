@@ -988,7 +988,6 @@ func TestFibonacci(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed to close %s: %q.", wrapper, err)
 			}
-
 		}
 	}
 }
@@ -1253,7 +1252,7 @@ func TestComparisonOperators(t *testing.T) {
 				Born: time.Date(1923, time.March, 23, 0, 0, 0, 0, time.Local),
 			},
 			{
-				Name: "Hector",
+				Name: "",
 				Born: time.Date(1945, time.December, 1, 0, 0, 0, 0, time.Local),
 			},
 			{
@@ -1382,5 +1381,213 @@ func TestComparisonOperators(t *testing.T) {
 			}
 		}
 
+		// Test: in
+		{
+			var items []birthday
+			names := []string{"Peter", "Eve Smith", "Daria López", "Alex López"}
+			err := birthdays.Find(db.Cond{
+				"name": db.In(names),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 4, len(items))
+			for _, item := range items {
+				inArray := false
+				for _, name := range names {
+					if name == item.Name {
+						inArray = true
+					}
+				}
+				assert.True(t, inArray)
+			}
+		}
+
+		// Test: not in
+		{
+			var items []birthday
+			names := []string{"Peter", "Eve Smith", "Daria López", "Alex López"}
+			err := birthdays.Find(db.Cond{
+				"name": db.NotIn(names),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 4, len(items))
+			for _, item := range items {
+				inArray := false
+				for _, name := range names {
+					if name == item.Name {
+						inArray = true
+					}
+				}
+				assert.False(t, inArray)
+			}
+		}
+
+		// Test: not in
+		{
+			var items []birthday
+			names := []string{"Peter", "Eve Smith", "Daria López", "Alex López"}
+			err := birthdays.Find(db.Cond{
+				"name": db.NotIn(names),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 4, len(items))
+			for _, item := range items {
+				inArray := false
+				for _, name := range names {
+					if name == item.Name {
+						inArray = true
+					}
+				}
+				assert.False(t, inArray)
+			}
+		}
+
+		// Test: is and is not
+		{
+			var items []birthday
+			err := birthdays.Find(db.And(
+				db.Cond{"name": db.Is(nil)},
+				db.Cond{"name": db.IsNot(nil)},
+			)).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 0, len(items))
+		}
+
+		// Test: is nil
+		{
+			var items []birthday
+			err := birthdays.Find(db.And(
+				db.Cond{"born_ut": db.IsNull()},
+			)).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 8, len(items))
+		}
+
+		// Test: like and not like
+		{
+			var items []birthday
+			err := birthdays.Find(db.And(
+				db.Cond{"name": db.Like("%ari%")},
+				db.Cond{"name": db.NotLike("%Smith")},
+			)).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 1, len(items))
+
+			assert.Equal(t, "Daria López", items[0].Name)
+		}
+
+		// Test: ilike and not ilike
+		/*
+			if wrapper == "postgresql" {
+				{
+					var items []birthday
+					err := birthdays.Find(db.And(
+						db.Cond{"name": db.ILike("%smith%")},
+					)).All(&items)
+					assert.NoError(t, err)
+					assert.Equal(t, 3, len(items))
+
+					assert.Equal(t, "Marie Smith", items[0].Name)
+				}
+			}
+		*/
+
+		if wrapper != "sqlite" {
+			// Test: regexp
+			{
+				var items []birthday
+				err := birthdays.Find(db.And(
+					db.Cond{"name": db.RegExp("^[D|C|M]")},
+				)).OrderBy("name").All(&items)
+				assert.NoError(t, err)
+				assert.Equal(t, 3, len(items))
+
+				assert.Equal(t, "Colin", items[0].Name)
+				assert.Equal(t, "Daria López", items[1].Name)
+				assert.Equal(t, "Marie Smith", items[2].Name)
+			}
+
+			// Test: not regexp
+			{
+				var items []birthday
+				names := []string{"Daria López", "Colin", "Marie Smith"}
+				err := birthdays.Find(db.And(
+					db.Cond{"name": db.NotRegExp("^[D|C|M]")},
+				)).OrderBy("name").All(&items)
+				assert.NoError(t, err)
+				assert.Equal(t, 5, len(items))
+
+				for _, item := range items {
+					for _, name := range names {
+						assert.NotEqual(t, item.Name, name)
+					}
+				}
+			}
+		}
+
+		/*
+			// Test: is distinct from
+			{
+				var items []birthday
+				err := birthdays.Find(db.And(
+					db.Cond{"born_ut": db.IsDistinctFrom(nil)},
+				)).All(&items)
+				assert.NoError(t, err)
+				assert.Equal(t, 0, len(items))
+			}
+
+			// Test: is not distinct from
+			{
+				var items []birthday
+				err := birthdays.Find(db.And(
+					db.Cond{"born_ut": db.IsNotDistinctFrom(nil)},
+				)).All(&items)
+				assert.NoError(t, err)
+				assert.Equal(t, 8, len(items))
+			}
+		*/
+
+		// Test: after
+		{
+			ref := time.Date(1944, time.December, 9, 0, 0, 0, 0, time.Local)
+			var items []birthday
+			err := birthdays.Find(db.Cond{
+				"born": db.After(ref),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 5, len(items))
+		}
+
+		// Test: on or after
+		{
+			ref := time.Date(1944, time.December, 9, 0, 0, 0, 0, time.Local)
+			var items []birthday
+			err := birthdays.Find(db.Cond{
+				"born": db.OnOrAfter(ref),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 6, len(items))
+		}
+
+		// Test: before
+		{
+			ref := time.Date(1944, time.December, 9, 0, 0, 0, 0, time.Local)
+			var items []birthday
+			err := birthdays.Find(db.Cond{
+				"born": db.Before(ref),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 2, len(items))
+		}
+
+		// Test: on or before
+		{
+			ref := time.Date(1944, time.December, 9, 0, 0, 0, 0, time.Local)
+			var items []birthday
+			err := birthdays.Find(db.Cond{
+				"born": db.OnOrBefore(ref),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 3, len(items))
+		}
 	}
 }

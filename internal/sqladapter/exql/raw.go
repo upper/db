@@ -2,6 +2,7 @@ package exql
 
 import (
 	"fmt"
+	"strings"
 )
 
 var (
@@ -16,7 +17,7 @@ type Raw struct {
 
 // RawValue creates and returns a new raw value.
 func RawValue(v string) *Raw {
-	return &Raw{Value: v}
+	return &Raw{Value: strings.TrimSpace(v)}
 }
 
 // Hash returns a unique identifier for the struct.

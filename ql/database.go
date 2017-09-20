@@ -52,7 +52,7 @@ type database struct {
 var (
 	fileOpenCount       int32
 	errTooManyOpenFiles       = errors.New(`Too many open database files.`)
-	maxOpenFiles        int32 = 5
+	maxOpenFiles        int32 = 2
 )
 
 var (

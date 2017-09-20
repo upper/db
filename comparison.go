@@ -22,6 +22,7 @@
 package db
 
 import (
+	"reflect"
 	"time"
 )
 
@@ -60,14 +61,9 @@ const (
 
 	ComparisonOperatorLike
 	ComparisonOperatorNotLike
-	ComparisonOperatorILike
-	ComparisonOperatorNotILike
 
 	ComparisonOperatorRegExp
 	ComparisonOperatorNotRegExp
-
-	ComparisonOperatorIsDistinctFrom
-	ComparisonOperatorIsNotDistinctFrom
 
 	ComparisonOperatorAfter
 	ComparisonOperatorBefore
@@ -148,7 +144,7 @@ func Lt(v interface{}) Comparison {
 func In(v interface{}) Comparison {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorIn,
-		v: v,
+		v: toInterfaceArray(v),
 	}
 }
 
@@ -156,7 +152,7 @@ func In(v interface{}) Comparison {
 func NotIn(v interface{}) Comparison {
 	return &dbComparisonOperator{
 		t: ComparisonOperatorNotIn,
-		v: v,
+		v: toInterfaceArray(v),
 	}
 }
 
@@ -238,6 +234,7 @@ func IsNotNull() Comparison {
 	return IsNot(nil)
 }
 
+/*
 // IsDistinctFrom indicates whether the reference is different from
 // the given value, including NULL values.
 func IsDistinctFrom(v interface{}) Comparison {
@@ -255,6 +252,7 @@ func IsNotDistinctFrom(v interface{}) Comparison {
 		v: v,
 	}
 }
+*/
 
 // Like indicates whether the reference matches the wildcard value.
 func Like(v string) Comparison {
@@ -272,6 +270,7 @@ func NotLike(v string) Comparison {
 	}
 }
 
+/*
 // ILike indicates whether the reference matches the wildcard value (case
 // insensitive).
 func ILike(v string) Comparison {
@@ -289,6 +288,7 @@ func NotILike(v string) Comparison {
 		v: v,
 	}
 }
+*/
 
 // RegExp indicates whether the reference matches the regexp pattern.
 func RegExp(v string) Comparison {
@@ -313,6 +313,22 @@ func Op(customOperator string, v interface{}) Comparison {
 		t:  ComparisonOperatorNone,
 		v:  v,
 	}
+}
+
+func toInterfaceArray(v interface{}) []interface{} {
+	rv := reflect.ValueOf(v)
+	switch rv.Type().Kind() {
+	case reflect.Ptr:
+		return toInterfaceArray(rv.Elem().Interface())
+	case reflect.Slice:
+		elems := rv.Len()
+		args := make([]interface{}, elems)
+		for i := 0; i < elems; i++ {
+			args[i] = rv.Index(i).Interface()
+		}
+		return args
+	}
+	return []interface{}{v}
 }
 
 var _ Comparison = &dbComparisonOperator{}
