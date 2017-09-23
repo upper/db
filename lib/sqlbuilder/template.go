@@ -3,7 +3,6 @@ package sqlbuilder
 import (
 	"database/sql/driver"
 	"fmt"
-	"log"
 	"strings"
 
 	"upper.io/db.v3"
@@ -201,7 +200,6 @@ func (tu *templateWithUtils) toColumnValues(term interface{}) (cv exql.ColumnVal
 
 			q, a := wrapper.preprocess()
 			q, a = Preprocess(q, a)
-			log.Printf("q, a: %q, %v", q, a)
 
 			columnValue = exql.ColumnValue{
 				Column: exql.RawValue(q),
@@ -221,7 +219,6 @@ func (tu *templateWithUtils) toColumnValues(term interface{}) (cv exql.ColumnVal
 
 			q, a := wrapper.preprocess()
 			q, a = Preprocess(q, a)
-			log.Printf("q1, a1: %q, %v", q, a)
 
 			columnValue = exql.ColumnValue{
 				Column: exql.RawValue(q),
@@ -232,17 +229,6 @@ func (tu *templateWithUtils) toColumnValues(term interface{}) (cv exql.ColumnVal
 
 			cv.ColumnValues = append(cv.ColumnValues, &columnValue)
 			return cv, args
-
-			/*
-				op, opFormat, opArgs := wrapper.build()
-				columnValue.Operator = op
-
-				opFormat, opArgs = Preprocess(opFormat, opArgs)
-				columnValue.Value = exql.RawValue(opFormat)
-				if opArgs != nil {
-					args = append(args, opArgs...)
-				}
-			*/
 		}
 
 		if columnValue.Operator == "" {
