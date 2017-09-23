@@ -194,7 +194,7 @@ func (d *database) StatementExec(ctx context.Context, query string, args ...inte
 		return compat.ExecContext(d.Driver().(*sql.Tx), ctx, query, args)
 	}
 
-	sqlTx, err := compat.BeginTx(d.Session(), ctx, nil)
+	sqlTx, err := compat.BeginTx(d.Session(), ctx, d.TxOptions())
 	if err != nil {
 		return nil, err
 	}

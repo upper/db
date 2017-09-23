@@ -239,7 +239,7 @@ func (d *database) StatementExec(ctx context.Context, query string, args ...inte
 		return compat.ExecContext(d.Driver().(*sql.Tx), ctx, query, args)
 	}
 
-	sqlTx, err := compat.BeginTx(d.Session(), ctx, nil)
+	sqlTx, err := compat.BeginTx(d.Session(), ctx, d.TxOptions())
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +276,7 @@ func (d *database) NewDatabaseTx(ctx context.Context) (sqladapter.DatabaseTx, er
 	defer clone.mu.Unlock()
 
 	openFn := func() error {
-		sqlTx, err := compat.BeginTx(clone.BaseDatabase.Session(), ctx, nil)
+		sqlTx, err := compat.BeginTx(clone.BaseDatabase.Session(), ctx, clone.TxOptions())
 		if err == nil {
 			return clone.BindTx(ctx, sqlTx)
 		}
