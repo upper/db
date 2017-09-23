@@ -22,6 +22,7 @@
 package ql
 
 import (
+	"upper.io/db.v3"
 	"upper.io/db.v3/internal/cache"
 	"upper.io/db.v3/internal/sqladapter/exql"
 )
@@ -34,10 +35,8 @@ const (
 	adapterValueQuote          = `"{{.}}"`
 	adapterAndKeyword          = `&&`
 	adapterOrKeyword           = `||`
-	adapterNotKeyword          = `!=`
 	adapterDescKeyword         = `DESC`
 	adapterAscKeyword          = `ASC`
-	adapterDefaultOperator     = `==`
 	adapterAssignmentOperator  = `=`
 	adapterClauseGroup         = `({{.}})`
 	adapterClauseOperator      = ` {{.}} `
@@ -180,10 +179,8 @@ var template = &exql.Template{
 	ValueQuote:          adapterValueQuote,
 	AndKeyword:          adapterAndKeyword,
 	OrKeyword:           adapterOrKeyword,
-	NotKeyword:          adapterNotKeyword,
 	DescKeyword:         adapterDescKeyword,
 	AscKeyword:          adapterAscKeyword,
-	DefaultOperator:     adapterDefaultOperator,
 	AssignmentOperator:  adapterAssignmentOperator,
 	ClauseGroup:         adapterClauseGroup,
 	ClauseOperator:      adapterClauseOperator,
@@ -206,4 +203,7 @@ var template = &exql.Template{
 	CountLayout:         adapterSelectCountLayout,
 	GroupByLayout:       adapterGroupByLayout,
 	Cache:               cache.NewCache(),
+	ComparisonOperator: map[db.ComparisonOperator]string{
+		db.ComparisonOperatorEqual: "==",
+	},
 }

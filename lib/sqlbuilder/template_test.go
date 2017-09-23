@@ -13,10 +13,8 @@ const (
 	defaultValueQuote          = `'{{.}}'`
 	defaultAndKeyword          = `AND`
 	defaultOrKeyword           = `OR`
-	defaultNotKeyword          = `NOT`
 	defaultDescKeyword         = `DESC`
 	defaultAscKeyword          = `ASC`
-	defaultDefaultOperator     = `=`
 	defaultAssignmentOperator  = `=`
 	defaultClauseGroup         = `({{.}})`
 	defaultClauseOperator      = ` {{.}} `
@@ -167,10 +165,8 @@ var testTemplate = exql.Template{
 	ValueQuote:          defaultValueQuote,
 	AndKeyword:          defaultAndKeyword,
 	OrKeyword:           defaultOrKeyword,
-	NotKeyword:          defaultNotKeyword,
 	DescKeyword:         defaultDescKeyword,
 	AscKeyword:          defaultAscKeyword,
-	DefaultOperator:     defaultDefaultOperator,
 	AssignmentOperator:  defaultAssignmentOperator,
 	ClauseGroup:         defaultClauseGroup,
 	ClauseOperator:      defaultClauseOperator,

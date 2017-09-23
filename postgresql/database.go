@@ -187,7 +187,7 @@ func (d *database) ConvertValues(values []interface{}) []interface{} {
 		case map[string]interface{}:
 			values[i] = (*JSONBMap)(&v)
 
-		case valueWrapper:
+		case sqlbuilder.ValueWrapper:
 			values[i] = v.WrapValue(v)
 
 		default:

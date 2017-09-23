@@ -470,7 +470,7 @@ func TestInsertIntoArtistsTable(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(4), count)
 
-	count, err = artist.Find(db.Cond{"name": "Ozzie"}).Count()
+	count, err = artist.Find(db.Cond{"name": db.Eq("Ozzie")}).Count()
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), count)
 
@@ -746,7 +746,7 @@ func TestUpdate(t *testing.T) {
 	}{}
 
 	// Getting the first artist.
-	cond := db.Cond{"id !=": 0}
+	cond := db.Cond{"id !=": db.NotEq(0)}
 	if Adapter == "ql" {
 		cond = db.Cond{"id() !=": 0}
 	}

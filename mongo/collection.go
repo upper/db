@@ -64,6 +64,17 @@ func (col *Collection) Find(terms ...interface{}) db.Result {
 	return res
 }
 
+var comparisonOperators = map[db.ComparisonOperator]string{
+	db.ComparisonOperatorEqual:                "$eq",
+	db.ComparisonOperatorNotEqual:             "$ne",
+	db.ComparisonOperatorGreaterThan:          "$gt",
+	db.ComparisonOperatorGreaterThanOrEqualTo: "$gte",
+	db.ComparisonOperatorLessThan:             "$lt",
+	db.ComparisonOperatorLessThanOrEqualTo:    "$lte",
+	db.ComparisonOperatorIn:                   "$in",
+	db.ComparisonOperatorNotIn:                "$nin",
+}
+
 // compileStatement transforms conditions into something *mgo.Session can
 // understand.
 func compileStatement(cond db.Cond) bson.M {
@@ -71,38 +82,44 @@ func compileStatement(cond db.Cond) bson.M {
 
 	// Walking over conditions
 	for fieldI, value := range cond {
-		// Removing leading or trailing spaces.
+		var op string
 		field := strings.TrimSpace(fmt.Sprintf("%v", fieldI))
 
-		chunks := strings.SplitN(field, ` `, 2)
-
-		var op string
-
-		if len(chunks) > 1 {
-			switch chunks[1] {
-			case `IN`:
-				op = `$in`
-			case `NOT IN`:
-				op = `$nin`
-			case `>`:
-				op = `$gt`
-			case `<`:
-				op = `$lt`
-			case `<=`:
-				op = `$lte`
-			case `>=`:
-				op = `$gte`
-			default:
-				op = chunks[1]
+		if dbCmp, ok := value.(db.Comparison); ok {
+			op, ok = comparisonOperators[dbCmp.Operator()]
+			if ok {
+				value = dbCmp.Value()
 			}
+		} else {
+			// Removing leading or trailing spaces.
+			chunks := strings.SplitN(field, ` `, 2)
+
+			if len(chunks) > 1 {
+				switch chunks[1] {
+				case `IN`:
+					op = `$in`
+				case `NOT IN`:
+					op = `$nin`
+				case `>`:
+					op = `$gt`
+				case `<`:
+					op = `$lt`
+				case `<=`:
+					op = `$lte`
+				case `>=`:
+					op = `$gte`
+				default:
+					op = chunks[1]
+				}
+			}
+			field = chunks[0]
 		}
 
 		if op == "" {
-			conds[chunks[0]] = value
+			conds[field] = value
 		} else {
-			conds[chunks[0]] = bson.M{op: value}
+			conds[field] = bson.M{op: value}
 		}
-
 	}
 
 	return conds

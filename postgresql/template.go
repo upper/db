@@ -34,10 +34,8 @@ const (
 	adapterValueQuote          = `'{{.}}'`
 	adapterAndKeyword          = `AND`
 	adapterOrKeyword           = `OR`
-	adapterNotKeyword          = `NOT`
 	adapterDescKeyword         = `DESC`
 	adapterAscKeyword          = `ASC`
-	adapterDefaultOperator     = `=`
 	adapterAssignmentOperator  = `=`
 	adapterClauseGroup         = `({{.}})`
 	adapterClauseOperator      = ` {{.}} `
@@ -181,10 +179,8 @@ var template = &exql.Template{
 	ValueQuote:          adapterValueQuote,
 	AndKeyword:          adapterAndKeyword,
 	OrKeyword:           adapterOrKeyword,
-	NotKeyword:          adapterNotKeyword,
 	DescKeyword:         adapterDescKeyword,
 	AscKeyword:          adapterAscKeyword,
-	DefaultOperator:     adapterDefaultOperator,
 	AssignmentOperator:  adapterAssignmentOperator,
 	ClauseGroup:         adapterClauseGroup,
 	ClauseOperator:      adapterClauseOperator,

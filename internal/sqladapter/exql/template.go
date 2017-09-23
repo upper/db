@@ -5,6 +5,7 @@ import (
 	"sync"
 	"text/template"
 
+	"upper.io/db.v3"
 	"upper.io/db.v3/internal/cache"
 )
 
@@ -49,7 +50,6 @@ type Template struct {
 	ColumnSeparator     string
 	ColumnValue         string
 	CountLayout         string
-	DefaultOperator     string
 	DeleteLayout        string
 	DescKeyword         string
 	DropDatabaseLayout  string
@@ -59,7 +59,6 @@ type Template struct {
 	IdentifierSeparator string
 	InsertLayout        string
 	JoinLayout          string
-	NotKeyword          string
 	OnLayout            string
 	OrKeyword           string
 	OrderByLayout       string
@@ -72,6 +71,8 @@ type Template struct {
 	ValueQuote          string
 	ValueSeparator      string
 	WhereLayout         string
+
+	ComparisonOperator map[db.ComparisonOperator]string
 
 	*cache.Cache
 }

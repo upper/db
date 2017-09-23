@@ -151,7 +151,7 @@ func (b *sqlBuilder) PrepareContext(ctx context.Context, query interface{}) (*sq
 	case db.RawValue:
 		return b.PrepareContext(ctx, q.Raw())
 	default:
-		return nil, fmt.Errorf("Unsupported query type %T.", query)
+		return nil, fmt.Errorf("unsupported query type %T", query)
 	}
 }
 
@@ -168,7 +168,7 @@ func (b *sqlBuilder) ExecContext(ctx context.Context, query interface{}, args ..
 	case db.RawValue:
 		return b.ExecContext(ctx, q.Raw(), q.Arguments()...)
 	default:
-		return nil, fmt.Errorf("Unsupported query type %T.", query)
+		return nil, fmt.Errorf("unsupported query type %T", query)
 	}
 }
 
@@ -185,7 +185,7 @@ func (b *sqlBuilder) QueryContext(ctx context.Context, query interface{}, args .
 	case db.RawValue:
 		return b.QueryContext(ctx, q.Raw(), q.Arguments()...)
 	default:
-		return nil, fmt.Errorf("Unsupported query type %T.", query)
+		return nil, fmt.Errorf("unsupported query type %T", query)
 	}
 }
 
@@ -202,7 +202,7 @@ func (b *sqlBuilder) QueryRowContext(ctx context.Context, query interface{}, arg
 	case db.RawValue:
 		return b.QueryRowContext(ctx, q.Raw(), q.Arguments()...)
 	default:
-		return nil, fmt.Errorf("Unsupported query type %T.", query)
+		return nil, fmt.Errorf("unsupported query type %T", query)
 	}
 }
 
@@ -404,7 +404,7 @@ func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, err
 		case interface{}:
 			f[i] = exql.ColumnWithName(fmt.Sprintf("%v", v))
 		default:
-			return nil, nil, fmt.Errorf("Unexpected argument type %T for Select() argument.", v)
+			return nil, nil, fmt.Errorf("unexpected argument type %T for Select() argument", v)
 		}
 	}
 	return f, args, nil

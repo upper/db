@@ -24,8 +24,11 @@ package mysql
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
+	"math/rand"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -133,7 +136,34 @@ func tearUp() error {
 			LoginPassWord varchar(255) DEFAULT '',
 			Date TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 			PRIMARY KEY (ID,Date)
-			) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8`,
+		) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8`,
+
+		`CREATE TABLE my_types (id int(11) NOT NULL AUTO_INCREMENT, PRIMARY KEY(id)
+			, json_map JSON
+			, json_map_ptr JSON
+
+			, auto_json_map JSON
+			, auto_json_map_string JSON
+			, auto_json_map_integer JSON
+
+			, json_object JSON
+			, json_array JSON
+
+			, custom_json_object JSON
+			, auto_custom_json_object JSON
+
+			, custom_json_object_ptr JSON
+			, auto_custom_json_object_ptr JSON
+
+			, custom_json_object_array JSON
+			, auto_custom_json_object_array JSON
+			, auto_custom_json_object_map JSON
+
+			, integer_compat_value_json_array JSON
+			, string_compat_value_json_array JSON
+			, uinteger_compat_value_json_array JSON
+
+		)`,
 	}
 
 	for _, s := range batch {
@@ -209,6 +239,208 @@ func TestInsertReturningCompositeKey_Issue383(t *testing.T) {
 	assert.Equal(t, "E10ADC3949BA59ABBE56E057F20F883E", a.LoginPassWord)
 }
 
+func TestMySQLTypes(t *testing.T) {
+	sess := mustOpen()
+	defer sess.Close()
+
+	type MyTypeInline struct {
+		JSONMapPtr *JSONMap `db:"json_map_ptr,omitempty"`
+	}
+
+	type MyTypeAutoInline struct {
+		AutoJSONMap        map[string]interface{} `db:"auto_json_map"`
+		AutoJSONMapString  map[string]string      `db:"auto_json_map_string"`
+		AutoJSONMapInteger map[string]int64       `db:"auto_json_map_integer"`
+	}
+
+	type MyType struct {
+		ID int64 `db:"id,omitempty"`
+
+		JSONMap JSONMap `db:"json_map"`
+
+		JSONObject JSON      `db:"json_object"`
+		JSONArray  JSONArray `db:"json_array"`
+
+		CustomJSONObject     customJSON     `db:"custom_json_object"`
+		AutoCustomJSONObject autoCustomJSON `db:"auto_custom_json_object"`
+
+		CustomJSONObjectPtr     *customJSON     `db:"custom_json_object_ptr,omitempty"`
+		AutoCustomJSONObjectPtr *autoCustomJSON `db:"auto_custom_json_object_ptr,omitempty"`
+
+		AutoCustomJSONObjectArray []autoCustomJSON          `db:"auto_custom_json_object_array"`
+		AutoCustomJSONObjectMap   map[string]autoCustomJSON `db:"auto_custom_json_object_map"`
+
+		Int64CompatValueJSONArray  []int64Compat   `db:"integer_compat_value_json_array"`
+		UIntCompatValueJSONArray   uintCompatArray `db:"uinteger_compat_value_json_array"`
+		StringCompatValueJSONArray []stringCompat  `db:"string_compat_value_json_array"`
+	}
+
+	origMyTypeTests := []MyType{
+		MyType{
+			Int64CompatValueJSONArray:  []int64Compat{1, -2, 3, -4},
+			UIntCompatValueJSONArray:   []uintCompat{1, 2, 3, 4},
+			StringCompatValueJSONArray: []stringCompat{"a", "b", "", "c"},
+		},
+		MyType{
+			Int64CompatValueJSONArray:  []int64Compat(nil),
+			UIntCompatValueJSONArray:   []uintCompat(nil),
+			StringCompatValueJSONArray: []stringCompat(nil),
+		},
+		MyType{
+			AutoCustomJSONObjectArray: []autoCustomJSON{
+				autoCustomJSON{
+					N: "Hello",
+				},
+				autoCustomJSON{
+					N: "World",
+				},
+			},
+			AutoCustomJSONObjectMap: map[string]autoCustomJSON{
+				"a": autoCustomJSON{
+					N: "Hello",
+				},
+				"b": autoCustomJSON{
+					N: "World",
+				},
+			},
+			JSONArray: JSONArray{float64(1), float64(2), float64(3), float64(4)},
+		},
+		MyType{
+			JSONArray: JSONArray{},
+		},
+		MyType{
+			JSONArray: JSONArray(nil),
+		},
+		MyType{},
+		MyType{
+			CustomJSONObject: customJSON{
+				N: "Hello",
+			},
+			AutoCustomJSONObject: autoCustomJSON{
+				N: "World",
+			},
+		},
+		MyType{
+			CustomJSONObject:     customJSON{},
+			AutoCustomJSONObject: autoCustomJSON{},
+		},
+		MyType{
+			CustomJSONObject: customJSON{
+				N: "Hello 1",
+			},
+			AutoCustomJSONObject: autoCustomJSON{
+				N: "World 2",
+			},
+		},
+		MyType{
+			CustomJSONObjectPtr:     nil,
+			AutoCustomJSONObjectPtr: nil,
+		},
+		MyType{
+			CustomJSONObjectPtr:     &customJSON{},
+			AutoCustomJSONObjectPtr: &autoCustomJSON{},
+		},
+		MyType{
+			CustomJSONObjectPtr: &customJSON{
+				N: "Hello 3",
+			},
+			AutoCustomJSONObjectPtr: &autoCustomJSON{
+				N: "World 4",
+			},
+		},
+		MyType{
+			CustomJSONObject: customJSON{
+				V: 4.4,
+			},
+		},
+		MyType{
+			CustomJSONObject: customJSON{},
+		},
+		MyType{
+			CustomJSONObject: customJSON{
+				N: "Peter",
+				V: 5.56,
+			},
+		},
+	}
+
+	for i := 0; i < 100; i++ {
+
+		myTypeTests := make([]MyType, len(origMyTypeTests))
+		perm := rand.Perm(len(origMyTypeTests))
+		for i, v := range perm {
+			myTypeTests[v] = origMyTypeTests[i]
+		}
+
+		for i := range myTypeTests {
+			id, err := sess.Collection("my_types").Insert(myTypeTests[i])
+			assert.NoError(t, err)
+
+			var actual MyType
+			err = sess.Collection("my_types").Find(id).One(&actual)
+			assert.NoError(t, err)
+
+			expected := myTypeTests[i]
+			expected.ID = id.(int64)
+			assert.Equal(t, expected, actual)
+		}
+
+		for i := range myTypeTests {
+			res, err := sess.InsertInto("my_types").Values(myTypeTests[i]).Exec()
+			assert.NoError(t, err)
+
+			id, err := res.LastInsertId()
+			assert.NoError(t, err)
+			assert.NotEqual(t, 0, id)
+
+			var actual MyType
+			err = sess.Collection("my_types").Find(id).One(&actual)
+			assert.NoError(t, err)
+
+			expected := myTypeTests[i]
+			expected.ID = id
+
+			assert.Equal(t, expected, actual)
+
+			var actual2 MyType
+			err = sess.SelectFrom("my_types").Where("id = ?", id).One(&actual2)
+			assert.NoError(t, err)
+			assert.Equal(t, expected, actual2)
+		}
+
+		inserter := sess.InsertInto("my_types")
+		for i := range myTypeTests {
+			inserter = inserter.Values(myTypeTests[i])
+		}
+		_, err := inserter.Exec()
+		assert.NoError(t, err)
+
+		err = sess.Collection("my_types").Truncate()
+		assert.NoError(t, err)
+
+		batch := sess.InsertInto("my_types").Batch(50)
+		go func() {
+			defer batch.Done()
+			for i := range myTypeTests {
+				batch.Values(myTypeTests[i])
+			}
+		}()
+
+		err = batch.Wait()
+		assert.NoError(t, err)
+
+		var values []MyType
+		err = sess.SelectFrom("my_types").All(&values)
+		assert.NoError(t, err)
+
+		for i := range values {
+			expected := myTypeTests[i]
+			expected.ID = values[i].ID
+			assert.Equal(t, expected, values[i])
+		}
+	}
+}
+
 func cleanUpCheck(sess sqlbuilder.Database) (err error) {
 	var stats map[string]int
 
@@ -243,3 +475,78 @@ func cleanUpCheck(sess sqlbuilder.Database) (err error) {
 
 	return err
 }
+
+type int64Compat int64
+
+type uintCompat uint
+
+type stringCompat string
+
+type uint8Compat uint8
+
+type int64CompatArray []int64Compat
+
+type uint8CompatArray []uint8Compat
+
+type uintCompatArray []uintCompat
+
+func (u *uint8Compat) Scan(src interface{}) error {
+	if src != nil {
+		switch v := src.(type) {
+		case int64:
+			*u = uint8Compat((src).(int64))
+		case []byte:
+			i, err := strconv.ParseInt(string(v), 10, 64)
+			if err != nil {
+				return err
+			}
+			*u = uint8Compat(i)
+		default:
+			panic(fmt.Sprintf("expected type %T", src))
+		}
+	}
+	return nil
+}
+
+func (u *int64Compat) Scan(src interface{}) error {
+	if src != nil {
+		switch v := src.(type) {
+		case int64:
+			*u = int64Compat((src).(int64))
+		case []byte:
+			i, err := strconv.ParseInt(string(v), 10, 64)
+			if err != nil {
+				return err
+			}
+			*u = int64Compat(i)
+		default:
+			panic(fmt.Sprintf("expected type %T", src))
+		}
+	}
+	return nil
+}
+
+type customJSON struct {
+	N string  `json:"name"`
+	V float64 `json:"value"`
+}
+
+func (c customJSON) Value() (driver.Value, error) {
+	return JSONValue(c)
+}
+
+func (c *customJSON) Scan(src interface{}) error {
+	return ScanJSON(c, src)
+}
+
+type autoCustomJSON struct {
+	N string  `json:"name"`
+	V float64 `json:"value"`
+
+	*JSONConverter
+}
+
+var (
+	_ = driver.Valuer(&customJSON{})
+	_ = sql.Scanner(&customJSON{})
+)

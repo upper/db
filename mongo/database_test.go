@@ -582,7 +582,7 @@ func TestUpdate(t *testing.T) {
 	}{}
 
 	// Getting the first artist.
-	res := artist.Find(db.Cond{"_id $ne": nil}).Limit(1)
+	res := artist.Find(db.Cond{"_id": db.NotEq(nil)}).Limit(1)
 
 	err = res.One(&value)
 
@@ -677,7 +677,7 @@ func TestOperators(t *testing.T) {
 		Name string
 	}{}
 
-	res = artist.Find(db.Cond{"_id NOT IN": []int{0, -1}})
+	res = artist.Find(db.Cond{"_id": db.NotIn([]int{0, -1})})
 
 	if err = res.One(&rowS); err != nil {
 		t.Fatalf("One: %q", err)
@@ -705,7 +705,7 @@ func TestDelete(t *testing.T) {
 	artist := sess.Collection("artist")
 
 	// Getting the first artist.
-	res := artist.Find(db.Cond{"_id $ne": nil}).Limit(1)
+	res := artist.Find(db.Cond{"_id": db.NotEq(nil)}).Limit(1)
 
 	var first struct {
 		ID bson.ObjectId `bson:"_id"`
@@ -717,7 +717,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	res = artist.Find(db.Cond{"_id": first.ID})
+	res = artist.Find(db.Cond{"_id": db.Eq(first.ID)})
 
 	// Trying to remove the row.
 	err = res.Delete()
@@ -754,7 +754,7 @@ func TestDataTypes(t *testing.T) {
 	}
 
 	// Trying to get the same subject we added.
-	res = dataTypes.Find(db.Cond{"_id": id})
+	res = dataTypes.Find(db.Cond{"_id": db.Eq(id)})
 
 	exists, err := res.Count()
 

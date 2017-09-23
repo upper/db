@@ -33,7 +33,7 @@ reset-db:
 	$(MAKE) -C mongo reset-db
 
 test-main: reset-db
-	go test -v
+	go test -v ./tests/...
 
 test: test-adapters test-libs test-main
 
