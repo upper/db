@@ -1465,10 +1465,22 @@ func TestComparisonOperators(t *testing.T) {
 		// Test: like and not like
 		{
 			var items []birthday
-			err := birthdays.Find(db.And(
-				db.Cond{"name": db.Like("%ari%")},
-				db.Cond{"name": db.NotLike("%Smith")},
-			)).All(&items)
+			var q db.Result
+
+			switch wrapper {
+			case "ql", "mongo":
+				q = birthdays.Find(db.And(
+					db.Cond{"name": db.Like(".*ari.*")},
+					db.Cond{"name": db.NotLike(".*Smith")},
+				))
+			default:
+				q = birthdays.Find(db.And(
+					db.Cond{"name": db.Like("%ari%")},
+					db.Cond{"name": db.NotLike("%Smith")},
+				))
+			}
+
+			err := q.All(&items)
 			assert.NoError(t, err)
 			assert.Equal(t, 1, len(items))
 
@@ -1491,7 +1503,7 @@ func TestComparisonOperators(t *testing.T) {
 			}
 		*/
 
-		if wrapper != "sqlite" {
+		if wrapper != "sqlite" && wrapper != "mssql" {
 			// Test: regexp
 			{
 				var items []birthday

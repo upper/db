@@ -2,7 +2,6 @@ package sqlbuilder
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"upper.io/db.v3"
 	"upper.io/db.v3/internal/sqladapter/exql"
@@ -122,7 +121,9 @@ func (ow *operatorWrapper) preprocess() (string, []interface{}) {
 		args = []interface{}{c.Value()}
 	}
 
-	log.Printf("VALUE: %#v", args)
+	if strings.Contains(op, ":column") {
+		return strings.Replace(op, ":column", column, -1), args
+	}
 
 	return column + " " + op + " " + placeholder, args
 }

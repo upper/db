@@ -27,19 +27,11 @@ import (
 	"sync"
 
 	"reflect"
-	"regexp"
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db.v3"
 )
-
-var rePercentage = regexp.MustCompile(`%+`)
-
-func likeToRegEx(s string) bson.RegEx {
-	s = rePercentage.ReplaceAllString(s, ".*")
-	return bson.RegEx{s, ""}
-}
 
 // Collection represents a mongodb collection.
 type Collection struct {
@@ -115,15 +107,9 @@ func compare(field string, cmp db.Comparison) (string, interface{}) {
 			return field, bson.M{"$exists": true}
 		}
 		return field, bson.M{"$ne": value}
-	case db.ComparisonOperatorLike:
-		v := fmt.Sprintf("%v", value)
-		return field, likeToRegEx(v)
-	case db.ComparisonOperatorNotLike:
-		v := fmt.Sprintf("%v", value)
-		return field, bson.M{"$not": likeToRegEx(v)}
-	case db.ComparisonOperatorRegExp:
+	case db.ComparisonOperatorRegExp, db.ComparisonOperatorLike:
 		return field, bson.RegEx{value.(string), ""}
-	case db.ComparisonOperatorNotRegExp:
+	case db.ComparisonOperatorNotRegExp, db.ComparisonOperatorNotLike:
 		return field, bson.M{"$not": bson.RegEx{value.(string), ""}}
 	}
 
