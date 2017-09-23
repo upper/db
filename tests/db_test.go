@@ -1487,22 +1487,6 @@ func TestComparisonOperators(t *testing.T) {
 			assert.Equal(t, "Daria López", items[0].Name)
 		}
 
-		// Test: ilike and not ilike
-		/*
-			if wrapper == "postgresql" {
-				{
-					var items []birthday
-					err := birthdays.Find(db.And(
-						db.Cond{"name": db.ILike("%smith%")},
-					)).All(&items)
-					assert.NoError(t, err)
-					assert.Equal(t, 3, len(items))
-
-					assert.Equal(t, "Marie Smith", items[0].Name)
-				}
-			}
-		*/
-
 		if wrapper != "sqlite" && wrapper != "mssql" {
 			// Test: regexp
 			{
@@ -1535,28 +1519,6 @@ func TestComparisonOperators(t *testing.T) {
 				}
 			}
 		}
-
-		/*
-			// Test: is distinct from
-			{
-				var items []birthday
-				err := birthdays.Find(db.And(
-					db.Cond{"born_ut": db.IsDistinctFrom(nil)},
-				)).All(&items)
-				assert.NoError(t, err)
-				assert.Equal(t, 0, len(items))
-			}
-
-			// Test: is not distinct from
-			{
-				var items []birthday
-				err := birthdays.Find(db.And(
-					db.Cond{"born_ut": db.IsNotDistinctFrom(nil)},
-				)).All(&items)
-				assert.NoError(t, err)
-				assert.Equal(t, 8, len(items))
-			}
-		*/
 
 		// Test: after
 		{

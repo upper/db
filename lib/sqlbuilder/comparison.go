@@ -3,6 +3,7 @@ package sqlbuilder
 import (
 	"fmt"
 	"strings"
+
 	"upper.io/db.v3"
 	"upper.io/db.v3/internal/sqladapter/exql"
 )
@@ -28,18 +29,9 @@ var comparisonOperators = map[db.ComparisonOperator]string{
 
 	db.ComparisonOperatorLike:    "LIKE",
 	db.ComparisonOperatorNotLike: "NOT LIKE",
-	/*
-		db.ComparisonOperatorILike:    "ILIKE",
-		db.ComparisonOperatorNotILike: "NOT ILIKE",
-	*/
 
 	db.ComparisonOperatorRegExp:    "REGEXP",
 	db.ComparisonOperatorNotRegExp: "NOT REGEXP",
-
-	/*
-		db.ComparisonOperatorIsDistinctFrom:    "IS DISTINCT FROM",
-		db.ComparisonOperatorIsNotDistinctFrom: "IS NOT DISTINCT FROM",
-	*/
 }
 
 type hasCustomOperator interface {

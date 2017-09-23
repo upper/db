@@ -23,6 +23,7 @@ package sqlbuilder
 
 import (
 	"database/sql"
+
 	"upper.io/db.v3"
 )
 
