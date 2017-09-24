@@ -48,7 +48,7 @@ func (c *ColumnValue) Compile(layout *Template) (compiled string, err error) {
 		}
 	}
 
-	compiled = mustParse(layout.ColumnValue, data)
+	compiled = strings.TrimSpace(mustParse(layout.ColumnValue, data))
 
 	layout.Write(c, compiled)
 
@@ -100,7 +100,7 @@ func (c *ColumnValues) Compile(layout *Template) (compiled string, err error) {
 		}
 	}
 
-	compiled = strings.Join(out, layout.IdentifierSeparator)
+	compiled = strings.TrimSpace(strings.Join(out, layout.IdentifierSeparator))
 
 	layout.Write(c, compiled)
 

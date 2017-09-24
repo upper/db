@@ -31,6 +31,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"upper.io/db.v3"
@@ -452,7 +453,7 @@ var setupFn = map[string]func(driver interface{}) error{
 type birthday struct {
 	Name   string    `db:"name"`
 	Born   time.Time `db:"born"`
-	BornUT timeType  `db:"born_ut"`
+	BornUT timeType  `db:"born_ut,omitempty"`
 	OmitMe bool      `json:"omit_me" db:"-" bson:"-"`
 }
 
@@ -505,6 +506,8 @@ func (u *timeType) UnmarshalDB(v interface{}) error {
 	switch t := v.(type) {
 	case int64:
 		unixTime = t
+	case nil:
+		return nil
 	default:
 		return db.ErrUnsupportedValue
 	}
@@ -515,8 +518,10 @@ func (u *timeType) UnmarshalDB(v interface{}) error {
 	return nil
 }
 
-var _ db.Marshaler = timeType{}
-var _ db.Unmarshaler = &timeType{}
+var (
+	_ db.Marshaler   = timeType{}
+	_ db.Unmarshaler = &timeType{}
+)
 
 func even(i int) bool {
 	if i%2 == 0 {
@@ -983,7 +988,6 @@ func TestFibonacci(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed to close %s: %q.", wrapper, err)
 			}
-
 		}
 	}
 }
@@ -1196,8 +1200,368 @@ func TestExplicitAndDefaultMapping(t *testing.T) {
 					t.Fatalf("Expecting an ID.")
 				}
 			}
-
 		}
 	}
+}
 
+func TestComparisonOperators(t *testing.T) {
+	var err error
+	var sess db.Database
+
+	for _, wrapper := range wrappers {
+		t.Logf("Testing wrapper: %q", wrapper)
+
+		if settings[wrapper] == nil {
+			t.Fatalf("No such settings entry for wrapper %s.", wrapper)
+		}
+
+		if sess, err = db.Open(wrapper, settings[wrapper]); err != nil {
+			t.Fatalf("Test for wrapper %s failed: %q", wrapper, err)
+		}
+
+		defer sess.Close()
+
+		birthdays := sess.Collection("birthdays")
+		err := birthdays.Truncate()
+		assert.NoError(t, err)
+
+		// Insert data for testing
+		birthdaysDataset := []birthday{
+			{
+				Name: "Marie Smith",
+				Born: time.Date(1956, time.August, 5, 0, 0, 0, 0, time.Local),
+			},
+			{
+				Name: "Peter",
+				Born: time.Date(1967, time.July, 23, 0, 0, 0, 0, time.Local),
+			},
+			{
+				Name: "Eve Smith",
+				Born: time.Date(1911, time.February, 8, 0, 0, 0, 0, time.Local),
+			},
+			{
+				Name: "Alex López",
+				Born: time.Date(2001, time.May, 5, 0, 0, 0, 0, time.Local),
+			},
+			{
+				Name: "Rose Smith",
+				Born: time.Date(1944, time.December, 9, 0, 0, 0, 0, time.Local),
+			},
+			{
+				Name: "Daria López",
+				Born: time.Date(1923, time.March, 23, 0, 0, 0, 0, time.Local),
+			},
+			{
+				Name: "",
+				Born: time.Date(1945, time.December, 1, 0, 0, 0, 0, time.Local),
+			},
+			{
+				Name: "Colin",
+				Born: time.Date(2010, time.May, 6, 0, 0, 0, 0, time.Local),
+			},
+		}
+		for _, birthday := range birthdaysDataset {
+			_, err := birthdays.Insert(birthday)
+			assert.NoError(t, err)
+		}
+
+		// Test: equal
+		{
+			var item birthday
+			err := birthdays.Find(db.Cond{
+				"name": db.Eq("Colin"),
+			}).One(&item)
+			assert.NoError(t, err)
+			assert.NotNil(t, item)
+
+			assert.Equal(t, "Colin", item.Name)
+		}
+
+		// Test: not equal
+		{
+			var item birthday
+			err := birthdays.Find(db.Cond{
+				"name": db.NotEq("Colin"),
+			}).One(&item)
+			assert.NoError(t, err)
+			assert.NotNil(t, item)
+
+			assert.NotEqual(t, "Colin", item.Name)
+		}
+
+		// Test: greater than
+		{
+			var items []birthday
+			ref := time.Date(1967, time.July, 23, 0, 0, 0, 0, time.Local)
+			err := birthdays.Find(db.Cond{
+				"born": db.Gt(ref),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.NotZero(t, len(items))
+			assert.Equal(t, 2, len(items))
+			for _, item := range items {
+				assert.True(t, item.Born.After(ref))
+			}
+		}
+
+		// Test: less than
+		{
+			var items []birthday
+			ref := time.Date(1967, time.July, 23, 0, 0, 0, 0, time.Local)
+			err := birthdays.Find(db.Cond{
+				"born": db.Lt(ref),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.NotZero(t, len(items))
+			assert.Equal(t, 5, len(items))
+			for _, item := range items {
+				assert.True(t, item.Born.Before(ref))
+			}
+		}
+
+		// Test: greater than or equal to
+		{
+			var items []birthday
+			ref := time.Date(1967, time.July, 23, 0, 0, 0, 0, time.Local)
+			err := birthdays.Find(db.Cond{
+				"born": db.Gte(ref),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.NotZero(t, len(items))
+			assert.Equal(t, 3, len(items))
+			for _, item := range items {
+				assert.True(t, item.Born.After(ref) || item.Born.Equal(ref))
+			}
+		}
+
+		// Test: less than or equal to
+		{
+			var items []birthday
+			ref := time.Date(1967, time.July, 23, 0, 0, 0, 0, time.Local)
+			err := birthdays.Find(db.Cond{
+				"born": db.Lte(ref),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.NotZero(t, len(items))
+			assert.Equal(t, 6, len(items))
+			for _, item := range items {
+				assert.True(t, item.Born.Before(ref) || item.Born.Equal(ref))
+			}
+		}
+
+		// Test: between
+		{
+			var items []birthday
+			dateA := time.Date(1911, time.February, 8, 0, 0, 0, 0, time.Local)
+			dateB := time.Date(1967, time.July, 23, 0, 0, 0, 0, time.Local)
+			err := birthdays.Find(db.Cond{
+				"born": db.Between(dateA, dateB),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 6, len(items))
+			for _, item := range items {
+				assert.True(t, item.Born.After(dateA) || item.Born.Equal(dateA))
+				assert.True(t, item.Born.Before(dateB) || item.Born.Equal(dateB))
+			}
+		}
+
+		// Test: not between
+		{
+			var items []birthday
+			dateA := time.Date(1911, time.February, 8, 0, 0, 0, 0, time.Local)
+			dateB := time.Date(1967, time.July, 23, 0, 0, 0, 0, time.Local)
+			err := birthdays.Find(db.Cond{
+				"born": db.NotBetween(dateA, dateB),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 2, len(items))
+			for _, item := range items {
+				assert.False(t, item.Born.Before(dateA) || item.Born.Equal(dateA))
+				assert.False(t, item.Born.Before(dateB) || item.Born.Equal(dateB))
+			}
+		}
+
+		// Test: in
+		{
+			var items []birthday
+			names := []string{"Peter", "Eve Smith", "Daria López", "Alex López"}
+			err := birthdays.Find(db.Cond{
+				"name": db.In(names),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 4, len(items))
+			for _, item := range items {
+				inArray := false
+				for _, name := range names {
+					if name == item.Name {
+						inArray = true
+					}
+				}
+				assert.True(t, inArray)
+			}
+		}
+
+		// Test: not in
+		{
+			var items []birthday
+			names := []string{"Peter", "Eve Smith", "Daria López", "Alex López"}
+			err := birthdays.Find(db.Cond{
+				"name": db.NotIn(names),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 4, len(items))
+			for _, item := range items {
+				inArray := false
+				for _, name := range names {
+					if name == item.Name {
+						inArray = true
+					}
+				}
+				assert.False(t, inArray)
+			}
+		}
+
+		// Test: not in
+		{
+			var items []birthday
+			names := []string{"Peter", "Eve Smith", "Daria López", "Alex López"}
+			err := birthdays.Find(db.Cond{
+				"name": db.NotIn(names),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 4, len(items))
+			for _, item := range items {
+				inArray := false
+				for _, name := range names {
+					if name == item.Name {
+						inArray = true
+					}
+				}
+				assert.False(t, inArray)
+			}
+		}
+
+		// Test: is and is not
+		{
+			var items []birthday
+			err := birthdays.Find(db.And(
+				db.Cond{"name": db.Is(nil)},
+				db.Cond{"name": db.IsNot(nil)},
+			)).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 0, len(items))
+		}
+
+		// Test: is nil
+		{
+			var items []birthday
+			err := birthdays.Find(db.And(
+				db.Cond{"born_ut": db.IsNull()},
+			)).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 8, len(items))
+		}
+
+		// Test: like and not like
+		{
+			var items []birthday
+			var q db.Result
+
+			switch wrapper {
+			case "ql", "mongo":
+				q = birthdays.Find(db.And(
+					db.Cond{"name": db.Like(".*ari.*")},
+					db.Cond{"name": db.NotLike(".*Smith")},
+				))
+			default:
+				q = birthdays.Find(db.And(
+					db.Cond{"name": db.Like("%ari%")},
+					db.Cond{"name": db.NotLike("%Smith")},
+				))
+			}
+
+			err := q.All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 1, len(items))
+
+			assert.Equal(t, "Daria López", items[0].Name)
+		}
+
+		if wrapper != "sqlite" && wrapper != "mssql" {
+			// Test: regexp
+			{
+				var items []birthday
+				err := birthdays.Find(db.And(
+					db.Cond{"name": db.RegExp("^[D|C|M]")},
+				)).OrderBy("name").All(&items)
+				assert.NoError(t, err)
+				assert.Equal(t, 3, len(items))
+
+				assert.Equal(t, "Colin", items[0].Name)
+				assert.Equal(t, "Daria López", items[1].Name)
+				assert.Equal(t, "Marie Smith", items[2].Name)
+			}
+
+			// Test: not regexp
+			{
+				var items []birthday
+				names := []string{"Daria López", "Colin", "Marie Smith"}
+				err := birthdays.Find(db.And(
+					db.Cond{"name": db.NotRegExp("^[D|C|M]")},
+				)).OrderBy("name").All(&items)
+				assert.NoError(t, err)
+				assert.Equal(t, 5, len(items))
+
+				for _, item := range items {
+					for _, name := range names {
+						assert.NotEqual(t, item.Name, name)
+					}
+				}
+			}
+		}
+
+		// Test: after
+		{
+			ref := time.Date(1944, time.December, 9, 0, 0, 0, 0, time.Local)
+			var items []birthday
+			err := birthdays.Find(db.Cond{
+				"born": db.After(ref),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 5, len(items))
+		}
+
+		// Test: on or after
+		{
+			ref := time.Date(1944, time.December, 9, 0, 0, 0, 0, time.Local)
+			var items []birthday
+			err := birthdays.Find(db.Cond{
+				"born": db.OnOrAfter(ref),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 6, len(items))
+		}
+
+		// Test: before
+		{
+			ref := time.Date(1944, time.December, 9, 0, 0, 0, 0, time.Local)
+			var items []birthday
+			err := birthdays.Find(db.Cond{
+				"born": db.Before(ref),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 2, len(items))
+		}
+
+		// Test: on or before
+		{
+			ref := time.Date(1944, time.December, 9, 0, 0, 0, 0, time.Local)
+			var items []birthday
+			err := birthdays.Find(db.Cond{
+				"born": db.OnOrBefore(ref),
+			}).All(&items)
+			assert.NoError(t, err)
+			assert.Equal(t, 3, len(items))
+		}
+	}
 }

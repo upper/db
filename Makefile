@@ -3,6 +3,8 @@ SHELL := /bin/bash
 WAPPER  ?= all
 DB_HOST ?= 127.0.0.1
 
+TEST_FLAGS ?=
+
 export DB_HOST
 export WRAPPER
 
@@ -33,7 +35,7 @@ reset-db:
 	$(MAKE) -C mongo reset-db
 
 test-main: reset-db
-	go test -v ./tests/...
+	go test $(TEST_FLAGS) -v ./tests/...
 
 test: test-adapters test-libs test-main
 

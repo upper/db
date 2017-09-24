@@ -133,12 +133,18 @@ func (tu *templateWithUtils) toWhereWithArguments(term interface{}) (where exql.
 }
 
 func (tu *templateWithUtils) comparisonOperatorMapper(t db.ComparisonOperator) string {
+	if t == db.ComparisonOperatorNone {
+		return ""
+	}
 	if tu.ComparisonOperator != nil {
 		if op, ok := tu.ComparisonOperator[t]; ok {
 			return op
 		}
 	}
-	return comparisonOperators[t]
+	if op, ok := comparisonOperators[t]; ok {
+		return op
+	}
+	panic(fmt.Sprintf("unsupported comparison operator %v", t))
 }
 
 func (tu *templateWithUtils) toColumnValues(term interface{}) (cv exql.ColumnValues, args []interface{}) {
@@ -185,35 +191,43 @@ func (tu *templateWithUtils) toColumnValues(term interface{}) (cv exql.ColumnVal
 			columnValue.Value = exql.RawValue("?")
 			args = append(args, value)
 		case db.Comparison:
-
 			wrapper := &operatorWrapper{
 				tu: tu,
+				cv: &columnValue,
 				op: value,
 			}
 
-			op, opFormat, opArgs := wrapper.build()
-			columnValue.Operator = op
+			q, a := wrapper.preprocess()
+			q, a = Preprocess(q, a)
 
-			opFormat, opArgs = Preprocess(opFormat, opArgs)
-			columnValue.Value = exql.RawValue(opFormat)
-			if opArgs != nil {
-				args = append(args, opArgs...)
+			columnValue = exql.ColumnValue{
+				Column: exql.RawValue(q),
 			}
+			if a != nil {
+				args = append(args, a...)
+			}
+
+			cv.ColumnValues = append(cv.ColumnValues, &columnValue)
+			return cv, args
 		default:
 			wrapper := &operatorWrapper{
-				tu:       tu,
-				customOp: columnValue.Operator,
-				v:        value,
+				tu: tu,
+				cv: &columnValue,
+				v:  value,
 			}
 
-			op, opFormat, opArgs := wrapper.build()
-			columnValue.Operator = op
+			q, a := wrapper.preprocess()
+			q, a = Preprocess(q, a)
 
-			opFormat, opArgs = Preprocess(opFormat, opArgs)
-			columnValue.Value = exql.RawValue(opFormat)
-			if opArgs != nil {
-				args = append(args, opArgs...)
+			columnValue = exql.ColumnValue{
+				Column: exql.RawValue(q),
 			}
+			if a != nil {
+				args = append(args, a...)
+			}
+
+			cv.ColumnValues = append(cv.ColumnValues, &columnValue)
+			return cv, args
 		}
 
 		if columnValue.Operator == "" {
