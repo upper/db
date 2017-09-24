@@ -91,7 +91,7 @@ func (c *collection) filterConds(conds ...interface{}) []interface{} {
 	}
 	if len(conds) == 1 && len(c.pk) == 1 {
 		if id := conds[0]; IsKeyValue(id) {
-			conds[0] = db.Cond{c.pk[0]: id}
+			conds[0] = db.Cond{c.pk[0]: db.Eq(id)}
 		}
 	}
 	return conds
@@ -253,7 +253,7 @@ func (c *collection) UpdateReturning(item interface{}) error {
 
 	conds := db.Cond{}
 	for _, pk := range pks {
-		conds[pk] = mapper.FieldByName(itemValue, pk).Interface()
+		conds[pk] = db.Eq(mapper.FieldByName(itemValue, pk).Interface())
 	}
 
 	col := tx.(Database).Collection(c.Name())

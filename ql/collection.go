@@ -93,7 +93,7 @@ func (t *table) FilterConds(conds ...interface{}) []interface{} {
 		case int, int64, uint, uint64:
 			// This is an special QL index, I'm not sure if it allows the user to
 			// create special indexes with custom names.
-			conds[0] = db.Cond{"id()": conds[0]}
+			conds[0] = db.Cond{"id()": db.Eq(conds[0])}
 		}
 	}
 	return conds
