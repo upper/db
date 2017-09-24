@@ -144,6 +144,19 @@ func TestTemplateSelect(t *testing.T) {
 		"SELECT DATE()",
 		b.Select(db.Raw("DATE()")).String(),
 	)
+
+	// Issue #408
+	{
+		assert.Equal(
+			"SELECT * FROM `artist` WHERE (`id` IN ($1, $2) AND `name` LIKE $3)",
+			b.SelectFrom("artist").Where(db.Cond{"name LIKE": "%foo", "id IN": []int{1, 2}}).String(),
+		)
+
+		assert.Equal(
+			"SELECT * FROM `artist` WHERE (`id` IN ($1, $2) AND `name` LIKE $3)",
+			b.SelectFrom("artist").Where(db.Cond{"name LIKE": "%foo", "id IN": []uint8{1, 2}}).String(),
+		)
+	}
 }
 
 func TestTemplateInsert(t *testing.T) {

@@ -24,8 +24,7 @@ func (tu *templateWithUtils) PlaceholderValue(in interface{}) (exql.Fragment, []
 	case db.Function:
 		fnName := t.Name()
 		fnArgs := []interface{}{}
-
-		args, _ := toInterfaceArguments(t.Arguments())
+		args, _ := toInterfaceArguments(t.Arguments(), true)
 		fragments := []string{}
 		for i := range args {
 			frag, args := tu.PlaceholderValue(args[i])

@@ -90,7 +90,7 @@ func (pag *paginator) NextPage(cursorValue interface{}) Paginator {
 		pq.cursorValue = cursorValue
 		pq.cursorReverseOrder = false
 		pq.cursorCond = db.Cond{
-			pq.cursorColumn + " >": cursorValue,
+			pq.cursorColumn: db.Gt(cursorValue),
 		}
 		return nil
 	})
@@ -104,7 +104,7 @@ func (pag *paginator) PrevPage(cursorValue interface{}) Paginator {
 		pq.cursorValue = cursorValue
 		pq.cursorReverseOrder = true
 		pq.cursorCond = db.Cond{
-			pq.cursorColumn + " <": cursorValue,
+			pq.cursorColumn: db.Lt(cursorValue),
 		}
 		return nil
 	})

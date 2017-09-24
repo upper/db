@@ -46,7 +46,7 @@ func (ow *operatorWrapper) cmp() db.Comparison {
 		return db.Is(nil)
 	}
 
-	args, isSlice := toInterfaceArguments(ow.v)
+	args, isSlice := toInterfaceArguments(ow.v, true)
 	if isSlice {
 		return db.In(args)
 	}
@@ -88,6 +88,12 @@ func (ow *operatorWrapper) build() (string, string, []interface{}) {
 	case db.ComparisonOperatorBetween:
 		values := cmp.Value()
 		return op, "? AND ?", values.([]interface{})
+	case db.ComparisonOperatorEqual:
+		v := cmp.Value()
+		if b, ok := v.([]byte); ok {
+			v = string(b)
+		}
+		return op, "?", []interface{}{v}
 	}
 
 	v := cmp.Value()
