@@ -27,9 +27,9 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"math/rand"
-	"strconv"
-
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
@@ -1011,6 +1011,28 @@ func TestUUIDInsert_Issue370(t *testing.T) {
 		err = col.Find(db.Cond{"id": item1.ID}).One(&item3)
 		assert.NoError(t, err)
 		assert.Equal(t, item1.Name, item3.Name)
+	}
+}
+
+func TestTxOptions_Issue409(t *testing.T) {
+	sess := mustOpen()
+	defer sess.Close()
+
+	sess.SetTxOptions(sql.TxOptions{
+		ReadOnly: true,
+	})
+
+	{
+		col := sess.Collection("publication")
+
+		row := map[string]interface{}{
+			"title":     "foo",
+			"author_id": 1,
+		}
+		err := col.InsertReturning(&row)
+		assert.Error(t, err)
+
+		assert.True(t, strings.Contains(err.Error(), "read-only transaction"))
 	}
 }
 
