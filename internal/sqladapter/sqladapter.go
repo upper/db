@@ -23,6 +23,7 @@
 package sqladapter
 
 import (
+	"strconv"
 	"database/sql/driver"
 )
 
@@ -33,12 +34,17 @@ func IsKeyValue(v interface{}) bool {
 		return true
 	}
 	switch v.(type) {
-	case int64, int, uint, uint64, string,
-		[]int64, []int, []uint, []uint64,
-		[]byte, []string,
-		[]interface{},
-		driver.Valuer:
+	case int64, int, uint, uint64,
+	[]int64, []int, []uint, []uint64,
+	[]byte, []string,
+	[]interface{},
+	driver.Valuer:
 		return true
+	case string:
+		_, err := strconv.ParseInt(v.(string), 10, 64)
+		if err == nil {
+			return true
+		}
 	}
 	return false
 }
