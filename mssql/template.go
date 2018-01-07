@@ -94,7 +94,14 @@ const (
 					DISTINCT
 				{{end}}
 
-				{{if or .Limit .Offset}}TOP ({{if gt .Limit 0}}{{.Limit}}{{else}}0{{end}} + {{if gt .Offset 0}}{{.Offset}}{{else}}0{{end}}){{end}}
+				{{if or .Limit .Offset}}
+					{{if gt .Limit 0 }}
+						TOP ({{.Limit}} + {{if gt .Offset 0}}{{.Offset}}{{else}}0{{end}})
+					{{else}}
+						TOP 100 PERCENT
+					{{end}}
+				{{end}}
+
 
 				{{if .Columns}}
 					{{.Columns}}

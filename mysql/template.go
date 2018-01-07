@@ -113,8 +113,22 @@ const (
       {{if .Limit}}
         LIMIT {{.Limit}}
       {{end}}
-
+	` +
+		// The argument for LIMIT when only OFFSET is specified is a pretty odd magic
+		// number; this comes directly from MySQL's manual, see:
+		// https://dev.mysql.com/doc/refman/5.7/en/select.html
+		//
+		// "To retrieve all rows from a certain offset up to the end of the result
+		// set, you can use some large number for the second parameter. This
+		// statement retrieves all rows from the 96th row to the last:
+		// SELECT * FROM tbl LIMIT 95,18446744073709551615; "
+		//
+		// ¯\_(ツ)_/¯
+		`
       {{if .Offset}}
+				{{if not .Limit}}
+					LIMIT 18446744073709551615
+				{{end}}
         OFFSET {{.Offset}}
       {{end}}
   `

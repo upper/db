@@ -533,6 +533,22 @@ func TestGetOneResult(t *testing.T) {
 	assert.NoError(t, sess.Close())
 }
 
+func TestGetWithOffset(t *testing.T) {
+	sess := mustOpen()
+
+	artist := sess.Collection("artist")
+
+	// Fetching one struct.
+	var artists []artistType
+	err := artist.Find().Offset(1).All(&artists)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 3, len(artists))
+
+	assert.NoError(t, cleanUpCheck(sess))
+	assert.NoError(t, sess.Close())
+}
+
 func TestGetResultsOneByOne(t *testing.T) {
 	sess := mustOpen()
 
