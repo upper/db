@@ -43,7 +43,7 @@ func TestTemplateSelect(t *testing.T) {
 	)
 
 	assert.Equal(
-		"SELECT __q0.* FROM ( SELECT TOP 100 PERCENT __q1.*, ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS rnum FROM ( SELECT TOP (0 + 5) * FROM [artist] ) __q1) __q0 WHERE rnum > 5",
+		"SELECT __q0.* FROM ( SELECT TOP 100 PERCENT __q1.*, ROW_NUMBER() OVER (ORDER BY (SELECT 1)) AS rnum FROM ( SELECT TOP 100 PERCENT * FROM [artist] ) __q1) __q0 WHERE rnum > 5",
 		b.Select().From("artist").Limit(-1).Offset(5).String(),
 	)
 
