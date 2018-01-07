@@ -930,7 +930,7 @@ func TestUUIDInsert_Issue370(t *testing.T) {
 			Name string     `db:"name"`
 		}
 
-		newUUID := uuid.NewV4()
+		newUUID := uuid.Must(uuid.NewV4())
 
 		item1 := itemT{
 			ID:   &newUUID,
@@ -962,7 +962,7 @@ func TestUUIDInsert_Issue370(t *testing.T) {
 		}
 
 		item1 := itemT{
-			ID:   uuid.NewV4(),
+			ID:   uuid.Must(uuid.NewV4()),
 			Name: "Jonny",
 		}
 
