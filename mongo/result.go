@@ -238,15 +238,11 @@ func (res *result) All(dst interface{}) error {
 		}(time.Now())
 	}
 
-	res.iter = q.Iter()
-	defer res.iter.Close()
-
-	err = res.iter.All(dst)
-	if err != nil {
-		return res.setErr(err)
+	err = q.All(dst)
+	if err == mgo.ErrNotFound {
+		return db.ErrNoMoreRows
 	}
-
-	return nil
+	return err
 }
 
 // Group is used to group results that have the same value in the same column
@@ -281,14 +277,11 @@ func (res *result) One(dst interface{}) error {
 		}(time.Now())
 	}
 
-	res.iter = q.Iter()
-	defer res.iter.Close()
-
-	if !res.iter.Next(dst) {
-		return res.setErr(res.iter.Err())
+	err = q.One(dst)
+	if err == mgo.ErrNotFound {
+		return db.ErrNoMoreRows
 	}
-
-	return nil
+	return err
 }
 
 func (res *result) Err() error {
