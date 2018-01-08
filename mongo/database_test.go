@@ -37,6 +37,11 @@ import (
 	"upper.io/db.v3"
 )
 
+type artistType struct {
+	ID   bson.ObjectId `bson:"_id,omitempty"`
+	Name string        `bson:"name"`
+}
+
 // Global settings for tests.
 var settings = ConnectionURL{
 	Database: os.Getenv("DB_NAME"),
@@ -313,6 +318,30 @@ func TestInsert(t *testing.T) {
 	if total != 5 {
 		t.Fatalf("Expecting exactly 5 rows.")
 	}
+}
+
+func TestGetNonExistentRow_Issue426(t *testing.T) {
+	// Opening database.
+	sess, err := Open(settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer sess.Close()
+
+	artist := sess.Collection("artist")
+
+	var one artistType
+	err = artist.Find(db.Cond{"name": "nothing"}).One(&one)
+
+	assert.NotZero(t, err)
+	assert.Equal(t, db.ErrNoMoreRows, err)
+
+	var all []artistType
+	err = artist.Find(db.Cond{"name": "nothing"}).All(&all)
+
+	assert.Zero(t, err, "All should not return mgo.ErrNotFound")
+	assert.Equal(t, 0, len(all))
 }
 
 // This test tries to use an empty filter and count how many elements were
@@ -777,10 +806,6 @@ func TestDataTypes(t *testing.T) {
 }
 
 func TestPaginator(t *testing.T) {
-	type artistType struct {
-		ID   bson.ObjectId `bson:"_id,omitempty"`
-		Name string        `bson:"name"`
-	}
 
 	// Opening database.
 	sess, err := Open(settings)
