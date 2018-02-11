@@ -59,7 +59,7 @@ func (ow *operatorWrapper) cmp() db.Comparison {
 		return db.Is(nil)
 	}
 
-	args, isSlice := toInterfaceArguments(ow.v, true)
+	args, isSlice := toInterfaceArguments(ow.v)
 	if isSlice {
 		return db.In(args)
 	}

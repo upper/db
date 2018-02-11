@@ -106,6 +106,7 @@ func tearUp() error {
 			_float64 DECIMAL(10,6),
 			_bool TINYINT(1),
 			_string text,
+			_blob blob,
 			_date TIMESTAMP NULL,
 			_nildate DATETIME NULL,
 			_ptrdate DATETIME NULL,

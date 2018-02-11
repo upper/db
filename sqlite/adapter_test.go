@@ -92,6 +92,7 @@ func tearUp() error {
 		 _rune integer,
 		 _bool integer,
 		 _string text,
+		 _blob blob,
 		 _date datetime,
 		 _nildate datetime,
 		 _ptrdate datetime,

@@ -41,7 +41,7 @@ func expandQuery(in string, args []interface{}, fn func(interface{}) (string, []
 }
 
 // toInterfaceArguments converts the given value into an array of interfaces.
-func toInterfaceArguments(value interface{}, auto bool) (args []interface{}, isSlice bool) {
+func toInterfaceArguments(value interface{}) (args []interface{}, isSlice bool) {
 	v := reflect.ValueOf(value)
 
 	if value == nil {
@@ -57,7 +57,7 @@ func toInterfaceArguments(value interface{}, auto bool) (args []interface{}, isS
 		var i, total int
 
 		// Byte slice gets transformed into a string.
-		if auto && v.Type().Elem().Kind() == reflect.Uint8 {
+		if v.Type().Elem().Kind() == reflect.Uint8 {
 			return []interface{}{string(value.([]byte))}, false
 		}
 
@@ -110,7 +110,7 @@ func toColumnsValuesAndArguments(columnNames []string, columnValues []interface{
 }
 
 func preprocessFn(arg interface{}) (string, []interface{}) {
-	values, isSlice := toInterfaceArguments(arg, false)
+	values, isSlice := toInterfaceArguments(arg)
 
 	if isSlice {
 		if len(values) == 0 {
