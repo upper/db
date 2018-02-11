@@ -102,6 +102,7 @@ func tearUp() error {
 			_float64 numeric(10,6),
 			_bool boolean,
 			_string text,
+			_blob bytea,
 			_date timestamp with time zone,
 			_nildate timestamp without time zone null,
 			_ptrdate timestamp without time zone,

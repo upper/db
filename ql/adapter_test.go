@@ -81,6 +81,7 @@ func tearUp() error {
 			_float64 float64,
 			_bool bool,
 			_string string,
+			_blob string,
 			_date time,
 			_nildate time,
 			_ptrdate time,

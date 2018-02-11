@@ -1256,6 +1256,7 @@ func TestDataTypes(t *testing.T) {
 
 		Bool   bool   `db:"_bool"`
 		String string `db:"_string"`
+		Blob   []byte `db:"_blob"`
 
 		Date  time.Time  `db:"_date"`
 		DateN *time.Time `db:"_nildate"`
@@ -1294,6 +1295,7 @@ func TestDataTypes(t *testing.T) {
 
 		true,
 		"Hello world!",
+		[]byte("Hello world!"),
 
 		ts,
 		nil,
