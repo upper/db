@@ -89,8 +89,14 @@ func (pag *paginator) NextPage(cursorValue interface{}) Paginator {
 		}
 		pq.cursorValue = cursorValue
 		pq.cursorReverseOrder = false
-		pq.cursorCond = db.Cond{
-			pq.cursorColumn: db.Gt(cursorValue),
+		if strings.HasPrefix(pq.cursorColumn, "-") {
+			pq.cursorCond = db.Cond{
+				pq.cursorColumn[1:]: db.Lt(cursorValue),
+			}
+		} else {
+			pq.cursorCond = db.Cond{
+				pq.cursorColumn: db.Gt(cursorValue),
+			}
 		}
 		return nil
 	})
@@ -103,8 +109,14 @@ func (pag *paginator) PrevPage(cursorValue interface{}) Paginator {
 		}
 		pq.cursorValue = cursorValue
 		pq.cursorReverseOrder = true
-		pq.cursorCond = db.Cond{
-			pq.cursorColumn: db.Lt(cursorValue),
+		if strings.HasPrefix(pq.cursorColumn, "-") {
+			pq.cursorCond = db.Cond{
+				pq.cursorColumn[1:]: db.Gt(cursorValue),
+			}
+		} else {
+			pq.cursorCond = db.Cond{
+				pq.cursorColumn: db.Lt(cursorValue),
+			}
 		}
 		return nil
 	})
@@ -258,10 +270,11 @@ func (pag *paginator) buildWithCursor() (*paginatorQuery, error) {
 
 	pqq := pq.(*paginatorQuery)
 
-	orderBy := pqq.cursorColumn
 	if pqq.cursorReverseOrder {
+		orderBy := pqq.cursorColumn
+
 		if orderBy == "" {
-			return nil, errors.New("Missing cursor column")
+			return nil, errMissingCursorColumn
 		}
 
 		if strings.HasPrefix(orderBy, "-") {
@@ -284,10 +297,14 @@ func (pag *paginator) buildWithCursor() (*paginatorQuery, error) {
 		pqq.sel = pqq.sel.Where(pqq.cursorCond).Offset(0)
 	}
 
-	if pqq.cursorReverseOrder {
-		pqq.sel = pqq.sel.(*selector).SQLBuilder().
-			SelectFrom(db.Raw("? AS p0", pqq.sel)).
-			OrderBy(pqq.cursorColumn)
+	if pqq.cursorColumn != "" {
+		if pqq.cursorReverseOrder {
+			pqq.sel = pqq.sel.(*selector).SQLBuilder().
+				SelectFrom(db.Raw("? AS p0", pqq.sel)).
+				OrderBy(pqq.cursorColumn)
+		} else {
+			pqq.sel = pqq.sel.OrderBy(pqq.cursorColumn)
+		}
 	}
 
 	return pqq, nil
