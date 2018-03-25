@@ -186,6 +186,14 @@ func (pag *paginator) Arguments() []interface{} {
 	return pq.sel.Arguments()
 }
 
+func (pag *paginator) Compile() (string, error) {
+	pq, err := pag.buildWithCursor()
+	if err != nil {
+		return "", err
+	}
+	return pq.sel.(*selector).Compile()
+}
+
 func (pag *paginator) Query() (*sql.Rows, error) {
 	pq, err := pag.buildWithCursor()
 	if err != nil {
