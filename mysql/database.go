@@ -277,9 +277,9 @@ func (d *database) TableExists(name string) error {
 }
 
 // PrimaryKeys returns the names of all the primary keys on the table.
-func (d *database) PrimaryKeys(tableName string) ([]string, error) {	
+func (d *database) PrimaryKeys(tableName string) ([]string, error) {
 	q := d.Select("k.column_name").
-		Form("information_schema.key_column_usage AS k").
+		From("information_schema.key_column_usage AS k").
 		Where(`
 			k.constraint_name = 'PRIMARY'
 			AND k.table_schema = ?
