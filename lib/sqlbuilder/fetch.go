@@ -218,7 +218,16 @@ func reset(data interface{}) error {
 	// Resetting element.
 	v := reflect.ValueOf(data).Elem()
 	t := v.Type()
-	z := reflect.Zero(t)
+
+	var z reflect.Value
+
+	switch v.Kind() {
+	case reflect.Slice:
+		z = reflect.MakeSlice(t, 0, v.Cap())
+	default:
+		z = reflect.Zero(t)
+	}
+
 	v.Set(z)
 	return nil
 }
