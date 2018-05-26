@@ -1258,6 +1258,87 @@ func TestDelete(t *testing.T) {
 	)
 }
 
+func TestPaginate(t *testing.T) {
+	b := &sqlBuilder{t: newTemplateWithUtils(&testTemplate)}
+	assert := assert.New(t)
+
+	// Limit, offset
+	assert.Equal(
+		`SELECT * FROM "artist" LIMIT 10`,
+		b.Select().From("artist").Paginate(10).Page(1).String(),
+	)
+
+	assert.Equal(
+		`SELECT * FROM "artist" LIMIT 10 OFFSET 10`,
+		b.Select().From("artist").Paginate(10).Page(2).String(),
+	)
+
+	assert.Equal(
+		`SELECT * FROM "artist" LIMIT 5 OFFSET 110`,
+		b.Select().From("artist").Paginate(5).Page(23).String(),
+	)
+
+	// Cursor
+	assert.Equal(
+		`SELECT * FROM "artist" ORDER BY "id" ASC LIMIT 10`,
+		b.Select().From("artist").Paginate(10).Cursor("id").String(),
+	)
+
+	{
+		q := b.Select().From("artist").Paginate(10).Cursor("id").NextPage(3)
+		assert.Equal(
+			`SELECT * FROM "artist" WHERE ("id" > $1) ORDER BY "id" ASC LIMIT 10`,
+			q.String(),
+		)
+		assert.Equal(
+			[]interface{}{3},
+			q.Arguments(),
+		)
+	}
+
+	{
+		q := b.Select().From("artist").Paginate(10).Cursor("id").PrevPage(30)
+		assert.Equal(
+			`SELECT * FROM (SELECT * FROM "artist" WHERE ("id" < $1) ORDER BY "id" DESC LIMIT 10) AS p0 ORDER BY "id" ASC`,
+			q.String(),
+		)
+		assert.Equal(
+			[]interface{}{30},
+			q.Arguments(),
+		)
+	}
+
+	// Cursor reversed
+	assert.Equal(
+		`SELECT * FROM "artist" ORDER BY "id" DESC LIMIT 10`,
+		b.Select().From("artist").Paginate(10).Cursor("-id").String(),
+	)
+
+	{
+		q := b.Select().From("artist").Paginate(10).Cursor("-id").NextPage(3)
+		assert.Equal(
+			`SELECT * FROM "artist" WHERE ("id" < $1) ORDER BY "id" DESC LIMIT 10`,
+			q.String(),
+		)
+		assert.Equal(
+			[]interface{}{3},
+			q.Arguments(),
+		)
+	}
+
+	{
+		q := b.Select().From("artist").Paginate(10).Cursor("-id").PrevPage(30)
+		assert.Equal(
+			`SELECT * FROM (SELECT * FROM "artist" WHERE ("id" > $1) ORDER BY "id" ASC LIMIT 10) AS p0 ORDER BY "id" DESC`,
+			q.String(),
+		)
+		assert.Equal(
+			[]interface{}{30},
+			q.Arguments(),
+		)
+	}
+}
+
 func BenchmarkDelete1(b *testing.B) {
 	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
