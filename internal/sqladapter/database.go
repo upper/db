@@ -167,8 +167,6 @@ type database struct {
 	sess   *sql.DB
 	sessMu sync.Mutex
 
-	psMu sync.Mutex
-
 	sessID uint64
 	txID   uint64
 
