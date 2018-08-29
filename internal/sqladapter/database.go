@@ -151,25 +151,23 @@ func NewBaseDatabase(p PartialDatabase) BaseDatabase {
 // BaseDatabase and PartialDatabase
 type database struct {
 	PartialDatabase
-	baseTx BaseTx
-
 	db.Settings
 
+	lookupNameOnce sync.Once
+	name           string
+
+	mu        sync.Mutex // guards ctx, txOptions
 	ctx       context.Context
 	txOptions *sql.TxOptions
 
-	collectionMu sync.Mutex
-	mu           sync.Mutex
-
-	name   string
+	sessMu sync.Mutex // guards sess, baseTx
 	sess   *sql.DB
-	sessMu sync.Mutex
-
-	psMu sync.Mutex
+	baseTx BaseTx
 
 	sessID uint64
 	txID   uint64
 
+	cacheMu           sync.Mutex // guards cachedStatements and cachedCollections
 	cachedStatements  *cache.Cache
 	cachedCollections *cache.Cache
 
@@ -243,12 +241,11 @@ func (d *database) Transaction() BaseTx {
 
 // Name returns the database named
 func (d *database) Name() string {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if d.name == "" {
-		d.name, _ = d.PartialDatabase.LookupName()
-	}
+	d.lookupNameOnce.Do(func() {
+		if d.name == "" {
+			d.name, _ = d.PartialDatabase.LookupName()
+		}
+	})
 
 	return d.name
 }
@@ -312,8 +309,8 @@ func (d *database) SetMaxOpenConns(n int) {
 
 // ClearCache removes all caches.
 func (d *database) ClearCache() {
-	d.collectionMu.Lock()
-	defer d.collectionMu.Unlock()
+	d.cacheMu.Lock()
+	defer d.cacheMu.Unlock()
 	d.cachedCollections.Clear()
 	d.cachedStatements.Clear()
 	if d.template != nil {
@@ -376,8 +373,8 @@ func (d *database) Close() error {
 
 // Collection returns a db.Collection given a name. Results are cached.
 func (d *database) Collection(name string) db.Collection {
-	d.collectionMu.Lock()
-	defer d.collectionMu.Unlock()
+	d.cacheMu.Lock()
+	defer d.cacheMu.Unlock()
 
 	h := cache.String(name)
 
