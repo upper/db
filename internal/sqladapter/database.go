@@ -155,13 +155,15 @@ type database struct {
 
 	db.Settings
 
+	lookupNameOnce sync.Once
+	name           string
+
 	ctx       context.Context
 	txOptions *sql.TxOptions
 
 	collectionMu sync.Mutex
 	mu           sync.Mutex
 
-	name   string
 	sess   *sql.DB
 	sessMu sync.Mutex
 
@@ -243,12 +245,11 @@ func (d *database) Transaction() BaseTx {
 
 // Name returns the database named
 func (d *database) Name() string {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if d.name == "" {
-		d.name, _ = d.PartialDatabase.LookupName()
-	}
+	d.lookupNameOnce.Do(func() {
+		if d.name == "" {
+			d.name, _ = d.PartialDatabase.LookupName()
+		}
+	})
 
 	return d.name
 }
