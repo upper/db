@@ -45,8 +45,8 @@ env:
 
 install:
   - mkdir -p $GOPATH/src/github.com/upper
-  - mv $PWD $GOPATH/src/github.com/upper/db
   - cd $GOPATH/src/github.com/upper/db
+  - ls -la
   - go get -t -v -d ./...
   - go get -v github.com/cznic/ql/ql
   - export TRAVIS_BUILD_DIR=$GOPATH/src/github.com/upper/db
