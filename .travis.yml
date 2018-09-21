@@ -44,7 +44,7 @@ env:
     - TEST_CMD="make test-adapters"
 
 install:
-  - mkdir -p $GOPATH/src/upper.io
+  - mkdir -p $GOPATH/src/github.com/upper
   - mv $PWD $GOPATH/src/github.com/upper/db
   - cd $GOPATH/src/github.com/upper/db
   - go get -t -v -d ./...
