@@ -45,11 +45,11 @@ env:
 
 install:
   - mkdir -p $GOPATH/src/upper.io
-  - mv $PWD $GOPATH/src/upper.io/db.v3
-  - cd $GOPATH/src/upper.io/db.v3
+  - mv $PWD $GOPATH/src/github.com/upper/db
+  - cd $GOPATH/src/github.com/upper/db
   - go get -t -v -d ./...
   - go get -v github.com/cznic/ql/ql
-  - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db.v3
+  - export TRAVIS_BUILD_DIR=$GOPATH/src/github.com/upper/db
 
 before_script:
   - docker exec -it mysql bash -c 'mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql'

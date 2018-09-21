@@ -27,7 +27,7 @@ import (
 	"fmt"
 	"sync"
 
-	"upper.io/db.v3"
+	"github.com/upper/db"
 )
 
 var (

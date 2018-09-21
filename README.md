@@ -1,18 +1,18 @@
 <p align="center">
-  <img src="https://upper.io/db.v3/images/gopher.svg" width="256" />
+  <img src="https://github.com/upper/db/images/gopher.svg" width="256" />
 </p>
 
-# upper.io/db.v3 [![Build Status](https://travis-ci.org/upper/db.svg?branch=master)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/upper.io/db.v3?status.svg)](https://godoc.org/upper.io/db.v3)
+# github.com/upper/db [![Build Status](https://travis-ci.org/upper/db.svg?branch=master)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/github.com/upper/db?status.svg)](https://godoc.org/github.com/upper/db)
 
-The `upper.io/db.v3` package for [Go][2] is a productive data access layer for
+The `github.com/upper/db` package for [Go][2] is a productive data access layer for
 Go that provides a common interface to work with different data sources such as
-[PostgreSQL](https://upper.io/db.v3/postgresql),
-[MySQL](https://upper.io/db.v3/mysql), [SQLite](https://upper.io/db.v3/sqlite),
-[MSSQL](https://upper.io/db.v3/mssql),
-[QL](https://upper.io/db.v3/ql) and [MongoDB](https://upper.io/db.v3/mongodb).
+[PostgreSQL](https://github.com/upper/db/postgresql),
+[MySQL](https://github.com/upper/db/mysql), [SQLite](https://github.com/upper/db/sqlite),
+[MSSQL](https://github.com/upper/db/mssql),
+[QL](https://github.com/upper/db/ql) and [MongoDB](https://github.com/upper/db/mongodb).
 
 ```
-go get upper.io/db.v3
+go get github.com/upper/db
 ```
 
 ## The tour
@@ -32,7 +32,7 @@ package main
 import (
 	"log"
 
-	"upper.io/db.v3/postgresql"
+	"github.com/upper/db/postgresql"
 )
 
 var settings = postgresql.ConnectionURL{
@@ -93,7 +93,7 @@ go run _examples/booktown-books/main.go
 
 This is the source code repository, check out our [release
 notes](https://github.com/upper/db/releases/tag/v3.0.0) and see examples and
-documentation at [upper.io/db.v3][1].
+documentation at [github.com/upper/db][1].
 
 
 ## Changelog
@@ -143,6 +143,7 @@ This project is licensed under the terms of the **MIT License**.
 * achun <<achun.shx@qq.com>>
 * rjmcguire <<rjmcguire@gmail.com>>
 * wei2912 <<wei2912_support@hotmail.com>>
+* Genert Org <<contact@genert.org>>
 
-[1]: https://upper.io/db.v3
+[1]: https://github.com/upper/db
 [2]: http://golang.org

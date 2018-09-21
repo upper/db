@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strings"
 
-	"upper.io/db.v3/internal/cache"
+	"github.com/upper/db/internal/cache"
 )
 
 var errUnknownTemplateType = errors.New("Unknown template type")

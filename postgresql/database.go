@@ -20,7 +20,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // Package postgresql wraps the github.com/lib/pq PostgreSQL driver. See
-// https://upper.io/db.v3/postgresql for documentation, particularities and
+// https://github.com/upper/db/postgresql for documentation, particularities and
 // usage examples.
 package postgresql
 
@@ -35,11 +35,11 @@ import (
 	"time"
 
 	_ "github.com/lib/pq" // PostgreSQL driver.
-	"upper.io/db.v3"
-	"upper.io/db.v3/internal/sqladapter"
-	"upper.io/db.v3/internal/sqladapter/compat"
-	"upper.io/db.v3/internal/sqladapter/exql"
-	"upper.io/db.v3/lib/sqlbuilder"
+	"github.com/upper/db"
+	"github.com/upper/db/internal/sqladapter"
+	"github.com/upper/db/internal/sqladapter/compat"
+	"github.com/upper/db/internal/sqladapter/exql"
+	"github.com/upper/db/lib/sqlbuilder"
 )
 
 // database is the actual implementation of Database

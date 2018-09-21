@@ -7,8 +7,8 @@ import (
 	"math"
 	"strings"
 
-	"upper.io/db.v3"
-	"upper.io/db.v3/internal/immutable"
+	"github.com/upper/db"
+	"github.com/upper/db/internal/immutable"
 )
 
 var (

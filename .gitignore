@@ -2,3 +2,5 @@
 *.db
 *.tmp
 generated_*.go
+.idea
+.vscode
