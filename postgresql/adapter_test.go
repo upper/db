@@ -213,6 +213,13 @@ func tearUp() error {
 			id INTEGER[3] PRIMARY KEY,
 			name VARCHAR(25)
 		)`,
+
+		`DROP TABLE IF EXISTS varchar_primary_key`,
+
+		`CREATE TABLE varchar_primary_key (
+			address VARCHAR(42) PRIMARY KEY NOT NULL,
+			name VARCHAR(25)
+		)`,
 	}
 
 	for _, s := range batch {
@@ -1010,6 +1017,40 @@ func TestUUIDInsert_Issue370(t *testing.T) {
 
 		var item3 itemT
 		err = col.Find(db.Cond{"id": item1.ID}).One(&item3)
+		assert.NoError(t, err)
+		assert.Equal(t, item1.Name, item3.Name)
+	}
+}
+
+func TestInsertVarcharPrimaryKey(t *testing.T) {
+	sess := mustOpen()
+	defer sess.Close()
+
+	{
+		type itemT struct {
+			Address string `db:"address"`
+			Name    string `db:"name"`
+		}
+
+		item1 := itemT{
+			Address: "1234",
+			Name:    "Jonny",
+		}
+
+		col := sess.Collection("varchar_primary_key")
+		err := col.Truncate()
+		assert.NoError(t, err)
+
+		err = col.InsertReturning(&item1)
+		assert.NoError(t, err)
+
+		var item2 itemT
+		err = col.Find(db.Cond{"address": item1.Address}).One(&item2)
+		assert.NoError(t, err)
+		assert.Equal(t, item1.Name, item2.Name)
+
+		var item3 itemT
+		err = col.Find(db.Cond{"address": item1.Address}).One(&item3)
 		assert.NoError(t, err)
 		assert.Equal(t, item1.Name, item3.Name)
 	}
