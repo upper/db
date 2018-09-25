@@ -159,6 +159,7 @@ func (c *collection) InsertReturning(item interface{}) error {
 	col := tx.(Database).Collection(c.Name())
 
 	// Insert item as is and grab the returning ID.
+	var newItemRes db.Result
 	id, err := col.Insert(item)
 	if err != nil {
 		goto cancel
@@ -168,8 +169,16 @@ func (c *collection) InsertReturning(item interface{}) error {
 		goto cancel
 	}
 
+	if len(pks) > 1 {
+		newItemRes = col.Find(id)
+	} else {
+		// We have one primary key, build a explicit db.Cond with it to prevent
+		// string keys to be considered as raw conditions.
+		newItemRes = col.Find(db.Cond{pks[0]: id}) // We already checked that pks is not empty, so pks[0] is defined.
+	}
+
 	// Fetch the row that was just interted into newItem
-	err = col.Find(id).One(newItem)
+	err = newItemRes.One(newItem)
 	if err != nil {
 		goto cancel
 	}
