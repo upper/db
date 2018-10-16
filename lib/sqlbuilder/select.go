@@ -162,6 +162,10 @@ func (sel *selector) setColumns(columns ...interface{}) Selector {
 	})
 }
 
+func (sel *selector) SetColumns(columns ...interface{}) Selector {
+	return sel.setColumns(columns...)
+}
+
 func (sel *selector) Columns(columns ...interface{}) Selector {
 	return sel.frame(func(sq *selectorQuery) error {
 		return sq.pushColumns(columns...)

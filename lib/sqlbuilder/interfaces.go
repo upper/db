@@ -185,6 +185,14 @@ type Selector interface {
 	//   s.Columns(sqlbuilder.Func("DATABASE_NAME"))
 	Columns(columns ...interface{}) Selector
 
+	// SetColumns overrides previously selected columns
+	//
+	// Using SetColumns will replace any previously selected columns.
+	//
+	//   s.Columns("name", "last_name").SetColumns("first_name")
+	//
+	SetColumns(columns ...interface{}) Selector
+
 	// From represents a FROM clause and is tipically used after Columns().
 	//
 	// FROM defines from which table data is going to be retrieved
