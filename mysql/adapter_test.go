@@ -240,6 +240,32 @@ func TestInsertReturningCompositeKey_Issue383(t *testing.T) {
 	assert.Equal(t, "E10ADC3949BA59ABBE56E057F20F883E", a.LoginPassWord)
 }
 
+func TestIssue469_BadConnection(t *testing.T) {
+	sess := mustOpen()
+
+	// Ask the MySQL server to disconnect sessions that remain inactive for more than 1 second.
+	_, err := sess.Exec(`SET SESSION wait_timeout=1`)
+	assert.NoError(t, err)
+
+	defer sess.Close()
+
+	err = sess.Tx(nil, func(sess sqlbuilder.Tx) error {
+		var err error
+
+		// Remain inactive for 2 seconds.
+		time.Sleep(time.Second * 2)
+
+		_, err = sess.Collection("artist").Find().Count()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	assert.NoError(t, err)
+}
+
 func TestMySQLTypes(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()
