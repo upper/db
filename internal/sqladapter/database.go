@@ -329,7 +329,8 @@ func (d *database) NewClone(p PartialDatabase, checkConn bool) (BaseDatabase, er
 
 	if checkConn {
 		if err := nd.Ping(); err != nil {
-			return nil, err
+			// Retry once if ping fails.
+			return d.NewClone(p, false)
 		}
 	}
 
