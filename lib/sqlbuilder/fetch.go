@@ -127,7 +127,7 @@ func fetchRows(iter *iterator, dst interface{}) error {
 
 	dstv.Elem().Set(slicev)
 
-	return nil
+	return rows.Err()
 }
 
 func fetchResult(iter *iterator, itemT reflect.Type, columns []string) (reflect.Value, error) {
