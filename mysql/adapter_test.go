@@ -246,14 +246,15 @@ func TestIssue469_BadConnection(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()
 
-	// Ask the MySQL server to disconnect sessions that remain inactive for more than 1 second.
+	// Ask the MySQL server to disconnect sessions that remain inactive for more
+	// than 1 second.
 	_, err = sess.Exec(`SET SESSION wait_timeout=1`)
 	assert.NoError(t, err)
 
 	// Remain inactive for 2 seconds.
 	time.Sleep(time.Second * 2)
 
-	// A query should start a new connection, even if the server disconnected uis.
+	// A query should start a new connection, even if the server disconnected us.
 	_, err = sess.Collection("artist").Find().Count()
 	assert.NoError(t, err)
 
@@ -265,7 +266,8 @@ func TestIssue469_BadConnection(t *testing.T) {
 	// Remain inactive for 2 seconds.
 	time.Sleep(time.Second * 2)
 
-	// At this point the server should have disconnected us. Let's try to create a transaction anyway.
+	// At this point the server should have disconnected us. Let's try to create
+	// a transaction anyway.
 	err = sess.Tx(nil, func(sess sqlbuilder.Tx) error {
 		var err error
 
@@ -285,14 +287,22 @@ func TestIssue469_BadConnection(t *testing.T) {
 	err = sess.Tx(nil, func(sess sqlbuilder.Tx) error {
 		var err error
 
+		// This query should succeed.
+		_, err = sess.Collection("artist").Find().Count()
+		if err != nil {
+			panic(err.Error())
+		}
+
 		// Remain inactive for 2 seconds.
 		time.Sleep(time.Second * 2)
 
-		// This query should fail because the server disconnected us in the middle of a transaction.
+		// This query should fail because the server disconnected us in the middle
+		// of a transaction.
 		_, err = sess.Collection("artist").Find().Count()
 		if err != nil {
 			return err
 		}
+
 		return nil
 	})
 
