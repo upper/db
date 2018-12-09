@@ -270,7 +270,7 @@ var setupFn = map[string]func(driver interface{}) error{
 				return err
 			}
 			_, err = sqld.Exec(`CREATE TABLE [birthdays] (
-				id BIGINT PRIMARY KEY NOT NULL IDENTITY(1,1),
+				id BIGINT IDENTITY(1, 1) PRIMARY KEY NOT NULL,
 				name NVARCHAR(50),
 				born DATETIME,
 				born_ut BIGINT

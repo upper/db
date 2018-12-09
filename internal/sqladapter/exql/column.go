@@ -56,14 +56,14 @@ func (c *Column) Compile(layout *Template) (compiled string, err error) {
 			if nameChunks[i] == "*" {
 				continue
 			}
-			nameChunks[i] = mustParse(layout.IdentifierQuote, Raw{Value: nameChunks[i]})
+			nameChunks[i] = layout.MustCompile(layout.IdentifierQuote, Raw{Value: nameChunks[i]})
 		}
 
 		compiled = strings.Join(nameChunks, layout.ColumnSeparator)
 
 		if len(chunks) > 1 {
 			alias = trimString(chunks[1])
-			alias = mustParse(layout.IdentifierQuote, Raw{Value: alias})
+			alias = layout.MustCompile(layout.IdentifierQuote, Raw{Value: alias})
 		}
 	case Raw:
 		compiled = value.String()
@@ -72,7 +72,7 @@ func (c *Column) Compile(layout *Template) (compiled string, err error) {
 	}
 
 	if alias != "" {
-		compiled = mustParse(layout.ColumnAliasLayout, columnT{compiled, alias})
+		compiled = layout.MustCompile(layout.ColumnAliasLayout, columnT{compiled, alias})
 	}
 
 	layout.Write(c, compiled)

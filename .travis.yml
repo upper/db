@@ -1,58 +1,48 @@
+dist: xenial
+
 sudo: required
+
+language: go
+
+env:
+  global:
+    - GOARCH=amd64
+    - DB_HOST=127.0.0.1
+  matrix:
+    - TEST_CMD="make databases test" POSTGRESQL_VERSION=9 MYSQL_VERSION=5.7 MONGO_VERSION=3.2 MSSQL_VERSION=2017-GA-ubuntu
+    - TEST_CMD="make databases test" POSTGRESQL_VERSION=10 MYSQL_VERSION=5.7 MONGO_VERSION=3.6 MSSQL_VERSION=2017-GDR-ubuntu
+    - TEST_CMD="make databases test" POSTGRESQL_VERSION=11 MYSQL_VERSION=5 MONGO_VERSION=3 MSSQL_VERSION=latest
+    - TEST_CMD="make benchmark"
 
 notifications:
   email: false
 
-language: go
-
 go:
-  - "1.8"
   - "1.9"
-#  - "tip"
+  - "1.10"
+  - "1.11"
 
 services:
   - docker
-  - mongodb
-  - postgresql
 
 addons:
-  postgresql: 9.6
   apt:
-    sources:
-    - mongodb-3.0-precise
     packages:
     - freetds-bin
-    - mongodb-org-server
-    - mongodb-org-shell
 
 before_install:
-  - sudo service mysql stop
-  - docker pull microsoft/mssql-server-linux:latest
-  - docker pull mysql:5.7
-  - docker run -d -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=my$Password' --name mssql -p 1433:1433 -d microsoft/mssql-server-linux:latest
-  - docker run -d -e "MYSQL_USER=upperio_tests" -e "MYSQL_PASSWORD=upperio_secret" -e "MYSQL_ALLOW_EMPTY_PASSWORD=1" -e "MYSQL_DATABASE=upperio_tests" -p 3306:3306 --name mysql mysql:5.7
-  - docker ps -a
-  - sleep 30
-
-env:
-  global:
-    - MAKEFLAGS="-j4"
-    - GOARCH=amd64
-    - DB_HOST=127.0.0.1
-  matrix:
-    - TEST_CMD="make benchmark test-main"
-    - TEST_CMD="make test-adapters"
+  - sudo service mysql stop &
+  - sudo service postgresql stop &
+  - sudo apt-get install -y parallel &
+  - wait
 
 install:
   - mkdir -p $GOPATH/src/upper.io
-  - mv $PWD $GOPATH/src/upper.io/db.v3
-  - cd $GOPATH/src/upper.io/db.v3
+  - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db.v3
+  - mv $PWD $TRAVIS_BUILD_DIR
+  - cd $TRAVIS_BUILD_DIR
   - go get -t -v -d ./...
   - go get -v github.com/cznic/ql/ql
-  - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db.v3
-
-before_script:
-  - docker exec -it mysql bash -c 'mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql'
 
 script:
-  - ${TEST_CMD}
+  - bash -c "$TEST_CMD"

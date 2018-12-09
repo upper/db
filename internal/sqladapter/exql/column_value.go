@@ -48,7 +48,7 @@ func (c *ColumnValue) Compile(layout *Template) (compiled string, err error) {
 		}
 	}
 
-	compiled = strings.TrimSpace(mustParse(layout.ColumnValue, data))
+	compiled = strings.TrimSpace(layout.MustCompile(layout.ColumnValue, data))
 
 	layout.Write(c, compiled)
 

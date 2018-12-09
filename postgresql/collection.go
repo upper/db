@@ -77,8 +77,10 @@ func (c *collection) Insert(item interface{}) (interface{}, error) {
 
 		// Attempt to use LastInsertId() (probably won't work, but the Exec()
 		// succeeded, so we can safely ignore the error from LastInsertId()).
-		lastID, _ := res.LastInsertId()
-
+		lastID, err := res.LastInsertId()
+		if err != nil {
+			return 0, nil
+		}
 		return lastID, nil
 	}
 

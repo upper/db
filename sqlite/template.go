@@ -92,23 +92,25 @@ const (
         DISTINCT
       {{end}}
 
-      {{if .Columns}}
-        {{.Columns}}
+      {{if defined .Columns}}
+        {{.Columns | compile}}
       {{else}}
         *
       {{end}}
 
-      {{if .Table}}
-        FROM {{.Table}}
+      {{if defined .Table}}
+        FROM {{.Table | compile}}
       {{end}}
 
-      {{.Joins}}
+      {{.Joins | compile}}
 
-      {{.Where}}
+      {{.Where | compile}}
 
-      {{.GroupBy}}
+      {{if defined .GroupBy}}
+        {{.GroupBy | compile}}
+      {{end}}
 
-      {{.OrderBy}}
+      {{.OrderBy | compile}}
 
       {{if .Limit}}
         LIMIT {{.Limit}}
@@ -123,47 +125,47 @@ const (
   `
 	adapterDeleteLayout = `
     DELETE
-      FROM {{.Table}}
-      {{.Where}}
+      FROM {{.Table | compile}}
+      {{.Where | compile}}
   `
 	adapterUpdateLayout = `
     UPDATE
-      {{.Table}}
-    SET {{.ColumnValues}}
-      {{ .Where }}
+      {{.Table | compile}}
+    SET {{.ColumnValues | compile}}
+      {{.Where | compile}}
   `
 
 	adapterSelectCountLayout = `
     SELECT
       COUNT(1) AS _t
-    FROM {{.Table}}
-      {{.Where}}
+    FROM {{.Table | compile}}
+      {{.Where | compile}}
   `
 
 	adapterInsertLayout = `
-    INSERT INTO {{.Table}}
-      {{if .Columns }}({{.Columns}}){{end}}
-    {{if .Values}}
+    INSERT INTO {{.Table | compile}}
+      {{if .Columns }}({{.Columns | compile}}){{end}}
+    {{if defined .Values}}
       VALUES
-      {{.Values}}
+      {{.Values | compile}}
     {{else}}
       DEFAULT VALUES
     {{end}}
-    {{if .Returning}}
-      RETURNING {{.Returning}}
+    {{if defined .Returning}}
+      RETURNING {{.Returning | compile}}
     {{end}}
   `
 
 	adapterTruncateLayout = `
-    DELETE FROM {{.Table}}
+    DELETE FROM {{.Table | compile}}
   `
 
 	adapterDropDatabaseLayout = `
-    DROP DATABASE {{.Database}}
+    DROP DATABASE {{.Database | compile}}
   `
 
 	adapterDropTableLayout = `
-    DROP TABLE {{.Table}}
+    DROP TABLE {{.Table | compile}}
   `
 
 	adapterGroupByLayout = `

@@ -2,6 +2,7 @@ package exql
 
 import (
 	"bytes"
+	"reflect"
 	"sync"
 	"text/template"
 
@@ -33,10 +34,6 @@ type (
 	Limit int
 	// Offset represents the SQL offset in a query.
 	Offset int
-)
-
-var (
-	templateCache = templateMap{M: make(map[string]*template.Template)}
 )
 
 // Template is an SQL template.
@@ -74,40 +71,66 @@ type Template struct {
 
 	ComparisonOperator map[db.ComparisonOperator]string
 
+	templateMutex sync.RWMutex
+	templateMap   map[string]*template.Template
+
 	*cache.Cache
 }
 
-func mustParse(text string, data interface{}) string {
+func (layout *Template) MustCompile(templateText string, data interface{}) string {
 	var b bytes.Buffer
-	var ok bool
 
-	v, ok := templateCache.Get(text)
-	if !ok {
-		v = template.Must(template.New("").Parse(text))
-		templateCache.Set(text, v)
+	v, ok := layout.getTemplate(templateText)
+	if !ok || true {
+		v = template.
+			Must(template.New("").
+				Funcs(map[string]interface{}{
+					"defined": func(in Fragment) bool {
+						if in == nil || reflect.ValueOf(in).IsNil() {
+							return false
+						}
+						if check, ok := in.(hasIsEmpty); ok {
+							if check.IsEmpty() {
+								return false
+							}
+						}
+						return true
+					},
+					"compile": func(in Fragment) (string, error) {
+						s, err := layout.doCompile(in)
+						if err != nil {
+							return "", err
+						}
+						return s, nil
+					},
+				}).
+				Parse(templateText))
+
+		layout.setTemplate(templateText, v)
 	}
 
 	if err := v.Execute(&b, data); err != nil {
-		panic("There was an error compiling the following template:\n" + text + "\nError was: " + err.Error())
+		panic("There was an error compiling the following template:\n" + templateText + "\nError was: " + err.Error())
 	}
 
 	return b.String()
 }
 
-type templateMap struct {
-	sync.RWMutex
-	M map[string]*template.Template
-}
+func (t *Template) getTemplate(k string) (*template.Template, bool) {
+	t.templateMutex.RLock()
+	defer t.templateMutex.RUnlock()
 
-func (m *templateMap) Get(k string) (*template.Template, bool) {
-	m.RLock()
-	defer m.RUnlock()
-	v, ok := m.M[k]
+	if t.templateMap == nil {
+		t.templateMap = make(map[string]*template.Template)
+	}
+
+	v, ok := t.templateMap[k]
 	return v, ok
 }
 
-func (m *templateMap) Set(k string, v *template.Template) {
-	m.Lock()
-	defer m.Unlock()
-	m.M[k] = v
+func (t *Template) setTemplate(k string, v *template.Template) {
+	t.templateMutex.Lock()
+	defer t.templateMutex.Unlock()
+
+	t.templateMap[k] = v
 }

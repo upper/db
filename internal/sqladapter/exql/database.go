@@ -24,7 +24,7 @@ func (d *Database) Compile(layout *Template) (compiled string, err error) {
 		return c, nil
 	}
 
-	compiled = mustParse(layout.IdentifierQuote, Raw{Value: d.Name})
+	compiled = layout.MustCompile(layout.IdentifierQuote, Raw{Value: d.Name})
 
 	layout.Write(d, compiled)
 	return

@@ -35,7 +35,7 @@ func quotedTableName(layout *Template, input string) string {
 	for i := range nameChunks {
 		// nameChunks[i] = strings.TrimSpace(nameChunks[i])
 		nameChunks[i] = trimString(nameChunks[i])
-		nameChunks[i] = mustParse(layout.IdentifierQuote, Raw{Value: nameChunks[i]})
+		nameChunks[i] = layout.MustCompile(layout.IdentifierQuote, Raw{Value: nameChunks[i]})
 	}
 
 	name = strings.Join(nameChunks, layout.ColumnSeparator)
@@ -45,10 +45,10 @@ func quotedTableName(layout *Template, input string) string {
 	if len(chunks) > 1 {
 		// alias = strings.TrimSpace(chunks[1])
 		alias = trimString(chunks[1])
-		alias = mustParse(layout.IdentifierQuote, Raw{Value: alias})
+		alias = layout.MustCompile(layout.IdentifierQuote, Raw{Value: alias})
 	}
 
-	return mustParse(layout.TableAliasLayout, tableT{name, alias})
+	return layout.MustCompile(layout.TableAliasLayout, tableT{name, alias})
 }
 
 // TableWithName creates an returns a Table with the given name.

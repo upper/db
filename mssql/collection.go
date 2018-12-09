@@ -22,8 +22,6 @@
 package mssql
 
 import (
-	"database/sql"
-
 	"upper.io/db.v3"
 	"upper.io/db.v3/internal/sqladapter"
 	"upper.io/db.v3/lib/sqlbuilder"
@@ -118,28 +116,26 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 		Columns(columnNames...).
 		Values(columnValues...)
 
-	var res sql.Result
-	if res, err = q.Exec(); err != nil {
+	if len(pKey) < 1 {
+		_, err = q.Exec()
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+
+	q = q.Returning(pKey...)
+
+	var keyMap db.Cond
+	if err = q.Iterator().One(&keyMap); err != nil {
 		return nil, err
 	}
 
-	if len(pKey) <= 1 {
-		// Attempt to use LastInsertId() (probably won't work, but the Exec()
-		// succeeded, so we can safely ignore the error from LastInsertId()).
-		lastID, _ := res.LastInsertId()
-
-		return lastID, nil
+	// The IDSetter interface does not match, look for another interface match.
+	if len(keyMap) == 1 {
+		return keyMap[pKey[0]], nil
 	}
 
-	keyMap := db.Cond{}
-
-	for i := range columnNames {
-		for j := 0; j < len(pKey); j++ {
-			if pKey[j] == columnNames[i] {
-				keyMap[pKey[j]] = columnValues[i]
-			}
-		}
-	}
-
+	// This was a compound key and no interface matched it, let's return a map.
 	return keyMap, nil
 }

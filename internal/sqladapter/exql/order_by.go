@@ -85,7 +85,7 @@ func (s *SortColumn) Compile(layout *Template) (compiled string, err error) {
 
 	data := sortColumnT{Column: column, Order: orderBy}
 
-	compiled = mustParse(layout.SortByColumnLayout, data)
+	compiled = layout.MustCompile(layout.SortByColumnLayout, data)
 
 	layout.Write(s, compiled)
 
@@ -139,7 +139,7 @@ func (s *OrderBy) Compile(layout *Template) (compiled string, err error) {
 		data := orderByT{
 			SortColumns: sortColumns,
 		}
-		compiled = mustParse(layout.OrderByLayout, data)
+		compiled = layout.MustCompile(layout.OrderByLayout, data)
 	}
 
 	layout.Write(s, compiled)

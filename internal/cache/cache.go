@@ -133,7 +133,7 @@ func (c *Cache) Clear() {
 func Hash(v interface{}) string {
 	q, err := hashstructure.Hash(v, nil)
 	if err != nil {
-		panic(fmt.Sprintf("Could not hash struct: ", err.Error()))
+		panic(fmt.Sprintf("Could not hash struct: %v", err.Error()))
 	}
 	return strconv.FormatUint(q, 10)
 }

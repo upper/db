@@ -69,23 +69,25 @@ const (
         DISTINCT
       {{end}}
 
-      {{if .Columns}}
-        {{.Columns}}
+      {{if defined .Columns}}
+        {{.Columns | compile}}
       {{else}}
         *
       {{end}}
 
-      {{if .Table}}
-        FROM {{.Table}}
+      {{if defined .Table}}
+        FROM {{.Table | compile}}
       {{end}}
 
-      {{.Joins}}
+      {{.Joins | compile}}
 
-      {{.Where}}
+      {{.Where | compile}}
 
-      {{.GroupBy}}
+      {{if defined .GroupBy}}
+        {{.GroupBy | compile}}
+      {{end}}
 
-      {{.OrderBy}}
+      {{.OrderBy | compile}}
 
       {{if .Limit}}
         LIMIT {{.Limit}}
@@ -97,21 +99,21 @@ const (
   `
 	defaultDeleteLayout = `
     DELETE
-      FROM {{.Table}}
-      {{.Where}}
+      FROM {{.Table | compile}}
+      {{.Where | compile}}
   `
 	defaultUpdateLayout = `
     UPDATE
-      {{.Table}}
-    SET {{.ColumnValues}}
-      {{ .Where }}
+      {{.Table | compile}}
+    SET {{.ColumnValues | compile}}
+      {{.Where | compile}}
   `
 
 	defaultCountLayout = `
     SELECT
       COUNT(1) AS _t
-    FROM {{.Table}}
-      {{.Where}}
+    FROM {{.Table | compile}}
+      {{.Where | compile}}
 
       {{if .Limit}}
         LIMIT {{.Limit}}
@@ -123,29 +125,29 @@ const (
   `
 
 	defaultInsertLayout = `
-    INSERT INTO {{.Table}}
-      {{if .Columns }}({{.Columns}}){{end}}
+    INSERT INTO {{.Table | compile}}
+      {{if defined .Columns }}({{.Columns | compile}}){{end}}
     VALUES
-    {{if .Values}}
-      {{.Values}}
+    {{if defined .Values}}
+      {{.Values | compile}}
     {{else}}
       (default)
     {{end}}
-    {{if .Returning}}
-      RETURNING {{.Returning}}
+    {{if defined .Returning}}
+      RETURNING {{.Returning | compile}}
     {{end}}
   `
 
 	defaultTruncateLayout = `
-    TRUNCATE TABLE {{.Table}}
+    TRUNCATE TABLE {{.Table | compile}}
   `
 
 	defaultDropDatabaseLayout = `
-    DROP DATABASE {{.Database}}
+    DROP DATABASE {{.Database | compile}}
   `
 
 	defaultDropTableLayout = `
-    DROP TABLE {{.Table}}
+    DROP TABLE {{.Table | compile}}
   `
 
 	defaultGroupByColumnLayout = `{{.Column}}`
