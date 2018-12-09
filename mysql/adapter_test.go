@@ -240,6 +240,75 @@ func TestInsertReturningCompositeKey_Issue383(t *testing.T) {
 	assert.Equal(t, "E10ADC3949BA59ABBE56E057F20F883E", a.LoginPassWord)
 }
 
+func TestIssue469_BadConnection(t *testing.T) {
+	var err error
+
+	sess := mustOpen()
+	defer sess.Close()
+
+	// Ask the MySQL server to disconnect sessions that remain inactive for more
+	// than 1 second.
+	_, err = sess.Exec(`SET SESSION wait_timeout=1`)
+	assert.NoError(t, err)
+
+	// Remain inactive for 2 seconds.
+	time.Sleep(time.Second * 2)
+
+	// A query should start a new connection, even if the server disconnected us.
+	_, err = sess.Collection("artist").Find().Count()
+	assert.NoError(t, err)
+
+	// This is a new session, ask the MySQL server to disconnect sessions that
+	// remain inactive for more than 1 second.
+	_, err = sess.Exec(`SET SESSION wait_timeout=1`)
+	assert.NoError(t, err)
+
+	// Remain inactive for 2 seconds.
+	time.Sleep(time.Second * 2)
+
+	// At this point the server should have disconnected us. Let's try to create
+	// a transaction anyway.
+	err = sess.Tx(nil, func(sess sqlbuilder.Tx) error {
+		var err error
+
+		_, err = sess.Collection("artist").Find().Count()
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	assert.NoError(t, err)
+
+	// This is a new session, ask the MySQL server to disconnect sessions that
+	// remain inactive for more than 1 second.
+	_, err = sess.Exec(`SET SESSION wait_timeout=1`)
+	assert.NoError(t, err)
+
+	err = sess.Tx(nil, func(sess sqlbuilder.Tx) error {
+		var err error
+
+		// This query should succeed.
+		_, err = sess.Collection("artist").Find().Count()
+		if err != nil {
+			panic(err.Error())
+		}
+
+		// Remain inactive for 2 seconds.
+		time.Sleep(time.Second * 2)
+
+		// This query should fail because the server disconnected us in the middle
+		// of a transaction.
+		_, err = sess.Collection("artist").Find().Count()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	assert.Error(t, err, "Expecting an error (can't recover from this)")
+}
+
 func TestMySQLTypes(t *testing.T) {
 	sess := mustOpen()
 	defer sess.Close()

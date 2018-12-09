@@ -32,6 +32,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -313,6 +314,75 @@ func (u *int64Compat) Scan(src interface{}) error {
 
 func (u int64CompatArray) WrapValue(src interface{}) interface{} {
 	return Array(src)
+}
+
+func TestIssue469_BadConnection(t *testing.T) {
+	var err error
+
+	sess := mustOpen()
+	defer sess.Close()
+
+	// Ask the PostgreSQL server to disconnect sessions that remain inactive for more
+	// than 1 second.
+	_, err = sess.Exec(`SET SESSION idle_in_transaction_session_timeout=1000`)
+	assert.NoError(t, err)
+
+	// Remain inactive for 2 seconds.
+	time.Sleep(time.Second * 2)
+
+	// A query should start a new connection, even if the server disconnected us.
+	_, err = sess.Collection("artist").Find().Count()
+	assert.NoError(t, err)
+
+	// This is a new session, ask the PostgreSQL server to disconnect sessions that
+	// remain inactive for more than 1 second.
+	_, err = sess.Exec(`SET SESSION idle_in_transaction_session_timeout=1000`)
+	assert.NoError(t, err)
+
+	// Remain inactive for 2 seconds.
+	time.Sleep(time.Second * 2)
+
+	// At this point the server should have disconnected us. Let's try to create
+	// a transaction anyway.
+	err = sess.Tx(nil, func(sess sqlbuilder.Tx) error {
+		var err error
+
+		_, err = sess.Collection("artist").Find().Count()
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	assert.NoError(t, err)
+
+	// This is a new session, ask the PostgreSQL server to disconnect sessions that
+	// remain inactive for more than 1 second.
+	_, err = sess.Exec(`SET SESSION idle_in_transaction_session_timeout=1000`)
+	assert.NoError(t, err)
+
+	err = sess.Tx(nil, func(sess sqlbuilder.Tx) error {
+		var err error
+
+		// This query should succeed.
+		_, err = sess.Collection("artist").Find().Count()
+		if err != nil {
+			panic(err.Error())
+		}
+
+		// Remain inactive for 2 seconds.
+		time.Sleep(time.Second * 2)
+
+		// This query should fail because the server disconnected us in the middle
+		// of a transaction.
+		_, err = sess.Collection("artist").Find().Count()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	assert.Error(t, err, "Expecting an error (can't recover from this)")
 }
 
 func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
