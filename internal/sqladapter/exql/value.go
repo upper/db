@@ -11,12 +11,31 @@ type ValueGroups struct {
 	hash   hash
 }
 
+func (vg *ValueGroups) IsEmpty() bool {
+	if vg == nil || len(vg.Values) < 1 {
+		return true
+	}
+	for i := range vg.Values {
+		if !vg.Values[i].IsEmpty() {
+			return false
+		}
+	}
+	return true
+}
+
 var _ = Fragment(&ValueGroups{})
 
 // Values represents an array of Value.
 type Values struct {
 	Values []Fragment
 	hash   hash
+}
+
+func (vs *Values) IsEmpty() bool {
+	if vs == nil || len(vs.Values) < 1 {
+		return true
+	}
+	return false
 }
 
 var _ = Fragment(&Values{})
@@ -44,6 +63,10 @@ func (v *Value) Hash() string {
 	return v.hash.Hash(v)
 }
 
+func (v *Value) IsEmpty() bool {
+	return false
+}
+
 // Compile transforms the Value into an equivalent SQL representation.
 func (v *Value) Compile(layout *Template) (compiled string, err error) {
 
@@ -63,7 +86,7 @@ func (v *Value) Compile(layout *Template) (compiled string, err error) {
 			return "", err
 		}
 	default:
-		compiled = mustParse(layout.ValueQuote, RawValue(fmt.Sprintf(`%v`, v.V)))
+		compiled = layout.MustCompile(layout.ValueQuote, RawValue(fmt.Sprintf(`%v`, v.V)))
 	}
 
 	layout.Write(v, compiled)
@@ -92,7 +115,7 @@ func (vs *Values) Compile(layout *Template) (compiled string, err error) {
 			}
 			chunks = append(chunks, chunk)
 		}
-		compiled = mustParse(layout.ClauseGroup, strings.Join(chunks, layout.ValueSeparator))
+		compiled = layout.MustCompile(layout.ClauseGroup, strings.Join(chunks, layout.ValueSeparator))
 	}
 	layout.Write(vs, compiled)
 	return

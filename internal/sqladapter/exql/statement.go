@@ -10,7 +10,7 @@ import (
 
 var errUnknownTemplateType = errors.New("Unknown template type")
 
-// Statement represents different kinds of SQL statements.
+//  represents different kinds of SQL statements.
 type Statement struct {
 	Type
 	Table        Fragment
@@ -32,22 +32,6 @@ type Statement struct {
 
 	hash    hash
 	amendFn func(string) string
-}
-
-type statementT struct {
-	Table        string
-	Database     string
-	Columns      string
-	Values       string
-	Distinct     bool
-	ColumnValues string
-	OrderBy      string
-	GroupBy      string
-	Where        string
-	Joins        string
-	Returning    string
-	Limit
-	Offset
 }
 
 func (layout *Template) doCompile(c Fragment) (string, error) {
@@ -80,6 +64,29 @@ func (s *Statement) Amend(in string) string {
 	return s.amendFn(in)
 }
 
+func (s *Statement) template(layout *Template) (string, error) {
+	switch s.Type {
+	case Truncate:
+		return layout.TruncateLayout, nil
+	case DropTable:
+		return layout.DropTableLayout, nil
+	case DropDatabase:
+		return layout.DropDatabaseLayout, nil
+	case Count:
+		return layout.CountLayout, nil
+	case Select:
+		return layout.SelectLayout, nil
+	case Delete:
+		return layout.DeleteLayout, nil
+	case Update:
+		return layout.UpdateLayout, nil
+	case Insert:
+		return layout.InsertLayout, nil
+	default:
+		return "", errUnknownTemplateType
+	}
+}
+
 // Compile transforms the Statement into an equivalent SQL query.
 func (s *Statement) Compile(layout *Template) (compiled string, err error) {
 	if s.Type == SQL {
@@ -91,82 +98,12 @@ func (s *Statement) Compile(layout *Template) (compiled string, err error) {
 		return s.Amend(z), nil
 	}
 
-	data := statementT{
-		Limit:    s.Limit,
-		Offset:   s.Offset,
-		Distinct: s.Distinct,
-	}
-
-	data.Table, err = layout.doCompile(s.Table)
+	tpl, err := s.template(layout)
 	if err != nil {
 		return "", err
 	}
 
-	data.Database, err = layout.doCompile(s.Database)
-	if err != nil {
-		return "", err
-	}
-
-	data.Columns, err = layout.doCompile(s.Columns)
-	if err != nil {
-		return "", err
-	}
-
-	data.Values, err = layout.doCompile(s.Values)
-	if err != nil {
-		return "", err
-	}
-
-	data.ColumnValues, err = layout.doCompile(s.ColumnValues)
-	if err != nil {
-		return "", err
-	}
-
-	data.OrderBy, err = layout.doCompile(s.OrderBy)
-	if err != nil {
-		return "", err
-	}
-
-	data.GroupBy, err = layout.doCompile(s.GroupBy)
-	if err != nil {
-		return "", err
-	}
-
-	data.Where, err = layout.doCompile(s.Where)
-	if err != nil {
-		return "", err
-	}
-
-	data.Returning, err = layout.doCompile(s.Returning)
-	if err != nil {
-		return "", err
-	}
-
-	data.Joins, err = layout.doCompile(s.Joins)
-	if err != nil {
-		return "", err
-	}
-
-	switch s.Type {
-	case Truncate:
-		compiled = mustParse(layout.TruncateLayout, data)
-	case DropTable:
-		compiled = mustParse(layout.DropTableLayout, data)
-	case DropDatabase:
-		compiled = mustParse(layout.DropDatabaseLayout, data)
-	case Count:
-		compiled = mustParse(layout.CountLayout, data)
-	case Select:
-		compiled = mustParse(layout.SelectLayout, data)
-	case Delete:
-		compiled = mustParse(layout.DeleteLayout, data)
-	case Update:
-		compiled = mustParse(layout.UpdateLayout, data)
-	case Insert:
-		compiled = mustParse(layout.InsertLayout, data)
-	default:
-		return "", errUnknownTemplateType
-	}
+	compiled = layout.MustCompile(tpl, s)
 
 	compiled = strings.TrimSpace(compiled)
 	layout.Write(s, compiled)

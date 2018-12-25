@@ -253,7 +253,7 @@ func BenchmarkCompileJoinNoCache(b *testing.B) {
 func BenchmarkCompileJoinNoCache2(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		j := JoinConditions(&Join{
-			Table: TableWithName(fmt.Sprintf("countries c", i)),
+			Table: TableWithName(fmt.Sprintf("countries c%d", i)),
 			On: OnConditions(
 				&ColumnValue{
 					Column:   &Column{Name: "p.country_id"},

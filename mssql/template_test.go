@@ -165,7 +165,7 @@ func TestTemplateInsert(t *testing.T) {
 	)
 
 	assert.Equal(
-		"INSERT INTO [artist] ([id], [name]) VALUES ($1, $2) RETURNING [id]",
+		"INSERT INTO [artist] ([id], [name]) OUTPUT [inserted].[id] VALUES ($1, $2)",
 		b.InsertInto("artist").Values(map[string]string{"id": "12", "name": "Chavela Vargas"}).Returning("id").String(),
 	)
 

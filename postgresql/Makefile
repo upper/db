@@ -35,12 +35,7 @@ reset-db: require-client
 	SQL+="CREATE USER $(DB_USERNAME) WITH PASSWORD '$(DB_PASSWORD)';" && \
 	SQL+="CREATE DATABASE $(DB_NAME) ENCODING 'UTF-8' LC_COLLATE='en_US.UTF-8' LC_CTYPE='en_US.UTF-8' TEMPLATE template0;" && \
 	SQL+="GRANT ALL PRIVILEGES ON DATABASE $(DB_NAME) TO $(DB_USERNAME);" && \
-	if [ ! -z "$$CI" ]; then \
-		psql -Upostgres -h$(DB_HOST) -p$(DB_PORT) <<< $$SQL; \
-	else \
-		PGPASSWORD="$(DB_PASSWORD)" \
-		psql -U$(DB_USERNAME) -h$(DB_HOST) -p$(DB_PORT) <<< $$SQL; \
-	fi
+	PGPASSWORD="$(DB_PASSWORD)" psql -U$(DB_USERNAME) -h$(DB_HOST) -p$(DB_PORT) <<< $$SQL;
 
 test: reset-db generate
 	#go test -tags generated -v -race # race: limit on 8192 simultaneously alive goroutines is exceeded, dying

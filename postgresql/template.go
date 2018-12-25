@@ -91,23 +91,25 @@ const (
         DISTINCT
       {{end}}
 
-      {{if .Columns}}
-        {{.Columns}}
+      {{if defined .Columns}}
+        {{.Columns | compile}}
       {{else}}
         *
       {{end}}
 
-      {{if .Table}}
-        FROM {{.Table}}
+      {{if defined .Table}}
+        FROM {{.Table | compile}}
       {{end}}
 
-      {{.Joins}}
+      {{.Joins | compile}}
 
-      {{.Where}}
+      {{.Where | compile}}
 
-      {{.GroupBy}}
+      {{if defined .GroupBy}}
+        {{.GroupBy | compile}}
+      {{end}}
 
-      {{.OrderBy}}
+      {{.OrderBy | compile}}
 
       {{if .Limit}}
         LIMIT {{.Limit}}
@@ -119,47 +121,47 @@ const (
   `
 	adapterDeleteLayout = `
     DELETE
-      FROM {{.Table}}
-      {{.Where}}
+      FROM {{.Table | compile}}
+      {{.Where | compile}}
   `
 	adapterUpdateLayout = `
     UPDATE
-      {{.Table}}
-    SET {{.ColumnValues}}
-      {{ .Where }}
+      {{.Table | compile}}
+    SET {{.ColumnValues | compile}}
+      {{.Where | compile}}
   `
 
 	adapterSelectCountLayout = `
     SELECT
       COUNT(1) AS _t
-    FROM {{.Table}}
-      {{.Where}}
+    FROM {{.Table | compile}}
+      {{.Where | compile}}
   `
 
 	adapterInsertLayout = `
-    INSERT INTO {{.Table}}
-      {{if .Columns }}({{.Columns}}){{end}}
+    INSERT INTO {{.Table | compile}}
+      {{if defined .Columns}}({{.Columns | compile}}){{end}}
     VALUES
-    {{if .Values}}
-      {{.Values}}
+    {{if defined .Values}}
+      {{.Values | compile}}
     {{else}}
       (default)
     {{end}}
-    {{if .Returning}}
-      RETURNING {{.Returning}}
+    {{if defined .Returning}}
+      RETURNING {{.Returning | compile}}
     {{end}}
   `
 
 	adapterTruncateLayout = `
-    TRUNCATE TABLE {{.Table}} RESTART IDENTITY
+    TRUNCATE TABLE {{.Table | compile}} RESTART IDENTITY
   `
 
 	adapterDropDatabaseLayout = `
-    DROP DATABASE {{.Database}}
+    DROP DATABASE {{.Database | compile}}
   `
 
 	adapterDropTableLayout = `
-    DROP TABLE {{.Table}}
+    DROP TABLE {{.Table | compile}}
   `
 
 	adapterGroupByLayout = `

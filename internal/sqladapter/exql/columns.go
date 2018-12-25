@@ -32,9 +32,18 @@ func UsingColumns(columns ...Fragment) *Using {
 	return &Using{Columns: columns}
 }
 
+// Append
 func (c *Columns) Append(a *Columns) *Columns {
 	c.Columns = append(c.Columns, a.Columns...)
 	return c
+}
+
+// IsEmpty
+func (c *Columns) IsEmpty() bool {
+	if c == nil || len(c.Columns) < 1 {
+		return true
+	}
+	return false
 }
 
 // Compile transforms the Columns into an equivalent SQL representation.
@@ -57,6 +66,8 @@ func (c *Columns) Compile(layout *Template) (compiled string, err error) {
 		}
 
 		compiled = strings.Join(out, layout.IdentifierSeparator)
+	} else {
+		compiled = "*"
 	}
 
 	layout.Write(c, compiled)

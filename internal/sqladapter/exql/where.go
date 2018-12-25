@@ -68,7 +68,7 @@ func (o *Or) Compile(layout *Template) (compiled string, err error) {
 		return z, nil
 	}
 
-	compiled, err = groupCondition(layout, o.Conditions, mustParse(layout.ClauseOperator, layout.OrKeyword))
+	compiled, err = groupCondition(layout, o.Conditions, layout.MustCompile(layout.ClauseOperator, layout.OrKeyword))
 	if err != nil {
 		return "", err
 	}
@@ -84,7 +84,7 @@ func (a *And) Compile(layout *Template) (compiled string, err error) {
 		return c, nil
 	}
 
-	compiled, err = groupCondition(layout, a.Conditions, mustParse(layout.ClauseOperator, layout.AndKeyword))
+	compiled, err = groupCondition(layout, a.Conditions, layout.MustCompile(layout.ClauseOperator, layout.AndKeyword))
 	if err != nil {
 		return "", err
 	}
@@ -100,13 +100,13 @@ func (w *Where) Compile(layout *Template) (compiled string, err error) {
 		return c, nil
 	}
 
-	grouped, err := groupCondition(layout, w.Conditions, mustParse(layout.ClauseOperator, layout.AndKeyword))
+	grouped, err := groupCondition(layout, w.Conditions, layout.MustCompile(layout.ClauseOperator, layout.AndKeyword))
 	if err != nil {
 		return "", err
 	}
 
 	if grouped != "" {
-		compiled = mustParse(layout.WhereLayout, conds{grouped})
+		compiled = layout.MustCompile(layout.WhereLayout, conds{grouped})
 	}
 
 	layout.Write(w, compiled)
@@ -130,7 +130,7 @@ func groupCondition(layout *Template, terms []Fragment, joinKeyword string) (str
 	}
 
 	if len(chunks) > 0 {
-		return mustParse(layout.ClauseGroup, strings.Join(chunks, joinKeyword)), nil
+		return layout.MustCompile(layout.ClauseGroup, strings.Join(chunks, joinKeyword)), nil
 	}
 
 	return "", nil

@@ -92,28 +92,30 @@ const (
         DISTINCT
       {{end}}
 
-      {{if .Columns}}
-        {{.Columns}}
+      {{if defined .Columns}}
+        {{.Columns | compile}}
       {{else}}
         *
       {{end}}
 
-      {{if .Table}}
-        FROM {{.Table}}
+      {{if defined .Table}}
+        FROM {{.Table | compile}}
       {{end}}
 
-      {{.Joins}}
+      {{.Joins | compile}}
 
-      {{.Where}}
+      {{.Where | compile}}
 
-      {{.GroupBy}}
+      {{if defined .GroupBy}}
+        {{.GroupBy | compile}}
+      {{end}}
 
-      {{.OrderBy}}
+      {{.OrderBy | compile}}
 
       {{if .Limit}}
         LIMIT {{.Limit}}
       {{end}}
-	` +
+  ` +
 		// The argument for LIMIT when only OFFSET is specified is a pretty odd magic
 		// number; this comes directly from MySQL's manual, see:
 		// https://dev.mysql.com/doc/refman/5.7/en/select.html
@@ -126,55 +128,55 @@ const (
 		// ¯\_(ツ)_/¯
 		`
       {{if .Offset}}
-				{{if not .Limit}}
-					LIMIT 18446744073709551615
-				{{end}}
+        {{if not .Limit}}
+          LIMIT 18446744073709551615
+        {{end}}
         OFFSET {{.Offset}}
       {{end}}
   `
 	adapterDeleteLayout = `
     DELETE
-      FROM {{.Table}}
-      {{.Where}}
+      FROM {{.Table | compile}}
+      {{.Where | compile}}
   `
 	adapterUpdateLayout = `
     UPDATE
-      {{.Table}}
-    SET {{.ColumnValues}}
-      {{ .Where }}
+      {{.Table | compile}}
+    SET {{.ColumnValues | compile}}
+      {{.Where | compile}}
   `
 
 	adapterSelectCountLayout = `
     SELECT
       COUNT(1) AS _t
-    FROM {{.Table}}
-      {{.Where}}
+    FROM {{.Table | compile}}
+      {{.Where | compile}}
   `
 
 	adapterInsertLayout = `
-    INSERT INTO {{.Table}}
-      {{if .Columns }}({{.Columns}}){{end}}
+    INSERT INTO {{.Table | compile}}
+      {{if defined .Columns}}({{.Columns | compile}}){{end}}
     VALUES
-    {{if .Values}}
-      {{.Values}}
+    {{if defined .Values}}
+      {{.Values | compile}}
     {{else}}
       ()
     {{end}}
-    {{if .Returning}}
-      RETURNING {{.Returning}}
+    {{if defined .Returning}}
+      RETURNING {{.Returning | compile}}
     {{end}}
   `
 
 	adapterTruncateLayout = `
-    TRUNCATE TABLE {{.Table}}
+    TRUNCATE TABLE {{.Table | compile}}
   `
 
 	adapterDropDatabaseLayout = `
-    DROP DATABASE {{.Database}}
+    DROP DATABASE {{.Database | compile}}
   `
 
 	adapterDropTableLayout = `
-    DROP TABLE {{.Table}}
+    DROP TABLE {{.Table | compile}}
   `
 
 	adapterGroupByLayout = `

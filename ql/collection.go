@@ -126,11 +126,7 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 	}
 
 	if len(pKey) <= 1 {
-		// Attempt to use LastInsertId() (probably won't work, but the Exec()
-		// succeeded, so we can safely ignore the error from LastInsertId()).
-		lastID, _ := res.LastInsertId()
-
-		return lastID, nil
+		return res.LastInsertId()
 	}
 
 	keyMap := db.Cond{}

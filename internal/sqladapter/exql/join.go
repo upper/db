@@ -108,7 +108,7 @@ func (j *Join) Compile(layout *Template) (compiled string, err error) {
 		Using: using,
 	}
 
-	compiled = mustParse(layout.JoinLayout, data)
+	compiled = layout.MustCompile(layout.JoinLayout, data)
 	layout.Write(j, compiled)
 	return
 }
@@ -129,13 +129,13 @@ func (o *On) Compile(layout *Template) (compiled string, err error) {
 		return c, nil
 	}
 
-	grouped, err := groupCondition(layout, o.Conditions, mustParse(layout.ClauseOperator, layout.AndKeyword))
+	grouped, err := groupCondition(layout, o.Conditions, layout.MustCompile(layout.ClauseOperator, layout.AndKeyword))
 	if err != nil {
 		return "", err
 	}
 
 	if grouped != "" {
-		compiled = mustParse(layout.OnLayout, conds{grouped})
+		compiled = layout.MustCompile(layout.OnLayout, conds{grouped})
 	}
 
 	layout.Write(o, compiled)
@@ -173,7 +173,7 @@ func (u *Using) Compile(layout *Template) (compiled string, err error) {
 			return "", err
 		}
 		data := usingT{Columns: columns}
-		compiled = mustParse(layout.UsingLayout, data)
+		compiled = layout.MustCompile(layout.UsingLayout, data)
 	}
 
 	layout.Write(u, compiled)

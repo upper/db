@@ -69,22 +69,22 @@ const (
       {{end}}
 
       {{if .Columns}}
-        {{.Columns}}
+        {{.Columns | compile}}
       {{else}}
         *
       {{end}}
 
-      {{if .Table}}
-        FROM {{.Table}}
+      {{if defined .Table}}
+        FROM {{.Table | compile}}
       {{end}}
 
-      {{.Joins}}
+      {{.Joins | compile}}
 
-      {{.Where}}
+      {{.Where | compile}}
 
-      {{.GroupBy}}
+      {{.GroupBy | compile}}
 
-      {{.OrderBy}}
+      {{.OrderBy | compile}}
 
       {{if .Limit}}
         LIMIT {{.Limit}}
@@ -96,8 +96,8 @@ const (
   `
 	defaultDeleteLayout = `
     DELETE
-      FROM {{.Table}}
-      {{.Where}}
+      FROM {{.Table | compile}}
+      {{.Where | compile}}
     {{if .Limit}}
       LIMIT {{.Limit}}
     {{end}}
@@ -107,19 +107,19 @@ const (
   `
 	defaultUpdateLayout = `
     UPDATE
-      {{.Table}}
-    SET {{.ColumnValues}}
-      {{ .Where }}
+      {{.Table | compile}}
+    SET {{.ColumnValues | compile}}
+      {{.Where | compile}}
   `
 
 	defaultCountLayout = `
     SELECT
       COUNT(1) AS _t
-    FROM {{.Table}}
-      {{.Where}}
+    FROM {{.Table | compile}}
+      {{.Where | compile}}
 
       {{if .Limit}}
-        LIMIT {{.Limit}}
+        LIMIT {{.Limit | compile}}
       {{end}}
 
       {{if .Offset}}
@@ -128,25 +128,25 @@ const (
   `
 
 	defaultInsertLayout = `
-    INSERT INTO {{.Table}}
-      {{if .Columns }}({{.Columns}}){{end}}
+    INSERT INTO {{.Table | compile}}
+      {{if .Columns }}({{.Columns | compile}}){{end}}
     VALUES
-      {{.Values}}
+      {{.Values | compile}}
     {{if .Returning}}
-      RETURNING {{.Returning}}
+      RETURNING {{.Returning | compile}}
     {{end}}
   `
 
 	defaultTruncateLayout = `
-    TRUNCATE TABLE {{.Table}}
+    TRUNCATE TABLE {{.Table | compile}}
   `
 
 	defaultDropDatabaseLayout = `
-    DROP DATABASE {{.Database}}
+    DROP DATABASE {{.Database | compile}}
   `
 
 	defaultDropTableLayout = `
-    DROP TABLE {{.Table}}
+    DROP TABLE {{.Table | compile}}
   `
 
 	defaultGroupByColumnLayout = `{{.Column}}`
