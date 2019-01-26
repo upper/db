@@ -26,7 +26,7 @@ import (
 	"reflect"
 	"regexp"
 
-	"menteslibres.net/gosexy/to"
+	"github.com/gosexy/to"
 	"upper.io/db.v1"
 	"upper.io/db.v1/util"
 )

@@ -34,7 +34,7 @@ import (
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"menteslibres.net/gosexy/to"
+	"github.com/gosexy/to"
 	"upper.io/db.v1"
 )
 

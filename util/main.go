@@ -27,7 +27,7 @@ import (
 	"strings"
 	"time"
 
-	"menteslibres.net/gosexy/to"
+	"github.com/gosexy/to"
 )
 
 var reColumnCompareExclude = regexp.MustCompile(`[^a-zA-Z0-9]`)
