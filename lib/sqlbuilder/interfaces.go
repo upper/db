@@ -175,14 +175,14 @@ type Selector interface {
 	//
 	//   s.Columns("name n")
 	//
-	// If you don't want the column to be escaped use the sqlbuilder.RawString
+	// If you don't want the column to be escaped use the db.Raw
 	// function.
 	//
-	//   s.Columns(sqlbuilder.RawString("DATABASE_NAME()"))
+	//   s.Columns(db.Raw("MAX(id)"))
 	//
 	// The above statement is equivalent to:
 	//
-	//   s.Columns(sqlbuilder.Func("DATABASE_NAME"))
+	//   s.Columns(db.Func("MAX", "id"))
 	Columns(columns ...interface{}) Selector
 
 	// From represents a FROM clause and is tipically used after Columns().
@@ -203,8 +203,8 @@ type Selector interface {
 
 	// Distict represents a DISCTINCT clause
 	//
-	// DISCTINC is used to ask the database to return only values that are
-	// different.
+	// DISTINCT is used to ask the database to return only values that are
+	// different.  Use it instead of the .Columns() method.
 	Distinct(columns ...interface{}) Selector
 
 	// As defines an alias for a table.
