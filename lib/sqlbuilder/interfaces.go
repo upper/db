@@ -201,7 +201,7 @@ type Selector interface {
 	//   s.Columns(...).From("people p").Where("p.name = ?", ...)
 	From(tables ...interface{}) Selector
 
-	// Distict represents a DISCTINCT clause
+	// Distict represents a DISTINCT clause
 	//
 	// DISTINCT is used to ask the database to return only values that are
 	// different.  Use it instead of the .Columns() method.
