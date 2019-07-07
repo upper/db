@@ -204,7 +204,7 @@ type Selector interface {
 	// Distict represents a DISTINCT clause
 	//
 	// DISTINCT is used to ask the database to return only values that are
-	// different.  Use it instead of the .Columns() method.
+	// different.
 	Distinct(columns ...interface{}) Selector
 
 	// As defines an alias for a table.
