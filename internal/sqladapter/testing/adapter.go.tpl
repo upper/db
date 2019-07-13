@@ -4,6 +4,7 @@ package ADAPTER
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"flag"
 	"fmt"
 	"log"
@@ -1977,4 +1978,44 @@ func TestCustomType(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "foo: some name", string(bar.Custom.Val))
+}
+
+type brokenValuer string
+
+func (b brokenValuer) Value() (driver.Value, error) {
+	panic("broken valuer")
+	return nil, nil
+}
+
+// See: https://github.com/upper/db/issues/508
+func TestBrokenValuer(t *testing.T) {
+	defer func() {
+		r := recover()
+		assert.NotNil(t, r, "expecting a panic")
+	}()
+
+	sess := mustOpen()
+
+	value := brokenValuer("test")
+	q := sess.Select().From("artist").Where(db.Cond{"name": value})
+
+	q.Query()
+}
+
+func TestBrokenValuerTx(t *testing.T) {
+	defer func() {
+		r := recover()
+		assert.NotNil(t, r, "expecting a panic")
+	}()
+
+	sess := mustOpen()
+	tx, err := sess.NewTx(nil)
+	defer tx.Close()
+
+	assert.NoError(t, err)
+
+	value := brokenValuer("test")
+	q := tx.Select().From("artist").Where(db.Cond{"name": value})
+
+	q.Query()
 }
