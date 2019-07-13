@@ -42,7 +42,7 @@ install:
   - mv $PWD $TRAVIS_BUILD_DIR
   - cd $TRAVIS_BUILD_DIR
   - go get -t -v -d ./...
-  - go get -v github.com/cznic/ql/ql
+  - go get -v modernc.org/ql/ql
 
 script:
   - bash -c "$TEST_CMD"
