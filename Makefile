@@ -1,29 +1,15 @@
 SHELL                 := /bin/bash
 
-POSTGRESQL_IMAGE      ?= postgres
-POSTGRESQL_VERSION    ?= 11
-POSTGRESQL_CONTAINER  ?= upper-postgresql
-POSTGRESQL_PORT       ?= 5432
-
-MYSQL_IMAGE           ?= mysql
-MYSQL_VERSION         ?= 5
-MYSQL_CONTAINER       ?= upper-mysql
-MYSQL_PORT            ?= 3306
-
-MONGO_IMAGE           ?= mongo
 MONGO_VERSION         ?= 3
-MONGO_CONTAINER       ?= upper-mongo
-MONGO_PORT            ?= 27017
+MYSQL_VERSION         ?= 5
+POSTGRES_VERSION      ?= 11
+MSSQL_VERSION         ?= 2017-latest-ubuntu
 
-MSSQL_IMAGE           ?= mcr.microsoft.com/mssql/server
-MSSQL_VERSION         ?= latest
-MSSQL_CONTAINER       ?= upper-mssql
-MSSQL_PORT            ?= 1433
+DB_NAME               ?= upperio
+DB_USERNAME           ?= upperio_user
+DB_PASSWORD           ?= upperio//s3cr37
 
-DB_USERNAME           ?= upperio_tests
-DB_PASSWORD           ?= upperio_secret
-
-BIND_HOST             ?= 0.0.0.0
+BIND_HOST             ?= 127.0.0.1
 
 WRAPPER               ?= all
 DB_HOST               ?= 127.0.0.1
@@ -32,7 +18,17 @@ TEST_FLAGS            ?=
 
 PARALLEL_FLAGS        ?= --halt 2 -v
 
+export MONGO_VERSION
+export MYSQL_VERSION
+export POSTGRES_VERSION
+export MSSQL_VERSION
+
+export DB_USERNAME
+export DB_PASSWORD
+export DB_NAME
 export DB_HOST
+
+export BIND_HOST
 export WRAPPER
 
 test: reset-db test-libs test-main test-adapters
@@ -86,62 +82,9 @@ test-adapter-%:
 reset-db-%:
 	($(MAKE) -C $* reset-db || exit 1)
 
-databases:
-	parallel $(PARALLEL_FLAGS) -u \
-		"$(MAKE) docker-{}" ::: \
-			postgresql \
-			mysql \
-			mssql \
-			mongo && \
-	sleep 30
+db-up:
+	docker-compose -p upper up -d && \
+	sleep 15
 
-docker-mongo:
-	docker pull $(MONGO_IMAGE):$(MONGO_VERSION) && \
-	(docker rm -f $(MONGO_CONTAINER) || exit 0) && \
-	docker run \
-		-d \
-		--rm \
-		-e "MONGO_USER=$(DB_USERNAME)" \
-		-e "MONGO_PASSWORD=$(DB_PASSWORD)" \
-		-e "MONGO_DATABASE=$(DB_USERNAME)" \
-		-p $(BIND_HOST):$(MONGO_PORT):27017 \
-		--name $(MONGO_CONTAINER) \
-		$(MONGO_IMAGE):$(MONGO_VERSION)
-
-docker-mysql:
-	docker pull $(MYSQL_IMAGE):$(MYSQL_VERSION) && \
-	(docker rm -f $(MYSQL_CONTAINER) || exit 0) && \
-	docker run \
-		-d \
-		--rm \
-		-e "MYSQL_USER=$(DB_USERNAME)" \
-		-e "MYSQL_PASSWORD=$(DB_PASSWORD)" \
-		-e "MYSQL_ALLOW_EMPTY_PASSWORD=1" \
-		-e "MYSQL_DATABASE=$(DB_USERNAME)" \
-		-p $(BIND_HOST):$(MYSQL_PORT):3306 \
-		--name $(MYSQL_CONTAINER) \
-		$(MYSQL_IMAGE):$(MYSQL_VERSION)
-
-docker-mssql:
-	docker pull $(MSSQL_IMAGE):$(MSSQL_VERSION) && \
-	(docker rm -f $(MSSQL_CONTAINER) || exit 0) && \
-	docker run \
-		-d \
-		--rm \
-		-e "ACCEPT_EULA=Y" \
-		-e 'SA_PASSWORD=my$$Password' \
-		-p $(BIND_HOST):$(MSSQL_PORT):1433 \
-		--name $(MSSQL_CONTAINER) \
-		$(MSSQL_IMAGE):$(MSSQL_VERSION)
-
-docker-postgresql:
-	docker pull $(POSTGRESQL_IMAGE):$(POSTGRESQL_VERSION) && \
-	(docker rm -f $(POSTGRESQL_CONTAINER) || exit 0) && \
-	docker run \
-		-d \
-		--rm \
-		-e "POSTGRES_USER=$(DB_USERNAME)" \
-		-e "POSTGRES_PASSWORD=$(DB_PASSWORD)" \
-		-p $(BIND_HOST):$(POSTGRESQL_PORT):5432 \
-		--name $(POSTGRESQL_CONTAINER) \
-		$(POSTGRESQL_IMAGE):$(POSTGRESQL_VERSION)
+db-down:
+	docker-compose -p upper down

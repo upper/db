@@ -1,0 +1,40 @@
+version: '3.3'
+
+services:
+
+  mongo:
+    image: mongo:${MONGO_VERSION}
+    environment:
+      MONGO_USER: ${DB_USERNAME}
+      MONGO_PASSWORD: ${DB_PASSWORD}
+      MONGO_DATABASE: ${DB_NAME}
+    ports:
+      - '${BIND_HOST}:27017:27017'
+
+  mysql:
+    image: mysql:${MYSQL_VERSION}
+    environment:
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ALLOW_EMPTY_PASSWORD: 1
+      MYSQL_DATABASE: ${DB_NAME}
+    ports:
+      - '${BIND_HOST}:3306:3306'
+
+  postgres:
+    image: postgres:${POSTGRES_VERSION}
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - '${BIND_HOST}:5432:5432'
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server:${MSSQL_VERSION}
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - '${BIND_HOST}:1433:1433'
+
