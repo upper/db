@@ -1,10 +1,11 @@
-SHELL := bash
+SHELL					        := bash
 
-DB_HOST 		?= 127.0.0.1
-DB_USERNAME ?= upperio_tests
-DB_NAME 		?= upperio_tests
-DB_PASSWORD ?= upperio_secret
-DB_PORT 		?= 27017
+DB_HOST               ?= 127.0.0.1
+DB_PORT               ?= 27017
+
+DB_NAME               ?= upperio
+DB_USERNAME           ?= upperio_user
+DB_PASSWORD           ?= upperio//s3cr37
 
 export DB_HOST
 export DB_PORT

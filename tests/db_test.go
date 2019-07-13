@@ -65,7 +65,6 @@ var settings map[string]db.ConnectionURL
 func init() {
 
 	// Getting settings from the environment.
-
 	var host string
 	if host = os.Getenv("DB_HOST"); host == "" {
 		host = "localhost"
@@ -76,6 +75,10 @@ func init() {
 		wrapper = testAllWrappers
 	}
 
+	username := os.Getenv("DB_USERNAME")
+	password := os.Getenv("DB_PASSWORD")
+	dbname := os.Getenv("DB_NAME")
+
 	log.Printf("Running tests against host %s.\n", host)
 
 	settings = map[string]db.ConnectionURL{
@@ -83,34 +86,34 @@ func init() {
 			Database: `sqlite3-test.db`,
 		},
 		`mongo`: &mongo.ConnectionURL{
-			Database: `upperio_tests`,
+			Database: dbname,
 			Host:     host,
-			User:     `upperio_tests`,
-			Password: `upperio_secret`,
+			User:     username,
+			Password: password,
 		},
 		`mysql`: &mysql.ConnectionURL{
-			Database: `upperio_tests`,
+			Database: dbname,
 			Host:     host,
-			User:     `upperio_tests`,
-			Password: `upperio_secret`,
+			User:     username,
+			Password: password,
 			Options: map[string]string{
 				"parseTime": "true",
 			},
 		},
 		`postgresql`: &postgresql.ConnectionURL{
-			Database: `upperio_tests`,
+			Database: dbname,
 			Host:     host,
-			User:     `upperio_tests`,
-			Password: `upperio_secret`,
+			User:     username,
+			Password: password,
 			Options: map[string]string{
 				"timezone": "UTC",
 			},
 		},
 		`mssql`: &mssql.ConnectionURL{
-			Database: `upperio_tests`,
+			Database: dbname,
 			Host:     host,
-			User:     `upperio_tests`,
-			Password: `upperio_Secre3t`,
+			User:     username,
+			Password: password,
 		},
 		`ql`: &ql.ConnectionURL{
 			Database: `ql-test.db`,

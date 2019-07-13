@@ -9,18 +9,18 @@ env:
     - GOARCH=amd64
     - DB_HOST=127.0.0.1
   matrix:
-    - TEST_CMD="make databases test" POSTGRESQL_VERSION=9 MYSQL_VERSION=5.7 MONGO_VERSION=3.2 MSSQL_VERSION=2017-GA-ubuntu
-    - TEST_CMD="make databases test" POSTGRESQL_VERSION=10 MYSQL_VERSION=5.7 MONGO_VERSION=3.6 MSSQL_VERSION=2017-GDR-ubuntu
-    - TEST_CMD="make databases test" POSTGRESQL_VERSION=11 MYSQL_VERSION=5 MONGO_VERSION=3 MSSQL_VERSION=latest
+    - TEST_CMD="make db-up test" POSTGRESQL_VERSION=9 MYSQL_VERSION=5.7 MONGO_VERSION=3.2 MSSQL_VERSION=2017-GA-ubuntu
+    - TEST_CMD="make db-up test" POSTGRESQL_VERSION=10 MYSQL_VERSION=5.7 MONGO_VERSION=3.6 MSSQL_VERSION=2017-GDR-ubuntu
+    - TEST_CMD="make db-up test" POSTGRESQL_VERSION=11 MYSQL_VERSION=5 MONGO_VERSION=3 MSSQL_VERSION=latest
     - TEST_CMD="make benchmark"
 
 notifications:
   email: false
 
 go:
-  - "1.9"
   - "1.10"
   - "1.11"
+  - "1.12"
 
 services:
   - docker

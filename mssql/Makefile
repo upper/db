@@ -1,14 +1,13 @@
-SHELL := bash
+SHELL                 := bash
 
-DB_HOST ?= 127.0.0.1
-DB_PORT	?= 1433
+DB_HOST               ?= 127.0.0.1
+DB_PORT               ?= 1433
 
-DB_USERNAME ?= upperio_tests
-DB_PASSWORD ?= upperio_Secre3t
-DB_NAME     ?= upperio_tests
+DB_NAME               ?= upperio
+DB_USERNAME           ?= upperio_user
+DB_PASSWORD           ?= upperio//s3cr37
 
-DB_SA_USERNAME ?= sa
-DB_SA_PASSWORD ?= my$$Password
+DB_SA_USERNAME        ?= sa
 
 export DB_HOST
 export DB_NAME
@@ -17,7 +16,6 @@ export DB_PORT
 export DB_USERNAME
 
 export DB_SA_USERNAME
-export DB_SA_PASSWORD
 
 build:
 	go build && go install
@@ -44,7 +42,7 @@ reset-db: require-client
 	SQL+="IF NOT EXISTS (SELECT name FROM sys.database_principals WHERE name = '$(DB_USERNAME)') BEGIN CREATE USER $(DB_USERNAME) END\nGO\n" && \
 	SQL+="EXEC sp_addrolemember 'db_owner', N'$(DB_USERNAME)'\nGO\n" && \
 	SQL+="EXEC sp_change_users_login 'Update_One', '$(DB_USERNAME)', '$(DB_USERNAME)'\nGO\n" && \
-	echo -ne $$SQL | tsql -H $(DB_HOST) -p $(DB_PORT) -U $(DB_SA_USERNAME) -P '$(DB_SA_PASSWORD)'
+	echo -ne $$SQL | tsql -H $(DB_HOST) -p $(DB_PORT) -U $(DB_SA_USERNAME) -P '$(DB_PASSWORD)'
 
 test: reset-db generate
 	go test -tags generated -v
