@@ -35,7 +35,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq" // PostgreSQL driver.
-	"upper.io/db.v3"
+	db "upper.io/db.v3"
 	"upper.io/db.v3/internal/sqladapter"
 	"upper.io/db.v3/internal/sqladapter/compat"
 	"upper.io/db.v3/internal/sqladapter/exql"

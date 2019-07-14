@@ -19,44 +19,62 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-//go:generate bash -c "sed s/ADAPTER/ql/g ../internal/sqladapter/testing/adapter.go.tpl > generated_test.go"
 package ql
 
 import (
 	"database/sql"
 	"os"
 
+	db "upper.io/db.v3"
 	"upper.io/db.v3/lib/sqlbuilder"
-)
-
-const (
-	testTimeZone = "Canada/Eastern"
+	"upper.io/db.v3/testsuite"
 )
 
 var settings = ConnectionURL{
 	Database: os.Getenv("DB_NAME"),
 }
 
-func tearUp() error {
-	sess := mustOpen()
-	defer sess.Close()
+type Helper struct {
+	sess sqlbuilder.Database
+}
+
+func (h *Helper) Session() db.Database {
+	return h.sess
+}
+
+func (h *Helper) SQLBuilder() sqlbuilder.Database {
+	return h.sess
+}
+
+func (h *Helper) Adapter() string {
+	return "ql"
+}
+
+func (h *Helper) TearDown() error {
+	return h.sess.Close()
+}
+
+func (h *Helper) TearUp() error {
+	var err error
+
+	h.sess, err = Open(settings)
+	if err != nil {
+		return err
+	}
 
 	batch := []string{
 		`DROP TABLE IF EXISTS artist`,
-
 		`CREATE TABLE artist (
 			name string
 		)`,
 
 		`DROP TABLE IF EXISTS publication`,
-
 		`CREATE TABLE publication (
 			title string,
 			author_id int
 		)`,
 
 		`DROP TABLE IF EXISTS review`,
-
 		`CREATE TABLE review (
 			publication_id int,
 			name string,
@@ -65,7 +83,6 @@ func tearUp() error {
 		)`,
 
 		`DROP TABLE IF EXISTS data_types`,
-
 		`CREATE TABLE data_types (
 			_uint uint,
 			_uint8 uint8,
@@ -90,7 +107,6 @@ func tearUp() error {
 		)`,
 
 		`DROP TABLE IF EXISTS stats_test`,
-
 		`CREATE TABLE stats_test (
 			id uint,
 			numeric int64,
@@ -98,7 +114,6 @@ func tearUp() error {
 		)`,
 
 		`DROP TABLE IF EXISTS composite_keys`,
-
 		`-- Composite keys are currently not supported in QL.
 		CREATE TABLE composite_keys (
 		-- code string,
@@ -106,28 +121,46 @@ func tearUp() error {
 			some_val string,
 		-- primary key (code, user_id)
 		)`,
+
+		`DROP TABLE IF EXISTS birthdays`,
+		`CREATE TABLE birthdays (
+				name string,
+				born time,
+				born_ut int
+		)`,
+
+		`DROP TABLE IF EXISTS fibonacci`,
+		`CREATE TABLE fibonacci (
+				input int,
+				output int
+		)`,
+
+		`DROP TABLE IF EXISTS is_even`,
+		`CREATE TABLE is_even (
+				input int,
+				is_even bool
+		)`,
+
+		`DROP TABLE IF EXISTS CaSe_TesT`,
+		`CREATE TABLE CaSe_TesT (
+				case_test string
+		)`,
 	}
 
-	driver := sess.Driver().(*sql.DB)
-	tx, err := driver.Begin()
-	if err != nil {
-		return err
-	}
-
-	for _, s := range batch {
-		if _, err := tx.Exec(s); err != nil {
+	for _, query := range batch {
+		driver := h.sess.Driver().(*sql.DB)
+		tx, err := driver.Begin()
+		if err != nil {
 			return err
 		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return err
+		if _, err := tx.Exec(query); err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+		tx.Commit()
 	}
 
 	return nil
 }
 
-func cleanUpCheck(sess sqlbuilder.Database) (err error) {
-	// TODO: Check the number of prepared statements.
-	return nil
-}
+var _ testsuite.Helper = &Helper{}

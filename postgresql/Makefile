@@ -1,5 +1,9 @@
 SHELL					        := bash
 
+POSTGRES_VERSION      ?= 11
+POSTGRES_SUPPORTED    ?= 12 $(POSTGRES_VERSION) 10 9
+PROJECT               ?= upper_postgres_$(POSTGRES_VERSION)
+
 DB_HOST               ?= 127.0.0.1
 DB_PORT               ?= 5432
 
@@ -7,7 +11,10 @@ DB_NAME               ?= upperio
 DB_USERNAME           ?= upperio_user
 DB_PASSWORD           ?= upperio//s3cr37
 
-TEST_FLAGS ?=
+TEST_FLAGS            ?=
+PARALLEL_FLAGS        ?=
+
+export POSTGRES_VERSION
 
 export DB_HOST
 export DB_NAME
@@ -15,28 +22,19 @@ export DB_PASSWORD
 export DB_PORT
 export DB_USERNAME
 
-build:
-	go build && go install
+export TEST_FLAGS
 
-require-client:
-	@if [ -z "$$(which psql)" ]; then \
-		echo 'Missing "psql" command. Please install the PostgreSQL client and try again.' && \
-		exit 1; \
-	fi
+test:
+	go test -v $(TEST_FLAGS)
 
-generate:
-	go generate && \
-	go get -d -t -v ./...
+server-up: server-down
+	docker-compose -p $(PROJECT) up -d && \
+	sleep 10
 
-reset-db: require-client
-	SQL="" && \
-	SQL+="DROP DATABASE IF EXISTS $(DB_NAME);" && \
-	SQL+="DROP ROLE IF EXISTS $(DB_USERNAME);" && \
-	SQL+="CREATE USER $(DB_USERNAME) WITH PASSWORD '$(DB_PASSWORD)';" && \
-	SQL+="CREATE DATABASE $(DB_NAME) ENCODING 'UTF-8' LC_COLLATE='en_US.UTF-8' LC_CTYPE='en_US.UTF-8' TEMPLATE template0;" && \
-	SQL+="GRANT ALL PRIVILEGES ON DATABASE $(DB_NAME) TO $(DB_USERNAME);" && \
-	PGPASSWORD="$(DB_PASSWORD)" psql -U$(DB_USERNAME) -h$(DB_HOST) -p$(DB_PORT) template1 <<< $$SQL;
+server-down:
+	docker-compose -p $(PROJECT) down
 
-test: reset-db generate
-	#go test -tags generated -v -race # race: limit on 8192 simultaneously alive goroutines is exceeded, dying
-	go test -tags generated -v $(TEST_FLAGS)
+test-extended:
+	parallel $(PARALLEL_FLAGS) \
+		"POSTGRES_VERSION={} DB_PORT=\$$((5432+{#})) $(MAKE) server-up test server-down" ::: \
+		$(POSTGRES_SUPPORTED)

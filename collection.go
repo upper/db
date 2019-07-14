@@ -24,17 +24,17 @@ package db
 // Collection is an interface that defines methods useful for handling tables.
 type Collection interface {
 	// Insert inserts a new item into the collection, it accepts one argument
-	// that can be either a map or a struct. If the call suceeds, it returns the
-	// ID of the newly added element as an `interface{}` (the underlying type of
-	// this ID is unknown and depends on the database adapter). The ID returned
-	// by Insert() could be passed directly to Find() to retrieve the newly added
-	// element.
+	// that can be either a map or a struct. If the call succeeds, it returns the
+	// ID of the newly added element as an `interface{}` (the actual type of this
+	// ID depends on both the database adapter and the column that stores this
+	// ID). The ID returned by Insert() could be passed directly to Find() to
+	// retrieve the newly added element.
 	Insert(interface{}) (interface{}, error)
 
-	// InsertReturning is like Insert() but it updates the passed pointer to map
-	// or struct with the newly inserted element (and with automatic fields, like
-	// IDs, timestamps, etc). This is all done atomically within a transaction.
-	// If the database does not support transactions this method returns
+	// InsertReturning is like Insert() but it updates the passed map or struct
+	// with the newly inserted element (and with automatic fields, like IDs,
+	// timestamps, etc). This is all done atomically within a transaction.  If
+	// the database does not support transactions this method returns
 	// db.ErrUnsupported.
 	InsertReturning(interface{}) error
 

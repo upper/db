@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+
+  server:
+    image: mongo:${MONGO_VERSION:-3}
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${DB_USERNAME:-upperio_user}
+      MONGO_INITDB_ROOT_PASSWORD: ${DB_PASSWORD:-upperio//s3cr37}
+      MONGO_INITDB_DATABASE: ${DB_NAME:-upperio}
+    ports:
+      - '${BIND_HOST:-127.0.0.1}:${DB_PORT:-27017}:27017'
+

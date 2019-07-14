@@ -26,31 +26,20 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"os"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 	"gopkg.in/mgo.v2/bson"
-	"upper.io/db.v3"
+	db "upper.io/db.v3"
+	"upper.io/db.v3/testsuite"
 )
 
 type artistType struct {
 	ID   bson.ObjectId `bson:"_id,omitempty"`
 	Name string        `bson:"name"`
 }
-
-// Global settings for tests.
-var settings = ConnectionURL{
-	Database: os.Getenv("DB_NAME"),
-	User:     os.Getenv("DB_USERNAME"),
-	Password: os.Getenv("DB_PASSWORD"),
-	Host:     os.Getenv("DB_HOST") + ":" + os.Getenv("DB_PORT"),
-}
-
-var host string
 
 // Structure for testing conversions and datatypes.
 type testValuesStruct struct {
@@ -96,8 +85,15 @@ func init() {
 	}
 }
 
-// Attempts to open an empty datasource.
-func TestOpenWithWrongData(t *testing.T) {
+type AdapterTests struct {
+	testsuite.Suite
+}
+
+func (s *AdapterTests) SetupSuite() {
+	s.Helper = &Helper{}
+}
+
+func (s *AdapterTests) TestOpenWithWrongData() {
 	var err error
 	var rightSettings, wrongSettings ConnectionURL
 
@@ -110,10 +106,8 @@ func TestOpenWithWrongData(t *testing.T) {
 	}
 
 	// Attempt to open an empty database.
-	if _, err = Open(rightSettings); err != nil {
-		// Must fail.
-		t.Fatal(err)
-	}
+	_, err = Open(rightSettings)
+	s.NoError(err)
 
 	// Attempt to open with wrong password.
 	wrongSettings = ConnectionURL{
@@ -123,9 +117,8 @@ func TestOpenWithWrongData(t *testing.T) {
 		Password: "fail",
 	}
 
-	if _, err = Open(wrongSettings); err == nil {
-		t.Fatalf("Expecting an error.")
-	}
+	_, err = Open(wrongSettings)
+	s.Error(err)
 
 	// Attempt to open with wrong database.
 	wrongSettings = ConnectionURL{
@@ -135,9 +128,8 @@ func TestOpenWithWrongData(t *testing.T) {
 		Password: settings.Password,
 	}
 
-	if _, err = Open(wrongSettings); err == nil {
-		t.Fatalf("Expecting an error.")
-	}
+	_, err = Open(wrongSettings)
+	s.Error(err)
 
 	// Attempt to open with wrong username.
 	wrongSettings = ConnectionURL{
@@ -147,32 +139,21 @@ func TestOpenWithWrongData(t *testing.T) {
 		Password: settings.Password,
 	}
 
-	if _, err = Open(wrongSettings); err == nil {
-		t.Fatalf("Expecting an error.")
-	}
+	_, err = Open(wrongSettings)
+	s.Error(err)
 }
 
-// Truncates all collections.
-func TestTruncate(t *testing.T) {
-
-	var err error
-
+func (s *AdapterTests) TestTruncate() {
 	// Opening database.
 	sess, err := Open(settings)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
 	// Getting a list of all collections in this database.
 	collections, err := sess.Collections()
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	for _, name := range collections {
 
@@ -185,54 +166,34 @@ func TestTruncate(t *testing.T) {
 		if exists == true {
 			// Truncating the structure, if exists.
 			err = col.Truncate()
-
-			if err != nil {
-				t.Fatal(err)
-			}
+			s.NoError(err)
 		}
-
 	}
 }
 
-// This test appends some data into the "artist" table.
-func TestInsert(t *testing.T) {
-
-	var err error
-	var id interface{}
-
+func (s *AdapterTests) TestInsert() {
 	// Opening database.
 	sess, err := Open(settings)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	// We should close the database when it's no longer in use.
 	defer sess.Close()
 
 	// Getting a pointer to the "artist" collection.
 	artist := sess.Collection("artist")
+	_ = artist.Truncate()
 
 	// Inserting a map.
-	id, err = artist.Insert(map[string]string{
+	id, err := artist.Insert(map[string]string{
 		"name": "Ozzie",
 	})
+	s.NoError(err)
+	s.NotZero(id)
 
-	if err != nil {
-		t.Fatalf("Insert(): %s", err.Error())
-	}
+	_, ok := id.(bson.ObjectId)
+	s.True(ok)
 
-	if id == nil {
-		t.Fatalf("Expecting an ID.")
-	}
-
-	if _, ok := id.(bson.ObjectId); ok != true {
-		t.Fatalf("Expecting a bson.ObjectId.")
-	}
-
-	if id.(bson.ObjectId).Valid() != true {
-		t.Fatalf("Expecting a valid bson.ObjectId.")
-	}
+	s.True(id.(bson.ObjectId).Valid())
 
 	// Inserting a struct.
 	id, err = artist.Insert(struct {
@@ -240,18 +201,12 @@ func TestInsert(t *testing.T) {
 	}{
 		"Flea",
 	})
+	s.NoError(err)
+	s.NotZero(id)
 
-	if id == nil {
-		t.Fatalf("Expecting an ID.")
-	}
-
-	if _, ok := id.(bson.ObjectId); ok != true {
-		t.Fatalf("Expecting a bson.ObjectId.")
-	}
-
-	if id.(bson.ObjectId).Valid() != true {
-		t.Fatalf("Expecting a valid bson.ObjectId.")
-	}
+	_, ok = id.(bson.ObjectId)
+	s.True(ok)
+	s.True(id.(bson.ObjectId).Valid())
 
 	// Inserting a struct (using tags to specify the field name).
 	id, err = artist.Insert(struct {
@@ -259,18 +214,12 @@ func TestInsert(t *testing.T) {
 	}{
 		"Slash",
 	})
+	s.NoError(err)
+	s.NotNil(id)
 
-	if id == nil {
-		t.Fatalf("Expecting an ID.")
-	}
-
-	if _, ok := id.(bson.ObjectId); ok != true {
-		t.Fatalf("Expecting a bson.ObjectId.")
-	}
-
-	if id.(bson.ObjectId).Valid() != true {
-		t.Fatalf("Expecting a valid bson.ObjectId.")
-	}
+	_, ok = id.(bson.ObjectId)
+	s.True(ok)
+	s.True(id.(bson.ObjectId).Valid())
 
 	// Inserting a pointer to a struct
 	id, err = artist.Insert(&struct {
@@ -278,54 +227,34 @@ func TestInsert(t *testing.T) {
 	}{
 		"Metallica",
 	})
+	s.NoError(err)
+	s.NotZero(id)
 
-	if id == nil {
-		t.Fatalf("Expecting an ID.")
-	}
-
-	if _, ok := id.(bson.ObjectId); ok != true {
-		t.Fatalf("Expecting a bson.ObjectId.")
-	}
-
-	if id.(bson.ObjectId).Valid() != true {
-		t.Fatalf("Expecting a valid bson.ObjectId.")
-	}
+	_, ok = id.(bson.ObjectId)
+	s.True(ok)
+	s.True(id.(bson.ObjectId).Valid())
 
 	// Inserting a pointer to a map
 	id, err = artist.Insert(&map[string]string{
 		"name": "Freddie",
 	})
+	s.NoError(err)
+	s.NotZero(id)
 
-	if id == nil {
-		t.Fatalf("Expecting an ID.")
-	}
-
-	if _, ok := id.(bson.ObjectId); ok != true {
-		t.Fatalf("Expecting a bson.ObjectId.")
-	}
-
-	if id.(bson.ObjectId).Valid() != true {
-		t.Fatalf("Expecting a valid bson.ObjectId.")
-	}
-
-	var total uint64
+	_, ok = id.(bson.ObjectId)
+	s.True(ok)
+	s.True(id.(bson.ObjectId).Valid())
 
 	// Counting elements, must be exactly 6 elements.
-	if total, err = artist.Find().Count(); err != nil {
-		t.Fatal(err)
-	}
-
-	if total != 5 {
-		t.Fatalf("Expecting exactly 5 rows.")
-	}
+	total, err := artist.Find().Count()
+	s.NoError(err)
+	s.Equal(uint64(5), total)
 }
 
-func TestGetNonExistentRow_Issue426(t *testing.T) {
+func (s *AdapterTests) TestGetNonExistentRow_Issue426() {
 	// Opening database.
 	sess, err := Open(settings)
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	defer sess.Close()
 
@@ -334,29 +263,23 @@ func TestGetNonExistentRow_Issue426(t *testing.T) {
 	var one artistType
 	err = artist.Find(db.Cond{"name": "nothing"}).One(&one)
 
-	assert.NotZero(t, err)
-	assert.Equal(t, db.ErrNoMoreRows, err)
+	s.NotZero(err)
+	s.Equal(db.ErrNoMoreRows, err)
 
 	var all []artistType
 	err = artist.Find(db.Cond{"name": "nothing"}).All(&all)
 
-	assert.Zero(t, err, "All should not return mgo.ErrNotFound")
-	assert.Equal(t, 0, len(all))
+	s.Zero(err, "All should not return mgo.ErrNotFound")
+	s.Equal(0, len(all))
 }
 
-// This test tries to use an empty filter and count how many elements were
-// added into the artist collection.
-func TestResultCount(t *testing.T) {
-
+func (s *AdapterTests) TestResultCount() {
 	var err error
 	var res db.Result
 
 	// Opening database.
 	sess, err := Open(settings)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	defer sess.Close()
 
@@ -367,26 +290,15 @@ func TestResultCount(t *testing.T) {
 
 	// Counting all the matching rows.
 	total, err := res.Count()
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if total == 0 {
-		t.Fatalf("Should not be empty, we've just added some rows!")
-	}
-
+	s.NoError(err)
+	s.NotZero(total)
 }
 
-func TestGroup(t *testing.T) {
-
-	var err error
-	var sess db.Database
+func (s *AdapterTests) TestGroup() {
 	var stats db.Collection
 
-	if sess, err = Open(settings); err != nil {
-		t.Fatal(err)
-	}
+	sess, err := Open(settings)
+	s.NoError(err)
 
 	type statsT struct {
 		Numeric int `db:"numeric" bson:"numeric"`
@@ -403,9 +315,8 @@ func TestGroup(t *testing.T) {
 	// Adding row append.
 	for i := 0; i < 1000; i++ {
 		numeric, value := rand.Intn(10), rand.Intn(100)
-		if _, err = stats.Insert(statsT{numeric, value}); err != nil {
-			t.Fatal(err)
-		}
+		_, err = stats.Insert(statsT{numeric, value})
+		s.NoError(err)
 	}
 
 	// db.statsTest.group({key: {numeric: true}, initial: {sum: 0}, reduce: function(doc, prev) { prev.sum += 1}});
@@ -420,51 +331,25 @@ func TestGroup(t *testing.T) {
 	var results []map[string]interface{}
 
 	err = res.All(&results)
-
-	// Currently not supported.
-	if err != db.ErrUnsupported {
-		t.Fatal(err)
-	}
-
-	//if len(results) != 10 {
-	//	t.Fatalf(`Expecting exactly 10 results, this could fail, but it's very unlikely to happen.`)
-	//}
-
+	s.Equal(db.ErrUnsupported, err)
 }
 
-// Attempts to count all rows in a table that does not exist.
-func TestResultNonExistentCount(t *testing.T) {
+func (s *AdapterTests) TestResultNonExistentCount() {
 	sess, err := Open(settings)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	defer sess.Close()
 
 	total, err := sess.Collection("notartist").Find().Count()
-
-	if err != nil {
-		t.Fatal("MongoDB should not care about a non-existent collecton.", err)
-	}
-
-	if total != 0 {
-		t.Fatal("Counter should be zero")
-	}
+	s.NoError(err)
+	s.Zero(total)
 }
 
-// This test uses and result and tries to fetch items one by one.
-func TestResultFetch(t *testing.T) {
-
-	var err error
-	var res db.Result
+func (s *AdapterTests) TestResultFetch() {
 
 	// Opening database.
 	sess, err := Open(settings)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	// We should close the database when it's no longer in use.
 	defer sess.Close()
@@ -472,27 +357,25 @@ func TestResultFetch(t *testing.T) {
 	artist := sess.Collection("artist")
 
 	// Testing map
-	res = artist.Find()
+	res := artist.Find()
 
 	rowM := map[string]interface{}{}
 
 	for res.Next(&rowM) {
-		if rowM["_id"] == nil {
-			t.Fatalf("Expecting an ID.")
-		}
-		if _, ok := rowM["_id"].(bson.ObjectId); ok != true {
-			t.Fatalf("Expecting a bson.ObjectId.")
-		}
+		s.NotZero(rowM["_id"])
 
-		if rowM["_id"].(bson.ObjectId).Valid() != true {
-			t.Fatalf("Expecting a valid bson.ObjectId.")
-		}
-		if name, ok := rowM["name"].(string); !ok || name == "" {
-			t.Fatalf("Expecting a name.")
-		}
+		_, ok := rowM["_id"].(bson.ObjectId)
+		s.True(ok)
+
+		s.True(rowM["_id"].(bson.ObjectId).Valid())
+
+		name, ok := rowM["name"].(string)
+		s.True(ok)
+		s.NotZero(name)
 	}
 
-	res.Close()
+	err = res.Close()
+	s.NoError(err)
 
 	// Testing struct
 	rowS := struct {
@@ -503,15 +386,12 @@ func TestResultFetch(t *testing.T) {
 	res = artist.Find()
 
 	for res.Next(&rowS) {
-		if rowS.ID.Valid() == false {
-			t.Fatalf("Expecting a not null ID.")
-		}
-		if rowS.Name == "" {
-			t.Fatalf("Expecting a name.")
-		}
+		s.True(rowS.ID.Valid())
+		s.NotZero(rowS.Name)
 	}
 
-	res.Close()
+	err = res.Close()
+	s.NoError(err)
 
 	// Testing tagged struct
 	rowT := struct {
@@ -522,30 +402,22 @@ func TestResultFetch(t *testing.T) {
 	res = artist.Find()
 
 	for res.Next(&rowT) {
-		if rowT.Value1.Valid() == false {
-			t.Fatalf("Expecting a not null ID.")
-		}
-		if rowT.Value2 == "" {
-			t.Fatalf("Expecting a name.")
-		}
+		s.True(rowT.Value1.Valid())
+		s.NotZero(rowT.Value2)
 	}
 
-	res.Close()
+	err = res.Close()
+	s.NoError(err)
 
 	// Testing Result.All() with a slice of maps.
 	res = artist.Find()
 
 	allRowsM := []map[string]interface{}{}
 	err = res.All(&allRowsM)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	for _, singleRowM := range allRowsM {
-		if singleRowM["_id"] == nil {
-			t.Fatalf("Expecting a not null ID.")
-		}
+		s.NotZero(singleRowM["_id"])
 	}
 
 	// Testing Result.All() with a slice of structs.
@@ -556,15 +428,10 @@ func TestResultFetch(t *testing.T) {
 		Name string
 	}{}
 	err = res.All(&allRowsS)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	for _, singleRowS := range allRowsS {
-		if singleRowS.ID.Valid() == false {
-			t.Fatalf("Expecting a not null ID.")
-		}
+		s.True(singleRowS.ID.Valid())
 	}
 
 	// Testing Result.All() with a slice of tagged structs.
@@ -575,28 +442,17 @@ func TestResultFetch(t *testing.T) {
 		Value2 string        `bson:"name"`
 	}{}
 	err = res.All(&allRowsT)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	for _, singleRowT := range allRowsT {
-		if singleRowT.Value1.Valid() == false {
-			t.Fatalf("Expecting a not null ID.")
-		}
+		s.True(singleRowT.Value1.Valid())
 	}
 }
 
-// This test tries to update some previously added rows.
-func TestUpdate(t *testing.T) {
-	var err error
-
+func (s *AdapterTests) TestUpdate() {
 	// Opening database.
 	sess, err := Open(settings)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	// We should close the database when it's no longer in use.
 	defer sess.Close()
@@ -614,10 +470,7 @@ func TestUpdate(t *testing.T) {
 	res := artist.Find(db.Cond{"_id": db.NotEq(nil)}).Limit(1)
 
 	err = res.One(&value)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	// Updating with a map
 	rowM := map[string]interface{}{
@@ -625,20 +478,12 @@ func TestUpdate(t *testing.T) {
 	}
 
 	err = res.Update(rowM)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	err = res.One(&value)
+	s.NoError(err)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if value.Name != rowM["name"] {
-		t.Fatalf("Expecting a modification.")
-	}
+	s.Equal(value.Name, rowM["name"])
 
 	// Updating with a struct
 	rowS := struct {
@@ -646,20 +491,12 @@ func TestUpdate(t *testing.T) {
 	}{strings.ToLower(value.Name)}
 
 	err = res.Update(rowS)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	err = res.One(&value)
+	s.NoError(err)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if value.Name != rowS.Name {
-		t.Fatalf("Expecting a modification.")
-	}
+	s.Equal(value.Name, rowS.Name)
 
 	// Updating with a tagged struct
 	rowT := struct {
@@ -667,33 +504,18 @@ func TestUpdate(t *testing.T) {
 	}{strings.Replace(value.Name, "z", "Z", -1)}
 
 	err = res.Update(rowT)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	err = res.One(&value)
+	s.NoError(err)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if value.Name != rowT.Value1 {
-		t.Fatalf("Expecting a modification.")
-	}
-
+	s.Equal(value.Name, rowT.Value1)
 }
 
-func TestOperators(t *testing.T) {
-	var err error
-	var res db.Result
-
+func (s *AdapterTests) TestOperators() {
 	// Opening database.
 	sess, err := Open(settings)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	// We should close the database when it's no longer in use.
 	defer sess.Close()
@@ -706,26 +528,19 @@ func TestOperators(t *testing.T) {
 		Name string
 	}{}
 
-	res = artist.Find(db.Cond{"_id": db.NotIn([]int{0, -1})})
+	res := artist.Find(db.Cond{"_id": db.NotIn([]int{0, -1})})
 
-	if err = res.One(&rowS); err != nil {
-		t.Fatalf("One: %q", err)
-	}
+	err = res.One(&rowS)
+	s.NoError(err)
 
-	res.Close()
+	err = res.Close()
+	s.NoError(err)
 }
 
-// This test tries to remove some previously added rows.
-func TestDelete(t *testing.T) {
-
-	var err error
-
+func (s *AdapterTests) TestDelete() {
 	// Opening database.
 	sess, err := Open(settings)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	// We should close the database when it's no longer in use.
 	defer sess.Close()
@@ -741,33 +556,19 @@ func TestDelete(t *testing.T) {
 	}
 
 	err = res.One(&first)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	res = artist.Find(db.Cond{"_id": db.Eq(first.ID)})
 
 	// Trying to remove the row.
 	err = res.Delete()
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 }
 
-// This test tries to add many different datatypes to a single row in a
-// collection, then it tries to get the stored datatypes and check if the
-// stored and the original values match.
-func TestDataTypes(t *testing.T) {
-	var res db.Result
-
+func (s *AdapterTests) TestDataTypes() {
 	// Opening database.
 	sess, err := Open(settings)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
 
 	// We should close the database when it's no longer in use.
 	defer sess.Close()
@@ -777,39 +578,28 @@ func TestDataTypes(t *testing.T) {
 
 	// Inserting our test subject.
 	id, err := dataTypes.Insert(testValues)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	s.NoError(err)
+	s.NotZero(id)
 
 	// Trying to get the same subject we added.
-	res = dataTypes.Find(db.Cond{"_id": db.Eq(id)})
+	res := dataTypes.Find(db.Cond{"_id": db.Eq(id)})
 
 	exists, err := res.Count()
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if exists == 0 {
-		t.Errorf("Expecting an item.")
-	}
+	s.NoError(err)
+	s.NotZero(exists)
 
 	// Trying to dump the subject into an empty structure of the same type.
 	var item testValuesStruct
 	res.One(&item)
 
 	// The original value and the test subject must match.
-	if reflect.DeepEqual(item, testValues) == false {
-		t.Errorf("Struct is different.")
-	}
+	s.Equal(testValues, item)
 }
 
-func TestPaginator(t *testing.T) {
-
+func (s *AdapterTests) TestPaginator() {
 	// Opening database.
 	sess, err := Open(settings)
-	assert.NoError(t, err)
+	s.NoError(err)
 
 	// We should close the database when it's no longer in use.
 	defer sess.Close()
@@ -818,13 +608,13 @@ func TestPaginator(t *testing.T) {
 	artist := sess.Collection("artist")
 
 	err = artist.Truncate()
-	assert.NoError(t, err)
+	s.NoError(err)
 
 	for i := 0; i < 999; i++ {
 		_, err = artist.Insert(artistType{
 			Name: fmt.Sprintf("artist-%d", i),
 		})
-		assert.NoError(t, err)
+		s.NoError(err)
 	}
 
 	q := sess.Collection("artist").Find().Paginate(15)
@@ -832,52 +622,50 @@ func TestPaginator(t *testing.T) {
 
 	var zerothPage []artistType
 	err = paginator.Page(0).All(&zerothPage)
-	assert.NoError(t, err)
-	assert.Equal(t, 13, len(zerothPage))
+	s.NoError(err)
+	s.Equal(13, len(zerothPage))
 
 	var secondPage []artistType
 	err = paginator.Page(2).All(&secondPage)
-	assert.NoError(t, err)
-	assert.Equal(t, 13, len(secondPage))
+	s.NoError(err)
+	s.Equal(13, len(secondPage))
 
 	tp, err := paginator.TotalPages()
-	assert.NoError(t, err)
-	assert.NotZero(t, tp)
-	assert.Equal(t, uint(77), tp)
+	s.NoError(err)
+	s.NotZero(tp)
+	s.Equal(uint(77), tp)
 
 	ti, err := paginator.TotalEntries()
-	assert.NoError(t, err)
-	assert.NotZero(t, ti)
-	assert.Equal(t, uint64(999), ti)
+	s.NoError(err)
+	s.NotZero(ti)
+	s.Equal(uint64(999), ti)
 
 	var seventySixthPage []artistType
 	err = paginator.Page(76).All(&seventySixthPage)
-	assert.NoError(t, err)
-	assert.Equal(t, 11, len(seventySixthPage))
+	s.NoError(err)
+	s.Equal(11, len(seventySixthPage))
 
 	var seventySeventhPage []artistType
 	err = paginator.Page(77).All(&seventySeventhPage)
-	assert.NoError(t, err)
-	assert.Equal(t, 0, len(seventySeventhPage))
+	s.NoError(err)
+	s.Equal(0, len(seventySeventhPage))
 
 	var hundredthPage []artistType
 	err = paginator.Page(100).All(&hundredthPage)
-	assert.NoError(t, err)
-	assert.Equal(t, 0, len(hundredthPage))
+	s.NoError(err)
+	s.Equal(0, len(hundredthPage))
 
 	for i := uint(0); i < tp; i++ {
 		current := paginator.Page(i)
 
 		var items []artistType
 		err := current.All(&items)
-		if err != nil {
-			t.Fatal(err)
-		}
+		s.NoError(err)
 		if len(items) < 1 {
 			break
 		}
 		for j := 0; j < len(items); j++ {
-			assert.Equal(t, fmt.Sprintf("artist-%d", int64(13*int(i)+j)), items[j].Name)
+			s.Equal(fmt.Sprintf("artist-%d", int64(13*int(i)+j)), items[j].Name)
 		}
 	}
 
@@ -887,15 +675,14 @@ func TestPaginator(t *testing.T) {
 		for i := 0; ; i++ {
 			var items []artistType
 			err := current.All(&items)
-			if err != nil {
-				t.Fatal(err)
-			}
+			s.NoError(err)
+
 			if len(items) < 1 {
 				break
 			}
 
 			for j := 0; j < len(items); j++ {
-				assert.Equal(t, fmt.Sprintf("artist-%d", int64(13*int(i)+j)), items[j].Name)
+				s.Equal(fmt.Sprintf("artist-%d", int64(13*int(i)+j)), items[j].Name)
 			}
 			current = current.NextPage(items[len(items)-1].ID)
 		}
@@ -908,14 +695,14 @@ func TestPaginator(t *testing.T) {
 			var items []artistType
 
 			err := current.All(&items)
-			assert.NoError(t, err)
+			s.NoError(err)
 
 			if len(items) < 1 {
-				assert.Equal(t, 0, len(items))
+				s.Equal(0, len(items))
 				break
 			}
 			for j := 0; j < len(items); j++ {
-				assert.Equal(t, fmt.Sprintf("artist-%d", 13*int(i)+j), items[j].Name)
+				s.Equal(fmt.Sprintf("artist-%d", 13*int(i)+j), items[j].Name)
 			}
 
 			current = current.PrevPage(items[0].ID)
@@ -926,15 +713,15 @@ func TestPaginator(t *testing.T) {
 		resultPaginator := sess.Collection("artist").Find().Paginate(15)
 
 		count, err := resultPaginator.TotalPages()
-		assert.Equal(t, uint(67), count)
-		assert.NoError(t, err)
+		s.Equal(uint(67), count)
+		s.NoError(err)
 
 		var items []artistType
 		err = resultPaginator.Page(5).All(&items)
-		assert.NoError(t, err)
+		s.NoError(err)
 
 		for j := 0; j < len(items); j++ {
-			assert.Equal(t, fmt.Sprintf("artist-%d", 15*5+j), items[j].Name)
+			s.Equal(fmt.Sprintf("artist-%d", 15*5+j), items[j].Name)
 		}
 
 		resultPaginator = resultPaginator.Cursor("_id").Page(0)
@@ -942,14 +729,14 @@ func TestPaginator(t *testing.T) {
 			var items []artistType
 
 			err = resultPaginator.All(&items)
-			assert.NoError(t, err)
+			s.NoError(err)
 
 			if len(items) < 1 {
 				break
 			}
 
 			for j := 0; j < len(items); j++ {
-				assert.Equal(t, fmt.Sprintf("artist-%d", 15*i+j), items[j].Name)
+				s.Equal(fmt.Sprintf("artist-%d", 15*i+j), items[j].Name)
 			}
 			resultPaginator = resultPaginator.NextPage(items[len(items)-1].ID)
 		}
@@ -959,16 +746,20 @@ func TestPaginator(t *testing.T) {
 			var items []artistType
 
 			err = resultPaginator.All(&items)
-			assert.NoError(t, err)
+			s.NoError(err)
 
 			if len(items) < 1 {
 				break
 			}
 
 			for j := 0; j < len(items); j++ {
-				assert.Equal(t, fmt.Sprintf("artist-%d", 15*i+j), items[j].Name)
+				s.Equal(fmt.Sprintf("artist-%d", 15*i+j), items[j].Name)
 			}
 			resultPaginator = resultPaginator.PrevPage(items[0].ID)
 		}
 	}
+}
+
+func TestAdapter(t *testing.T) {
+	suite.Run(t, &AdapterTests{})
 }

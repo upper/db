@@ -13,13 +13,10 @@ require-client:
 		exit 1; \
 	fi
 
-generate:
-	go generate && \
-	go get -d -t -v ./...
-
 reset-db: require-client
 	rm -f $(DB_NAME)
 
-test: reset-db generate
-	#go test -tags generated -v -race # race: limit on 8192 simultaneously alive goroutines is exceeded, dying
-	go test -tags generated -v
+test: reset-db
+	go test -v
+
+test-extended: test

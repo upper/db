@@ -19,18 +19,15 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-//go:generate bash -c "sed s/ADAPTER/mssql/g ../internal/sqladapter/testing/adapter.go.tpl > generated_test.go"
 package mssql
 
 import (
 	"database/sql"
 	"os"
 
+	db "upper.io/db.v3"
 	"upper.io/db.v3/lib/sqlbuilder"
-)
-
-const (
-	testTimeZone = "Canada/Eastern"
+	"upper.io/db.v3/testsuite"
 )
 
 var settings = ConnectionURL{
@@ -41,9 +38,33 @@ var settings = ConnectionURL{
 	Options:  map[string]string{},
 }
 
-func tearUp() error {
-	sess := mustOpen()
-	defer sess.Close()
+type Helper struct {
+	sess sqlbuilder.Database
+}
+
+func (h *Helper) Session() db.Database {
+	return h.sess
+}
+
+func (h *Helper) SQLBuilder() sqlbuilder.Database {
+	return h.sess
+}
+
+func (h *Helper) Adapter() string {
+	return "mssql"
+}
+
+func (h *Helper) TearDown() error {
+	return h.sess.Close()
+}
+
+func (h *Helper) TearUp() error {
+	var err error
+
+	h.sess, err = Open(settings)
+	if err != nil {
+		return err
+	}
 
 	batch := []string{
 		`DROP TABLE IF EXISTS artist`,
@@ -62,7 +83,6 @@ func tearUp() error {
 		)`,
 
 		`DROP TABLE IF EXISTS review`,
-
 		`CREATE TABLE review (
 			id BIGINT PRIMARY KEY NOT NULL IDENTITY(1,1),
 			publication_id BIGINT,
@@ -72,7 +92,6 @@ func tearUp() error {
 		)`,
 
 		`DROP TABLE IF EXISTS data_types`,
-
 		`CREATE TABLE data_types (
 			id BIGINT PRIMARY KEY NOT NULL IDENTITY(1,1),
 			_uint INT DEFAULT 0,
@@ -98,7 +117,6 @@ func tearUp() error {
 		)`,
 
 		`DROP TABLE IF EXISTS stats_test`,
-
 		`CREATE TABLE stats_test (
 			id BIGINT PRIMARY KEY NOT NULL IDENTITY(1,1),
 			[numeric] INT,
@@ -106,18 +124,44 @@ func tearUp() error {
 		)`,
 
 		`DROP TABLE IF EXISTS composite_keys`,
-
 		`CREATE TABLE composite_keys (
 			code VARCHAR(255) default '',
 			user_id VARCHAR(255) default '',
 			some_val VARCHAR(255) default '',
 			PRIMARY KEY (code, user_id)
 		)`,
+
+		`DROP TABLE IF EXISTS [birthdays]`,
+		`CREATE TABLE [birthdays] (
+			id BIGINT IDENTITY(1, 1) PRIMARY KEY NOT NULL,
+			name NVARCHAR(50),
+			born DATETIMEOFFSET,
+			born_ut BIGINT
+		)`,
+
+		`DROP TABLE IF EXISTS [fibonacci]`,
+		`CREATE TABLE [fibonacci] (
+			id BIGINT PRIMARY KEY NOT NULL IDENTITY(1,1),
+			input BIGINT NOT NULL,
+			output BIGINT NOT NULL
+		)`,
+
+		`DROP TABLE IF EXISTS [is_even]`,
+		`CREATE TABLE [is_even] (
+			input BIGINT NOT NULL,
+			is_even TINYINT
+		)`,
+
+		`DROP TABLE IF EXISTS [CaSe_TesT]`,
+		`CREATE TABLE [CaSe_TesT] (
+			id BIGINT PRIMARY KEY NOT NULL IDENTITY(1,1),
+			case_test NVARCHAR(60)
+		)`,
 	}
 
-	for _, s := range batch {
-		driver := sess.Driver().(*sql.DB)
-		if _, err := driver.Exec(s); err != nil {
+	for _, query := range batch {
+		driver := h.sess.Driver().(*sql.DB)
+		if _, err := driver.Exec(query); err != nil {
 			return err
 		}
 	}
@@ -125,7 +169,4 @@ func tearUp() error {
 	return nil
 }
 
-func cleanUpCheck(sess sqlbuilder.Database) (err error) {
-	// TODO: Check the number of prepared statements.
-	return nil
-}
+var _ testsuite.Helper = &Helper{}

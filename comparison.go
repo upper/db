@@ -331,4 +331,4 @@ func toInterfaceArray(v interface{}) []interface{} {
 	return []interface{}{v}
 }
 
-var _ Comparison = &dbComparisonOperator{}
+var _ = Comparison(&dbComparisonOperator{})

@@ -32,7 +32,7 @@ import (
 // Each entry of the map represents a condition (a column-value relation bound
 // by a comparison operator). The comparison operator is optional and can be
 // specified after the column name, if no comparison operator is provided the
-// equality is used.
+// equality operator is used as default.
 //
 // Examples:
 //

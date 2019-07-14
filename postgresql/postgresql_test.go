@@ -19,7 +19,6 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-//go:generate bash -c "sed s/ADAPTER/postgresql/g ../internal/sqladapter/testing/adapter.go.tpl > generated_test.go"
 package postgresql
 
 import (
@@ -27,211 +26,19 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"math/rand"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
-	"upper.io/db.v3"
-	"upper.io/db.v3/internal/sqladapter"
+	"github.com/stretchr/testify/suite"
+	db "upper.io/db.v3"
 	"upper.io/db.v3/lib/sqlbuilder"
+	"upper.io/db.v3/testsuite"
 )
-
-const (
-	testTimeZone = "Canada/Eastern"
-)
-
-var settings = ConnectionURL{
-	Database: os.Getenv("DB_NAME"),
-	User:     os.Getenv("DB_USERNAME"),
-	Password: os.Getenv("DB_PASSWORD"),
-	Host:     os.Getenv("DB_HOST") + ":" + os.Getenv("DB_PORT"),
-	Options: map[string]string{
-		"timezone": testTimeZone,
-	},
-}
-
-func tearUp() error {
-	sess := mustOpen()
-	defer sess.Close()
-
-	batch := []string{
-		`DROP TABLE IF EXISTS artist`,
-
-		`CREATE TABLE artist (
-			id serial primary key,
-			name varchar(60)
-		)`,
-
-		`DROP TABLE IF EXISTS publication`,
-
-		`CREATE TABLE publication (
-			id serial primary key,
-			title varchar(80),
-			author_id integer
-		)`,
-
-		`DROP TABLE IF EXISTS review`,
-
-		`CREATE TABLE review (
-			id serial primary key,
-			publication_id integer,
-			name varchar(80),
-			comments text,
-			created timestamp without time zone
-		)`,
-
-		`DROP TABLE IF EXISTS data_types`,
-
-		`CREATE TABLE data_types (
-			id serial primary key,
-			_uint integer,
-			_uint8 integer,
-			_uint16 integer,
-			_uint32 integer,
-			_uint64 integer,
-			_int integer,
-			_int8 integer,
-			_int16 integer,
-			_int32 integer,
-			_int64 integer,
-			_float32 numeric(10,6),
-			_float64 numeric(10,6),
-			_bool boolean,
-			_string text,
-			_blob bytea,
-			_date timestamp with time zone,
-			_nildate timestamp without time zone null,
-			_ptrdate timestamp without time zone,
-			_defaultdate timestamp without time zone DEFAULT now(),
-			_time bigint
-		)`,
-
-		`DROP TABLE IF EXISTS stats_test`,
-
-		`CREATE TABLE stats_test (
-			id serial primary key,
-			numeric integer,
-			value integer
-		)`,
-
-		`DROP TABLE IF EXISTS composite_keys`,
-
-		`CREATE TABLE composite_keys (
-			code varchar(255) default '',
-			user_id varchar(255) default '',
-			some_val varchar(255) default '',
-			primary key (code, user_id)
-		)`,
-
-		`DROP TABLE IF EXISTS option_types`,
-
-		`CREATE TABLE option_types (
-			id serial primary key,
-			name varchar(255) default '',
-			tags varchar(64)[],
-			settings jsonb
-		)`,
-
-		`DROP TABLE IF EXISTS test_schema.test`,
-
-		`DROP SCHEMA IF EXISTS test_schema`,
-
-		`CREATE SCHEMA test_schema`,
-
-		`CREATE TABLE test_schema.test (id integer)`,
-
-		`DROP TABLE IF EXISTS pg_types`,
-
-		`CREATE TABLE pg_types (id serial primary key
-			, uint8_value smallint
-			, uint8_value_array smallint[]
-
-			, int64_value smallint
-			, int64_value_array smallint[]
-
-			, integer_array integer[]
-			, string_array text[]
-			, jsonb_map jsonb
-
-			, integer_array_ptr integer[]
-			, string_array_ptr text[]
-			, jsonb_map_ptr jsonb
-
-			, auto_integer_array integer[]
-			, auto_string_array text[]
-			, auto_jsonb_map jsonb
-			, auto_jsonb_map_string jsonb
-			, auto_jsonb_map_integer jsonb
-
-			, jsonb_object jsonb
-			, jsonb_array jsonb
-
-			, custom_jsonb_object jsonb
-			, auto_custom_jsonb_object jsonb
-
-			, custom_jsonb_object_ptr jsonb
-			, auto_custom_jsonb_object_ptr jsonb
-
-			, custom_jsonb_object_array jsonb
-			, auto_custom_jsonb_object_array jsonb
-			, auto_custom_jsonb_object_map jsonb
-
-			, string_value varchar(255)
-			, integer_value int
-			, varchar_value varchar(64)
-			, decimal_value decimal
-
-			, integer_compat_value int
-			, uinteger_compat_value int
-			, string_compat_value text
-
-			, integer_compat_value_jsonb_array jsonb
-			, string_compat_value_jsonb_array jsonb
-			, uinteger_compat_value_jsonb_array jsonb
-
-			, string_value_ptr varchar(255)
-			, integer_value_ptr int
-			, varchar_value_ptr varchar(64)
-			, decimal_value_ptr decimal
-
-		)`,
-
-		`DROP TABLE IF EXISTS issue_370`,
-
-		`CREATE TABLE issue_370 (
-			id UUID PRIMARY KEY,
-			name VARCHAR(25)
-		)`,
-
-		`DROP TABLE IF EXISTS issue_370_2`,
-
-		`CREATE TABLE issue_370_2 (
-			id INTEGER[3] PRIMARY KEY,
-			name VARCHAR(25)
-		)`,
-
-		`DROP TABLE IF EXISTS varchar_primary_key`,
-
-		`CREATE TABLE varchar_primary_key (
-			address VARCHAR(42) PRIMARY KEY NOT NULL,
-			name VARCHAR(25)
-		)`,
-	}
-
-	for _, s := range batch {
-		driver := sess.Driver().(*sql.DB)
-		if _, err := driver.Exec(s); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
 
 type customJSONB struct {
 	N string  `json:"name"`
@@ -316,28 +123,33 @@ func (u int64CompatArray) WrapValue(src interface{}) interface{} {
 	return Array(src)
 }
 
-func TestIssue469_BadConnection(t *testing.T) {
-	var err error
+type AdapterTests struct {
+	testsuite.Suite
+}
 
-	sess := mustOpen()
-	defer sess.Close()
+func (s *AdapterTests) SetupSuite() {
+	s.Helper = &Helper{}
+}
+
+func (s *AdapterTests) Test_Issue469_BadConnection() {
+	sess := s.SQLBuilder()
 
 	// Ask the PostgreSQL server to disconnect sessions that remain inactive for more
 	// than 1 second.
-	_, err = sess.Exec(`SET SESSION idle_in_transaction_session_timeout=1000`)
-	assert.NoError(t, err)
+	_, err := sess.Exec(`SET SESSION idle_in_transaction_session_timeout=1000`)
+	s.NoError(err)
 
 	// Remain inactive for 2 seconds.
 	time.Sleep(time.Second * 2)
 
 	// A query should start a new connection, even if the server disconnected us.
 	_, err = sess.Collection("artist").Find().Count()
-	assert.NoError(t, err)
+	s.NoError(err)
 
 	// This is a new session, ask the PostgreSQL server to disconnect sessions that
 	// remain inactive for more than 1 second.
 	_, err = sess.Exec(`SET SESSION idle_in_transaction_session_timeout=1000`)
-	assert.NoError(t, err)
+	s.NoError(err)
 
 	// Remain inactive for 2 seconds.
 	time.Sleep(time.Second * 2)
@@ -353,12 +165,12 @@ func TestIssue469_BadConnection(t *testing.T) {
 		}
 		return nil
 	})
-	assert.NoError(t, err)
+	s.NoError(err)
 
 	// This is a new session, ask the PostgreSQL server to disconnect sessions that
 	// remain inactive for more than 1 second.
 	_, err = sess.Exec(`SET SESSION idle_in_transaction_session_timeout=1000`)
-	assert.NoError(t, err)
+	s.NoError(err)
 
 	err = sess.Tx(nil, func(sess sqlbuilder.Tx) error {
 		var err error
@@ -382,11 +194,10 @@ func TestIssue469_BadConnection(t *testing.T) {
 		return nil
 	})
 
-	assert.Error(t, err, "Expecting an error (can't recover from this)")
+	s.Error(err, "Expecting an error (can't recover from this)")
 }
 
 func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
-
 	type PGTypeInline struct {
 		IntegerArrayPtr *Int64Array  `db:"integer_array_ptr,omitempty"`
 		StringArrayPtr  *StringArray `db:"string_array_ptr,omitempty"`
@@ -754,13 +565,12 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 	}
 }
 
-func TestOptionTypes(t *testing.T) {
-	sess := mustOpen()
-	defer sess.Close()
+func (s *AdapterTests) TestOptionTypes() {
+	sess := s.SQLBuilder()
 
 	optionTypes := sess.Collection("option_types")
 	err := optionTypes.Truncate()
-	assert.NoError(t, err)
+	s.NoError(err)
 
 	// TODO: lets do some benchmarking on these auto-wrapped option types..
 
@@ -783,18 +593,18 @@ func TestOptionTypes(t *testing.T) {
 	}
 
 	id, err := optionTypes.Insert(item1)
-	assert.NoError(t, err)
+	s.NoError(err)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
-		t.Fatalf("Expecting an ID.")
+		s.T().Fatalf("Expecting an ID.")
 	}
 
 	var item1Chk optionType
 	err = optionTypes.Find(db.Cond{"id": id}).One(&item1Chk)
-	assert.NoError(t, err)
+	s.NoError(err)
 
-	assert.Equal(t, float64(1), item1Chk.Settings["a"])
-	assert.Equal(t, "toronto", item1Chk.Tags[0])
+	s.Equal(float64(1), item1Chk.Settings["a"])
+	s.Equal("toronto", item1Chk.Tags[0])
 
 	// Item 1 B
 	item1b := &optionType{
@@ -804,18 +614,18 @@ func TestOptionTypes(t *testing.T) {
 	}
 
 	id, err = optionTypes.Insert(item1b)
-	assert.NoError(t, err)
+	s.NoError(err)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
-		t.Fatalf("Expecting an ID.")
+		s.T().Fatalf("Expecting an ID.")
 	}
 
 	var item1bChk optionType
 	err = optionTypes.Find(db.Cond{"id": id}).One(&item1bChk)
-	assert.NoError(t, err)
+	s.NoError(err)
 
-	assert.Equal(t, float64(1), item1bChk.Settings["go"])
-	assert.Equal(t, "love", item1bChk.Tags[0])
+	s.Equal(float64(1), item1bChk.Settings["go"])
+	s.Equal("love", item1bChk.Tags[0])
 
 	// Item 1 C
 	item1c := &optionType{
@@ -823,18 +633,18 @@ func TestOptionTypes(t *testing.T) {
 	}
 
 	id, err = optionTypes.Insert(item1c)
-	assert.NoError(t, err)
+	s.NoError(err)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
-		t.Fatalf("Expecting an ID.")
+		s.T().Fatalf("Expecting an ID.")
 	}
 
 	var item1cChk optionType
 	err = optionTypes.Find(db.Cond{"id": id}).One(&item1cChk)
-	assert.NoError(t, err)
+	s.NoError(err)
 
-	assert.Zero(t, len(item1cChk.Tags))
-	assert.Zero(t, len(item1cChk.Settings))
+	s.Zero(len(item1cChk.Tags))
+	s.Zero(len(item1cChk.Settings))
 
 	// An option type to pointer jsonb field
 	type optionType2 struct {
@@ -849,23 +659,23 @@ func TestOptionTypes(t *testing.T) {
 	}
 
 	id, err = optionTypes.Insert(item2)
-	assert.NoError(t, err)
+	s.NoError(err)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
-		t.Fatalf("Expecting an ID.")
+		s.T().Fatalf("Expecting an ID.")
 	}
 
 	var item2Chk optionType2
 	res := optionTypes.Find(db.Cond{"id": id})
 	err = res.One(&item2Chk)
-	assert.NoError(t, err)
+	s.NoError(err)
 
-	assert.Equal(t, id.(int64), item2Chk.ID)
+	s.Equal(id.(int64), item2Chk.ID)
 
-	assert.Equal(t, item2Chk.Name, item2.Name)
+	s.Equal(item2Chk.Name, item2.Name)
 
-	assert.Equal(t, item2Chk.Tags[0], item2.Tags[0])
-	assert.Equal(t, len(item2Chk.Tags), len(item2.Tags))
+	s.Equal(item2Chk.Tags[0], item2.Tags[0])
+	s.Equal(len(item2Chk.Tags), len(item2.Tags))
 
 	// Update the value
 	m := JSONBMap{}
@@ -873,14 +683,14 @@ func TestOptionTypes(t *testing.T) {
 	m["num"] = 31337
 	item2.Settings = &m
 	err = res.Update(item2)
-	assert.NoError(t, err)
+	s.NoError(err)
 
 	err = res.One(&item2Chk)
-	assert.NoError(t, err)
+	s.NoError(err)
 
-	assert.Equal(t, float64(31337), (*item2Chk.Settings)["num"].(float64))
+	s.Equal(float64(31337), (*item2Chk.Settings)["num"].(float64))
 
-	assert.Equal(t, "javascript", (*item2Chk.Settings)["lang"])
+	s.Equal("javascript", (*item2Chk.Settings)["lang"])
 
 	// An option type to pointer string array field
 	type optionType3 struct {
@@ -897,15 +707,15 @@ func TestOptionTypes(t *testing.T) {
 	}
 
 	id, err = optionTypes.Insert(item3)
-	assert.NoError(t, err)
+	s.NoError(err)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
-		t.Fatalf("Expecting an ID.")
+		s.T().Fatalf("Expecting an ID.")
 	}
 
 	var item3Chk optionType2
 	err = optionTypes.Find(db.Cond{"id": id}).One(&item3Chk)
-	assert.NoError(t, err)
+	s.NoError(err)
 }
 
 type Settings struct {
@@ -920,14 +730,13 @@ func (s Settings) Value() (driver.Value, error) {
 	return JSONBValue(s)
 }
 
-func TestOptionTypeJsonbStruct(t *testing.T) {
-	sess := mustOpen()
-	defer sess.Close()
+func (s *AdapterTests) TestOptionTypeJsonbStruct() {
+	sess := s.SQLBuilder()
 
 	optionTypes := sess.Collection("option_types")
 
 	err := optionTypes.Truncate()
-	assert.NoError(t, err)
+	s.NoError(err)
 
 	type OptionType struct {
 		ID       int64       `db:"id,omitempty"`
@@ -943,40 +752,38 @@ func TestOptionTypeJsonbStruct(t *testing.T) {
 	}
 
 	id, err := optionTypes.Insert(item1)
-	assert.NoError(t, err)
+	s.NoError(err)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
-		t.Fatalf("Expecting an ID.")
+		s.T().Fatalf("Expecting an ID.")
 	}
 
 	var item1Chk OptionType
 	err = optionTypes.Find(db.Cond{"id": id}).One(&item1Chk)
-	assert.NoError(t, err)
+	s.NoError(err)
 
-	assert.Equal(t, 2, len(item1Chk.Tags))
-	assert.Equal(t, "aah", item1Chk.Tags[0])
-	assert.Equal(t, "a", item1Chk.Settings.Name)
-	assert.Equal(t, int64(123), item1Chk.Settings.Num)
+	s.Equal(2, len(item1Chk.Tags))
+	s.Equal("aah", item1Chk.Tags[0])
+	s.Equal("a", item1Chk.Settings.Name)
+	s.Equal(int64(123), item1Chk.Settings.Num)
 }
 
-func TestSchemaCollection(t *testing.T) {
-	sess := mustOpen()
-	defer sess.Close()
+func (s *AdapterTests) TestSchemaCollection() {
+	sess := s.SQLBuilder()
 
 	col := sess.Collection("test_schema.test")
 	_, err := col.Insert(map[string]int{"id": 9})
-	assert.Equal(t, nil, err)
+	s.Equal(nil, err)
 
 	var dump []map[string]int
 	err = col.Find().All(&dump)
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(dump))
-	assert.Equal(t, 9, dump[0]["id"])
+	s.Nil(err)
+	s.Equal(1, len(dump))
+	s.Equal(9, dump[0]["id"])
 }
 
-func TestMaxOpenConns_Issue340(t *testing.T) {
-	sess := mustOpen()
-	defer sess.Close()
+func (s *AdapterTests) Test_Issue340_MaxOpenConns() {
+	sess := s.SQLBuilder()
 
 	sess.SetMaxOpenConns(5)
 
@@ -988,7 +795,7 @@ func TestMaxOpenConns_Issue340(t *testing.T) {
 
 			_, err := sess.Exec(fmt.Sprintf(`SELECT pg_sleep(1.%d)`, i))
 			if err != nil {
-				t.Fatal(err)
+				s.T().Fatal(err)
 			}
 		}(i)
 	}
@@ -998,9 +805,8 @@ func TestMaxOpenConns_Issue340(t *testing.T) {
 	sess.SetMaxOpenConns(0)
 }
 
-func TestUUIDInsert_Issue370(t *testing.T) {
-	sess := mustOpen()
-	defer sess.Close()
+func (s *AdapterTests) Test_Issue370_InsertUUID() {
+	sess := s.SQLBuilder()
 
 	{
 		type itemT struct {
@@ -1017,20 +823,20 @@ func TestUUIDInsert_Issue370(t *testing.T) {
 
 		col := sess.Collection("issue_370")
 		err := col.Truncate()
-		assert.NoError(t, err)
+		s.NoError(err)
 
 		err = col.InsertReturning(&item1)
-		assert.NoError(t, err)
+		s.NoError(err)
 
 		var item2 itemT
 		err = col.Find(item1.ID).One(&item2)
-		assert.NoError(t, err)
-		assert.Equal(t, item1.Name, item2.Name)
+		s.NoError(err)
+		s.Equal(item1.Name, item2.Name)
 
 		var item3 itemT
 		err = col.Find(db.Cond{"id": item1.ID}).One(&item3)
-		assert.NoError(t, err)
-		assert.Equal(t, item1.Name, item3.Name)
+		s.NoError(err)
+		s.Equal(item1.Name, item3.Name)
 	}
 
 	{
@@ -1046,20 +852,20 @@ func TestUUIDInsert_Issue370(t *testing.T) {
 
 		col := sess.Collection("issue_370")
 		err := col.Truncate()
-		assert.NoError(t, err)
+		s.NoError(err)
 
 		err = col.InsertReturning(&item1)
-		assert.NoError(t, err)
+		s.NoError(err)
 
 		var item2 itemT
 		err = col.Find(item1.ID).One(&item2)
-		assert.NoError(t, err)
-		assert.Equal(t, item1.Name, item2.Name)
+		s.NoError(err)
+		s.Equal(item1.Name, item2.Name)
 
 		var item3 itemT
 		err = col.Find(db.Cond{"id": item1.ID}).One(&item3)
-		assert.NoError(t, err)
-		assert.Equal(t, item1.Name, item3.Name)
+		s.NoError(err)
+		s.Equal(item1.Name, item3.Name)
 	}
 
 	{
@@ -1075,26 +881,25 @@ func TestUUIDInsert_Issue370(t *testing.T) {
 
 		col := sess.Collection("issue_370_2")
 		err := col.Truncate()
-		assert.NoError(t, err)
+		s.NoError(err)
 
 		err = col.InsertReturning(&item1)
-		assert.NoError(t, err)
+		s.NoError(err)
 
 		var item2 itemT
 		err = col.Find(item1.ID).One(&item2)
-		assert.NoError(t, err)
-		assert.Equal(t, item1.Name, item2.Name)
+		s.NoError(err)
+		s.Equal(item1.Name, item2.Name)
 
 		var item3 itemT
 		err = col.Find(db.Cond{"id": item1.ID}).One(&item3)
-		assert.NoError(t, err)
-		assert.Equal(t, item1.Name, item3.Name)
+		s.NoError(err)
+		s.Equal(item1.Name, item3.Name)
 	}
 }
 
-func TestInsertVarcharPrimaryKey(t *testing.T) {
-	sess := mustOpen()
-	defer sess.Close()
+func (s *AdapterTests) TestInsertVarcharPrimaryKey() {
+	sess := s.SQLBuilder()
 
 	{
 		type itemT struct {
@@ -1109,26 +914,25 @@ func TestInsertVarcharPrimaryKey(t *testing.T) {
 
 		col := sess.Collection("varchar_primary_key")
 		err := col.Truncate()
-		assert.NoError(t, err)
+		s.NoError(err)
 
 		err = col.InsertReturning(&item1)
-		assert.NoError(t, err)
+		s.NoError(err)
 
 		var item2 itemT
 		err = col.Find(db.Cond{"address": item1.Address}).One(&item2)
-		assert.NoError(t, err)
-		assert.Equal(t, item1.Name, item2.Name)
+		s.NoError(err)
+		s.Equal(item1.Name, item2.Name)
 
 		var item3 itemT
 		err = col.Find(db.Cond{"address": item1.Address}).One(&item3)
-		assert.NoError(t, err)
-		assert.Equal(t, item1.Name, item3.Name)
+		s.NoError(err)
+		s.Equal(item1.Name, item3.Name)
 	}
 }
 
-func TestTxOptions_Issue409(t *testing.T) {
-	sess := mustOpen()
-	defer sess.Close()
+func (s *AdapterTests) Test_Issue409_TxOptions() {
+	sess := s.SQLBuilder()
 
 	sess.SetTxOptions(sql.TxOptions{
 		ReadOnly: true,
@@ -1142,102 +946,338 @@ func TestTxOptions_Issue409(t *testing.T) {
 			"author_id": 1,
 		}
 		err := col.InsertReturning(&row)
-		assert.Error(t, err)
+		s.Error(err)
 
-		assert.True(t, strings.Contains(err.Error(), "read-only transaction"))
+		s.True(strings.Contains(err.Error(), "read-only transaction"))
 	}
 }
 
-func TestEscapeQuestionMark(t *testing.T) {
-	sess := mustOpen()
-	defer sess.Close()
+func (s *AdapterTests) TestEscapeQuestionMark() {
+	sess := s.SQLBuilder()
 
 	var val bool
 
 	{
 		res, err := sess.QueryRow(`SELECT '{"mykey":["val1", "val2"]}'::jsonb->'mykey' ?? ?`, "val2")
-		assert.NoError(t, err)
+		s.NoError(err)
 
 		err = res.Scan(&val)
-		assert.NoError(t, err)
-		assert.Equal(t, true, val)
+		s.NoError(err)
+		s.Equal(true, val)
 	}
 
 	{
 		res, err := sess.QueryRow(`SELECT ?::jsonb->'mykey' ?? ?`, `{"mykey":["val1", "val2"]}`, `val2`)
-		assert.NoError(t, err)
+		s.NoError(err)
 
 		err = res.Scan(&val)
-		assert.NoError(t, err)
-		assert.Equal(t, true, val)
+		s.NoError(err)
+		s.Equal(true, val)
 	}
 
 	{
 		res, err := sess.QueryRow(`SELECT ?::jsonb->? ?? ?`, `{"mykey":["val1", "val2"]}`, `mykey`, `val2`)
-		assert.NoError(t, err)
+		s.NoError(err)
 
 		err = res.Scan(&val)
-		assert.NoError(t, err)
-		assert.Equal(t, true, val)
+		s.NoError(err)
+		s.Equal(true, val)
 	}
 }
 
-func TestTextMode_Issue391(t *testing.T) {
-	sess := mustOpen()
-	defer sess.Close()
-
-	testPostgreSQLTypes(t, sess)
+func (s *AdapterTests) Test_Issue391_TextMode() {
+	testPostgreSQLTypes(s.T(), s.SQLBuilder())
 }
 
-func TestBinaryMode_Issue391(t *testing.T) {
-	settingsWithBinaryMode := settings
-	settingsWithBinaryMode.Options["binary_parameters"] = "yes"
+func (s *AdapterTests) Test_Issue391_BinaryMode() {
+	settingsWithBinaryMode := ConnectionURL{
+		Database: settings.Database,
+		User:     settings.User,
+		Password: settings.Password,
+		Host:     settings.Host,
+		Options: map[string]string{
+			"timezone":          testsuite.TimeZone,
+			"binary_parameters": "yes",
+		},
+	}
 
 	sess, err := Open(settingsWithBinaryMode)
 	if err != nil {
-		t.Fatal(err)
+		s.T().Fatal(err)
 	}
 	defer sess.Close()
 
-	testPostgreSQLTypes(t, sess)
+	testPostgreSQLTypes(s.T(), sess)
 }
 
-func getStats(sess sqlbuilder.Database) (map[string]int, error) {
-	stats := make(map[string]int)
+func (s *AdapterTests) TestStringAndInt64Array() {
+	sess := s.SQLBuilder()
+	driver := sess.Driver().(*sql.DB)
 
-	row := sess.Driver().(*sql.DB).QueryRow(`SELECT count(1) AS value FROM pg_prepared_statements`)
+	defer func() {
+		driver.Exec(`DROP TABLE IF EXISTS array_types`)
+	}()
 
-	var value int
-	err := row.Scan(&value)
-	if err != nil {
-		return nil, err
+	if _, err := driver.Exec(`
+		CREATE TABLE array_types (
+			id serial primary key,
+			integers bigint[] DEFAULT NULL,
+			strings varchar(64)[]
+		)`); err != nil {
+		s.NoError(err)
 	}
 
-	stats["pg_prepared_statements_count"] = value
+	arrayTypes := sess.Collection("array_types")
+	err := arrayTypes.Truncate()
+	s.NoError(err)
 
-	return stats, nil
+	type arrayType struct {
+		ID       int64       `db:"id,pk"`
+		Integers Int64Array  `db:"integers"`
+		Strings  StringArray `db:"strings"`
+	}
+
+	tt := []arrayType{
+		// Test nil arrays.
+		arrayType{
+			ID:       1,
+			Integers: nil,
+			Strings:  nil,
+		},
+
+		// Test empty arrays.
+		arrayType{
+			ID:       2,
+			Integers: []int64{},
+			Strings:  []string{},
+		},
+
+		// Test non-empty arrays.
+		arrayType{
+			ID:       3,
+			Integers: []int64{1, 2, 3},
+			Strings:  []string{"1", "2", "3"},
+		},
+	}
+
+	for _, item := range tt {
+		id, err := arrayTypes.Insert(item)
+		s.NoError(err)
+
+		if pk, ok := id.(int64); !ok || pk == 0 {
+			s.T().Fatalf("Expecting an ID.")
+		}
+
+		var itemCheck arrayType
+		err = arrayTypes.Find(db.Cond{"id": id}).One(&itemCheck)
+		s.NoError(err)
+		s.Len(itemCheck.Integers, len(item.Integers))
+		s.Len(itemCheck.Strings, len(item.Strings))
+
+		s.Equal(item, itemCheck)
+	}
 }
 
-func cleanUpCheck(sess sqlbuilder.Database) (err error) {
-	var stats map[string]int
-	stats, err = getStats(sess)
-	if err != nil {
-		return err
+func (s *AdapterTests) Test_Issue210() {
+	list := []string{
+		`DROP TABLE IF EXISTS testing123`,
+		`DROP TABLE IF EXISTS hello`,
+		`CREATE TABLE IF NOT EXISTS testing123 (
+			ID INT PRIMARY KEY     NOT NULL,
+			NAME           TEXT    NOT NULL
+		)
+		`,
+		`CREATE TABLE IF NOT EXISTS hello (
+			ID INT PRIMARY KEY     NOT NULL,
+			NAME           TEXT    NOT NULL
+		)`,
 	}
 
-	if activeStatements := sqladapter.NumActiveStatements(); activeStatements > 128 {
-		return fmt.Errorf("Expecting active statements to be at most 128, got %d", activeStatements)
+	sess := s.SQLBuilder()
+
+	tx, err := sess.NewTx(nil)
+	s.NoError(err)
+
+	for i := range list {
+		_, err = tx.Exec(list[i])
+		s.NoError(err)
 	}
 
-	sess.ClearCache()
+	err = tx.Commit()
+	s.NoError(err)
 
-	stats, err = getStats(sess)
-	if err != nil {
-		return err
+	_, err = sess.Collection("testing123").Find().Count()
+	s.NoError(err)
+
+	_, err = sess.Collection("hello").Find().Count()
+	s.NoError(err)
+}
+
+func (s *AdapterTests) TestPreparedStatements() {
+	sess := s.SQLBuilder()
+
+	var val int
+
+	{
+		stmt, err := sess.Prepare(`SELECT 1`)
+		s.NoError(err)
+		s.NotNil(stmt)
+
+		q, err := stmt.Query()
+		s.NoError(err)
+		s.NotNil(q)
+		s.True(q.Next())
+
+		err = q.Scan(&val)
+		s.NoError(err)
+
+		err = q.Close()
+		s.NoError(err)
+
+		s.Equal(1, val)
+
+		err = stmt.Close()
+		s.NoError(err)
 	}
 
-	if stats["pg_prepared_statements_count"] != 0 {
-		return fmt.Errorf(`Expecting "Prepared_stmt_count" to be 0, got %d`, stats["Prepared_stmt_count"])
+	{
+		tx, err := sess.NewTx(nil)
+		s.NoError(err)
+
+		stmt, err := tx.Prepare(`SELECT 2`)
+		s.NoError(err)
+		s.NotNil(stmt)
+
+		q, err := stmt.Query()
+		s.NoError(err)
+		s.NotNil(q)
+		s.True(q.Next())
+
+		err = q.Scan(&val)
+		s.NoError(err)
+
+		err = q.Close()
+		s.NoError(err)
+
+		s.Equal(2, val)
+
+		err = stmt.Close()
+		s.NoError(err)
+
+		err = tx.Commit()
+		s.NoError(err)
 	}
-	return nil
+
+	{
+		stmt, err := sess.Select(3).Prepare()
+		s.NoError(err)
+		s.NotNil(stmt)
+
+		q, err := stmt.Query()
+		s.NoError(err)
+		s.NotNil(q)
+		s.True(q.Next())
+
+		err = q.Scan(&val)
+		s.NoError(err)
+
+		err = q.Close()
+		s.NoError(err)
+
+		s.Equal(3, val)
+
+		err = stmt.Close()
+		s.NoError(err)
+	}
+}
+
+func (s *AdapterTests) TestNonTrivialSubqueries() {
+	sess := s.SQLBuilder()
+
+	// Creating test data
+	artist := sess.Collection("artist")
+
+	artistNames := []string{"Ozzie", "Flea", "Slash", "Chrono"}
+	for _, artistName := range artistNames {
+		_, err := artist.Insert(map[string]string{
+			"name": artistName,
+		})
+		s.NoError(err)
+	}
+
+	{
+		q, err := sess.Query(`WITH test AS (?) ?`,
+			sess.Select("id AS foo").From("artist"),
+			sess.Select("foo").From("test").Where("foo > ?", 0),
+		)
+
+		s.NoError(err)
+		s.NotNil(q)
+
+		s.True(q.Next())
+
+		var number int
+		s.NoError(q.Scan(&number))
+
+		s.Equal(1, number)
+		s.NoError(q.Close())
+	}
+
+	{
+		row, err := sess.QueryRow(`WITH test AS (?) ?`,
+			sess.Select("id AS foo").From("artist"),
+			sess.Select("foo").From("test").Where("foo > ?", 0),
+		)
+
+		s.NoError(err)
+		s.NotNil(row)
+
+		var number int
+		s.NoError(row.Scan(&number))
+
+		s.Equal(1, number)
+	}
+
+	{
+		res, err := sess.Exec(
+			`UPDATE artist a1 SET id = ?`,
+			sess.Select(db.Raw("id + 5")).
+				From("artist a2").
+				Where("a2.id = a1.id"),
+		)
+
+		s.NoError(err)
+		s.NotNil(res)
+	}
+
+	{
+		q, err := sess.Query(db.Raw(`WITH test AS (?) ?`,
+			sess.Select("id AS foo").From("artist"),
+			sess.Select("foo").From("test").Where("foo > ?", 0).OrderBy("foo"),
+		))
+
+		s.NoError(err)
+		s.NotNil(q)
+
+		s.True(q.Next())
+
+		var number int
+		s.NoError(q.Scan(&number))
+
+		s.Equal(6, number)
+		s.NoError(q.Close())
+	}
+
+	{
+		res, err := sess.Exec(db.Raw(`UPDATE artist a1 SET id = ?`,
+			sess.Select(db.Raw("id + 7")).From("artist a2").Where("a2.id = a1.id"),
+		))
+
+		s.NoError(err)
+		s.NotNil(res)
+	}
+}
+
+func TestAdapter(t *testing.T) {
+	suite.Run(t, &AdapterTests{})
 }

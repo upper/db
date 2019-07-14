@@ -24,7 +24,7 @@ package sqlbuilder
 import (
 	"reflect"
 
-	"upper.io/db.v3"
+	db "upper.io/db.v3"
 	"upper.io/db.v3/lib/reflectx"
 )
 

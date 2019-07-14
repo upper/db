@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"upper.io/db.v3"
+	db "upper.io/db.v3"
 )
 
 func TestPlaceholderSimple(t *testing.T) {

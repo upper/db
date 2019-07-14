@@ -92,4 +92,4 @@ func Raw(value string, args ...interface{}) RawValue {
 	return r
 }
 
-var _ RawValue = &rawValue{}
+var _ = RawValue(&rawValue{})

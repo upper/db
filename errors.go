@@ -28,7 +28,7 @@ import (
 // Error messages.
 var (
 	ErrNoMoreRows               = errors.New(`upper: no more rows in this result set`)
-	ErrNotConnected             = errors.New(`upper: you're currently not connected`)
+	ErrNotConnected             = errors.New(`upper: not connected to a database`)
 	ErrMissingDatabaseName      = errors.New(`upper: missing database name`)
 	ErrMissingCollectionName    = errors.New(`upper: missing collection name`)
 	ErrCollectionDoesNotExist   = errors.New(`upper: collection does not exist`)

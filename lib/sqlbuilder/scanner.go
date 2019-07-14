@@ -24,7 +24,7 @@ package sqlbuilder
 import (
 	"database/sql"
 
-	"upper.io/db.v3"
+	db "upper.io/db.v3"
 )
 
 type scanner struct {
