@@ -1,4 +1,4 @@
-// Copyright (c) 2012-present The upper.io/db authors. All rights reserved.
+// Copyright (c) 2012-today The upper.io/db authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -19,4 +19,23 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package db
+package postgresql
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/suite"
+	"upper.io/db.v3/testsuite"
+)
+
+type GenericTests struct {
+	testsuite.GenericTestSuite
+}
+
+func (s *GenericTests) SetupSuite() {
+	s.Helper = &Helper{}
+}
+
+func TestGeneric(t *testing.T) {
+	suite.Run(t, &GenericTests{})
+}

@@ -1,13 +1,20 @@
-SHELL                 := bash
+SHELL					        := bash
+
+MSSQL_VERSION         ?= 2017-latest-ubuntu
+MSSQL_SUPPORTED       ?= $(MSSQL_VERSION)
+PROJECT               ?= upper_mssql_$(MSSQL_VERSION)
 
 DB_HOST               ?= 127.0.0.1
 DB_PORT               ?= 1433
 
-DB_NAME               ?= upperio
-DB_USERNAME           ?= upperio_user
+DB_NAME               ?= master
+DB_USERNAME           ?= sa
 DB_PASSWORD           ?= upperio//s3cr37
 
-DB_SA_USERNAME        ?= sa
+TEST_FLAGS            ?=
+PARALLEL_FLAGS        ?=
+
+export MSSQL_VERSION
 
 export DB_HOST
 export DB_NAME
@@ -15,34 +22,19 @@ export DB_PASSWORD
 export DB_PORT
 export DB_USERNAME
 
-export DB_SA_USERNAME
+export TEST_FLAGS
 
-build:
-	go build && go install
+test:
+	go test -v $(TEST_FLAGS)
 
-require-client:
-	@if [ -z "$$(which tsql)" ]; then \
-		echo 'Missing "tsql" command.' && \
-		exit 1; \
-	fi
+server-up: server-down
+	docker-compose -p $(PROJECT) up -d && \
+	sleep 10
 
-generate:
-	go generate && \
-	go get -d -t -v ./...
+server-down:
+	docker-compose -p $(PROJECT) down
 
-reset-db: require-client
-	SQL="" && \
-	SQL+="USE [master]\nGO\n" && \
-	SQL+="IF EXISTS (SELECT name FROM sys.databases WHERE name = '$(DB_NAME)') BEGIN DROP DATABASE [$(DB_NAME)] END\nGO\n" && \
-	SQL+="CREATE DATABASE [$(DB_NAME)]\nGO\n" && \
-	SQL+="DROP ROLE IF EXISTS [$(DB_USERNAME)]\nGO\n" && \
-	SQL+="CREATE ROLE [$(DB_USERNAME)]\nGO\n" && \
-	SQL+="USE [$(DB_NAME)]\nGO\n" && \
-	SQL+="IF NOT EXISTS (SELECT name FROM sys.server_principals WHERE name = '$(DB_USERNAME)') BEGIN CREATE LOGIN $(DB_USERNAME) WITH PASSWORD = '$(DB_PASSWORD)' END\nGO\n" && \
-	SQL+="IF NOT EXISTS (SELECT name FROM sys.database_principals WHERE name = '$(DB_USERNAME)') BEGIN CREATE USER $(DB_USERNAME) END\nGO\n" && \
-	SQL+="EXEC sp_addrolemember 'db_owner', N'$(DB_USERNAME)'\nGO\n" && \
-	SQL+="EXEC sp_change_users_login 'Update_One', '$(DB_USERNAME)', '$(DB_USERNAME)'\nGO\n" && \
-	echo -ne $$SQL | tsql -H $(DB_HOST) -p $(DB_PORT) -U $(DB_SA_USERNAME) -P '$(DB_PASSWORD)'
-
-test: reset-db generate
-	go test -tags generated -v
+test-extended:
+	parallel $(PARALLEL_FLAGS) \
+		"MSSQL_VERSION={} DB_PORT=\$$((1433+{#})) $(MAKE) server-up test server-down" ::: \
+		$(MSSQL_SUPPORTED)

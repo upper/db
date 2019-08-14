@@ -77,4 +77,4 @@ func (f *dbFunc) Name() string {
 	return f.name
 }
 
-var _ Function = &dbFunc{}
+var _ = Function(&dbFunc{})

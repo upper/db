@@ -29,8 +29,8 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.in/mgo.v2"
-	"upper.io/db.v3"
+	mgo "gopkg.in/mgo.v2"
+	db "upper.io/db.v3"
 )
 
 // Adapter holds the name of the mongodb adapter.

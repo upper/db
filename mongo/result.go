@@ -30,9 +30,9 @@ import (
 
 	"encoding/json"
 
-	"gopkg.in/mgo.v2"
+	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"upper.io/db.v3"
+	db "upper.io/db.v3"
 
 	"upper.io/db.v3/internal/immutable"
 )

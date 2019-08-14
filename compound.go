@@ -26,8 +26,8 @@ import (
 )
 
 // Compound represents an statement that has one or many sentences joined by by
-// an operator like "AND" or "OR". This is an exported interface but it's
-// rarely used directly, you may want to use the `db.And()` or `db.Or()`
+// an operator like "AND" or "OR". This is an exported interface but it was
+// designed for internal usage, you may want to use the `db.And()` or `db.Or()`
 // functions instead.
 type Compound interface {
 	// Sentences returns child sentences.
@@ -125,5 +125,7 @@ func defaultJoin(in ...Compound) []Compound {
 	return in
 }
 
-var _ = immutable.Immutable(&compound{})
-var _ Compound = Cond{}
+var (
+	_ = immutable.Immutable(&compound{})
+	_ = Compound(Cond{})
+)

@@ -21,14 +21,14 @@
 
 package db
 
-// Result is an interface that defines methods useful for working with result
-// sets.
+// Result is an interface that defines methods which are useful for working
+// with result sets.
 type Result interface {
 	// String satisfies fmt.Stringer and returns a SELECT statement for
 	// the result.
 	String() string
 
-	// Limit defines the maximum number of results in this set. It only has
+	// Limit defines the maximum number of results for this set. It only has
 	// effect on `One()`, `All()` and `Next()`. A negative limit cancels any
 	// previous limit settings.
 	Limit(int) Result
@@ -38,9 +38,10 @@ type Result interface {
 	// settings.
 	Offset(int) Result
 
-	// OrderBy receives field names that define the order in which elements will be
-	// returned in a query, field names may be prefixed with a minus sign (-)
-	// indicating descending order, ascending order will be used otherwise.
+	// OrderBy receives one or more field names that define the order in which
+	// elements will be returned in a query, field names may be prefixed with a
+	// minus sign (-) indicating descending order, ascending order will be used
+	// otherwise.
 	OrderBy(...interface{}) Result
 
 	// Select defines specific columns to be returned from the elements of the

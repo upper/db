@@ -28,9 +28,9 @@ import (
 
 	"reflect"
 
-	"gopkg.in/mgo.v2"
+	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"upper.io/db.v3"
+	db "upper.io/db.v3"
 )
 
 // Collection represents a mongodb collection.

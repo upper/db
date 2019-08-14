@@ -24,7 +24,7 @@ package db
 // Database is an interface that defines methods that must be satisfied by
 // all database adapters.
 type Database interface {
-	// Driver returns the underlying driver the wrapper uses.
+	// Driver returns the underlying driver the wrapper uses as an interface{}.
 	//
 	// In order to actually use the driver, the `interface{}` value needs to be
 	// casted into the appropriate type.

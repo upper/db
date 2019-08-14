@@ -61,6 +61,7 @@ func NewConstraint(key interface{}, value interface{}) Constraint {
 	return constraint{k: key, v: value}
 }
 
-var _ Constraints = Cond{}
-
-var _ Constraint = &constraint{}
+var (
+	_ = Constraints(Cond{})
+	_ = Constraint(&constraint{})
+)

@@ -24,8 +24,7 @@ package mssql // import "upper.io/db.v3/mssql"
 import (
 	"database/sql"
 
-	"upper.io/db.v3"
-
+	db "upper.io/db.v3"
 	"upper.io/db.v3/internal/sqladapter"
 	"upper.io/db.v3/lib/sqlbuilder"
 )

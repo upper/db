@@ -1,33 +1,40 @@
 SHELL					        := bash
 
+MONGO_VERSION         ?= 3
+MONGO_SUPPORTED       ?= 4 $(MONGO_VERSION)
+PROJECT               ?= upper_mongo_$(MONGO_VERSION)
+
 DB_HOST               ?= 127.0.0.1
 DB_PORT               ?= 27017
 
-DB_NAME               ?= upperio
+DB_NAME               ?= admin
 DB_USERNAME           ?= upperio_user
 DB_PASSWORD           ?= upperio//s3cr37
 
+TEST_FLAGS            ?=
+PARALLEL_FLAGS        ?=
+
+export MONGO_VERSION
+
 export DB_HOST
-export DB_PORT
 export DB_NAME
 export DB_PASSWORD
+export DB_PORT
 export DB_USERNAME
 
-build:
-	go build && go install
+export TEST_FLAGS
 
-require-client:
-	@if [ -z "$$(which mongo)" ]; then \
-		echo 'Missing "mongo" command. Please install the MongoDB client and try again.' && \
-		exit 1; \
-	fi
+test:
+	go test -v $(TEST_FLAGS)
 
-generate:
+server-up: server-down
+	docker-compose -p $(PROJECT) up -d && \
+	sleep 10
 
-reset-db: require-client
-	mongo $(DB_NAME) --eval 'db.dropDatabase()' --host $(DB_HOST) --port $(DB_PORT) && \
-	mongo $(DB_NAME) --eval 'db.dropUser("$(DB_USERNAME)")' --host $(DB_HOST) --port $(DB_PORT) && \
-	mongo $(DB_NAME) --eval 'db.createUser({user: "$(DB_USERNAME)", pwd: "$(DB_PASSWORD)", roles: [{role: "readWrite", db: "$(DB_NAME)"}]})' --host $(DB_HOST) --port $(DB_PORT)
+server-down:
+	docker-compose -p $(PROJECT) down
 
-test: reset-db
-	go test -v
+test-extended:
+	parallel $(PARALLEL_FLAGS) \
+		"MONGO_VERSION={} DB_PORT=\$$((27017+{#})) $(MAKE) server-up test server-down" ::: \
+		$(MONGO_SUPPORTED)

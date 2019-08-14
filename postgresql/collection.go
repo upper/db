@@ -22,9 +22,7 @@
 package postgresql
 
 import (
-	"database/sql"
-
-	"upper.io/db.v3"
+	db "upper.io/db.v3"
 	"upper.io/db.v3/internal/sqladapter"
 )
 
@@ -61,17 +59,14 @@ func (c *collection) Database() sqladapter.Database {
 
 // Insert inserts an item (map or struct) into the collection.
 func (c *collection) Insert(item interface{}) (interface{}, error) {
-	var err error
-
 	pKey := c.BaseCollection.PrimaryKeys()
 
 	q := c.d.InsertInto(c.Name()).Values(item)
 
 	if len(pKey) == 0 {
 		// There is no primary key.
-		var res sql.Result
-
-		if res, err = q.Exec(); err != nil {
+		res, err := q.Exec()
+		if err != nil {
 			return nil, err
 		}
 
@@ -88,7 +83,7 @@ func (c *collection) Insert(item interface{}) (interface{}, error) {
 	q = q.Returning(pKey...)
 
 	var keyMap db.Cond
-	if err = q.Iterator().One(&keyMap); err != nil {
+	if err := q.Iterator().One(&keyMap); err != nil {
 		return nil, err
 	}
 
