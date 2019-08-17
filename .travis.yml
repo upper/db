@@ -39,6 +39,7 @@ install:
   - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db.v3
   - mv $PWD $TRAVIS_BUILD_DIR
   - cd $TRAVIS_BUILD_DIR
+  - if [ ! -z "$(go version | grep go1.12)" ]; then export GO111MODULE=on; fi
   - go get -t -v -d ./...
   - go get -v modernc.org/ql/ql
 
