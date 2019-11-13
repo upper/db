@@ -1,4 +1,4 @@
-dist: xenial
+dist: bionic
 
 sudo: required
 
@@ -16,9 +16,9 @@ notifications:
   email: false
 
 go:
-  - "1.10"
   - "1.11"
   - "1.12"
+  - "1.13"
 
 services:
   - docker
