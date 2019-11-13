@@ -1,5 +1,3 @@
-dist: bionic
-
 sudo: required
 
 language: go
