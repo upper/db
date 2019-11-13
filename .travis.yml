@@ -1,4 +1,4 @@
-dist: xenial
+dist: bionic
 
 sudo: required
 
@@ -16,9 +16,9 @@ notifications:
   email: false
 
 go:
-  - "1.10"
   - "1.11"
   - "1.12"
+  - "1.13"
 
 services:
   - docker
@@ -29,10 +29,10 @@ addons:
     - freetds-bin
 
 before_install:
-  - sudo service mysql stop &
-  - sudo service postgresql stop &
-  - sudo apt-get install -y parallel &
-  - wait
+  - sudo service mysql stop
+  - sudo service postgresql stop
+  - sudo apt-get install -y parallel
+  - sleep 30
 
 install:
   - mkdir -p $GOPATH/src/upper.io
