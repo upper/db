@@ -1,3 +1,5 @@
+dist: bionic
+
 sudo: required
 
 language: go
@@ -27,10 +29,10 @@ addons:
     - freetds-bin
 
 before_install:
-  - sudo service mysql stop &
-  - sudo service postgresql stop &
-  - sudo apt-get install -y parallel &
-  - wait
+  - sudo service mysql stop
+  - sudo service postgresql stop
+  - sudo apt-get install -y parallel
+  - sleep 30
 
 install:
   - mkdir -p $GOPATH/src/upper.io
