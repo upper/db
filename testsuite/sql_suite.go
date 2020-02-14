@@ -108,7 +108,7 @@ func (s *SQLTestSuite) TestPreparedStatementsCache() {
 		tMu.Lock()
 		defer tMu.Unlock()
 
-		s.T().Fatalf("tmu: %v", err)
+		s.T().Errorf("tmu: %v", err)
 	}
 
 	// This limit was chosen because, by default, MySQL accepts 16k statements
@@ -404,7 +404,7 @@ func (s *SQLTestSuite) TestInsertIntoArtistsTable() {
 	s.NotNil(id)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
-		s.T().Fatalf("Expecting an ID.")
+		s.T().Errorf("Expecting an ID.")
 	}
 
 	// Attempt to append a struct.
@@ -419,7 +419,7 @@ func (s *SQLTestSuite) TestInsertIntoArtistsTable() {
 	s.NotNil(id)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
-		s.T().Fatalf("Expecting an ID.")
+		s.T().Errorf("Expecting an ID.")
 	}
 
 	// Attempt to append a tagged struct.
@@ -434,7 +434,7 @@ func (s *SQLTestSuite) TestInsertIntoArtistsTable() {
 	s.NotNil(id)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
-		s.T().Fatalf("Expecting an ID.")
+		s.T().Errorf("Expecting an ID.")
 	}
 
 	// Attempt to append and update a private key
@@ -589,7 +589,7 @@ func (s *SQLTestSuite) TestGetResultsOneByOne() {
 
 	for _, singleRowMap := range allRowsMap {
 		if fmt.Sprintf("%d", singleRowMap["id"]) == "0" {
-			s.T().Fatalf("Expecting a not null ID.")
+			s.T().Errorf("Expecting a not null ID.")
 		}
 	}
 
