@@ -605,7 +605,7 @@ func (s *SQLTestSuite) TestGetResultsOneByOne() {
 	}
 
 	if err = res.All(&allRowsStruct); err != nil {
-		s.T().Fatal(err)
+		s.T().Errorf("%v", err)
 	}
 
 	s.Equal(4, len(allRowsStruct))
@@ -778,7 +778,7 @@ func (s *SQLTestSuite) TestUpdate() {
 
 		// Updating using raw
 		if err = res.Update(map[string]interface{}{"name": db.Raw("LOWER(name)")}); err != nil {
-			s.T().Fatal(err)
+			s.T().Errorf("%v", err)
 		}
 
 		// Pulling it again.
@@ -792,7 +792,7 @@ func (s *SQLTestSuite) TestUpdate() {
 		if err = res.Update(struct {
 			Name db.RawValue `db:"name"`
 		}{db.Raw(`UPPER(name)`)}); err != nil {
-			s.T().Fatal(err)
+			s.T().Errorf("%v", err)
 		}
 
 		// Pulling it again.
@@ -806,7 +806,7 @@ func (s *SQLTestSuite) TestUpdate() {
 		if err = res.Update(struct {
 			Name db.Function `db:"name"`
 		}{db.Func("LOWER", db.Raw("name"))}); err != nil {
-			s.T().Fatal(err)
+			s.T().Errorf("%v", err)
 		}
 
 		// Pulling it again.
@@ -1541,7 +1541,7 @@ func (s *SQLTestSuite) TestPaginator() {
 		var items []artistType
 		err := current.All(&items)
 		if err != nil {
-			s.T().Fatal(err)
+			s.T().Errorf("%v", err)
 		}
 		if len(items) < 1 {
 			s.Equal(totalPages+1, i)
@@ -1559,7 +1559,7 @@ func (s *SQLTestSuite) TestPaginator() {
 			var items []artistType
 			err := current.All(&items)
 			if err != nil {
-				s.T().Fatal(err)
+				s.T().Errorf("%v", err)
 			}
 			if len(items) < 1 {
 				s.Equal(int(totalPages), i)
@@ -1791,7 +1791,7 @@ func (s *SQLTestSuite) TestExhaustConnectionPool() {
 		tMu.Lock()
 		defer tMu.Unlock()
 
-		s.T().Fatal(err)
+		s.T().Errorf("%v", err)
 	}
 
 	tLogf := func(format string, args ...interface{}) {

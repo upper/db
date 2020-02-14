@@ -596,7 +596,7 @@ func (s *AdapterTests) TestOptionTypes() {
 	s.NoError(err)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
-		s.T().Fatalf("Expecting an ID.")
+		s.T().Errorf("Expecting an ID.")
 	}
 
 	var item1Chk optionType
@@ -617,7 +617,7 @@ func (s *AdapterTests) TestOptionTypes() {
 	s.NoError(err)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
-		s.T().Fatalf("Expecting an ID.")
+		s.T().Errorf("Expecting an ID.")
 	}
 
 	var item1bChk optionType
@@ -636,7 +636,7 @@ func (s *AdapterTests) TestOptionTypes() {
 	s.NoError(err)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
-		s.T().Fatalf("Expecting an ID.")
+		s.T().Errorf("Expecting an ID.")
 	}
 
 	var item1cChk optionType
@@ -662,7 +662,7 @@ func (s *AdapterTests) TestOptionTypes() {
 	s.NoError(err)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
-		s.T().Fatalf("Expecting an ID.")
+		s.T().Errorf("Expecting an ID.")
 	}
 
 	var item2Chk optionType2
@@ -710,7 +710,7 @@ func (s *AdapterTests) TestOptionTypes() {
 	s.NoError(err)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
-		s.T().Fatalf("Expecting an ID.")
+		s.T().Errorf("Expecting an ID.")
 	}
 
 	var item3Chk optionType2
@@ -755,7 +755,7 @@ func (s *AdapterTests) TestOptionTypeJsonbStruct() {
 	s.NoError(err)
 
 	if pk, ok := id.(int64); !ok || pk == 0 {
-		s.T().Fatalf("Expecting an ID.")
+		s.T().Errorf("Expecting an ID.")
 	}
 
 	var item1Chk OptionType
@@ -795,7 +795,7 @@ func (s *AdapterTests) Test_Issue340_MaxOpenConns() {
 
 			_, err := sess.Exec(fmt.Sprintf(`SELECT pg_sleep(1.%d)`, i))
 			if err != nil {
-				s.T().Fatal(err)
+				s.T().Errorf("%v", err)
 			}
 		}(i)
 	}
@@ -1003,7 +1003,7 @@ func (s *AdapterTests) Test_Issue391_BinaryMode() {
 
 	sess, err := Open(settingsWithBinaryMode)
 	if err != nil {
-		s.T().Fatal(err)
+		s.T().Errorf("%v", err)
 	}
 	defer sess.Close()
 
@@ -1065,7 +1065,7 @@ func (s *AdapterTests) TestStringAndInt64Array() {
 		s.NoError(err)
 
 		if pk, ok := id.(int64); !ok || pk == 0 {
-			s.T().Fatalf("Expecting an ID.")
+			s.T().Errorf("Expecting an ID.")
 		}
 
 		var itemCheck arrayType
