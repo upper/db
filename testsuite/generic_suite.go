@@ -285,7 +285,7 @@ func (s *GenericTestSuite) TestFibonacci() {
 		case 6:
 			s.Equal(fib(item.Input), item.Output)
 		default:
-			s.T().Fatalf(`Unexpected item: %v.`, item)
+			s.T().Errorf(`Unexpected item: %v.`, item)
 		}
 	}
 	s.NoError(res.Err())
@@ -316,7 +316,7 @@ func (s *GenericTestSuite) TestFibonacci() {
 		case 6:
 			s.Equal(fib(item2.Input), item2.Output)
 		default:
-			s.T().Fatalf(`Unexpected item: %v.`, item2)
+			s.T().Errorf(`Unexpected item: %v.`, item2)
 		}
 	}
 	err = res.Err()
@@ -405,7 +405,7 @@ func (s *GenericTestSuite) TestFibonacci() {
 		case 9:
 			s.Equal(fib(item.Input), item.Output)
 		default:
-			s.T().Fatalf(`Unexpected item: %v`, item)
+			s.T().Errorf(`Unexpected item: %v`, item)
 		}
 	}
 
