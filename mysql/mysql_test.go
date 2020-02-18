@@ -32,7 +32,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 	"upper.io/db.v3/lib/sqlbuilder"
-	"upper.io/db.v3/testsuite"
+	"upper.io/db.v3/internal/testsuite"
 )
 
 type int64Compat int64
