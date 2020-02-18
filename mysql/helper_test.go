@@ -30,7 +30,7 @@ import (
 	db "upper.io/db.v3"
 	"upper.io/db.v3/internal/sqladapter"
 	"upper.io/db.v3/lib/sqlbuilder"
-	"upper.io/db.v3/testsuite"
+	"upper.io/db.v3/internal/testsuite"
 )
 
 var settings = ConnectionURL{
