@@ -32,12 +32,12 @@ import (
 	"testing"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	db "upper.io/db.v3"
-	"upper.io/db.v3/lib/sqlbuilder"
 	"upper.io/db.v3/internal/testsuite"
+	"upper.io/db.v3/lib/sqlbuilder"
 )
 
 type customJSONB struct {
@@ -814,7 +814,7 @@ func (s *AdapterTests) Test_Issue370_InsertUUID() {
 			Name string     `db:"name"`
 		}
 
-		newUUID := uuid.Must(uuid.NewV4())
+		newUUID := uuid.New()
 
 		item1 := itemT{
 			ID:   &newUUID,
@@ -846,7 +846,7 @@ func (s *AdapterTests) Test_Issue370_InsertUUID() {
 		}
 
 		item1 := itemT{
-			ID:   uuid.Must(uuid.NewV4()),
+			ID:   uuid.New(),
 			Name: "Jonny",
 		}
 
