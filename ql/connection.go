@@ -44,7 +44,7 @@ func (c ConnectionURL) String() (s string) {
 	}
 
 	// Does the database have an existing name?
-	if strings.HasPrefix(c.Database, "/") == false {
+	if !strings.HasPrefix(c.Database, "/") {
 		c.Database, _ = filepath.Abs(c.Database)
 	}
 
@@ -72,7 +72,7 @@ func (c ConnectionURL) String() (s string) {
 func ParseURL(s string) (conn ConnectionURL, err error) {
 	var u *url.URL
 
-	if strings.HasPrefix(s, connectionScheme+"://") == false {
+	if !strings.HasPrefix(s, connectionScheme+"://") {
 		return conn, fmt.Errorf(`Expecting file:// connection scheme.`)
 	}
 

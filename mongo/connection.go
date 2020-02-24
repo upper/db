@@ -83,7 +83,7 @@ func (c ConnectionURL) String() (s string) {
 func ParseURL(s string) (conn ConnectionURL, err error) {
 	var u *url.URL
 
-	if strings.HasPrefix(s, connectionScheme+"://") == false {
+	if !strings.HasPrefix(s, connectionScheme+"://") {
 		return conn, fmt.Errorf(`Expecting mongodb:// connection scheme.`)
 	}
 

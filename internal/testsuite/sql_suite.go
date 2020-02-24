@@ -938,10 +938,10 @@ func (s *SQLTestSuite) TestNullableFields() {
 
 	// Testing insertion of invalid nulls.
 	test := testType{
-		NullStringTest:  sql.NullString{"", false},
-		NullInt64Test:   sql.NullInt64{0, false},
-		NullFloat64Test: sql.NullFloat64{0.0, false},
-		NullBoolTest:    sql.NullBool{false, false},
+		NullStringTest:  sql.NullString{String: "", Valid: false},
+		NullInt64Test:   sql.NullInt64{Int64: 0, Valid: false},
+		NullFloat64Test: sql.NullFloat64{Float64: 0.0, Valid: false},
+		NullBoolTest:    sql.NullBool{Bool: false, Valid: false},
 	}
 
 	id, err := col.Insert(testType{})
@@ -957,10 +957,10 @@ func (s *SQLTestSuite) TestNullableFields() {
 
 	// Testing insertion of valid nulls.
 	test = testType{
-		NullStringTest:  sql.NullString{"", true},
-		NullInt64Test:   sql.NullInt64{0, true},
-		NullFloat64Test: sql.NullFloat64{0.0, true},
-		NullBoolTest:    sql.NullBool{false, true},
+		NullStringTest:  sql.NullString{String: "", Valid: true},
+		NullInt64Test:   sql.NullInt64{Int64: 0, Valid: true},
+		NullFloat64Test: sql.NullFloat64{Float64: 0.0, Valid: true},
+		NullBoolTest:    sql.NullBool{Bool: false, Valid: true},
 	}
 
 	id, err = col.Insert(test)
@@ -1018,6 +1018,7 @@ func (s *SQLTestSuite) TestInsertAndDelete() {
 
 	total, err := res.Count()
 	s.NoError(err)
+	s.Greater(total, uint64(0))
 
 	err = res.Delete()
 	s.NoError(err)
@@ -1324,7 +1325,7 @@ func (s *SQLTestSuite) TestUpdateWithNullColumn() {
 	s.NotEqual(nil, item.Name)
 	s.Equal(name, *item.Name)
 
-	artist.Find(id).Update(Artist{Name: nil})
+	err = artist.Find(id).Update(Artist{Name: nil})
 	s.NoError(err)
 
 	var item2 Artist
@@ -1823,7 +1824,7 @@ func (s *SQLTestSuite) TestExhaustConnectionPool() {
 			if err != nil {
 				tFatal(err)
 			}
-			tLogf("Tx %d: OK (time to connect: %v)", i, time.Now().Sub(start))
+			tLogf("Tx %d: OK (time to connect: %v)", i, time.Since(start))
 
 			if !sess.LoggingEnabled() {
 				tLogf("Expecting logging to be enabled")

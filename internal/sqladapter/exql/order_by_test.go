@@ -74,7 +74,7 @@ func BenchmarkCompileOrderByCompile(b *testing.B) {
 		),
 	}
 	for i := 0; i < b.N; i++ {
-		o.Compile(defaultTemplate)
+		_, _ = o.Compile(defaultTemplate)
 	}
 }
 
@@ -85,21 +85,21 @@ func BenchmarkCompileOrderByCompileNoCache(b *testing.B) {
 				&SortColumn{Column: &Column{Name: "foo"}},
 			),
 		)
-		o.Compile(defaultTemplate)
+		_, _ = o.Compile(defaultTemplate)
 	}
 }
 
 func BenchmarkCompileOrderCompile(b *testing.B) {
 	o := Descendent
 	for i := 0; i < b.N; i++ {
-		o.Compile(defaultTemplate)
+		_, _ = o.Compile(defaultTemplate)
 	}
 }
 
 func BenchmarkCompileOrderCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		o := Descendent
-		o.Compile(defaultTemplate)
+		_, _ = o.Compile(defaultTemplate)
 	}
 }
 
@@ -113,14 +113,14 @@ func BenchmarkSortColumnHash(b *testing.B) {
 func BenchmarkSortColumnCompile(b *testing.B) {
 	s := &SortColumn{Column: &Column{Name: "foo"}}
 	for i := 0; i < b.N; i++ {
-		s.Compile(defaultTemplate)
+		_, _ = s.Compile(defaultTemplate)
 	}
 }
 
 func BenchmarkSortColumnCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		s := &SortColumn{Column: &Column{Name: "foo"}}
-		s.Compile(defaultTemplate)
+		_, _ = s.Compile(defaultTemplate)
 	}
 }
 
@@ -140,7 +140,7 @@ func BenchmarkSortColumnsCompile(b *testing.B) {
 		&SortColumn{Column: &Column{Name: "bar"}},
 	)
 	for i := 0; i < b.N; i++ {
-		s.Compile(defaultTemplate)
+		_, _ = s.Compile(defaultTemplate)
 	}
 }
 
@@ -150,6 +150,6 @@ func BenchmarkSortColumnsCompileNoCache(b *testing.B) {
 			&SortColumn{Column: &Column{Name: "foo"}},
 			&SortColumn{Column: &Column{Name: "bar"}},
 		)
-		s.Compile(defaultTemplate)
+		_, _ = s.Compile(defaultTemplate)
 	}
 }

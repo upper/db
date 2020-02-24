@@ -1342,49 +1342,49 @@ func TestPaginate(t *testing.T) {
 func BenchmarkDelete1(b *testing.B) {
 	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
-		bt.DeleteFrom("artist").Where("name = ?", "Chavela Vargas").Limit(1).String()
+		_ = bt.DeleteFrom("artist").Where("name = ?", "Chavela Vargas").Limit(1).String()
 	}
 }
 
 func BenchmarkDelete2(b *testing.B) {
 	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
-		bt.DeleteFrom("artist").Where("id > 5").String()
+		_ = bt.DeleteFrom("artist").Where("id > 5").String()
 	}
 }
 
 func BenchmarkInsert1(b *testing.B) {
 	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
-		bt.InsertInto("artist").Values(10, "Ryuichi Sakamoto").Values(11, "Alondra de la Parra").Values(12, "Haruki Murakami").String()
+		_ = bt.InsertInto("artist").Values(10, "Ryuichi Sakamoto").Values(11, "Alondra de la Parra").Values(12, "Haruki Murakami").String()
 	}
 }
 
 func BenchmarkInsert2(b *testing.B) {
 	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
-		bt.InsertInto("artist").Values(map[string]string{"id": "12", "name": "Chavela Vargas"}).String()
+		_ = bt.InsertInto("artist").Values(map[string]string{"id": "12", "name": "Chavela Vargas"}).String()
 	}
 }
 
 func BenchmarkInsert3(b *testing.B) {
 	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
-		bt.InsertInto("artist").Values(map[string]string{"id": "12", "name": "Chavela Vargas"}).Returning("id").String()
+		_ = bt.InsertInto("artist").Values(map[string]string{"id": "12", "name": "Chavela Vargas"}).Returning("id").String()
 	}
 }
 
 func BenchmarkInsert4(b *testing.B) {
 	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
-		bt.InsertInto("artist").Values(map[string]interface{}{"name": "Chavela Vargas", "id": 12}).String()
+		_ = bt.InsertInto("artist").Values(map[string]interface{}{"name": "Chavela Vargas", "id": 12}).String()
 	}
 }
 
 func BenchmarkInsert5(b *testing.B) {
 	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
-		bt.InsertInto("artist").Values(struct {
+		_ = bt.InsertInto("artist").Values(struct {
 			ID   int    `db:"id"`
 			Name string `db:"name"`
 		}{12, "Chavela Vargas"}).String()
@@ -1394,35 +1394,35 @@ func BenchmarkInsert5(b *testing.B) {
 func BenchmarkSelect1(b *testing.B) {
 	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
-		bt.Select().From("artist").OrderBy("name DESC").String()
+		_ = bt.Select().From("artist").OrderBy("name DESC").String()
 	}
 }
 
 func BenchmarkSelect2(b *testing.B) {
 	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
-		bt.Select("id").From("artist").Where(`name LIKE ? OR name LIKE ?`, `%Miya%`, `F%`).String()
+		_ = bt.Select("id").From("artist").Where(`name LIKE ? OR name LIKE ?`, `%Miya%`, `F%`).String()
 	}
 }
 
 func BenchmarkSelect3(b *testing.B) {
 	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
-		bt.Select().From("artist a", "publication as p").Where("p.author_id = a.id").Limit(1).String()
+		_ = bt.Select().From("artist a", "publication as p").Where("p.author_id = a.id").Limit(1).String()
 	}
 }
 
 func BenchmarkSelect4(b *testing.B) {
 	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
-		bt.SelectFrom("artist").Join("publication p").On("p.author_id = a.id").Where("a.id = 2").Limit(1).String()
+		_ = bt.SelectFrom("artist").Join("publication p").On("p.author_id = a.id").Where("a.id = 2").Limit(1).String()
 	}
 }
 
 func BenchmarkSelect5(b *testing.B) {
 	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
-		bt.SelectFrom("artist a").
+		_ = bt.SelectFrom("artist a").
 			LeftJoin("publication p1").On("p1.id = a.id").
 			RightJoin("publication p2").On("p2.id = a.id").
 			String()
@@ -1432,21 +1432,21 @@ func BenchmarkSelect5(b *testing.B) {
 func BenchmarkUpdate1(b *testing.B) {
 	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
-		bt.Update("artist").Set("name", "Artist").String()
+		_ = bt.Update("artist").Set("name", "Artist").String()
 	}
 }
 
 func BenchmarkUpdate2(b *testing.B) {
 	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
-		bt.Update("artist").Set("name = ?", "Artist").Where("id <", 5).String()
+		_ = bt.Update("artist").Set("name = ?", "Artist").Where("id <", 5).String()
 	}
 }
 
 func BenchmarkUpdate3(b *testing.B) {
 	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
-		bt.Update("artist").Set(struct {
+		_ = bt.Update("artist").Set(struct {
 			Nombre string `db:"name"`
 		}{"Artist"}).Set(map[string]string{"last_name": "Foo"}).Where(db.Cond{"id <": 5}).String()
 	}
@@ -1455,14 +1455,14 @@ func BenchmarkUpdate3(b *testing.B) {
 func BenchmarkUpdate4(b *testing.B) {
 	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
-		bt.Update("artist").Set(map[string]string{"name": "Artist"}).Where(db.Cond{"id <": 5}).String()
+		_ = bt.Update("artist").Set(map[string]string{"name": "Artist"}).Where(db.Cond{"id <": 5}).String()
 	}
 }
 
 func BenchmarkUpdate5(b *testing.B) {
 	bt := WithTemplate(&testTemplate)
 	for n := 0; n < b.N; n++ {
-		bt.Update("artist").Set(
+		_ = bt.Update("artist").Set(
 			"name = ? || ' ' || ? || id", "Artist", "#",
 			"id = id + ?", 10,
 		).Where("id > ?", 0).String()

@@ -16,8 +16,6 @@ type selectorQuery struct {
 	table     *exql.Columns
 	tableArgs []interface{}
 
-	as string
-
 	distinct bool
 
 	where     *exql.Where

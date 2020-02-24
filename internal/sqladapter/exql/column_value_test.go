@@ -95,14 +95,14 @@ func BenchmarkColumnValueHash(b *testing.B) {
 func BenchmarkColumnValueCompile(b *testing.B) {
 	cv := &ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(1)}
 	for i := 0; i < b.N; i++ {
-		cv.Compile(defaultTemplate)
+		_, _ = cv.Compile(defaultTemplate)
 	}
 }
 
 func BenchmarkColumnValueCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		cv := &ColumnValue{Column: ColumnWithName("id"), Operator: "=", Value: NewValue(1)}
-		cv.Compile(defaultTemplate)
+		_, _ = cv.Compile(defaultTemplate)
 	}
 }
 
@@ -140,7 +140,7 @@ func BenchmarkColumnValuesCompile(b *testing.B) {
 		&ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(Raw{Value: "NOW()"})},
 	)
 	for i := 0; i < b.N; i++ {
-		cvs.Compile(defaultTemplate)
+		_, _ = cvs.Compile(defaultTemplate)
 	}
 }
 
@@ -153,6 +153,6 @@ func BenchmarkColumnValuesCompileNoCache(b *testing.B) {
 			&ColumnValue{Column: ColumnWithName("created"), Operator: ">=", Value: NewValue(Raw{Value: "NOW()"})},
 			&ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(Raw{Value: "NOW()"})},
 		)
-		cvs.Compile(defaultTemplate)
+		_, _ = cvs.Compile(defaultTemplate)
 	}
 }

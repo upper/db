@@ -58,7 +58,7 @@ func fetchRow(iter *iterator, dst interface{}) error {
 
 	next := rows.Next()
 
-	if next == false {
+	if !next {
 		if err = rows.Err(); err != nil {
 			return err
 		}
@@ -214,7 +214,7 @@ func fetchResult(iter *iterator, itemT reflect.Type, columns []string) (reflect.
 	return item, nil
 }
 
-func reset(data interface{}) error {
+func reset(data interface{}) {
 	// Resetting element.
 	v := reflect.ValueOf(data).Elem()
 	t := v.Type()
@@ -229,5 +229,4 @@ func reset(data interface{}) error {
 	}
 
 	v.Set(z)
-	return nil
 }

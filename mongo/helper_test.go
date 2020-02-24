@@ -28,8 +28,8 @@ import (
 	mgo "gopkg.in/mgo.v2"
 
 	db "upper.io/db.v3"
-	"upper.io/db.v3/lib/sqlbuilder"
 	"upper.io/db.v3/internal/testsuite"
+	"upper.io/db.v3/lib/sqlbuilder"
 )
 
 var settings = ConnectionURL{
@@ -74,22 +74,21 @@ func (h *Helper) TearUp() error {
 
 	var col *mgo.Collection
 	col = mgod.DB(settings.Database).C("birthdays")
-	col.DropCollection()
+	_ = col.DropCollection()
 
 	col = mgod.DB(settings.Database).C("fibonacci")
-	col.DropCollection()
+	_ = col.DropCollection()
 
 	col = mgod.DB(settings.Database).C("is_even")
-	col.DropCollection()
+	_ = col.DropCollection()
 
 	col = mgod.DB(settings.Database).C("CaSe_TesT")
-	col.DropCollection()
+	_ = col.DropCollection()
 
 	// Getting a pointer to the "artist" collection.
 	artist := h.sess.Collection("artist")
 
 	_ = artist.Truncate()
-
 	for i := 0; i < 999; i++ {
 		_, err = artist.Insert(artistType{
 			Name: fmt.Sprintf("artist-%d", i),

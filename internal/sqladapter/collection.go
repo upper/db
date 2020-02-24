@@ -219,7 +219,7 @@ cancel:
 	if !inTx {
 		// This is only executed if t.Database() was **not** a transaction and if
 		// sess was created with sess.NewTransaction().
-		tx.Rollback()
+		_ = tx.Rollback()
 	}
 	return err
 }
@@ -310,7 +310,7 @@ cancel:
 	if !inTx {
 		// This is only executed if t.Database() was **not** a transaction and if
 		// sess was created with sess.NewTransaction().
-		tx.Rollback()
+		_ = tx.Rollback()
 	}
 	return err
 }

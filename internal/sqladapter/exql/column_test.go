@@ -90,34 +90,34 @@ func BenchmarkColumnHash(b *testing.B) {
 func BenchmarkColumnCompile(b *testing.B) {
 	c := Column{Name: "name"}
 	for i := 0; i < b.N; i++ {
-		c.Compile(defaultTemplate)
+		_, _ = c.Compile(defaultTemplate)
 	}
 }
 
 func BenchmarkColumnCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		c := Column{Name: "name"}
-		c.Compile(defaultTemplate)
+		_, _ = c.Compile(defaultTemplate)
 	}
 }
 
 func BenchmarkColumnWithDotCompile(b *testing.B) {
 	c := Column{Name: "role.name"}
 	for i := 0; i < b.N; i++ {
-		c.Compile(defaultTemplate)
+		_, _ = c.Compile(defaultTemplate)
 	}
 }
 
 func BenchmarkColumnWithImplicitAsKeywordCompile(b *testing.B) {
 	c := Column{Name: "role.name foo"}
 	for i := 0; i < b.N; i++ {
-		c.Compile(defaultTemplate)
+		_, _ = c.Compile(defaultTemplate)
 	}
 }
 
 func BenchmarkColumnWithAsKeywordCompile(b *testing.B) {
 	c := Column{Name: "role.name AS foo"}
 	for i := 0; i < b.N; i++ {
-		c.Compile(defaultTemplate)
+		_, _ = c.Compile(defaultTemplate)
 	}
 }

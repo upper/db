@@ -310,7 +310,7 @@ func (s *AdapterTests) TestGroup() {
 	stats = sess.Collection("statsTest")
 
 	// Truncating table.
-	stats.Truncate()
+	_ = stats.Truncate()
 
 	// Adding row append.
 	for i := 0; i < 1000; i++ {
@@ -590,7 +590,8 @@ func (s *AdapterTests) TestDataTypes() {
 
 	// Trying to dump the subject into an empty structure of the same type.
 	var item testValuesStruct
-	res.One(&item)
+	err = res.One(&item)
+	s.NoError(err)
 
 	// The original value and the test subject must match.
 	s.Equal(testValues, item)

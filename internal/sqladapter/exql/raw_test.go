@@ -54,14 +54,14 @@ func BenchmarkRawCreate(b *testing.B) {
 func BenchmarkRawString(b *testing.B) {
 	raw := &Raw{Value: "foo"}
 	for i := 0; i < b.N; i++ {
-		raw.String()
+		_ = raw.String()
 	}
 }
 
 func BenchmarkRawCompile(b *testing.B) {
 	raw := &Raw{Value: "foo"}
 	for i := 0; i < b.N; i++ {
-		raw.Compile(defaultTemplate)
+		_, _ = raw.Compile(defaultTemplate)
 	}
 }
 

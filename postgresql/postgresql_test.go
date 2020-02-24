@@ -1015,7 +1015,7 @@ func (s *AdapterTests) TestStringAndInt64Array() {
 	driver := sess.Driver().(*sql.DB)
 
 	defer func() {
-		driver.Exec(`DROP TABLE IF EXISTS array_types`)
+		_, _ = driver.Exec(`DROP TABLE IF EXISTS array_types`)
 	}()
 
 	if _, err := driver.Exec(`

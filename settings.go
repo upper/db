@@ -105,10 +105,7 @@ func (c *settings) SetLogger(lg Logger) {
 }
 
 func (c *settings) binaryOption(opt *uint32) bool {
-	if atomic.LoadUint32(opt) == 1 {
-		return true
-	}
-	return false
+	return atomic.LoadUint32(opt) == 1
 }
 
 func (c *settings) setBinaryOption(opt *uint32, value bool) {
@@ -174,8 +171,13 @@ func (c *settings) MaxOpenConns() int {
 // NewSettings returns a new settings value prefilled with the current default
 // settings.
 func NewSettings() Settings {
-	newSettings := *(DefaultSettings.(*settings))
-	return &newSettings
+	def := DefaultSettings.(*settings)
+	return &settings{
+		preparedStatementCacheEnabled: def.preparedStatementCacheEnabled,
+		connMaxLifetime:               def.connMaxLifetime,
+		maxIdleConns:                  def.maxIdleConns,
+		maxOpenConns:                  def.maxOpenConns,
+	}
 }
 
 // DefaultSettings provides default global configuration settings for database

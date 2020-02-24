@@ -22,9 +22,8 @@ func mustTrim(a string, err error) string {
 
 func TestTruncateTable(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type:  Truncate,
 		Table: TableWithName("table_name"),
 	}
@@ -39,9 +38,8 @@ func TestTruncateTable(t *testing.T) {
 
 func TestDropTable(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type:  DropTable,
 		Table: TableWithName("table_name"),
 	}
@@ -56,9 +54,8 @@ func TestDropTable(t *testing.T) {
 
 func TestDropDatabase(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type:     DropDatabase,
 		Database: &Database{Name: "table_name"},
 	}
@@ -73,9 +70,8 @@ func TestDropDatabase(t *testing.T) {
 
 func TestCount(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type:  Count,
 		Table: TableWithName("table_name"),
 	}
@@ -90,9 +86,8 @@ func TestCount(t *testing.T) {
 
 func TestCountRelation(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type:  Count,
 		Table: TableWithName("information_schema.tables"),
 	}
@@ -107,9 +102,8 @@ func TestCountRelation(t *testing.T) {
 
 func TestCountWhere(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type:  Count,
 		Table: TableWithName("table_name"),
 		Where: WhereConditions(
@@ -127,9 +121,8 @@ func TestCountWhere(t *testing.T) {
 
 func TestSelectStarFrom(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type:  Select,
 		Table: TableWithName("table_name"),
 	}
@@ -144,9 +137,8 @@ func TestSelectStarFrom(t *testing.T) {
 
 func TestSelectStarFromAlias(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type:  Select,
 		Table: TableWithName("table.name AS foo"),
 	}
@@ -197,9 +189,8 @@ func TestSelectStarFromRawWhere(t *testing.T) {
 
 func TestSelectStarFromMany(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type:  Select,
 		Table: TableWithName("first.table AS foo, second.table as BAR, third.table aS baz"),
 	}
@@ -214,9 +205,8 @@ func TestSelectStarFromMany(t *testing.T) {
 
 func TestSelectTableStarFromMany(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type: Select,
 		Columns: JoinColumns(
 			&Column{Name: "foo.name"},
@@ -236,9 +226,8 @@ func TestSelectTableStarFromMany(t *testing.T) {
 
 func TestSelectArtistNameFrom(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type:  Select,
 		Table: TableWithName("artist"),
 		Columns: JoinColumns(
@@ -347,9 +336,8 @@ func TestSelectNaturalJoin(t *testing.T) {
 
 func TestSelectRawFrom(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type:  Select,
 		Table: TableWithName(`artist`),
 		Columns: JoinColumns(
@@ -368,9 +356,8 @@ func TestSelectRawFrom(t *testing.T) {
 
 func TestSelectFieldsFrom(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type: Select,
 		Columns: JoinColumns(
 			&Column{Name: "foo"},
@@ -623,9 +610,8 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 
 func TestSelectFieldsFromWhere(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type: Select,
 		Columns: JoinColumns(
 			&Column{Name: "foo"},
@@ -648,9 +634,8 @@ func TestSelectFieldsFromWhere(t *testing.T) {
 
 func TestSelectFieldsFromWhereLimitOffset(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type: Select,
 		Columns: JoinColumns(
 			&Column{Name: "foo"},
@@ -675,9 +660,8 @@ func TestSelectFieldsFromWhereLimitOffset(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type:  Delete,
 		Table: TableWithName("table_name"),
 		Where: WhereConditions(
@@ -737,9 +721,8 @@ func TestUpdate(t *testing.T) {
 
 func TestInsert(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type:  Insert,
 		Table: TableWithName("table_name"),
 		Columns: JoinColumns(
@@ -764,9 +747,8 @@ func TestInsert(t *testing.T) {
 
 func TestInsertMultiple(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type:  Insert,
 		Table: TableWithName("table_name"),
 		Columns: JoinColumns(
@@ -798,9 +780,8 @@ func TestInsertMultiple(t *testing.T) {
 
 func TestInsertReturning(t *testing.T) {
 	var s, e string
-	var stmt Statement
 
-	stmt = Statement{
+	stmt := Statement{
 		Type:  Insert,
 		Table: TableWithName("table_name"),
 		Returning: ReturningColumns(

@@ -15,7 +15,6 @@ type inserterQuery struct {
 	columns        []exql.Fragment
 	values         []*exql.Values
 	arguments      []interface{}
-	extra          string
 	amendFn        func(string) string
 }
 
@@ -41,9 +40,7 @@ func (iq *inserterQuery) processValues() ([]*exql.Values, []interface{}, error) 
 				values, arguments = append(values, vals), append(arguments, args...)
 
 				if len(iq.columns) == 0 {
-					for _, c := range columns.Columns {
-						iq.columns = append(iq.columns, c)
-					}
+					iq.columns = append(iq.columns, columns.Columns...)
 				}
 				continue
 			}
@@ -276,12 +273,11 @@ func (ins *inserter) Base() interface{} {
 	return &inserterQuery{}
 }
 
-func columnsToFragments(dst *[]exql.Fragment, columns []string) error {
+func columnsToFragments(dst *[]exql.Fragment, columns []string) {
 	l := len(columns)
 	f := make([]exql.Fragment, l)
 	for i := 0; i < l; i++ {
 		f[i] = exql.ColumnWithName(columns[i])
 	}
 	*dst = append(*dst, f...)
-	return nil
 }

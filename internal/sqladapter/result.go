@@ -56,7 +56,6 @@ type result struct {
 	prevPageCursorValue interface{}
 
 	fields  []interface{}
-	columns []interface{}
 	orderBy []interface{}
 	groupBy []interface{}
 	conds   [][]interface{}
@@ -100,12 +99,11 @@ func (r *Result) where(conds []interface{}) *Result {
 	})
 }
 
-func (r *Result) setErr(err error) error {
+func (r *Result) setErr(err error) {
 	if err == nil {
-		return nil
+		return
 	}
 	r.err.Store(err)
-	return err
 }
 
 // Err returns the last error that has happened with the result set,
@@ -226,20 +224,24 @@ func (r *Result) String() string {
 func (r *Result) All(dst interface{}) error {
 	query, err := r.buildPaginator()
 	if err != nil {
-		return r.setErr(err)
+		r.setErr(err)
+		return err
 	}
 	err = query.Iterator().All(dst)
-	return r.setErr(err)
+	r.setErr(err)
+	return err
 }
 
 // One fetches only one Result from the set.
 func (r *Result) One(dst interface{}) error {
 	query, err := r.buildPaginator()
 	if err != nil {
-		return r.setErr(err)
+		r.setErr(err)
+		return err
 	}
 	err = query.Iterator().One(dst)
-	return r.setErr(err)
+	r.setErr(err)
+	return err
 }
 
 // Next fetches the next Result from the set.
@@ -262,6 +264,7 @@ func (r *Result) Next(dst interface{}) bool {
 
 	if err := r.iter.Err(); err != db.ErrNoMoreRows {
 		r.setErr(err)
+		return false
 	}
 
 	return false
@@ -271,17 +274,21 @@ func (r *Result) Next(dst interface{}) bool {
 func (r *Result) Delete() error {
 	query, err := r.buildDelete()
 	if err != nil {
-		return r.setErr(err)
+		r.setErr(err)
+		return err
 	}
 
 	_, err = query.Exec()
-	return r.setErr(err)
+	r.setErr(err)
+	return err
 }
 
 // Close closes the Result set.
 func (r *Result) Close() error {
 	if r.iter != nil {
-		return r.setErr(r.iter.Close())
+		err := r.iter.Close()
+		r.setErr(err)
+		return err
 	}
 	return nil
 }
@@ -291,22 +298,26 @@ func (r *Result) Close() error {
 func (r *Result) Update(values interface{}) error {
 	query, err := r.buildUpdate(values)
 	if err != nil {
-		return r.setErr(err)
+		r.setErr(err)
+		return err
 	}
 
 	_, err = query.Exec()
-	return r.setErr(err)
+	r.setErr(err)
+	return err
 }
 
 func (r *Result) TotalPages() (uint, error) {
 	query, err := r.buildPaginator()
 	if err != nil {
-		return 0, r.setErr(err)
+		r.setErr(err)
+		return 0, err
 	}
 
 	total, err := query.TotalPages()
 	if err != nil {
-		return 0, r.setErr(err)
+		r.setErr(err)
+		return 0, err
 	}
 
 	return total, nil
@@ -315,12 +326,14 @@ func (r *Result) TotalPages() (uint, error) {
 func (r *Result) TotalEntries() (uint64, error) {
 	query, err := r.buildPaginator()
 	if err != nil {
-		return 0, r.setErr(err)
+		r.setErr(err)
+		return 0, err
 	}
 
 	total, err := query.TotalEntries()
 	if err != nil {
-		return 0, r.setErr(err)
+		r.setErr(err)
+		return 0, err
 	}
 
 	return total, nil
@@ -330,7 +343,8 @@ func (r *Result) TotalEntries() (uint64, error) {
 func (r *Result) Exists() (bool, error) {
 	query, err := r.buildCount()
 	if err != nil {
-		return false, r.setErr(err)
+		r.setErr(err)
+		return false, err
 	}
 
 	query = query.Limit(1)
@@ -343,7 +357,8 @@ func (r *Result) Exists() (bool, error) {
 		if err == db.ErrNoMoreRows {
 			return false, nil
 		}
-		return false, r.setErr(err)
+		r.setErr(err)
+		return false, err
 	}
 
 	if value.Exists > 0 {
@@ -357,7 +372,8 @@ func (r *Result) Exists() (bool, error) {
 func (r *Result) Count() (uint64, error) {
 	query, err := r.buildCount()
 	if err != nil {
-		return 0, r.setErr(err)
+		r.setErr(err)
+		return 0, err
 	}
 
 	counter := struct {
@@ -367,7 +383,8 @@ func (r *Result) Count() (uint64, error) {
 		if err == db.ErrNoMoreRows {
 			return 0, nil
 		}
-		return 0, r.setErr(err)
+		r.setErr(err)
+		return 0, err
 	}
 
 	return counter.Count, nil

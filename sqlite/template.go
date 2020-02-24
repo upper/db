@@ -34,10 +34,8 @@ const (
 	adapterValueQuote          = `'{{.}}'`
 	adapterAndKeyword          = `AND`
 	adapterOrKeyword           = `OR`
-	adapterNotKeyword          = `NOT`
 	adapterDescKeyword         = `DESC`
 	adapterAscKeyword          = `ASC`
-	adapterDefaultOperator     = `=`
 	adapterAssignmentOperator  = `=`
 	adapterClauseGroup         = `({{.}})`
 	adapterClauseOperator      = ` {{.}} `

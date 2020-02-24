@@ -108,7 +108,9 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 			if err != nil {
 				return nil, err
 			}
-			defer t.d.Exec("SET IDENTITY_INSERT " + t.Name() + " OFF")
+			defer func() {
+				_, _ = t.d.Exec("SET IDENTITY_INSERT " + t.Name() + " OFF")
+			}()
 		}
 	}
 

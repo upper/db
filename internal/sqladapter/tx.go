@@ -71,10 +71,7 @@ func newBaseTx(tx *sql.Tx) BaseTx {
 
 func (b *baseTx) Committed() bool {
 	committed := b.committed.Load()
-	if committed != nil {
-		return true
-	}
-	return false
+	return committed != nil
 }
 
 func (b *baseTx) Commit() (err error) {
@@ -105,7 +102,7 @@ func RunTx(d sqlbuilder.Database, ctx context.Context, fn func(tx sqlbuilder.Tx)
 
 	defer tx.Close()
 	if err := fn(tx); err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return err
 	}
 	return tx.Commit()

@@ -103,10 +103,7 @@ var (
 )
 
 func even(i int) bool {
-	if i%2 == 0 {
-		return true
-	}
-	return false
+	return i%2 == 0
 }
 
 func fib(i uint64) uint64 {

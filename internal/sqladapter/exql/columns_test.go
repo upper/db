@@ -56,7 +56,7 @@ func BenchmarkColumnsCompile(b *testing.B) {
 		&Column{Name: "role.id"},
 	)
 	for i := 0; i < b.N; i++ {
-		c.Compile(defaultTemplate)
+		_, _ = c.Compile(defaultTemplate)
 	}
 }
 
@@ -69,6 +69,6 @@ func BenchmarkColumnsCompileNoCache(b *testing.B) {
 			&Column{Name: "role.name"},
 			&Column{Name: "role.id"},
 		)
-		c.Compile(defaultTemplate)
+		_, _ = c.Compile(defaultTemplate)
 	}
 }

@@ -100,7 +100,7 @@ func BenchmarkCompileWhere(b *testing.B) {
 		&ColumnValue{Column: &Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
 	)
 	for i := 0; i < b.N; i++ {
-		w.Compile(defaultTemplate)
+		_, _ = w.Compile(defaultTemplate)
 	}
 }
 
@@ -109,6 +109,6 @@ func BenchmarkCompileWhereNoCache(b *testing.B) {
 		w := WhereConditions(
 			&ColumnValue{Column: &Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
 		)
-		w.Compile(defaultTemplate)
+		_, _ = w.Compile(defaultTemplate)
 	}
 }
