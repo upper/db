@@ -19,8 +19,6 @@ type updaterQuery struct {
 	where     *exql.Where
 	whereArgs []interface{}
 
-	err error
-
 	amendFn func(string) string
 }
 

@@ -29,8 +29,6 @@ import (
 	"upper.io/db.v3/lib/sqlbuilder"
 )
 
-const sqlDriver = `postgres`
-
 // Adapter is the unique name that you can use to refer to this adapter.
 const Adapter = `postgresql`
 

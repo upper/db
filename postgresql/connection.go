@@ -72,12 +72,6 @@ func (vs values) Isset(k string) bool {
 	return ok
 }
 
-// A typical PostgreSQL connection URL looks like:
-//
-// "postgres://bob:secret@1.2.3.4:5432/mydb?sslmode=verify-full"
-
-const connectionScheme = `postgres`
-
 // ConnectionURL represents a parsed PostgreSQL connection URL.
 //
 // You can use a ConnectionURL struct as an argument for Open:

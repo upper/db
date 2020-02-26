@@ -45,7 +45,7 @@ func (c ConnectionURL) String() (s string) {
 	}
 
 	// Did the user provided a full database path?
-	if strings.HasPrefix(c.Database, "/") == false {
+	if !strings.HasPrefix(c.Database, "/") {
 		c.Database, _ = filepath.Abs(c.Database)
 		if runtime.GOOS == "windows" {
 			// Closes https://github.com/upper/db/issues/60
@@ -81,7 +81,7 @@ func (c ConnectionURL) String() (s string) {
 func ParseURL(s string) (conn ConnectionURL, err error) {
 	var u *url.URL
 
-	if strings.HasPrefix(s, connectionScheme+"://") == false {
+	if !strings.HasPrefix(s, connectionScheme+"://") {
 		return conn, fmt.Errorf(`Expecting file:// connection scheme.`)
 	}
 

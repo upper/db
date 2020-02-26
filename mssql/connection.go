@@ -64,7 +64,7 @@ func (c ConnectionURL) String() (s string) {
 		RawQuery: params.Encode(),
 	}
 
-	u.Path, _ = c.Options["instance"]
+	u.Path = c.Options["instance"]
 
 	if c.User != "" || c.Password != "" {
 		u.User = url.UserPassword(c.User, c.Password)

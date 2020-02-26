@@ -4,12 +4,6 @@ import (
 	"strings"
 )
 
-const (
-	stageExpect = iota
-	stageCapture
-	stageClose
-)
-
 // isBlankSymbol returns true if the given byte is either space, tab, carriage
 // return or newline.
 func isBlankSymbol(in byte) bool {

@@ -4,8 +4,6 @@ import (
 	"errors"
 	"reflect"
 	"strings"
-
-	"upper.io/db.v3/internal/cache"
 )
 
 var errUnknownTemplateType = errors.New("Unknown template type")
@@ -39,13 +37,6 @@ func (layout *Template) doCompile(c Fragment) (string, error) {
 		return c.Compile(layout)
 	}
 	return "", nil
-}
-
-func getHash(h cache.Hashable) string {
-	if h != nil && !reflect.ValueOf(h).IsNil() {
-		return h.Hash()
-	}
-	return ""
 }
 
 // Hash returns a unique identifier for the struct.

@@ -42,20 +42,20 @@ func BenchmarkDatabaseHash(b *testing.B) {
 func BenchmarkDatabaseCompile(b *testing.B) {
 	c := Database{Name: "name"}
 	for i := 0; i < b.N; i++ {
-		c.Compile(defaultTemplate)
+		_, _ = c.Compile(defaultTemplate)
 	}
 }
 
 func BenchmarkDatabaseCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		c := Database{Name: "name"}
-		c.Compile(defaultTemplate)
+		_, _ = c.Compile(defaultTemplate)
 	}
 }
 
 func BenchmarkDatabaseCompileNoCache2(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		c := Database{Name: fmt.Sprintf("name: %v", i)}
-		c.Compile(defaultTemplate)
+		_, _ = c.Compile(defaultTemplate)
 	}
 }

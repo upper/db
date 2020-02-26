@@ -35,7 +35,6 @@ import (
 
 // Collection represents a mongodb collection.
 type Collection struct {
-	name       string
 	parent     *Source
 	collection *mgo.Collection
 }
@@ -43,7 +42,7 @@ type Collection struct {
 var (
 	// idCache should be a struct if we're going to cache more than just
 	// _id field here
-	idCache      = make(map[reflect.Type]string, 0)
+	idCache      = make(map[reflect.Type]string)
 	idCacheMutex sync.RWMutex
 )
 
@@ -108,9 +107,9 @@ func compare(field string, cmp db.Comparison) (string, interface{}) {
 		}
 		return field, bson.M{"$ne": value}
 	case db.ComparisonOperatorRegExp, db.ComparisonOperatorLike:
-		return field, bson.RegEx{value.(string), ""}
+		return field, bson.RegEx{Pattern: value.(string), Options: ""}
 	case db.ComparisonOperatorNotRegExp, db.ComparisonOperatorNotLike:
-		return field, bson.M{"$not": bson.RegEx{value.(string), ""}}
+		return field, bson.M{"$not": bson.RegEx{Pattern: value.(string), Options: ""}}
 	}
 
 	if cmpOp, ok := comparisonOperators[op]; ok {
@@ -284,7 +283,9 @@ func (col *Collection) Insert(item interface{}) (interface{}, error) {
 		// Now append data the user wants to append.
 		if err = col.collection.Update(bson.M{"_id": id}, item); err != nil {
 			// Cleanup allocated ID
-			col.collection.Remove(bson.M{"_id": id})
+			if err := col.collection.Remove(bson.M{"_id": id}); err != nil {
+				return nil, err
+			}
 			return nil, err
 		}
 	}
@@ -296,10 +297,7 @@ func (col *Collection) Insert(item interface{}) (interface{}, error) {
 func (col *Collection) Exists() bool {
 	query := col.parent.database.C(`system.namespaces`).Find(map[string]string{`name`: fmt.Sprintf(`%s.%s`, col.parent.database.Name, col.collection.Name)})
 	count, _ := query.Count()
-	if count > 0 {
-		return true
-	}
-	return false
+	return count > 0
 }
 
 // Fetches object _id or generates a new one if object doesn't have one or the one it has is invalid

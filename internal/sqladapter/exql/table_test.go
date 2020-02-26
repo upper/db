@@ -124,13 +124,13 @@ func BenchmarkTableHash(b *testing.B) {
 func BenchmarkTableCompile(b *testing.B) {
 	t := TableWithName("name")
 	for i := 0; i < b.N; i++ {
-		t.Compile(defaultTemplate)
+		_, _ = t.Compile(defaultTemplate)
 	}
 }
 
 func BenchmarkTableCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		t := TableWithName("name")
-		t.Compile(defaultTemplate)
+		_, _ = t.Compile(defaultTemplate)
 	}
 }

@@ -288,8 +288,6 @@ func (w *walker) visit(v reflect.Value, opts *visitOpts) (uint64, error) {
 	default:
 		return 0, fmt.Errorf("unknown kind to hash: %s", k)
 	}
-
-	return 0, nil
 }
 
 func hashUpdateOrdered(h hash.Hash64, a, b uint64) uint64 {
@@ -320,4 +318,8 @@ type visitFlag uint
 const (
 	visitFlagInvalid visitFlag = iota
 	visitFlagSet               = iota << 1
+)
+
+var (
+	_ = visitFlagInvalid
 )

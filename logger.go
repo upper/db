@@ -43,8 +43,7 @@ const (
 )
 
 var (
-	reInvisibleChars       = regexp.MustCompile(`[\s\r\n\t]+`)
-	reColumnCompareExclude = regexp.MustCompile(`[^a-zA-Z0-9]`)
+	reInvisibleChars = regexp.MustCompile(`[\s\r\n\t]+`)
 )
 
 // QueryStatus represents the status of a query after being executed.

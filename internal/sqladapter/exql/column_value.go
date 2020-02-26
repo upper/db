@@ -70,9 +70,7 @@ func JoinColumnValues(values ...Fragment) *ColumnValues {
 
 // Insert adds a column to the columns array.
 func (c *ColumnValues) Insert(values ...Fragment) *ColumnValues {
-	for _, f := range values {
-		c.ColumnValues = append(c.ColumnValues, f)
-	}
+	c.ColumnValues = append(c.ColumnValues, values...)
 	c.hash.Reset()
 	return c
 }

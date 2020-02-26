@@ -350,24 +350,26 @@ func (d *database) Close() error {
 		d.baseTx = nil
 		d.sessMu.Unlock()
 	}()
-	if d.sess != nil {
+	if d.sess == nil {
+		return nil
+	}
+
+	d.cachedCollections.Clear()
+	d.cachedStatements.Clear() // Closes prepared statements as well.
+
+	tx := d.Transaction()
+	if tx == nil {
 		if cleaner, ok := d.PartialDatabase.(hasCleanUp); ok {
-			cleaner.CleanUp()
+			if err := cleaner.CleanUp(); err != nil {
+				return err
+			}
 		}
+		// Not within a transaction.
+		return d.sess.Close()
+	}
 
-		d.cachedCollections.Clear()
-		d.cachedStatements.Clear() // Closes prepared statements as well.
-
-		tx := d.Transaction()
-		if tx == nil {
-			// Not within a transaction.
-			return d.sess.Close()
-		}
-
-		if !tx.Committed() {
-			tx.Rollback()
-			return nil
-		}
+	if !tx.Committed() {
+		_ = tx.Rollback()
 	}
 	return nil
 }
@@ -649,7 +651,7 @@ func (d *database) WaitForConnection(connectFn func() error) error {
 	waitTime := time.Millisecond * 10
 
 	// Waitig 5 seconds for a successful connection.
-	for timeStart := time.Now(); time.Now().Sub(timeStart) < time.Second*5; {
+	for timeStart := time.Now(); time.Since(timeStart) < time.Second*5; {
 		err := connectFn()
 		if err == nil {
 			return nil // Connected!

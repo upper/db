@@ -12,7 +12,6 @@ import (
 )
 
 var (
-	errZeroPageSize        = errors.New("Illegal page size (cannot be zero)")
 	errMissingCursorColumn = errors.New("Missing cursor column")
 )
 
@@ -39,11 +38,15 @@ func newPaginator(sel Selector, pageSize uint) Paginator {
 
 func (pq *paginatorQuery) count() (uint64, error) {
 	var count uint64
+
 	row, err := pq.sel.(*selector).setColumns(db.Raw("count(1) AS _t")).
 		Limit(0).
 		Offset(0).
 		OrderBy(nil).
 		QueryRow()
+	if err != nil {
+		return 0, err
+	}
 
 	err = row.Scan(&count)
 	if err != nil {
@@ -136,7 +139,7 @@ func (pag *paginator) TotalPages() (uint, error) {
 		return 0, nil
 	}
 
-	if pq.pageSize <= 0 {
+	if pq.pageSize < 1 {
 		return 1, nil
 	}
 

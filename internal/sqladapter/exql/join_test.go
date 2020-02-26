@@ -225,7 +225,7 @@ func BenchmarkCompileJoin(b *testing.B) {
 		),
 	})
 	for i := 0; i < b.N; i++ {
-		j.Compile(defaultTemplate)
+		_, _ = j.Compile(defaultTemplate)
 	}
 }
 
@@ -246,7 +246,7 @@ func BenchmarkCompileJoinNoCache(b *testing.B) {
 				},
 			),
 		})
-		j.Compile(defaultTemplate)
+		_, _ = j.Compile(defaultTemplate)
 	}
 }
 
@@ -267,6 +267,6 @@ func BenchmarkCompileJoinNoCache2(b *testing.B) {
 				},
 			),
 		})
-		j.Compile(defaultTemplate)
+		_, _ = j.Compile(defaultTemplate)
 	}
 }

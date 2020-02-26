@@ -26,8 +26,8 @@ import (
 	"os"
 
 	db "upper.io/db.v3"
-	"upper.io/db.v3/lib/sqlbuilder"
 	"upper.io/db.v3/internal/testsuite"
+	"upper.io/db.v3/lib/sqlbuilder"
 )
 
 var settings = ConnectionURL{
@@ -157,7 +157,9 @@ func (h *Helper) TearUp() error {
 			_ = tx.Rollback()
 			return err
 		}
-		tx.Commit()
+		if err := tx.Commit(); err != nil {
+			return err
+		}
 	}
 
 	return nil

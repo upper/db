@@ -29,8 +29,8 @@ import (
 
 	db "upper.io/db.v3"
 	"upper.io/db.v3/internal/sqladapter"
-	"upper.io/db.v3/lib/sqlbuilder"
 	"upper.io/db.v3/internal/testsuite"
+	"upper.io/db.v3/lib/sqlbuilder"
 )
 
 var settings = ConnectionURL{
@@ -52,11 +52,6 @@ type Helper struct {
 }
 
 func cleanUp(sess sqlbuilder.Database) error {
-	stats, err := getStats(sess)
-	if err != nil {
-		return err
-	}
-
 	if activeStatements := sqladapter.NumActiveStatements(); activeStatements > 128 {
 		return fmt.Errorf("Expecting active statements to be at most 128, got %d", activeStatements)
 	}
@@ -67,6 +62,8 @@ func cleanUp(sess sqlbuilder.Database) error {
 		return fmt.Errorf("Expecting active statements to be 0, got %d", activeStatements)
 	}
 
+	var err error
+	var stats map[string]int
 	for i := 0; i < 10; i++ {
 		stats, err = getStats(sess)
 		if err != nil {

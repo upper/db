@@ -149,8 +149,6 @@ const (
     DROP TABLE {{.Table | compile}}
   `
 
-	defaultGroupByColumnLayout = `{{.Column}}`
-
 	defaultGroupByLayout = `
     {{if .GroupColumns}}
       GROUP BY {{.GroupColumns}}

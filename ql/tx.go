@@ -37,8 +37,7 @@ var (
 )
 
 func (t *tx) WithContext(ctx context.Context) sqlbuilder.Tx {
-	var newTx tx
-	newTx = *t
+	newTx := *t
 	newTx.DatabaseTx.SetContext(ctx)
 	return &newTx
 }
