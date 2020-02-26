@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	db "upper.io/db.v3"
+	db "github.com/upper/db"
 )
 
 type customLogger struct {

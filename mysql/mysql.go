@@ -19,14 +19,14 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package mysql // import "upper.io/db.v3/mysql"
+package mysql // import "github.com/upper/db/mysql"
 
 import (
 	"database/sql"
 
-	db "upper.io/db.v3"
-	"upper.io/db.v3/internal/sqladapter"
-	"upper.io/db.v3/lib/sqlbuilder"
+	db "github.com/upper/db"
+	"github.com/upper/db/internal/sqladapter"
+	"github.com/upper/db/lib/sqlbuilder"
 )
 
 const sqlDriver = `mysql`
