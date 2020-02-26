@@ -35,10 +35,6 @@ before_install:
   - sleep 30
 
 install:
-  - mkdir -p $GOPATH/src/upper.io
-  - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db.v3
-  - mv $PWD $TRAVIS_BUILD_DIR
-  - cd $TRAVIS_BUILD_DIR
   - go get -t -v -d ./...
   - go get -v modernc.org/ql/ql
 

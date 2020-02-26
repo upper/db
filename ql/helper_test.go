@@ -25,9 +25,9 @@ import (
 	"database/sql"
 	"os"
 
-	db "upper.io/db.v3"
-	"upper.io/db.v3/internal/testsuite"
-	"upper.io/db.v3/lib/sqlbuilder"
+	db "github.com/upper/db"
+	"github.com/upper/db/internal/testsuite"
+	"github.com/upper/db/lib/sqlbuilder"
 )
 
 var settings = ConnectionURL{
