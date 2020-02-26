@@ -31,8 +31,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"upper.io/db.v3/lib/sqlbuilder"
-	"upper.io/db.v3/internal/testsuite"
+	"github.com/upper/db/lib/sqlbuilder"
+	"github.com/upper/db/internal/testsuite"
 )
 
 type int64Compat int64

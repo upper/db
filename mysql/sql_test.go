@@ -25,7 +25,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
-	"upper.io/db.v3/internal/testsuite"
+	"github.com/upper/db/internal/testsuite"
 )
 
 type SQLTests struct {

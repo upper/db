@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"strings"
 
-	db "upper.io/db.v3"
-	"upper.io/db.v3/internal/sqladapter/exql"
+	db "github.com/upper/db"
+	"github.com/upper/db/internal/sqladapter/exql"
 )
 
 var (

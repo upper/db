@@ -32,8 +32,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/mgo.v2/bson"
-	db "upper.io/db.v3"
-	"upper.io/db.v3/internal/testsuite"
+	db "github.com/upper/db"
+	"github.com/upper/db/internal/testsuite"
 )
 
 type artistType struct {
