@@ -134,6 +134,128 @@ func (i *Int64Array) Scan(src interface{}) error {
 	return nil
 }
 
+type Int32Array pq.Int32Array
+
+// Value satisfies the driver.Valuer interface.
+func (i Int32Array) Value() (driver.Value, error) {
+	return pq.Int32Array(i).Value()
+}
+
+// Scan satisfies the sql.Scanner interface.
+func (i *Int32Array) Scan(src interface{}) error {
+	s := pq.Int32Array(*i)
+	if err := s.Scan(src); err != nil {
+		return err
+	}
+	*i = Int32Array(s)
+	return nil
+}
+
+type Int16Array pq.Int16Array
+
+// Value satisfies the driver.Valuer interface.
+func (i Int16Array) Value() (driver.Value, error) {
+	return pq.Int16Array(i).Value()
+}
+
+// Scan satisfies the sql.Scanner interface.
+func (i *Int16Array) Scan(src interface{}) error {
+	s := pq.Int16Array(*i)
+	if err := s.Scan(src); err != nil {
+		return err
+	}
+	*i = Int16Array(s)
+	return nil
+}
+
+type Int8Array pq.Int8Array
+
+// Value satisfies the driver.Valuer interface.
+func (i Int8Array) Value() (driver.Value, error) {
+	return pq.Int8Array(i).Value()
+}
+
+// Scan satisfies the sql.Scanner interface.
+func (i *Int8Array) Scan(src interface{}) error {
+	s := pq.Int8Array(*i)
+	if err := s.Scan(src); err != nil {
+		return err
+	}
+	*i = Int8Array(s)
+	return nil
+}
+
+// Uint64Array represents a one-dimensional array of int64s (`[]int64{}`) that
+// is compatible with PostgreSQL's integer array (`integer[]`). Uint64Array
+// satisfies sqlbuilder.ScannerValuer.
+type Uint64Array pq.Uint64Array
+
+// Value satisfies the driver.Valuer interface.
+func (i Uint64Array) Value() (driver.Value, error) {
+	return pq.Uint64Array(i).Value()
+}
+
+// Scan satisfies the sql.Scanner interface.
+func (i *Uint64Array) Scan(src interface{}) error {
+	s := pq.Uint64Array(*i)
+	if err := s.Scan(src); err != nil {
+		return err
+	}
+	*i = Uint64Array(s)
+	return nil
+}
+
+type Uint32Array pq.Uint32Array
+
+// Value satisfies the driver.Valuer interface.
+func (i Uint32Array) Value() (driver.Value, error) {
+	return pq.Uint32Array(i).Value()
+}
+
+// Scan satisfies the sql.Scanner interface.
+func (i *Uint32Array) Scan(src interface{}) error {
+	s := pq.Uint32Array(*i)
+	if err := s.Scan(src); err != nil {
+		return err
+	}
+	*i = Uint32Array(s)
+	return nil
+}
+
+type Uint16Array pq.Uint16Array
+
+// Value satisfies the driver.Valuer interface.
+func (i Uint16Array) Value() (driver.Value, error) {
+	return pq.Uint16Array(i).Value()
+}
+
+// Scan satisfies the sql.Scanner interface.
+func (i *Uint16Array) Scan(src interface{}) error {
+	s := pq.Uint16Array(*i)
+	if err := s.Scan(src); err != nil {
+		return err
+	}
+	*i = Uint16Array(s)
+	return nil
+}
+
+type Uint8Array pq.Uint8Array
+
+// Value satisfies the driver.Valuer interface.
+func (i Uint8Array) Value() (driver.Value, error) {
+	return pq.Uint8Array(i).Value()
+}
+
+// Scan satisfies the sql.Scanner interface.
+func (i *Uint8Array) Scan(src interface{}) error {
+	s := pq.Uint8Array(*i)
+	if err := s.Scan(src); err != nil {
+		return err
+	}
+	*i = Uint8Array(s)
+	return nil
+}
+
 // Float64Array represents a one-dimensional array of float64s (`[]float64{}`)
 // that is compatible with PostgreSQL's double precision array (`double
 // precision[]`). Float64Array satisfies sqlbuilder.ScannerValuer.
