@@ -163,6 +163,20 @@ func (d *database) ConvertValues(values []interface{}) []interface{} {
 
 		case *[]int64:
 			values[i] = (*Int64Array)(v)
+		case *[]int32:
+			values[i] = (*Int32Array)(v)
+		case *[]int16:
+			values[i] = (*Int16Array)(v)
+		case *[]int8:
+			values[i] = (*Int8Array)(v)
+		case *[]uint64:
+			values[i] = (*Uint64Array)(v)
+		case *[]uint32:
+			values[i] = (*Uint32Array)(v)
+		case *[]uint16:
+			values[i] = (*Uint16Array)(v)
+		case *[]uint8:
+			values[i] = (*Uint8Array)(v)
 		case *[]string:
 			values[i] = (*StringArray)(v)
 		case *[]float64:
@@ -174,6 +188,20 @@ func (d *database) ConvertValues(values []interface{}) []interface{} {
 
 		case []int64:
 			values[i] = (*Int64Array)(&v)
+		case []int32:
+			values[i] = (*Int32Array)(&v)
+		case []int16:
+			values[i] = (*Int16Array)(&v)
+		case []int8:
+			values[i] = (*Int8Array)(&v)
+		case []uint64:
+			values[i] = (*Uint64Array)(&v)
+		case []uint32:
+			values[i] = (*Uint32Array)(&v)
+		case []uint16:
+			values[i] = (*Uint16Array)(&v)
+		case []uint8:
+			values[i] = (*Uint8Array)(&v)
 		case []string:
 			values[i] = (*StringArray)(&v)
 		case []float64:
