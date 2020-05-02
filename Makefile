@@ -7,27 +7,15 @@ TEST_FLAGS            ?=
 export TEST_FLAGS
 export PARALLEL_FLAGS
 
-test: test-libs test-adapters
+test: go-test-sqlbuilder go-test-internal test-adapters
 
-benchmark-lib:
-	go test -v -benchtime=500ms -bench=. ./lib/...
+benchmark: go-benchmark-internal go-benchmark-sqlbuilder
 
-benchmark-internal:
-	go test -v -benchtime=500ms -bench=. ./internal/...
+go-benchmark-%:
+	go test -v -benchtime=500ms -bench=. ./$*/...
 
-benchmark: benchmark-lib benchmark-internal
-
-test-lib:
-	go test -v ./lib/...
-
-test-internal:
-	go test -v ./internal/...
-
-test-libs:
-	parallel $(PARALLEL_FLAGS) \
-		"$(MAKE) test-{}" ::: \
-			lib \
-			internal
+go-test-%:
+	go test -v ./$*/...
 
 test-adapters: \
 	test-adapter-postgresql \
@@ -38,7 +26,7 @@ test-adapters: \
 	test-adapter-mongo
 
 test-adapter-%:
-	($(MAKE) -C $* test-extended || exit 1)
+	($(MAKE) -C adapters/$* test-extended || exit 1)
 
 test-generic:
 	export TEST_FLAGS="-run TestGeneric"; \
