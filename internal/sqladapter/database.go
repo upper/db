@@ -13,7 +13,7 @@ import (
 	"github.com/upper/db/internal/cache"
 	"github.com/upper/db/internal/sqladapter/compat"
 	"github.com/upper/db/internal/sqladapter/exql"
-	"github.com/upper/db/lib/sqlbuilder"
+	"github.com/upper/db/sqlbuilder"
 )
 
 var (

@@ -25,7 +25,7 @@ import (
 	"reflect"
 
 	db "github.com/upper/db"
-	"github.com/upper/db/lib/reflectx"
+	"github.com/upper/db/internal/reflectx"
 )
 
 type hasConvertValues interface {

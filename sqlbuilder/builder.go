@@ -35,9 +35,9 @@ import (
 	"strings"
 
 	db "github.com/upper/db"
+	"github.com/upper/db/internal/reflectx"
 	"github.com/upper/db/internal/sqladapter/compat"
 	"github.com/upper/db/internal/sqladapter/exql"
-	"github.com/upper/db/lib/reflectx"
 )
 
 // MapOptions represents options for the mapper.

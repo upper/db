@@ -26,7 +26,7 @@ import (
 
 	db "github.com/upper/db"
 	"github.com/upper/db/internal/sqladapter"
-	"github.com/upper/db/lib/sqlbuilder"
+	"github.com/upper/db/sqlbuilder"
 )
 
 // Adapter is the unique name that you can use to refer to this adapter.

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 	db "github.com/upper/db"
-	"github.com/upper/db/lib/sqlbuilder"
+	"github.com/upper/db/sqlbuilder"
 )
 
 const TimeZone = "Canada/Eastern"
