@@ -19,22 +19,22 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Package mysql wraps the github.com/go-sql-driver/mysql MySQL driver. See
-// https://github.com/upper/db/mysql for documentation, particularities and usage
-// examples.
-package mysql
+// Package postgresql wraps the github.com/lib/pq PostgreSQL driver. See
+// https://github.com/upper/db/adapters/postgresql for documentation, particularities and
+// usage examples.
+package postgresql
 
 import (
 	"context"
+	"database/sql"
 	"database/sql/driver"
+	"fmt"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
 
-	"database/sql"
-
-	_ "github.com/go-sql-driver/mysql" // MySQL driver.
+	_ "github.com/lib/pq" // PostgreSQL driver.
 	db "github.com/upper/db"
 	"github.com/upper/db/internal/sqladapter"
 	"github.com/upper/db/internal/sqladapter/compat"
@@ -54,7 +54,7 @@ type database struct {
 
 var (
 	_ = sqlbuilder.Database(&database{})
-	_ = sqlbuilder.Database(&database{})
+	_ = sqladapter.Database(&database{})
 )
 
 // newDatabase creates a new *database session for internal use.
@@ -81,7 +81,7 @@ func (d *database) Open(connURL db.ConnectionURL) error {
 // NewTx begins a transaction block with the given context.
 func (d *database) NewTx(ctx context.Context) (sqlbuilder.Tx, error) {
 	if ctx == nil {
-		ctx = d.Context()
+		ctx = context.Background()
 	}
 	nTx, err := d.NewDatabaseTx(ctx)
 	if err != nil {
@@ -94,7 +94,7 @@ func (d *database) NewTx(ctx context.Context) (sqlbuilder.Tx, error) {
 func (d *database) Collections() (collections []string, err error) {
 	q := d.Select("table_name").
 		From("information_schema.tables").
-		Where("table_schema = ?", d.BaseDatabase.Name())
+		Where("table_schema = ?", "public")
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -110,7 +110,7 @@ func (d *database) Collections() (collections []string, err error) {
 	return collections, nil
 }
 
-// open attempts to establish a connection with the MySQL server.
+// open attempts to establish a connection with the PostgreSQL server.
 func (d *database) open() error {
 	// Binding with sqladapter's logic.
 	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
@@ -119,7 +119,7 @@ func (d *database) open() error {
 	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
 
 	connFn := func() error {
-		sess, err := sql.Open("mysql", d.ConnectionURL().String())
+		sess, err := sql.Open("postgres", d.ConnectionURL().String())
 		if err == nil {
 			sess.SetConnMaxLifetime(db.DefaultSettings.ConnMaxLifetime())
 			sess.SetMaxIdleConns(db.DefaultSettings.MaxIdleConns())
@@ -157,12 +157,31 @@ func (d *database) ConvertValues(values []interface{}) []interface{} {
 	for i := range values {
 		switch v := values[i].(type) {
 		case *string, *bool, *int, *uint, *int64, *uint64, *int32, *uint32, *int16, *uint16, *int8, *uint8, *float32, *float64, *[]uint8, sql.Scanner, *sql.Scanner, *time.Time:
+			// Handled by pq.
 		case string, bool, int, uint, int64, uint64, int32, uint32, int16, uint16, int8, uint8, float32, float64, []uint8, driver.Valuer, *driver.Valuer, time.Time:
-		case *map[string]interface{}:
-			values[i] = (*JSONMap)(v)
+			// Handled by pq.
 
+		case *[]int64:
+			values[i] = (*Int64Array)(v)
+		case *[]string:
+			values[i] = (*StringArray)(v)
+		case *[]float64:
+			values[i] = (*Float64Array)(v)
+		case *[]bool:
+			values[i] = (*BoolArray)(v)
+		case *map[string]interface{}:
+			values[i] = (*JSONBMap)(v)
+
+		case []int64:
+			values[i] = (*Int64Array)(&v)
+		case []string:
+			values[i] = (*StringArray)(&v)
+		case []float64:
+			values[i] = (*Float64Array)(&v)
+		case []bool:
+			values[i] = (*BoolArray)(&v)
 		case map[string]interface{}:
-			values[i] = (*JSONMap)(&v)
+			values[i] = (*JSONBMap)(&v)
 
 		case sqlbuilder.ValueWrapper:
 			values[i] = v.WrapValue(v)
@@ -170,6 +189,7 @@ func (d *database) ConvertValues(values []interface{}) []interface{} {
 		default:
 			values[i] = autoWrap(reflect.ValueOf(values[i]), values[i])
 		}
+
 	}
 	return values
 }
@@ -181,16 +201,17 @@ func (d *database) CompileStatement(stmt *exql.Statement, args []interface{}) (s
 	if err != nil {
 		panic(err.Error())
 	}
-	return sqlbuilder.Preprocess(compiled, args)
+	query, args := sqlbuilder.Preprocess(compiled, args)
+	return sqladapter.ReplaceWithDollarSign(query), args
 }
 
-// Err allows sqladapter to translate specific MySQL string errors into custom
-// error values.
+// Err allows sqladapter to translate specific PostgreSQL string errors into
+// custom error values.
 func (d *database) Err(err error) error {
 	if err != nil {
-		// This error is not exported so we have to check it by its string value.
 		s := err.Error()
-		if strings.Contains(s, `many connections`) {
+		// These errors are not exported so we have to check them by they string value.
+		if strings.Contains(s, `too many clients`) || strings.Contains(s, `remaining connection slots are reserved`) || strings.Contains(s, `too many open`) {
 			return db.ErrTooManyClients
 		}
 	}
@@ -199,7 +220,7 @@ func (d *database) Err(err error) error {
 
 // NewCollection creates a db.Collection by name.
 func (d *database) NewCollection(name string) db.Collection {
-	return newTable(d, name)
+	return newCollection(d, name)
 }
 
 // Tx creates a transaction block on the given context and passes it to the
@@ -227,7 +248,7 @@ func (d *database) NewDatabaseTx(ctx context.Context) (sqladapter.DatabaseTx, er
 		return err
 	}
 
-	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
+	if err := clone.BaseDatabase.WaitForConnection(connFn); err != nil {
 		return nil, err
 	}
 
@@ -237,7 +258,7 @@ func (d *database) NewDatabaseTx(ctx context.Context) (sqladapter.DatabaseTx, er
 // LookupName looks for the name of the database and it's often used as a
 // test to determine if the connection settings are valid.
 func (d *database) LookupName() (string, error) {
-	q := d.Select(db.Raw("DATABASE() AS name"))
+	q := d.Select(db.Raw("CURRENT_DATABASE() AS name"))
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -256,7 +277,7 @@ func (d *database) LookupName() (string, error) {
 func (d *database) TableExists(name string) error {
 	q := d.Select("table_name").
 		From("information_schema.tables").
-		Where("table_schema = ? AND table_name = ?", d.BaseDatabase.Name(), name)
+		Where("table_catalog = ? AND table_name = ?", d.BaseDatabase.Name(), name)
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -271,16 +292,27 @@ func (d *database) TableExists(name string) error {
 	return db.ErrCollectionDoesNotExist
 }
 
+// quotedTableName returns a valid regclass name for both regular tables and
+// for schemas.
+func quotedTableName(s string) string {
+	chunks := strings.Split(s, ".")
+	for i := range chunks {
+		chunks[i] = fmt.Sprintf("%q", chunks[i])
+	}
+	return strings.Join(chunks, ".")
+}
+
 // PrimaryKeys returns the names of all the primary keys on the table.
 func (d *database) PrimaryKeys(tableName string) ([]string, error) {
-	q := d.Select("k.column_name").
-		From("information_schema.key_column_usage AS k").
+	q := d.Select("pg_attribute.attname AS pkey").
+		From("pg_index", "pg_class", "pg_attribute").
 		Where(`
-			k.constraint_name = 'PRIMARY'
-			AND k.table_schema = ?
-			AND k.table_name = ?
-		`, d.BaseDatabase.Name(), tableName).
-		OrderBy("k.ordinal_position")
+			pg_class.oid = '` + quotedTableName(tableName) + `'::regclass
+			AND indrelid = pg_class.oid
+			AND pg_attribute.attrelid = pg_class.oid
+			AND pg_attribute.attnum = ANY(pg_index.indkey)
+			AND indisprimary
+		`).OrderBy("pkey")
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -293,6 +325,9 @@ func (d *database) PrimaryKeys(tableName string) ([]string, error) {
 			return nil, err
 		}
 		pk = append(pk, k)
+	}
+	if err := iter.Err(); err != nil {
+		return nil, err
 	}
 
 	return pk, nil

@@ -19,19 +19,22 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Package mssql wraps the github.com/go-sql-driver/mssql MySQL driver. See
-// https://github.com/upper/db/mssql for documentation, particularities and usage
+// Package mysql wraps the github.com/go-sql-driver/mysql MySQL driver. See
+// https://github.com/upper/db/adapters/mysql for documentation, particularities and usage
 // examples.
-package mssql
+package mysql
 
 import (
 	"context"
+	"database/sql/driver"
+	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"database/sql"
 
-	_ "github.com/denisenkom/go-mssqldb" // MSSQL driver
+	_ "github.com/go-sql-driver/mysql" // MySQL driver.
 	db "github.com/upper/db"
 	"github.com/upper/db/internal/sqladapter"
 	"github.com/upper/db/internal/sqladapter/compat"
@@ -89,10 +92,9 @@ func (d *database) NewTx(ctx context.Context) (sqlbuilder.Tx, error) {
 
 // Collections returns a list of non-system tables from the database.
 func (d *database) Collections() (collections []string, err error) {
-	q := d.Select(`table_name`).
-		From(`information_schema.tables`).
-		Where(`table_type`, `BASE TABLE`).
-		And(`table_catalog`, d.BaseDatabase.Name())
+	q := d.Select("table_name").
+		From("information_schema.tables").
+		Where("table_schema = ?", d.BaseDatabase.Name())
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -117,7 +119,7 @@ func (d *database) open() error {
 	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
 
 	connFn := func() error {
-		sess, err := sql.Open("mssql", d.ConnectionURL().String())
+		sess, err := sql.Open("mysql", d.ConnectionURL().String())
 		if err == nil {
 			sess.SetConnMaxLifetime(db.DefaultSettings.ConnMaxLifetime())
 			sess.SetMaxIdleConns(db.DefaultSettings.MaxIdleConns())
@@ -149,6 +151,27 @@ func (d *database) clone(ctx context.Context, checkConn bool) (*database, error)
 	clone.SQLBuilder = sqlbuilder.WithSession(clone.BaseDatabase, template)
 
 	return clone, nil
+}
+
+func (d *database) ConvertValues(values []interface{}) []interface{} {
+	for i := range values {
+		switch v := values[i].(type) {
+		case *string, *bool, *int, *uint, *int64, *uint64, *int32, *uint32, *int16, *uint16, *int8, *uint8, *float32, *float64, *[]uint8, sql.Scanner, *sql.Scanner, *time.Time:
+		case string, bool, int, uint, int64, uint64, int32, uint32, int16, uint16, int8, uint8, float32, float64, []uint8, driver.Valuer, *driver.Valuer, time.Time:
+		case *map[string]interface{}:
+			values[i] = (*JSONMap)(v)
+
+		case map[string]interface{}:
+			values[i] = (*JSONMap)(&v)
+
+		case sqlbuilder.ValueWrapper:
+			values[i] = v.WrapValue(v)
+
+		default:
+			values[i] = autoWrap(reflect.ValueOf(values[i]), values[i])
+		}
+	}
+	return values
 }
 
 // CompileStatement compiles a *exql.Statement into arguments that sql/database
@@ -198,10 +221,10 @@ func (d *database) NewDatabaseTx(ctx context.Context) (sqladapter.DatabaseTx, er
 
 	connFn := func() error {
 		sqlTx, err := compat.BeginTx(clone.BaseDatabase.Session(), ctx, clone.TxOptions())
-		if err != nil {
-			return err
+		if err == nil {
+			return clone.BindTx(ctx, sqlTx)
 		}
-		return clone.BindTx(ctx, sqlTx)
+		return err
 	}
 
 	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
@@ -214,7 +237,7 @@ func (d *database) NewDatabaseTx(ctx context.Context) (sqladapter.DatabaseTx, er
 // LookupName looks for the name of the database and it's often used as a
 // test to determine if the connection settings are valid.
 func (d *database) LookupName() (string, error) {
-	q := d.Select(db.Raw(`DB_NAME() AS name`))
+	q := d.Select(db.Raw("DATABASE() AS name"))
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -231,10 +254,9 @@ func (d *database) LookupName() (string, error) {
 // TableExists returns an error if the given table name does not exist on the
 // database.
 func (d *database) TableExists(name string) error {
-	q := d.Select(`table_name`).
-		From(`information_schema.tables`).
-		Where(`table_schema`, d.BaseDatabase.Name()).
-		And(`table_name`, name)
+	q := d.Select("table_name").
+		From("information_schema.tables").
+		Where("table_schema = ? AND table_name = ?", d.BaseDatabase.Name(), name)
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -251,16 +273,14 @@ func (d *database) TableExists(name string) error {
 
 // PrimaryKeys returns the names of all the primary keys on the table.
 func (d *database) PrimaryKeys(tableName string) ([]string, error) {
-	q := d.Select(`k.column_name`).
-		From(
-			`information_schema.table_constraints AS t`,
-			`information_schema.key_column_usage AS k`,
-		).
-		Where(`k.constraint_name = t.constraint_name`).
-		And(`k.table_name = t.table_name`).
-		And(`t.constraint_type = ?`, `PRIMARY KEY`).
-		And(`t.table_name = ?`, tableName).
-		OrderBy(`k.ordinal_position`)
+	q := d.Select("k.column_name").
+		From("information_schema.key_column_usage AS k").
+		Where(`
+			k.constraint_name = 'PRIMARY'
+			AND k.table_schema = ?
+			AND k.table_name = ?
+		`, d.BaseDatabase.Name(), tableName).
+		OrderBy("k.ordinal_position")
 
 	iter := q.Iterator()
 	defer iter.Close()
