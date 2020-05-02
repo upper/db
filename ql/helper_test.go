@@ -27,7 +27,7 @@ import (
 
 	db "github.com/upper/db"
 	"github.com/upper/db/internal/testsuite"
-	"github.com/upper/db/lib/sqlbuilder"
+	"github.com/upper/db/sqlbuilder"
 )
 
 var settings = ConnectionURL{

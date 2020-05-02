@@ -25,7 +25,7 @@ import (
 	"context"
 
 	"github.com/upper/db/internal/sqladapter"
-	"github.com/upper/db/lib/sqlbuilder"
+	"github.com/upper/db/sqlbuilder"
 )
 
 type tx struct {
