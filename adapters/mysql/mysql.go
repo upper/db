@@ -19,7 +19,7 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package postgresql // import "github.com/upper/db/postgresql"
+package mysql // import "github.com/upper/db/adapters/mysql"
 
 import (
 	"database/sql"
@@ -29,8 +29,10 @@ import (
 	"github.com/upper/db/sqlbuilder"
 )
 
-// Adapter is the unique name that you can use to refer to this adapter.
-const Adapter = `postgresql`
+const sqlDriver = `mysql`
+
+// Adapter is the public name of the adapter.
+const Adapter = sqlDriver
 
 func init() {
 	sqlbuilder.RegisterAdapter(Adapter, &sqlbuilder.AdapterFuncMap{
@@ -40,11 +42,7 @@ func init() {
 	})
 }
 
-// Open opens a new connection with the PostgreSQL server. The returned session
-// is validated first by Ping and then with a test query before being returned.
-// You may call Open() just once and use it on multiple goroutines on a
-// long-running program. See https://golang.org/pkg/database/sql/#Open and
-// http://go-database-sql.org/accessing.html
+// Open stablishes a new connection with the SQL server.
 func Open(settings db.ConnectionURL) (sqlbuilder.Database, error) {
 	d := newDatabase(settings)
 	if err := d.Open(settings); err != nil {
@@ -72,8 +70,7 @@ func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 	return &tx{DatabaseTx: newTx}, nil
 }
 
-// New wraps a regular *sql.DB session and creates a new upper-db session
-// backed by it.
+// New wraps the given *sql.DB session and creates a new db session.
 func New(sess *sql.DB) (sqlbuilder.Database, error) {
 	d := newDatabase(nil)
 
