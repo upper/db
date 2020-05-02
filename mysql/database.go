@@ -39,7 +39,7 @@ import (
 	"github.com/upper/db/internal/sqladapter"
 	"github.com/upper/db/internal/sqladapter/compat"
 	"github.com/upper/db/internal/sqladapter/exql"
-	"github.com/upper/db/lib/sqlbuilder"
+	"github.com/upper/db/sqlbuilder"
 )
 
 // database is the actual implementation of Database

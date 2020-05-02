@@ -7,7 +7,7 @@ import (
 
 	db "github.com/upper/db"
 	"github.com/upper/db/internal/sqladapter/exql"
-	"github.com/upper/db/lib/reflectx"
+	"github.com/upper/db/internal/reflectx"
 )
 
 var mapper = reflectx.NewMapper("db")

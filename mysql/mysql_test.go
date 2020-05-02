@@ -31,7 +31,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"github.com/upper/db/lib/sqlbuilder"
+	"github.com/upper/db/sqlbuilder"
 	"github.com/upper/db/internal/testsuite"
 )
 

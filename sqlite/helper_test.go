@@ -26,7 +26,7 @@ import (
 	"os"
 
 	db "github.com/upper/db"
-	"github.com/upper/db/lib/sqlbuilder"
+	"github.com/upper/db/sqlbuilder"
 	"github.com/upper/db/internal/testsuite"
 )
 

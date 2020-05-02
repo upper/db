@@ -24,7 +24,7 @@ package mssql
 import (
 	db "github.com/upper/db"
 	"github.com/upper/db/internal/sqladapter"
-	"github.com/upper/db/lib/sqlbuilder"
+	"github.com/upper/db/sqlbuilder"
 )
 
 // table is the actual implementation of a collection.
