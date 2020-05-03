@@ -1,6 +1,6 @@
 SHELL                 := /bin/bash
 
-PARALLEL_FLAGS        ?= --halt-on-error 2 --jobs=2 -v -u
+PARALLEL_FLAGS        ?= --halt-on-error 2 --jobs=4 -v -u
 
 TEST_FLAGS            ?=
 
@@ -29,7 +29,12 @@ test-libs:
 			lib \
 			internal
 
-test-adapters: test-adapter-mysql test-adapter-mssql test-adapter-sqlite test-adapter-ql test-adapter-mongo
+test-adapters: \
+	test-adapter-mysql \
+	test-adapter-mssql \
+	test-adapter-sqlite \
+	test-adapter-ql \
+	test-adapter-mongo
 
 test-adapter-%:
 	($(MAKE) -C $* test-extended || exit 1)
