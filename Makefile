@@ -30,6 +30,7 @@ test-libs:
 			internal
 
 test-adapters: \
+	test-adapter-postgresql \
 	test-adapter-mysql \
 	test-adapter-mssql \
 	test-adapter-sqlite \
