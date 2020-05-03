@@ -12,7 +12,7 @@ DB_USERNAME           ?= sa
 DB_PASSWORD           ?= upperio//s3cr37
 
 TEST_FLAGS            ?=
-PARALLEL_FLAGS        ?=
+PARALLEL_FLAGS        ?= --halt-on-error 2 --jobs 1
 
 export MSSQL_VERSION
 
@@ -29,7 +29,7 @@ test:
 
 server-up: server-down
 	docker-compose -p $(PROJECT) up -d && \
-	sleep 10
+	sleep 15
 
 server-down:
 	docker-compose -p $(PROJECT) down

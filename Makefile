@@ -1,6 +1,6 @@
 SHELL                 := /bin/bash
 
-PARALLEL_FLAGS        ?= --halt now,fail=1 --jobs=2 -v -u
+PARALLEL_FLAGS        ?= --halt-on-error 2 --jobs=2 -v -u
 
 TEST_FLAGS            ?=
 
@@ -29,11 +29,7 @@ test-libs:
 			lib \
 			internal
 
-test-adapters:
-	for MAKEFILE in $$(grep -Rl test-extended */Makefile | sort -u); do \
-		ADAPTER=$$(dirname $$MAKEFILE); \
-		($(MAKE) test-adapter-$$ADAPTER || exit 1); \
-	done
+test-adapters: test-adapter-mysql test-adapter-mssql test-adapter-sqlite test-adapter-ql test-adapter-mongo
 
 test-adapter-%:
 	($(MAKE) -C $* test-extended || exit 1)
