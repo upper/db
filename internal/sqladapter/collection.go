@@ -6,8 +6,8 @@ import (
 	"reflect"
 
 	db "github.com/upper/db"
-	"github.com/upper/db/internal/sqladapter/exql"
 	"github.com/upper/db/internal/reflectx"
+	"github.com/upper/db/internal/sqladapter/exql"
 )
 
 var mapper = reflectx.NewMapper("db")
@@ -52,6 +52,10 @@ type BaseCollection interface {
 	// database.
 	UpdateReturning(interface{}) error
 
+	HasPrimaryKeys
+}
+
+type HasPrimaryKeys interface {
 	// PrimaryKeys returns the table's primary keys.
 	PrimaryKeys() []string
 }

@@ -29,8 +29,8 @@ import (
 	"sync"
 	"time"
 
-	mgo "gopkg.in/mgo.v2"
 	db "github.com/upper/db"
+	mgo "gopkg.in/mgo.v2"
 )
 
 // Adapter holds the name of the mongodb adapter.

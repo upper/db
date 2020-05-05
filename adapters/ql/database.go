@@ -32,12 +32,12 @@ import (
 	"sync"
 	"sync/atomic"
 
-	_ "modernc.org/ql/driver" // QL driver
 	db "github.com/upper/db"
 	"github.com/upper/db/internal/sqladapter"
 	"github.com/upper/db/internal/sqladapter/compat"
 	"github.com/upper/db/internal/sqladapter/exql"
 	"github.com/upper/db/sqlbuilder"
+	_ "modernc.org/ql/driver" // QL driver
 )
 
 // database is the actual implementation of Database
