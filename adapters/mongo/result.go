@@ -30,9 +30,9 @@ import (
 
 	"encoding/json"
 
+	db "github.com/upper/db"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	db "github.com/upper/db"
 
 	"github.com/upper/db/internal/immutable"
 )
