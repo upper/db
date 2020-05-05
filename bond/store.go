@@ -2,15 +2,13 @@ package bond
 
 import (
 	"reflect"
+
 	"github.com/upper/db"
 	"github.com/upper/db/internal/reflectx"
+	"github.com/upper/db/internal/sqladapter"
 )
 
 var mapper = reflectx.NewMapper("db")
-
-type hasPrimaryKeys interface {
-	PrimaryKeys() []string
-}
 
 type Store interface {
 	db.Collection
@@ -31,7 +29,7 @@ type store struct {
 }
 
 func (s *store) getPrimaryKeyFields(item interface{}) ([]string, []interface{}) {
-	pKeys := s.Collection.(hasPrimaryKeys).PrimaryKeys()
+	pKeys := s.Collection.(sqladapter.HasPrimaryKeys).PrimaryKeys()
 	fields := mapper.FieldsByName(reflect.ValueOf(item), pKeys)
 
 	values := make([]interface{}, 0, len(fields))

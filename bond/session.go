@@ -80,7 +80,7 @@ func Open(adapter string, url db.ConnectionURL) (Session, error) {
 	return sess, nil
 }
 
-// New returns a new session.
+// New returns a new bond session (db + db/sqlbuilder methods).
 func New(conn Backend) Session {
 	return &session{Backend: conn, stores: make(map[string]*store)}
 }
