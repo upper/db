@@ -19,13 +19,17 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package ql // import "github.com/upper/db/adapters/ql"
+package mssql // import "github.com/upper/db/adapter/mssql"
 
 import (
+	"database/sql"
+
+	db "github.com/upper/db"
+	"github.com/upper/db/internal/sqladapter"
 	"github.com/upper/db/sqlbuilder"
 )
 
-const sqlDriver = `ql`
+const sqlDriver = `mssql`
 
 // Adapter is the public name of the adapter.
 const Adapter = sqlDriver
@@ -36,4 +40,48 @@ func init() {
 		NewTx: NewTx,
 		Open:  Open,
 	})
+}
+
+// Open stablishes a new connection with the SQL server.
+func Open(settings db.ConnectionURL) (sqlbuilder.Database, error) {
+	d := newDatabase(settings)
+	if err := d.Open(settings); err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+// NewTx wraps a regular *sql.Tx transaction and returns a new upper-db
+// transaction backed by it.
+func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
+	d := newDatabase(nil)
+
+	// Binding with sqladapter's logic.
+	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
+
+	// Binding with sqlbuilder.
+	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
+
+	if err := d.BaseDatabase.BindTx(d.Context(), sqlTx); err != nil {
+		return nil, err
+	}
+
+	newTx := sqladapter.NewDatabaseTx(d)
+	return &tx{DatabaseTx: newTx}, nil
+}
+
+// New wraps the given *sql.DB session and creates a new db session.
+func New(sess *sql.DB) (sqlbuilder.Database, error) {
+	d := newDatabase(nil)
+
+	// Binding with sqladapter's logic.
+	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
+
+	// Binding with sqlbuilder.
+	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
+
+	if err := d.BaseDatabase.BindSession(sess); err != nil {
+		return nil, err
+	}
+	return d, nil
 }

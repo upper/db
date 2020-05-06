@@ -19,20 +19,19 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Package sqlite wraps the github.com/lib/sqlite SQLite driver. See
-// https://github.com/upper/db/adapters/sqlite for documentation, particularities and
-// usage examples.
-package sqlite
+// Package mssql wraps the github.com/go-sql-driver/mssql MySQL driver. See
+// https://github.com/upper/db/adapter/mssql for documentation, particularities and usage
+// examples.
+package mssql
 
 import (
 	"context"
-	"database/sql"
-	"errors"
-	"fmt"
+	"strings"
 	"sync"
-	"sync/atomic"
 
-	_ "github.com/mattn/go-sqlite3" // SQLite3 driver.
+	"database/sql"
+
+	_ "github.com/denisenkom/go-mssqldb" // MSSQL driver
 	db "github.com/upper/db"
 	"github.com/upper/db/internal/sqladapter"
 	"github.com/upper/db/internal/sqladapter/compat"
@@ -52,13 +51,7 @@ type database struct {
 
 var (
 	_ = sqlbuilder.Database(&database{})
-	_ = sqladapter.Database(&database{})
-)
-
-var (
-	fileOpenCount       int32
-	errTooManyOpenFiles       = errors.New(`Too many open database files.`)
-	maxOpenFiles        int32 = 100
+	_ = sqlbuilder.Database(&database{})
 )
 
 // newDatabase creates a new *database session for internal use.
@@ -68,20 +61,12 @@ func newDatabase(settings db.ConnectionURL) *database {
 	}
 }
 
-// CleanUp cleans up the session.
-func (d *database) CleanUp() error {
-	if atomic.AddInt32(&fileOpenCount, -1) < 0 {
-		return errors.New(`Close() without Open()?`)
-	}
-	return nil
-}
-
-// ConnectionURL returns this database's ConnectionURL.
+// ConnectionURL returns this database session's connection URL, if any.
 func (d *database) ConnectionURL() db.ConnectionURL {
 	return d.connURL
 }
 
-// Open attempts to open a connection to the database server.
+// Open attempts to open a connection with the database server.
 func (d *database) Open(connURL db.ConnectionURL) error {
 	if connURL == nil {
 		return db.ErrMissingConnURL
@@ -90,8 +75,11 @@ func (d *database) Open(connURL db.ConnectionURL) error {
 	return d.open()
 }
 
-// NewTx starts a transaction block.
+// NewTx begins a transaction block with the given context.
 func (d *database) NewTx(ctx context.Context) (sqlbuilder.Tx, error) {
+	if ctx == nil {
+		ctx = d.Context()
+	}
 	nTx, err := d.NewDatabaseTx(ctx)
 	if err != nil {
 		return nil, err
@@ -101,9 +89,10 @@ func (d *database) NewTx(ctx context.Context) (sqlbuilder.Tx, error) {
 
 // Collections returns a list of non-system tables from the database.
 func (d *database) Collections() (collections []string, err error) {
-	q := d.Select("tbl_name").
-		From("sqlite_master").
-		Where("type = ?", "table")
+	q := d.Select(`table_name`).
+		From(`information_schema.tables`).
+		Where(`table_type`, `BASE TABLE`).
+		And(`table_catalog`, d.BaseDatabase.Name())
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -119,6 +108,7 @@ func (d *database) Collections() (collections []string, err error) {
 	return collections, nil
 }
 
+// open attempts to establish a connection with the MySQL server.
 func (d *database) open() error {
 	// Binding with sqladapter's logic.
 	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
@@ -126,29 +116,25 @@ func (d *database) open() error {
 	// Binding with sqlbuilder.
 	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
 
-	openFn := func() error {
-		openFiles := atomic.LoadInt32(&fileOpenCount)
-		if openFiles < maxOpenFiles {
-			sess, err := sql.Open("sqlite3", d.ConnectionURL().String())
-			if err == nil {
-				if err := d.BaseDatabase.BindSession(sess); err != nil {
-					return err
-				}
-				atomic.AddInt32(&fileOpenCount, 1)
-				return nil
-			}
-			return err
+	connFn := func() error {
+		sess, err := sql.Open("mssql", d.ConnectionURL().String())
+		if err == nil {
+			sess.SetConnMaxLifetime(db.DefaultSettings.ConnMaxLifetime())
+			sess.SetMaxIdleConns(db.DefaultSettings.MaxIdleConns())
+			sess.SetMaxOpenConns(db.DefaultSettings.MaxOpenConns())
+			return d.BaseDatabase.BindSession(sess)
 		}
-		return errTooManyOpenFiles
+		return err
 	}
 
-	if err := d.BaseDatabase.WaitForConnection(openFn); err != nil {
+	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
 		return err
 	}
 
 	return nil
 }
 
+// Clone creates a copy of the database session on the given context.
 func (d *database) clone(ctx context.Context, checkConn bool) (*database, error) {
 	clone := newDatabase(d.connURL)
 
@@ -165,8 +151,8 @@ func (d *database) clone(ctx context.Context, checkConn bool) (*database, error)
 	return clone, nil
 }
 
-// CompileStatement allows sqladapter to compile the given statement into the
-// format SQLite expects.
+// CompileStatement compiles a *exql.Statement into arguments that sql/database
+// accepts.
 func (d *database) CompileStatement(stmt *exql.Statement, args []interface{}) (string, []interface{}) {
 	compiled, err := stmt.Compile(template)
 	if err != nil {
@@ -175,53 +161,33 @@ func (d *database) CompileStatement(stmt *exql.Statement, args []interface{}) (s
 	return sqlbuilder.Preprocess(compiled, args)
 }
 
-// Err allows sqladapter to translate some known errors into generic errors.
+// Err allows sqladapter to translate specific MySQL string errors into custom
+// error values.
 func (d *database) Err(err error) error {
 	if err != nil {
-		if err == errTooManyOpenFiles {
+		// This error is not exported so we have to check it by its string value.
+		s := err.Error()
+		if strings.Contains(s, `many connections`) {
 			return db.ErrTooManyClients
 		}
 	}
 	return err
 }
 
-// StatementExec wraps the statement to execute around a transaction.
-func (d *database) StatementExec(ctx context.Context, query string, args ...interface{}) (res sql.Result, err error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if d.Transaction() != nil {
-		return compat.ExecContext(d.Driver().(*sql.Tx), ctx, query, args)
-	}
-
-	sqlTx, err := compat.BeginTx(d.Session(), ctx, d.TxOptions())
-	if err != nil {
-		return nil, err
-	}
-
-	if res, err = compat.ExecContext(sqlTx, ctx, query, args); err != nil {
-		return nil, err
-	}
-
-	if err = sqlTx.Commit(); err != nil {
-		return nil, err
-	}
-
-	return res, err
-}
-
-// NewCollection allows sqladapter create a local db.Collection.
+// NewCollection creates a db.Collection by name.
 func (d *database) NewCollection(name string) db.Collection {
 	return newTable(d, name)
 }
 
-// Tx creates a transaction and passes it to the given function, if if the
-// function returns no error then the transaction is commited.
+// Tx creates a transaction block on the given context and passes it to the
+// function fn. If fn returns no error the transaction is commited, else the
+// transaction is rolled back. After being commited or rolled back the
+// transaction is closed automatically.
 func (d *database) Tx(ctx context.Context, fn func(tx sqlbuilder.Tx) error) error {
 	return sqladapter.RunTx(d, ctx, fn)
 }
 
-// NewDatabaseTx allows sqladapter start a transaction block.
+// NewDatabaseTx begins a transaction block.
 func (d *database) NewDatabaseTx(ctx context.Context) (sqladapter.DatabaseTx, error) {
 	clone, err := d.clone(ctx, true)
 	if err != nil {
@@ -230,37 +196,45 @@ func (d *database) NewDatabaseTx(ctx context.Context) (sqladapter.DatabaseTx, er
 	clone.mu.Lock()
 	defer clone.mu.Unlock()
 
-	openFn := func() error {
-		//sqlTx, err := compat.BeginTx(clone.BaseDatabase.Session(), ctx, nil) // Temporal fix.
-		sqlTx, err := clone.BaseDatabase.Session().Begin()
-		if err == nil {
-			return clone.BindTx(ctx, sqlTx)
+	connFn := func() error {
+		sqlTx, err := compat.BeginTx(clone.BaseDatabase.Session(), ctx, clone.TxOptions())
+		if err != nil {
+			return err
 		}
-		return err
+		return clone.BindTx(ctx, sqlTx)
 	}
 
-	if err := d.BaseDatabase.WaitForConnection(openFn); err != nil {
+	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
 		return nil, err
 	}
 
 	return sqladapter.NewDatabaseTx(clone), nil
 }
 
-// LookupName allows sqladapter look up the database's name.
+// LookupName looks for the name of the database and it's often used as a
+// test to determine if the connection settings are valid.
 func (d *database) LookupName() (string, error) {
-	connURL, err := ParseURL(d.ConnectionURL().String())
-	if err != nil {
-		return "", err
+	q := d.Select(db.Raw(`DB_NAME() AS name`))
+
+	iter := q.Iterator()
+	defer iter.Close()
+
+	if iter.Next() {
+		var name string
+		err := iter.Scan(&name)
+		return name, err
 	}
-	return connURL.Database, nil
+
+	return "", iter.Err()
 }
 
-// TableExists allows sqladapter check whether a table exists and returns an
-// error in case it doesn't.
+// TableExists returns an error if the given table name does not exist on the
+// database.
 func (d *database) TableExists(name string) error {
-	q := d.Select("tbl_name").
-		From("sqlite_master").
-		Where("type = 'table' AND tbl_name = ?", name)
+	q := d.Select(`table_name`).
+		From(`information_schema.tables`).
+		Where(`table_schema`, d.BaseDatabase.Name()).
+		And(`table_name`, name)
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -275,40 +249,30 @@ func (d *database) TableExists(name string) error {
 	return db.ErrCollectionDoesNotExist
 }
 
-// PrimaryKeys allows sqladapter find a table's primary keys.
+// PrimaryKeys returns the names of all the primary keys on the table.
 func (d *database) PrimaryKeys(tableName string) ([]string, error) {
-	pk := make([]string, 0, 1)
+	q := d.Select(`k.column_name`).
+		From(
+			`information_schema.table_constraints AS t`,
+			`information_schema.key_column_usage AS k`,
+		).
+		Where(`k.constraint_name = t.constraint_name`).
+		And(`k.table_name = t.table_name`).
+		And(`t.constraint_type = ?`, `PRIMARY KEY`).
+		And(`t.table_name = ?`, tableName).
+		OrderBy(`k.ordinal_position`)
 
-	stmt := exql.RawSQL(fmt.Sprintf("PRAGMA TABLE_INFO('%s')", tableName))
+	iter := q.Iterator()
+	defer iter.Close()
 
-	rows, err := d.Query(stmt)
-	if err != nil {
-		return nil, err
-	}
+	pk := []string{}
 
-	columns := []struct {
-		Name string `db:"name"`
-		PK   int    `db:"pk"`
-	}{}
-
-	if err := sqlbuilder.NewIterator(rows).All(&columns); err != nil {
-		return nil, err
-	}
-
-	maxValue := -1
-
-	for _, column := range columns {
-		if column.PK > 0 && column.PK > maxValue {
-			maxValue = column.PK
+	for iter.Next() {
+		var k string
+		if err := iter.Scan(&k); err != nil {
+			return nil, err
 		}
-	}
-
-	if maxValue > 0 {
-		for _, column := range columns {
-			if column.PK > 0 {
-				pk = append(pk, column.Name)
-			}
-		}
+		pk = append(pk, k)
 	}
 
 	return pk, nil

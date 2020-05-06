@@ -26,7 +26,7 @@ test-adapters: \
 	test-adapter-mongo
 
 test-adapter-%:
-	($(MAKE) -C adapters/$* test-extended || exit 1)
+	($(MAKE) -C adapter/$* test-extended || exit 1)
 
 test-generic:
 	export TEST_FLAGS="-run TestGeneric"; \
