@@ -20,9 +20,9 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // Package mongo wraps the gopkg.in/mgo.v2 MongoDB driver. See
-// https://github.com/upper/db/adapters/mongo for documentation, particularities and usage
+// https://github.com/upper/db/adapter/mongo for documentation, particularities and usage
 // examples.
-package mongo // import "github.com/upper/db/adapters/mongo"
+package mongo // import "github.com/upper/db/adapter/mongo"
 
 import (
 	"strings"

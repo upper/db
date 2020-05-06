@@ -19,17 +19,18 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package mysql // import "github.com/upper/db/adapters/mysql"
+package sqlite // import "github.com/upper/db/adapter/sqlite"
 
 import (
 	"database/sql"
 
 	db "github.com/upper/db"
+
 	"github.com/upper/db/internal/sqladapter"
 	"github.com/upper/db/sqlbuilder"
 )
 
-const sqlDriver = `mysql`
+const sqlDriver = `sqlite`
 
 // Adapter is the public name of the adapter.
 const Adapter = sqlDriver
@@ -51,8 +52,7 @@ func Open(settings db.ConnectionURL) (sqlbuilder.Database, error) {
 	return d, nil
 }
 
-// NewTx wraps a regular *sql.Tx transaction and returns a new upper-db
-// transaction backed by it.
+// NewTx returns a transaction session.
 func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 	d := newDatabase(nil)
 

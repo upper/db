@@ -19,30 +19,31 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Package ql wraps the modernc.org/ql/driver QL driver. See
-// https://github.com/upper/db/adapters/ql for documentation, particularities and usage
-// examples.
-package ql
+// Package sqlite wraps the github.com/lib/sqlite SQLite driver. See
+// https://github.com/upper/db/adapter/sqlite for documentation, particularities and
+// usage examples.
+package sqlite
 
 import (
 	"context"
 	"database/sql"
 	"errors"
-	"strings"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
+	_ "github.com/mattn/go-sqlite3" // SQLite3 driver.
 	db "github.com/upper/db"
 	"github.com/upper/db/internal/sqladapter"
 	"github.com/upper/db/internal/sqladapter/compat"
 	"github.com/upper/db/internal/sqladapter/exql"
 	"github.com/upper/db/sqlbuilder"
-	_ "modernc.org/ql/driver" // QL driver
 )
 
 // database is the actual implementation of Database
 type database struct {
-	sqladapter.BaseDatabase // Leveraged by sqladapter
+	sqladapter.BaseDatabase
+
 	sqlbuilder.SQLBuilder
 
 	connURL db.ConnectionURL
@@ -50,30 +51,21 @@ type database struct {
 }
 
 var (
-	fileOpenCount       int32
-	errTooManyOpenFiles       = errors.New(`Too many open database files.`)
-	maxOpenFiles        int32 = 5
-)
-
-var (
 	_ = sqlbuilder.Database(&database{})
 	_ = sqladapter.Database(&database{})
 )
 
-// newDatabase binds *database with sqladapter and the SQL builer.
+var (
+	fileOpenCount       int32
+	errTooManyOpenFiles       = errors.New(`Too many open database files.`)
+	maxOpenFiles        int32 = 100
+)
+
+// newDatabase creates a new *database session for internal use.
 func newDatabase(settings db.ConnectionURL) *database {
 	return &database{
 		connURL: settings,
 	}
-}
-
-// Open stablishes a new connection to a SQL server.
-func Open(settings db.ConnectionURL) (sqlbuilder.Database, error) {
-	d := newDatabase(settings)
-	if err := d.Open(settings); err != nil {
-		return nil, err
-	}
-	return d, nil
 }
 
 // CleanUp cleans up the session.
@@ -89,7 +81,7 @@ func (d *database) ConnectionURL() db.ConnectionURL {
 	return d.connURL
 }
 
-// Open stablishes a new connection with the SQL server.
+// Open attempts to open a connection to the database server.
 func (d *database) Open(connURL db.ConnectionURL) error {
 	if connURL == nil {
 		return db.ErrMissingConnURL
@@ -98,45 +90,8 @@ func (d *database) Open(connURL db.ConnectionURL) error {
 	return d.open()
 }
 
-// NewTx returns a transaction session.
-func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
-	d := newDatabase(nil)
-
-	// Binding with sqladapter's logic.
-	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
-
-	// Binding with sqlbuilder.
-	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
-
-	if err := d.BaseDatabase.BindTx(d.Context(), sqlTx); err != nil {
-		return nil, err
-	}
-
-	newTx := sqladapter.NewDatabaseTx(d)
-	return &tx{DatabaseTx: newTx}, nil
-}
-
-// New wraps the given *sql.DB session and creates a new db session.
-func New(sess *sql.DB) (sqlbuilder.Database, error) {
-	d := newDatabase(nil)
-
-	// Binding with sqladapter's logic.
-	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
-
-	// Binding with sqlbuilder.
-	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
-
-	if err := d.BaseDatabase.BindSession(sess); err != nil {
-		return nil, err
-	}
-	return d, nil
-}
-
 // NewTx starts a transaction block.
 func (d *database) NewTx(ctx context.Context) (sqlbuilder.Tx, error) {
-	if ctx == nil {
-		ctx = d.Context()
-	}
 	nTx, err := d.NewDatabaseTx(ctx)
 	if err != nil {
 		return nil, err
@@ -146,8 +101,9 @@ func (d *database) NewTx(ctx context.Context) (sqlbuilder.Tx, error) {
 
 // Collections returns a list of non-system tables from the database.
 func (d *database) Collections() (collections []string, err error) {
-	q := d.Select("Name").
-		From("__Table")
+	q := d.Select("tbl_name").
+		From("sqlite_master").
+		Where("type = ?", "table")
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -156,9 +112,6 @@ func (d *database) Collections() (collections []string, err error) {
 		var tableName string
 		if err := iter.Scan(&tableName); err != nil {
 			return nil, err
-		}
-		if strings.HasPrefix(tableName, "__") {
-			continue
 		}
 		collections = append(collections, tableName)
 	}
@@ -176,7 +129,7 @@ func (d *database) open() error {
 	openFn := func() error {
 		openFiles := atomic.LoadInt32(&fileOpenCount)
 		if openFiles < maxOpenFiles {
-			sess, err := sql.Open("ql", d.ConnectionURL().String())
+			sess, err := sql.Open("sqlite3", d.ConnectionURL().String())
 			if err == nil {
 				if err := d.BaseDatabase.BindSession(sess); err != nil {
 					return err
@@ -219,8 +172,7 @@ func (d *database) CompileStatement(stmt *exql.Statement, args []interface{}) (s
 	if err != nil {
 		panic(err.Error())
 	}
-	query, args := sqlbuilder.Preprocess(compiled, args)
-	return sqladapter.ReplaceWithDollarSign(query), args
+	return sqlbuilder.Preprocess(compiled, args)
 }
 
 // Err allows sqladapter to translate some known errors into generic errors.
@@ -235,6 +187,9 @@ func (d *database) Err(err error) error {
 
 // StatementExec wraps the statement to execute around a transaction.
 func (d *database) StatementExec(ctx context.Context, query string, args ...interface{}) (res sql.Result, err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	if d.Transaction() != nil {
 		return compat.ExecContext(d.Driver().(*sql.Tx), ctx, query, args)
 	}
@@ -276,7 +231,8 @@ func (d *database) NewDatabaseTx(ctx context.Context) (sqladapter.DatabaseTx, er
 	defer clone.mu.Unlock()
 
 	openFn := func() error {
-		sqlTx, err := compat.BeginTx(clone.BaseDatabase.Session(), ctx, clone.TxOptions())
+		//sqlTx, err := compat.BeginTx(clone.BaseDatabase.Session(), ctx, nil) // Temporal fix.
+		sqlTx, err := clone.BaseDatabase.Session().Begin()
 		if err == nil {
 			return clone.BindTx(ctx, sqlTx)
 		}
@@ -302,9 +258,9 @@ func (d *database) LookupName() (string, error) {
 // TableExists allows sqladapter check whether a table exists and returns an
 // error in case it doesn't.
 func (d *database) TableExists(name string) error {
-	q := d.SQLBuilder.Select("Name").
-		From("__Table").
-		Where("Name == ?", name)
+	q := d.Select("tbl_name").
+		From("sqlite_master").
+		Where("type = 'table' AND tbl_name = ?", name)
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -321,7 +277,41 @@ func (d *database) TableExists(name string) error {
 
 // PrimaryKeys allows sqladapter find a table's primary keys.
 func (d *database) PrimaryKeys(tableName string) ([]string, error) {
-	return []string{"id()"}, nil
+	pk := make([]string, 0, 1)
+
+	stmt := exql.RawSQL(fmt.Sprintf("PRAGMA TABLE_INFO('%s')", tableName))
+
+	rows, err := d.Query(stmt)
+	if err != nil {
+		return nil, err
+	}
+
+	columns := []struct {
+		Name string `db:"name"`
+		PK   int    `db:"pk"`
+	}{}
+
+	if err := sqlbuilder.NewIterator(rows).All(&columns); err != nil {
+		return nil, err
+	}
+
+	maxValue := -1
+
+	for _, column := range columns {
+		if column.PK > 0 && column.PK > maxValue {
+			maxValue = column.PK
+		}
+	}
+
+	if maxValue > 0 {
+		for _, column := range columns {
+			if column.PK > 0 {
+				pk = append(pk, column.Name)
+			}
+		}
+	}
+
+	return pk, nil
 }
 
 // WithContext creates a copy of the session on the given context.
