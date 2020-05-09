@@ -45,8 +45,7 @@ type Session interface {
 
 	Conn() sqlbuilder.Database
 
-	Store(collectionName string) Store
-	ResolveStore(interface{}) Store
+	Store(item interface{}) Store
 
 	Save(Model) error
 	Delete(Model) error
@@ -65,8 +64,8 @@ type Session interface {
 type session struct {
 	Backend
 
-	stores map[string]*store
-	mu     sync.Mutex
+	memoStores map[string]*bondStore
+	mu         sync.Mutex
 }
 
 // Open connects to a database.
@@ -82,7 +81,10 @@ func Open(adapter string, url db.ConnectionURL) (Session, error) {
 
 // New returns a new bond session (db + db/sqlbuilder methods).
 func New(conn Backend) Session {
-	return &session{Backend: conn, stores: make(map[string]*store)}
+	return &session{
+		Backend:    conn,
+		memoStores: make(map[string]*bondStore),
+	}
 }
 
 func (s *session) Conn() sqlbuilder.Database {
@@ -101,8 +103,8 @@ func (s *session) WithContext(ctx context.Context) Session {
 	}
 
 	return &session{
-		Backend: backendCtx,
-		stores:  make(map[string]*store),
+		Backend:    backendCtx,
+		memoStores: make(map[string]*bondStore),
 	}
 }
 
@@ -132,7 +134,7 @@ func Bind(adapter string, backend SQLBackend) (Session, error) {
 		return nil, fmt.Errorf("Unknown backend type: %T", t)
 	}
 
-	return &session{Backend: conn, stores: make(map[string]*store)}, nil
+	return &session{Backend: conn, memoStores: make(map[string]*bondStore)}, nil
 }
 
 func (s *session) NewTx(ctx context.Context) (sqlbuilder.Tx, error) {
@@ -145,8 +147,8 @@ func (s *session) NewSessionTx(ctx context.Context) (Session, error) {
 		return nil, err
 	}
 	return &session{
-		Backend: tx,
-		stores:  make(map[string]*store),
+		Backend:    tx,
+		memoStores: make(map[string]*bondStore),
 	}, nil
 }
 
@@ -171,8 +173,8 @@ func (s *session) TxRollback() error {
 func (s *session) SessionTx(ctx context.Context, fn func(sess Session) error) error {
 	txFn := func(sess sqlbuilder.Tx) error {
 		return fn(&session{
-			Backend: sess,
-			stores:  make(map[string]*store),
+			Backend:    sess,
+			memoStores: make(map[string]*bondStore),
 		})
 	}
 
@@ -194,64 +196,53 @@ func (s *session) SessionTx(ctx context.Context, fn func(sess Session) error) er
 	return errors.New("Missing backend, forgot to use bond.New?")
 }
 
-func (s *session) getStore(item interface{}) Store {
-	if c, ok := item.(HasStore); ok {
-		return c.Store(s)
-	}
-	if c, ok := item.(HasCollectionName); ok {
-		return s.Store(c.CollectionName())
-	}
-	panic("reached")
-}
-
-func (s *session) Save(item Model) error {
+func (sess *session) Save(item Model) error {
 	if item == nil {
 		return ErrExpectingNonNilModel
 	}
-	return s.getStore(item).Save(item)
+	return item.Store(sess).Save(item)
 }
 
-func (s *session) Delete(item Model) error {
+func (sess *session) Delete(item Model) error {
 	if item == nil {
 		return ErrExpectingNonNilModel
 	}
-	return s.getStore(item).Delete(item)
+	return item.Store(sess).Delete(item)
 }
 
-func (s *session) Store(collectionName string) Store {
-	if collectionName == "" {
-		return &store{session: s}
+func (s *session) Store(item interface{}) Store {
+	storeName := s.resolveStoreName(item)
+	if storeName == "" {
+		return &bondStore{session: s}
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if store, ok := s.stores[collectionName]; ok {
+	if store, ok := s.memoStores[storeName]; ok {
 		return store
 	}
 
-	store := &store{
-		Collection: s.Collection(collectionName),
+	store := &bondStore{
+		Collection: s.Collection(storeName),
 		session:    s,
 	}
-	s.stores[collectionName] = store
-	return store
+	s.memoStores[storeName] = store
+	return s.memoStores[storeName]
 }
 
-func (s *session) ResolveStore(item interface{}) Store {
-	var colName string
+func (s *session) resolveStoreName(item interface{}) string {
+	// TODO: detect loops
 
 	switch t := item.(type) {
 	case string:
-		colName = t
-	case func(sess Session) db.Collection:
-		colName = t(s).Name()
-	case Store:
 		return t
+	case func(sess Session) db.Collection:
+		return t(s).Name()
 	case db.Collection:
-		colName = t.Name()
+		return t.Name()
 	case Model:
-		colName = t.Store(s).Name()
+		return t.Store(s).Name()
 	default:
 		itemv := reflect.ValueOf(item)
 		if itemv.Kind() == reflect.Ptr {
@@ -259,9 +250,9 @@ func (s *session) ResolveStore(item interface{}) Store {
 		}
 		item = itemv.Interface()
 		if m, ok := item.(Model); ok {
-			colName = m.Store(s).Name()
+			return m.Store(s).Name()
 		}
 	}
 
-	return s.Store(colName)
+	return ""
 }
