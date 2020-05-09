@@ -14,22 +14,21 @@ type Store interface {
 	db.Collection
 
 	Session() Session
-	WithSession(sess Session) Store
 
-	Save(interface{}) error
-	Delete(interface{}) error
-	Create(interface{}) error
-	Update(interface{}) error
+	Save(Model) error
+	Delete(Model) error
+	Create(Model) error
+	Update(Model) error
 }
 
-type store struct {
+type bondStore struct {
 	db.Collection
 
 	session Session
 }
 
-func (s *store) getPrimaryKeyFields(item interface{}) ([]string, []interface{}) {
-	pKeys := s.Collection.(sqladapter.HasPrimaryKeys).PrimaryKeys()
+func (st *bondStore) getPrimaryKeyFieldValues(item interface{}) ([]string, []interface{}) {
+	pKeys := st.Collection.(sqladapter.HasPrimaryKeys).PrimaryKeys()
 	fields := mapper.FieldsByName(reflect.ValueOf(item), pKeys)
 
 	values := make([]interface{}, 0, len(fields))
@@ -42,23 +41,14 @@ func (s *store) getPrimaryKeyFields(item interface{}) ([]string, []interface{}) 
 	return pKeys, values
 }
 
-// WithSession returns a copy of the store that runs in the context of the given
-// transaction.
-func (s *store) WithSession(sess Session) Store {
-	return &store{
-		Collection: sess.Collection(s.Collection.Name()),
-		session:    sess,
-	}
-}
-
-func (s *store) Save(item interface{}) error {
+func (st *bondStore) Save(item Model) error {
 	if saver, ok := item.(HasSave); ok {
-		return s.Session().SessionTx(nil, func(tx Session) error {
+		return st.Session().SessionTx(nil, func(tx Session) error {
 			return saver.Save(tx)
 		})
 	}
 
-	if s.Collection == nil {
+	if st.Collection == nil {
 		return ErrInvalidCollection
 	}
 
@@ -66,7 +56,7 @@ func (s *store) Save(item interface{}) error {
 		return ErrExpectingPointerToStruct
 	}
 
-	_, fields := s.getPrimaryKeyFields(item)
+	_, fields := st.getPrimaryKeyFieldValues(item)
 	isCreate := true
 	for i := range fields {
 		if fields[i] != reflect.Zero(reflect.TypeOf(fields[i])).Interface() {
@@ -75,14 +65,14 @@ func (s *store) Save(item interface{}) error {
 	}
 
 	if isCreate {
-		return s.Create(item)
+		return st.Create(item)
 	}
 
-	return s.Update(item)
+	return st.Update(item)
 }
 
-func (s *store) Create(item interface{}) error {
-	if s.Collection == nil {
+func (st *bondStore) Create(item Model) error {
+	if st.Collection == nil {
 		return ErrInvalidCollection
 	}
 
@@ -93,31 +83,31 @@ func (s *store) Create(item interface{}) error {
 	}
 
 	if m, ok := item.(HasBeforeCreate); ok {
-		if err := m.BeforeCreate(s.session); err != nil {
+		if err := m.BeforeCreate(st.session); err != nil {
 			return err
 		}
 	}
 
 	if reflect.TypeOf(item).Kind() == reflect.Ptr {
-		if err := s.Collection.InsertReturning(item); err != nil {
+		if err := st.Collection.InsertReturning(item); err != nil {
 			return err
 		}
 	} else {
-		if _, err := s.Collection.Insert(item); err != nil {
+		if _, err := st.Collection.Insert(item); err != nil {
 			return err
 		}
 	}
 
 	if m, ok := item.(HasAfterCreate); ok {
-		if err := m.AfterCreate(s.session); err != nil {
+		if err := m.AfterCreate(st.session); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (s *store) Update(item interface{}) error {
-	if s.Collection == nil {
+func (st *bondStore) Update(item Model) error {
+	if st.Collection == nil {
 		return ErrInvalidCollection
 	}
 
@@ -128,13 +118,13 @@ func (s *store) Update(item interface{}) error {
 	}
 
 	if m, ok := item.(HasBeforeUpdate); ok {
-		if err := m.BeforeUpdate(s.session); err != nil {
+		if err := m.BeforeUpdate(st.session); err != nil {
 			return err
 		}
 	}
 
 	cond := db.And()
-	pKeys, fields := s.getPrimaryKeyFields(item)
+	pKeys, fields := st.getPrimaryKeyFieldValues(item)
 	for i := range pKeys {
 		cond = cond.And(db.Cond{pKeys[i]: fields[i]})
 	}
@@ -143,17 +133,17 @@ func (s *store) Update(item interface{}) error {
 	}
 
 	if reflect.TypeOf(item).Kind() == reflect.Ptr {
-		if err := s.Collection.UpdateReturning(item); err != nil {
+		if err := st.Collection.UpdateReturning(item); err != nil {
 			return err
 		}
 	} else {
-		if err := s.Collection.Find(cond).Update(item); err != nil {
+		if err := st.Collection.Find(cond).Update(item); err != nil {
 			return err
 		}
 	}
 
 	if m, ok := item.(HasAfterUpdate); ok {
-		if err := m.AfterUpdate(s.session); err != nil {
+		if err := m.AfterUpdate(st.session); err != nil {
 			return err
 		}
 	}
@@ -161,8 +151,8 @@ func (s *store) Update(item interface{}) error {
 	return nil
 }
 
-func (s *store) Delete(item interface{}) error {
-	if s.Collection == nil {
+func (st *bondStore) Delete(item Model) error {
+	if st.Collection == nil {
 		return ErrInvalidCollection
 	}
 
@@ -171,26 +161,26 @@ func (s *store) Delete(item interface{}) error {
 	}
 
 	cond := db.And()
-	pKeys, fields := s.getPrimaryKeyFields(item)
-	for i := range pKeys {
-		cond = cond.And(db.Cond{pKeys[i]: fields[i]})
+	keys, values := st.getPrimaryKeyFieldValues(item)
+	for i := range keys {
+		cond = cond.And(db.Cond{keys[i]: values[i]})
 	}
 	if cond.Empty() {
 		return ErrZeroItemID
 	}
 
 	if m, ok := item.(HasBeforeDelete); ok {
-		if err := m.BeforeDelete(s.session); err != nil {
+		if err := m.BeforeDelete(st.session); err != nil {
 			return err
 		}
 	}
 
-	if err := s.Collection.Find(cond).Delete(); err != nil {
+	if err := st.Collection.Find(cond).Delete(); err != nil {
 		return err
 	}
 
 	if m, ok := item.(HasAfterDelete); ok {
-		if err := m.AfterDelete(s.session); err != nil {
+		if err := m.AfterDelete(st.session); err != nil {
 			return err
 		}
 	}
@@ -198,6 +188,7 @@ func (s *store) Delete(item interface{}) error {
 	return nil
 }
 
-func (s *store) Session() Session {
-	return s.session
+// Session returns the underlying Session.
+func (st *bondStore) Session() Session {
+	return st.session
 }
