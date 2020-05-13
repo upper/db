@@ -22,6 +22,7 @@
 package mysql
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
@@ -41,31 +42,7 @@ type uintCompat uint
 
 type stringCompat string
 
-type uint8Compat uint8
-
-type int64CompatArray []int64Compat
-
-type uint8CompatArray []uint8Compat
-
 type uintCompatArray []uintCompat
-
-func (u *uint8Compat) Scan(src interface{}) error {
-	if src != nil {
-		switch v := src.(type) {
-		case int64:
-			*u = uint8Compat((src).(int64))
-		case []byte:
-			i, err := strconv.ParseInt(string(v), 10, 64)
-			if err != nil {
-				return err
-			}
-			*u = uint8Compat(i)
-		default:
-			panic(fmt.Sprintf("expected type %T", src))
-		}
-	}
-	return nil
-}
 
 func (u *int64Compat) Scan(src interface{}) error {
 	if src != nil {
@@ -186,7 +163,7 @@ func (s *AdapterTests) TestIssue469_BadConnection() {
 
 	// At this point the server should have disconnected us. Let's try to create
 	// a transaction anyway.
-	err = sess.Tx(nil, func(sess sqlbuilder.Tx) error {
+	err = sess.Tx(context.Background(), func(sess sqlbuilder.Tx) error {
 		var err error
 
 		_, err = sess.Collection("artist").Find().Count()
@@ -202,7 +179,7 @@ func (s *AdapterTests) TestIssue469_BadConnection() {
 	_, err = sess.Exec(`SET SESSION wait_timeout=1`)
 	s.NoError(err)
 
-	err = sess.Tx(nil, func(sess sqlbuilder.Tx) error {
+	err = sess.Tx(context.Background(), func(sess sqlbuilder.Tx) error {
 		var err error
 
 		// This query should succeed.
@@ -229,16 +206,6 @@ func (s *AdapterTests) TestIssue469_BadConnection() {
 
 func (s *AdapterTests) TestMySQLTypes() {
 	sess := s.SQLBuilder()
-
-	type MyTypeInline struct {
-		JSONMapPtr *JSONMap `db:"json_map_ptr,omitempty"`
-	}
-
-	type MyTypeAutoInline struct {
-		AutoJSONMap        map[string]interface{} `db:"auto_json_map"`
-		AutoJSONMapString  map[string]string      `db:"auto_json_map_string"`
-		AutoJSONMapInteger map[string]int64       `db:"auto_json_map_integer"`
-	}
 
 	type MyType struct {
 		ID int64 `db:"id,omitempty"`
