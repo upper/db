@@ -10,14 +10,28 @@ import (
 
 var mapper = reflectx.NewMapper("db")
 
+// Store represents a mechanism to save items.
 type Store interface {
 	db.Collection
 
+	// Session returns the underlying session the store belongs to.
 	Session() Session
 
+	// Save creates or updates the given item (this depends on the values of the
+	// primary key, if the primary key is defined an update operation will be
+	// attempted, a create operation will be tried otherwise). If the given model
+	// satisfies the HasSave interface this method will delegate the save task to
+	// the model.
 	Save(Model) error
+
+	// Delete removes the item from the store.
 	Delete(Model) error
+
+	// Create inserts a new item into the store.
 	Create(Model) error
+
+	// Update modifies the item in the store. This will work as long as the
+	// primary keys are non-zero values.
 	Update(Model) error
 }
 
@@ -43,7 +57,7 @@ func (st *bondStore) getPrimaryKeyFieldValues(item interface{}) ([]string, []int
 
 func (st *bondStore) Save(item Model) error {
 	if saver, ok := item.(HasSave); ok {
-		return st.Session().SessionTx(nil, func(tx Session) error {
+		return st.Session().Transaction(func(tx Session) error {
 			return saver.Save(tx)
 		})
 	}
