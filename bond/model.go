@@ -39,51 +39,51 @@ type HasSave interface {
 	Save(sess Session) error
 }
 
-// HasValidate is an interface that defined an (optional) Validate function for
+// Validator is an interface that defined an (optional) Validate function for
 // models that is called before persisting an item (creating or updating). If
 // Validate returns an error the current operation is rolled back.
-type HasValidate interface {
+type Validator interface {
 	Validate() error
 }
 
-// HasBeforeCreate is an interface that defines an BeforeCreate function for
+// BeforeCreateHook is an interface that defines an BeforeCreate function for
 // models that is called before creating an item. If BeforeCreate returns an
 // error the create process is rolled back.
-type HasBeforeCreate interface {
+type BeforeCreateHook interface {
 	BeforeCreate(Session) error
 }
 
-// HasAfterCreate is an interface that defines an AfterCreate function for
+// AfterCreateHook is an interface that defines an AfterCreate function for
 // models that is called after creating an item. If AfterCreate returns an
 // error the create process is rolled back.
-type HasAfterCreate interface {
+type AfterCreateHook interface {
 	AfterCreate(Session) error
 }
 
-// HasBeforeUpdate is an interface that defines a BeforeUpdate function for
+// BeforeUpdateHook is an interface that defines a BeforeUpdate function for
 // models that is called before updating an item. If BeforeUpdate returns an
 // error the update process is rolled back.
-type HasBeforeUpdate interface {
+type BeforeUpdateHook interface {
 	BeforeUpdate(Session) error
 }
 
-// HasAfterUpdate is an interface that defines an AfterUpdate function for
+// AfterUpdateHook is an interface that defines an AfterUpdate function for
 // models that is called after updating an item. If AfterUpdate returns an
 // error the update process is rolled back.
-type HasAfterUpdate interface {
+type AfterUpdateHook interface {
 	AfterUpdate(Session) error
 }
 
-// HasBeforeDelete is an interface that defines a BeforeDelete function for
+// BeforeDeleteHook is an interface that defines a BeforeDelete function for
 // models that is called before removing an item. If BeforeDelete returns an
 // error the delete process is rolled back.
-type HasBeforeDelete interface {
+type BeforeDeleteHook interface {
 	BeforeDelete(Session) error
 }
 
-// HasAfterDelete is an interface that defines a AfterDelete function for
+// AfterDeleteHook is an interface that defines a AfterDelete function for
 // models that is called after removing an item. If AfterDelete returns an
 // error the delete process is rolled back.
-type HasAfterDelete interface {
+type AfterDeleteHook interface {
 	AfterDelete(Session) error
 }

@@ -111,13 +111,13 @@ func (st *bondStore) Create(item Model) error {
 		return ErrInvalidCollection
 	}
 
-	if validator, ok := item.(HasValidate); ok {
+	if validator, ok := item.(Validator); ok {
 		if err := validator.Validate(); err != nil {
 			return err
 		}
 	}
 
-	if m, ok := item.(HasBeforeCreate); ok {
+	if m, ok := item.(BeforeCreateHook); ok {
 		if err := m.BeforeCreate(st.session); err != nil {
 			return err
 		}
@@ -133,7 +133,7 @@ func (st *bondStore) Create(item Model) error {
 		}
 	}
 
-	if m, ok := item.(HasAfterCreate); ok {
+	if m, ok := item.(AfterCreateHook); ok {
 		if err := m.AfterCreate(st.session); err != nil {
 			return err
 		}
@@ -146,13 +146,13 @@ func (st *bondStore) Update(item Model) error {
 		return ErrInvalidCollection
 	}
 
-	if validator, ok := item.(HasValidate); ok {
+	if validator, ok := item.(Validator); ok {
 		if err := validator.Validate(); err != nil {
 			return err
 		}
 	}
 
-	if m, ok := item.(HasBeforeUpdate); ok {
+	if m, ok := item.(BeforeUpdateHook); ok {
 		if err := m.BeforeUpdate(st.session); err != nil {
 			return err
 		}
@@ -177,7 +177,7 @@ func (st *bondStore) Update(item Model) error {
 		}
 	}
 
-	if m, ok := item.(HasAfterUpdate); ok {
+	if m, ok := item.(AfterUpdateHook); ok {
 		if err := m.AfterUpdate(st.session); err != nil {
 			return err
 		}
@@ -204,7 +204,7 @@ func (st *bondStore) Delete(item Model) error {
 		return ErrZeroItemID
 	}
 
-	if m, ok := item.(HasBeforeDelete); ok {
+	if m, ok := item.(BeforeDeleteHook); ok {
 		if err := m.BeforeDelete(st.session); err != nil {
 			return err
 		}
@@ -214,7 +214,7 @@ func (st *bondStore) Delete(item Model) error {
 		return err
 	}
 
-	if m, ok := item.(HasAfterDelete); ok {
+	if m, ok := item.(AfterDeleteHook); ok {
 		if err := m.AfterDelete(st.session); err != nil {
 			return err
 		}
