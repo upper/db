@@ -24,12 +24,18 @@ type hasContext interface {
 	Context() context.Context
 }
 
-// SQLBackend represents a type that can execute SQL queries.
+// SQLBackend represents a SQL engine that can execute SQL queries. This is
+// compatible with *sql.DB.
 type SQLBackend interface {
 	Exec(string, ...interface{}) (sql.Result, error)
 	Prepare(string) (*sql.Stmt, error)
 	Query(string, ...interface{}) (*sql.Rows, error)
 	QueryRow(string, ...interface{}) *sql.Row
+
+	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
+	PrepareContext(context.Context, string) (*sql.Stmt, error)
+	QueryContext(context.Context, string, ...interface{}) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...interface{}) *sql.Row
 }
 
 type Backend interface {
@@ -40,25 +46,28 @@ type Backend interface {
 	TxOptions() *sql.TxOptions
 }
 
+// Session represents
 type Session interface {
 	Backend
 
-	Conn() sqlbuilder.Database
-
+	// Store returns a suitable store for the given table name (string), Model or
+	// db.Collection.
 	Store(item interface{}) Store
 
+	// Save looks up the given model's store and delegates a Save call to it.
 	Save(Model) error
+
+	// Delete looks up the model's store and delegates the Delete call to it.
 	Delete(Model) error
 
-	WithContext(context.Context) Session
+	// Context returns the context the session is running in.
 	Context() context.Context
 
-	SessionTx(context.Context, func(tx Session) error) error
-	NewTx(context.Context) (sqlbuilder.Tx, error)
-	NewSessionTx(context.Context) (Session, error)
+	// Transaction runs a transactional operation.
+	Transaction(func(Session) error) error
 
-	TxCommit() error
-	TxRollback() error
+	// TransactionContext runs a transactional operation on the given context.
+	TransactionContext(context.Context, func(Session) error) error
 }
 
 type session struct {
@@ -68,7 +77,7 @@ type session struct {
 	mu         sync.Mutex
 }
 
-// Open connects to a database.
+// Open connects to a database and returns a Session.
 func Open(adapter string, url db.ConnectionURL) (Session, error) {
 	conn, err := sqlbuilder.Open(adapter, url)
 	if err != nil {
@@ -79,16 +88,12 @@ func Open(adapter string, url db.ConnectionURL) (Session, error) {
 	return sess, nil
 }
 
-// New returns a new bond session (db + db/sqlbuilder methods).
+// New returns a new Session.
 func New(conn Backend) Session {
 	return &session{
 		Backend:    conn,
 		memoStores: make(map[string]*bondStore),
 	}
-}
-
-func (s *session) Conn() sqlbuilder.Database {
-	return s.Backend.(sqlbuilder.Database)
 }
 
 func (s *session) WithContext(ctx context.Context) Session {
@@ -112,8 +117,7 @@ func (s *session) Context() context.Context {
 	return s.Backend.(hasContext).Context()
 }
 
-// Bind binds to an existent database session. Possible backend values are:
-// *sql.Tx or *sql.DB.
+// Bind creates a binding between an adapter and a *sql.Tx or a *sql.DB.
 func Bind(adapter string, backend SQLBackend) (Session, error) {
 	var conn Backend
 
@@ -134,11 +138,14 @@ func Bind(adapter string, backend SQLBackend) (Session, error) {
 		return nil, fmt.Errorf("Unknown backend type: %T", t)
 	}
 
-	return &session{Backend: conn, memoStores: make(map[string]*bondStore)}, nil
+	return &session{
+		Backend:    conn,
+		memoStores: make(map[string]*bondStore),
+	}, nil
 }
 
 func (s *session) NewTx(ctx context.Context) (sqlbuilder.Tx, error) {
-	return s.Conn().NewTx(ctx)
+	return s.Backend.(sqlbuilder.Database).NewTx(ctx)
 }
 
 func (s *session) NewSessionTx(ctx context.Context) (Session, error) {
@@ -152,7 +159,7 @@ func (s *session) NewSessionTx(ctx context.Context) (Session, error) {
 	}, nil
 }
 
-func (s *session) TxCommit() error {
+func (s *session) txCommit() error {
 	tx, ok := s.Backend.(sqlbuilder.Tx)
 	if !ok {
 		return errors.Errorf("bond: session is not a tx")
@@ -161,7 +168,7 @@ func (s *session) TxCommit() error {
 	return tx.Commit()
 }
 
-func (s *session) TxRollback() error {
+func (s *session) txRollback() error {
 	tx, ok := s.Backend.(sqlbuilder.Tx)
 	if !ok {
 		return errors.Errorf("bond: session is not a tx")
@@ -170,7 +177,11 @@ func (s *session) TxRollback() error {
 	return tx.Rollback()
 }
 
-func (s *session) SessionTx(ctx context.Context, fn func(sess Session) error) error {
+func (s *session) Transaction(fn func(sess Session) error) error {
+	return s.TransactionContext(context.Background(), fn)
+}
+
+func (s *session) TransactionContext(ctx context.Context, fn func(sess Session) error) error {
 	txFn := func(sess sqlbuilder.Tx) error {
 		return fn(&session{
 			Backend:    sess,
