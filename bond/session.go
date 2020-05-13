@@ -1,3 +1,24 @@
+// Copyright (c) 2012-present The upper.io/db authors. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 package bond
 
 import (
@@ -12,14 +33,6 @@ import (
 	"github.com/upper/db/sqlbuilder"
 )
 
-type txWithContext interface {
-	WithContext(context.Context) sqlbuilder.Tx
-}
-
-type databaseWithContext interface {
-	WithContext(context.Context) sqlbuilder.Database
-}
-
 type hasContext interface {
 	Context() context.Context
 }
@@ -27,6 +40,7 @@ type hasContext interface {
 // Engine represents a bond database engine.
 type Engine interface {
 	db.Database
+
 	sqlbuilder.SQLBuilder
 }
 
@@ -61,6 +75,15 @@ type session struct {
 	mu         sync.Mutex
 }
 
+// New wraps an Engine and returns a Session
+func New(conn Engine) Session {
+	return &session{
+		Engine: conn,
+
+		memoStores: make(map[string]*bondStore),
+	}
+}
+
 // Open connects to a database and returns a Session.
 func Open(adapter string, url db.ConnectionURL) (Session, error) {
 	conn, err := sqlbuilder.Open(adapter, url)
@@ -70,35 +93,6 @@ func Open(adapter string, url db.ConnectionURL) (Session, error) {
 
 	sess := New(conn)
 	return sess, nil
-}
-
-// New returns a new Session.
-func New(conn Engine) Session {
-	return &session{
-		Engine:     conn,
-		memoStores: make(map[string]*bondStore),
-	}
-}
-
-func (s *session) WithContext(ctx context.Context) Session {
-	var backendCtx Engine
-	switch t := s.Engine.(type) {
-	case databaseWithContext:
-		backendCtx = t.WithContext(ctx)
-	case txWithContext:
-		backendCtx = t.WithContext(ctx)
-	default:
-		panic("Bad session")
-	}
-
-	return &session{
-		Engine:     backendCtx,
-		memoStores: make(map[string]*bondStore),
-	}
-}
-
-func (s *session) Context() context.Context {
-	return s.Engine.(hasContext).Context()
 }
 
 // Bind creates a binding between an adapter and a *sql.Tx or a *sql.DB.
@@ -128,12 +122,40 @@ func Bind(adapter string, backend sqlbuilder.SQLEngine) (Session, error) {
 	}, nil
 }
 
-func (s *session) NewTx(ctx context.Context) (sqlbuilder.Tx, error) {
-	return s.Engine.(sqlbuilder.Database).NewTx(ctx)
+func (sess *session) WithContext(ctx context.Context) Session {
+	var backendCtx Engine
+	switch t := sess.Engine.(type) {
+	case interface {
+		WithContext(context.Context) sqlbuilder.Database
+	}:
+		backendCtx = t.WithContext(ctx)
+	case interface {
+		WithContext(context.Context) sqlbuilder.Tx
+	}:
+		backendCtx = t.WithContext(ctx)
+	default:
+		panic("unexpected engine")
+	}
+
+	return &session{
+		Engine:     backendCtx,
+		memoStores: make(map[string]*bondStore),
+	}
 }
 
-func (s *session) NewSessionTx(ctx context.Context) (Session, error) {
-	tx, err := s.NewTx(ctx)
+func (sess *session) Context() context.Context {
+	if ctx, ok := sess.Engine.(hasContext); ok {
+		return ctx.Context()
+	}
+	return context.Background()
+}
+
+func (sess *session) NewTx(ctx context.Context) (sqlbuilder.Tx, error) {
+	return sess.Engine.(sqlbuilder.Database).NewTx(ctx)
+}
+
+func (sess *session) NewSessionTx(ctx context.Context) (Session, error) {
+	tx, err := sess.NewTx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -143,29 +165,11 @@ func (s *session) NewSessionTx(ctx context.Context) (Session, error) {
 	}, nil
 }
 
-func (s *session) txCommit() error {
-	tx, ok := s.Engine.(sqlbuilder.Tx)
-	if !ok {
-		return errors.Errorf("bond: session is not a tx")
-	}
-	defer tx.Close()
-	return tx.Commit()
+func (sess *session) Transaction(fn func(sess Session) error) error {
+	return sess.TransactionContext(context.Background(), fn)
 }
 
-func (s *session) txRollback() error {
-	tx, ok := s.Engine.(sqlbuilder.Tx)
-	if !ok {
-		return errors.Errorf("bond: session is not a tx")
-	}
-	defer tx.Close()
-	return tx.Rollback()
-}
-
-func (s *session) Transaction(fn func(sess Session) error) error {
-	return s.TransactionContext(context.Background(), fn)
-}
-
-func (s *session) TransactionContext(ctx context.Context, fn func(sess Session) error) error {
+func (sess *session) TransactionContext(ctx context.Context, fn func(sess Session) error) error {
 	txFn := func(sess sqlbuilder.Tx) error {
 		return fn(&session{
 			Engine:     sess,
@@ -173,7 +177,7 @@ func (s *session) TransactionContext(ctx context.Context, fn func(sess Session) 
 		})
 	}
 
-	switch t := s.Engine.(type) {
+	switch t := sess.Engine.(type) {
 	case sqlbuilder.Database:
 		return t.Tx(ctx, txFn)
 	case sqlbuilder.Tx:
@@ -205,39 +209,39 @@ func (sess *session) Delete(item Model) error {
 	return item.Store(sess).Delete(item)
 }
 
-func (s *session) Store(item interface{}) Store {
-	storeName := s.resolveStoreName(item)
+func (sess *session) Store(item interface{}) Store {
+	storeName := sess.resolveStoreName(item)
 	if storeName == "" {
-		return &bondStore{session: s}
+		return &bondStore{session: sess}
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	sess.mu.Lock()
+	defer sess.mu.Unlock()
 
-	if store, ok := s.memoStores[storeName]; ok {
+	if store, ok := sess.memoStores[storeName]; ok {
 		return store
 	}
 
 	store := &bondStore{
-		Collection: s.Collection(storeName),
-		session:    s,
+		Collection: sess.Collection(storeName),
+		session:    sess,
 	}
-	s.memoStores[storeName] = store
-	return s.memoStores[storeName]
+	sess.memoStores[storeName] = store
+	return sess.memoStores[storeName]
 }
 
-func (s *session) resolveStoreName(item interface{}) string {
+func (sess *session) resolveStoreName(item interface{}) string {
 	// TODO: detect loops
 
 	switch t := item.(type) {
 	case string:
 		return t
-	case func(sess Session) db.Collection:
-		return t(s).Name()
+	case Model:
+		return t.Store(sess).Name()
+	case func(Session) db.Collection:
+		return t(sess).Name()
 	case db.Collection:
 		return t.Name()
-	case Model:
-		return t.Store(s).Name()
 	default:
 		itemv := reflect.ValueOf(item)
 		if itemv.Kind() == reflect.Ptr {
@@ -245,7 +249,7 @@ func (s *session) resolveStoreName(item interface{}) string {
 		}
 		item = itemv.Interface()
 		if m, ok := item.(Model); ok {
-			return m.Store(s).Name()
+			return m.Store(sess).Name()
 		}
 	}
 
