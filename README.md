@@ -2,17 +2,17 @@
   <img src="https://upper.io/db.v3/images/gopher.svg" width="256" />
 </p>
 
-# upper.io/db.v3 [![Build Status](https://travis-ci.org/upper/db.svg?branch=master)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/upper.io/db.v3?status.svg)](https://godoc.org/upper.io/db.v3)
+# upper/db [![Build Status](https://travis-ci.org/upper/db.svg?branch=v4)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/github.com/upper/db?status.svg)](https://godoc.org/github.com/upper/db)
 
-The `upper.io/db.v3` package for [Go][2] is a productive data access layer for
-Go that provides a common interface to work with different data sources such as
+`upper/db` is a productive data access layer (DAL) for [Go](https://golang.org)
+that provides agnostic tools to work with different data sources, such as
 [PostgreSQL](https://upper.io/db.v3/postgresql),
 [MySQL](https://upper.io/db.v3/mysql), [SQLite](https://upper.io/db.v3/sqlite),
-[MSSQL](https://upper.io/db.v3/mssql),
-[QL](https://upper.io/db.v3/ql) and [MongoDB](https://upper.io/db.v3/mongo).
+[MSSQL](https://upper.io/db.v3/mssql), [QL](https://upper.io/db.v3/ql) and
+[MongoDB](https://upper.io/db.v3/mongo).
 
 ```
-go get upper.io/db.v3
+go get github.com/upper/db
 ```
 
 ## The tour
@@ -32,7 +32,7 @@ package main
 import (
 	"log"
 
-	"upper.io/db.v3/postgresql"
+	"github.com/upper/db/adapter/postgresql"
 )
 
 var settings = postgresql.ConnectionURL{
@@ -68,34 +68,6 @@ func main() {
 }
 ```
 
-Or you can also run it locally from the `_examples` directory:
-
-```
-go run _examples/booktown-books/main.go
-2016/08/10 08:42:48 "The Shining" (ID: 7808)
-2016/08/10 08:42:48 "Dune" (ID: 4513)
-2016/08/10 08:42:48 "2001: A Space Odyssey" (ID: 4267)
-2016/08/10 08:42:48 "The Cat in the Hat" (ID: 1608)
-2016/08/10 08:42:48 "Bartholomew and the Oobleck" (ID: 1590)
-2016/08/10 08:42:48 "Franklin in the Dark" (ID: 25908)
-2016/08/10 08:42:48 "Goodnight Moon" (ID: 1501)
-2016/08/10 08:42:48 "Little Women" (ID: 190)
-2016/08/10 08:42:48 "The Velveteen Rabbit" (ID: 1234)
-2016/08/10 08:42:48 "Dynamic Anatomy" (ID: 2038)
-2016/08/10 08:42:48 "The Tell-Tale Heart" (ID: 156)
-2016/08/10 08:42:48 "Programming Python" (ID: 41473)
-2016/08/10 08:42:48 "Learning Python" (ID: 41477)
-2016/08/10 08:42:48 "Perl Cookbook" (ID: 41478)
-2016/08/10 08:42:48 "Practical PostgreSQL" (ID: 41472)
-```
-
-## Documentation for users
-
-This is the source code repository, check out our [release
-notes](https://github.com/upper/db/releases/tag/v3.0.0) and see examples and
-documentation at [upper.io/db.v3][1].
-
-
 ## Changelog
 
 See [CHANGELOG.md](https://github.com/upper/db/blob/master/CHANGELOG.md).
@@ -122,6 +94,3 @@ Licensed under [MIT License](./LICENSE)
 * achun <<achun.shx@qq.com>>
 * rjmcguire <<rjmcguire@gmail.com>>
 * wei2912 <<wei2912_support@hotmail.com>>
-
-[1]: https://upper.io/db.v3
-[2]: http://golang.org
