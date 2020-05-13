@@ -25,7 +25,7 @@ import (
 	"errors"
 )
 
-// Public errors
+// Error messages
 var (
 	ErrExpectingPointerToStruct = errors.New(`Expecting pointer to struct`)
 	ErrExpectingNonNilModel     = errors.New(`Expecting non nil model`)
