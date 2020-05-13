@@ -24,31 +24,15 @@ type hasContext interface {
 	Context() context.Context
 }
 
-// SQLBackend represents a SQL engine that can execute SQL queries. This is
-// compatible with *sql.DB.
-type SQLBackend interface {
-	Exec(string, ...interface{}) (sql.Result, error)
-	Prepare(string) (*sql.Stmt, error)
-	Query(string, ...interface{}) (*sql.Rows, error)
-	QueryRow(string, ...interface{}) *sql.Row
-
-	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
-	PrepareContext(context.Context, string) (*sql.Stmt, error)
-	QueryContext(context.Context, string, ...interface{}) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...interface{}) *sql.Row
-}
-
-type Backend interface {
+// Engine represents a bond database engine.
+type Engine interface {
 	db.Database
 	sqlbuilder.SQLBuilder
-
-	SetTxOptions(sql.TxOptions)
-	TxOptions() *sql.TxOptions
 }
 
 // Session represents
 type Session interface {
-	Backend
+	Engine
 
 	// Store returns a suitable store for the given table name (string), Model or
 	// db.Collection.
@@ -71,7 +55,7 @@ type Session interface {
 }
 
 type session struct {
-	Backend
+	Engine
 
 	memoStores map[string]*bondStore
 	mu         sync.Mutex
@@ -89,16 +73,16 @@ func Open(adapter string, url db.ConnectionURL) (Session, error) {
 }
 
 // New returns a new Session.
-func New(conn Backend) Session {
+func New(conn Engine) Session {
 	return &session{
-		Backend:    conn,
+		Engine:     conn,
 		memoStores: make(map[string]*bondStore),
 	}
 }
 
 func (s *session) WithContext(ctx context.Context) Session {
-	var backendCtx Backend
-	switch t := s.Backend.(type) {
+	var backendCtx Engine
+	switch t := s.Engine.(type) {
 	case databaseWithContext:
 		backendCtx = t.WithContext(ctx)
 	case txWithContext:
@@ -108,18 +92,18 @@ func (s *session) WithContext(ctx context.Context) Session {
 	}
 
 	return &session{
-		Backend:    backendCtx,
+		Engine:     backendCtx,
 		memoStores: make(map[string]*bondStore),
 	}
 }
 
 func (s *session) Context() context.Context {
-	return s.Backend.(hasContext).Context()
+	return s.Engine.(hasContext).Context()
 }
 
 // Bind creates a binding between an adapter and a *sql.Tx or a *sql.DB.
-func Bind(adapter string, backend SQLBackend) (Session, error) {
-	var conn Backend
+func Bind(adapter string, backend sqlbuilder.SQLEngine) (Session, error) {
+	var conn Engine
 
 	switch t := backend.(type) {
 	case *sql.Tx:
@@ -139,13 +123,13 @@ func Bind(adapter string, backend SQLBackend) (Session, error) {
 	}
 
 	return &session{
-		Backend:    conn,
+		Engine:     conn,
 		memoStores: make(map[string]*bondStore),
 	}, nil
 }
 
 func (s *session) NewTx(ctx context.Context) (sqlbuilder.Tx, error) {
-	return s.Backend.(sqlbuilder.Database).NewTx(ctx)
+	return s.Engine.(sqlbuilder.Database).NewTx(ctx)
 }
 
 func (s *session) NewSessionTx(ctx context.Context) (Session, error) {
@@ -154,13 +138,13 @@ func (s *session) NewSessionTx(ctx context.Context) (Session, error) {
 		return nil, err
 	}
 	return &session{
-		Backend:    tx,
+		Engine:     tx,
 		memoStores: make(map[string]*bondStore),
 	}, nil
 }
 
 func (s *session) txCommit() error {
-	tx, ok := s.Backend.(sqlbuilder.Tx)
+	tx, ok := s.Engine.(sqlbuilder.Tx)
 	if !ok {
 		return errors.Errorf("bond: session is not a tx")
 	}
@@ -169,7 +153,7 @@ func (s *session) txCommit() error {
 }
 
 func (s *session) txRollback() error {
-	tx, ok := s.Backend.(sqlbuilder.Tx)
+	tx, ok := s.Engine.(sqlbuilder.Tx)
 	if !ok {
 		return errors.Errorf("bond: session is not a tx")
 	}
@@ -184,12 +168,12 @@ func (s *session) Transaction(fn func(sess Session) error) error {
 func (s *session) TransactionContext(ctx context.Context, fn func(sess Session) error) error {
 	txFn := func(sess sqlbuilder.Tx) error {
 		return fn(&session{
-			Backend:    sess,
+			Engine:     sess,
 			memoStores: make(map[string]*bondStore),
 		})
 	}
 
-	switch t := s.Backend.(type) {
+	switch t := s.Engine.(type) {
 	case sqlbuilder.Database:
 		return t.Tx(ctx, txFn)
 	case sqlbuilder.Tx:

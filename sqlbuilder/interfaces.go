@@ -657,3 +657,17 @@ type Iterator interface {
 	// Close closes the iterator and frees up the cursor.
 	Close() error
 }
+
+// SQLEngine represents a SQL engine that can execute SQL queries. This is
+// compatible with *sql.DB.
+type SQLEngine interface {
+	Exec(string, ...interface{}) (sql.Result, error)
+	Prepare(string) (*sql.Stmt, error)
+	Query(string, ...interface{}) (*sql.Rows, error)
+	QueryRow(string, ...interface{}) *sql.Row
+
+	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
+	PrepareContext(context.Context, string) (*sql.Stmt, error)
+	QueryContext(context.Context, string, ...interface{}) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...interface{}) *sql.Row
+}
