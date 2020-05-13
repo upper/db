@@ -323,7 +323,7 @@ func (s *SQLTestSuite) TestInsertReturningWithinTransaction() {
 	err := sess.Collection("artist").Truncate()
 	s.NoError(err)
 
-	tx, err := sess.NewTx(nil)
+	tx, err := sess.NewTx(context.Background())
 	s.NoError(err)
 	defer tx.Close()
 
@@ -1084,7 +1084,7 @@ func (s *SQLTestSuite) TestTransactionsAndRollback() {
 	sess := s.SQLBuilder()
 
 	// Simple transaction that should not fail.
-	tx, err := sess.NewTx(nil)
+	tx, err := sess.NewTx(context.Background())
 	s.NoError(err)
 
 	artist := tx.Collection("artist")
@@ -1108,7 +1108,7 @@ func (s *SQLTestSuite) TestTransactionsAndRollback() {
 	s.NoError(err)
 
 	// Use another transaction.
-	tx, err = sess.NewTx(nil)
+	tx, err = sess.NewTx(context.Background())
 	s.NoError(err)
 
 	artist = tx.Collection("artist")
@@ -1141,7 +1141,7 @@ func (s *SQLTestSuite) TestTransactionsAndRollback() {
 	s.NoError(err)
 
 	// Attempt to add some rows.
-	tx, err = sess.NewTx(nil)
+	tx, err = sess.NewTx(context.Background())
 	s.NoError(err)
 
 	artist = tx.Collection("artist")
@@ -1172,7 +1172,7 @@ func (s *SQLTestSuite) TestTransactionsAndRollback() {
 	s.NoError(err)
 
 	// Attempt to add some rows.
-	tx, err = sess.NewTx(nil)
+	tx, err = sess.NewTx(context.Background())
 	s.NoError(err)
 
 	artist = tx.Collection("artist")
@@ -1767,7 +1767,7 @@ func (s *SQLTestSuite) TestSQLBuilder() {
 	s.NoError(err)
 	s.NotZero(all)
 
-	tx, err := sess.NewTx(nil)
+	tx, err := sess.NewTx(context.Background())
 	s.NoError(err)
 	s.NotZero(tx)
 	defer tx.Close()
@@ -1821,7 +1821,7 @@ func (s *SQLTestSuite) TestExhaustConnectionPool() {
 			// Requesting a new transaction session.
 			start := time.Now()
 			tLogf("Tx: %d: NewTx", i)
-			tx, err := sess.NewTx(nil)
+			tx, err := sess.NewTx(context.Background())
 			if err != nil {
 				tFatal(err)
 			}

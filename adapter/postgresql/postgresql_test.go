@@ -22,6 +22,7 @@
 package postgresql
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
@@ -156,7 +157,7 @@ func (s *AdapterTests) Test_Issue469_BadConnection() {
 
 	// At this point the server should have disconnected us. Let's try to create
 	// a transaction anyway.
-	err = sess.Tx(nil, func(sess sqlbuilder.Tx) error {
+	err = sess.Tx(context.Background(), func(sess sqlbuilder.Tx) error {
 		var err error
 
 		_, err = sess.Collection("artist").Find().Count()
@@ -172,7 +173,7 @@ func (s *AdapterTests) Test_Issue469_BadConnection() {
 	_, err = sess.Exec(`SET SESSION idle_in_transaction_session_timeout=1000`)
 	s.NoError(err)
 
-	err = sess.Tx(nil, func(sess sqlbuilder.Tx) error {
+	err = sess.Tx(context.Background(), func(sess sqlbuilder.Tx) error {
 		var err error
 
 		// This query should succeed.
@@ -1095,7 +1096,7 @@ func (s *AdapterTests) Test_Issue210() {
 
 	sess := s.SQLBuilder()
 
-	tx, err := sess.NewTx(nil)
+	tx, err := sess.NewTx(context.Background())
 	s.NoError(err)
 
 	for i := range list {
@@ -1141,7 +1142,7 @@ func (s *AdapterTests) TestPreparedStatements() {
 	}
 
 	{
-		tx, err := sess.NewTx(nil)
+		tx, err := sess.NewTx(context.Background())
 		s.NoError(err)
 
 		stmt, err := tx.Prepare(`SELECT 2`)
