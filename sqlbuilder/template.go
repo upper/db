@@ -94,10 +94,10 @@ func (tu *templateWithUtils) toWhereWithArguments(term interface{}) (where exql.
 			where.Conditions = append(where.Conditions, w.Conditions...)
 		}
 		return
-	case db.Compound:
+	case db.LogicalExpressionGroup:
 		var cond exql.Where
 
-		for _, c := range t.Sentences() {
+		for _, c := range t.Expressions() {
 			w, v := tu.toWhereWithArguments(c)
 			if len(w.Conditions) == 0 {
 				continue
@@ -109,10 +109,10 @@ func (tu *templateWithUtils) toWhereWithArguments(term interface{}) (where exql.
 		if len(cond.Conditions) > 0 {
 			var frag exql.Fragment
 			switch t.Operator() {
-			case db.OperatorNone, db.OperatorAnd:
+			case db.LogicalOperatorNone, db.LogicalOperatorAnd:
 				q := exql.And(cond)
 				frag = &q
-			case db.OperatorOr:
+			case db.LogicalOperatorOr:
 				q := exql.Or(cond)
 				frag = &q
 			default:
@@ -133,7 +133,7 @@ func (tu *templateWithUtils) toWhereWithArguments(term interface{}) (where exql.
 }
 
 func (tu *templateWithUtils) comparisonOperatorMapper(t db.ComparisonOperator) string {
-	if t == db.ComparisonOperatorNone {
+	if t == db.ComparisonOperatorCustom {
 		return ""
 	}
 	if tu.ComparisonOperator != nil {

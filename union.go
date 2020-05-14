@@ -21,16 +21,16 @@
 
 package db
 
-// Union represents a compound joined by OR.
+// Union represents a logical expression joined by OR.
 type Union struct {
 	*compound
 }
 
 // Or adds more terms to the compound.
-func (o *Union) Or(orConds ...Compound) *Union {
-	var fn func(*[]Compound) error
+func (o *Union) Or(orConds ...LogicalExpressionGroup) *Union {
+	var fn func(*[]LogicalExpressionGroup) error
 	if len(orConds) > 0 {
-		fn = func(in *[]Compound) error {
+		fn = func(in *[]LogicalExpressionGroup) error {
 			*in = append(*in, orConds...)
 			return nil
 		}
@@ -39,8 +39,8 @@ func (o *Union) Or(orConds ...Compound) *Union {
 }
 
 // Operator returns the OR operator.
-func (o *Union) Operator() CompoundOperator {
-	return OperatorOr
+func (o *Union) Operator() LogicalOperator {
+	return LogicalOperatorOr
 }
 
 // Empty returns false if this struct holds no conditions.
@@ -58,6 +58,6 @@ func (o *Union) Empty() bool {
 //		db.Cond{"year": 2012},
 //		db.Cond{"year": 1987},
 //	)
-func Or(conds ...Compound) *Union {
-	return &Union{newCompound(defaultJoin(conds...)...)}
+func Or(conds ...LogicalExpressionGroup) *Union {
+	return &Union{newLogicalExpressionGroup(defaultJoin(conds...)...)}
 }

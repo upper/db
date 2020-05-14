@@ -21,9 +21,9 @@
 
 package db
 
-// Tx has methods for transactions that can be either committed or rolled back.
+// Tx defines methods for transactions
 type Tx interface {
-	// Rollback discards all the instructions on the current transaction.
+	// Rollback discards all the operations executed on the current transaction.
 	Rollback() error
 
 	// Commit commits the current transaction.

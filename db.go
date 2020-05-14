@@ -19,10 +19,10 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Package db (or upper-db) provides a common interface to work with a variety
+// Package db (or upper/db) provides a common interface to work with a variety
 // of data sources using adapters that wrap mature database drivers.
 //
-// Install upper-db:
+// Install upper/db:
 //
 //  go get github.com/upper/db
 //

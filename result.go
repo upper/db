@@ -21,11 +21,11 @@
 
 package db
 
-// Result is an interface that defines methods which are useful for working
-// with result sets.
+// Result is an interface that defines methods that are useful for working with
+// result sets.
 type Result interface {
-	// String satisfies fmt.Stringer and returns a SELECT statement for
-	// the result.
+
+	// String returns the SELECT statement that is going to be used in the query.
 	String() string
 
 	// Limit defines the maximum number of results for this set. It only has
@@ -33,9 +33,8 @@ type Result interface {
 	// previous limit settings.
 	Limit(int) Result
 
-	// Offset ignores the first *n* results. It only has effect on `One()`,
-	// `All()` and `Next()`. A negative offset cancels any previous offset
-	// settings.
+	// Offset ignores the first n results. It only has effect on `One()`, `All()`
+	// and `Next()`. A negative offset cancels any previous offset settings.
 	Offset(int) Result
 
 	// OrderBy receives one or more field names that define the order in which
@@ -44,8 +43,8 @@ type Result interface {
 	// otherwise.
 	OrderBy(...interface{}) Result
 
-	// Select defines specific columns to be returned from the elements of the
-	// set.
+	// Select defines specific columns to be fetched on every column in the
+	// result set.
 	Select(...interface{}) Result
 
 	// Where discards all the previously set filtering constraints (if any) and
@@ -70,16 +69,16 @@ type Result interface {
 	// or columns.
 	Group(...interface{}) Result
 
-	// Delete deletes all items within the result set. `Offset()` and `Limit()` are
-	// not honoured by `Delete()`.
+	// Delete deletes all items within the result set. `Offset()` and `Limit()`
+	// are not honoured by `Delete()`.
 	Delete() error
 
 	// Update modifies all items within the result set. `Offset()` and `Limit()`
 	// are not honoured by `Update()`.
 	Update(interface{}) error
 
-	// Count returns the number of items that match the set conditions. `Offset()`
-	// and `Limit()` are not honoured by `Count()`
+	// Count returns the number of items that match the set conditions.
+	// `Offset()` and `Limit()` are not honoured by `Count()`
 	Count() (uint64, error)
 
 	// Exists returns true if at least one item on the collection exists. False
@@ -108,10 +107,10 @@ type Result interface {
 	All(sliceOfStructs interface{}) error
 
 	// Paginate splits the results of the query into pages containing pageSize
-	// items.  When using pagination previous settings for Limit and Offset are
-	// ignored. Page numbering starts at 1.
+	// items. When using pagination previous settings for `Limit()` and
+	// `Offset()` are ignored. Page numbering starts at 1.
 	//
-	// Use Page() to define the specific page to get results from.
+	// Use `Page()` to define the specific page to get results from.
 	//
 	// Example:
 	//
@@ -153,8 +152,8 @@ type Result interface {
 	//   cursor = q.Paginate(12).Cursor("id")
 	//   res = cursor.NextPage(items[len(items)-1].ID)
 	//
-	// Note that NextPage requires a cursor, any column with an absolute order
-	// (given two values one always precedes the other) can be a cursor.
+	// Note that `NextPage()` requires a cursor, any column with an absolute
+	// order (given two values one always precedes the other) can be a cursor.
 	//
 	// You can define the pagination order and add constraints to your result:
 	//
@@ -164,7 +163,7 @@ type Result interface {
 
 	// PrevPage returns the previous results page according to the cursor. It
 	// expects a cursorValue, which is the value the cursor column had on the
-	// fist item of the current result set (upper bound).
+	// fist item of the current result set.
 	//
 	// Example:
 	//
@@ -179,11 +178,11 @@ type Result interface {
 	//   res = cursor.PrevPage(upperBound)
 	PrevPage(cursorValue interface{}) Result
 
-	// TotalPages returns the total number of pages the result could produce.  If
-	// no pagination has been set this value equals 1.
+	// TotalPages returns the total number of pages the result set could produce.
+	// If no pagination has been set this value equals 1.
 	TotalPages() (uint, error)
 
-	// TotalEntries returns the total number of entries in the query.
+	// TotalEntries returns the total number of matching items in the result set.
 	TotalEntries() (uint64, error)
 
 	// Close closes the result set and frees all locked resources.

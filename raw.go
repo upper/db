@@ -26,11 +26,11 @@ import (
 )
 
 // RawValue interface represents values that can bypass SQL filters. This is an
-// exported interface but it's rarely used directly, you may want to use
-// the `db.Raw()` function instead.
+// exported interface but it's rarely used directly, you may want to use the
+// `db.Raw()` function instead.
 type RawValue interface {
 	fmt.Stringer
-	Compound
+	LogicalExpressionGroup
 
 	// Raw returns the string representation of the value that the user wants to
 	// pass without any escaping.
@@ -60,14 +60,14 @@ func (r rawValue) String() string {
 	return r.Raw()
 }
 
-// Sentences return each one of the map records as a compound.
-func (r rawValue) Sentences() []Compound {
-	return []Compound{r}
+// Expressions return each one of the map records as a compound.
+func (r rawValue) Expressions() []LogicalExpressionGroup {
+	return []LogicalExpressionGroup{r}
 }
 
 // Operator returns the default compound operator.
-func (r rawValue) Operator() CompoundOperator {
-	return OperatorNone
+func (r rawValue) Operator() LogicalOperator {
+	return LogicalOperatorNone
 }
 
 // Empty return false if this struct holds no value.

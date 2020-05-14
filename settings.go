@@ -29,6 +29,7 @@ import (
 
 // Settings defines methods to get or set configuration values.
 type Settings interface {
+
 	// SetLogging enables or disables logging.
 	SetLogging(bool)
 	// LoggingEnabled returns true if logging is enabled, false otherwise.
