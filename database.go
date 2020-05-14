@@ -21,10 +21,10 @@
 
 package db
 
-// Database is an interface that defines methods that must be satisfied by
-// all database adapters.
+// Database is an interface that defines methods that must be satisfied by all
+// database adapters.
 type Database interface {
-	// Driver returns the underlying driver the wrapper uses as an interface{}.
+	// Driver returns the underlying driver of wrapper as an interface.
 	//
 	// In order to actually use the driver, the `interface{}` value needs to be
 	// casted into the appropriate type.
@@ -36,30 +36,26 @@ type Database interface {
 	// Open attempts to establish a connection with a DBMS.
 	Open(ConnectionURL) error
 
-	// Clone duplicates the current database session. Returns an error if the
-	// clone did not succeed.
-	// Clone() (Database, error)
-
-	// Ping returns an error if the database manager could not be reached.
+	// Ping returns an error if the DBMS could not be reached.
 	Ping() error
 
-	// Close closes the currently active connection to the database and clears
-	// caches.
+	// Close terminates the currently active connection to the DBMS and clears
+	// all caches.
 	Close() error
 
-	// Collection returns a collection reference given a table name.
+	// Collection receives a table name and returns a collection reference.
 	Collection(string) Collection
 
 	// Collections returns the names of all non-system tables on the database.
 	Collections() ([]string, error)
 
-	// Name returns the name of the active database.
+	// Name returns the name of the database.
 	Name() string
 
-	// ConnectionURL returns the data used to set up the adapter.
+	// ConnectionURL returns the DSN that was used to set up the adapter.
 	ConnectionURL() ConnectionURL
 
-	// ClearCache clears all the cache mechanisms the adapter is using.
+	// ClearCache resets all the caching mechanisms the adapter is using.
 	ClearCache()
 
 	Settings

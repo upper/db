@@ -34,11 +34,12 @@ type Constraint interface {
 	Value() interface{}
 }
 
-// Constraints interface represents an array or constraints, like "a = 1, b =
+// Constraints interface represents an array of constraints, like "a = 1, b =
 // 2, c = 3".
 type Constraints interface {
 	// Constraints returns an array of constraints.
 	Constraints() []Constraint
+
 	// Keys returns the map keys always in the same order.
 	Keys() []interface{}
 }

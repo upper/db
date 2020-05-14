@@ -110,9 +110,9 @@ func (q *QueryStatus) String() string {
 // EnvEnableDebug can be used by adapters to determine if the user has enabled
 // debugging.
 //
-// If the user sets the `UPPERIO_DB_DEBUG` environment variable to a
-// non-empty value, all generated statements will be printed at runtime to
-// the standard logger.
+// If the user sets the `UPPERIO_DB_DEBUG` environment variable to a non-empty
+// value, all generated statements will be printed at runtime to the standard
+// logger.
 //
 // Example:
 //
@@ -124,8 +124,8 @@ const (
 )
 
 // Logger represents a logging collector. You can pass a logging collector to
-// db.DefaultSettings.SetLogger(myCollector) to make it collect db.QueryStatus messages
-// after executing a query.
+// db.DefaultSettings.SetLogger(myCollector) to make it collect db.QueryStatus
+// messages after executing a query.
 type Logger interface {
 	Log(*QueryStatus)
 }

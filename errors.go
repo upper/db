@@ -25,20 +25,20 @@ import (
 	"errors"
 )
 
-// Error messages.
+// Error messages
 var (
 	ErrNoMoreRows               = errors.New(`upper: no more rows in this result set`)
 	ErrNotConnected             = errors.New(`upper: not connected to a database`)
 	ErrMissingDatabaseName      = errors.New(`upper: missing database name`)
 	ErrMissingCollectionName    = errors.New(`upper: missing collection name`)
 	ErrCollectionDoesNotExist   = errors.New(`upper: collection does not exist`)
-	ErrSockerOrHost             = errors.New(`upper: you may connect either to a unix socket or a tcp address, but not both`)
+	ErrSockerOrHost             = errors.New(`upper: you may connect either to a UNIX socket or a TCP address, but not both`)
 	ErrQueryLimitParam          = errors.New(`upper: a query can accept only one limit parameter`)
 	ErrQuerySortParam           = errors.New(`upper: a query can accept only one order by parameter`)
 	ErrQueryOffsetParam         = errors.New(`upper: a query can accept only one offset parameter`)
 	ErrMissingConditions        = errors.New(`upper: missing selector conditions`)
-	ErrUnsupported              = errors.New(`upper: this action is currently unsupported on this database`)
-	ErrUndefined                = errors.New(`upper: this value is undefined`)
+	ErrUnsupported              = errors.New(`upper: this action is currently unsupported by this DBMS`)
+	ErrUndefined                = errors.New(`upper: value is undefined`)
 	ErrQueryIsPending           = errors.New(`upper: can't execute this instruction while the result set is still open`)
 	ErrUnsupportedDestination   = errors.New(`upper: unsupported destination type`)
 	ErrUnsupportedType          = errors.New(`upper: this type does not support marshaling`)

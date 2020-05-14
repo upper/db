@@ -83,10 +83,12 @@ func (ow *operatorWrapper) preprocess() (string, []interface{}) {
 
 	switch c.Operator() {
 	case db.ComparisonOperatorNone:
+		panic("no operator given")
+	case db.ComparisonOperatorCustom:
 		if c, ok := c.(hasCustomOperator); ok {
 			op = c.CustomOperator()
 		} else {
-			panic("no operator given")
+			panic("missing custom operator")
 		}
 	case db.ComparisonOperatorIn, db.ComparisonOperatorNotIn:
 		values := c.Value().([]interface{})

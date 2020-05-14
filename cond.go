@@ -27,32 +27,32 @@ import (
 )
 
 // Cond is a map that defines conditions for a query and satisfies the
-// Constraints and Compound interfaces.
+// Constraints and LogicalExpressionGroup interfaces.
 //
 // Each entry of the map represents a condition (a column-value relation bound
-// by a comparison operator). The comparison operator is optional and can be
-// specified after the column name, if no comparison operator is provided the
-// equality operator is used as default.
+// by a comparison operator). The comparison can be specified after the column
+// name, if no comparison operator is provided the equality operator is used as
+// default.
 //
 // Examples:
 //
 //  // Where age equals 18.
 //  db.Cond{"age": 18}
-//  //	// Where age is greater than or equal to 18.
+//
+//  // Where age is greater than or equal to 18.
 //  db.Cond{"age >=": 18}
 //
 //  // Where id is in a list of ids.
 //  db.Cond{"id IN": []{1, 2, 3}}
 //
-//  // Where age is lower than 18 (you could use this syntax when using
-//  // mongodb).
+//  // Where age is lower than 18 (MongoDB)
 //  db.Cond{"age $lt": 18}
 //
 //  // Where age > 32 and age < 35
 //  db.Cond{"age >": 32, "age <": 35}
 type Cond map[interface{}]interface{}
 
-// Constraints returns each one of the Cond map records as a constraint.
+// Constraints returns each one of the Cond map entires as a constraint.
 func (c Cond) Constraints() []Constraint {
 	z := make([]Constraint, 0, len(c))
 	for _, k := range c.Keys() {
@@ -61,7 +61,7 @@ func (c Cond) Constraints() []Constraint {
 	return z
 }
 
-// Keys returns the keys of this map sorted by name.
+// Keys returns the keys of the Cond map sorted by name.
 func (c Cond) Keys() []interface{} {
 	keys := make(condKeys, 0, len(c))
 	for k := range c {
@@ -73,9 +73,9 @@ func (c Cond) Keys() []interface{} {
 	return keys
 }
 
-// Sentences return each one of the map records as a compound.
-func (c Cond) Sentences() []Compound {
-	z := make([]Compound, 0, len(c))
+// Expressions return each one of the map entries as a compound.
+func (c Cond) Expressions() []LogicalExpressionGroup {
+	z := make([]LogicalExpressionGroup, 0, len(c))
 	for _, k := range c.Keys() {
 		z = append(z, Cond{k: c[k]})
 	}
@@ -83,8 +83,8 @@ func (c Cond) Sentences() []Compound {
 }
 
 // Operator returns the default compound operator.
-func (c Cond) Operator() CompoundOperator {
-	return OperatorNone
+func (c Cond) Operator() LogicalOperator {
+	return defaultLogicalOperator
 }
 
 // Empty returns false if there are no conditions.
