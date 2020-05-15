@@ -25,19 +25,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"sync"
 
 	db "github.com/upper/db"
+	"github.com/upper/db/internal/adapter"
 )
-
-var (
-	adapters   map[string]*AdapterFuncMap
-	adaptersMu sync.RWMutex
-)
-
-func init() {
-	adapters = make(map[string]*AdapterFuncMap)
-}
 
 // Tx represents a transaction on a SQL database. A transaction is like a
 // regular Database except it has two extra methods: Commit and Rollback.
@@ -115,50 +106,9 @@ type Database interface {
 	TxOptions() *sql.TxOptions
 }
 
-// AdapterFuncMap is a struct that defines a set of functions that adapters
-// need to provide.
-type AdapterFuncMap struct {
-	New   func(sqlDB *sql.DB) (Database, error)
-	NewTx func(sqlTx *sql.Tx) (Tx, error)
-	Open  func(settings db.ConnectionURL) (Database, error)
-}
-
-// RegisterAdapter registers a SQL database adapter. This function must be
-// called from adapter packages upon initialization. RegisterAdapter calls
-// RegisterAdapter automatically.
-func RegisterAdapter(name string, adapter *AdapterFuncMap) {
-	adaptersMu.Lock()
-	defer adaptersMu.Unlock()
-
-	if name == "" {
-		panic(`Missing adapter name`)
-	}
-	if _, ok := adapters[name]; ok {
-		panic(`db.RegisterAdapter() called twice for adapter: ` + name)
-	}
-	adapters[name] = adapter
-
-	db.RegisterAdapter(name, &db.AdapterFuncMap{
-		Open: func(settings db.ConnectionURL) (db.Database, error) {
-			return adapter.Open(settings)
-		},
-	})
-}
-
-// adapter returns SQL database functions.
-func adapter(name string) AdapterFuncMap {
-	adaptersMu.RLock()
-	defer adaptersMu.RUnlock()
-
-	if fn, ok := adapters[name]; ok {
-		return *fn
-	}
-	return missingAdapter(name)
-}
-
 // Open opens a SQL database.
 func Open(adapterName string, settings db.ConnectionURL) (Database, error) {
-	return adapter(adapterName).Open(settings)
+	return adapter.LookupAdapter(adapterName).Open(settings)
 }
 
 // New wraps an active *sql.DB session and returns a SQLBuilder database.  The
@@ -169,7 +119,7 @@ func Open(adapterName string, settings db.ConnectionURL) (Database, error) {
 // given database.  You may want to use your adapter's New function instead of
 // this one.
 func New(adapterName string, sqlDB *sql.DB) (Database, error) {
-	return adapter(adapterName).New(sqlDB)
+	return adapterFunc(adapterName).New(sqlDB)
 }
 
 // NewTx wraps an active *sql.Tx transation and returns a SQLBuilder

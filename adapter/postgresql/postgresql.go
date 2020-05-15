@@ -25,6 +25,7 @@ import (
 	"database/sql"
 
 	db "github.com/upper/db"
+	"github.com/upper/db/internal/adapter"
 	"github.com/upper/db/internal/sqladapter"
 	"github.com/upper/db/sqlbuilder"
 )
