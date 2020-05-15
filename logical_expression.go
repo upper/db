@@ -25,14 +25,14 @@ import (
 	"github.com/upper/db/internal/immutable"
 )
 
-// LogicalExpressionGroup represents a group formed by one or more sentences joined by
+// LogicalExpr represents a group formed by one or more sentences joined by
 // an operator like "AND" or "OR".
-type LogicalExpressionGroup interface {
+type LogicalExpr interface {
 	// Expressions returns child sentences.
-	Expressions() []LogicalExpressionGroup
+	expressions() []LogicalExpr
 
 	// Operator returns the operator that joins all the sentences in the group.
-	Operator() LogicalOperator
+	operator() LogicalOperator
 
 	// Empty returns true if the compound has zero children, false otherwise.
 	Empty() bool
@@ -41,7 +41,7 @@ type LogicalExpressionGroup interface {
 // LogicalOperator represents the operation on a compound statement.
 type LogicalOperator uint
 
-// LogicalExpressionGroup operators.
+// LogicalExpr operators.
 const (
 	LogicalOperatorNone LogicalOperator = iota
 	LogicalOperatorAnd
@@ -52,31 +52,31 @@ const defaultLogicalOperator = LogicalOperatorAnd
 
 type compound struct {
 	prev *compound
-	fn   func(*[]LogicalExpressionGroup) error
+	fn   func(*[]LogicalExpr) error
 }
 
-func newLogicalExpressionGroup(conds ...LogicalExpressionGroup) *compound {
+func newLogicalExpr(conds ...LogicalExpr) *compound {
 	c := &compound{}
 	if len(conds) == 0 {
 		return c
 	}
-	return c.frame(func(in *[]LogicalExpressionGroup) error {
+	return c.frame(func(in *[]LogicalExpr) error {
 		*in = append(*in, conds...)
 		return nil
 	})
 }
 
 // Expressions returns each one of the conditions as a compound.
-func (c *compound) Expressions() []LogicalExpressionGroup {
+func (c *compound) expressions() []LogicalExpr {
 	conds, err := immutable.FastForward(c)
 	if err == nil {
-		return *(conds.(*[]LogicalExpressionGroup))
+		return *(conds.(*[]LogicalExpr))
 	}
 	return nil
 }
 
 // Operator returns no operator.
-func (c *compound) Operator() LogicalOperator {
+func (c *compound) operator() LogicalOperator {
 	return LogicalOperatorNone
 }
 
@@ -91,7 +91,7 @@ func (c *compound) Empty() bool {
 	return true
 }
 
-func (c *compound) frame(fn func(*[]LogicalExpressionGroup) error) *compound {
+func (c *compound) frame(fn func(*[]LogicalExpr) error) *compound {
 	return &compound{prev: c, fn: fn}
 }
 
@@ -106,16 +106,17 @@ func (c *compound) Fn(in interface{}) error {
 	if c.fn == nil {
 		return nil
 	}
-	return c.fn(in.(*[]LogicalExpressionGroup))
+	return c.fn(in.(*[]LogicalExpr))
 }
 
 func (c *compound) Base() interface{} {
-	return &[]LogicalExpressionGroup{}
+	return &[]LogicalExpr{}
 }
 
-func defaultJoin(in ...LogicalExpressionGroup) []LogicalExpressionGroup {
+func defaultJoin(in ...LogicalExpr) []LogicalExpr {
 	for i := range in {
-		if cond, ok := in[i].(Cond); ok && len(cond) > 1 {
+		cond, ok := in[i].(Where)
+		if ok && !cond.Empty() {
 			in[i] = And(cond)
 		}
 	}
@@ -124,5 +125,5 @@ func defaultJoin(in ...LogicalExpressionGroup) []LogicalExpressionGroup {
 
 var (
 	_ = immutable.Immutable(&compound{})
-	_ = LogicalExpressionGroup(Cond{})
+	_ = LogicalExpr(Where{})
 )

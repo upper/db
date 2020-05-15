@@ -19,7 +19,7 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package db
+package adapter
 
 // Constraint interface represents a single condition, like "a = 1".  where `a`
 // is the key and `1` is the value. This is an exported interface but it's
@@ -63,6 +63,5 @@ func NewConstraint(key interface{}, value interface{}) Constraint {
 }
 
 var (
-	_ = Constraints(Cond{})
 	_ = Constraint(&constraint{})
 )

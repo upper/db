@@ -21,30 +21,30 @@
 
 package db
 
-// Union represents a logical expression joined by OR.
-type Union struct {
+// OrExpr represents a logical expression joined by OR.
+type OrExpr struct {
 	*compound
 }
 
 // Or adds more terms to the compound.
-func (o *Union) Or(orConds ...LogicalExpressionGroup) *Union {
-	var fn func(*[]LogicalExpressionGroup) error
+func (o *OrExpr) Or(orConds ...LogicalExpr) *OrExpr {
+	var fn func(*[]LogicalExpr) error
 	if len(orConds) > 0 {
-		fn = func(in *[]LogicalExpressionGroup) error {
+		fn = func(in *[]LogicalExpr) error {
 			*in = append(*in, orConds...)
 			return nil
 		}
 	}
-	return &Union{o.compound.frame(fn)}
+	return &OrExpr{o.compound.frame(fn)}
 }
 
 // Operator returns the OR operator.
-func (o *Union) Operator() LogicalOperator {
+func (o *OrExpr) operator() LogicalOperator {
 	return LogicalOperatorOr
 }
 
 // Empty returns false if this struct holds no conditions.
-func (o *Union) Empty() bool {
+func (o *OrExpr) Empty() bool {
 	return o.compound.Empty()
 }
 
@@ -58,6 +58,6 @@ func (o *Union) Empty() bool {
 //		db.Cond{"year": 2012},
 //		db.Cond{"year": 1987},
 //	)
-func Or(conds ...LogicalExpressionGroup) *Union {
-	return &Union{newLogicalExpressionGroup(defaultJoin(conds...)...)}
+func Or(conds ...LogicalExpr) *OrExpr {
+	return &OrExpr{newLogicalExpr(defaultJoin(conds...)...)}
 }

@@ -26,8 +26,7 @@ import (
 	"sort"
 )
 
-// Cond is a map that defines conditions for a query and satisfies the
-// Constraints and LogicalExpressionGroup interfaces.
+// Where is a map that defines conditions for a query.
 //
 // Each entry of the map represents a condition (a column-value relation bound
 // by a comparison operator). The comparison can be specified after the column
@@ -36,33 +35,46 @@ import (
 //
 // Examples:
 //
-//  // Where age equals 18.
-//  db.Cond{"age": 18}
+//  // Age equals 18.
+//  db.Where{"age": 18}
 //
-//  // Where age is greater than or equal to 18.
-//  db.Cond{"age >=": 18}
+//  // Age is greater than or equal to 18.
+//  db.Where{"age >=": 18}
 //
-//  // Where id is in a list of ids.
-//  db.Cond{"id IN": []{1, 2, 3}}
+//  // id is any of the values 1, 2 or 3.
+//  db.Where{"id IN": []{1, 2, 3}}
 //
-//  // Where age is lower than 18 (MongoDB)
-//  db.Cond{"age $lt": 18}
+//  // Age is lower than 18 (MongoDB syntax)
+//  db.Where{"age $lt": 18}
 //
-//  // Where age > 32 and age < 35
-//  db.Cond{"age >": 32, "age <": 35}
-type Cond map[interface{}]interface{}
+//  // age > 32 and age < 35
+//  db.Where{"age >": 32, "age <": 35}
+type Where map[interface{}]interface{}
 
-// Constraints returns each one of the Cond map entires as a constraint.
-func (c Cond) Constraints() []Constraint {
+// Empty returns false if there are no conditions.
+func (c Where) Empty() bool {
+	for range c {
+		return false
+	}
+	return true
+}
+
+/*
+// Constraints returns each one of the Where map entires as a constraint.
+func (c Where) Constraints() []Constraint {
 	z := make([]Constraint, 0, len(c))
 	for _, k := range c.Keys() {
 		z = append(z, NewConstraint(k, c[k]))
 	}
 	return z
 }
+*/
 
-// Keys returns the keys of the Cond map sorted by name.
-func (c Cond) Keys() []interface{} {
+func (c Where) operator() LogicalOperator {
+	return defaultLogicalOperator
+}
+
+func (c Where) keys() []interface{} {
 	keys := make(condKeys, 0, len(c))
 	for k := range c {
 		keys = append(keys, k)
@@ -73,26 +85,12 @@ func (c Cond) Keys() []interface{} {
 	return keys
 }
 
-// Expressions return each one of the map entries as a compound.
-func (c Cond) Expressions() []LogicalExpressionGroup {
-	z := make([]LogicalExpressionGroup, 0, len(c))
-	for _, k := range c.Keys() {
-		z = append(z, Cond{k: c[k]})
+func (c Where) expressions() []LogicalExpr {
+	z := make([]LogicalExpr, 0, len(c))
+	for _, k := range c.keys() {
+		z = append(z, Where{k: c[k]})
 	}
 	return z
-}
-
-// Operator returns the default compound operator.
-func (c Cond) Operator() LogicalOperator {
-	return defaultLogicalOperator
-}
-
-// Empty returns false if there are no conditions.
-func (c Cond) Empty() bool {
-	for range c {
-		return false
-	}
-	return true
 }
 
 type condKeys []interface{}

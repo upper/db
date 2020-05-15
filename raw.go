@@ -25,12 +25,12 @@ import (
 	"fmt"
 )
 
-// RawValue interface represents values that can bypass SQL filters. This is an
+// RawExpr interface represents values that can bypass SQL filters. This is an
 // exported interface but it's rarely used directly, you may want to use the
 // `db.Raw()` function instead.
-type RawValue interface {
+type RawExpr interface {
 	fmt.Stringer
-	LogicalExpressionGroup
+	LogicalExpr
 
 	// Raw returns the string representation of the value that the user wants to
 	// pass without any escaping.
@@ -61,12 +61,12 @@ func (r rawValue) String() string {
 }
 
 // Expressions return each one of the map records as a compound.
-func (r rawValue) Expressions() []LogicalExpressionGroup {
-	return []LogicalExpressionGroup{r}
+func (r rawValue) expressions() []LogicalExpr {
+	return []LogicalExpr{r}
 }
 
 // Operator returns the default compound operator.
-func (r rawValue) Operator() LogicalOperator {
+func (r rawValue) operator() LogicalOperator {
 	return LogicalOperatorNone
 }
 
@@ -83,8 +83,8 @@ func (r rawValue) Empty() bool {
 //	// SOUNDEX('Hello')
 //	Raw("SOUNDEX('Hello')")
 //
-// Raw returns a value that satifies the db.RawValue interface.
-func Raw(value string, args ...interface{}) RawValue {
+// Raw returns a value that satifies the db.RawExpr interface.
+func Raw(value string, args ...interface{}) RawExpr {
 	r := rawValue{v: value, a: nil}
 	if len(args) > 0 {
 		r.a = &args
@@ -92,4 +92,4 @@ func Raw(value string, args ...interface{}) RawValue {
 	return r
 }
 
-var _ = RawValue(&rawValue{})
+var _ = RawExpr(&rawValue{})
