@@ -88,14 +88,14 @@ func OnOrBefore(value time.Time) *Comparison {
 	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorLessThanOrEqualTo, value)}
 }
 
-// Between is a comparison that means: is between valueA and valueB.
-func Between(valueA interface{}, valueB interface{}) *Comparison {
-	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorBetween, []interface{}{valueA, valueB})}
+// Between is a comparison that means: is between lowerBound and upperBound.
+func Between(lowerBound interface{}, upperBound interface{}) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorBetween, []interface{}{lowerBound, upperBound})}
 }
 
-// NotBetween is a comparison that means: is not between valueA and valueB.
-func NotBetween(valueA interface{}, valueB interface{}) *Comparison {
-	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorNotBetween, []interface{}{valueA, valueB})}
+// NotBetween is a comparison that means: is not between lowerBound and upperBound.
+func NotBetween(lowerBound interface{}, upperBound interface{}) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorNotBetween, []interface{}{lowerBound, upperBound})}
 }
 
 // Is is a comparison that means: is equivalent to nil, true or false.
