@@ -25,7 +25,9 @@ import (
 	"github.com/upper/db/internal/adapter"
 )
 
-type FuncExpr = adapter.FuncExpr
+type FuncExpr struct {
+	*adapter.FuncExpr
+}
 
 // Func represents a database function and satisfies the db.FuncExpr interface.
 //
@@ -43,5 +45,5 @@ type FuncExpr = adapter.FuncExpr
 //	// RTRIM("Hello  ")
 //	db.Func("RTRIM", "Hello  ")
 func Func(name string, args ...interface{}) *FuncExpr {
-	return adapter.NewFuncExpr(name, args)
+	return &FuncExpr{adapter.NewFuncExpr(name, args)}
 }

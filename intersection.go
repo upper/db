@@ -21,9 +21,13 @@
 
 package db
 
+import (
+	"github.com/upper/db/internal/adapter"
+)
+
 // AndExpr represents a logical expression joined by AND.
 type AndExpr struct {
-	*compound
+	*adapter.LogicalExprGroup
 }
 
 // And adds more expressions to the group.
@@ -35,17 +39,12 @@ func (a *AndExpr) And(andConds ...LogicalExpr) *AndExpr {
 			return nil
 		}
 	}
-	return &AndExpr{a.compound.frame(fn)}
+	return &AndExpr{a.LogicalExprGroup.Frame(fn)}
 }
 
 // Empty returns false if the struct holds no conditions.
 func (a *AndExpr) Empty() bool {
-	return a.compound.Empty()
-}
-
-// Operator returns the AND operator.
-func (a *AndExpr) Operator() LogicalOperator {
-	return LogicalOperatorAnd
+	return a.LogicalExprGroup.Empty()
 }
 
 // And joins conditions under logical conjunction. Conditions can be
@@ -68,5 +67,5 @@ func (a *AndExpr) Operator() LogicalOperator {
 //		db.Cond{"last_name": "Mouse"},
 //	)
 func And(conds ...LogicalExpr) *AndExpr {
-	return &AndExpr{newLogicalExpr(conds...)}
+	return &AndExpr{adapter.NewLogicalExprGroup(conds...)}
 }

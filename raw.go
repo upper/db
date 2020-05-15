@@ -22,57 +22,11 @@
 package db
 
 import (
-	"fmt"
+	"github.com/upper/db/internal/adapter"
 )
 
-// RawExpr interface represents values that can bypass SQL filters. This is an
-// exported interface but it's rarely used directly, you may want to use the
-// `db.Raw()` function instead.
-type RawExpr interface {
-	fmt.Stringer
-	LogicalExpr
-
-	// Raw returns the string representation of the value that the user wants to
-	// pass without any escaping.
-	Raw() string
-
-	// Arguments returns the arguments to be replaced on the query.
-	Arguments() []interface{}
-}
-
-type rawValue struct {
-	v string
-	a *[]interface{} // This may look ugly but allows us to use db.Raw() as keys for db.Cond{}.
-}
-
-func (r rawValue) Arguments() []interface{} {
-	if r.a != nil {
-		return *r.a
-	}
-	return nil
-}
-
-func (r rawValue) Raw() string {
-	return r.v
-}
-
-func (r rawValue) String() string {
-	return r.Raw()
-}
-
-// Expressions return each one of the map records as a compound.
-func (r rawValue) expressions() []LogicalExpr {
-	return []LogicalExpr{r}
-}
-
-// Operator returns the default compound operator.
-func (r rawValue) operator() LogicalOperator {
-	return LogicalOperatorNone
-}
-
-// Empty return false if this struct holds no value.
-func (r rawValue) Empty() bool {
-	return r.v == ""
+type RawExpr struct {
+	adapter.RawExpr
 }
 
 // Raw marks chunks of data as protected, so they pass directly to the query
@@ -84,12 +38,6 @@ func (r rawValue) Empty() bool {
 //	Raw("SOUNDEX('Hello')")
 //
 // Raw returns a value that satifies the db.RawExpr interface.
-func Raw(value string, args ...interface{}) RawExpr {
-	r := rawValue{v: value, a: nil}
-	if len(args) > 0 {
-		r.a = &args
-	}
-	return r
+func Raw(value string, args ...interface{}) *RawExpr {
+	return &RawExpr{adapter.NewRawExpr(value, args)}
 }
-
-var _ = RawExpr(&rawValue{})

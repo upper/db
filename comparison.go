@@ -29,120 +29,122 @@ import (
 )
 
 // Comparison represents relationships between values.
-type Comparison = adapter.Comparison
+type Comparison struct {
+	*adapter.Comparison
+}
 
 // Gte is a comparison that means: is greater than or equal to value.
 func Gte(value interface{}) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorGreaterThanOrEqualTo, value)
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorGreaterThanOrEqualTo, value)}
 }
 
 // Lte is a comparison that means: is less than or equal to value.
 func Lte(value interface{}) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorLessThanOrEqualTo, value)
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorLessThanOrEqualTo, value)}
 }
 
 // Eq is a comparison that means: is equal to value.
 func Eq(value interface{}) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorEqual, value)
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorEqual, value)}
 }
 
 // NotEq is a comparison that means: is not equal to value.
 func NotEq(value interface{}) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorNotEqual, value)
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorNotEqual, value)}
 }
 
 // Gt is a comparison that means: is greater than value.
 func Gt(value interface{}) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorGreaterThan, value)
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorGreaterThan, value)}
 }
 
 // Lt is a comparison that means: is less than value.
 func Lt(value interface{}) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorLessThan, value)
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorLessThan, value)}
 }
 
 // In is a comparison that means: is any of the values.
 func In(value ...interface{}) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorIn, toInterfaceArray(value))
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorIn, toInterfaceArray(value))}
 }
 
 // After is a comparison that means: is after the (time.Time) value.
 func After(value time.Time) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorGreaterThan, value)
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorGreaterThan, value)}
 }
 
 // Before is a comparison that means: is before the (time.Time) value.
 func Before(value time.Time) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorLessThan, value)
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorLessThan, value)}
 }
 
 // OnOrAfter is a comparison that means: is on or after the (time.Time) value.
 func OnOrAfter(value time.Time) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorGreaterThanOrEqualTo, value)
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorGreaterThanOrEqualTo, value)}
 }
 
 // OnOrBefore is a comparison that means: is on or before the (time.Time) value.
 func OnOrBefore(value time.Time) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorLessThanOrEqualTo, value)
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorLessThanOrEqualTo, value)}
 }
 
 // Between is a comparison that means: is between valueA and valueB.
 func Between(valueA interface{}, valueB interface{}) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorBetween, []interface{}{valueA, valueB})
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorBetween, []interface{}{valueA, valueB})}
 }
 
 // NotBetween is a comparison that means: is not between valueA and valueB.
 func NotBetween(valueA interface{}, valueB interface{}) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorNotBetween, []interface{}{valueA, valueB})
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorNotBetween, []interface{}{valueA, valueB})}
 }
 
 // Is is a comparison that means: is equivalent to nil, true or false.
 func Is(value interface{}) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorIs, value)
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorIs, value)}
 }
 
 // IsNot is a comparison that means: is not equivalent to nil, true nor false.
 func IsNot(value interface{}) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorIsNot, value)
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorIsNot, value)}
 }
 
 // IsNull is a comparison that means: is equivalent to nil.
 func IsNull() *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorIs, nil)
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorIs, nil)}
 }
 
 // IsNotNull is a comparison that means: is not equivalent to nil.
 func IsNotNull() *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorIsNot, nil)
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorIsNot, nil)}
 }
 
 // Like is a comparison that checks whether the reference matches the wildcard
 // value.
 func Like(value string) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorLike, value)
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorLike, value)}
 }
 
 // NotLike is a comparison that checks whether the reference does not match the
 // wildcard value.
 func NotLike(value string) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorNotLike, value)
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorNotLike, value)}
 }
 
 // RegExp is a comparison that checks whether the reference matches the regular
 // expression.
 func RegExp(value string) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorRegExp, value)
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorRegExp, value)}
 }
 
 // NotRegExp is a comparison that checks whether the reference does not match
 // the regular expression.
 func NotRegExp(value string) *Comparison {
-	return adapter.NewComparisonOperator(adapter.ComparisonOperatorNotRegExp, value)
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorNotRegExp, value)}
 }
 
 // Op returns a custom comparison operator.
 func Op(customOperator string, value interface{}) *Comparison {
-	return adapter.NewCustomComparisonOperator(customOperator, value)
+	return &Comparison{adapter.NewCustomComparisonOperator(customOperator, value)}
 }
 
 func toInterfaceArray(value interface{}) []interface{} {

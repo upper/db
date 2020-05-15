@@ -24,13 +24,17 @@ package db
 import (
 	"fmt"
 	"sort"
+
+	"github.com/upper/db/internal/adapter"
 )
+
+type LogicalExpr = adapter.LogicalExpr
 
 // Where is a map that defines conditions for a query.
 //
 // Each entry of the map represents a condition (a column-value relation bound
-// by a comparison operator). The comparison can be specified after the column
-// name, if no comparison operator is provided the equality operator is used as
+// by a comparison Operator). The comparison can be specified after the column
+// name, if no comparison Operator is provided the equality Operator is used as
 // default.
 //
 // Examples:
@@ -70,8 +74,8 @@ func (c Where) Constraints() []Constraint {
 }
 */
 
-func (c Where) operator() LogicalOperator {
-	return defaultLogicalOperator
+func (c Where) Operator() adapter.LogicalOperator {
+	return adapter.DefaultLogicalOperator
 }
 
 func (c Where) keys() []interface{} {
@@ -85,7 +89,7 @@ func (c Where) keys() []interface{} {
 	return keys
 }
 
-func (c Where) expressions() []LogicalExpr {
+func (c Where) Expressions() []LogicalExpr {
 	z := make([]LogicalExpr, 0, len(c))
 	for _, k := range c.keys() {
 		z = append(z, Where{k: c[k]})
@@ -106,3 +110,17 @@ func (ck condKeys) Less(i, j int) bool {
 func (ck condKeys) Swap(i, j int) {
 	ck[i], ck[j] = ck[j], ck[i]
 }
+
+func defaultJoin(in ...adapter.LogicalExpr) []adapter.LogicalExpr {
+	for i := range in {
+		cond, ok := in[i].(Where)
+		if ok && !cond.Empty() {
+			in[i] = And(cond)
+		}
+	}
+	return in
+}
+
+var (
+	_ = LogicalExpr(Where{})
+)

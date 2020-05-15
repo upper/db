@@ -19,44 +19,21 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package db
+package adapter
 
-import (
-	"github.com/upper/db/internal/adapter"
-)
-
-// OrExpr represents a logical expression joined by OR.
-type OrExpr struct {
-	*adapter.LogicalExprGroup
+type FuncExpr struct {
+	name string
+	args []interface{}
 }
 
-// Or adds more terms to the LogicalExprGroup.
-func (o *OrExpr) Or(orConds ...LogicalExpr) *OrExpr {
-	var fn func(*[]LogicalExpr) error
-	if len(orConds) > 0 {
-		fn = func(in *[]LogicalExpr) error {
-			*in = append(*in, orConds...)
-			return nil
-		}
-	}
-	return &OrExpr{o.LogicalExprGroup.Frame(fn)}
+func (f *FuncExpr) Arguments() []interface{} {
+	return f.args
 }
 
-// Empty returns false if this struct holds no conditions.
-func (o *OrExpr) Empty() bool {
-	return o.LogicalExprGroup.Empty()
+func (f *FuncExpr) Name() string {
+	return f.name
 }
 
-// Or joins conditions under logical disjunction. Conditions can be represented
-// by db.Cond{}, db.Or() or db.And().
-//
-// Example:
-//
-//	// year = 2012 OR year = 1987
-//	db.Or(
-//		db.Cond{"year": 2012},
-//		db.Cond{"year": 1987},
-//	)
-func Or(conds ...LogicalExpr) *OrExpr {
-	return &OrExpr{adapter.NewLogicalExprGroup(defaultJoin(conds...)...)}
+func NewFuncExpr(name string, args []interface{}) *FuncExpr {
+	return &FuncExpr{name: name, args: args}
 }
