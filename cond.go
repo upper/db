@@ -29,8 +29,9 @@ import (
 )
 
 type LogicalExpr = adapter.LogicalExpr
+type LogicalOperator = adapter.LogicalOperator
 
-// Where is a map that defines conditions for a query.
+// Cond is a map that defines conditions for a query.
 //
 // Each entry of the map represents a condition (a column-value relation bound
 // by a comparison Operator). The comparison can be specified after the column
@@ -40,23 +41,23 @@ type LogicalExpr = adapter.LogicalExpr
 // Examples:
 //
 //  // Age equals 18.
-//  db.Where{"age": 18}
+//  db.Cond{"age": 18}
 //
 //  // Age is greater than or equal to 18.
-//  db.Where{"age >=": 18}
+//  db.Cond{"age >=": 18}
 //
 //  // id is any of the values 1, 2 or 3.
-//  db.Where{"id IN": []{1, 2, 3}}
+//  db.Cond{"id IN": []{1, 2, 3}}
 //
 //  // Age is lower than 18 (MongoDB syntax)
-//  db.Where{"age $lt": 18}
+//  db.Cond{"age $lt": 18}
 //
 //  // age > 32 and age < 35
-//  db.Where{"age >": 32, "age <": 35}
-type Where map[interface{}]interface{}
+//  db.Cond{"age >": 32, "age <": 35}
+type Cond map[interface{}]interface{}
 
 // Empty returns false if there are no conditions.
-func (c Where) Empty() bool {
+func (c Cond) Empty() bool {
 	for range c {
 		return false
 	}
@@ -64,8 +65,8 @@ func (c Where) Empty() bool {
 }
 
 /*
-// Constraints returns each one of the Where map entires as a constraint.
-func (c Where) Constraints() []Constraint {
+// Constraints returns each one of the Cond map entires as a constraint.
+func (c Cond) Constraints() []Constraint {
 	z := make([]Constraint, 0, len(c))
 	for _, k := range c.Keys() {
 		z = append(z, NewConstraint(k, c[k]))
@@ -74,11 +75,11 @@ func (c Where) Constraints() []Constraint {
 }
 */
 
-func (c Where) Operator() adapter.LogicalOperator {
+func (c Cond) Operator() LogicalOperator {
 	return adapter.DefaultLogicalOperator
 }
 
-func (c Where) keys() []interface{} {
+func (c Cond) keys() []interface{} {
 	keys := make(condKeys, 0, len(c))
 	for k := range c {
 		keys = append(keys, k)
@@ -89,10 +90,10 @@ func (c Where) keys() []interface{} {
 	return keys
 }
 
-func (c Where) Expressions() []LogicalExpr {
+func (c Cond) Expressions() []LogicalExpr {
 	z := make([]LogicalExpr, 0, len(c))
 	for _, k := range c.keys() {
-		z = append(z, Where{k: c[k]})
+		z = append(z, Cond{k: c[k]})
 	}
 	return z
 }
@@ -113,7 +114,7 @@ func (ck condKeys) Swap(i, j int) {
 
 func defaultJoin(in ...adapter.LogicalExpr) []adapter.LogicalExpr {
 	for i := range in {
-		cond, ok := in[i].(Where)
+		cond, ok := in[i].(Cond)
 		if ok && !cond.Empty() {
 			in[i] = And(cond)
 		}
@@ -122,5 +123,5 @@ func defaultJoin(in ...adapter.LogicalExpr) []adapter.LogicalExpr {
 }
 
 var (
-	_ = LogicalExpr(Where{})
+	_ = LogicalExpr(Cond{})
 )
