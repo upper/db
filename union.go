@@ -25,12 +25,12 @@ import (
 	"github.com/upper/db/internal/adapter"
 )
 
-// OrExpr represents a logical expression joined by OR.
+// OrExpr represents a logical expression joined by logical disjunction (OR).
 type OrExpr struct {
 	*adapter.LogicalExprGroup
 }
 
-// Or adds more terms to the LogicalExprGroup.
+// Or adds more expressions to the group.
 func (o *OrExpr) Or(orConds ...LogicalExpr) *OrExpr {
 	var fn func(*[]LogicalExpr) error
 	if len(orConds) > 0 {
@@ -42,13 +42,13 @@ func (o *OrExpr) Or(orConds ...LogicalExpr) *OrExpr {
 	return &OrExpr{o.LogicalExprGroup.Frame(fn)}
 }
 
-// Empty returns false if this struct holds no conditions.
+// Empty returns false if the expressions has zero conditions.
 func (o *OrExpr) Empty() bool {
 	return o.LogicalExprGroup.Empty()
 }
 
 // Or joins conditions under logical disjunction. Conditions can be represented
-// by db.Cond{}, db.Or() or db.And().
+// by `db.Cond{}`, `db.Or()` or `db.And()`.
 //
 // Example:
 //

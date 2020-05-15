@@ -21,10 +21,9 @@
 
 package db
 
-// Database is an interface that defines methods that must be satisfied by all
-// database adapters.
+// Database is an interface that defines methods for database adapters.
 type Database interface {
-	// Driver returns the underlying driver of wrapper as an interface.
+	// Driver returns the underlying driver of the adapter as an interface.
 	//
 	// In order to actually use the driver, the `interface{}` value needs to be
 	// casted into the appropriate type.
@@ -46,7 +45,7 @@ type Database interface {
 	// Collection receives a table name and returns a collection reference.
 	Collection(string) Collection
 
-	// Collections returns the names of all non-system tables on the database.
+	// Collections returns the names of all non system tables on the database.
 	Collections() ([]string, error)
 
 	// Name returns the name of the database.

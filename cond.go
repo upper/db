@@ -28,14 +28,17 @@ import (
 	"github.com/upper/db/internal/adapter"
 )
 
+// LogicalExpr represents an expression to be used in logical statements.
 type LogicalExpr = adapter.LogicalExpr
+
+// LogicalOperator represents a logical operation.
 type LogicalOperator = adapter.LogicalOperator
 
 // Cond is a map that defines conditions for a query.
 //
 // Each entry of the map represents a condition (a column-value relation bound
 // by a comparison Operator). The comparison can be specified after the column
-// name, if no comparison Operator is provided the equality Operator is used as
+// name, if no comparison operator is provided the equality operator is used as
 // default.
 //
 // Examples:
@@ -75,6 +78,7 @@ func (c Cond) Constraints() []Constraint {
 }
 */
 
+// Operator returns the equality operator.
 func (c Cond) Operator() LogicalOperator {
 	return adapter.DefaultLogicalOperator
 }
@@ -90,6 +94,7 @@ func (c Cond) keys() []interface{} {
 	return keys
 }
 
+// Expressions returns all the expressions contained in the condition.
 func (c Cond) Expressions() []LogicalExpr {
 	z := make([]LogicalExpr, 0, len(c))
 	for _, k := range c.keys() {

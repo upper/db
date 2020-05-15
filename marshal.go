@@ -22,16 +22,16 @@
 package db
 
 // Marshaler is the interface implemented by struct fields that can transform
-// themselves into values that can be stored on a database.
+// themselves into values to be stored in a database.
 type Marshaler interface {
 	// MarshalDB returns the internal database representation of the Go value.
 	MarshalDB() (interface{}, error)
 }
 
 // Unmarshaler is the interface implemented by struct fields that can transform
-// themselves from stored database values into Go values.
+// themselves from database values into Go values.
 type Unmarshaler interface {
 	// UnmarshalDB receives an internal database representation of a value and
-	// must transform that into a Go value.
+	// transforms it into a Go value.
 	UnmarshalDB(interface{}) error
 }
