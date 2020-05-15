@@ -24,257 +24,125 @@ package db
 import (
 	"reflect"
 	"time"
+
+	"github.com/upper/db/internal/adapter"
 )
 
-// Comparison defines methods to represent comparison operators.
-type Comparison interface {
-	Operator() ComparisonOperator
+// Comparison represents relationships between values.
+type Comparison = adapter.Comparison
 
-	Value() interface{}
+// Gte is a comparison that means: is greater than or equal to value.
+func Gte(value interface{}) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorGreaterThanOrEqualTo, value)
 }
 
-// ComparisonOperator is the base type for comparison operators.
-type ComparisonOperator uint8
-
-// Comparison operators
-const (
-	ComparisonOperatorNone ComparisonOperator = iota
-	ComparisonOperatorCustom
-
-	ComparisonOperatorEqual
-	ComparisonOperatorNotEqual
-
-	ComparisonOperatorLessThan
-	ComparisonOperatorGreaterThan
-
-	ComparisonOperatorLessThanOrEqualTo
-	ComparisonOperatorGreaterThanOrEqualTo
-
-	ComparisonOperatorBetween
-	ComparisonOperatorNotBetween
-
-	ComparisonOperatorIn
-	ComparisonOperatorNotIn
-
-	ComparisonOperatorIs
-	ComparisonOperatorIsNot
-
-	ComparisonOperatorLike
-	ComparisonOperatorNotLike
-
-	ComparisonOperatorRegExp
-	ComparisonOperatorNotRegExp
-
-	ComparisonOperatorAfter
-	ComparisonOperatorBefore
-
-	ComparisonOperatorOnOrAfter
-	ComparisonOperatorOnOrBefore
-)
-
-type comparisonOperator struct {
-	t  ComparisonOperator
-	op string
-	v  interface{}
+// Lte is a comparison that means: is less than or equal to value.
+func Lte(value interface{}) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorLessThanOrEqualTo, value)
 }
 
-func (c *comparisonOperator) CustomOperator() string {
-	return c.op
+// Eq is a comparison that means: is equal to value.
+func Eq(value interface{}) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorEqual, value)
 }
 
-func (c *comparisonOperator) Operator() ComparisonOperator {
-	return c.t
+// NotEq is a comparison that means: is not equal to value.
+func NotEq(value interface{}) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorNotEqual, value)
 }
 
-func (c *comparisonOperator) Value() interface{} {
-	return c.v
+// Gt is a comparison that means: is greater than value.
+func Gt(value interface{}) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorGreaterThan, value)
 }
 
-// Gte returns a comparison that means: is greater than or equal to value.
-func Gte(value interface{}) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorGreaterThanOrEqualTo,
-		v: value,
-	}
+// Lt is a comparison that means: is less than value.
+func Lt(value interface{}) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorLessThan, value)
 }
 
-// Lte returns a comparison that means: is less than or equal to value.
-func Lte(value interface{}) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorLessThanOrEqualTo,
-		v: value,
-	}
+// In is a comparison that means: is any of the values.
+func In(value ...interface{}) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorIn, toInterfaceArray(value))
 }
 
-// Eq returns a comparison that means: is equal to value.
-func Eq(value interface{}) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorEqual,
-		v: value,
-	}
+// After is a comparison that means: is after the (time.Time) value.
+func After(value time.Time) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorGreaterThan, value)
 }
 
-// NotEq returns a comparison that means: is not equal to value.
-func NotEq(value interface{}) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorNotEqual,
-		v: value,
-	}
+// Before is a comparison that means: is before the (time.Time) value.
+func Before(value time.Time) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorLessThan, value)
 }
 
-// Gt returns a comparison that means: is greater than value.
-func Gt(value interface{}) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorGreaterThan,
-		v: value,
-	}
+// OnOrAfter is a comparison that means: is on or after the (time.Time) value.
+func OnOrAfter(value time.Time) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorGreaterThanOrEqualTo, value)
 }
 
-// Lt returns a comparison that means: is less than value.
-func Lt(value interface{}) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorLessThan,
-		v: value,
-	}
+// OnOrBefore is a comparison that means: is on or before the (time.Time) value.
+func OnOrBefore(value time.Time) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorLessThanOrEqualTo, value)
 }
 
-// In returns a comparison that means: is any of the values.
-func In(value interface{}) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorIn,
-		v: toInterfaceArray(value),
-	}
+// Between is a comparison that means: is between valueA and valueB.
+func Between(valueA interface{}, valueB interface{}) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorBetween, []interface{}{valueA, valueB})
 }
 
-// NotIn returns a comparison that means: is none of the values.
-func NotIn(value interface{}) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorNotIn,
-		v: toInterfaceArray(value),
-	}
+// NotBetween is a comparison that means: is not between valueA and valueB.
+func NotBetween(valueA interface{}, valueB interface{}) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorNotBetween, []interface{}{valueA, valueB})
 }
 
-// After returns a comparison that means: is after the (time.Time) value.
-func After(value time.Time) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorGreaterThan,
-		v: value,
-	}
+// Is is a comparison that means: is equivalent to nil, true or false.
+func Is(value interface{}) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorIs, value)
 }
 
-// Before returns a comparison that means: is before the (time.Time) value.
-func Before(t time.Time) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorLessThan,
-		v: t,
-	}
+// IsNot is a comparison that means: is not equivalent to nil, true nor false.
+func IsNot(value interface{}) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorIsNot, value)
 }
 
-// OnOrAfter returns a comparison that means: is on or after the (time.Time)
+// IsNull is a comparison that means: is equivalent to nil.
+func IsNull() *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorIs, nil)
+}
+
+// IsNotNull is a comparison that means: is not equivalent to nil.
+func IsNotNull() *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorIsNot, nil)
+}
+
+// Like is a comparison that checks whether the reference matches the wildcard
 // value.
-func OnOrAfter(t time.Time) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorGreaterThanOrEqualTo,
-		v: t,
-	}
+func Like(value string) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorLike, value)
 }
 
-// OnOrBefore returns a comparison that means: is on or before the (time.Time)
-// value.
-func OnOrBefore(t time.Time) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorLessThanOrEqualTo,
-		v: t,
-	}
-}
-
-// Between returns a comparison that means: is between valueA and valueB.
-func Between(valueA interface{}, valueB interface{}) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorBetween,
-		v: []interface{}{valueA, valueB},
-	}
-}
-
-// NotBetween returns a comparison that means: is not between valueA and
-// valueB.
-func NotBetween(valueA interface{}, valueB interface{}) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorNotBetween,
-		v: []interface{}{valueA, valueB},
-	}
-}
-
-// Is returns a comparison that means: is equivalent to nil, true or false.
-func Is(value interface{}) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorIs,
-		v: value,
-	}
-}
-
-// IsNot returns a comparison that means: is not equivalent to nil, true nor
-// false.
-func IsNot(value interface{}) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorIsNot,
-		v: value,
-	}
-}
-
-// IsNull returns a comparison that means: is equivalent to nil.
-func IsNull() Comparison {
-	return Is(nil)
-}
-
-// IsNotNull returns a comparison that means: is not equivalent to nil.
-func IsNotNull() Comparison {
-	return IsNot(nil)
-}
-
-// Like returns a comparison that checks whether the reference matches the
+// NotLike is a comparison that checks whether the reference does not match the
 // wildcard value.
-func Like(value string) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorLike,
-		v: value,
-	}
+func NotLike(value string) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorNotLike, value)
 }
 
-// NotLike returns a comparison that checks whether the reference does not
-// match the wildcard value.
-func NotLike(value string) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorNotLike,
-		v: value,
-	}
+// RegExp is a comparison that checks whether the reference matches the regular
+// expression.
+func RegExp(value string) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorRegExp, value)
 }
 
-// RegExp returns a comparison that checks whether the reference matches the
-// regular expression.
-func RegExp(value string) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorRegExp,
-		v: value,
-	}
-}
-
-// NotRegExp returns a comparison that checks whether the reference does not
-// match the regular expression.
-func NotRegExp(value string) Comparison {
-	return &comparisonOperator{
-		t: ComparisonOperatorNotRegExp,
-		v: value,
-	}
+// NotRegExp is a comparison that checks whether the reference does not match
+// the regular expression.
+func NotRegExp(value string) *Comparison {
+	return adapter.NewComparisonOperator(adapter.ComparisonOperatorNotRegExp, value)
 }
 
 // Op returns a custom comparison operator.
-func Op(customOperator string, value interface{}) Comparison {
-	return &comparisonOperator{
-		op: customOperator,
-		t:  ComparisonOperatorCustom,
-		v:  value,
-	}
+func Op(customOperator string, value interface{}) *Comparison {
+	return adapter.NewCustomComparisonOperator(customOperator, value)
 }
 
 func toInterfaceArray(value interface{}) []interface{} {
@@ -292,5 +160,3 @@ func toInterfaceArray(value interface{}) []interface{} {
 	}
 	return []interface{}{value}
 }
-
-var _ = Comparison(&comparisonOperator{})

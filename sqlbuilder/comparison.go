@@ -5,33 +5,34 @@ import (
 	"strings"
 
 	db "github.com/upper/db"
+	"github.com/upper/db/internal/adapter"
 	"github.com/upper/db/internal/sqladapter/exql"
 )
 
-var comparisonOperators = map[db.ComparisonOperator]string{
-	db.ComparisonOperatorEqual:    "=",
-	db.ComparisonOperatorNotEqual: "!=",
+var comparisonOperators = map[adapter.ComparisonOperator]string{
+	adapter.ComparisonOperatorEqual:    "=",
+	adapter.ComparisonOperatorNotEqual: "!=",
 
-	db.ComparisonOperatorLessThan:    "<",
-	db.ComparisonOperatorGreaterThan: ">",
+	adapter.ComparisonOperatorLessThan:    "<",
+	adapter.ComparisonOperatorGreaterThan: ">",
 
-	db.ComparisonOperatorLessThanOrEqualTo:    "<=",
-	db.ComparisonOperatorGreaterThanOrEqualTo: ">=",
+	adapter.ComparisonOperatorLessThanOrEqualTo:    "<=",
+	adapter.ComparisonOperatorGreaterThanOrEqualTo: ">=",
 
-	db.ComparisonOperatorBetween:    "BETWEEN",
-	db.ComparisonOperatorNotBetween: "NOT BETWEEN",
+	adapter.ComparisonOperatorBetween:    "BETWEEN",
+	adapter.ComparisonOperatorNotBetween: "NOT BETWEEN",
 
-	db.ComparisonOperatorIn:    "IN",
-	db.ComparisonOperatorNotIn: "NOT IN",
+	adapter.ComparisonOperatorIn:    "IN",
+	adapter.ComparisonOperatorNotIn: "NOT IN",
 
-	db.ComparisonOperatorIs:    "IS",
-	db.ComparisonOperatorIsNot: "IS NOT",
+	adapter.ComparisonOperatorIs:    "IS",
+	adapter.ComparisonOperatorIsNot: "IS NOT",
 
-	db.ComparisonOperatorLike:    "LIKE",
-	db.ComparisonOperatorNotLike: "NOT LIKE",
+	adapter.ComparisonOperatorLike:    "LIKE",
+	adapter.ComparisonOperatorNotLike: "NOT LIKE",
 
-	db.ComparisonOperatorRegExp:    "REGEXP",
-	db.ComparisonOperatorNotRegExp: "NOT REGEXP",
+	adapter.ComparisonOperatorRegExp:    "REGEXP",
+	adapter.ComparisonOperatorNotRegExp: "NOT REGEXP",
 }
 
 type hasCustomOperator interface {
@@ -42,11 +43,11 @@ type operatorWrapper struct {
 	tu *templateWithUtils
 	cv *exql.ColumnValue
 
-	op db.Comparison
+	op *db.Comparison
 	v  interface{}
 }
 
-func (ow *operatorWrapper) cmp() db.Comparison {
+func (ow *operatorWrapper) cmp() *db.Comparison {
 	if ow.op != nil {
 		return ow.op
 	}
@@ -82,22 +83,18 @@ func (ow *operatorWrapper) preprocess() (string, []interface{}) {
 	var args []interface{}
 
 	switch c.Operator() {
-	case db.ComparisonOperatorNone:
+	case adapter.ComparisonOperatorNone:
 		panic("no operator given")
-	case db.ComparisonOperatorCustom:
-		if c, ok := c.(hasCustomOperator); ok {
-			op = c.CustomOperator()
-		} else {
-			panic("missing custom operator")
-		}
-	case db.ComparisonOperatorIn, db.ComparisonOperatorNotIn:
+	case adapter.ComparisonOperatorCustom:
+		op = c.CustomOperator()
+	case adapter.ComparisonOperatorIn, adapter.ComparisonOperatorNotIn:
 		values := c.Value().([]interface{})
 		if len(values) < 1 {
 			placeholder, args = "(NULL)", []interface{}{}
 			break
 		}
 		placeholder, args = "(?"+strings.Repeat(", ?", len(values)-1)+")", values
-	case db.ComparisonOperatorIs, db.ComparisonOperatorIsNot:
+	case adapter.ComparisonOperatorIs, adapter.ComparisonOperatorIsNot:
 		switch c.Value() {
 		case nil:
 			placeholder, args = "NULL", []interface{}{}
@@ -106,10 +103,10 @@ func (ow *operatorWrapper) preprocess() (string, []interface{}) {
 		case true:
 			placeholder, args = "TRUE", []interface{}{}
 		}
-	case db.ComparisonOperatorBetween, db.ComparisonOperatorNotBetween:
+	case adapter.ComparisonOperatorBetween, adapter.ComparisonOperatorNotBetween:
 		values := c.Value().([]interface{})
 		placeholder, args = "? AND ?", []interface{}{values[0], values[1]}
-	case db.ComparisonOperatorEqual:
+	case adapter.ComparisonOperatorEqual:
 		v := c.Value()
 		if b, ok := v.([]byte); ok {
 			v = string(b)

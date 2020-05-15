@@ -27,55 +27,49 @@ import (
 )
 
 var (
-	adapters   map[string]*AdapterFuncMap
-	adaptersMu sync.RWMutex
+	adapterMap   = make(map[string]Adapter)
+	adapterMapMu sync.RWMutex
 )
 
-func init() {
-	adapters = make(map[string]*AdapterFuncMap)
+// Adapter interface defines an adapter
+type Adapter interface {
+	Open(ConnectionURL) (Database, error)
 }
 
-// AdapterFuncMap defines functions that need to be implemented by adapters.
-type AdapterFuncMap struct {
-	Open func(settings ConnectionURL) (Database, error)
+type missingAdapter struct {
+	name string
 }
 
-// RegisterAdapter registers a generic Database adapter. This function must be
-// called from adapter packages upon initialization.
-func RegisterAdapter(name string, adapter *AdapterFuncMap) {
-	adaptersMu.Lock()
-	defer adaptersMu.Unlock()
+func (ma *missingAdapter) Open(ConnectionURL) (Database, error) {
+	return nil, fmt.Errorf("upper: Missing adapter %q, did you forget to import it?", ma.name)
+}
+
+// RegisterAdapter registers a generic database adapter.
+func RegisterAdapter(name string, adapter Adapter) {
+	adapterMapMu.Lock()
+	defer adapterMapMu.Unlock()
 
 	if name == "" {
 		panic(`Missing adapter name`)
 	}
-	if _, ok := adapters[name]; ok {
+	if _, ok := adapterMap[name]; ok {
 		panic(`db.RegisterAdapter() called twice for adapter: ` + name)
 	}
-	adapters[name] = adapter
+	adapterMap[name] = adapter
 }
 
-func adapter(name string) AdapterFuncMap {
-	adaptersMu.RLock()
-	defer adaptersMu.RUnlock()
+// LookupAdapter returns a previously registered adapter by name.
+func LookupAdapter(name string) Adapter {
+	adapterMapMu.RLock()
+	defer adapterMapMu.RUnlock()
 
-	if fn, ok := adapters[name]; ok {
-		return *fn
+	if adapter, ok := adapterMap[name]; ok {
+		return adapter
 	}
-	return missingAdapter(name)
+	return &missingAdapter{name: name}
 }
 
-func missingAdapter(name string) AdapterFuncMap {
-	err := fmt.Errorf("upper: Missing adapter %q, forgot to import?", name)
-	return AdapterFuncMap{
-		Open: func(ConnectionURL) (Database, error) {
-			return nil, err
-		},
-	}
-}
-
-// Open attempts to open a database. Returns a generic Database instance on
-// success.
+// Open attempts to stablish a connection with a database.
 func Open(adapterName string, settings ConnectionURL) (Database, error) {
-	return adapter(adapterName).Open(settings)
+	return LookupAdapter(adapterName).Open(settings)
 }

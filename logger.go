@@ -107,7 +107,7 @@ func (q *QueryStatus) String() string {
 	return strings.Join(lines, "\n")
 }
 
-// EnvEnableDebug can be used by adapters to determine if the user has enabled
+// envDebugEnabled can be used by adapters to determine if the user has enabled
 // debugging.
 //
 // If the user sets the `UPPERIO_DB_DEBUG` environment variable to a non-empty
@@ -120,7 +120,7 @@ func (q *QueryStatus) String() string {
 //
 //	UPPERIO_DB_DEBUG=1 ./go-program
 const (
-	EnvEnableDebug = `UPPERIO_DB_DEBUG`
+	envDebugEnabled = `UPPERIO_DB_DEBUG`
 )
 
 // Logger represents a logging collector. You can pass a logging collector to
@@ -140,7 +140,7 @@ func (lg *defaultLogger) Log(m *QueryStatus) {
 var _ = Logger(&defaultLogger{})
 
 func init() {
-	if envEnabled(EnvEnableDebug) {
+	if envEnabled(envDebugEnabled) {
 		DefaultSettings.SetLogging(true)
 	}
 }

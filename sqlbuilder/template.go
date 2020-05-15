@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	db "github.com/upper/db"
+	"github.com/upper/db/internal/adapter"
 	"github.com/upper/db/internal/sqladapter/exql"
 )
 
@@ -132,8 +133,8 @@ func (tu *templateWithUtils) toWhereWithArguments(term interface{}) (where exql.
 	panic(fmt.Sprintf("Unknown condition type %T", term))
 }
 
-func (tu *templateWithUtils) comparisonOperatorMapper(t db.ComparisonOperator) string {
-	if t == db.ComparisonOperatorCustom {
+func (tu *templateWithUtils) comparisonOperatorMapper(t adapter.ComparisonOperator) string {
+	if t == adapter.ComparisonOperatorCustom {
 		return ""
 	}
 	if tu.ComparisonOperator != nil {
@@ -194,7 +195,7 @@ func (tu *templateWithUtils) toColumnValues(term interface{}) (cv exql.ColumnVal
 			wrapper := &operatorWrapper{
 				tu: tu,
 				cv: &columnValue,
-				op: value,
+				op: &value,
 			}
 
 			q, a := wrapper.preprocess()
@@ -231,7 +232,7 @@ func (tu *templateWithUtils) toColumnValues(term interface{}) (cv exql.ColumnVal
 		}
 
 		if columnValue.Operator == "" {
-			columnValue.Operator = tu.comparisonOperatorMapper(db.ComparisonOperatorEqual)
+			columnValue.Operator = tu.comparisonOperatorMapper(adapter.ComparisonOperatorEqual)
 		}
 		cv.ColumnValues = append(cv.ColumnValues, &columnValue)
 		return cv, args
