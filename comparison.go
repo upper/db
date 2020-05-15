@@ -28,7 +28,7 @@ import (
 	"github.com/upper/db/internal/adapter"
 )
 
-// Comparison represents relationships between values.
+// Comparison represents a relationship between values.
 type Comparison struct {
 	*adapter.Comparison
 }

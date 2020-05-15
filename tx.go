@@ -21,7 +21,7 @@
 
 package db
 
-// Tx defines methods for transactions
+// Tx defines methods for transactions.
 type Tx interface {
 	// Rollback discards all the operations executed on the current transaction.
 	Rollback() error

@@ -21,7 +21,7 @@
 
 package db
 
-// Collection defines methods to work with data tables or collections.
+// Collection defines methods to work with database tables or collections.
 type Collection interface {
 	// Insert inserts a new item into the collection, the type of this item could
 	// be a map, a struct or pointer to either of them. If the call succeeds and
@@ -40,8 +40,8 @@ type Collection interface {
 
 	// UpdateReturning takes a pointer to a map or struct and tries to update the
 	// row the item is refering to. If the element is updated sucessfully,
-	// UpdateReturning will fetch thw row and update the data of the passed item.
-	// If the database does not support transactions this method returns
+	// UpdateReturning will fetch the row and update the fields of the passed
+	// item.  If the database does not support transactions this method returns
 	// db.ErrUnsupported
 	UpdateReturning(interface{}) error
 

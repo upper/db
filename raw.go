@@ -25,6 +25,7 @@ import (
 	"github.com/upper/db/internal/adapter"
 )
 
+// RawExpr represents a raw (non-filtered) expression.
 type RawExpr struct {
 	adapter.RawExpr
 }
@@ -36,8 +37,6 @@ type RawExpr struct {
 //
 //	// SOUNDEX('Hello')
 //	Raw("SOUNDEX('Hello')")
-//
-// Raw returns a value that satifies the db.RawExpr interface.
 func Raw(value string, args ...interface{}) *RawExpr {
 	return &RawExpr{adapter.NewRawExpr(value, args)}
 }

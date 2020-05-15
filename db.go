@@ -19,8 +19,8 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Package db (or upper/db) provides an agnostic interface to work with a
-// variety of data sources.
+// Package db (or upper/db) provides an agnostic data access layer to work with
+// different databases.
 //
 // Install upper/db:
 //
@@ -68,7 +68,4 @@
 //  		log.Printf("%q (ID: %d)\n", book.Title, book.ID)
 //  	}
 //  }
-//
-// See more usage examples and documentation for users at
-// https://github.com/upper/db.
 package db // import "github.com/upper/db"

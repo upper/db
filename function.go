@@ -25,11 +25,12 @@ import (
 	"github.com/upper/db/internal/adapter"
 )
 
+// FuncExpr represents functions.
 type FuncExpr struct {
 	*adapter.FuncExpr
 }
 
-// Func represents a database function and satisfies the db.FuncExpr interface.
+// Func returns a database function expression.
 //
 // Examples:
 //

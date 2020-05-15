@@ -21,11 +21,10 @@
 
 package db
 
-// Result is an interface that defines methods that are useful for working with
-// result sets.
+// Result is an interface that defines methods for result sets.
 type Result interface {
 
-	// String returns the SELECT statement that is going to be used in the query.
+	// String returns the SQL statement to be used in the query.
 	String() string
 
 	// Limit defines the maximum number of results for this set. It only has
@@ -179,7 +178,7 @@ type Result interface {
 	PrevPage(cursorValue interface{}) Result
 
 	// TotalPages returns the total number of pages the result set could produce.
-	// If no pagination has been set this value equals 1.
+	// If no pagination parameters have been set this value equals 1.
 	TotalPages() (uint, error)
 
 	// TotalEntries returns the total number of matching items in the result set.

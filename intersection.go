@@ -25,7 +25,7 @@ import (
 	"github.com/upper/db/internal/adapter"
 )
 
-// AndExpr represents a logical expression joined by AND.
+// AndExpr represents an expression joined by a logical conjuction (AND).
 type AndExpr struct {
 	*adapter.LogicalExprGroup
 }
@@ -42,7 +42,7 @@ func (a *AndExpr) And(andConds ...LogicalExpr) *AndExpr {
 	return &AndExpr{a.LogicalExprGroup.Frame(fn)}
 }
 
-// Empty returns false if the struct holds no conditions.
+// Empty returns false if the expressions has zero conditions.
 func (a *AndExpr) Empty() bool {
 	return a.LogicalExprGroup.Empty()
 }

@@ -127,6 +127,6 @@ func TestComparison(t *testing.T) {
 	}
 
 	for i := range testCases {
-		assert.Equal(t, testCases[i].expects, testCases[i].result)
+		assert.Equal(t, testCases[i].expects, testCases[i].result.Comparison)
 	}
 }
