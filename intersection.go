@@ -21,30 +21,30 @@
 
 package db
 
-// Intersection represents a logical expression joined by AND.
-type Intersection struct {
+// AndExpr represents a logical expression joined by AND.
+type AndExpr struct {
 	*compound
 }
 
 // And adds more expressions to the group.
-func (a *Intersection) And(andConds ...LogicalExpressionGroup) *Intersection {
-	var fn func(*[]LogicalExpressionGroup) error
+func (a *AndExpr) And(andConds ...LogicalExpr) *AndExpr {
+	var fn func(*[]LogicalExpr) error
 	if len(andConds) > 0 {
-		fn = func(in *[]LogicalExpressionGroup) error {
+		fn = func(in *[]LogicalExpr) error {
 			*in = append(*in, andConds...)
 			return nil
 		}
 	}
-	return &Intersection{a.compound.frame(fn)}
+	return &AndExpr{a.compound.frame(fn)}
 }
 
 // Empty returns false if the struct holds no conditions.
-func (a *Intersection) Empty() bool {
+func (a *AndExpr) Empty() bool {
 	return a.compound.Empty()
 }
 
 // Operator returns the AND operator.
-func (a *Intersection) Operator() LogicalOperator {
+func (a *AndExpr) Operator() LogicalOperator {
 	return LogicalOperatorAnd
 }
 
@@ -67,6 +67,6 @@ func (a *Intersection) Operator() LogicalOperator {
 //		),
 //		db.Cond{"last_name": "Mouse"},
 //	)
-func And(conds ...LogicalExpressionGroup) *Intersection {
-	return &Intersection{newLogicalExpressionGroup(conds...)}
+func And(conds ...LogicalExpr) *AndExpr {
+	return &AndExpr{newLogicalExpr(conds...)}
 }
