@@ -35,6 +35,7 @@ import (
 	"strings"
 
 	db "github.com/upper/db"
+	"github.com/upper/db/internal/adapter"
 	"github.com/upper/db/internal/reflectx"
 	"github.com/upper/db/internal/sqladapter/compat"
 	"github.com/upper/db/internal/sqladapter/exql"
@@ -139,7 +140,7 @@ func (b *sqlBuilder) PrepareContext(ctx context.Context, query interface{}) (*sq
 		return b.sess.StatementPrepare(ctx, q)
 	case string:
 		return b.sess.StatementPrepare(ctx, exql.RawSQL(q))
-	case db.RawValue:
+	case *adapter.RawExpr:
 		return b.PrepareContext(ctx, q.Raw())
 	default:
 		return nil, fmt.Errorf("unsupported query type %T", query)
@@ -156,7 +157,7 @@ func (b *sqlBuilder) ExecContext(ctx context.Context, query interface{}, args ..
 		return b.sess.StatementExec(ctx, q, args...)
 	case string:
 		return b.sess.StatementExec(ctx, exql.RawSQL(q), args...)
-	case db.RawValue:
+	case *adapter.RawExpr:
 		return b.ExecContext(ctx, q.Raw(), q.Arguments()...)
 	default:
 		return nil, fmt.Errorf("unsupported query type %T", query)
@@ -173,7 +174,7 @@ func (b *sqlBuilder) QueryContext(ctx context.Context, query interface{}, args .
 		return b.sess.StatementQuery(ctx, q, args...)
 	case string:
 		return b.sess.StatementQuery(ctx, exql.RawSQL(q), args...)
-	case db.RawValue:
+	case *adapter.RawExpr:
 		return b.QueryContext(ctx, q.Raw(), q.Arguments()...)
 	default:
 		return nil, fmt.Errorf("unsupported query type %T", query)
@@ -190,7 +191,7 @@ func (b *sqlBuilder) QueryRowContext(ctx context.Context, query interface{}, arg
 		return b.sess.StatementQueryRow(ctx, q, args...)
 	case string:
 		return b.sess.StatementQueryRow(ctx, exql.RawSQL(q), args...)
-	case db.RawValue:
+	case *adapter.RawExpr:
 		return b.QueryRowContext(ctx, q.Raw(), q.Arguments()...)
 	default:
 		return nil, fmt.Errorf("unsupported query type %T", query)
@@ -360,7 +361,7 @@ func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, err
 			}
 			f[i] = exql.RawValue(q)
 			args = append(args, a...)
-		case db.Function:
+		case *adapter.FuncExpr:
 			fnName, fnArgs := v.Name(), v.Arguments()
 			if len(fnArgs) == 0 {
 				fnName = fnName + "()"
@@ -370,7 +371,7 @@ func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, err
 			fnName, fnArgs = Preprocess(fnName, fnArgs)
 			f[i] = exql.RawValue(fnName)
 			args = append(args, fnArgs...)
-		case db.RawValue:
+		case *adapter.RawExpr:
 			q, a := Preprocess(v.Raw(), v.Arguments())
 			f[i] = exql.RawValue(q)
 			args = append(args, a...)

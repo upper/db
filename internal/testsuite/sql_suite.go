@@ -430,7 +430,7 @@ func (s *SQLTestSuite) TestInsertIntoArtistsTable() {
 		"Slash",
 	}
 
-	id, err = artist.Insert(itemStruct2)
+	id, err = artist.Insert(&itemStruct2)
 	s.NoError(err)
 	s.NotNil(id)
 
@@ -438,11 +438,9 @@ func (s *SQLTestSuite) TestInsertIntoArtistsTable() {
 		s.T().Errorf("Expecting an ID.")
 	}
 
-	// Attempt to append and update a private key
 	itemStruct3 := artistType{
 		Name: "Janus",
 	}
-
 	id, err = artist.Insert(&itemStruct3)
 	s.NoError(err)
 	if s.Adapter() != "ql" {
@@ -791,7 +789,7 @@ func (s *SQLTestSuite) TestUpdate() {
 
 		// Updating using raw
 		if err = res.Update(struct {
-			Name db.RawValue `db:"name"`
+			Name *db.RawExpr `db:"name"`
 		}{db.Raw(`UPPER(name)`)}); err != nil {
 			s.T().Errorf("%v", err)
 		}
@@ -805,7 +803,7 @@ func (s *SQLTestSuite) TestUpdate() {
 
 		// Updating using raw
 		if err = res.Update(struct {
-			Name db.Function `db:"name"`
+			Name *db.FuncExpr `db:"name"`
 		}{db.Func("LOWER", db.Raw("name"))}); err != nil {
 			s.T().Errorf("%v", err)
 		}

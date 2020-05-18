@@ -21,66 +21,50 @@
 
 package adapter
 
-import (
-	"fmt"
-)
-
 // RawExpr interface represents values that can bypass SQL filters. This is an
 // exported interface but it's rarely used directly, you may want to use the
 // `db.Raw()` function instead.
-type RawExpr interface {
-	fmt.Stringer
-	LogicalExpr
-
-	// Raw returns the string representation of the value that the user wants to
-	// pass without any escaping.
-	Raw() string
-
-	// Arguments returns the arguments to be replaced on the query.
-	Arguments() []interface{}
+type RawExpr struct {
+	value string
+	args  *[]interface{}
 }
 
-type rawValue struct {
-	v string
-	a *[]interface{} // This may look ugly but allows us to use db.Raw() as keys for db.Cond{}.
-}
-
-func (r rawValue) Arguments() []interface{} {
-	if r.a != nil {
-		return *r.a
+func (r *RawExpr) Arguments() []interface{} {
+	if r.args != nil {
+		return *r.args
 	}
 	return nil
 }
 
-func (r rawValue) Raw() string {
-	return r.v
+func (r RawExpr) Raw() string {
+	return r.value
 }
 
-func (r rawValue) String() string {
+func (r RawExpr) String() string {
 	return r.Raw()
 }
 
-// Expressions return each one of the map records as a compound.
-func (r rawValue) Expressions() []LogicalExpr {
+// Expressions returns a logical expressio.n
+func (r *RawExpr) Expressions() []LogicalExpr {
 	return []LogicalExpr{r}
 }
 
-// Operator returns the default compound Operator.
-func (r rawValue) Operator() LogicalOperator {
+// Operator returns the default compound operator.
+func (r RawExpr) Operator() LogicalOperator {
 	return LogicalOperatorNone
 }
 
-// Empty return false if this struct holds no value.
-func (r rawValue) Empty() bool {
-	return r.v == ""
+// Empty return false if this struct has no value.
+func (r *RawExpr) Empty() bool {
+	return r.value == ""
 }
 
-func NewRawExpr(value string, args []interface{}) RawExpr {
-	r := rawValue{v: value, a: nil}
+func NewRawExpr(value string, args []interface{}) *RawExpr {
+	r := &RawExpr{value: value, args: nil}
 	if len(args) > 0 {
-		r.a = &args
+		r.args = &args
 	}
 	return r
 }
 
-var _ = RawExpr(&rawValue{})
+var _ = LogicalExpr(&RawExpr{})

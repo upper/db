@@ -67,16 +67,14 @@ func (c Cond) Empty() bool {
 	return true
 }
 
-/*
 // Constraints returns each one of the Cond map entires as a constraint.
-func (c Cond) Constraints() []Constraint {
-	z := make([]Constraint, 0, len(c))
-	for _, k := range c.Keys() {
-		z = append(z, NewConstraint(k, c[k]))
+func (c Cond) Constraints() []adapter.Constraint {
+	z := make([]adapter.Constraint, 0, len(c))
+	for _, k := range c.keys() {
+		z = append(z, adapter.NewConstraint(k, c[k]))
 	}
 	return z
 }
-*/
 
 // Operator returns the equality operator.
 func (c Cond) Operator() LogicalOperator {

@@ -130,17 +130,11 @@ type Logger interface {
 	Log(*QueryStatus)
 }
 
-type defaultLogger struct {
+type simpleLogger struct {
 }
 
-func (lg *defaultLogger) Log(m *QueryStatus) {
+func (lg *simpleLogger) Log(m *QueryStatus) {
 	log.Printf("\n\t%s\n\n", strings.Replace(m.String(), "\n", "\n\t", -1))
 }
 
-var _ = Logger(&defaultLogger{})
-
-func init() {
-	if envEnabled(envDebugEnabled) {
-		DefaultSettings.SetLogging(true)
-	}
-}
+var defaultLogger = Logger(&simpleLogger{})

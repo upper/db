@@ -24,10 +24,8 @@ package sqlbuilder
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	db "github.com/upper/db"
-	"github.com/upper/db/internal/adapter"
 )
 
 // Tx represents a transaction on a SQL database. A transaction is like a
@@ -106,44 +104,26 @@ type Database interface {
 	TxOptions() *sql.TxOptions
 }
 
-// Open opens a SQL database.
-func Open(adapterName string, settings db.ConnectionURL) (Database, error) {
-	return adapter.LookupAdapter(adapterName).Open(settings)
-}
+// Adapter represents a SQL adapter.
+type Adapter interface {
+	// New wraps an active *sql.DB session and returns a SQLBuilder database.  The
+	// adapter needs to be imported to the blank namespace in order for it to be
+	// used here.
+	//
+	// This method is internally used by upper-db to create a builder backed by the
+	// given database.  You may want to use your adapter's New function instead of
+	// this one.
+	New(*sql.DB) (Database, error)
 
-// New wraps an active *sql.DB session and returns a SQLBuilder database.  The
-// adapter needs to be imported to the blank namespace in order for it to be
-// used here.
-//
-// This method is internally used by upper-db to create a builder backed by the
-// given database.  You may want to use your adapter's New function instead of
-// this one.
-func New(adapterName string, sqlDB *sql.DB) (Database, error) {
-	return adapterFunc(adapterName).New(sqlDB)
-}
+	// NewTx wraps an active *sql.Tx transation and returns a SQLBuilder
+	// transaction.  The adapter needs to be imported to the blank namespace in
+	// order for it to be used.
+	//
+	// This method is internally used by upper-db to create a builder backed by the
+	// given transaction.  You may want to use your adapter's NewTx function
+	// instead of this one.
+	NewTx(*sql.Tx) (Tx, error)
 
-// NewTx wraps an active *sql.Tx transation and returns a SQLBuilder
-// transaction.  The adapter needs to be imported to the blank namespace in
-// order for it to be used.
-//
-// This method is internally used by upper-db to create a builder backed by the
-// given transaction.  You may want to use your adapter's NewTx function
-// instead of this one.
-func NewTx(adapterName string, sqlTx *sql.Tx) (Tx, error) {
-	return adapter(adapterName).NewTx(sqlTx)
-}
-
-func missingAdapter(name string) AdapterFuncMap {
-	err := fmt.Errorf("upper: Missing SQL adapter %q, forgot to import?", name)
-	return AdapterFuncMap{
-		New: func(*sql.DB) (Database, error) {
-			return nil, err
-		},
-		NewTx: func(*sql.Tx) (Tx, error) {
-			return nil, err
-		},
-		Open: func(db.ConnectionURL) (Database, error) {
-			return nil, err
-		},
-	}
+	// Open opens a SQL database.
+	Open(db.ConnectionURL) (db.Database, error)
 }

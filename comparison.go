@@ -68,6 +68,11 @@ func In(value ...interface{}) *Comparison {
 	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorIn, toInterfaceArray(value))}
 }
 
+// NotIn is a comparison that means: is none of the values.
+func NotIn(value ...interface{}) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorNotIn, toInterfaceArray(value))}
+}
+
 // After is a comparison that means: is after the (time.Time) value.
 func After(value time.Time) *Comparison {
 	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorGreaterThan, value)}

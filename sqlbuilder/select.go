@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	db "github.com/upper/db"
+	"github.com/upper/db/internal/adapter"
 	"github.com/upper/db/internal/immutable"
 	"github.com/upper/db/internal/sqladapter/exql"
 )
@@ -253,13 +253,13 @@ func (sel *selector) OrderBy(columns ...interface{}) Selector {
 			var sort *exql.SortColumn
 
 			switch value := columns[i].(type) {
-			case db.RawValue:
+			case *adapter.RawExpr:
 				query, args := Preprocess(value.Raw(), value.Arguments())
 				sort = &exql.SortColumn{
 					Column: exql.RawValue(query),
 				}
 				sq.orderByArgs = append(sq.orderByArgs, args...)
-			case db.Function:
+			case *adapter.FuncExpr:
 				fnName, fnArgs := value.Name(), value.Arguments()
 				if len(fnArgs) == 0 {
 					fnName = fnName + "()"

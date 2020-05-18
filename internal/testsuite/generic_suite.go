@@ -724,9 +724,9 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 	// Test: in
 	{
 		var items []birthday
-		names := []string{"Peter", "Eve Smith", "Daria López", "Alex López"}
+		names := []interface{}{"Peter", "Eve Smith", "Daria López", "Alex López"}
 		err := birthdays.Find(db.Cond{
-			"name": db.In(names),
+			"name": db.In(names...),
 		}).All(&items)
 		s.NoError(err)
 		s.Equal(4, len(items))
@@ -744,9 +744,9 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 	// Test: not in
 	{
 		var items []birthday
-		names := []string{"Peter", "Eve Smith", "Daria López", "Alex López"}
+		names := []interface{}{"Peter", "Eve Smith", "Daria López", "Alex López"}
 		err := birthdays.Find(db.Cond{
-			"name": db.NotIn(names),
+			"name": db.NotIn(names...),
 		}).All(&items)
 		s.NoError(err)
 		s.Equal(4, len(items))
@@ -764,9 +764,9 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 	// Test: not in
 	{
 		var items []birthday
-		names := []string{"Peter", "Eve Smith", "Daria López", "Alex López"}
+		names := []interface{}{"Peter", "Eve Smith", "Daria López", "Alex López"}
 		err := birthdays.Find(db.Cond{
-			"name": db.NotIn(names),
+			"name": db.NotIn(names...),
 		}).All(&items)
 		s.NoError(err)
 		s.Equal(4, len(items))

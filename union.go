@@ -58,5 +58,7 @@ func (o *OrExpr) Empty() bool {
 //		db.Cond{"year": 1987},
 //	)
 func Or(conds ...LogicalExpr) *OrExpr {
-	return &OrExpr{adapter.NewLogicalExprGroup(defaultJoin(conds...)...)}
+	return &OrExpr{adapter.NewLogicalExprGroup(adapter.LogicalOperatorOr, defaultJoin(conds...)...)}
 }
+
+var _ = adapter.LogicalExpr(&OrExpr{})

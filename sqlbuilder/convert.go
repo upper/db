@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strings"
 
-	db "github.com/upper/db"
+	"github.com/upper/db/internal/adapter"
 	"github.com/upper/db/internal/sqladapter/exql"
 )
 
@@ -121,7 +121,7 @@ func preprocessFn(arg interface{}) (string, []interface{}) {
 
 	if len(values) == 1 {
 		switch t := arg.(type) {
-		case db.RawValue:
+		case *adapter.RawExpr:
 			return Preprocess(t.Raw(), t.Arguments())
 		case compilable:
 			c, err := t.Compile()
