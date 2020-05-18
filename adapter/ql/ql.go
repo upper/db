@@ -22,18 +22,29 @@
 package ql // import "github.com/upper/db/adapter/ql"
 
 import (
+	"database/sql"
+	db "github.com/upper/db"
 	"github.com/upper/db/sqlbuilder"
 )
 
-const sqlDriver = `ql`
-
 // Adapter is the public name of the adapter.
-const Adapter = sqlDriver
+const Adapter = `ql`
+
+type qlAdapter struct {
+}
+
+func (qlAdapter) Open(dsn db.ConnectionURL) (db.Database, error) {
+	return Open(dsn)
+}
+
+func (qlAdapter) NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
+	return NewTx(sqlTx)
+}
+
+func (qlAdapter) New(sqlDB *sql.DB) (sqlbuilder.Database, error) {
+	return New(sqlDB)
+}
 
 func init() {
-	sqlbuilder.RegisterAdapter(Adapter, &sqlbuilder.AdapterFuncMap{
-		New:   New,
-		NewTx: NewTx,
-		Open:  Open,
-	})
+	db.RegisterAdapter(Adapter, sqlbuilder.Adapter(&qlAdapter{}))
 }

@@ -29,17 +29,26 @@ import (
 	"github.com/upper/db/sqlbuilder"
 )
 
-const sqlDriver = `mysql`
-
 // Adapter is the public name of the adapter.
-const Adapter = sqlDriver
+const Adapter = `mysql`
+
+type mysqlAdapter struct {
+}
+
+func (mysqlAdapter) Open(dsn db.ConnectionURL) (db.Database, error) {
+	return Open(dsn)
+}
+
+func (mysqlAdapter) NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
+	return NewTx(sqlTx)
+}
+
+func (mysqlAdapter) New(sqlDB *sql.DB) (sqlbuilder.Database, error) {
+	return New(sqlDB)
+}
 
 func init() {
-	sqlbuilder.RegisterAdapter(Adapter, &sqlbuilder.AdapterFuncMap{
-		New:   New,
-		NewTx: NewTx,
-		Open:  Open,
-	})
+	db.RegisterAdapter(Adapter, sqlbuilder.Adapter(&mysqlAdapter{}))
 }
 
 // Open stablishes a new connection with the SQL server.

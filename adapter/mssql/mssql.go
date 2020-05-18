@@ -29,20 +29,29 @@ import (
 	"github.com/upper/db/sqlbuilder"
 )
 
-const sqlDriver = `mssql`
+// Adapter is the unique name that you can use to refer to this adapter.
+const Adapter = `mssql`
 
-// Adapter is the public name of the adapter.
-const Adapter = sqlDriver
-
-func init() {
-	sqlbuilder.RegisterAdapter(Adapter, &sqlbuilder.AdapterFuncMap{
-		New:   New,
-		NewTx: NewTx,
-		Open:  Open,
-	})
+type mssqlAdapter struct {
 }
 
-// Open stablishes a new connection with the SQL server.
+func (mssqlAdapter) Open(dsn db.ConnectionURL) (db.Database, error) {
+	return Open(dsn)
+}
+
+func (mssqlAdapter) NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
+	return NewTx(sqlTx)
+}
+
+func (mssqlAdapter) New(sqlDB *sql.DB) (sqlbuilder.Database, error) {
+	return New(sqlDB)
+}
+
+func init() {
+	db.RegisterAdapter(Adapter, sqlbuilder.Adapter(&mssqlAdapter{}))
+}
+
+// Open stablishes a new connection to the SQL server.
 func Open(settings db.ConnectionURL) (sqlbuilder.Database, error) {
 	d := newDatabase(settings)
 	if err := d.Open(settings); err != nil {

@@ -30,17 +30,26 @@ import (
 	"github.com/upper/db/sqlbuilder"
 )
 
-const sqlDriver = `sqlite`
-
 // Adapter is the public name of the adapter.
-const Adapter = sqlDriver
+const Adapter = `sqlite`
+
+type sqliteAdapter struct {
+}
+
+func (sqliteAdapter) Open(dsn db.ConnectionURL) (db.Database, error) {
+	return Open(dsn)
+}
+
+func (sqliteAdapter) NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
+	return NewTx(sqlTx)
+}
+
+func (sqliteAdapter) New(sqlDB *sql.DB) (sqlbuilder.Database, error) {
+	return New(sqlDB)
+}
 
 func init() {
-	sqlbuilder.RegisterAdapter(Adapter, &sqlbuilder.AdapterFuncMap{
-		New:   New,
-		NewTx: NewTx,
-		Open:  Open,
-	})
+	db.RegisterAdapter(Adapter, sqlbuilder.Adapter(&sqliteAdapter{}))
 }
 
 // Open stablishes a new connection with the SQL server.
