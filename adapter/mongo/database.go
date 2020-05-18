@@ -51,10 +51,15 @@ type Source struct {
 	collectionsMu sync.Mutex
 }
 
+type mongoAdapter struct {
+}
+
+func (mongoAdapter) Open(dsn db.ConnectionURL) (db.Database, error) {
+	return Open(dsn)
+}
+
 func init() {
-	db.RegisterAdapter(Adapter, &db.AdapterFuncMap{
-		Open: Open,
-	})
+	db.RegisterAdapter(Adapter, db.Adapter(&mongoAdapter{}))
 }
 
 // Open stablishes a new connection to a SQL server.

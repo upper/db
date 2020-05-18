@@ -29,6 +29,7 @@ import (
 	"reflect"
 
 	db "github.com/upper/db"
+	"github.com/upper/db/internal/adapter"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -63,52 +64,52 @@ func (col *Collection) Find(terms ...interface{}) db.Result {
 	return res
 }
 
-var comparisonOperators = map[db.ComparisonOperator]string{
-	db.ComparisonOperatorEqual:    "$eq",
-	db.ComparisonOperatorNotEqual: "$ne",
+var comparisonOperators = map[adapter.ComparisonOperator]string{
+	adapter.ComparisonOperatorEqual:    "$eq",
+	adapter.ComparisonOperatorNotEqual: "$ne",
 
-	db.ComparisonOperatorLessThan:    "$lt",
-	db.ComparisonOperatorGreaterThan: "$gt",
+	adapter.ComparisonOperatorLessThan:    "$lt",
+	adapter.ComparisonOperatorGreaterThan: "$gt",
 
-	db.ComparisonOperatorLessThanOrEqualTo:    "$lte",
-	db.ComparisonOperatorGreaterThanOrEqualTo: "$gte",
+	adapter.ComparisonOperatorLessThanOrEqualTo:    "$lte",
+	adapter.ComparisonOperatorGreaterThanOrEqualTo: "$gte",
 
-	db.ComparisonOperatorIn:    "$in",
-	db.ComparisonOperatorNotIn: "$nin",
+	adapter.ComparisonOperatorIn:    "$in",
+	adapter.ComparisonOperatorNotIn: "$nin",
 }
 
-func compare(field string, cmp db.Comparison) (string, interface{}) {
+func compare(field string, cmp *adapter.Comparison) (string, interface{}) {
 	op := cmp.Operator()
 	value := cmp.Value()
 
 	switch op {
-	case db.ComparisonOperatorEqual:
+	case adapter.ComparisonOperatorEqual:
 		return field, value
-	case db.ComparisonOperatorBetween:
+	case adapter.ComparisonOperatorBetween:
 		values := value.([]interface{})
 		return field, bson.M{
 			"$gte": values[0],
 			"$lte": values[1],
 		}
-	case db.ComparisonOperatorNotBetween:
+	case adapter.ComparisonOperatorNotBetween:
 		values := value.([]interface{})
 		return "$or", []bson.M{
 			{field: bson.M{"$gt": values[1]}},
 			{field: bson.M{"$lt": values[0]}},
 		}
-	case db.ComparisonOperatorIs:
+	case adapter.ComparisonOperatorIs:
 		if value == nil {
 			return field, bson.M{"$exists": false}
 		}
 		return field, bson.M{"$eq": value}
-	case db.ComparisonOperatorIsNot:
+	case adapter.ComparisonOperatorIsNot:
 		if value == nil {
 			return field, bson.M{"$exists": true}
 		}
 		return field, bson.M{"$ne": value}
-	case db.ComparisonOperatorRegExp, db.ComparisonOperatorLike:
+	case adapter.ComparisonOperatorRegExp, adapter.ComparisonOperatorLike:
 		return field, bson.RegEx{Pattern: value.(string), Options: ""}
-	case db.ComparisonOperatorNotRegExp, db.ComparisonOperatorNotLike:
+	case adapter.ComparisonOperatorNotRegExp, adapter.ComparisonOperatorNotLike:
 		return field, bson.M{"$not": bson.RegEx{Pattern: value.(string), Options: ""}}
 	}
 
@@ -130,8 +131,8 @@ func compileStatement(cond db.Cond) bson.M {
 	for fieldI, value := range cond {
 		field := strings.TrimSpace(fmt.Sprintf("%v", fieldI))
 
-		if cmp, ok := value.(db.Comparison); ok {
-			k, v := compare(field, cmp)
+		if cmp, ok := value.(*db.Comparison); ok {
+			k, v := compare(field, cmp.Comparison)
 			conds[k] = v
 			continue
 		}
@@ -187,16 +188,16 @@ func (col *Collection) compileConditions(term interface{}) interface{} {
 		}
 	case db.Cond:
 		return compileStatement(t)
-	case db.Compound:
+	case adapter.LogicalExpr:
 		values := []interface{}{}
 
-		for _, s := range t.Sentences() {
+		for _, s := range t.Expressions() {
 			values = append(values, col.compileConditions(s))
 		}
 
 		var op string
 		switch t.Operator() {
-		case db.OperatorOr:
+		case adapter.LogicalOperatorOr:
 			op = `$or`
 		default:
 			op = `$and`
@@ -210,33 +211,27 @@ func (col *Collection) compileConditions(term interface{}) interface{} {
 // compileQuery compiles terms into something that *mgo.Session can
 // understand.
 func (col *Collection) compileQuery(terms ...interface{}) interface{} {
-	var query interface{}
-
 	compiled := col.compileConditions(terms)
-
-	if compiled != nil {
-		conditions := compiled.([]interface{})
-		if len(conditions) == 1 {
-			query = conditions[0]
-		} else {
-			// this should be correct.
-			// query = map[string]interface{}{"$and": conditions}
-
-			// attempt to workaround https://jira.mongodb.org/browse/SERVER-4572
-			mapped := map[string]interface{}{}
-			for _, v := range conditions {
-				for kk := range v.(map[string]interface{}) {
-					mapped[kk] = v.(map[string]interface{})[kk]
-				}
-			}
-
-			query = mapped
-		}
-	} else {
-		query = nil
+	if compiled == nil {
+		return nil
 	}
 
-	return query
+	conditions := compiled.([]interface{})
+	if len(conditions) == 1 {
+		return conditions[0]
+	}
+	// this should be correct.
+	// query = map[string]interface{}{"$and": conditions}
+
+	// attempt to workaround https://jira.mongodb.org/browse/SERVER-4572
+	mapped := map[string]interface{}{}
+	for _, v := range conditions {
+		for kk := range v.(map[string]interface{}) {
+			mapped[kk] = v.(map[string]interface{})[kk]
+		}
+	}
+
+	return mapped
 }
 
 // Name returns the name of the table or tables that form the collection.
