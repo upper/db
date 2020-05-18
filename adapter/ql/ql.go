@@ -23,6 +23,7 @@ package ql // import "github.com/upper/db/adapter/ql"
 
 import (
 	"database/sql"
+
 	db "github.com/upper/db"
 	"github.com/upper/db/sqlbuilder"
 )
