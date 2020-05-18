@@ -110,17 +110,17 @@ func (q *QueryStatus) String() string {
 // envDebugEnabled can be used by adapters to determine if the user has enabled
 // debugging.
 //
-// If the user sets the `UPPERIO_DB_DEBUG` environment variable to a non-empty
+// If the user sets the `UPPER_DB_DEBUG` environment variable to a non-empty
 // value, all generated statements will be printed at runtime to the standard
 // logger.
 //
 // Example:
 //
-//	UPPERIO_DB_DEBUG=1 go test
+//	UPPER_DB_DEBUG=1 go test
 //
-//	UPPERIO_DB_DEBUG=1 ./go-program
+//	UPPER_DB_DEBUG=1 ./go-program
 const (
-	envDebugEnabled = `UPPERIO_DB_DEBUG`
+	envDebugEnabled = `UPPER_DB_DEBUG`
 )
 
 // Logger represents a logging collector. You can pass a logging collector to
