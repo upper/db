@@ -437,7 +437,6 @@ func (d *database) StatementExec(ctx context.Context, stmt *exql.Statement, args
 
 	if d.Settings.LoggingEnabled() {
 		defer func(start time.Time) {
-
 			status := db.QueryStatus{
 				TxID:    d.txID,
 				SessID:  d.sessID,

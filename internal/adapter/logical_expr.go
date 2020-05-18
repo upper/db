@@ -51,65 +51,67 @@ const (
 const DefaultLogicalOperator = LogicalOperatorAnd
 
 type LogicalExprGroup struct {
+	op LogicalOperator
+
 	prev *LogicalExprGroup
 	fn   func(*[]LogicalExpr) error
 }
 
-func NewLogicalExprGroup(conds ...LogicalExpr) *LogicalExprGroup {
-	c := &LogicalExprGroup{}
+func NewLogicalExprGroup(op LogicalOperator, conds ...LogicalExpr) *LogicalExprGroup {
+	group := &LogicalExprGroup{op: op}
 	if len(conds) == 0 {
-		return c
+		return group
 	}
-	return c.Frame(func(in *[]LogicalExpr) error {
+	return group.Frame(func(in *[]LogicalExpr) error {
 		*in = append(*in, conds...)
 		return nil
 	})
 }
 
 // Expressions returns each one of the conditions as a compound.
-func (c *LogicalExprGroup) Expressions() []LogicalExpr {
-	conds, err := immutable.FastForward(c)
+func (g *LogicalExprGroup) Expressions() []LogicalExpr {
+	conds, err := immutable.FastForward(g)
 	if err == nil {
 		return *(conds.(*[]LogicalExpr))
 	}
 	return nil
 }
 
-// Operator returns no Operator.
-func (c *LogicalExprGroup) Operator() LogicalOperator {
-	return LogicalOperatorNone
+// Operator is undefined for a logical group.
+func (g *LogicalExprGroup) Operator() LogicalOperator {
+	return g.op
 }
 
 // Empty returns true if this condition has no elements. False otherwise.
-func (c *LogicalExprGroup) Empty() bool {
-	if c.fn != nil {
+func (g *LogicalExprGroup) Empty() bool {
+	if g.fn != nil {
 		return false
 	}
-	if c.prev != nil {
-		return c.prev.Empty()
+	if g.prev != nil {
+		return g.prev.Empty()
 	}
 	return true
 }
 
-func (c *LogicalExprGroup) Frame(fn func(*[]LogicalExpr) error) *LogicalExprGroup {
-	return &LogicalExprGroup{prev: c, fn: fn}
+func (g *LogicalExprGroup) Frame(fn func(*[]LogicalExpr) error) *LogicalExprGroup {
+	return &LogicalExprGroup{prev: g, fn: fn}
 }
 
-func (c *LogicalExprGroup) Prev() immutable.Immutable {
-	if c == nil {
+func (g *LogicalExprGroup) Prev() immutable.Immutable {
+	if g == nil {
 		return nil
 	}
-	return c.prev
+	return g.prev
 }
 
-func (c *LogicalExprGroup) Fn(in interface{}) error {
-	if c.fn == nil {
+func (g *LogicalExprGroup) Fn(in interface{}) error {
+	if g.fn == nil {
 		return nil
 	}
-	return c.fn(in.(*[]LogicalExpr))
+	return g.fn(in.(*[]LogicalExpr))
 }
 
-func (c *LogicalExprGroup) Base() interface{} {
+func (g *LogicalExprGroup) Base() interface{} {
 	return &[]LogicalExpr{}
 }
 

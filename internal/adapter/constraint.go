@@ -39,9 +39,6 @@ type Constraint interface {
 type Constraints interface {
 	// Constraints returns an array of constraints.
 	Constraints() []Constraint
-
-	// Keys returns the map keys always in the same order.
-	Keys() []interface{}
 }
 
 type constraint struct {

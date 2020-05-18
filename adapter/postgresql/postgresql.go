@@ -25,7 +25,6 @@ import (
 	"database/sql"
 
 	db "github.com/upper/db"
-	"github.com/upper/db/internal/adapter"
 	"github.com/upper/db/internal/sqladapter"
 	"github.com/upper/db/sqlbuilder"
 )
@@ -33,12 +32,23 @@ import (
 // Adapter is the unique name that you can use to refer to this adapter.
 const Adapter = `postgresql`
 
+type postgresqlAdapter struct {
+}
+
+func (postgresqlAdapter) Open(dsn db.ConnectionURL) (db.Database, error) {
+	return Open(dsn)
+}
+
+func (postgresqlAdapter) NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
+	return NewTx(sqlTx)
+}
+
+func (postgresqlAdapter) New(sqlDB *sql.DB) (sqlbuilder.Database, error) {
+	return New(sqlDB)
+}
+
 func init() {
-	sqlbuilder.RegisterAdapter(Adapter, &sqlbuilder.AdapterFuncMap{
-		New:   New,
-		NewTx: NewTx,
-		Open:  Open,
-	})
+	db.RegisterAdapter(Adapter, sqlbuilder.Adapter(&postgresqlAdapter{}))
 }
 
 // Open opens a new connection with the PostgreSQL server. The returned session

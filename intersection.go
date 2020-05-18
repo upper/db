@@ -67,5 +67,7 @@ func (a *AndExpr) Empty() bool {
 //		db.Cond{"last_name": "Mouse"},
 //	)
 func And(conds ...LogicalExpr) *AndExpr {
-	return &AndExpr{adapter.NewLogicalExprGroup(conds...)}
+	return &AndExpr{adapter.NewLogicalExprGroup(adapter.LogicalOperatorAnd, conds...)}
 }
+
+var _ = adapter.LogicalExpr(&AndExpr{})

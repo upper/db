@@ -26,9 +26,7 @@ import (
 )
 
 // RawExpr represents a raw (non-filtered) expression.
-type RawExpr struct {
-	adapter.RawExpr
-}
+type RawExpr = adapter.RawExpr
 
 // Raw marks chunks of data as protected, so they pass directly to the query
 // without any filtering. Use with care.
@@ -38,5 +36,5 @@ type RawExpr struct {
 //	// SOUNDEX('Hello')
 //	Raw("SOUNDEX('Hello')")
 func Raw(value string, args ...interface{}) *RawExpr {
-	return &RawExpr{adapter.NewRawExpr(value, args)}
+	return adapter.NewRawExpr(value, args)
 }

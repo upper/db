@@ -43,29 +43,29 @@ type operatorWrapper struct {
 	tu *templateWithUtils
 	cv *exql.ColumnValue
 
-	op *db.Comparison
+	op *adapter.Comparison
 	v  interface{}
 }
 
-func (ow *operatorWrapper) cmp() *db.Comparison {
+func (ow *operatorWrapper) cmp() *adapter.Comparison {
 	if ow.op != nil {
 		return ow.op
 	}
 
 	if ow.cv.Operator != "" {
-		return db.Op(ow.cv.Operator, ow.v)
+		return db.Op(ow.cv.Operator, ow.v).Comparison
 	}
 
 	if ow.v == nil {
-		return db.Is(nil)
+		return db.Is(nil).Comparison
 	}
 
 	args, isSlice := toInterfaceArguments(ow.v)
 	if isSlice {
-		return db.In(args)
+		return db.In(args...).Comparison
 	}
 
-	return db.Eq(ow.v)
+	return db.Eq(ow.v).Comparison
 }
 
 func (ow *operatorWrapper) preprocess() (string, []interface{}) {

@@ -22,7 +22,7 @@
 package postgresql
 
 import (
-	db "github.com/upper/db"
+	"github.com/upper/db/internal/adapter"
 	"github.com/upper/db/internal/cache"
 	"github.com/upper/db/internal/sqladapter/exql"
 )
@@ -203,8 +203,8 @@ var template = &exql.Template{
 	CountLayout:         adapterSelectCountLayout,
 	GroupByLayout:       adapterGroupByLayout,
 	Cache:               cache.NewCache(),
-	ComparisonOperator: map[db.ComparisonOperator]string{
-		db.ComparisonOperatorRegExp:    "~",
-		db.ComparisonOperatorNotRegExp: "!~",
+	ComparisonOperator: map[adapter.ComparisonOperator]string{
+		adapter.ComparisonOperatorRegExp:    "~",
+		adapter.ComparisonOperatorNotRegExp: "!~",
 	},
 }

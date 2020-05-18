@@ -84,7 +84,6 @@ type settings struct {
 	loggingEnabled uint32
 	queryLogger    Logger
 	queryLoggerMu  sync.RWMutex
-	defaultLogger  defaultLogger
 }
 
 func (c *settings) Logger() Logger {
@@ -92,7 +91,7 @@ func (c *settings) Logger() Logger {
 	defer c.queryLoggerMu.RUnlock()
 
 	if c.queryLogger == nil {
-		return &c.defaultLogger
+		return defaultLogger
 	}
 
 	return c.queryLogger
@@ -189,4 +188,11 @@ var DefaultSettings Settings = &settings{
 	connMaxLifetime:               time.Duration(0),
 	maxIdleConns:                  10,
 	maxOpenConns:                  0,
+	queryLogger:                   defaultLogger,
+}
+
+func init() {
+	if envEnabled(envDebugEnabled) {
+		DefaultSettings.SetLogging(true)
+	}
 }

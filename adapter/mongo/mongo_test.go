@@ -528,7 +528,7 @@ func (s *AdapterTests) TestOperators() {
 		Name string
 	}{}
 
-	res := artist.Find(db.Cond{"_id": db.NotIn([]int{0, -1})})
+	res := artist.Find(db.Cond{"_id": db.NotIn(0, -1)})
 
 	err = res.One(&rowS)
 	s.NoError(err)

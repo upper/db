@@ -26,9 +26,7 @@ import (
 )
 
 // FuncExpr represents functions.
-type FuncExpr struct {
-	*adapter.FuncExpr
-}
+type FuncExpr = adapter.FuncExpr
 
 // Func returns a database function expression.
 //
@@ -46,5 +44,5 @@ type FuncExpr struct {
 //	// RTRIM("Hello  ")
 //	db.Func("RTRIM", "Hello  ")
 func Func(name string, args ...interface{}) *FuncExpr {
-	return &FuncExpr{adapter.NewFuncExpr(name, args)}
+	return adapter.NewFuncExpr(name, args)
 }
