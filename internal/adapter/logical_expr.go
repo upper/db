@@ -79,6 +79,9 @@ func (g *LogicalExprGroup) Expressions() []LogicalExpr {
 
 // Operator is undefined for a logical group.
 func (g *LogicalExprGroup) Operator() LogicalOperator {
+	if g.op == LogicalOperatorNone {
+		panic("operator is not defined")
+	}
 	return g.op
 }
 
@@ -94,7 +97,7 @@ func (g *LogicalExprGroup) Empty() bool {
 }
 
 func (g *LogicalExprGroup) Frame(fn func(*[]LogicalExpr) error) *LogicalExprGroup {
-	return &LogicalExprGroup{prev: g, fn: fn}
+	return &LogicalExprGroup{prev: g, op: g.op, fn: fn}
 }
 
 func (g *LogicalExprGroup) Prev() immutable.Immutable {
