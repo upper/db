@@ -90,7 +90,7 @@ func (h *Helper) SQLBuilder() sqlbuilder.Database {
 }
 
 func (h *Helper) Adapter() string {
-	return "postgresql"
+	return Adapter
 }
 
 func (h *Helper) TearDown() error {
@@ -261,30 +261,52 @@ func (h *Helper) TearUp() error {
 
 		`DROP TABLE IF EXISTS "birthdays"`,
 		`CREATE TABLE "birthdays" (
-		"id" serial primary key,
-		"name" CHARACTER VARYING(50),
-		"born" TIMESTAMP WITH TIME ZONE,
-		"born_ut" INT
-	)`,
+			"id" serial primary key,
+			"name" CHARACTER VARYING(50),
+			"born" TIMESTAMP WITH TIME ZONE,
+			"born_ut" INT
+		)`,
 
 		`DROP TABLE IF EXISTS "fibonacci"`,
 		`CREATE TABLE "fibonacci" (
-		"id" serial primary key,
-		"input" NUMERIC,
-		"output" NUMERIC
-	)`,
+			"id" serial primary key,
+			"input" NUMERIC,
+			"output" NUMERIC
+		)`,
 
 		`DROP TABLE IF EXISTS "is_even"`,
 		`CREATE TABLE "is_even" (
-		"input" NUMERIC,
-		"is_even" BOOL
-	)`,
+			"input" NUMERIC,
+			"is_even" BOOL
+		)`,
 
 		`DROP TABLE IF EXISTS "CaSe_TesT"`,
 		`CREATE TABLE "CaSe_TesT" (
-		"id" SERIAL PRIMARY KEY,
-		"case_test" VARCHAR(60)
-	)`,
+			"id" SERIAL PRIMARY KEY,
+			"case_test" VARCHAR(60)
+		)`,
+
+		// bond
+		`DROP TABLE IF EXISTS accounts`,
+		`CREATE TABLE accounts (
+			id serial primary key,
+			name varchar(255),
+			disabled boolean,
+			created_at timestamp with time zone
+		)`,
+
+		`DROP TABLE IF EXISTS users`,
+		`CREATE TABLE users (
+			id serial primary key,
+			account_id integer,
+			username varchar(255) UNIQUE
+		)`,
+
+		`DROP TABLE IF EXISTS logs`,
+		`CREATE TABLE logs (
+			id serial primary key,
+			message VARCHAR
+		)`,
 	}
 
 	for _, query := range batch {

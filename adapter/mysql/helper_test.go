@@ -260,6 +260,34 @@ func (h *Helper) TearUp() error {
 			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY(id),
 			case_test VARCHAR(60)
 		) CHARSET=utf8`,
+
+		// bond
+		`DROP TABLE IF EXISTS accounts`,
+
+		`CREATE TABLE accounts (
+			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			PRIMARY KEY(id),
+			name varchar(255),
+			disabled BOOL,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+
+		`DROP TABLE IF EXISTS users`,
+
+		`CREATE TABLE users (
+			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			PRIMARY KEY(id),
+			account_id BIGINT(20),
+			username varchar(255) UNIQUE
+		)`,
+
+		`DROP TABLE IF EXISTS logs`,
+
+		`CREATE TABLE logs (
+			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			PRIMARY KEY(id),
+			message VARCHAR(255)
+		)`,
 	}
 
 	for _, query := range batch {

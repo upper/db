@@ -157,6 +157,28 @@ func (h *Helper) TearUp() error {
 			id BIGINT PRIMARY KEY NOT NULL IDENTITY(1,1),
 			case_test NVARCHAR(60)
 		)`,
+
+		// bond
+		`DROP TABLE IF EXISTS [accounts]`,
+		`CREATE TABLE [accounts] (
+			id BIGINT PRIMARY KEY NOT NULL IDENTITY(1,1),
+			name nvarchar(255),
+			disabled tinyint,
+			created_at DATETIME NOT NULL DEFAULT(GETDATE())
+		)`,
+
+		`DROP TABLE IF EXISTS [users]`,
+		`CREATE TABLE [users] (
+			id BIGINT PRIMARY KEY NOT NULL IDENTITY(1,1),
+			account_id BIGINT,
+			username nvarchar(255) UNIQUE
+		)`,
+
+		`DROP TABLE IF EXISTS [logs]`,
+		`CREATE TABLE [logs] (
+			id	BIGINT PRIMARY KEY NOT NULL IDENTITY(1,1),
+			message NVARCHAR(255)
+		)`,
 	}
 
 	for _, query := range batch {
