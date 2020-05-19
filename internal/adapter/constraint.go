@@ -56,7 +56,7 @@ func (c constraint) Value() interface{} {
 
 // NewConstraint creates a constraint.
 func NewConstraint(key interface{}, value interface{}) Constraint {
-	return constraint{k: key, v: value}
+	return &constraint{k: key, v: value}
 }
 
 var (
