@@ -78,7 +78,7 @@ func (st *bondStore) getPrimaryKeyFieldValues(item interface{}) ([]string, []int
 
 func (st *bondStore) Save(item Model) error {
 	if saver, ok := item.(HasSave); ok {
-		return st.Session().Transaction(func(tx Session) error {
+		return st.Session().Tx(func(tx Session) error {
 			return saver.Save(tx)
 		})
 	}
