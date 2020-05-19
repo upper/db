@@ -22,7 +22,6 @@
 package mysql
 
 import (
-	"context"
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
@@ -163,7 +162,7 @@ func (s *AdapterTests) TestIssue469_BadConnection() {
 
 	// At this point the server should have disconnected us. Let's try to create
 	// a transaction anyway.
-	err = sess.Tx(context.Background(), func(sess sqlbuilder.Tx) error {
+	err = sess.Tx(func(sess sqlbuilder.Tx) error {
 		var err error
 
 		_, err = sess.Collection("artist").Find().Count()
@@ -179,7 +178,7 @@ func (s *AdapterTests) TestIssue469_BadConnection() {
 	_, err = sess.Exec(`SET SESSION wait_timeout=1`)
 	s.NoError(err)
 
-	err = sess.Tx(context.Background(), func(sess sqlbuilder.Tx) error {
+	err = sess.Tx(func(sess sqlbuilder.Tx) error {
 		var err error
 
 		// This query should succeed.

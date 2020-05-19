@@ -180,11 +180,15 @@ func (d *database) NewCollection(name string) db.Collection {
 }
 
 // Tx creates a transaction block on the given context and passes it to the
-// function fn. If fn returns no error the transaction is commited, else the
-// transaction is rolled back. After being commited or rolled back the
-// transaction is closed automatically.
-func (d *database) Tx(ctx context.Context, fn func(tx sqlbuilder.Tx) error) error {
-	return sqladapter.RunTx(d, ctx, fn)
+// function fn.
+func (d *database) TxContext(ctx context.Context, fn func(tx sqlbuilder.Tx) error) error {
+	return sqladapter.TxContext(d, ctx, fn)
+}
+
+// Tx creates a transaction block on the database context and passes it to the
+// function fn.
+func (d *database) Tx(fn func(tx sqlbuilder.Tx) error) error {
+	return sqladapter.TxContext(d, d.Context(), fn)
 }
 
 // NewDatabaseTx begins a transaction block.
