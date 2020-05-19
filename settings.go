@@ -173,6 +173,7 @@ func (c *settings) MaxOpenConns() int {
 func NewSettings() Settings {
 	def := DefaultSettings.(*settings)
 	return &settings{
+		loggingEnabled:                def.loggingEnabled,
 		preparedStatementCacheEnabled: def.preparedStatementCacheEnabled,
 		connMaxLifetime:               def.connMaxLifetime,
 		maxIdleConns:                  def.maxIdleConns,

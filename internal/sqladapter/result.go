@@ -75,7 +75,7 @@ func NewResult(builder sqlbuilder.SQLBuilder, table string, conds []interface{})
 }
 
 func (r *Result) frame(fn func(*result) error) *Result {
-	return &Result{prev: r, fn: fn}
+	return &Result{err: r.err, prev: r, fn: fn}
 }
 
 func (r *Result) SQLBuilder() sqlbuilder.SQLBuilder {
@@ -400,8 +400,9 @@ func (r *Result) buildPaginator() (sqlbuilder.Paginator, error) {
 		return nil, err
 	}
 
-	sel := r.SQLBuilder().Select(res.fields...).
-		From(res.table).
+	b := r.SQLBuilder()
+
+	sel := b.Select(res.fields...).From(res.table).
 		Limit(res.limit).
 		Offset(res.offset).
 		GroupBy(res.groupBy...).
