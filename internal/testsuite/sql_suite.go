@@ -1928,15 +1928,14 @@ func (s *SQLTestSuite) TestCustomType() {
 	s.Equal("foo: some name", string(bar.Custom.Val))
 }
 
-func (s *SQLTestSuite) TestIssue565() {
+func (s *SQLTestSuite) Test_Issue565() {
 	sess := s.Session().(sqlbuilder.Database)
-
 	ctx, _ := context.WithTimeout(context.Background(), time.Nanosecond)
 
 	sess = sess.WithContext(ctx)
 
 	var result birthday
-	err := sess.Collection("birthdays").Find().One(&result)
+	err := sess.Collection("birthdays").Find().Select("name").One(&result)
 
 	s.Error(err)
 	s.Zero(result.Name)
