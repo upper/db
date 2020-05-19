@@ -75,7 +75,10 @@ func TestSelect(t *testing.T) {
 	)
 
 	{
-		q := b.Select().Distinct(db.Raw(`ON ? col1`, []db.RawValue{db.Raw(`SELECT foo FROM bar WHERE id = ?`, 1), db.Raw(`SELECT baz from qux WHERE id = 2`)})).Columns("col2", "col3").Distinct("col4", "col5").From("artist").
+		q := b.Select().
+			Distinct(db.Raw(`ON ? col1`, []*db.RawExpr{db.Raw(`SELECT foo FROM bar WHERE id = ?`, 1), db.Raw(`SELECT baz from qux WHERE id = 2`)})).
+			Columns("col2", "col3").
+			Distinct("col4", "col5").From("artist").
 			Where("id", 3)
 		assert.Equal(
 			`SELECT DISTINCT ON (SELECT foo FROM bar WHERE id = $1, SELECT baz from qux WHERE id = 2) col1, "col2", "col3", "col4", "col5" FROM "artist" WHERE ("id" = $2)`,

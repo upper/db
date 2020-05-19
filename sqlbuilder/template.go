@@ -96,30 +96,38 @@ func (tu *templateWithUtils) toWhereWithArguments(term interface{}) (where exql.
 	case adapter.LogicalExpr:
 		var cond exql.Where
 
-		for _, c := range t.Expressions() {
-			w, v := tu.toWhereWithArguments(c)
+		expressions := t.Expressions()
+		for i := range expressions {
+			w, v := tu.toWhereWithArguments(expressions[i])
 			if len(w.Conditions) == 0 {
 				continue
 			}
 			args = append(args, v...)
 			cond.Conditions = append(cond.Conditions, w.Conditions...)
 		}
-
-		if len(cond.Conditions) > 0 {
-			var frag exql.Fragment
-			switch t.Operator() {
-			case adapter.LogicalOperatorNone, adapter.LogicalOperatorAnd:
-				q := exql.And(cond)
-				frag = &q
-			case adapter.LogicalOperatorOr:
-				q := exql.Or(cond)
-				frag = &q
-			default:
-				panic(fmt.Sprintf("Unknown type %T", t))
-			}
-			where.Conditions = append(where.Conditions, frag)
+		if len(cond.Conditions) < 1 {
+			return
 		}
+
+		if len(cond.Conditions) <= 1 {
+			where.Conditions = append(where.Conditions, cond.Conditions...)
+			return where, args
+		}
+
+		var frag exql.Fragment
+		switch t.Operator() {
+		case adapter.LogicalOperatorNone, adapter.LogicalOperatorAnd:
+			q := exql.And(cond)
+			frag = &q
+		case adapter.LogicalOperatorOr:
+			q := exql.Or(cond)
+			frag = &q
+		default:
+			panic(fmt.Sprintf("Unknown type %T", t))
+		}
+		where.Conditions = append(where.Conditions, frag)
 		return
+
 	case adapter.Constraint:
 		cv, v := tu.toColumnValues(t)
 		args = append(args, v...)
@@ -231,6 +239,7 @@ func (tu *templateWithUtils) toColumnValues(term interface{}) (cv exql.ColumnVal
 		if columnValue.Operator == "" {
 			columnValue.Operator = tu.comparisonOperatorMapper(adapter.ComparisonOperatorEqual)
 		}
+
 		cv.ColumnValues = append(cv.ColumnValues, &columnValue)
 		return cv, args
 
