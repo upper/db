@@ -1,6 +1,7 @@
 package testsuite
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 	db "upper.io/db.v3"
+	"upper.io/db.v3/lib/sqlbuilder"
 )
 
 type customLogger struct {
@@ -1924,4 +1926,18 @@ func (s *SQLTestSuite) TestCustomType() {
 	s.NoError(err)
 
 	s.Equal("foo: some name", string(bar.Custom.Val))
+}
+
+func (s *SQLTestSuite) TestIssue565() {
+	sess := s.Session().(sqlbuilder.Database)
+
+	ctx, _ := context.WithTimeout(context.Background(), time.Nanosecond)
+
+	sess = sess.WithContext(ctx)
+
+	var result birthday
+	err := sess.Collection("birthdays").Find().One(&result)
+
+	s.Error(err)
+	s.Zero(result.Name)
 }
