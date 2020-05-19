@@ -85,30 +85,39 @@ func New(conn Engine) Session {
 }
 
 // Open connects to a database and returns a Session.
-func Open(adapter string, url db.ConnectionURL) (Session, error) {
-	conn, err := sqlbuilder.Open(adapter, url)
+func Open(adapterName string, url db.ConnectionURL) (Session, error) {
+	adapter, err := lookupAdapter(adapterName)
 	if err != nil {
 		return nil, err
 	}
 
-	sess := New(conn)
+	conn, err := adapter.Open(url)
+	if err != nil {
+		return nil, err
+	}
+
+	sess := New(conn.(sqlbuilder.Database))
 	return sess, nil
 }
 
 // Bind creates a binding between an adapter and a *sql.Tx or a *sql.DB.
-func Bind(adapter string, backend sqlbuilder.SQLEngine) (Session, error) {
-	var conn Engine
+func Bind(adapterName string, backend sqlbuilder.SQLEngine) (Session, error) {
+	adapter, err := lookupAdapter(adapterName)
+	if err != nil {
+		return nil, err
+	}
 
+	var conn Engine
 	switch t := backend.(type) {
 	case *sql.Tx:
 		var err error
-		conn, err = sqlbuilder.NewTx(adapter, t)
+		conn, err = adapter.NewTx(t)
 		if err != nil {
 			return nil, err
 		}
 	case *sql.DB:
 		var err error
-		conn, err = sqlbuilder.New(adapter, t)
+		conn, err = adapter.New(t)
 		if err != nil {
 			return nil, err
 		}
@@ -254,4 +263,12 @@ func (sess *session) resolveStoreName(item interface{}) string {
 	}
 
 	return ""
+}
+
+func lookupAdapter(adapterName string) (sqlbuilder.Adapter, error) {
+	adapter := db.LookupAdapter(adapterName)
+	if sqlAdapter, ok := adapter.(sqlbuilder.Adapter); ok {
+		return sqlAdapter, nil
+	}
+	return nil, fmt.Errorf("bond: missing SQL adapter %q", adapterName)
 }
