@@ -145,6 +145,28 @@ func (h *Helper) TearUp() error {
 		`CREATE TABLE CaSe_TesT (
 				case_test string
 		)`,
+
+		// bond
+		/*
+			`DROP TABLE IF EXISTS accounts`,
+			`CREATE TABLE accounts (
+				name string,
+				disabled bool,
+				created_at time
+			)`,
+
+			`DROP TABLE IF EXISTS users`,
+			`CREATE TABLE users (
+				account_id int,
+				username string
+			)`,
+			`CREATE UNIQUE INDEX users_username on users (username)`,
+
+			`DROP TABLE IF EXISTS logs`,
+			`CREATE TABLE logs (
+				message string
+			)`,
+		*/
 	}
 
 	for _, query := range batch {

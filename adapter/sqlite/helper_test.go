@@ -159,6 +159,28 @@ func (h *Helper) TearUp() error {
 				"case_test" VARCHAR
 			)`,
 
+		// bond
+		`DROP TABLE IF EXISTS accounts`,
+		`CREATE TABLE accounts (
+			id integer primary key,
+			name varchar,
+			disabled integer,
+			created_at datetime default current_timestamp
+		)`,
+
+		`DROP TABLE IF EXISTS users`,
+		`CREATE TABLE users (
+			id integer primary key,
+			account_id integer,
+			username varchar UNIQUE
+		)`,
+
+		`DROP TABLE IF EXISTS logs`,
+		`CREATE TABLE logs (
+			id integer primary key,
+			message VARCHAR
+		)`,
+
 		`COMMIT`,
 	}
 
