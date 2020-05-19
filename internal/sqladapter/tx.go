@@ -93,8 +93,8 @@ func (w *databaseTx) Rollback() error {
 	return w.BaseTx.Rollback()
 }
 
-// RunTx creates a transaction context and runs fn within it.
-func RunTx(d sqlbuilder.Database, ctx context.Context, fn func(tx sqlbuilder.Tx) error) error {
+// TxContext creates a transaction context and runs fn within it.
+func TxContext(d sqlbuilder.Database, ctx context.Context, fn func(tx sqlbuilder.Tx) error) error {
 	tx, err := d.NewTx(ctx)
 	if err != nil {
 		return err
