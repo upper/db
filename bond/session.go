@@ -61,11 +61,11 @@ type Session interface {
 	// Context returns the context the session is running in.
 	Context() context.Context
 
-	// Transaction runs a transactional operation.
-	Transaction(func(Session) error) error
+	// Tx runs a transactional operation.
+	Tx(func(Session) error) error
 
-	// TransactionContext runs a transactional operation on the given context.
-	TransactionContext(context.Context, func(Session) error) error
+	// TxContext runs a transactional operation on the given context.
+	TxContext(context.Context, func(Session) error) error
 }
 
 type session struct {
@@ -174,11 +174,11 @@ func (sess *session) NewSessionTx(ctx context.Context) (Session, error) {
 	}, nil
 }
 
-func (sess *session) Transaction(fn func(sess Session) error) error {
-	return sess.TransactionContext(context.Background(), fn)
+func (sess *session) Tx(fn func(sess Session) error) error {
+	return sess.TxContext(sess.Context(), fn)
 }
 
-func (sess *session) TransactionContext(ctx context.Context, fn func(sess Session) error) error {
+func (sess *session) TxContext(ctx context.Context, fn func(sess Session) error) error {
 	txFn := func(sess sqlbuilder.Tx) error {
 		return fn(&session{
 			Engine:     sess,
@@ -188,7 +188,7 @@ func (sess *session) TransactionContext(ctx context.Context, fn func(sess Sessio
 
 	switch t := sess.Engine.(type) {
 	case sqlbuilder.Database:
-		return t.Tx(ctx, txFn)
+		return t.TxContext(ctx, txFn)
 	case sqlbuilder.Tx:
 		defer t.Close()
 		err := txFn(t)

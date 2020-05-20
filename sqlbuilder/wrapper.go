@@ -78,12 +78,17 @@ type Database interface {
 	// the session.
 	NewTx(ctx context.Context) (Tx, error)
 
-	// Tx creates a new transaction that is passed as argument to the fn
-	// function.  The fn function defines a transactional operation.  If the fn
-	// function returns nil, the transaction is committed, else the transaction
-	// is rolled back.  The transaction session is closed after the function
-	// exits, regardless of the error value returned by fn.
-	Tx(ctx context.Context, fn func(sess Tx) error) error
+	// Tx creates a transaction block on the default database context and passes
+	// it to the function fn. If fn returns no error the transaction is commited,
+	// else the transaction is rolled back. After being commited or rolled back
+	// the transaction is closed automatically.
+	Tx(fn func(sess Tx) error) error
+
+	// TxContext creates a transaction block on the given context and passes it to
+	// the function fn. If fn returns no error the transaction is commited, else
+	// the transaction is rolled back. After being commited or rolled back the
+	// transaction is closed automatically.
+	TxContext(ctx context.Context, fn func(sess Tx) error) error
 
 	// Context returns the context used as default for queries on this session
 	// and for new transactions.  If no context has been set, a default

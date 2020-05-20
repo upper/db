@@ -260,10 +260,16 @@ func (d *database) NewCollection(name string) db.Collection {
 	return newTable(d, name)
 }
 
-// Tx creates a transaction and passes it to the given function, if if the
-// function returns no error then the transaction is commited.
-func (d *database) Tx(ctx context.Context, fn func(tx sqlbuilder.Tx) error) error {
-	return sqladapter.RunTx(d, ctx, fn)
+// Tx creates a transaction block on the given context and passes it to the
+// function fn.
+func (d *database) TxContext(ctx context.Context, fn func(tx sqlbuilder.Tx) error) error {
+	return sqladapter.TxContext(d, ctx, fn)
+}
+
+// Tx creates a transaction block on the database context and passes it to the
+// function fn.
+func (d *database) Tx(fn func(tx sqlbuilder.Tx) error) error {
+	return sqladapter.TxContext(d, d.Context(), fn)
 }
 
 // NewDatabaseTx allows sqladapter start a transaction block.
