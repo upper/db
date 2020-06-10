@@ -703,7 +703,7 @@ func (s *SQLTestSuite) TestInlineStructs() {
 	var createdAt time.Time
 
 	switch s.Adapter() {
-	case "postgresql":
+	case "postgresql", "cockroachdb":
 		createdAt = time.Date(2016, time.January, 1, 2, 3, 4, 0, time.FixedZone("", 0))
 	case "mysql":
 		// MySQL uses a global time zone
@@ -1246,7 +1246,7 @@ func (s *SQLTestSuite) TestDataTypes() {
 
 	var tnz time.Time
 	switch s.Adapter() {
-	case "postgresql":
+	case "postgresql", "cockroachdb":
 		tnz = time.Date(2012, 7, 28, 1, 2, 3, 0, time.FixedZone("", 0)) // timestamp without time zone
 	case "mysql":
 		// MySQL uses a global timezone
@@ -1343,7 +1343,8 @@ func (s *SQLTestSuite) TestBatchInsert() {
 
 		q := sess.InsertInto("artist").Columns("name")
 
-		if s.Adapter() == "postgresql" {
+		switch s.Adapter() {
+		case "postgresql", "cockroachdb":
 			q = q.Amend(func(query string) string {
 				return query + ` ON CONFLICT DO NOTHING`
 			})
@@ -1414,8 +1415,12 @@ func (s *SQLTestSuite) TestBatchInsertNoColumns() {
 }
 
 func (s *SQLTestSuite) TestBatchInsertReturningKeys() {
-	if s.Adapter() != "postgresql" {
+	switch s.Adapter() {
+	case "postgresql", "cockroachdb":
+		// pass
+	default:
 		s.T().Skip("Currently not supported.")
+		return
 	}
 
 	sess := s.SQLBuilder()
