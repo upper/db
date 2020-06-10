@@ -45,12 +45,12 @@ func NewLogStore(sess bond.Session) *LogStore {
 }
 
 type Log struct {
-	ID      int64  `db:"id,omitempty"`
+	ID      uint64 `db:"id,omitempty"`
 	Message string `db:"message"`
 }
 
 type Account struct {
-	ID        int64      `db:"id,omitempty"`
+	ID        uint64     `db:"id,omitempty"`
 	Name      string     `db:"name"`
 	Disabled  bool       `db:"disabled"`
 	CreatedAt *time.Time `db:"created_at,omitempty"`
@@ -73,8 +73,8 @@ func (a *Account) BeforeDelete() error {
 }
 
 type User struct {
-	ID        int64  `db:"id,omitempty"`
-	AccountID int64  `db:"account_id"`
+	ID        uint64 `db:"id,omitempty"`
+	AccountID uint64 `db:"account_id"`
 	Username  string `db:"username"`
 }
 
@@ -176,7 +176,7 @@ func (s *BondTestSuite) TestAccountStore() {
 	s.NoError(err)
 	s.True(count == 1)
 
-	a, err := sess.AccountStore().FindOne(db.Cond{"id": 1})
+	a, err := sess.AccountStore().FindOne(db.Cond{"id": account1.ID})
 	s.NoError(err)
 	s.NotNil(a)
 
