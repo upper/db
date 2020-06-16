@@ -39,4 +39,4 @@ install:
   - go get -v modernc.org/ql/ql
 
 script:
-  - bash -c "$TEST_CMD"
+  - travis_wait 45 bash -c "$TEST_CMD"

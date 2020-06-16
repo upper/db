@@ -19,6 +19,7 @@ go-test-%:
 
 test-adapters: \
 	test-adapter-postgresql \
+	test-adapter-cockroachdb \
 	test-adapter-mysql \
 	test-adapter-mssql \
 	test-adapter-sqlite \
