@@ -149,18 +149,18 @@ func (s *GenericTestSuite) TestDatesAndUnicode() {
 
 	col := sess.Collection(`birthdays`)
 
-	id, err := col.Insert(controlItem)
+	record, err := col.Insert(controlItem)
 	s.NoError(err)
-	s.NotZero(id)
+	s.NotZero(record.ID())
 
 	var res db.Result
 	switch s.Adapter() {
 	case "mongo":
-		res = col.Find(db.Cond{"_id": id.(bson.ObjectId)})
+		res = col.Find(db.Cond{"_id": record.ID().(bson.ObjectId)})
 	case "ql":
-		res = col.Find(db.Cond{"id()": id})
+		res = col.Find(db.Cond{"id()": record.ID()})
 	default:
-		res = col.Find(db.Cond{"id": id})
+		res = col.Find(db.Cond{"id": record.ID()})
 	}
 
 	var total uint64

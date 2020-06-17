@@ -13,8 +13,8 @@ const TimeZone = "Canada/Eastern"
 var TimeLocation, _ = time.LoadLocation(TimeZone)
 
 type Helper interface {
-	SQLBuilder() sqlbuilder.Database
-	Session() db.Database
+	SQLBuilder() sqlbuilder.Session
+	Session() db.Session
 
 	Adapter() string
 

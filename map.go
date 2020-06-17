@@ -19,16 +19,6 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package bond
+package db
 
-import (
-	"errors"
-)
-
-// Error messages
-var (
-	ErrExpectingPointerToStruct = errors.New(`Expecting pointer to struct`)
-	ErrExpectingNonNilModel     = errors.New(`Expecting non nil model`)
-	ErrInvalidCollection        = errors.New(`Invalid collection`)
-	ErrZeroItemID               = errors.New("item id is empty")
-)
+type M map[string]interface{}

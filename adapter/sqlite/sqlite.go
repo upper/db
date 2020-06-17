@@ -36,7 +36,7 @@ const Adapter = `sqlite`
 type sqliteAdapter struct {
 }
 
-func (sqliteAdapter) Open(dsn db.ConnectionURL) (db.Database, error) {
+func (sqliteAdapter) Open(dsn db.ConnectionURL) (db.Session, error) {
 	return Open(dsn)
 }
 
@@ -44,7 +44,7 @@ func (sqliteAdapter) NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 	return NewTx(sqlTx)
 }
 
-func (sqliteAdapter) New(sqlDB *sql.DB) (sqlbuilder.Database, error) {
+func (sqliteAdapter) New(sqlDB *sql.DB) (sqlbuilder.Session, error) {
 	return New(sqlDB)
 }
 
@@ -52,45 +52,26 @@ func init() {
 	db.RegisterAdapter(Adapter, sqlbuilder.Adapter(&sqliteAdapter{}))
 }
 
-// Open stablishes a new connection with the SQL server.
-func Open(settings db.ConnectionURL) (sqlbuilder.Database, error) {
-	d := newDatabase(settings)
-	if err := d.Open(settings); err != nil {
+func Open(connURL db.ConnectionURL) (sqlbuilder.Session, error) {
+	sess := newSession(connURL)
+	if err := sess.Open(); err != nil {
 		return nil, err
 	}
-	return d, nil
+	return sess, nil
 }
 
-// NewTx returns a transaction session.
 func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
-	d := newDatabase(nil)
-
-	// Binding with sqladapter's logic.
-	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
-
-	// Binding with sqlbuilder.
-	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
-
-	if err := d.BaseDatabase.BindTx(d.Context(), sqlTx); err != nil {
+	tx, err := sqladapter.NewTx(&database{}, sqlTx)
+	if err != nil {
 		return nil, err
 	}
-
-	newTx := sqladapter.NewDatabaseTx(d)
-	return &tx{DatabaseTx: newTx}, nil
+	return tx, nil
 }
 
-// New wraps the given *sql.DB session and creates a new db session.
-func New(sess *sql.DB) (sqlbuilder.Database, error) {
-	d := newDatabase(nil)
-
-	// Binding with sqladapter's logic.
-	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
-
-	// Binding with sqlbuilder.
-	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
-
-	if err := d.BaseDatabase.BindSession(sess); err != nil {
+func New(sqlDB *sql.DB) (sqlbuilder.Session, error) {
+	sess := newSession(nil)
+	if err := sess.BindDB(sqlDB); err != nil {
 		return nil, err
 	}
-	return d, nil
+	return sess, nil
 }

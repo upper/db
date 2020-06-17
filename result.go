@@ -21,6 +21,10 @@
 
 package db
 
+import (
+	"database/sql/driver"
+)
+
 // Result is an interface that defines methods for result sets.
 type Result interface {
 
@@ -46,27 +50,14 @@ type Result interface {
 	// result set.
 	Select(...interface{}) Result
 
-	// Where discards all the previously set filtering constraints (if any) and
-	// sets new ones. Commonly used when the conditions of the result depend on
-	// external parameters that are yet to be evaluated:
-	//
-	//   res := col.Find()
-	//
-	//   if ... {
-	//     res.Where(...)
-	//   } else {
-	//     res.Where(...)
-	//   }
-	Where(...interface{}) Result
-
 	// And adds more filtering conditions on top of the existing constraints.
 	//
 	//   res := col.Find(...).And(...)
 	And(...interface{}) Result
 
-	// Group is used to group results that have the same value in the same column
+	// GroupBy is used to group results that have the same value in the same column
 	// or columns.
-	Group(...interface{}) Result
+	GroupBy(...interface{}) Result
 
 	// Delete deletes all items within the result set. `Offset()` and `Limit()`
 	// are not honoured by `Delete()`.
@@ -187,3 +178,21 @@ type Result interface {
 	// Close closes the result set and frees all locked resources.
 	Close() error
 }
+
+type InsertResult struct {
+	id interface{}
+}
+
+func (r *InsertResult) ID() ID {
+	return r.id
+}
+
+func (r InsertResult) Value() (driver.Value, error) {
+	return r.id, nil
+}
+
+func NewInsertResult(id interface{}) *InsertResult {
+	return &InsertResult{id: id}
+}
+
+type ID interface{}

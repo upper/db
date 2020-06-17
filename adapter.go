@@ -33,14 +33,14 @@ var (
 
 // Adapter interface defines an adapter
 type Adapter interface {
-	Open(ConnectionURL) (Database, error)
+	Open(ConnectionURL) (Session, error)
 }
 
 type missingAdapter struct {
 	name string
 }
 
-func (ma *missingAdapter) Open(ConnectionURL) (Database, error) {
+func (ma *missingAdapter) Open(ConnectionURL) (Session, error) {
 	return nil, fmt.Errorf("upper: Missing adapter %q, did you forget to import it?", ma.name)
 }
 
@@ -70,6 +70,6 @@ func LookupAdapter(name string) Adapter {
 }
 
 // Open attempts to stablish a connection with a database.
-func Open(adapterName string, settings ConnectionURL) (Database, error) {
+func Open(adapterName string, settings ConnectionURL) (Session, error) {
 	return LookupAdapter(adapterName).Open(settings)
 }

@@ -18,17 +18,11 @@
 // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 
-package bond
+package db
 
 // Model is the equivalence between concrete database schemas and Go values.
 type Model interface {
-	HasStore
-}
-
-// HasStore is an interface that defines an Store function for models that
-// creates a relation between the model and its permanent storage medium.
-type HasStore interface {
-	Store(sess Session) Store
+	Collection(sess Session) Collection
 }
 
 // HasSave is an interface that defines an (optional) Save function for models

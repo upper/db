@@ -29,32 +29,10 @@ import (
 	"github.com/upper/db/sqlbuilder"
 )
 
-// table is the actual implementation of a collection.
-type table struct {
-	sqladapter.BaseCollection // Leveraged by sqladapter
-
-	d    *database
-	name string
-}
-
-var (
-	_ = sqladapter.Collection(&table{})
-	_ = db.Collection(&table{})
-)
-
-// newTable binds *table with sqladapter.
-func newTable(d *database, name string) *table {
-	t := &table{
-		name: name,
-		d:    d,
-	}
-	t.BaseCollection = sqladapter.NewBaseCollection(t)
-	return t
-}
-
 type resultProxy struct {
 	db.Result
-	t *table
+
+	col sqladapter.Collection
 }
 
 func (r *resultProxy) Select(fields ...interface{}) db.Result {
@@ -63,9 +41,9 @@ func (r *resultProxy) Select(fields ...interface{}) db.Result {
 			var columns []struct {
 				Name string `db:"Name"`
 			}
-			err := r.t.d.Select("Name").
+			err := r.col.SQLBuilder().Select("Name").
 				From("__Column").
-				Where("TableName", r.t.Name()).
+				Where("TableName", r.col.Name()).
 				Iterator().All(&columns)
 			if err == nil {
 				fields = make([]interface{}, 0, len(columns)+1)
@@ -79,15 +57,10 @@ func (r *resultProxy) Select(fields ...interface{}) db.Result {
 	return r.Result.Select(fields...)
 }
 
-func (t *table) Name() string {
-	return t.name
+type collectionAdapter struct {
 }
 
-func (t *table) Database() sqladapter.Database {
-	return t.d
-}
-
-func (t *table) FilterConds(conds ...interface{}) []interface{} {
+func (*collectionAdapter) FilterConds(conds ...interface{}) []interface{} {
 	if len(conds) == 1 {
 		switch conds[0].(type) {
 		case int, int64, uint, uint64:
@@ -99,24 +72,21 @@ func (t *table) FilterConds(conds ...interface{}) []interface{} {
 	return conds
 }
 
-func (t *table) Find(conds ...interface{}) db.Result {
-	res := &resultProxy{
-		Result: t.BaseCollection.Find(conds...),
-		t:      t,
+func (*collectionAdapter) Find(col sqladapter.Collection, res *sqladapter.Result, conds ...interface{}) db.Result {
+	proxy := &resultProxy{
+		Result: res,
+		col:    col,
 	}
-	return res.Select("*")
+	return proxy.Select("*")
 }
 
-// Insert inserts an item (map or struct) into the collection.
-func (t *table) Insert(item interface{}) (interface{}, error) {
+func (*collectionAdapter) Insert(col sqladapter.Collection, item interface{}) (interface{}, error) {
 	columnNames, columnValues, err := sqlbuilder.Map(item, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	pKey := t.BaseCollection.PrimaryKeys()
-
-	q := t.d.InsertInto(t.Name()).
+	q := col.SQLBuilder().InsertInto(col.Name()).
 		Columns(columnNames...).
 		Values(columnValues...)
 
@@ -125,19 +95,5 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	if len(pKey) <= 1 {
-		return res.LastInsertId()
-	}
-
-	keyMap := db.Cond{}
-
-	for i := range columnNames {
-		for j := 0; j < len(pKey); j++ {
-			if pKey[j] == columnNames[i] {
-				keyMap[pKey[j]] = columnValues[i]
-			}
-		}
-	}
-
-	return keyMap, nil
+	return res.LastInsertId()
 }

@@ -326,15 +326,15 @@ func (s *AdapterTests) TestMySQLTypes() {
 		}
 
 		for i := range myTypeTests {
-			id, err := sess.Collection("my_types").Insert(myTypeTests[i])
+			result, err := sess.Collection("my_types").Insert(myTypeTests[i])
 			s.NoError(err)
 
 			var actual MyType
-			err = sess.Collection("my_types").Find(id).One(&actual)
+			err = sess.Collection("my_types").Find(result).One(&actual)
 			s.NoError(err)
 
 			expected := myTypeTests[i]
-			expected.ID = id.(int64)
+			expected.ID = result.ID().(int64)
 			s.Equal(expected, actual)
 		}
 

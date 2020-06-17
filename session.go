@@ -21,8 +21,35 @@
 
 package db
 
-// Database is an interface that defines methods for database adapters.
-type Database interface {
+// Session is an interface that defines methods for database adapters.
+type Session interface {
+	// ConnectionURL returns the DSN that was used to set up the adapter.
+	ConnectionURL() ConnectionURL
+
+	// Name returns the name of the database.
+	Name() string
+
+	// Ping returns an error if the DBMS could not be reached.
+	Ping() error
+
+	// Collection receives a table name and returns a collection reference. The
+	// information retrieved from a collection is cached.
+	Collection(name string) Collection
+
+	// Collections returns a collection reference of all non system tables on the
+	// database.
+	Collections() ([]Collection, error)
+
+	// Item returns methods that operate on a single item of a model
+	Item(Model) Item
+
+	// Reset resets all the caching mechanisms the adapter is using.
+	Reset()
+
+	// Close terminates the currently active connection to the DBMS and clears
+	// all caches.
+	Close() error
+
 	// Driver returns the underlying driver of the adapter as an interface.
 	//
 	// In order to actually use the driver, the `interface{}` value needs to be
@@ -31,31 +58,6 @@ type Database interface {
 	// Example:
 	//  internalSQLDriver := sess.Driver().(*sql.DB)
 	Driver() interface{}
-
-	// Open attempts to establish a connection with a DBMS.
-	Open(ConnectionURL) error
-
-	// Ping returns an error if the DBMS could not be reached.
-	Ping() error
-
-	// Close terminates the currently active connection to the DBMS and clears
-	// all caches.
-	Close() error
-
-	// Collection receives a table name and returns a collection reference.
-	Collection(string) Collection
-
-	// Collections returns the names of all non system tables on the database.
-	Collections() ([]string, error)
-
-	// Name returns the name of the database.
-	Name() string
-
-	// ConnectionURL returns the DSN that was used to set up the adapter.
-	ConnectionURL() ConnectionURL
-
-	// ClearCache resets all the caching mechanisms the adapter is using.
-	ClearCache()
 
 	Settings
 }

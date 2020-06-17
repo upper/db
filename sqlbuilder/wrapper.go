@@ -29,16 +29,16 @@ import (
 )
 
 // Tx represents a transaction on a SQL database. A transaction is like a
-// regular Database except it has two extra methods: Commit and Rollback.
+// regular Session except it has two extra methods: Commit and Rollback.
 //
 // A transaction needs to be committed (with Commit) to make changes permanent,
 // changes can be discarded before committing by rolling back (with Rollback).
 // After either committing or rolling back a transaction it can not longer be
 // used and it's automatically closed.
 type Tx interface {
-	// All db.Database methods are available on transaction sessions. They will
+	// All db.Session methods are available on transaction sessions. They will
 	// run on the same transaction.
-	db.Database
+	db.Session
 
 	// All SQLBuilder methods are available on transaction sessions. They will
 	// run on the same transaction.
@@ -64,10 +64,10 @@ type Tx interface {
 	TxOptions() *sql.TxOptions
 }
 
-// Database represents a SQL database.
-type Database interface {
-	// All db.Database methods are available on this session.
-	db.Database
+// Session represents a SQL database.
+type Session interface {
+	// All db.Session methods are available on this session.
+	db.Session
 
 	// All SQLBuilder methods are available on this session.
 	SQLBuilder
@@ -99,7 +99,7 @@ type Database interface {
 	// default. Copies are safe to use concurrently but they're backed by the
 	// same *sql.DB. You may close a copy at any point but that won't close the
 	// parent session.
-	WithContext(context.Context) Database
+	WithContext(context.Context) Session
 
 	// SetTxOptions sets the default TxOptions that is going to be used for new
 	// transactions created in the session.
@@ -118,7 +118,7 @@ type Adapter interface {
 	// This method is internally used by upper-db to create a builder backed by the
 	// given database.  You may want to use your adapter's New function instead of
 	// this one.
-	New(*sql.DB) (Database, error)
+	New(*sql.DB) (Session, error)
 
 	// NewTx wraps an active *sql.Tx transation and returns a SQLBuilder
 	// transaction.  The adapter needs to be imported to the blank namespace in
@@ -130,5 +130,5 @@ type Adapter interface {
 	NewTx(*sql.Tx) (Tx, error)
 
 	// Open opens a SQL database.
-	Open(db.ConnectionURL) (db.Database, error)
+	Open(db.ConnectionURL) (db.Session, error)
 }

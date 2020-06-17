@@ -1,6 +1,7 @@
 SHELL := bash
 
 DB_NAME ?= ql-test.db
+TEST_FLAGS            ?=
 
 export DB_NAME
 
@@ -17,6 +18,6 @@ reset-db: require-client
 	rm -f $(DB_NAME)
 
 test: reset-db
-	go test -v
+	go test -v $(TEST_FLAGS)
 
 test-extended: test

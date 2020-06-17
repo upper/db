@@ -26,74 +26,37 @@
 package cockroachdb
 
 import (
-	"context"
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
 	"reflect"
 	"strings"
-	"sync"
 	"time"
 
 	_ "github.com/lib/pq"
 	db "github.com/upper/db"
 	"github.com/upper/db/internal/sqladapter"
-	"github.com/upper/db/internal/sqladapter/compat"
 	"github.com/upper/db/internal/sqladapter/exql"
 	"github.com/upper/db/sqlbuilder"
 )
 
-// database is the actual implementation of Database
 type database struct {
-	sqladapter.BaseDatabase
-
-	sqlbuilder.SQLBuilder
-
-	connURL db.ConnectionURL
-	mu      sync.Mutex
 }
 
-var (
-	_ = sqlbuilder.Database(&database{})
-	_ = sqladapter.Database(&database{})
-)
-
-// newDatabase creates a new *database session for internal use.
-func newDatabase(settings db.ConnectionURL) *database {
-	return &database{
-		connURL: settings,
-	}
+func newSession(settings db.ConnectionURL) sqladapter.Session {
+	return sqladapter.NewSession(settings, &database{})
 }
 
-// ConnectionURL returns this database session's connection URL, if any.
-func (d *database) ConnectionURL() db.ConnectionURL {
-	return d.connURL
+func (*database) Template() *exql.Template {
+	return template
 }
 
-// Open attempts to open a connection with the database server.
-func (d *database) Open(connURL db.ConnectionURL) error {
-	if connURL == nil {
-		return db.ErrMissingConnURL
-	}
-	d.connURL = connURL
-	return d.open()
+func (*database) Open(sess sqladapter.Session, dsn string) (*sql.DB, error) {
+	return sql.Open("postgres", dsn)
 }
 
-// NewTx begins a transaction block with the given context.
-func (d *database) NewTx(ctx context.Context) (sqlbuilder.Tx, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	nTx, err := d.NewDatabaseTx(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return &tx{DatabaseTx: nTx}, nil
-}
-
-// Collections returns a list of non-system tables from the database.
-func (d *database) Collections() (collections []string, err error) {
-	q := d.Select("table_name").
+func (*database) Collections(sess sqladapter.Session) (collections []string, err error) {
+	q := sess.Select("table_name").
 		From("information_schema.tables").
 		Where("table_schema = ?", "public")
 
@@ -111,50 +74,7 @@ func (d *database) Collections() (collections []string, err error) {
 	return collections, nil
 }
 
-// open attempts to establish a connection with the CockroachDB server.
-func (d *database) open() error {
-	// Binding with sqladapter's logic.
-	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
-
-	// Binding with sqlbuilder.
-	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
-
-	connFn := func() error {
-		sess, err := sql.Open("postgres", d.ConnectionURL().String())
-		if err == nil {
-			sess.SetConnMaxLifetime(db.DefaultSettings.ConnMaxLifetime())
-			sess.SetMaxIdleConns(db.DefaultSettings.MaxIdleConns())
-			sess.SetMaxOpenConns(db.DefaultSettings.MaxOpenConns())
-			return d.BaseDatabase.BindSession(sess)
-		}
-		return err
-	}
-
-	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Clone creates a copy of the database session on the given context.
-func (d *database) clone(ctx context.Context, checkConn bool) (*database, error) {
-	clone := newDatabase(d.connURL)
-
-	var err error
-	clone.BaseDatabase, err = d.NewClone(clone, checkConn)
-	if err != nil {
-		return nil, err
-	}
-
-	clone.SetContext(ctx)
-
-	clone.SQLBuilder = sqlbuilder.WithSession(clone.BaseDatabase, template)
-
-	return clone, nil
-}
-
-func (d *database) ConvertValues(values []interface{}) []interface{} {
+func (*database) ConvertValues(values []interface{}) []interface{} {
 	for i := range values {
 		switch v := values[i].(type) {
 		case *string, *bool, *int, *uint, *int64, *uint64, *int32, *uint32, *int16, *uint16, *int8, *uint8, *float32, *float64, *[]uint8, sql.Scanner, *sql.Scanner, *time.Time:
@@ -195,20 +115,17 @@ func (d *database) ConvertValues(values []interface{}) []interface{} {
 	return values
 }
 
-// CompileStatement compiles a *exql.Statement into arguments that sql/database
-// accepts.
-func (d *database) CompileStatement(stmt *exql.Statement, args []interface{}) (string, []interface{}) {
+func (*database) CompileStatement(sess sqladapter.Session, stmt *exql.Statement, args []interface{}) (string, []interface{}) {
 	compiled, err := stmt.Compile(template)
 	if err != nil {
 		panic(err.Error())
 	}
+
 	query, args := sqlbuilder.Preprocess(compiled, args)
 	return sqladapter.ReplaceWithDollarSign(query), args
 }
 
-// Err allows sqladapter to translate specific CockroachDB error strings into
-// custom error values.
-func (d *database) Err(err error) error {
+func (*database) Err(sess sqladapter.Session, err error) error {
 	if err != nil {
 		s := err.Error()
 		// These errors are not exported so we have to check them by they string value.
@@ -219,51 +136,12 @@ func (d *database) Err(err error) error {
 	return err
 }
 
-// NewCollection creates a db.Collection by name.
-func (d *database) NewCollection(name string) db.Collection {
-	return newCollection(d, name)
+func (*database) NewCollection() sqladapter.AdapterCollection {
+	return &collectionAdapter{}
 }
 
-// Tx creates a transaction block on the given context and passes it to the
-// function fn.
-func (d *database) TxContext(ctx context.Context, fn func(tx sqlbuilder.Tx) error) error {
-	return sqladapter.TxContext(d, ctx, fn)
-}
-
-// Tx creates a transaction block on the database context and passes it to the
-// function fn.
-func (d *database) Tx(fn func(tx sqlbuilder.Tx) error) error {
-	return sqladapter.TxContext(d, d.Context(), fn)
-}
-
-// NewDatabaseTx begins a transaction block.
-func (d *database) NewDatabaseTx(ctx context.Context) (sqladapter.DatabaseTx, error) {
-	clone, err := d.clone(ctx, true)
-	if err != nil {
-		return nil, err
-	}
-	clone.mu.Lock()
-	defer clone.mu.Unlock()
-
-	connFn := func() error {
-		sqlTx, err := compat.BeginTx(clone.BaseDatabase.Session(), ctx, clone.TxOptions())
-		if err == nil {
-			return clone.BindTx(ctx, sqlTx)
-		}
-		return err
-	}
-
-	if err := clone.BaseDatabase.WaitForConnection(connFn); err != nil {
-		return nil, err
-	}
-
-	return sqladapter.NewDatabaseTx(clone), nil
-}
-
-// LookupName looks for the name of the database and it's often used as a
-// test to determine if the connection settings are valid.
-func (d *database) LookupName() (string, error) {
-	q := d.Select(db.Raw("CURRENT_DATABASE() AS name"))
+func (*database) LookupName(sess sqladapter.Session) (string, error) {
+	q := sess.Select(db.Raw("CURRENT_DATABASE() AS name"))
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -277,12 +155,10 @@ func (d *database) LookupName() (string, error) {
 	return "", iter.Err()
 }
 
-// TableExists returns an error if the given table name does not exist on the
-// database.
-func (d *database) TableExists(name string) error {
-	q := d.Select("table_name").
+func (*database) TableExists(sess sqladapter.Session, name string) error {
+	q := sess.Select("table_name").
 		From("information_schema.tables").
-		Where("table_catalog = ? AND table_name = ?", d.BaseDatabase.Name(), name)
+		Where("table_catalog = ? AND table_name = ?", sess.Name(), name)
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -294,22 +170,12 @@ func (d *database) TableExists(name string) error {
 		}
 		return nil
 	}
+
 	return db.ErrCollectionDoesNotExist
 }
 
-// quotedTableName returns a valid regclass name for both regular tables and
-// for schemas.
-func quotedTableName(s string) string {
-	chunks := strings.Split(s, ".")
-	for i := range chunks {
-		chunks[i] = fmt.Sprintf("%q", chunks[i])
-	}
-	return strings.Join(chunks, ".")
-}
-
-// PrimaryKeys returns the names of all the primary keys on the table.
-func (d *database) PrimaryKeys(tableName string) ([]string, error) {
-	q := d.Select("pg_attribute.attname AS pkey").
+func (*database) PrimaryKeys(sess sqladapter.Session, tableName string) ([]string, error) {
+	q := sess.Select("pg_attribute.attname AS pkey").
 		From("pg_index", "pg_class", "pg_attribute").
 		Where(`
 			pg_class.oid = '` + quotedTableName(tableName) + `'::regclass
@@ -338,8 +204,12 @@ func (d *database) PrimaryKeys(tableName string) ([]string, error) {
 	return pk, nil
 }
 
-// WithContext creates a copy of the session on the given context.
-func (d *database) WithContext(ctx context.Context) sqlbuilder.Database {
-	newDB, _ := d.clone(ctx, false)
-	return newDB
+// quotedTableName returns a valid regclass name for both regular tables and
+// for schemas.
+func quotedTableName(s string) string {
+	chunks := strings.Split(s, ".")
+	for i := range chunks {
+		chunks[i] = fmt.Sprintf("%q", chunks[i])
+	}
+	return strings.Join(chunks, ".")
 }
