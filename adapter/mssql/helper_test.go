@@ -39,14 +39,14 @@ var settings = ConnectionURL{
 }
 
 type Helper struct {
-	sess sqlbuilder.Database
+	sess sqlbuilder.Session
 }
 
-func (h *Helper) Session() db.Database {
+func (h *Helper) Session() db.Session {
 	return h.sess
 }
 
-func (h *Helper) SQLBuilder() sqlbuilder.Database {
+func (h *Helper) SQLBuilder() sqlbuilder.Session {
 	return h.sess
 }
 

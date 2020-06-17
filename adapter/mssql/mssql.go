@@ -29,13 +29,13 @@ import (
 	"github.com/upper/db/sqlbuilder"
 )
 
-// Adapter is the unique name that you can use to refer to this adapter.
+// Adapter is the public name of the adapter.
 const Adapter = `mssql`
 
 type mssqlAdapter struct {
 }
 
-func (mssqlAdapter) Open(dsn db.ConnectionURL) (db.Database, error) {
+func (mssqlAdapter) Open(dsn db.ConnectionURL) (db.Session, error) {
 	return Open(dsn)
 }
 
@@ -43,7 +43,7 @@ func (mssqlAdapter) NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 	return NewTx(sqlTx)
 }
 
-func (mssqlAdapter) New(sqlDB *sql.DB) (sqlbuilder.Database, error) {
+func (mssqlAdapter) New(sqlDB *sql.DB) (sqlbuilder.Session, error) {
 	return New(sqlDB)
 }
 
@@ -51,46 +51,26 @@ func init() {
 	db.RegisterAdapter(Adapter, sqlbuilder.Adapter(&mssqlAdapter{}))
 }
 
-// Open stablishes a new connection to the SQL server.
-func Open(settings db.ConnectionURL) (sqlbuilder.Database, error) {
-	d := newDatabase(settings)
-	if err := d.Open(settings); err != nil {
+func Open(connURL db.ConnectionURL) (sqlbuilder.Session, error) {
+	sess := newSession(connURL)
+	if err := sess.Open(); err != nil {
 		return nil, err
 	}
-	return d, nil
+	return sess, nil
 }
 
-// NewTx wraps a regular *sql.Tx transaction and returns a new upper-db
-// transaction backed by it.
 func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
-	d := newDatabase(nil)
-
-	// Binding with sqladapter's logic.
-	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
-
-	// Binding with sqlbuilder.
-	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
-
-	if err := d.BaseDatabase.BindTx(d.Context(), sqlTx); err != nil {
+	tx, err := sqladapter.NewTx(&database{}, sqlTx)
+	if err != nil {
 		return nil, err
 	}
-
-	newTx := sqladapter.NewDatabaseTx(d)
-	return &tx{DatabaseTx: newTx}, nil
+	return tx, nil
 }
 
-// New wraps the given *sql.DB session and creates a new db session.
-func New(sess *sql.DB) (sqlbuilder.Database, error) {
-	d := newDatabase(nil)
-
-	// Binding with sqladapter's logic.
-	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
-
-	// Binding with sqlbuilder.
-	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
-
-	if err := d.BaseDatabase.BindSession(sess); err != nil {
+func New(sqlDB *sql.DB) (sqlbuilder.Session, error) {
+	sess := newSession(nil)
+	if err := sess.BindDB(sqlDB); err != nil {
 		return nil, err
 	}
-	return d, nil
+	return sess, nil
 }

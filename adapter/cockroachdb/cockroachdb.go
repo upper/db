@@ -35,7 +35,7 @@ const Adapter = `cockroachdb`
 type cockroachdbAdapter struct {
 }
 
-func (cockroachdbAdapter) Open(dsn db.ConnectionURL) (db.Database, error) {
+func (cockroachdbAdapter) Open(dsn db.ConnectionURL) (db.Session, error) {
 	return Open(dsn)
 }
 
@@ -43,7 +43,7 @@ func (cockroachdbAdapter) NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 	return NewTx(sqlTx)
 }
 
-func (cockroachdbAdapter) New(sqlDB *sql.DB) (sqlbuilder.Database, error) {
+func (cockroachdbAdapter) New(sqlDB *sql.DB) (sqlbuilder.Session, error) {
 	return New(sqlDB)
 }
 
@@ -51,51 +51,26 @@ func init() {
 	db.RegisterAdapter(Adapter, sqlbuilder.Adapter(&cockroachdbAdapter{}))
 }
 
-// Open opens a new connection with the CockroachDB server. The returned
-// session is first validated by Ping and then with a test query before being
-// returned.  You may call Open() just once and use it on multiple goroutines
-// on a long-running program. See https://golang.org/pkg/database/sql/#Open and
-// http://go-database-sql.org/accessing.html
-func Open(settings db.ConnectionURL) (sqlbuilder.Database, error) {
-	d := newDatabase(settings)
-	if err := d.Open(settings); err != nil {
+func Open(connURL db.ConnectionURL) (sqlbuilder.Session, error) {
+	sess := newSession(connURL)
+	if err := sess.Open(); err != nil {
 		return nil, err
 	}
-	return d, nil
+	return sess, nil
 }
 
-// NewTx wraps a regular *sql.Tx transaction and returns a new upper-db
-// transaction backed by it.
 func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
-	d := newDatabase(nil)
-
-	// Binding with sqladapter's logic.
-	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
-
-	// Binding with sqlbuilder.
-	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
-
-	if err := d.BaseDatabase.BindTx(d.Context(), sqlTx); err != nil {
+	tx, err := sqladapter.NewTx(&database{}, sqlTx)
+	if err != nil {
 		return nil, err
 	}
-
-	newTx := sqladapter.NewDatabaseTx(d)
-	return &tx{DatabaseTx: newTx}, nil
+	return tx, nil
 }
 
-// New wraps a regular *sql.DB session and creates a new upper-db session
-// backed by it.
-func New(sess *sql.DB) (sqlbuilder.Database, error) {
-	d := newDatabase(nil)
-
-	// Binding with sqladapter's logic.
-	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
-
-	// Binding with sqlbuilder.
-	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
-
-	if err := d.BaseDatabase.BindSession(sess); err != nil {
+func New(sqlDB *sql.DB) (sqlbuilder.Session, error) {
+	sess := newSession(nil)
+	if err := sess.BindDB(sqlDB); err != nil {
 		return nil, err
 	}
-	return d, nil
+	return sess, nil
 }

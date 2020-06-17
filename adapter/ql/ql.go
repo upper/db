@@ -25,6 +25,7 @@ import (
 	"database/sql"
 
 	db "github.com/upper/db"
+	"github.com/upper/db/internal/sqladapter"
 	"github.com/upper/db/sqlbuilder"
 )
 
@@ -34,7 +35,7 @@ const Adapter = `ql`
 type qlAdapter struct {
 }
 
-func (qlAdapter) Open(dsn db.ConnectionURL) (db.Database, error) {
+func (qlAdapter) Open(dsn db.ConnectionURL) (db.Session, error) {
 	return Open(dsn)
 }
 
@@ -42,10 +43,34 @@ func (qlAdapter) NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 	return NewTx(sqlTx)
 }
 
-func (qlAdapter) New(sqlDB *sql.DB) (sqlbuilder.Database, error) {
+func (qlAdapter) New(sqlDB *sql.DB) (sqlbuilder.Session, error) {
 	return New(sqlDB)
 }
 
 func init() {
 	db.RegisterAdapter(Adapter, sqlbuilder.Adapter(&qlAdapter{}))
+}
+
+func Open(connURL db.ConnectionURL) (sqlbuilder.Session, error) {
+	sess := newSession(connURL)
+	if err := sess.Open(); err != nil {
+		return nil, err
+	}
+	return sess, nil
+}
+
+func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
+	tx, err := sqladapter.NewTx(&database{}, sqlTx)
+	if err != nil {
+		return nil, err
+	}
+	return tx, nil
+}
+
+func New(sqlDB *sql.DB) (sqlbuilder.Session, error) {
+	sess := newSession(nil)
+	if err := sess.BindDB(sqlDB); err != nil {
+		return nil, err
+	}
+	return sess, nil
 }

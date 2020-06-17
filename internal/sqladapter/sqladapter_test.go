@@ -4,7 +4,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/upper/db"
 )
+
+func TestInterfaces(t *testing.T) {
+	var (
+		_ db.Collection = &collection{}
+		_ Collection    = &collection{}
+	)
+}
 
 func TestReplaceWithDollarSign(t *testing.T) {
 	tests := []struct {

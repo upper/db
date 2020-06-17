@@ -25,6 +25,7 @@
 package mongo // import "github.com/upper/db/adapter/mongo"
 
 import (
+	"github.com/upper/db/internal/unsupported"
 	"strings"
 	"sync"
 	"time"
@@ -54,7 +55,7 @@ type Source struct {
 type mongoAdapter struct {
 }
 
-func (mongoAdapter) Open(dsn db.ConnectionURL) (db.Database, error) {
+func (mongoAdapter) Open(dsn db.ConnectionURL) (db.Session, error) {
 	return Open(dsn)
 }
 
@@ -63,7 +64,7 @@ func init() {
 }
 
 // Open stablishes a new connection to a SQL server.
-func Open(settings db.ConnectionURL) (db.Database, error) {
+func Open(settings db.ConnectionURL) (db.Session, error) {
 	d := &Source{Settings: db.NewSettings()}
 	if err := d.Open(settings); err != nil {
 		return nil, err
@@ -101,8 +102,8 @@ func (s *Source) Open(connURL db.ConnectionURL) error {
 	return s.open()
 }
 
-// Clone returns a cloned db.Database session.
-func (s *Source) Clone() (db.Database, error) {
+// Clone returns a cloned db.Session session.
+func (s *Source) Clone() (db.Session, error) {
 	newSession := s.session.Copy()
 	clone := &Source{
 		Settings: db.NewSettings(),
@@ -129,7 +130,7 @@ func (s *Source) Ping() error {
 	return s.session.Ping()
 }
 
-func (s *Source) ClearCache() {
+func (s *Source) Reset() {
 	s.collectionsMu.Lock()
 	defer s.collectionsMu.Unlock()
 	s.collections = make(map[string]*Collection)
@@ -162,7 +163,7 @@ func (s *Source) Close() error {
 }
 
 // Collections returns a list of non-system tables from the database.
-func (s *Source) Collections() (cols []string, err error) {
+func (s *Source) Collections() (cols []db.Collection, err error) {
 	var rawcols []string
 	var col string
 
@@ -170,11 +171,11 @@ func (s *Source) Collections() (cols []string, err error) {
 		return nil, err
 	}
 
-	cols = make([]string, 0, len(rawcols))
+	cols = make([]db.Collection, 0, len(rawcols))
 
 	for _, col = range rawcols {
 		if !strings.HasPrefix(col, "system.") {
-			cols = append(cols, col)
+			cols = append(cols, s.Collection(col))
 		}
 	}
 
@@ -224,4 +225,8 @@ func (s *Source) versionAtLeast(version ...int) bool {
 		}
 	}
 	return true
+}
+
+func (s *Source) Item(m db.Model) db.Item {
+	return &unsupported.Item{}
 }

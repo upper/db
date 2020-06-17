@@ -40,14 +40,14 @@ var settings = ConnectionURL{
 }
 
 type Helper struct {
-	sess db.Database
+	sess db.Session
 }
 
-func (h *Helper) SQLBuilder() sqlbuilder.Database {
+func (h *Helper) SQLBuilder() sqlbuilder.Session {
 	panic("mongo adapter is incompatile with SQLBuilder interface")
 }
 
-func (h *Helper) Session() db.Database {
+func (h *Helper) Session() db.Session {
 	return h.sess
 }
 

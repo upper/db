@@ -26,7 +26,7 @@ export DB_USERNAME
 export TEST_FLAGS
 
 test:
-	go test -timeout 20m  -v $(TEST_FLAGS)
+	go test -timeout 30m  -v $(TEST_FLAGS)
 
 server-up: server-down
 	docker-compose -p $(PROJECT) up -d && \

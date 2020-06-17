@@ -245,9 +245,9 @@ func (res *result) All(dst interface{}) error {
 	return err
 }
 
-// Group is used to group results that have the same value in the same column
+// GroupBy is used to group results that have the same value in the same column
 // or columns.
-func (res *result) Group(fields ...interface{}) db.Result {
+func (res *result) GroupBy(fields ...interface{}) db.Result {
 	return res.frame(func(r *resultQuery) error {
 		r.groupBy = fields
 		return nil

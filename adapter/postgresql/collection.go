@@ -26,42 +26,13 @@ import (
 	"github.com/upper/db/internal/sqladapter"
 )
 
-// collection is the actual implementation of a collection.
-type collection struct {
-	sqladapter.BaseCollection // Leveraged by sqladapter
-
-	d    *database
-	name string
+type collectionAdapter struct {
 }
 
-var (
-	_ = sqladapter.Collection(&collection{})
-	_ = db.Collection(&collection{})
-)
+func (*collectionAdapter) Insert(col sqladapter.Collection, item interface{}) (interface{}, error) {
+	pKey := col.PrimaryKeys()
 
-// newCollection binds *collection with sqladapter.
-func newCollection(d *database, name string) *collection {
-	c := &collection{
-		name: name,
-		d:    d,
-	}
-	c.BaseCollection = sqladapter.NewBaseCollection(c)
-	return c
-}
-
-func (c *collection) Name() string {
-	return c.name
-}
-
-func (c *collection) Database() sqladapter.Database {
-	return c.d
-}
-
-// Insert inserts an item (map or struct) into the collection.
-func (c *collection) Insert(item interface{}) (interface{}, error) {
-	pKey := c.BaseCollection.PrimaryKeys()
-
-	q := c.d.InsertInto(c.Name()).Values(item)
+	q := col.SQLBuilder().InsertInto(col.Name()).Values(item)
 
 	if len(pKey) == 0 {
 		// There is no primary key.
@@ -74,7 +45,7 @@ func (c *collection) Insert(item interface{}) (interface{}, error) {
 		// succeeded, so we can safely ignore the error from LastInsertId()).
 		lastID, err := res.LastInsertId()
 		if err != nil {
-			return 0, nil
+			return nil, nil
 		}
 		return lastID, nil
 	}

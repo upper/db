@@ -184,9 +184,9 @@ func (r *Result) Offset(n int) db.Result {
 	})
 }
 
-// Group is used to group Results that have the same value in the same column
+// GroupBy is used to group Results that have the same value in the same column
 // or columns.
-func (r *Result) Group(fields ...interface{}) db.Result {
+func (r *Result) GroupBy(fields ...interface{}) db.Result {
 	return r.frame(func(res *result) error {
 		res.groupBy = fields
 		return nil
