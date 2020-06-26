@@ -43,15 +43,15 @@ var settings = ConnectionURL{
 }
 
 type Helper struct {
-	sess sqlbuilder.Database
+	sess sqlbuilder.Session
 }
 
-func cleanUp(sess sqlbuilder.Database) error {
+func cleanUp(sess sqlbuilder.Session) error {
 	if activeStatements := sqladapter.NumActiveStatements(); activeStatements > 128 {
 		return fmt.Errorf("Expecting active statements to be less than 128, got %d", activeStatements)
 	}
 
-	sess.ClearCache()
+	sess.Reset()
 
 	stats, err := getStats(sess)
 	if err != nil {
@@ -65,7 +65,7 @@ func cleanUp(sess sqlbuilder.Database) error {
 	return nil
 }
 
-func getStats(sess sqlbuilder.Database) (map[string]int, error) {
+func getStats(sess sqlbuilder.Session) (map[string]int, error) {
 	stats := make(map[string]int)
 
 	row := sess.Driver().(*sql.DB).QueryRow(`SELECT count(1) AS value FROM pg_prepared_statements`)
@@ -81,11 +81,11 @@ func getStats(sess sqlbuilder.Database) (map[string]int, error) {
 	return stats, nil
 }
 
-func (h *Helper) Session() db.Database {
+func (h *Helper) Session() db.Session {
 	return h.sess
 }
 
-func (h *Helper) SQLBuilder() sqlbuilder.Database {
+func (h *Helper) SQLBuilder() sqlbuilder.Session {
 	return h.sess
 }
 
@@ -286,7 +286,6 @@ func (h *Helper) TearUp() error {
 			"case_test" VARCHAR(60)
 		)`,
 
-		// bond
 		`DROP TABLE IF EXISTS accounts`,
 		`CREATE TABLE accounts (
 			id serial primary key,

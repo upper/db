@@ -155,11 +155,7 @@ func (s *AdapterTests) TestTruncate() {
 	collections, err := sess.Collections()
 	s.NoError(err)
 
-	for _, name := range collections {
-
-		// Pointing the collection.
-		col := sess.Collection(name)
-
+	for _, col := range collections {
 		// The collection may ot may not exists.
 		exists := col.Exists()
 
@@ -184,11 +180,13 @@ func (s *AdapterTests) TestInsert() {
 	_ = artist.Truncate()
 
 	// Inserting a map.
-	id, err := artist.Insert(map[string]string{
+	record, err := artist.Insert(map[string]string{
 		"name": "Ozzie",
 	})
 	s.NoError(err)
-	s.NotZero(id)
+
+	id := record.ID()
+	s.NotZero(record.ID())
 
 	_, ok := id.(bson.ObjectId)
 	s.True(ok)
@@ -196,12 +194,14 @@ func (s *AdapterTests) TestInsert() {
 	s.True(id.(bson.ObjectId).Valid())
 
 	// Inserting a struct.
-	id, err = artist.Insert(struct {
+	record, err = artist.Insert(struct {
 		Name string
 	}{
 		"Flea",
 	})
 	s.NoError(err)
+
+	id = record.ID()
 	s.NotZero(id)
 
 	_, ok = id.(bson.ObjectId)
@@ -209,33 +209,38 @@ func (s *AdapterTests) TestInsert() {
 	s.True(id.(bson.ObjectId).Valid())
 
 	// Inserting a struct (using tags to specify the field name).
-	id, err = artist.Insert(struct {
+	record, err = artist.Insert(struct {
 		ArtistName string `bson:"name"`
 	}{
 		"Slash",
 	})
 	s.NoError(err)
+
+	id = record.ID()
+	s.NotNil(id)
+
+	_, ok = id.(bson.ObjectId)
+
+	s.True(ok)
+	s.True(id.(bson.ObjectId).Valid())
+
+	// Inserting a pointer to a struct
+	record, err = artist.Insert(&struct {
+		ArtistName string `bson:"name"`
+	}{
+		"Metallica",
+	})
+	s.NoError(err)
+
+	id = record.ID()
 	s.NotNil(id)
 
 	_, ok = id.(bson.ObjectId)
 	s.True(ok)
 	s.True(id.(bson.ObjectId).Valid())
 
-	// Inserting a pointer to a struct
-	id, err = artist.Insert(&struct {
-		ArtistName string `bson:"name"`
-	}{
-		"Metallica",
-	})
-	s.NoError(err)
-	s.NotZero(id)
-
-	_, ok = id.(bson.ObjectId)
-	s.True(ok)
-	s.True(id.(bson.ObjectId).Valid())
-
 	// Inserting a pointer to a map
-	id, err = artist.Insert(&map[string]string{
+	record, err = artist.Insert(&map[string]string{
 		"name": "Freddie",
 	})
 	s.NoError(err)
@@ -243,6 +248,10 @@ func (s *AdapterTests) TestInsert() {
 
 	_, ok = id.(bson.ObjectId)
 	s.True(ok)
+
+	id = record.ID()
+	s.NotNil(id)
+
 	s.True(id.(bson.ObjectId).Valid())
 
 	// Counting elements, must be exactly 6 elements.
@@ -322,7 +331,7 @@ func (s *AdapterTests) TestGroup() {
 	// db.statsTest.group({key: {numeric: true}, initial: {sum: 0}, reduce: function(doc, prev) { prev.sum += 1}});
 
 	// Testing GROUP BY
-	res := stats.Find().Group(bson.M{
+	res := stats.Find().GroupBy(bson.M{
 		"key":     bson.M{"numeric": true},
 		"initial": bson.M{"sum": 0},
 		"reduce":  `function(doc, prev) { prev.sum += 1}`,
@@ -577,8 +586,10 @@ func (s *AdapterTests) TestDataTypes() {
 	dataTypes := sess.Collection("data_types")
 
 	// Inserting our test subject.
-	id, err := dataTypes.Insert(testValues)
+	record, err := dataTypes.Insert(testValues)
 	s.NoError(err)
+
+	id := record.ID()
 	s.NotZero(id)
 
 	// Trying to get the same subject we added.

@@ -19,25 +19,27 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package sqlite
+package unsupported
 
 import (
-	"context"
-
-	"github.com/upper/db/internal/sqladapter"
-	"github.com/upper/db/sqlbuilder"
+	"github.com/upper/db"
 )
 
-type tx struct {
-	sqladapter.DatabaseTx
+type Item struct {
 }
 
-var (
-	_ = sqlbuilder.Tx(&tx{})
-)
+func (*Item) Update(db.M) error {
+	return db.ErrUnsupported
+}
 
-func (t *tx) WithContext(ctx context.Context) sqlbuilder.Tx {
-	newTx := *t
-	newTx.DatabaseTx.SetContext(ctx)
-	return &newTx
+func (*Item) Delete() error {
+	return db.ErrUnsupported
+}
+
+func (*Item) Save() error {
+	return db.ErrUnsupported
+}
+
+func (*Item) Changes() db.M {
+	return db.M{}
 }

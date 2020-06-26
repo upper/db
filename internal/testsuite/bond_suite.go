@@ -8,40 +8,39 @@ import (
 	"database/sql"
 	"github.com/stretchr/testify/suite"
 	"github.com/upper/db"
-	"github.com/upper/db/bond"
 	"github.com/upper/db/sqlbuilder"
 )
 
-type BondSession struct {
-	bond.Session
+type Session struct {
+	sqlbuilder.Session
 }
 
-func (d *BondSession) AccountStore() *AccountStore {
-	return NewAccountStore(d.Session)
+func (d *Session) AccountCollection() *AccountCollection {
+	return NewAccountCollection(d.Session)
 }
 
-func (d *BondSession) UserStore() *UserStore {
-	return NewUserStore(d.Session)
+func (d *Session) UserCollection() *UserCollection {
+	return NewUserCollection(d.Session)
 }
 
-func (d *BondSession) LogStore() *LogStore {
-	return NewLogStore(d.Session)
+func (d *Session) LogCollection() *LogCollection {
+	return NewLogCollection(d.Session)
 }
 
-func NewBond(sess bond.Engine) *BondSession {
-	return &BondSession{Session: bond.New(sess)}
+func NewSession(sess db.Session) *Session {
+	return &Session{Session: sess.(sqlbuilder.Session)}
 }
 
-func NewAccountStore(sess bond.Session) *AccountStore {
-	return &AccountStore{Store: sess.Store("accounts")}
+func NewAccountCollection(sess db.Session) *AccountCollection {
+	return &AccountCollection{Collection: sess.Collection("accounts")}
 }
 
-func NewUserStore(sess bond.Session) *UserStore {
-	return &UserStore{Store: sess.Store("users")}
+func NewUserCollection(sess db.Session) *UserCollection {
+	return &UserCollection{Collection: sess.Collection("users")}
 }
 
-func NewLogStore(sess bond.Session) *LogStore {
-	return &LogStore{Store: sess.Store("logs")}
+func NewLogCollection(sess db.Session) *LogCollection {
+	return &LogCollection{Collection: sess.Collection("logs")}
 }
 
 type Log struct {
@@ -56,13 +55,13 @@ type Account struct {
 	CreatedAt *time.Time `db:"created_at,omitempty"`
 }
 
-func (a *Account) Store(sess bond.Session) bond.Store {
-	return sess.Store("accounts")
+func (a *Account) Collection(sess db.Session) db.Collection {
+	return sess.Collection("accounts")
 }
 
-func (a Account) AfterCreate(sess bond.Session) error {
+func (a *Account) AfterCreate(sess db.Session) error {
 	message := fmt.Sprintf("Account %q was created.", a.Name)
-	return sess.Save(&Log{Message: message})
+	return sess.Item(&Log{Message: message}).Save()
 }
 
 func (a *Account) BeforeDelete() error {
@@ -78,39 +77,39 @@ type User struct {
 	Username  string `db:"username"`
 }
 
-func (u User) AfterCreate(sess bond.Session) error {
+func (u *User) AfterCreate(sess db.Session) error {
 	message := fmt.Sprintf("User %q was created.", u.Username)
-	return sess.Save(&Log{Message: message})
+	return sess.Item(&Log{Message: message}).Save()
 }
 
-func (u *User) Store(sess bond.Session) bond.Store {
-	return sess.Store("users")
+func (u *User) Collection(sess db.Session) db.Collection {
+	return sess.Collection("users")
 }
 
-func (l *Log) Store(sess bond.Session) bond.Store {
-	return sess.Store("logs")
+func (l *Log) Collection(sess db.Session) db.Collection {
+	return sess.Collection("logs")
 }
 
-type LogStore struct {
-	bond.Store
+type LogCollection struct {
+	db.Collection
 }
 
-type AccountStore struct {
-	bond.Store
+type AccountCollection struct {
+	db.Collection
 }
 
-func (s AccountStore) FindOne(cond db.Cond) (*Account, error) {
+func (s AccountCollection) FindOne(cond db.Cond) (*Account, error) {
 	var a *Account
 	err := s.Find(cond).One(&a)
 	return a, err
 }
 
-type UserStore struct {
-	bond.Store
+type UserCollection struct {
+	db.Collection
 }
 
 type BondTestSuite struct {
-	sess *BondSession
+	sess *Session
 
 	suite.Suite
 
@@ -126,72 +125,88 @@ func (s *BondTestSuite) BeforeTest(suiteName, testName string) {
 	err := s.TearUp()
 	s.NoError(err)
 
-	sess := s.Helper.Session().(sqlbuilder.Database)
+	sess := s.Helper.Session().(sqlbuilder.Session)
 
 	cols, _ := sess.Collections()
-	for _, k := range cols {
-		_ = sess.Collection(k).Truncate()
+	for i := range cols {
+		err = cols[i].Truncate()
+		s.NoError(err)
 	}
 
-	s.sess = &BondSession{bond.New(sess)}
+	s.sess = NewSession(sess)
 }
 
-func (s *BondTestSuite) Session() *BondSession {
+func (s *BondTestSuite) Session() *Session {
 	return s.sess
 }
 
-func (s *BondTestSuite) TestAccountStore() {
+func (s *BondTestSuite) TestAccountCollection() {
 	sess := s.Session()
 
 	user := User{Username: "peter"}
-	err := sess.Save(&user)
+
+	err := sess.Item(&user).Save()
 	s.NoError(err)
 
-	err = sess.Save(&User{Username: "peter"})
+	err = sess.Item(&User{Username: "peter"}).Save()
 	s.Error(err, "Should fail because user is a unique value")
 
 	account1 := Account{Name: "Pressly"}
-	err = sess.Save(&account1)
+	err = sess.Item(&account1).Save()
 	s.NoError(err)
 
 	account2 := &Account{}
 
-	err = sess.AccountStore().Find(account1.ID).One(&account2)
+	err = sess.AccountCollection().
+		Find(account1.ID).
+		One(&account2)
+
 	s.NoError(err)
 	s.Equal(account1.Name, account2.Name)
 
 	var account3 Account
-	err = sess.Store(&account1).Find(account1.ID).One(&account3)
+	err = sess.Collection("accounts").
+		Find(account1.ID).
+		One(&account3)
+
 	s.NoError(err)
 	s.Equal(account1.Name, account3.Name)
 
-	colName := sess.Store("accounts").Name()
+	colName := sess.Collection("accounts").Name()
 	s.Equal("accounts", colName)
 
-	count, err := sess.AccountStore().Find(db.Cond{}).Count()
+	count, err := sess.AccountCollection().
+		Find(db.Cond{}).
+		Count()
 	s.NoError(err)
 	s.True(count == 1)
 
-	count, err = sess.AccountStore().Find().Count()
+	count, err = sess.AccountCollection().
+		Find().
+		Count()
 	s.NoError(err)
 	s.True(count == 1)
 
-	a, err := sess.AccountStore().FindOne(db.Cond{"id": account1.ID})
+	var a Account
+	err = sess.AccountCollection().
+		Find(db.Cond{"id": account1.ID}).One(&a)
 	s.NoError(err)
 	s.NotNil(a)
 
 	account1.Disabled = true
-	err = sess.Save(&account1)
+	err = sess.Item(&account1).Save()
 	s.NoError(err)
 
-	count, err = sess.AccountStore().Find(db.Cond{}).Count()
+	count, err = sess.AccountCollection().
+		Find(db.Cond{}).
+		Count()
 	s.NoError(err)
 	s.Equal(uint64(1), count)
 
-	err = sess.Delete(&account1)
+	err = sess.Item(&account1).Delete()
 	s.NoError(err)
 
-	count, err = sess.AccountStore().Find().Count()
+	count, err = sess.AccountCollection().Find().Count()
 	s.NoError(err)
 	s.Zero(count)
 }
@@ -200,31 +215,40 @@ func (s *BondTestSuite) TestDelete() {
 	sess := s.Session()
 
 	account := Account{Name: "Pressly"}
-	err := sess.Save(&account)
+	err := sess.Item(&account).
+		Save()
 	s.NoError(err)
 	s.NotZero(account.ID)
 
 	// Delete by query -- without callbacks
-	err = sess.AccountStore().Find(account.ID).Delete()
+	err = sess.AccountCollection().
+		Find(account.ID).
+		Delete()
 	s.NoError(err)
 
-	count, err := sess.AccountStore().Find(account.ID).Count()
+	count, err := sess.AccountCollection().
+		Find(account.ID).
+		Count()
 	s.Zero(count)
 }
 
 func (s *BondTestSuite) TestSlices() {
 	sess := s.Session()
 
-	id, err := sess.AccountStore().Insert(&Account{Name: "Apple"})
+	id, err := sess.AccountCollection().
+		Insert(&Account{Name: "Apple"})
 	s.NoError(err)
 	s.NotZero(id)
 
-	id, err = sess.AccountStore().Insert(Account{Name: "Google"})
+	id, err = sess.AccountCollection().
+		Insert(Account{Name: "Google"})
 	s.NoError(err)
 	s.NotZero(id)
 
 	var accounts []*Account
-	err = sess.AccountStore().Find(db.Cond{}).All(&accounts)
+	err = sess.AccountCollection().
+		Find(db.Cond{}).
+		All(&accounts)
 	s.NoError(err)
 	s.Len(accounts, 2)
 }
@@ -232,11 +256,13 @@ func (s *BondTestSuite) TestSlices() {
 func (s *BondTestSuite) TestSelectOnlyIDs() {
 	sess := s.Session()
 
-	id, err := sess.AccountStore().Insert(&Account{Name: "Apple"})
+	id, err := sess.AccountCollection().
+		Insert(&Account{Name: "Apple"})
 	s.NoError(err)
 	s.NotZero(id)
 
-	id, err = sess.AccountStore().Insert(Account{Name: "Google"})
+	id, err = sess.AccountCollection().
+		Insert(Account{Name: "Google"})
 	s.NoError(err)
 	s.NotZero(id)
 
@@ -244,7 +270,9 @@ func (s *BondTestSuite) TestSelectOnlyIDs() {
 		Id int64 `db:"id"`
 	}
 
-	err = sess.AccountStore().Find(db.Cond{}).Select("id").All(&ids)
+	err = sess.AccountCollection().
+		Find(db.Cond{}).
+		Select("id").All(&ids)
 	s.NoError(err)
 	s.Len(ids, 2)
 	s.NotEmpty(ids[0])
@@ -254,31 +282,31 @@ func (s *BondTestSuite) TestTx() {
 	sess := s.Session()
 
 	user := User{Username: "peter"}
-	err := sess.Save(&user)
+	err := sess.Item(&user).Save()
 	s.NoError(err)
 
 	// This transaction should fail because user is a UNIQUE value and we already
 	// have a "peter".
-	err = sess.Tx(func(tx bond.Session) error {
-		return tx.Save(&User{Username: "peter"})
+	err = sess.Tx(func(tx sqlbuilder.Tx) error {
+		return tx.Item(&User{Username: "peter"}).Save()
 	})
 	s.Error(err)
 
 	// This transaction should fail because user is a UNIQUE value and we already
 	// have a "peter".
-	err = sess.Tx(func(tx bond.Session) error {
-		return tx.Save(&User{Username: "peter"})
+	err = sess.Tx(func(tx sqlbuilder.Tx) error {
+		return tx.Item(&User{Username: "peter"}).Save()
 	})
 	s.Error(err)
 
 	// This transaction will have no errors, but we'll produce one in order for
 	// it to rollback at the last moment.
-	err = sess.Tx(func(tx bond.Session) error {
-		if err := tx.Save(&User{Username: "Joe"}); err != nil {
+	err = sess.Tx(func(tx sqlbuilder.Tx) error {
+		if err := tx.Item(&User{Username: "Joe"}).Save(); err != nil {
 			return err
 		}
 
-		if err := tx.Save(&User{Username: "Cool"}); err != nil {
+		if err := tx.Item(&User{Username: "Cool"}).Save(); err != nil {
 			return err
 		}
 
@@ -288,12 +316,12 @@ func (s *BondTestSuite) TestTx() {
 
 	// Attempt to add two new unique values, if the transaction above had not
 	// been rolled back this transaction will fail.
-	err = sess.Tx(func(tx bond.Session) error {
-		if err := tx.Save(&User{Username: "Joe"}); err != nil {
+	err = sess.Tx(func(tx sqlbuilder.Tx) error {
+		if err := tx.Item(&User{Username: "Joe"}).Save(); err != nil {
 			return err
 		}
 
-		if err := tx.Save(&User{Username: "Cool"}); err != nil {
+		if err := tx.Item(&User{Username: "Cool"}).Save(); err != nil {
 			return err
 		}
 
@@ -302,12 +330,12 @@ func (s *BondTestSuite) TestTx() {
 	s.NoError(err)
 
 	// If the transaction above was successful, this one will fail.
-	err = sess.Tx(func(tx bond.Session) error {
-		if err := tx.Save(&User{Username: "Joe"}); err != nil {
+	err = sess.Tx(func(tx sqlbuilder.Tx) error {
+		if err := tx.Item(&User{Username: "Joe"}).Save(); err != nil {
 			return err
 		}
 
-		if err := tx.Save(&User{Username: "Cool"}); err != nil {
+		if err := tx.Item(&User{Username: "Cool"}).Save(); err != nil {
 			return err
 		}
 
@@ -322,7 +350,7 @@ func (s *BondTestSuite) TestInheritedTx() {
 	sqlDB := sess.Driver().(*sql.DB)
 
 	user := User{Username: "peter"}
-	err := sess.Save(&user)
+	err := sess.Item(&user).Save()
 	s.NoError(err)
 
 	// Create a transaction
@@ -330,11 +358,12 @@ func (s *BondTestSuite) TestInheritedTx() {
 	s.NoError(err)
 
 	// And pass that transaction to bond, this whole session is a transaction.
-	bondTx, err := bond.Bind(s.Adapter(), sqlTx)
+	bondTx, err := sqlbuilder.BindTx(s.Adapter(), sqlTx)
 	s.NoError(err)
+	return
 
 	// Should fail because user is a UNIQUE value and we already have a "peter".
-	err = bondTx.Save(&User{Username: "peter"})
+	err = bondTx.Item(&User{Username: "peter"}).Save()
 	s.Error(err)
 
 	// The transaction is controlled outside bond.
@@ -342,7 +371,7 @@ func (s *BondTestSuite) TestInheritedTx() {
 	s.NoError(err)
 
 	// The sqlTx is worthless now.
-	err = bondTx.Save(&User{Username: "peter-2"})
+	err = bondTx.Item(&User{Username: "peter-2"}).Save()
 	s.Error(err)
 
 	// But we can create a new one.
@@ -351,18 +380,18 @@ func (s *BondTestSuite) TestInheritedTx() {
 	s.NotNil(sqlTx)
 
 	// And create another bond session.
-	bondTx, err = bond.Bind(s.Adapter(), sqlTx)
+	bondTx, err = sqlbuilder.BindTx(s.Adapter(), sqlTx)
 	s.NoError(err)
 
 	// Adding two new values.
-	err = bondTx.Save(&User{Username: "Joe-2"})
+	err = bondTx.Item(&User{Username: "Joe-2"}).Save()
 	s.NoError(err)
 
-	err = bondTx.Save(&User{Username: "Cool-2"})
+	err = bondTx.Item(&User{Username: "Cool-2"}).Save()
 	s.NoError(err)
 
 	// And a value that is going to be rolled back.
-	err = bondTx.Save(&Account{Name: "Rolled back"})
+	err = bondTx.Item(&Account{Name: "Rolled back"}).Save()
 	s.NoError(err)
 
 	// This session happens to be a transaction, let's rollback everything.
@@ -373,18 +402,18 @@ func (s *BondTestSuite) TestInheritedTx() {
 	sqlTx, err = sqlDB.Begin()
 	s.NoError(err)
 
-	bondTx, err = bond.Bind(s.Adapter(), sqlTx)
+	tx, err := sqlbuilder.BindTx(s.Adapter(), sqlTx)
 	s.NoError(err)
 
 	// Attempt to add two unique values.
-	err = bondTx.Save(&User{Username: "Joe-2"})
+	err = tx.Item(&User{Username: "Joe-2"}).Save()
 	s.NoError(err)
 
-	err = bondTx.Save(&User{Username: "Cool-2"})
+	err = tx.Item(&User{Username: "Cool-2"}).Save()
 	s.NoError(err)
 
 	// And a value that is going to be commited.
-	err = bondTx.Save(&Account{Name: "Commited!"})
+	err = tx.Item(&Account{Name: "Commited!"}).Save()
 	s.NoError(err)
 
 	// Yes, commit them.
@@ -392,14 +421,14 @@ func (s *BondTestSuite) TestInheritedTx() {
 	s.NoError(err)
 }
 
-func (s *BondTestSuite) TestUnknownStore() {
+func (s *BondTestSuite) TestUnknownCollection() {
 	var err error
 
 	sess := s.Session()
 
-	err = sess.Save(nil)
+	err = sess.Item(nil).Save()
 	s.Error(err)
 
-	err = sess.Store(11).Save(&User{Username: "Foo"})
-	s.Error(err)
+	_, err = sess.Collection("users").Insert(&User{Username: "Foo"})
+	s.NoError(err)
 }

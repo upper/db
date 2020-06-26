@@ -198,7 +198,7 @@ func (s *AdapterTests) Test_Issue469_BadConnection() {
 	s.Error(err, "Expecting an error (can't recover from this)")
 }
 
-func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
+func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Session) {
 	type PGTypeInline struct {
 		IntegerArrayPtr *Int64Array  `db:"integer_array_ptr,omitempty"`
 		StringArrayPtr  *StringArray `db:"string_array_ptr,omitempty"`
@@ -498,15 +498,15 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Database) {
 		}
 
 		for i := range pgTypeTests {
-			id, err := sess.Collection("pg_types").Insert(pgTypeTests[i])
+			record, err := sess.Collection("pg_types").Insert(pgTypeTests[i])
 			assert.NoError(t, err)
 
 			var actual PGType
-			err = sess.Collection("pg_types").Find(id).One(&actual)
+			err = sess.Collection("pg_types").Find(record.ID()).One(&actual)
 			assert.NoError(t, err)
 
 			expected := pgTypeTests[i]
-			expected.ID = id.(int64)
+			expected.ID = record.ID().(int64)
 			assert.Equal(t, expected, actual)
 		}
 
@@ -593,15 +593,15 @@ func (s *AdapterTests) TestOptionTypes() {
 		Settings: map[string]interface{}{"a": 1, "b": 2},
 	}
 
-	id, err := optionTypes.Insert(item1)
+	record, err := optionTypes.Insert(item1)
 	s.NoError(err)
 
-	if pk, ok := id.(int64); !ok || pk == 0 {
+	if pk, ok := record.ID().(int64); !ok || pk == 0 {
 		s.T().Errorf("Expecting an ID.")
 	}
 
 	var item1Chk optionType
-	err = optionTypes.Find(db.Cond{"id": id}).One(&item1Chk)
+	err = optionTypes.Find(record).One(&item1Chk)
 	s.NoError(err)
 
 	s.Equal(float64(1), item1Chk.Settings["a"])
@@ -614,15 +614,15 @@ func (s *AdapterTests) TestOptionTypes() {
 		Settings: map[string]interface{}{"go": 1, "lang": 2},
 	}
 
-	id, err = optionTypes.Insert(item1b)
+	record, err = optionTypes.Insert(item1b)
 	s.NoError(err)
 
-	if pk, ok := id.(int64); !ok || pk == 0 {
+	if pk, ok := record.ID().(int64); !ok || pk == 0 {
 		s.T().Errorf("Expecting an ID.")
 	}
 
 	var item1bChk optionType
-	err = optionTypes.Find(db.Cond{"id": id}).One(&item1bChk)
+	err = optionTypes.Find(record).One(&item1bChk)
 	s.NoError(err)
 
 	s.Equal(float64(1), item1bChk.Settings["go"])
@@ -633,15 +633,15 @@ func (s *AdapterTests) TestOptionTypes() {
 		Name: "Sup", Tags: []string{}, Settings: map[string]interface{}{},
 	}
 
-	id, err = optionTypes.Insert(item1c)
+	record, err = optionTypes.Insert(item1c)
 	s.NoError(err)
 
-	if pk, ok := id.(int64); !ok || pk == 0 {
+	if pk, ok := record.ID().(int64); !ok || pk == 0 {
 		s.T().Errorf("Expecting an ID.")
 	}
 
 	var item1cChk optionType
-	err = optionTypes.Find(db.Cond{"id": id}).One(&item1cChk)
+	err = optionTypes.Find(record).One(&item1cChk)
 	s.NoError(err)
 
 	s.Zero(len(item1cChk.Tags))
@@ -659,19 +659,19 @@ func (s *AdapterTests) TestOptionTypes() {
 		Name: "JS", Tags: []string{"hi", "bye"}, Settings: nil,
 	}
 
-	id, err = optionTypes.Insert(item2)
+	record, err = optionTypes.Insert(item2)
 	s.NoError(err)
 
-	if pk, ok := id.(int64); !ok || pk == 0 {
+	if pk, ok := record.ID().(int64); !ok || pk == 0 {
 		s.T().Errorf("Expecting an ID.")
 	}
 
 	var item2Chk optionType2
-	res := optionTypes.Find(db.Cond{"id": id})
+	res := optionTypes.Find(record)
 	err = res.One(&item2Chk)
 	s.NoError(err)
 
-	s.Equal(id.(int64), item2Chk.ID)
+	s.Equal(record.ID().(int64), item2Chk.ID)
 
 	s.Equal(item2Chk.Name, item2.Name)
 
@@ -707,15 +707,15 @@ func (s *AdapterTests) TestOptionTypes() {
 		Settings: JSONBMap{"girl": true, "lang": true},
 	}
 
-	id, err = optionTypes.Insert(item3)
+	record, err = optionTypes.Insert(item3)
 	s.NoError(err)
 
-	if pk, ok := id.(int64); !ok || pk == 0 {
+	if pk, ok := record.ID().(int64); !ok || pk == 0 {
 		s.T().Errorf("Expecting an ID.")
 	}
 
 	var item3Chk optionType2
-	err = optionTypes.Find(db.Cond{"id": id}).One(&item3Chk)
+	err = optionTypes.Find(record).One(&item3Chk)
 	s.NoError(err)
 }
 
@@ -752,15 +752,15 @@ func (s *AdapterTests) TestOptionTypeJsonbStruct() {
 		Settings: Settings{Name: "a", Num: 123},
 	}
 
-	id, err := optionTypes.Insert(item1)
+	record, err := optionTypes.Insert(item1)
 	s.NoError(err)
 
-	if pk, ok := id.(int64); !ok || pk == 0 {
+	if pk, ok := record.ID().(int64); !ok || pk == 0 {
 		s.T().Errorf("Expecting an ID.")
 	}
 
 	var item1Chk OptionType
-	err = optionTypes.Find(db.Cond{"id": id}).One(&item1Chk)
+	err = optionTypes.Find(record).One(&item1Chk)
 	s.NoError(err)
 
 	s.Equal(2, len(item1Chk.Tags))
@@ -1062,15 +1062,15 @@ func (s *AdapterTests) TestStringAndInt64Array() {
 	}
 
 	for _, item := range tt {
-		id, err := arrayTypes.Insert(item)
+		record, err := arrayTypes.Insert(item)
 		s.NoError(err)
 
-		if pk, ok := id.(int64); !ok || pk == 0 {
+		if pk, ok := record.ID().(int64); !ok || pk == 0 {
 			s.T().Errorf("Expecting an ID.")
 		}
 
 		var itemCheck arrayType
-		err = arrayTypes.Find(db.Cond{"id": id}).One(&itemCheck)
+		err = arrayTypes.Find(record).One(&itemCheck)
 		s.NoError(err)
 		s.Len(itemCheck.Integers, len(item.Integers))
 		s.Len(itemCheck.Strings, len(item.Strings))

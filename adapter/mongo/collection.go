@@ -250,6 +250,10 @@ func (col *Collection) Truncate() error {
 	return nil
 }
 
+func (col *Collection) Session() db.Session {
+	return col.parent
+}
+
 func (col *Collection) InsertReturning(item interface{}) error {
 	return db.ErrUnsupported
 }
@@ -259,7 +263,7 @@ func (col *Collection) UpdateReturning(item interface{}) error {
 }
 
 // Insert inserts an item (map or struct) into the collection.
-func (col *Collection) Insert(item interface{}) (interface{}, error) {
+func (col *Collection) Insert(item interface{}) (*db.InsertResult, error) {
 	var err error
 
 	id := getID(item)
@@ -285,7 +289,7 @@ func (col *Collection) Insert(item interface{}) (interface{}, error) {
 		}
 	}
 
-	return id, nil
+	return db.NewInsertResult(id), nil
 }
 
 // Exists returns true if the collection exists.

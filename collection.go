@@ -23,6 +23,17 @@ package db
 
 // Collection defines methods to work with database tables or collections.
 type Collection interface {
+
+	// Name returns the name of the collection.
+	Name() string
+
+	// Session returns the Session that was used to create the collection
+	// reference.
+	Session() Session
+
+	// Find defines a new result set.
+	Find(...interface{}) Result
+
 	// Insert inserts a new item into the collection, the type of this item could
 	// be a map, a struct or pointer to either of them. If the call succeeds and
 	// if the collection has a primary key, Insert returns the ID of the newly
@@ -30,7 +41,7 @@ type Collection interface {
 	// on both the database adapter and the column storing the ID.  The ID
 	// returned by Insert() could be passed directly to Find() to retrieve the
 	// newly added element.
-	Insert(interface{}) (interface{}, error)
+	Insert(interface{}) (*InsertResult, error)
 
 	// InsertReturning is like Insert() but it takes a pointer to map or struct
 	// and, if the operation succeeds, updates it with data from the newly
@@ -48,13 +59,7 @@ type Collection interface {
 	// Exists returns true if the collection exists, false otherwise.
 	Exists() bool
 
-	// Find defines a new result set.
-	Find(...interface{}) Result
-
 	// Truncate removes all elements on the collection and resets the
 	// collection's IDs.
 	Truncate() error
-
-	// Name returns the name of the collection.
-	Name() string
 }

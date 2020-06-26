@@ -8,33 +8,31 @@ import (
 	db "github.com/upper/db"
 	"github.com/upper/db/internal/reflectx"
 	"github.com/upper/db/internal/sqladapter/exql"
+	"github.com/upper/db/sqlbuilder"
 )
 
 var mapper = reflectx.NewMapper("db")
 
 var errMissingPrimaryKeys = errors.New("Table %q has no primary keys")
 
-// Collection represents a SQL table.
-type Collection interface {
-	PartialCollection
-	BaseCollection
+// AdapterCollection defines collection methods that must be implemented by
+// adapters.
+type AdapterCollection interface {
+	// Insert inserts a new item into the collection.
+	Insert(Collection, interface{}) (interface{}, error)
 }
 
-// PartialCollection defines methods that must be implemented by the adapter.
-type PartialCollection interface {
-	// Database returns the parent database.
-	Database() Database
+// Collection provides logic for methods that can be shared across all SQL
+// adapters.
+type Collection interface {
+	Insert(interface{}) (*db.InsertResult, error)
 
-	// Name returns the name of the table.
 	Name() string
 
-	// Insert inserts a new item into the collection.
-	Insert(interface{}) (interface{}, error)
-}
+	Session() db.Session
 
-// BaseCollection provides logic for methods that can be shared across all SQL
-// adapters.
-type BaseCollection interface {
+	SQLBuilder() sqlbuilder.SQLBuilder
+
 	// Exists returns true if the collection exists.
 	Exists() bool
 
@@ -52,12 +50,12 @@ type BaseCollection interface {
 	// database.
 	UpdateReturning(interface{}) error
 
-	HasPrimaryKeys
+	// PrimaryKeys returns the names of all primary keys in the table.
+	PrimaryKeys() []string
 }
 
-type HasPrimaryKeys interface {
-	// PrimaryKeys returns the table's primary keys.
-	PrimaryKeys() []string
+type finder interface {
+	Find(Collection, *Result, ...interface{}) db.Result
 }
 
 type condsFilter interface {
@@ -66,8 +64,10 @@ type condsFilter interface {
 
 // collection is the implementation of Collection.
 type collection struct {
-	BaseCollection
-	PartialCollection
+	name string
+	sess Session
+
+	adapter AdapterCollection
 
 	pk  []string
 	err error
@@ -77,11 +77,34 @@ var (
 	_ = Collection(&collection{})
 )
 
-// NewBaseCollection returns a collection with basic methods.
-func NewBaseCollection(p PartialCollection) BaseCollection {
-	c := &collection{PartialCollection: p}
-	c.pk, c.err = c.Database().PrimaryKeys(c.Name())
+func NewCollection(sess Session, name string, adapterCollection AdapterCollection) Collection {
+	c := &collection{
+		sess:    sess,
+		name:    name,
+		adapter: adapterCollection,
+	}
+	c.pk, c.err = c.sess.PrimaryKeys(c.Name())
 	return c
+}
+
+func (c *collection) SQLBuilder() sqlbuilder.SQLBuilder {
+	return c.sess.(sqlbuilder.SQLBuilder)
+}
+
+func (c *collection) Session() db.Session {
+	return c.sess
+}
+
+func (c *collection) Name() string {
+	return c.name
+}
+
+func (c *collection) Insert(item interface{}) (*db.InsertResult, error) {
+	id, err := c.adapter.Insert(c, item)
+	if err != nil {
+		return nil, err
+	}
+	return db.NewInsertResult(id), nil
 }
 
 // PrimaryKeys returns the collection's primary keys, if any.
@@ -90,13 +113,13 @@ func (c *collection) PrimaryKeys() []string {
 }
 
 func (c *collection) filterConds(conds ...interface{}) []interface{} {
-	if tr, ok := c.PartialCollection.(condsFilter); ok {
-		return tr.FilterConds(conds...)
-	}
 	if len(conds) == 1 && len(c.pk) == 1 {
 		if id := conds[0]; IsKeyValue(id) {
 			conds[0] = db.Cond{c.pk[0]: db.Eq(id)}
 		}
+	}
+	if tr, ok := c.adapter.(condsFilter); ok {
+		return tr.FilterConds(conds...)
 	}
 	return conds
 }
@@ -108,16 +131,21 @@ func (c *collection) Find(conds ...interface{}) db.Result {
 		res.setErr(c.err)
 		return res
 	}
-	return NewResult(
-		c.Database(),
+
+	res := NewResult(
+		c.sess,
 		c.Name(),
 		c.filterConds(conds...),
 	)
+	if f, ok := c.adapter.(finder); ok {
+		return f.Find(c, res, conds...)
+	}
+	return res
 }
 
 // Exists returns true if the collection exists.
 func (c *collection) Exists() bool {
-	if err := c.Database().TableExists(c.Name()); err != nil {
+	if err := c.sess.TableExists(c.Name()); err != nil {
 		return false
 	}
 	return true
@@ -138,20 +166,20 @@ func (c *collection) InsertReturning(item interface{}) error {
 		return fmt.Errorf(errMissingPrimaryKeys.Error(), c.Name())
 	}
 
-	var tx DatabaseTx
+	var tx SessionTx
 	inTx := false
 
-	if currTx := c.Database().Transaction(); currTx != nil {
-		tx = NewDatabaseTx(c.Database())
+	if currTx := c.sess.Transaction(); currTx != nil {
+		tx = NewSessionTx(c.sess)
 		inTx = true
 	} else {
 		// Not within a transaction, let's create one.
 		var err error
-		tx, err = c.Database().NewDatabaseTx(c.Database().Context())
+		tx, err = c.sess.NewSessionTx(c.sess.Context())
 		if err != nil {
 			return err
 		}
-		defer tx.(Database).Close()
+		defer tx.(Session).Close()
 	}
 
 	// Allocate a clone of item.
@@ -160,7 +188,7 @@ func (c *collection) InsertReturning(item interface{}) error {
 
 	itemValue := reflect.ValueOf(item)
 
-	col := tx.(Database).Collection(c.Name())
+	col := tx.(Session).Collection(c.Name())
 
 	// Insert item as is and grab the returning ID.
 	var newItemRes db.Result
@@ -209,7 +237,7 @@ func (c *collection) InsertReturning(item interface{}) error {
 	}
 
 	if !inTx {
-		// This is only executed if t.Database() was **not** a transaction and if
+		// This is only executed if t.Session() was **not** a transaction and if
 		// sess was created with sess.NewTransaction().
 		return tx.Commit()
 	}
@@ -221,7 +249,7 @@ cancel:
 	// transaction and we don't want to continue.
 
 	if !inTx {
-		// This is only executed if t.Database() was **not** a transaction and if
+		// This is only executed if t.Session() was **not** a transaction and if
 		// sess was created with sess.NewTransaction().
 		_ = tx.Rollback()
 	}
@@ -242,20 +270,20 @@ func (c *collection) UpdateReturning(item interface{}) error {
 		return fmt.Errorf(errMissingPrimaryKeys.Error(), c.Name())
 	}
 
-	var tx DatabaseTx
+	var tx SessionTx
 	inTx := false
 
-	if currTx := c.Database().Transaction(); currTx != nil {
-		tx = NewDatabaseTx(c.Database())
+	if currTx := c.sess.Transaction(); currTx != nil {
+		tx = NewSessionTx(c.sess)
 		inTx = true
 	} else {
 		// Not within a transaction, let's create one.
 		var err error
-		tx, err = c.Database().NewDatabaseTx(c.Database().Context())
+		tx, err = c.sess.NewSessionTx(c.sess.Context())
 		if err != nil {
 			return err
 		}
-		defer tx.(Database).Close()
+		defer tx.(Session).Close()
 	}
 
 	// Allocate a clone of item.
@@ -269,7 +297,7 @@ func (c *collection) UpdateReturning(item interface{}) error {
 		conds[pk] = db.Eq(mapper.FieldByName(itemValue, pk).Interface())
 	}
 
-	col := tx.(Database).Collection(c.Name())
+	col := tx.(Session).Collection(c.Name())
 
 	err := col.Find(conds).Update(item)
 	if err != nil {
@@ -301,7 +329,7 @@ func (c *collection) UpdateReturning(item interface{}) error {
 	}
 
 	if !inTx {
-		// This is only executed if t.Database() was **not** a transaction and if
+		// This is only executed if t.Session() was **not** a transaction and if
 		// sess was created with sess.NewTransaction().
 		return tx.Commit()
 	}
@@ -312,7 +340,7 @@ cancel:
 	// transaction and we don't want to continue.
 
 	if !inTx {
-		// This is only executed if t.Database() was **not** a transaction and if
+		// This is only executed if t.Session() was **not** a transaction and if
 		// sess was created with sess.NewTransaction().
 		_ = tx.Rollback()
 	}
@@ -325,7 +353,7 @@ func (c *collection) Truncate() error {
 		Type:  exql.Truncate,
 		Table: exql.TableWithName(c.Name()),
 	}
-	if _, err := c.Database().Exec(&stmt); err != nil {
+	if _, err := c.sess.Exec(&stmt); err != nil {
 		return err
 	}
 	return nil

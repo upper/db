@@ -27,47 +27,17 @@ import (
 	"github.com/upper/db/sqlbuilder"
 )
 
-// table is the actual implementation of a collection.
-type table struct {
-	sqladapter.BaseCollection // Leveraged by sqladapter
-
-	d    *database
-	name string
-
+type collectionAdapter struct {
 	hasIdentityColumn *bool
 }
 
-var (
-	_ = sqladapter.Collection(&table{})
-	_ = db.Collection(&table{})
-)
-
-// newTable binds *table with sqladapter.
-func newTable(d *database, name string) *table {
-	t := &table{
-		name: name,
-		d:    d,
-	}
-	t.BaseCollection = sqladapter.NewBaseCollection(t)
-	return t
-}
-
-func (t *table) Name() string {
-	return t.name
-}
-
-func (t *table) Database() sqladapter.Database {
-	return t.d
-}
-
-// Insert inserts an item (map or struct) into the collection.
-func (t *table) Insert(item interface{}) (interface{}, error) {
+func (adt *collectionAdapter) Insert(col sqladapter.Collection, item interface{}) (interface{}, error) {
 	columnNames, columnValues, err := sqlbuilder.Map(item, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	pKey := t.BaseCollection.PrimaryKeys()
+	pKey := col.PrimaryKeys()
 
 	var hasKeys bool
 	for i := range columnNames {
@@ -82,11 +52,11 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 	}
 
 	if hasKeys {
-		if t.hasIdentityColumn == nil {
+		if adt.hasIdentityColumn == nil {
 			var hasIdentityColumn bool
 			var identityColumns int
 
-			row, err := t.d.QueryRow("SELECT COUNT(1) FROM sys.identity_columns WHERE OBJECT_NAME(object_id) = ?", t.Name())
+			row, err := col.SQLBuilder().QueryRow("SELECT COUNT(1) FROM sys.identity_columns WHERE OBJECT_NAME(object_id) = ?", col.Name())
 			if err != nil {
 				return nil, err
 			}
@@ -100,21 +70,21 @@ func (t *table) Insert(item interface{}) (interface{}, error) {
 				hasIdentityColumn = true
 			}
 
-			t.hasIdentityColumn = &hasIdentityColumn
+			adt.hasIdentityColumn = &hasIdentityColumn
 		}
 
-		if *t.hasIdentityColumn {
-			_, err = t.d.Exec("SET IDENTITY_INSERT " + t.Name() + " ON")
+		if *adt.hasIdentityColumn {
+			_, err = col.SQLBuilder().Exec("SET IDENTITY_INSERT " + col.Name() + " ON")
 			if err != nil {
 				return nil, err
 			}
 			defer func() {
-				_, _ = t.d.Exec("SET IDENTITY_INSERT " + t.Name() + " OFF")
+				_, _ = col.SQLBuilder().Exec("SET IDENTITY_INSERT " + col.Name() + " OFF")
 			}()
 		}
 	}
 
-	q := t.d.InsertInto(t.Name()).
+	q := col.SQLBuilder().InsertInto(col.Name()).
 		Columns(columnNames...).
 		Values(columnValues...)
 

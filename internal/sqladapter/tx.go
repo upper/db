@@ -30,10 +30,9 @@ import (
 	"github.com/upper/db/sqlbuilder"
 )
 
-// DatabaseTx represents a database session within a transaction.
-type DatabaseTx interface {
-	BaseDatabase
-	PartialDatabase
+// SessionTx represents a database session within a transaction.
+type SessionTx interface {
+	Session
 
 	BaseTx
 }
@@ -47,17 +46,18 @@ type BaseTx interface {
 	Committed() bool
 }
 
-type databaseTx struct {
-	Database
+type sessionTx struct {
+	Session
 	BaseTx
 }
 
-// NewDatabaseTx creates a database session within a transaction.
-func NewDatabaseTx(db Database) DatabaseTx {
-	return &databaseTx{
-		Database: db,
-		BaseTx:   db.Transaction(),
+// NewSessionTx creates a database session within a transaction.
+func NewSessionTx(sess Session) SessionTx {
+	newSessionTx := &sessionTx{
+		Session: sess,
+		BaseTx:  sess.Transaction(),
 	}
+	return newSessionTx
 }
 
 type baseTx struct {
@@ -83,18 +83,18 @@ func (b *baseTx) Commit() (err error) {
 	return nil
 }
 
-func (w *databaseTx) Commit() error {
-	defer w.Database.Close() // Automatic close on commit.
+func (w *sessionTx) Commit() error {
+	defer w.Session.Close() // Automatic close on commit.
 	return w.BaseTx.Commit()
 }
 
-func (w *databaseTx) Rollback() error {
-	defer w.Database.Close() // Automatic close on rollback.
+func (w *sessionTx) Rollback() error {
+	defer w.Session.Close() // Automatic close on rollback.
 	return w.BaseTx.Rollback()
 }
 
 // TxContext creates a transaction context and runs fn within it.
-func TxContext(d sqlbuilder.Database, ctx context.Context, fn func(tx sqlbuilder.Tx) error) error {
+func TxContext(d sqlbuilder.Session, ctx context.Context, fn func(tx sqlbuilder.Tx) error) error {
 	tx, err := d.NewTx(ctx)
 	if err != nil {
 		return err
@@ -110,5 +110,19 @@ func TxContext(d sqlbuilder.Database, ctx context.Context, fn func(tx sqlbuilder
 
 var (
 	_ = BaseTx(&baseTx{})
-	_ = DatabaseTx(&databaseTx{})
+	_ = SessionTx(&sessionTx{})
 )
+
+type txWrapper struct {
+	SessionTx
+}
+
+var (
+	_ = sqlbuilder.Tx(&txWrapper{})
+)
+
+func (t *txWrapper) WithContext(ctx context.Context) sqlbuilder.Tx {
+	newTx := *t
+	newTx.SessionTx.SetContext(ctx)
+	return &newTx
+}

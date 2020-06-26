@@ -25,74 +25,37 @@
 package mssql
 
 import (
-	"context"
 	"strings"
-	"sync"
 
 	"database/sql"
 
 	_ "github.com/denisenkom/go-mssqldb" // MSSQL driver
 	db "github.com/upper/db"
 	"github.com/upper/db/internal/sqladapter"
-	"github.com/upper/db/internal/sqladapter/compat"
 	"github.com/upper/db/internal/sqladapter/exql"
 	"github.com/upper/db/sqlbuilder"
 )
 
-// database is the actual implementation of Database
 type database struct {
-	sqladapter.BaseDatabase
-
-	sqlbuilder.SQLBuilder
-
-	connURL db.ConnectionURL
-	mu      sync.Mutex
 }
 
-var (
-	_ = sqlbuilder.Database(&database{})
-	_ = sqlbuilder.Database(&database{})
-)
-
-// newDatabase creates a new *database session for internal use.
-func newDatabase(settings db.ConnectionURL) *database {
-	return &database{
-		connURL: settings,
-	}
+func newSession(settings db.ConnectionURL) sqladapter.Session {
+	return sqladapter.NewSession(settings, &database{})
 }
 
-// ConnectionURL returns this database session's connection URL, if any.
-func (d *database) ConnectionURL() db.ConnectionURL {
-	return d.connURL
+func (*database) Template() *exql.Template {
+	return template
 }
 
-// Open attempts to open a connection with the database server.
-func (d *database) Open(connURL db.ConnectionURL) error {
-	if connURL == nil {
-		return db.ErrMissingConnURL
-	}
-	d.connURL = connURL
-	return d.open()
+func (*database) Open(sess sqladapter.Session, dsn string) (*sql.DB, error) {
+	return sql.Open("mssql", dsn)
 }
 
-// NewTx begins a transaction block with the given context.
-func (d *database) NewTx(ctx context.Context) (sqlbuilder.Tx, error) {
-	if ctx == nil {
-		ctx = d.Context()
-	}
-	nTx, err := d.NewDatabaseTx(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return &tx{DatabaseTx: nTx}, nil
-}
-
-// Collections returns a list of non-system tables from the database.
-func (d *database) Collections() (collections []string, err error) {
-	q := d.Select(`table_name`).
+func (*database) Collections(sess sqladapter.Session) (collections []string, err error) {
+	q := sess.Select(`table_name`).
 		From(`information_schema.tables`).
 		Where(`table_type`, `BASE TABLE`).
-		And(`table_catalog`, d.BaseDatabase.Name())
+		And(`table_catalog`, sess.Name())
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -108,52 +71,7 @@ func (d *database) Collections() (collections []string, err error) {
 	return collections, nil
 }
 
-// open attempts to establish a connection with the MySQL server.
-func (d *database) open() error {
-	// Binding with sqladapter's logic.
-	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
-
-	// Binding with sqlbuilder.
-	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
-
-	connFn := func() error {
-		sess, err := sql.Open("mssql", d.ConnectionURL().String())
-		if err == nil {
-			sess.SetConnMaxLifetime(db.DefaultSettings.ConnMaxLifetime())
-			sess.SetMaxIdleConns(db.DefaultSettings.MaxIdleConns())
-			sess.SetMaxOpenConns(db.DefaultSettings.MaxOpenConns())
-			return d.BaseDatabase.BindSession(sess)
-		}
-		return err
-	}
-
-	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Clone creates a copy of the database session on the given context.
-func (d *database) clone(ctx context.Context, checkConn bool) (*database, error) {
-	clone := newDatabase(d.connURL)
-
-	var err error
-	clone.BaseDatabase, err = d.NewClone(clone, checkConn)
-	if err != nil {
-		return nil, err
-	}
-
-	clone.SetContext(ctx)
-
-	clone.SQLBuilder = sqlbuilder.WithSession(clone.BaseDatabase, template)
-
-	return clone, nil
-}
-
-// CompileStatement compiles a *exql.Statement into arguments that sql/database
-// accepts.
-func (d *database) CompileStatement(stmt *exql.Statement, args []interface{}) (string, []interface{}) {
+func (*database) CompileStatement(sess sqladapter.Session, stmt *exql.Statement, args []interface{}) (string, []interface{}) {
 	compiled, err := stmt.Compile(template)
 	if err != nil {
 		panic(err.Error())
@@ -161,9 +79,7 @@ func (d *database) CompileStatement(stmt *exql.Statement, args []interface{}) (s
 	return sqlbuilder.Preprocess(compiled, args)
 }
 
-// Err allows sqladapter to translate specific MySQL string errors into custom
-// error values.
-func (d *database) Err(err error) error {
+func (*database) Err(sess sqladapter.Session, err error) error {
 	if err != nil {
 		// This error is not exported so we have to check it by its string value.
 		s := err.Error()
@@ -174,51 +90,12 @@ func (d *database) Err(err error) error {
 	return err
 }
 
-// NewCollection creates a db.Collection by name.
-func (d *database) NewCollection(name string) db.Collection {
-	return newTable(d, name)
+func (*database) NewCollection() sqladapter.AdapterCollection {
+	return &collectionAdapter{}
 }
 
-// Tx creates a transaction block on the given context and passes it to the
-// function fn.
-func (d *database) TxContext(ctx context.Context, fn func(tx sqlbuilder.Tx) error) error {
-	return sqladapter.TxContext(d, ctx, fn)
-}
-
-// Tx creates a transaction block on the database context and passes it to the
-// function fn.
-func (d *database) Tx(fn func(tx sqlbuilder.Tx) error) error {
-	return sqladapter.TxContext(d, d.Context(), fn)
-}
-
-// NewDatabaseTx begins a transaction block.
-func (d *database) NewDatabaseTx(ctx context.Context) (sqladapter.DatabaseTx, error) {
-	clone, err := d.clone(ctx, true)
-	if err != nil {
-		return nil, err
-	}
-	clone.mu.Lock()
-	defer clone.mu.Unlock()
-
-	connFn := func() error {
-		sqlTx, err := compat.BeginTx(clone.BaseDatabase.Session(), ctx, clone.TxOptions())
-		if err != nil {
-			return err
-		}
-		return clone.BindTx(ctx, sqlTx)
-	}
-
-	if err := d.BaseDatabase.WaitForConnection(connFn); err != nil {
-		return nil, err
-	}
-
-	return sqladapter.NewDatabaseTx(clone), nil
-}
-
-// LookupName looks for the name of the database and it's often used as a
-// test to determine if the connection settings are valid.
-func (d *database) LookupName() (string, error) {
-	q := d.Select(db.Raw(`DB_NAME() AS name`))
+func (*database) LookupName(sess sqladapter.Session) (string, error) {
+	q := sess.Select(db.Raw(`DB_NAME() AS name`))
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -232,12 +109,10 @@ func (d *database) LookupName() (string, error) {
 	return "", iter.Err()
 }
 
-// TableExists returns an error if the given table name does not exist on the
-// database.
-func (d *database) TableExists(name string) error {
-	q := d.Select(`table_name`).
+func (*database) TableExists(sess sqladapter.Session, name string) error {
+	q := sess.Select(`table_name`).
 		From(`information_schema.tables`).
-		Where(`table_schema`, d.BaseDatabase.Name()).
+		Where(`table_schema`, sess.Name()).
 		And(`table_name`, name)
 
 	iter := q.Iterator()
@@ -253,9 +128,8 @@ func (d *database) TableExists(name string) error {
 	return db.ErrCollectionDoesNotExist
 }
 
-// PrimaryKeys returns the names of all the primary keys on the table.
-func (d *database) PrimaryKeys(tableName string) ([]string, error) {
-	q := d.Select(`k.column_name`).
+func (*database) PrimaryKeys(sess sqladapter.Session, tableName string) ([]string, error) {
+	q := sess.Select(`k.column_name`).
 		From(
 			`information_schema.table_constraints AS t`,
 			`information_schema.key_column_usage AS k`,
@@ -280,10 +154,4 @@ func (d *database) PrimaryKeys(tableName string) ([]string, error) {
 	}
 
 	return pk, nil
-}
-
-// WithContext creates a copy of the session on the given context.
-func (d *database) WithContext(ctx context.Context) sqlbuilder.Database {
-	newDB, _ := d.clone(ctx, false)
-	return newDB
 }
