@@ -19,33 +19,14 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package mysql // import "github.com/upper/db/adapter/mysql"
+package db
 
 import (
-	"database/sql"
-
-	db "github.com/upper/db"
-	"github.com/upper/db/internal/sqladapter"
-	"github.com/upper/db/sqlbuilder"
+	"errors"
+	"testing"
 )
 
-// Adapter is the public name of the adapter.
-const Adapter = `mysql`
-
-var registeredAdapter = sqladapter.RegisterAdapter(Adapter, &database{})
-
-// Open establishes a connection to the database server and returns a
-// sqlbuilder.Session instance (which is compatible with db.Session).
-func Open(connURL db.ConnectionURL) (sqlbuilder.Session, error) {
-	return registeredAdapter.OpenDSN(connURL)
-}
-
-// NewTx creates a sqlbuilder.Tx instance by wrapping a *sql.Tx value.
-func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
-	return registeredAdapter.NewTx(sqlTx)
-}
-
-// New creates a sqlbuilder.Sesion instance by wrapping a *sql.DB value.
-func New(sqlDB *sql.DB) (sqlbuilder.Session, error) {
-	return registeredAdapter.New(sqlDB)
+func TestLogger(t *testing.T) {
+	err := ErrNoMoreRows.Wrap(errors.New("fake error"))
+	Log().Error(err)
 }

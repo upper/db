@@ -27,7 +27,6 @@ package sqlite
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 
 	_ "github.com/mattn/go-sqlite3" // SQLite3 driver.
@@ -42,31 +41,11 @@ import (
 type database struct {
 }
 
-var (
-	fileOpenCount       int32
-	errTooManyOpenFiles       = errors.New(`Too many open database files.`)
-	maxOpenFiles        int32 = 100
-)
-
-func newSession(settings db.ConnectionURL) sqladapter.Session {
-	return sqladapter.NewSession(settings, &database{})
-}
-
 func (*database) Template() *exql.Template {
 	return template
 }
 
-/*
-// CleanUp cleans up the session.
-func (d *database) CleanUp() error {
-	if atomic.AddInt32(&fileOpenCount, -1) < 0 {
-		return errors.New(`Close() without Open()?`)
-	}
-	return nil
-}
-*/
-
-func (*database) Open(sess sqladapter.Session, dsn string) (*sql.DB, error) {
+func (*database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {
 	return sql.Open("sqlite3", dsn)
 }
 
@@ -85,63 +64,14 @@ func (*database) Collections(sess sqladapter.Session) (collections []string, err
 		}
 		collections = append(collections, tableName)
 	}
+	if err := iter.Err(); err != nil {
+		return nil, err
+	}
 
 	return collections, nil
 }
 
-/*
-func (d *database) open() error {
-	// Binding with sqladapter's logic.
-	d.BaseDatabase = sqladapter.NewBaseDatabase(d)
-
-	// Binding with sqlbuilder.
-	d.SQLBuilder = sqlbuilder.WithSession(d.BaseDatabase, template)
-
-	openFn := func() error {
-		openFiles := atomic.LoadInt32(&fileOpenCount)
-		if openFiles < maxOpenFiles {
-			sess, err := sql.Open("sqlite3", d.ConnectionURL().String())
-			if err == nil {
-				if err := d.BaseDatabase.BindSession(sess); err != nil {
-					return err
-				}
-				atomic.AddInt32(&fileOpenCount, 1)
-				return nil
-			}
-			return err
-		}
-		return errTooManyOpenFiles
-	}
-
-	if err := d.BaseDatabase.WaitForConnection(openFn); err != nil {
-		return err
-	}
-
-	return nil
-}
-*/
-
-func (*database) CompileStatement(sess sqladapter.Session, stmt *exql.Statement, args []interface{}) (string, []interface{}) {
-	compiled, err := stmt.Compile(template)
-	if err != nil {
-		panic(err.Error())
-	}
-	return sqlbuilder.Preprocess(compiled, args)
-}
-
-func (*database) Err(sess sqladapter.Session, err error) error {
-	if err != nil {
-		if err == errTooManyOpenFiles {
-			return db.ErrTooManyClients
-		}
-	}
-	return err
-}
-
 func (*database) StatementExec(sess sqladapter.Session, ctx context.Context, query string, args ...interface{}) (res sql.Result, err error) {
-	//d.mu.Lock()
-	//defer d.mu.Unlock()
-
 	if sess.Transaction() != nil {
 		return compat.ExecContext(sess.Driver().(*sql.Tx), ctx, query, args)
 	}
@@ -162,7 +92,7 @@ func (*database) StatementExec(sess sqladapter.Session, ctx context.Context, que
 	return res, err
 }
 
-func (*database) NewCollection() sqladapter.AdapterCollection {
+func (*database) NewCollection() sqladapter.CollectionAdapter {
 	return &collectionAdapter{}
 }
 
@@ -189,6 +119,10 @@ func (*database) TableExists(sess sqladapter.Session, name string) error {
 		}
 		return nil
 	}
+	if err := iter.Err(); err != nil {
+		return err
+	}
+
 	return db.ErrCollectionDoesNotExist
 }
 

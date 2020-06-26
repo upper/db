@@ -157,9 +157,7 @@ func (s *AdapterTests) TestTruncate() {
 
 	for _, col := range collections {
 		// The collection may ot may not exists.
-		exists := col.Exists()
-
-		if exists == true {
+		if ok, _ := col.Exists(); ok {
 			// Truncating the structure, if exists.
 			err = col.Truncate()
 			s.NoError(err)

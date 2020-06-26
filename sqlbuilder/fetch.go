@@ -32,7 +32,7 @@ type hasConvertValues interface {
 	ConvertValues(values []interface{}) []interface{}
 }
 
-var mapper = reflectx.NewMapper("db")
+var Mapper = reflectx.NewMapper("db")
 
 // fetchRow receives a *sql.Rows value and tries to map all the rows into a
 // single struct given by the pointer `dst`.
@@ -156,7 +156,7 @@ func fetchResult(iter *iterator, itemT reflect.Type, columns []string) (reflect.
 	case reflect.Struct:
 
 		values := make([]interface{}, len(columns))
-		typeMap := mapper.TypeMap(itemT)
+		typeMap := Mapper.TypeMap(itemT)
 		fieldMap := typeMap.Names
 
 		for i, k := range columns {

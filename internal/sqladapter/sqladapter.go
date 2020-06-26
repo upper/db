@@ -23,7 +23,10 @@
 package sqladapter
 
 import (
+	"database/sql"
 	"database/sql/driver"
+	"github.com/upper/db"
+	"github.com/upper/db/sqlbuilder"
 )
 
 // IsKeyValue reports whether v is a valid value for a primary key that can be
@@ -41,4 +44,39 @@ func IsKeyValue(v interface{}) bool {
 		return true
 	}
 	return false
+}
+
+type sqlAdapterWrapper struct {
+	adapter AdapterSession
+}
+
+func (w *sqlAdapterWrapper) OpenDSN(dsn db.ConnectionURL) (sqlbuilder.Session, error) {
+	sess := NewSession(dsn, w.adapter)
+	if err := sess.Open(); err != nil {
+		return nil, err
+	}
+	return sess, nil
+}
+
+func (w *sqlAdapterWrapper) NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
+	tx, err := NewTx(w.adapter, sqlTx)
+	if err != nil {
+		return nil, err
+	}
+	return tx, nil
+}
+
+func (w *sqlAdapterWrapper) New(sqlDB *sql.DB) (sqlbuilder.Session, error) {
+	sess := NewSession(nil, w.adapter)
+	if err := sess.BindDB(sqlDB); err != nil {
+		return nil, err
+	}
+	return sess, nil
+}
+
+// RegisterAdapter registers a new SQL adapter.
+func RegisterAdapter(name string, adapter AdapterSession) sqlbuilder.Adapter {
+	z := &sqlAdapterWrapper{adapter}
+	db.RegisterAdapter(name, sqlbuilder.NewCompatAdapter(z))
+	return z
 }

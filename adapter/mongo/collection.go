@@ -293,10 +293,10 @@ func (col *Collection) Insert(item interface{}) (*db.InsertResult, error) {
 }
 
 // Exists returns true if the collection exists.
-func (col *Collection) Exists() bool {
+func (col *Collection) Exists() (bool, error) {
 	query := col.parent.database.C(`system.namespaces`).Find(map[string]string{`name`: fmt.Sprintf(`%s.%s`, col.parent.database.Name, col.collection.Name)})
-	count, _ := query.Count()
-	return count > 0
+	count, err := query.Count()
+	return count > 0, err
 }
 
 // Fetches object _id or generates a new one if object doesn't have one or the one it has is invalid

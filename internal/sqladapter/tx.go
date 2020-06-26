@@ -94,8 +94,8 @@ func (w *sessionTx) Rollback() error {
 }
 
 // TxContext creates a transaction context and runs fn within it.
-func TxContext(d sqlbuilder.Session, ctx context.Context, fn func(tx sqlbuilder.Tx) error) error {
-	tx, err := d.NewTx(ctx)
+func TxContext(ctx context.Context, sess sqlbuilder.Session, fn func(tx sqlbuilder.Tx) error) error {
+	tx, err := sess.NewTx(ctx)
 	if err != nil {
 		return err
 	}
