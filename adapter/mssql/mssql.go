@@ -32,45 +32,20 @@ import (
 // Adapter is the public name of the adapter.
 const Adapter = `mssql`
 
-type mssqlAdapter struct {
-}
+var registeredAdapter = sqladapter.RegisterAdapter(Adapter, &database{})
 
-func (mssqlAdapter) Open(dsn db.ConnectionURL) (db.Session, error) {
-	return Open(dsn)
-}
-
-func (mssqlAdapter) NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
-	return NewTx(sqlTx)
-}
-
-func (mssqlAdapter) New(sqlDB *sql.DB) (sqlbuilder.Session, error) {
-	return New(sqlDB)
-}
-
-func init() {
-	db.RegisterAdapter(Adapter, sqlbuilder.Adapter(&mssqlAdapter{}))
-}
-
+// Open establishes a connection to the database server and returns a
+// sqlbuilder.Session instance (which is compatible with db.Session).
 func Open(connURL db.ConnectionURL) (sqlbuilder.Session, error) {
-	sess := newSession(connURL)
-	if err := sess.Open(); err != nil {
-		return nil, err
-	}
-	return sess, nil
+	return registeredAdapter.OpenDSN(connURL)
 }
 
+// NewTx creates a sqlbuilder.Tx instance by wrapping a *sql.Tx value.
 func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
-	tx, err := sqladapter.NewTx(&database{}, sqlTx)
-	if err != nil {
-		return nil, err
-	}
-	return tx, nil
+	return registeredAdapter.NewTx(sqlTx)
 }
 
+// New creates a sqlbuilder.Sesion instance by wrapping a *sql.DB value.
 func New(sqlDB *sql.DB) (sqlbuilder.Session, error) {
-	sess := newSession(nil)
-	if err := sess.BindDB(sqlDB); err != nil {
-		return nil, err
-	}
-	return sess, nil
+	return registeredAdapter.New(sqlDB)
 }

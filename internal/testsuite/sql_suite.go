@@ -4,28 +4,16 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/suite"
 	db "github.com/upper/db"
 )
-
-type customLogger struct {
-}
-
-func (*customLogger) Log(q *db.QueryStatus) {
-	switch q.Err {
-	case nil, db.ErrNoMoreRows:
-		return // Don't log successful queries.
-	}
-	// Alert of any other error.
-	log.Printf("Expected database error: %v\n%s", q.Err, q.String())
-}
 
 type artistType struct {
 	ID   int64  `db:"id,omitempty"`
@@ -193,7 +181,7 @@ func (s *SQLTestSuite) TestTruncateAllCollections() {
 	s.True(len(collections) > 0)
 
 	for _, col := range collections {
-		if col.Exists() {
+		if ok, _ := col.Exists(); ok {
 			if err = col.Truncate(); err != nil {
 				s.NoError(err)
 			}
@@ -201,15 +189,16 @@ func (s *SQLTestSuite) TestTruncateAllCollections() {
 	}
 }
 
-func (s *SQLTestSuite) TestCustomQueryLogger() {
-	sess := s.SQLBuilder()
+func (s *SQLTestSuite) TestQueryLogger() {
+	db.Log().SetLogger(logrus.New())
+	db.Log().SetLevel(db.LogLevelDebug)
 
-	sess.SetLogger(&customLogger{})
-	sess.SetLogging(true)
 	defer func() {
-		sess.SetLogger(nil)
-		sess.SetLogging(false)
+		db.Log().SetLogger(nil)
+		db.Log().SetLevel(db.LogLevelWarn)
 	}()
+
+	sess := s.SQLBuilder()
 
 	_, err := sess.Collection("artist").Find().Count()
 	s.Equal(nil, err)
@@ -1783,9 +1772,9 @@ func (s *SQLTestSuite) TestExhaustConnectionPool() {
 
 	sess := s.SQLBuilder()
 
-	sess.SetLogging(true)
+	db.Log().SetLevel(db.LogLevelDebug)
 	defer func() {
-		sess.SetLogging(false)
+		db.Log().SetLevel(db.LogLevelWarn)
 	}()
 
 	var wg sync.WaitGroup
@@ -1804,14 +1793,6 @@ func (s *SQLTestSuite) TestExhaustConnectionPool() {
 				tFatal(err)
 			}
 			tLogf("Tx %d: OK (time to connect: %v)", i, time.Since(start))
-
-			if !sess.LoggingEnabled() {
-				tLogf("Expecting logging to be enabled")
-			}
-
-			if !tx.LoggingEnabled() {
-				tLogf("Expecting logging to be enabled (enabled by parent session)")
-			}
 
 			// Let's suppose that we do a bunch of complex stuff and that the
 			// transaction lasts 3 seconds.

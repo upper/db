@@ -130,5 +130,21 @@ type Adapter interface {
 	NewTx(*sql.Tx) (Tx, error)
 
 	// Open opens a SQL database.
-	Open(db.ConnectionURL) (db.Session, error)
+	OpenDSN(db.ConnectionURL) (Session, error)
+}
+
+type dbAdapter struct {
+	Adapter
+}
+
+func (d *dbAdapter) Open(conn db.ConnectionURL) (db.Session, error) {
+	sess, err := d.Adapter.OpenDSN(conn)
+	if err != nil {
+		return nil, err
+	}
+	return sess.(db.Session), nil
+}
+
+func NewCompatAdapter(adapter Adapter) db.Adapter {
+	return &dbAdapter{adapter}
 }

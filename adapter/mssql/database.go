@@ -33,21 +33,16 @@ import (
 	db "github.com/upper/db"
 	"github.com/upper/db/internal/sqladapter"
 	"github.com/upper/db/internal/sqladapter/exql"
-	"github.com/upper/db/sqlbuilder"
 )
 
 type database struct {
-}
-
-func newSession(settings db.ConnectionURL) sqladapter.Session {
-	return sqladapter.NewSession(settings, &database{})
 }
 
 func (*database) Template() *exql.Template {
 	return template
 }
 
-func (*database) Open(sess sqladapter.Session, dsn string) (*sql.DB, error) {
+func (*database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {
 	return sql.Open("mssql", dsn)
 }
 
@@ -67,19 +62,14 @@ func (*database) Collections(sess sqladapter.Session) (collections []string, err
 		}
 		collections = append(collections, tableName)
 	}
+	if err := iter.Err(); err != nil {
+		return nil, err
+	}
 
 	return collections, nil
 }
 
-func (*database) CompileStatement(sess sqladapter.Session, stmt *exql.Statement, args []interface{}) (string, []interface{}) {
-	compiled, err := stmt.Compile(template)
-	if err != nil {
-		panic(err.Error())
-	}
-	return sqlbuilder.Preprocess(compiled, args)
-}
-
-func (*database) Err(sess sqladapter.Session, err error) error {
+func (*database) Err(err error) error {
 	if err != nil {
 		// This error is not exported so we have to check it by its string value.
 		s := err.Error()
@@ -90,7 +80,7 @@ func (*database) Err(sess sqladapter.Session, err error) error {
 	return err
 }
 
-func (*database) NewCollection() sqladapter.AdapterCollection {
+func (*database) NewCollection() sqladapter.CollectionAdapter {
 	return &collectionAdapter{}
 }
 
@@ -125,6 +115,10 @@ func (*database) TableExists(sess sqladapter.Session, name string) error {
 		}
 		return nil
 	}
+	if err := iter.Err(); err != nil {
+		return err
+	}
+
 	return db.ErrCollectionDoesNotExist
 }
 
@@ -151,6 +145,9 @@ func (*database) PrimaryKeys(sess sqladapter.Session, tableName string) ([]strin
 			return nil, err
 		}
 		pk = append(pk, k)
+	}
+	if err := iter.Err(); err != nil {
+		return nil, err
 	}
 
 	return pk, nil

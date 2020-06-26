@@ -257,7 +257,7 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 
 	switch itemT.Kind() {
 	case reflect.Struct:
-		fieldMap := mapper.TypeMap(itemT).Names
+		fieldMap := Mapper.TypeMap(itemT).Names
 		nfields := len(fieldMap)
 
 		fv.values = make([]interface{}, 0, nfields)

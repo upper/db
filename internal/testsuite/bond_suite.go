@@ -360,7 +360,6 @@ func (s *BondTestSuite) TestInheritedTx() {
 	// And pass that transaction to bond, this whole session is a transaction.
 	bondTx, err := sqlbuilder.BindTx(s.Adapter(), sqlTx)
 	s.NoError(err)
-	return
 
 	// Should fail because user is a UNIQUE value and we already have a "peter".
 	err = bondTx.Item(&User{Username: "peter"}).Save()

@@ -29,20 +29,10 @@ import (
 
 // Settings defines methods to get or set configuration values.
 type Settings interface {
-
-	// SetLogging enables or disables logging.
-	SetLogging(bool)
-	// LoggingEnabled returns true if logging is enabled, false otherwise.
-	LoggingEnabled() bool
-
-	// SetLogger defines which logger to use.
-	SetLogger(Logger)
-	// Returns the currently configured logger.
-	Logger() Logger
-
 	// SetPreparedStatementCache enables or disables the prepared statement
 	// cache.
 	SetPreparedStatementCache(bool)
+
 	// PreparedStatementCacheEnabled returns true if the prepared statement cache
 	// is enabled, false otherwise.
 	PreparedStatementCacheEnabled() bool
@@ -80,28 +70,6 @@ type settings struct {
 	connMaxLifetime time.Duration
 	maxOpenConns    int
 	maxIdleConns    int
-
-	loggingEnabled uint32
-	queryLogger    Logger
-	queryLoggerMu  sync.RWMutex
-}
-
-func (c *settings) Logger() Logger {
-	c.queryLoggerMu.RLock()
-	defer c.queryLoggerMu.RUnlock()
-
-	if c.queryLogger == nil {
-		return defaultLogger
-	}
-
-	return c.queryLogger
-}
-
-func (c *settings) SetLogger(lg Logger) {
-	c.queryLoggerMu.Lock()
-	defer c.queryLoggerMu.Unlock()
-
-	c.queryLogger = lg
 }
 
 func (c *settings) binaryOption(opt *uint32) bool {
@@ -114,14 +82,6 @@ func (c *settings) setBinaryOption(opt *uint32, value bool) {
 		return
 	}
 	atomic.StoreUint32(opt, 0)
-}
-
-func (c *settings) SetLogging(value bool) {
-	c.setBinaryOption(&c.loggingEnabled, value)
-}
-
-func (c *settings) LoggingEnabled() bool {
-	return c.binaryOption(&c.loggingEnabled)
 }
 
 func (c *settings) SetPreparedStatementCache(value bool) {
@@ -173,7 +133,6 @@ func (c *settings) MaxOpenConns() int {
 func NewSettings() Settings {
 	def := DefaultSettings.(*settings)
 	return &settings{
-		loggingEnabled:                def.loggingEnabled,
 		preparedStatementCacheEnabled: def.preparedStatementCacheEnabled,
 		connMaxLifetime:               def.connMaxLifetime,
 		maxIdleConns:                  def.maxIdleConns,
@@ -188,11 +147,4 @@ var DefaultSettings Settings = &settings{
 	connMaxLifetime:               time.Duration(0),
 	maxIdleConns:                  10,
 	maxOpenConns:                  0,
-	queryLogger:                   defaultLogger,
-}
-
-func init() {
-	if envEnabled(envDebugEnabled) {
-		DefaultSettings.SetLogging(true)
-	}
 }
