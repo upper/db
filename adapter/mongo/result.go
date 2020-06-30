@@ -35,6 +35,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/upper/db/internal/immutable"
+	"github.com/upper/db/internal/sqladapter"
 )
 
 type resultQuery struct {
@@ -227,16 +228,14 @@ func (res *result) All(dst interface{}) error {
 		return err
 	}
 
-	if rq.c.parent.LoggingEnabled() {
-		defer func(start time.Time) {
-			rq.c.parent.Logger().Log(&db.QueryStatus{
-				Query: rq.debugQuery("Find.All"),
-				Err:   err,
-				Start: start,
-				End:   time.Now(),
-			})
-		}(time.Now())
-	}
+	defer func(start time.Time) {
+		queryLog(&sqladapter.QueryStatus{
+			Query: rq.debugQuery("Find.All"),
+			Err:   err,
+			Start: start,
+			End:   time.Now(),
+		})
+	}(time.Now())
 
 	err = q.All(dst)
 	if err == mgo.ErrNotFound {
@@ -266,16 +265,14 @@ func (res *result) One(dst interface{}) error {
 		return err
 	}
 
-	if rq.c.parent.LoggingEnabled() {
-		defer func(start time.Time) {
-			rq.c.parent.Logger().Log(&db.QueryStatus{
-				Query: rq.debugQuery("Find.One"),
-				Err:   err,
-				Start: start,
-				End:   time.Now(),
-			})
-		}(time.Now())
-	}
+	defer func(start time.Time) {
+		queryLog(&sqladapter.QueryStatus{
+			Query: rq.debugQuery("Find.One"),
+			Err:   err,
+			Start: start,
+			End:   time.Now(),
+		})
+	}(time.Now())
 
 	err = q.One(dst)
 	if err == mgo.ErrNotFound {
@@ -309,16 +306,14 @@ func (res *result) Next(dst interface{}) bool {
 			return false
 		}
 
-		if rq.c.parent.LoggingEnabled() {
-			defer func(start time.Time) {
-				rq.c.parent.Logger().Log(&db.QueryStatus{
-					Query: rq.debugQuery("Find.Next"),
-					Err:   err,
-					Start: start,
-					End:   time.Now(),
-				})
-			}(time.Now())
-		}
+		defer func(start time.Time) {
+			queryLog(&sqladapter.QueryStatus{
+				Query: rq.debugQuery("Find.Next"),
+				Err:   err,
+				Start: start,
+				End:   time.Now(),
+			})
+		}(time.Now())
 
 		res.iter = q.Iter()
 	}
@@ -338,16 +333,14 @@ func (res *result) Delete() error {
 		return err
 	}
 
-	if rq.c.parent.LoggingEnabled() {
-		defer func(start time.Time) {
-			rq.c.parent.Logger().Log(&db.QueryStatus{
-				Query: rq.debugQuery("Remove"),
-				Err:   err,
-				Start: start,
-				End:   time.Now(),
-			})
-		}(time.Now())
-	}
+	defer func(start time.Time) {
+		queryLog(&sqladapter.QueryStatus{
+			Query: rq.debugQuery("Remove"),
+			Err:   err,
+			Start: start,
+			End:   time.Now(),
+		})
+	}(time.Now())
 
 	_, err = rq.c.collection.RemoveAll(rq.conditions)
 	if err != nil {
@@ -377,16 +370,14 @@ func (res *result) Update(src interface{}) (err error) {
 		return err
 	}
 
-	if rq.c.parent.LoggingEnabled() {
-		defer func(start time.Time) {
-			rq.c.parent.Logger().Log(&db.QueryStatus{
-				Query: rq.debugQuery("Update"),
-				Err:   err,
-				Start: start,
-				End:   time.Now(),
-			})
-		}(time.Now())
-	}
+	defer func(start time.Time) {
+		queryLog(&sqladapter.QueryStatus{
+			Query: rq.debugQuery("Update"),
+			Err:   err,
+			Start: start,
+			End:   time.Now(),
+		})
+	}(time.Now())
 
 	_, err = rq.c.collection.UpdateAll(rq.conditions, updateSet)
 	if err != nil {
@@ -494,16 +485,14 @@ func (res *result) Count() (total uint64, err error) {
 		return 0, err
 	}
 
-	if rq.c.parent.LoggingEnabled() {
-		defer func(start time.Time) {
-			rq.c.parent.Logger().Log(&db.QueryStatus{
-				Query: rq.debugQuery("Find.Count"),
-				Err:   err,
-				Start: start,
-				End:   time.Now(),
-			})
-		}(time.Now())
-	}
+	defer func(start time.Time) {
+		queryLog(&sqladapter.QueryStatus{
+			Query: rq.debugQuery("Find.Count"),
+			Err:   err,
+			Start: start,
+			End:   time.Now(),
+		})
+	}(time.Now())
 
 	q := rq.c.collection.Find(rq.conditions)
 
@@ -578,4 +567,21 @@ func mustJSON(in interface{}) (out []byte) {
 		panic(err)
 	}
 	return out
+}
+
+func queryLog(status *sqladapter.QueryStatus) {
+	diff := status.End.Sub(status.Start)
+
+	slowQuery := false
+	if diff >= time.Millisecond*100 {
+		status.Err = db.ErrWarnSlowQuery
+		slowQuery = true
+	}
+
+	if status.Err != nil || slowQuery {
+		db.Log().Warn(status)
+		return
+	}
+
+	db.Log().Debug(status)
 }
