@@ -164,7 +164,7 @@ func (c ConnectionURL) String() (s string) {
 func ParseURL(s string) (u ConnectionURL, err error) {
 	o := make(values)
 
-	if strings.HasPrefix(s, "postgres://") {
+	if strings.HasPrefix(s, "postgres://") || strings.HasPrefix(s, "postgresql://") {
 		s, err = pq.ParseURL(s)
 		if err != nil {
 			return u, err
