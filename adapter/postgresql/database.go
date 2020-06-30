@@ -42,15 +42,11 @@ import (
 type database struct {
 }
 
-func newSession(settings db.ConnectionURL) sqladapter.Session {
-	return sqladapter.NewSession(settings, &database{})
-}
-
 func (*database) Template() *exql.Template {
 	return template
 }
 
-func (*database) Open(sess sqladapter.Session, dsn string) (*sql.DB, error) {
+func (*database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {
 	return sql.Open("postgres", dsn)
 }
 
@@ -68,6 +64,9 @@ func (*database) Collections(sess sqladapter.Session) (collections []string, err
 			return nil, err
 		}
 		collections = append(collections, name)
+	}
+	if err := iter.Err(); err != nil {
+		return nil, err
 	}
 
 	return collections, nil
@@ -114,17 +113,18 @@ func (*database) ConvertValues(values []interface{}) []interface{} {
 	return values
 }
 
-func (*database) CompileStatement(sess sqladapter.Session, stmt *exql.Statement, args []interface{}) (string, []interface{}) {
+func (*database) CompileStatement(sess sqladapter.Session, stmt *exql.Statement, args []interface{}) (string, []interface{}, error) {
 	compiled, err := stmt.Compile(template)
 	if err != nil {
-		panic(err.Error())
+		return "", nil, err
 	}
 
 	query, args := sqlbuilder.Preprocess(compiled, args)
-	return sqladapter.ReplaceWithDollarSign(query), args
+	query = sqladapter.ReplaceWithDollarSign(query)
+	return query, args, nil
 }
 
-func (*database) Err(sess sqladapter.Session, err error) error {
+func (*database) Err(err error) error {
 	if err != nil {
 		s := err.Error()
 		// These errors are not exported so we have to check them by they string value.
@@ -135,7 +135,7 @@ func (*database) Err(sess sqladapter.Session, err error) error {
 	return err
 }
 
-func (*database) NewCollection() sqladapter.AdapterCollection {
+func (*database) NewCollection() sqladapter.CollectionAdapter {
 	return &collectionAdapter{}
 }
 
@@ -147,8 +147,10 @@ func (*database) LookupName(sess sqladapter.Session) (string, error) {
 
 	if iter.Next() {
 		var name string
-		err := iter.Scan(&name)
-		return name, err
+		if err := iter.Scan(&name); err != nil {
+			return "", err
+		}
+		return name, nil
 	}
 
 	return "", iter.Err()
@@ -168,6 +170,9 @@ func (*database) TableExists(sess sqladapter.Session, name string) error {
 			return err
 		}
 		return nil
+	}
+	if err := iter.Err(); err != nil {
+		return err
 	}
 
 	return db.ErrCollectionDoesNotExist

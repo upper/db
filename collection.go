@@ -57,9 +57,8 @@ type Collection interface {
 	UpdateReturning(interface{}) error
 
 	// Exists returns true if the collection exists, false otherwise.
-	Exists() bool
+	Exists() (bool, error)
 
-	// Truncate removes all elements on the collection and resets the
-	// collection's IDs.
+	// Truncate removes all elements on the collection.
 	Truncate() error
 }

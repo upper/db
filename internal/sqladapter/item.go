@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	db "github.com/upper/db"
+	"github.com/upper/db/sqlbuilder"
 )
 
 type item struct {
@@ -17,7 +18,7 @@ func mapValues(model db.Model) db.M {
 	if model == nil {
 		return m
 	}
-	fieldMap := mapper.FieldMap(reflect.ValueOf(model))
+	fieldMap := sqlbuilder.Mapper.FieldMap(reflect.ValueOf(model))
 	for column := range fieldMap {
 		m[column] = fieldMap[column].Interface()
 	}
@@ -46,7 +47,7 @@ func (z *item) Changes() db.M {
 
 func (z *item) getPrimaryKeyFieldValues() ([]string, []interface{}) {
 	pKeys := z.model.Collection(z.sess).(Collection).PrimaryKeys()
-	fields := mapper.FieldsByName(reflect.ValueOf(z.model), pKeys)
+	fields := sqlbuilder.Mapper.FieldsByName(reflect.ValueOf(z.model), pKeys)
 
 	values := make([]interface{}, 0, len(fields))
 	for i := range fields {

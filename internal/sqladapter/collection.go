@@ -1,57 +1,58 @@
 package sqladapter
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 
 	db "github.com/upper/db"
-	"github.com/upper/db/internal/reflectx"
 	"github.com/upper/db/internal/sqladapter/exql"
 	"github.com/upper/db/sqlbuilder"
 )
 
-var mapper = reflectx.NewMapper("db")
-
-var errMissingPrimaryKeys = errors.New("Table %q has no primary keys")
-
-// AdapterCollection defines collection methods that must be implemented by
-// adapters.
-type AdapterCollection interface {
-	// Insert inserts a new item into the collection.
+// CollectionAdapter defines methods to be implemented by SQL adapters.
+type CollectionAdapter interface {
+	// Insert prepares and executes an INSERT statament. When the item is
+	// succefully added, Insert returns a unique identifier of the newly added
+	// element (or nil if the unique identifier couldn't be determined).
 	Insert(Collection, interface{}) (interface{}, error)
 }
 
-// Collection provides logic for methods that can be shared across all SQL
-// adapters.
+// Collection satisfies db.Collection.
 type Collection interface {
+	// Insert inserts a new item into the collection.
 	Insert(interface{}) (*db.InsertResult, error)
 
+	// Name returns the name of the collection.
 	Name() string
 
+	// Session returns the db.Session the collection belongs to.
 	Session() db.Session
 
-	SQLBuilder() sqlbuilder.SQLBuilder
+	// Exists returns true if the collection exists, false otherwise.
+	Exists() (bool, error)
 
-	// Exists returns true if the collection exists.
-	Exists() bool
-
-	// Find creates and returns a new result set.
+	// Find defined a new result set.
 	Find(conds ...interface{}) db.Result
 
-	// Truncate removes all items on the collection.
+	// Truncate removes all elements on the collection and resets the
+	// collection's IDs.
 	Truncate() error
 
-	// InsertReturning inserts a new item and updates it with the
-	// actual values from the database.
-	InsertReturning(interface{}) error
+	// InsertReturning inserts a new item into the collection and refreshes the
+	// item with actual data from the database. This is useful to get automatic
+	// values, such as timestamps, or IDs.
+	InsertReturning(item interface{}) error
 
-	// UpdateReturning updates an item and returns the actual values from the
-	// database.
-	UpdateReturning(interface{}) error
+	// UpdateReturning updates an item from the collection and refreshes the item
+	// with actual data from the database. This is useful to get automatic
+	// values, such as timestamps, or IDs.
+	UpdateReturning(item interface{}) error
 
 	// PrimaryKeys returns the names of all primary keys in the table.
 	PrimaryKeys() []string
+
+	// SQLBuilder returns a sqlbuilder.SQLBuilder instance.
+	SQLBuilder() sqlbuilder.SQLBuilder
 }
 
 type finder interface {
@@ -67,21 +68,21 @@ type collection struct {
 	name string
 	sess Session
 
-	adapter AdapterCollection
+	adapter CollectionAdapter
 
 	pk  []string
 	err error
 }
 
-var (
-	_ = Collection(&collection{})
-)
-
-func NewCollection(sess Session, name string, adapterCollection AdapterCollection) Collection {
+// NewCollection initializes a Collection by wrapping a CollectionAdapter.
+func NewCollection(sess Session, name string, adapter CollectionAdapter) Collection {
+	if adapter == nil {
+		panic("uppper: received nil adapter")
+	}
 	c := &collection{
 		sess:    sess,
 		name:    name,
-		adapter: adapterCollection,
+		adapter: adapter,
 	}
 	c.pk, c.err = c.sess.PrimaryKeys(c.Name())
 	return c
@@ -104,10 +105,10 @@ func (c *collection) Insert(item interface{}) (*db.InsertResult, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return db.NewInsertResult(id), nil
 }
 
-// PrimaryKeys returns the collection's primary keys, if any.
 func (c *collection) PrimaryKeys() []string {
 	return c.pk
 }
@@ -124,7 +125,6 @@ func (c *collection) filterConds(conds ...interface{}) []interface{} {
 	return conds
 }
 
-// Find creates a result set with the given conditions.
 func (c *collection) Find(conds ...interface{}) db.Result {
 	if c.err != nil {
 		res := &Result{}
@@ -143,15 +143,13 @@ func (c *collection) Find(conds ...interface{}) db.Result {
 	return res
 }
 
-// Exists returns true if the collection exists.
-func (c *collection) Exists() bool {
+func (c *collection) Exists() (bool, error) {
 	if err := c.sess.TableExists(c.Name()); err != nil {
-		return false
+		return false, err
 	}
-	return true
+	return true, nil
 }
 
-// InsertReturning inserts an item and updates the given variable reference.
 func (c *collection) InsertReturning(item interface{}) error {
 	if item == nil || reflect.TypeOf(item).Kind() != reflect.Ptr {
 		return fmt.Errorf("Expecting a pointer but got %T", item)
@@ -160,10 +158,10 @@ func (c *collection) InsertReturning(item interface{}) error {
 	// Grab primary keys
 	pks := c.PrimaryKeys()
 	if len(pks) == 0 {
-		if !c.Exists() {
-			return db.ErrCollectionDoesNotExist
+		if ok, err := c.Exists(); !ok {
+			return err
 		}
-		return fmt.Errorf(errMissingPrimaryKeys.Error(), c.Name())
+		return fmt.Errorf(db.ErrMissingPrimaryKeys.Error(), c.Name())
 	}
 
 	var tx SessionTx
@@ -218,9 +216,9 @@ func (c *collection) InsertReturning(item interface{}) error {
 	switch reflect.ValueOf(newItem).Elem().Kind() {
 	case reflect.Struct:
 		// Get valid fields from newItem to overwrite those that are on item.
-		newItemFieldMap = mapper.ValidFieldMap(reflect.ValueOf(newItem))
+		newItemFieldMap = sqlbuilder.Mapper.ValidFieldMap(reflect.ValueOf(newItem))
 		for fieldName := range newItemFieldMap {
-			mapper.FieldByName(itemValue, fieldName).Set(newItemFieldMap[fieldName])
+			sqlbuilder.Mapper.FieldByName(itemValue, fieldName).Set(newItemFieldMap[fieldName])
 		}
 	case reflect.Map:
 		newItemV := reflect.ValueOf(newItem).Elem()
@@ -264,10 +262,10 @@ func (c *collection) UpdateReturning(item interface{}) error {
 	// Grab primary keys
 	pks := c.PrimaryKeys()
 	if len(pks) == 0 {
-		if !c.Exists() {
-			return db.ErrCollectionDoesNotExist
+		if ok, err := c.Exists(); !ok {
+			return err
 		}
-		return fmt.Errorf(errMissingPrimaryKeys.Error(), c.Name())
+		return fmt.Errorf(db.ErrMissingPrimaryKeys.Error(), c.Name())
 	}
 
 	var tx SessionTx
@@ -294,7 +292,7 @@ func (c *collection) UpdateReturning(item interface{}) error {
 
 	conds := db.Cond{}
 	for _, pk := range pks {
-		conds[pk] = db.Eq(mapper.FieldByName(itemValue, pk).Interface())
+		conds[pk] = db.Eq(sqlbuilder.Mapper.FieldByName(itemValue, pk).Interface())
 	}
 
 	col := tx.(Session).Collection(c.Name())
@@ -311,9 +309,9 @@ func (c *collection) UpdateReturning(item interface{}) error {
 	switch reflect.ValueOf(defaultItem).Elem().Kind() {
 	case reflect.Struct:
 		// Get valid fields from defaultItem to overwrite those that are on item.
-		defaultItemFieldMap = mapper.ValidFieldMap(reflect.ValueOf(defaultItem))
+		defaultItemFieldMap = sqlbuilder.Mapper.ValidFieldMap(reflect.ValueOf(defaultItem))
 		for fieldName := range defaultItemFieldMap {
-			mapper.FieldByName(itemValue, fieldName).Set(defaultItemFieldMap[fieldName])
+			sqlbuilder.Mapper.FieldByName(itemValue, fieldName).Set(defaultItemFieldMap[fieldName])
 		}
 	case reflect.Map:
 		defaultItemV := reflect.ValueOf(defaultItem).Elem()
@@ -347,7 +345,6 @@ cancel:
 	return err
 }
 
-// Truncate deletes all rows from the table.
 func (c *collection) Truncate() error {
 	stmt := exql.Statement{
 		Type:  exql.Truncate,
