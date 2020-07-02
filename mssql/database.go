@@ -233,7 +233,7 @@ func (d *database) LookupName() (string, error) {
 func (d *database) TableExists(name string) error {
 	q := d.Select(`table_name`).
 		From(`information_schema.tables`).
-		Where(`table_schema`, d.BaseDatabase.Name()).
+		Where(db.Or(db.Cond{`table_schema`: d.BaseDatabase.Name()}, db.Cond{`table_catalog`: d.BaseDatabase.Name()} )).
 		And(`table_name`, name)
 
 	iter := q.Iterator()
