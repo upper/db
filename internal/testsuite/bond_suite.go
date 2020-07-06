@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"database/sql"
+
 	"github.com/stretchr/testify/suite"
-	"github.com/upper/db"
-	"github.com/upper/db/sqlbuilder"
+	"github.com/upper/db/v4"
+	"github.com/upper/db/v4/sqlbuilder"
 )
 
 type Session struct {

@@ -3,8 +3,8 @@ package sqladapter
 import (
 	"reflect"
 
-	db "github.com/upper/db"
-	"github.com/upper/db/sqlbuilder"
+	db "github.com/upper/db/v4"
+	"github.com/upper/db/v4/sqlbuilder"
 )
 
 type item struct {

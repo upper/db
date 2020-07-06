@@ -5,14 +5,19 @@
 # upper/db [![Build Status](https://travis-ci.org/upper/db.svg?branch=v4)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/github.com/upper/db?status.svg)](https://godoc.org/github.com/upper/db)
 
 `upper/db` is a productive data access layer (DAL) for [Go](https://golang.org)
-that provides agnostic tools to work with different data sources, such as
-[PostgreSQL](https://upper.io/db.v3/postgresql),
-[MySQL](https://upper.io/db.v3/mysql), [SQLite](https://upper.io/db.v3/sqlite),
-[MSSQL](https://upper.io/db.v3/mssql), [QL](https://upper.io/db.v3/ql) and
-[MongoDB](https://upper.io/db.v3/mongo).
+that provides agnostic tools to work with different data sources, such as:
+* PostgreSQL
+* MySQL
+* MSSQL
+* CockroachDB
+* MongoDB
+* QL
+* SQLite
+
+## Install
 
 ```
-go get github.com/upper/db
+go get github.com/upper/db/v4
 ```
 
 ## The tour
@@ -32,7 +37,7 @@ package main
 import (
 	"log"
 
-	"github.com/upper/db/adapter/postgresql"
+	"github.com/upper/db/v4/adapter/postgresql"
 )
 
 var settings = postgresql.ConnectionURL{
@@ -74,4 +79,4 @@ Licensed under [MIT License](./LICENSE)
 
 ## Contributors
 
-See the [https://github.com/upper/db/graphs/contributors](list of contributors).
+See the [list of contributors](https://github.com/upper/db/graphs/contributors).

@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	db "github.com/upper/db"
+	db "github.com/upper/db/v4"
 	"gopkg.in/mgo.v2/bson"
 )
 

@@ -27,9 +27,9 @@ import (
 
 	mgo "gopkg.in/mgo.v2"
 
-	db "github.com/upper/db"
-	"github.com/upper/db/internal/testsuite"
-	"github.com/upper/db/sqlbuilder"
+	db "github.com/upper/db/v4"
+	"github.com/upper/db/v4/internal/testsuite"
+	"github.com/upper/db/v4/sqlbuilder"
 )
 
 var settings = ConnectionURL{

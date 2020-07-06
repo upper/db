@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"sync/atomic"
 
-	"github.com/upper/db/internal/cache"
+	"github.com/upper/db/v4/internal/cache"
 )
 
 type hash struct {

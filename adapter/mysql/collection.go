@@ -22,9 +22,9 @@
 package mysql
 
 import (
-	db "github.com/upper/db"
-	"github.com/upper/db/internal/sqladapter"
-	"github.com/upper/db/sqlbuilder"
+	db "github.com/upper/db/v4"
+	"github.com/upper/db/v4/internal/sqladapter"
+	"github.com/upper/db/v4/sqlbuilder"
 )
 
 type collectionAdapter struct {

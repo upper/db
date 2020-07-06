@@ -19,14 +19,14 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package cockroachdb // import "github.com/upper/db/adapter/cockroachdb"
+package cockroachdb
 
 import (
 	"database/sql"
 
-	db "github.com/upper/db"
-	"github.com/upper/db/internal/sqladapter"
-	"github.com/upper/db/sqlbuilder"
+	db "github.com/upper/db/v4"
+	"github.com/upper/db/v4/internal/sqladapter"
+	"github.com/upper/db/v4/sqlbuilder"
 )
 
 // Adapter is the unique name that you can use to refer to this adapter.

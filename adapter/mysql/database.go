@@ -33,10 +33,10 @@ import (
 	"database/sql"
 
 	_ "github.com/go-sql-driver/mysql" // MySQL driver.
-	db "github.com/upper/db"
-	"github.com/upper/db/internal/sqladapter"
-	"github.com/upper/db/internal/sqladapter/exql"
-	"github.com/upper/db/sqlbuilder"
+	db "github.com/upper/db/v4"
+	"github.com/upper/db/v4/internal/sqladapter"
+	"github.com/upper/db/v4/internal/sqladapter/exql"
+	"github.com/upper/db/v4/sqlbuilder"
 )
 
 // database is the actual implementation of Database

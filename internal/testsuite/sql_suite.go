@@ -12,7 +12,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/suite"
-	db "github.com/upper/db"
+	db "github.com/upper/db/v4"
 )
 
 type artistType struct {

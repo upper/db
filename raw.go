@@ -22,7 +22,7 @@
 package db
 
 import (
-	"github.com/upper/db/internal/adapter"
+	"github.com/upper/db/v4/internal/adapter"
 )
 
 // RawExpr represents a raw (non-filtered) expression.

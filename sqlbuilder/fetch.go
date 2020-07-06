@@ -24,8 +24,8 @@ package sqlbuilder
 import (
 	"reflect"
 
-	db "github.com/upper/db"
-	"github.com/upper/db/internal/reflectx"
+	db "github.com/upper/db/v4"
+	"github.com/upper/db/v4/internal/reflectx"
 )
 
 type hasConvertValues interface {
