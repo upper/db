@@ -30,9 +30,9 @@ import (
 	"database/sql"
 
 	_ "github.com/denisenkom/go-mssqldb" // MSSQL driver
-	db "github.com/upper/db"
-	"github.com/upper/db/internal/sqladapter"
-	"github.com/upper/db/internal/sqladapter/exql"
+	db "github.com/upper/db/v4"
+	"github.com/upper/db/v4/internal/sqladapter"
+	"github.com/upper/db/v4/internal/sqladapter/exql"
 )
 
 type database struct {

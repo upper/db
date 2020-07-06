@@ -26,8 +26,8 @@ import (
 	"database/sql"
 	"sync/atomic"
 
-	db "github.com/upper/db"
-	"github.com/upper/db/sqlbuilder"
+	db "github.com/upper/db/v4"
+	"github.com/upper/db/v4/sqlbuilder"
 )
 
 // SessionTx represents a database session within a transaction.

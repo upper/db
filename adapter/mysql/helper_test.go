@@ -27,10 +27,10 @@ import (
 	"os"
 	"time"
 
-	db "github.com/upper/db"
-	"github.com/upper/db/internal/sqladapter"
-	"github.com/upper/db/internal/testsuite"
-	"github.com/upper/db/sqlbuilder"
+	db "github.com/upper/db/v4"
+	"github.com/upper/db/v4/internal/sqladapter"
+	"github.com/upper/db/v4/internal/testsuite"
+	"github.com/upper/db/v4/sqlbuilder"
 )
 
 var settings = ConnectionURL{

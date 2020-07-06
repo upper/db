@@ -33,7 +33,7 @@
 //  import (
 //  	"log"
 //
-//  	"github.com/upper/db/adapter/postgresql" // Imports the postgresql adapter.
+//  	"github.com/upper/db/v4/adapter/postgresql" // Imports the postgresql adapter.
 //  )
 //
 //  var settings = postgresql.ConnectionURL{
@@ -68,4 +68,4 @@
 //  		log.Printf("%q (ID: %d)\n", book.Title, book.ID)
 //  	}
 //  }
-package db // import "github.com/upper/db"
+package db

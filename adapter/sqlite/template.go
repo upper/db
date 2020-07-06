@@ -22,8 +22,8 @@
 package sqlite
 
 import (
-	"github.com/upper/db/internal/cache"
-	"github.com/upper/db/internal/sqladapter/exql"
+	"github.com/upper/db/v4/internal/cache"
+	"github.com/upper/db/v4/internal/sqladapter/exql"
 )
 
 const (

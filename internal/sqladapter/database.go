@@ -9,11 +9,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	db "github.com/upper/db"
-	"github.com/upper/db/internal/cache"
-	"github.com/upper/db/internal/sqladapter/compat"
-	"github.com/upper/db/internal/sqladapter/exql"
-	"github.com/upper/db/sqlbuilder"
+	db "github.com/upper/db/v4"
+	"github.com/upper/db/v4/internal/cache"
+	"github.com/upper/db/v4/internal/sqladapter/compat"
+	"github.com/upper/db/v4/internal/sqladapter/exql"
+	"github.com/upper/db/v4/sqlbuilder"
 )
 
 var (

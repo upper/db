@@ -25,8 +25,9 @@ package sqladapter
 import (
 	"database/sql"
 	"database/sql/driver"
-	"github.com/upper/db"
-	"github.com/upper/db/sqlbuilder"
+
+	"github.com/upper/db/v4"
+	"github.com/upper/db/v4/sqlbuilder"
 )
 
 // IsKeyValue reports whether v is a valid value for a primary key that can be

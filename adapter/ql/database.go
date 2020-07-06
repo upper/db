@@ -29,11 +29,11 @@ import (
 	"database/sql"
 	"strings"
 
-	db "github.com/upper/db"
-	"github.com/upper/db/internal/sqladapter"
-	"github.com/upper/db/internal/sqladapter/compat"
-	"github.com/upper/db/internal/sqladapter/exql"
-	"github.com/upper/db/sqlbuilder"
+	db "github.com/upper/db/v4"
+	"github.com/upper/db/v4/internal/sqladapter"
+	"github.com/upper/db/v4/internal/sqladapter/compat"
+	"github.com/upper/db/v4/internal/sqladapter/exql"
+	"github.com/upper/db/v4/sqlbuilder"
 	_ "modernc.org/ql/driver" // QL driver
 )
 

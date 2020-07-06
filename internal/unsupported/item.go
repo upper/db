@@ -22,7 +22,7 @@
 package unsupported
 
 import (
-	"github.com/upper/db"
+	"github.com/upper/db/v4"
 )
 
 type Item struct {
