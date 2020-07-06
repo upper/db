@@ -27,7 +27,7 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/upper/db/sqlbuilder"
+	"github.com/upper/db/v4/sqlbuilder"
 )
 
 // JSON represents a MySQL's JSON value:

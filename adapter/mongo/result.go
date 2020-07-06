@@ -30,12 +30,12 @@ import (
 
 	"encoding/json"
 
-	db "github.com/upper/db"
+	db "github.com/upper/db/v4"
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/upper/db/internal/immutable"
-	"github.com/upper/db/internal/sqladapter"
+	"github.com/upper/db/v4/internal/immutable"
+	"github.com/upper/db/v4/internal/sqladapter"
 )
 
 type resultQuery struct {

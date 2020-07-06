@@ -25,7 +25,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
-	"github.com/upper/db/internal/testsuite"
+	"github.com/upper/db/v4/internal/testsuite"
 )
 
 type GenericTests struct {

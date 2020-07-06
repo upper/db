@@ -6,8 +6,8 @@ import (
 	"sync"
 	"text/template"
 
-	"github.com/upper/db/internal/adapter"
-	"github.com/upper/db/internal/cache"
+	"github.com/upper/db/v4/internal/adapter"
+	"github.com/upper/db/v4/internal/cache"
 )
 
 // Type is the type of SQL query the statement represents.

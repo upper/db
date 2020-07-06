@@ -25,7 +25,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/upper/db/internal/adapter"
+	"github.com/upper/db/v4/internal/adapter"
 )
 
 // Comparison represents a relationship between values.

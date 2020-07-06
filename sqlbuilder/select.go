@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/upper/db/internal/adapter"
-	"github.com/upper/db/internal/immutable"
-	"github.com/upper/db/internal/sqladapter/exql"
+	"github.com/upper/db/v4/internal/adapter"
+	"github.com/upper/db/v4/internal/immutable"
+	"github.com/upper/db/v4/internal/sqladapter/exql"
 )
 
 type selectorQuery struct {

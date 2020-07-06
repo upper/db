@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"reflect"
 
-	db "github.com/upper/db"
-	"github.com/upper/db/internal/sqladapter/exql"
-	"github.com/upper/db/sqlbuilder"
+	db "github.com/upper/db/v4"
+	"github.com/upper/db/v4/internal/sqladapter/exql"
+	"github.com/upper/db/v4/sqlbuilder"
 )
 
 // CollectionAdapter defines methods to be implemented by SQL adapters.

@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/upper/db/internal/adapter"
+	"github.com/upper/db/v4/internal/adapter"
 )
 
 func TestComparison(t *testing.T) {

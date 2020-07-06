@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/upper/db/internal/immutable"
-	"github.com/upper/db/internal/sqladapter/exql"
+	"github.com/upper/db/v4/internal/immutable"
+	"github.com/upper/db/v4/internal/sqladapter/exql"
 )
 
 type updaterQuery struct {
