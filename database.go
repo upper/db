@@ -38,7 +38,7 @@ type Database interface {
 
 	// Clone duplicates the current database session. Returns an error if the
 	// clone did not succeed.
-	// Clone() (Database, error)
+	Clone() (Database, error)
 
 	// Ping returns an error if the database manager could not be reached.
 	Ping() error
