@@ -183,6 +183,14 @@ func (s *Source) Collections() (cols []db.Collection, err error) {
 	return cols, nil
 }
 
+func (s *Source) Get(db.Model, interface{}) error {
+	return db.ErrNotImplemented
+}
+
+func (s *Source) Save(db.Model) error {
+	return db.ErrNotImplemented
+}
+
 // Collection returns a collection by name.
 func (s *Source) Collection(name string) db.Collection {
 	s.collectionsMu.Lock()

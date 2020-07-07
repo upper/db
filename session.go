@@ -40,8 +40,8 @@ type Session interface {
 	// database.
 	Collections() ([]Collection, error)
 
-	// Item returns methods that operate on a single item of a model
-	Item(Model) Item
+	Save(model Model) error
+	Get(model Model, id interface{}) error
 
 	// Reset resets all the caching mechanisms the adapter is using.
 	Reset()
