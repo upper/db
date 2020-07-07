@@ -1,4 +1,4 @@
-SHELL					        := bash
+SHELL					        ?= bash
 
 MSSQL_VERSION         ?= 2017-latest-ubuntu
 MSSQL_SUPPORTED       ?= $(MSSQL_VERSION)

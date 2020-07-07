@@ -1,4 +1,4 @@
-SHELL					        := bash
+SHELL					        ?= bash
 
 MYSQL_VERSION         ?= 8
 MYSQL_SUPPORTED       ?= $(MYSQL_VERSION) 5.7

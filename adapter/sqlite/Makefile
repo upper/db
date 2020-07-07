@@ -1,4 +1,4 @@
-SHELL := bash
+SHELL ?= bash
 
 DB_NAME ?= sqlite3-test.db
 
