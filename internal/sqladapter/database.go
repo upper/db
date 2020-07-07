@@ -110,8 +110,8 @@ type Session interface {
 	// Driver returns the underlying driver the session is using
 	Driver() interface{}
 
-	// Initializes an item.
-	Item(db.Model) db.Item
+	Save(db.Model) error
+	Get(db.Model, interface{}) error
 
 	// WaitForConnection attempts to run the given connection function a fixed
 	// number of times before failing.
@@ -316,8 +316,14 @@ func (sess *session) Open() error {
 	return sess.BindDB(sqlDB)
 }
 
-func (sess *session) Item(m db.Model) db.Item {
-	return newItem(sess, m)
+func (sess *session) Get(m db.Model, id interface{}) error {
+	return m.Collection(sess).Find(id).One(m)
+}
+
+func (sess *session) Save(m db.Model) error {
+	item := sqlbuilder.NewItem(sess, m)
+	item.(hasReflector).Reflect(m)
+	return item.Save(sess)
 }
 
 func (sess *session) DB() *sql.DB {

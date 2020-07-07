@@ -144,7 +144,7 @@ var (
 	ErrUnsupportedDestination   = ErrWrongParameter.Wrap(newError(`unsupported destination type`))
 	ErrUnsupportedType          = ErrWrongParameter.Wrap(newError(`type does not support marshaling`))
 	ErrUnsupportedValue         = ErrWrongParameter.Wrap(newError(`value does not support unmarshaling`))
-	ErrNilItem                  = ErrWrongParameter.Wrap(newError(`invalid item`))
+	ErrNilItem                  = ErrWrongParameter.Wrap(newError(`invalid item (nil)`))
 	ErrZeroItemID               = ErrWrongParameter.Wrap(newError(`item ID is not defined`))
 	ErrMissingPrimaryKeys       = ErrWrongParameter.Wrap(newError(`collection has no primary keys`))
 
