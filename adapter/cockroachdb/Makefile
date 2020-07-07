@@ -1,4 +1,4 @@
-SHELL					        := bash
+SHELL					        ?= bash
 
 COCKROACHDB_VERSION      ?= v20.1.1
 #COCKROACHDB_VERSION      ?= v19.1.9

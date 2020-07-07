@@ -1,4 +1,4 @@
-SHELL					        := bash
+SHELL					        ?= bash
 
 MONGO_VERSION         ?= 3
 MONGO_SUPPORTED       ?= 4 $(MONGO_VERSION)
