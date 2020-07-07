@@ -1,4 +1,4 @@
-SHELL                 := /bin/bash
+SHELL                 ?= /bin/bash
 
 PARALLEL_FLAGS        ?= --halt-on-error 2 --jobs=4 -v -u
 

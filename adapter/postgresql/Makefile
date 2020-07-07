@@ -1,4 +1,4 @@
-SHELL					        := bash
+SHELL					        ?= bash
 
 POSTGRES_VERSION      ?= 11
 POSTGRES_SUPPORTED    ?= 12 $(POSTGRES_VERSION) 10 9

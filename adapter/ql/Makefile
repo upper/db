@@ -1,4 +1,4 @@
-SHELL := bash
+SHELL ?= bash
 
 DB_NAME ?= ql-test.db
 TEST_FLAGS            ?=
