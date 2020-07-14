@@ -26,6 +26,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strings"
 )
 
 type LogLevel int8
@@ -51,6 +52,10 @@ var logLevels = map[LogLevel]string{
 	LogLevelPanic: "PANIC",
 }
 
+func (ll LogLevel) String() string {
+	return logLevels[ll]
+}
+
 const (
 	defaultLogLevel LogLevel = LogLevelWarn
 )
@@ -72,6 +77,8 @@ type Logger interface {
 // LoggingCollector represents a logging collector.
 type LoggingCollector interface {
 	Enabled(LogLevel) bool
+
+	Level() LogLevel
 
 	SetLogger(Logger)
 	SetLevel(LogLevel)
@@ -127,9 +134,9 @@ func (c *loggingCollector) SetLogger(logger Logger) {
 }
 
 func (c *loggingCollector) logf(level LogLevel, f string, v ...interface{}) {
-	format := logLevels[level] + "\n" + f
+	format := level.String() + "\n" + f
 	if _, file, line, ok := runtime.Caller(2); ok {
-		format = fmt.Sprintf("log_level=%s file=%s:%d\n%s", logLevels[level], file, line, f)
+		format = fmt.Sprintf("log_level=%s file=%s:%d\n%s", level, file, line, f)
 	}
 	format = "upper/db: " + format
 
@@ -145,9 +152,9 @@ func (c *loggingCollector) logf(level LogLevel, f string, v ...interface{}) {
 }
 
 func (c *loggingCollector) log(level LogLevel, v ...interface{}) {
-	format := logLevels[level] + "\n"
+	format := level.String() + "\n"
 	if _, file, line, ok := runtime.Caller(2); ok {
-		format = fmt.Sprintf("log_level=%s file=%s:%d\n", logLevels[level], file, line)
+		format = fmt.Sprintf("log_level=%s file=%s:%d\n", level, file, line)
 	}
 	format = "upper/db: " + format
 	v = append([]interface{}{format}, v...)
@@ -222,11 +229,11 @@ func Log() LoggingCollector {
 }
 
 func init() {
-	if logLevel := os.Getenv("UPPER_DB_LOG"); logLevel != "" {
-		for k := range logLevels {
-			if logLevels[k] == logLevel {
-				Log().SetLevel(k)
-				return
+	if logLevel := strings.ToUpper(os.Getenv("UPPER_DB_LOG")); logLevel != "" {
+		for ll := range logLevels {
+			if ll.String() == logLevel {
+				Log().SetLevel(ll)
+				break
 			}
 		}
 	}

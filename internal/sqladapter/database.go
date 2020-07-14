@@ -21,6 +21,8 @@ var (
 	lastTxID   uint64
 )
 
+var slowQueryThreshold = time.Millisecond * 100
+
 // hasCleanUp is implemented by structs that have a clean up routine that needs
 // to be called before Close().
 type hasCleanUp interface {
@@ -164,6 +166,7 @@ func NewTx(adapter AdapterSession, tx *sql.Tx) (sqlbuilder.Tx, error) {
 		Settings: db.DefaultSettings,
 
 		adapter:           adapter,
+		cachedPKs:         cache.NewCache(),
 		cachedCollections: cache.NewCache(),
 		cachedStatements:  cache.NewCache(),
 	}
@@ -179,6 +182,7 @@ func NewSession(connURL db.ConnectionURL, adapter AdapterSession) Session {
 
 		connURL:           connURL,
 		adapter:           adapter,
+		cachedPKs:         cache.NewCache(),
 		cachedCollections: cache.NewCache(),
 		cachedStatements:  cache.NewCache(),
 	}
@@ -210,6 +214,7 @@ type session struct {
 	txID   uint64
 
 	cacheMu           sync.Mutex // guards cachedStatements and cachedCollections
+	cachedPKs         *cache.Cache
 	cachedStatements  *cache.Cache
 	cachedCollections *cache.Cache
 
@@ -241,7 +246,19 @@ func (sess *session) Err(errIn error) (errOur error) {
 }
 
 func (sess *session) PrimaryKeys(tableName string) ([]string, error) {
-	return sess.adapter.PrimaryKeys(sess, tableName)
+	h := cache.String(tableName)
+	cachedPK, ok := sess.cachedPKs.ReadRaw(h)
+	if ok {
+		return cachedPK.([]string), nil
+	}
+
+	pk, err := sess.adapter.PrimaryKeys(sess, tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	sess.cachedPKs.Write(h, pk)
+	return pk, nil
 }
 
 func (sess *session) TableExists(name string) error {
@@ -437,6 +454,7 @@ func (sess *session) Reset() {
 	sess.cacheMu.Lock()
 	defer sess.cacheMu.Unlock()
 
+	sess.cachedPKs.Clear()
 	sess.cachedCollections.Clear()
 	sess.cachedStatements.Clear()
 
@@ -450,6 +468,7 @@ func (sess *session) NewClone(adapter AdapterSession, checkConn bool) (Session, 
 
 	newSess.name = sess.name
 	newSess.sqlDB = sess.sqlDB
+	newSess.cachedPKs = sess.cachedPKs
 
 	if checkConn {
 		if err := newSess.Ping(); err != nil {
@@ -528,7 +547,7 @@ func queryLog(status *QueryStatus) {
 	diff := status.End.Sub(status.Start)
 
 	slowQuery := false
-	if diff >= time.Millisecond*100 {
+	if diff >= slowQueryThreshold {
 		status.Err = db.ErrWarnSlowQuery
 		slowQuery = true
 	}

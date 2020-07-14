@@ -4,7 +4,7 @@ PARALLEL_FLAGS        ?= --halt-on-error 2 --jobs=4 -v -u
 
 TEST_FLAGS            ?=
 
-UPPER_DB_LOG          = WARN
+UPPER_DB_LOG          ?= WARN
 
 export TEST_FLAGS
 export PARALLEL_FLAGS

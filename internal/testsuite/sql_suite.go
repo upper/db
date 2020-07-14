@@ -112,9 +112,7 @@ func (s *SQLTestSuite) TestPreparedStatementsCache() {
 
 			// This query is different on each iteration and generates a new
 			// prepared statement everytime it's called.
-			res := sess.Collection("artist").
-				Find().
-				Select(db.Raw(fmt.Sprintf("count(%d)", i)))
+			res := sess.Collection("artist").Find().Select(db.Raw(fmt.Sprintf("count(%d)", i)))
 
 			var count map[string]uint64
 			err := res.One(&count)
@@ -190,12 +188,14 @@ func (s *SQLTestSuite) TestTruncateAllCollections() {
 }
 
 func (s *SQLTestSuite) TestQueryLogger() {
+	logLevel := db.Log().Level()
+
 	db.Log().SetLogger(logrus.New())
 	db.Log().SetLevel(db.LogLevelDebug)
 
 	defer func() {
 		db.Log().SetLogger(nil)
-		db.Log().SetLevel(db.LogLevelWarn)
+		db.Log().SetLevel(logLevel)
 	}()
 
 	sess := s.SQLBuilder()
@@ -1771,11 +1771,6 @@ func (s *SQLTestSuite) TestExhaustConnectionPool() {
 	}
 
 	sess := s.SQLBuilder()
-
-	db.Log().SetLevel(db.LogLevelDebug)
-	defer func() {
-		db.Log().SetLevel(db.LogLevelWarn)
-	}()
 
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {

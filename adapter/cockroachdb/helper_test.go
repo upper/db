@@ -113,31 +113,47 @@ func (h *Helper) TearUp() error {
 		return err
 	}
 
-	batch := []string{
-		`DROP TABLE IF EXISTS artist`,
-		`CREATE TABLE IF NOT EXISTS artist (
+	batches := [][]string{
+		[]string{
+			`DROP TABLE IF EXISTS artist`,
+			`DROP TABLE IF EXISTS publication`,
+			`DROP TABLE IF EXISTS review`,
+			`DROP TABLE IF EXISTS data_types`,
+			`DROP TABLE IF EXISTS stats_test`,
+			`DROP TABLE IF EXISTS composite_keys`,
+			`DROP TABLE IF EXISTS option_types`,
+			`DROP TABLE IF EXISTS pg_types`,
+			`DROP TABLE IF EXISTS issue_370`,
+			`DROP TABLE IF EXISTS varchar_primary_key`,
+			`DROP TABLE IF EXISTS "birthdays"`,
+			`DROP TABLE IF EXISTS "fibonacci"`,
+			`DROP TABLE IF EXISTS "is_even"`,
+			`DROP TABLE IF EXISTS "CaSe_TesT"`,
+			`DROP TABLE IF EXISTS accounts`,
+			`DROP TABLE IF EXISTS users`,
+			`DROP TABLE IF EXISTS logs`,
+			//`DROP TABLE IF EXISTS test_schema.test`,
+			//`DROP SCHEMA IF EXISTS test_schema`,
+			//`DROP TABLE IF EXISTS issue_370_2`,
+		},
+		[]string{
+			`CREATE TABLE IF NOT EXISTS artist (
 			id serial primary key,
 			name varchar(60)
 		)`,
-
-		`DROP TABLE IF EXISTS publication`,
-		`CREATE TABLE IF NOT EXISTS publication (
+			`CREATE TABLE IF NOT EXISTS publication (
 			id serial primary key,
 			title varchar(80),
 			author_id integer
 		)`,
-
-		`DROP TABLE IF EXISTS review`,
-		`CREATE TABLE IF NOT EXISTS review (
+			`CREATE TABLE IF NOT EXISTS review (
 			id serial primary key,
 			publication_id integer,
 			name varchar(80),
 			comments text,
 			created timestamp without time zone
 		)`,
-
-		`DROP TABLE IF EXISTS data_types`,
-		`CREATE TABLE IF NOT EXISTS data_types (
+			`CREATE TABLE IF NOT EXISTS data_types (
 			id serial primary key,
 			_uint integer,
 			_uint8 integer,
@@ -160,38 +176,26 @@ func (h *Helper) TearUp() error {
 			_defaultdate timestamp without time zone DEFAULT now(),
 			_time bigint
 		)`,
-
-		`DROP TABLE IF EXISTS stats_test`,
-		`CREATE TABLE IF NOT EXISTS stats_test (
+			`CREATE TABLE IF NOT EXISTS stats_test (
 			id serial primary key,
 			numeric integer,
 			value integer
 		)`,
-
-		`DROP TABLE IF EXISTS composite_keys`,
-		`CREATE TABLE IF NOT EXISTS composite_keys (
+			`CREATE TABLE IF NOT EXISTS composite_keys (
 			code varchar(255) default '',
 			user_id varchar(255) default '',
 			some_val varchar(255) default '',
 			primary key (code, user_id)
 		)`,
-
-		`DROP TABLE IF EXISTS option_types`,
-		`CREATE TABLE IF NOT EXISTS option_types (
+			`CREATE TABLE IF NOT EXISTS option_types (
 			id serial primary key,
 			name varchar(255) default '',
 			tags varchar(64)[],
 			settings jsonb
 		)`,
-
-		//`DROP TABLE IF EXISTS test_schema.test`,
-		//`DROP SCHEMA IF EXISTS test_schema`,
-
-		//`CREATE SCHEMA test_schema`,
-		//`CREATE TABLE IF NOT EXISTS test_schema.test (id integer)`,
-
-		`DROP TABLE IF EXISTS pg_types`,
-		`CREATE TABLE IF NOT EXISTS pg_types (id serial primary key
+			//`CREATE SCHEMA test_schema`,
+			//`CREATE TABLE IF NOT EXISTS test_schema.test (id integer)`,
+			`CREATE TABLE IF NOT EXISTS pg_types (id serial primary key
 			, uint8_value smallint
 			, uint8_value_array smallint[]
 
@@ -244,81 +248,71 @@ func (h *Helper) TearUp() error {
 			, decimal_value_ptr decimal
 
 		)`,
-
-		`DROP TABLE IF EXISTS issue_370`,
-		`CREATE TABLE IF NOT EXISTS issue_370 (
+			`CREATE TABLE IF NOT EXISTS issue_370 (
 			id UUID PRIMARY KEY,
 			name VARCHAR(25)
 		)`,
-
-		/*
-			`DROP TABLE IF EXISTS issue_370_2`,
-			`CREATE TABLE IF NOT EXISTS issue_370_2 (
-				id INTEGER[3] PRIMARY KEY,
-				name VARCHAR(25)
-			)`,
-		*/
-
-		`DROP TABLE IF EXISTS varchar_primary_key`,
-		`CREATE TABLE IF NOT EXISTS varchar_primary_key (
+			/*
+				`CREATE TABLE IF NOT EXISTS issue_370_2 (
+						id INTEGER[3] PRIMARY KEY,
+						name VARCHAR(25)
+					)`,
+			*/
+			`CREATE TABLE IF NOT EXISTS varchar_primary_key (
 			address VARCHAR(42) PRIMARY KEY NOT NULL,
 			name VARCHAR(25)
 		)`,
-
-		`DROP TABLE IF EXISTS "birthdays"`,
-		`CREATE TABLE IF NOT EXISTS "birthdays" (
+			`CREATE TABLE IF NOT EXISTS "birthdays" (
 			"id" serial primary key,
 			"name" CHARACTER VARYING(50),
 			"born" TIMESTAMP WITH TIME ZONE,
 			"born_ut" INT
 		)`,
-
-		`DROP TABLE IF EXISTS "fibonacci"`,
-		`CREATE TABLE IF NOT EXISTS "fibonacci" (
+			`CREATE TABLE IF NOT EXISTS "fibonacci" (
 			"id" serial primary key,
 			"input" NUMERIC,
 			"output" NUMERIC
 		)`,
-
-		`DROP TABLE IF EXISTS "is_even"`,
-		`CREATE TABLE IF NOT EXISTS "is_even" (
+			`CREATE TABLE IF NOT EXISTS "is_even" (
 			"input" NUMERIC,
 			"is_even" BOOL
 		)`,
-
-		`DROP TABLE IF EXISTS "CaSe_TesT"`,
-		`CREATE TABLE IF NOT EXISTS "CaSe_TesT" (
+			`CREATE TABLE IF NOT EXISTS "CaSe_TesT" (
 			"id" SERIAL PRIMARY KEY,
 			"case_test" VARCHAR(60)
 		)`,
-
-		// bond
-		`DROP TABLE IF EXISTS accounts`,
-		`CREATE TABLE IF NOT EXISTS accounts (
+			`CREATE TABLE IF NOT EXISTS accounts (
 			id serial primary key,
 			name varchar(255),
 			disabled boolean,
 			created_at timestamp with time zone
 		)`,
-
-		`DROP TABLE IF EXISTS users`,
-		`CREATE TABLE IF NOT EXISTS users (
+			`CREATE TABLE IF NOT EXISTS users (
 			id serial primary key,
 			account_id integer,
 			username varchar(255) UNIQUE
 		)`,
-
-		`DROP TABLE IF EXISTS logs`,
-		`CREATE TABLE IF NOT EXISTS logs (
+			`CREATE TABLE IF NOT EXISTS logs (
 			id serial primary key,
 			message VARCHAR
 		)`,
+		},
 	}
 
-	for _, query := range batch {
+	for _, batch := range batches {
 		driver := h.sess.Driver().(*sql.DB)
-		if _, err := driver.Exec(query); err != nil {
-			panic(err.Error())
+		tx, err := driver.Begin()
+		if err != nil {
+			return err
+		}
+
+		for _, query := range batch {
+			if _, err := tx.Exec(query); err != nil {
+				return err
+			}
+		}
+
+		if err := tx.Commit(); err != nil {
 			return err
 		}
 	}
