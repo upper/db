@@ -465,7 +465,7 @@ func (iter *iterator) Next(dst ...interface{}) bool {
 
 	if err := iter.next(dst...); err != nil {
 		// ignore db.ErrNoMoreRows, just break.
-		if err != db.ErrNoMoreRows {
+		if !errors.Is(err, db.ErrNoMoreRows) {
 			_ = iter.setErr(err)
 		}
 		return false

@@ -22,6 +22,7 @@
 package sqladapter
 
 import (
+	"errors"
 	"sync"
 	"sync/atomic"
 
@@ -262,7 +263,7 @@ func (r *Result) Next(dst interface{}) bool {
 		return true
 	}
 
-	if err := r.iter.Err(); err != db.ErrNoMoreRows {
+	if err := r.iter.Err(); !errors.Is(err, db.ErrNoMoreRows) {
 		r.setErr(err)
 		return false
 	}
@@ -354,7 +355,7 @@ func (r *Result) Exists() (bool, error) {
 	}{}
 
 	if err := query.One(&value); err != nil {
-		if err == db.ErrNoMoreRows {
+		if errors.Is(err, db.ErrNoMoreRows) {
 			return false, nil
 		}
 		r.setErr(err)
@@ -380,7 +381,7 @@ func (r *Result) Count() (uint64, error) {
 		Count uint64 `db:"_t"`
 	}{}
 	if err := query.One(&counter); err != nil {
-		if err == db.ErrNoMoreRows {
+		if errors.Is(err, db.ErrNoMoreRows) {
 			return 0, nil
 		}
 		r.setErr(err)
