@@ -27,6 +27,6 @@ import (
 )
 
 func TestLogger(t *testing.T) {
-	err := ErrNoMoreRows.Wrap(errors.New("fake error"))
+	err := errors.New("fake error")
 	Log().Error(err)
 }
