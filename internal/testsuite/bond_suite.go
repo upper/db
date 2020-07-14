@@ -120,7 +120,9 @@ func (s *BondTestSuite) BeforeTest(suiteName, testName string) {
 
 	sess := s.Helper.Session().(sqlbuilder.Session)
 
-	cols, _ := sess.Collections()
+	cols, err := sess.Collections()
+	s.NoError(err)
+
 	for i := range cols {
 		err = cols[i].Truncate()
 		s.NoError(err)
@@ -440,7 +442,6 @@ func (s *BondTestSuite) TestInheritedTx() {
 
 func (s *BondTestSuite) TestUnknownCollection() {
 	var err error
-
 	sess := s.Session()
 
 	err = sess.Save(nil)

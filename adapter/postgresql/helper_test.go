@@ -308,11 +308,19 @@ func (h *Helper) TearUp() error {
 		)`,
 	}
 
+	driver := h.sess.Driver().(*sql.DB)
+	tx, err := driver.Begin()
+	if err != nil {
+		return err
+	}
 	for _, query := range batch {
-		driver := h.sess.Driver().(*sql.DB)
-		if _, err := driver.Exec(query); err != nil {
+		if _, err := tx.Exec(query); err != nil {
+			_ = tx.Rollback()
 			return err
 		}
+	}
+	if err := tx.Commit(); err != nil {
+		return err
 	}
 
 	return nil
