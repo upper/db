@@ -3,6 +3,7 @@ package sqlbuilder
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/upper/db/v4/internal/immutable"
 	"github.com/upper/db/v4/internal/sqladapter/exql"
@@ -47,7 +48,7 @@ func (iq *inserterQuery) processValues() ([]*exql.Values, []interface{}, error) 
 
 			// The only error we can expect without exiting is this argument not
 			// being a map or struct, in which case we can continue.
-			if err != ErrExpectingPointerToEitherMapOrStruct {
+			if !errors.Is(err, ErrExpectingPointerToEitherMapOrStruct) {
 				return nil, nil, err
 			}
 		}
