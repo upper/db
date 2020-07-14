@@ -2,8 +2,8 @@ package db
 
 // Item provides methods for
 type Item interface {
-	Save() error
-	Delete() error
-	Update(M) error
+	Save(Session) error
+	Delete(Session) error
+	Update(Session, M) error
 	Changes() M
 }

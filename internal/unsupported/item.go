@@ -28,15 +28,15 @@ import (
 type Item struct {
 }
 
-func (*Item) Update(db.M) error {
+func (*Item) Update(db.Session, db.M) error {
 	return db.ErrUnsupported
 }
 
-func (*Item) Delete() error {
+func (*Item) Delete(db.Session) error {
 	return db.ErrUnsupported
 }
 
-func (*Item) Save() error {
+func (*Item) Save(db.Session) error {
 	return db.ErrUnsupported
 }
 

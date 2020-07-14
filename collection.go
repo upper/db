@@ -34,6 +34,8 @@ type Collection interface {
 	// Find defines a new result set.
 	Find(...interface{}) Result
 
+	Count() (uint64, error)
+
 	// Insert inserts a new item into the collection, the type of this item could
 	// be a map, a struct or pointer to either of them. If the call succeeds and
 	// if the collection has a primary key, Insert returns the ID of the newly

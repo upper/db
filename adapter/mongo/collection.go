@@ -254,6 +254,10 @@ func (col *Collection) Session() db.Session {
 	return col.parent
 }
 
+func (col *Collection) Count() (uint64, error) {
+	return col.Find().Count()
+}
+
 func (col *Collection) InsertReturning(item interface{}) error {
 	return db.ErrUnsupported
 }
