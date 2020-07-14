@@ -23,44 +23,13 @@ package db
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestInterface(t *testing.T) {
-	var _ Error = &dbError{}
-}
-
-func TestWrap(t *testing.T) {
-	adapterFakeErr := errors.New("adapter: fake error")
-
-	wrappedFakeErr := ErrCollectionDoesNotExist.WrapWithDetails(adapterFakeErr, map[string]interface{}{
-		"foo":        "bar",
-		"collection": "users",
-	})
-
-	assert.Equal(t, adapterFakeErr.Error(), wrappedFakeErr.Error())
-
-	assert.True(t, errors.Is(wrappedFakeErr, wrappedFakeErr))
-	assert.True(t, errors.Is(wrappedFakeErr, adapterFakeErr))
-	assert.True(t, errors.Is(wrappedFakeErr, ErrCollectionDoesNotExist))
-	assert.True(t, errors.Is(wrappedFakeErr, ErrNoSuchObject))
-	assert.True(t, errors.Is(wrappedFakeErr, ErrUser))
-
-	errPrimaryKeys := wrappedFakeErr.WrapWithDetails(wrappedFakeErr, map[string]interface{}{
-		"id":  "id",
-		"foo": "baz",
-	})
-
-	assert.True(t, errors.Is(errPrimaryKeys, errPrimaryKeys))
-	assert.True(t, errors.Is(errPrimaryKeys, wrappedFakeErr))
-	assert.True(t, errors.Is(errPrimaryKeys, adapterFakeErr))
-	assert.True(t, errors.Is(errPrimaryKeys, ErrCollectionDoesNotExist))
-	assert.True(t, errors.Is(errPrimaryKeys, ErrNoSuchObject))
-	assert.True(t, errors.Is(errPrimaryKeys, ErrUser))
-
-	assert.Equal(t, "collection: users\nfoo: baz\nid: id", errPrimaryKeys.Details())
-
-	assert.Equal(t, adapterFakeErr.Error(), errPrimaryKeys.Error())
+func TestErrorWrap(t *testing.T) {
+	adapterFakeErr := fmt.Errorf("could not find item in %q: %w", "users", ErrCollectionDoesNotExist)
+	assert.True(t, errors.Is(adapterFakeErr, ErrCollectionDoesNotExist))
 }

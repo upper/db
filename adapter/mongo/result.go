@@ -22,6 +22,7 @@
 package mongo
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -238,7 +239,7 @@ func (res *result) All(dst interface{}) error {
 	}(time.Now())
 
 	err = q.All(dst)
-	if err == mgo.ErrNotFound {
+	if errors.Is(err, mgo.ErrNotFound) {
 		return db.ErrNoMoreRows
 	}
 	return err
@@ -275,7 +276,7 @@ func (res *result) One(dst interface{}) error {
 	}(time.Now())
 
 	err = q.One(dst)
-	if err == mgo.ErrNotFound {
+	if errors.Is(err, mgo.ErrNotFound) {
 		return db.ErrNoMoreRows
 	}
 	return err
