@@ -8,6 +8,7 @@ env:
   global:
     - GOARCH=amd64
     - DB_HOST=127.0.0.1
+    - UPPER_DB_LOG=ERROR
   matrix:
     - TEST_CMD="make test"
     - TEST_CMD="make benchmark"
@@ -38,4 +39,4 @@ install:
   - go get -v modernc.org/ql/ql
 
 script:
-  - travis_wait 45 bash -c "$TEST_CMD"
+  - bash -c "$TEST_CMD"

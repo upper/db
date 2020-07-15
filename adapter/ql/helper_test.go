@@ -176,7 +176,6 @@ func (h *Helper) TearUp() error {
 			return err
 		}
 		if _, err := tx.Exec(query); err != nil {
-			_ = tx.Rollback()
 			return err
 		}
 		if err := tx.Commit(); err != nil {

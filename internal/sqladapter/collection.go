@@ -76,21 +76,19 @@ type collection struct {
 
 	adapter CollectionAdapter
 
-	pk  []string
 	err error
 }
 
 // NewCollection initializes a Collection by wrapping a CollectionAdapter.
 func NewCollection(sess Session, name string, adapter CollectionAdapter) Collection {
 	if adapter == nil {
-		panic("uppper: received nil adapter")
+		panic("upper: received nil adapter")
 	}
 	c := &collection{
 		sess:    sess,
 		name:    name,
 		adapter: adapter,
 	}
-	c.pk, c.err = c.sess.PrimaryKeys(c.Name())
 	return c
 }
 
@@ -120,13 +118,19 @@ func (c *collection) Insert(item interface{}) (*db.InsertResult, error) {
 }
 
 func (c *collection) PrimaryKeys() []string {
-	return c.pk
+	pk, err := c.sess.PrimaryKeys(c.Name())
+	if err == nil {
+		return pk
+	}
+	c.err = err
+	return nil
 }
 
 func (c *collection) filterConds(conds ...interface{}) []interface{} {
-	if len(conds) == 1 && len(c.pk) == 1 {
+	pk := c.PrimaryKeys()
+	if len(conds) == 1 && len(pk) == 1 {
 		if id := conds[0]; IsKeyValue(id) {
-			conds[0] = db.Cond{c.pk[0]: db.Eq(id)}
+			conds[0] = db.Cond{pk[0]: db.Eq(id)}
 		}
 	}
 	if tr, ok := c.adapter.(condsFilter); ok {

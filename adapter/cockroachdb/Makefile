@@ -1,9 +1,7 @@
 SHELL					        ?= bash
 
-COCKROACHDB_VERSION      ?= v20.1.1
-#COCKROACHDB_VERSION      ?= v19.1.9
-COCKROACHDB_SUPPORTED    ?= $(COCKROACHDB_VERSION)
-#COCKROACHDB_SUPPORTED    ?= v19.1.9 $(COCKROACHDB_VERSION)
+COCKROACHDB_VERSION      ?= v20.1.3
+COCKROACHDB_SUPPORTED    ?= v19.1.9 $(COCKROACHDB_VERSION)
 PROJECT                  ?= upper_cockroachdb_$(COCKROACHDB_VERSION)
 
 DB_HOST               ?= 127.0.0.1
@@ -26,7 +24,7 @@ export DB_USERNAME
 export TEST_FLAGS
 
 test:
-	go test -timeout 30m  -v $(TEST_FLAGS)
+	go test -v $(TEST_FLAGS)
 
 server-up: server-down
 	docker-compose -p $(PROJECT) up -d && \
