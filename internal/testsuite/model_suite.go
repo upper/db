@@ -377,20 +377,20 @@ func (s *BondTestSuite) TestInheritedTx() {
 	sqlTx, err := sqlDB.Begin()
 	s.NoError(err)
 
-	// And pass that transaction to bond, this whole session is a transaction.
-	bondTx, err := sqlbuilder.BindTx(s.Adapter(), sqlTx)
+	// And pass that transaction to upper/db, this whole session is a transaction.
+	upperTx, err := sqlbuilder.BindTx(s.Adapter(), sqlTx)
 	s.NoError(err)
 
 	// Should fail because user is a UNIQUE value and we already have a "peter".
-	err = bondTx.Save(&User{Username: "peter"})
+	err = upperTx.Save(&User{Username: "peter"})
 	s.Error(err)
 
-	// The transaction is controlled outside bond.
+	// The transaction is controlled outside upper/db.
 	err = sqlTx.Rollback()
 	s.NoError(err)
 
 	// The sqlTx is worthless now.
-	err = bondTx.Save(&User{Username: "peter-2"})
+	err = upperTx.Save(&User{Username: "peter-2"})
 	s.Error(err)
 
 	// But we can create a new one.
@@ -398,19 +398,19 @@ func (s *BondTestSuite) TestInheritedTx() {
 	s.NoError(err)
 	s.NotNil(sqlTx)
 
-	// And create another bond session.
-	bondTx, err = sqlbuilder.BindTx(s.Adapter(), sqlTx)
+	// And create another session.
+	upperTx, err = sqlbuilder.BindTx(s.Adapter(), sqlTx)
 	s.NoError(err)
 
 	// Adding two new values.
-	err = bondTx.Save(&User{Username: "Joe-2"})
+	err = upperTx.Save(&User{Username: "Joe-2"})
 	s.NoError(err)
 
-	err = bondTx.Save(&User{Username: "Cool-2"})
+	err = upperTx.Save(&User{Username: "Cool-2"})
 	s.NoError(err)
 
 	// And a value that is going to be rolled back.
-	err = bondTx.Save(&Account{Name: "Rolled back"})
+	err = upperTx.Save(&Account{Name: "Rolled back"})
 	s.NoError(err)
 
 	// This session happens to be a transaction, let's rollback everything.

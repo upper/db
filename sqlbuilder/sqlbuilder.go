@@ -20,7 +20,7 @@ func lookupAdapter(adapterName string) (Adapter, error) {
 		return sqlAdapter, nil
 	}
 
-	return nil, fmt.Errorf("bond: missing SQL adapter %q", adapterName)
+	return nil, fmt.Errorf("%w %q", db.ErrMissingAdapter, adapterName)
 }
 
 func BindTx(adapterName string, tx *sql.Tx) (Tx, error) {

@@ -27,8 +27,8 @@ type Model interface {
 
 // HasSave is an interface that defines an (optional) Save function for models
 // that is called when persisting an item (creating or updating). If Save is
-// not defined, bond will attempt to either create or update the item based on
-// whether the values for item's primary key are defined.
+// not defined, upper/db will attempt to either create or update the item based
+// on whether the values for item's primary key are defined.
 type HasSave interface {
 	Save(sess Session) error
 }

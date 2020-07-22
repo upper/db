@@ -158,7 +158,6 @@ func (h *Helper) TearUp() error {
 			case_test NVARCHAR(60)
 		)`,
 
-		// bond
 		`DROP TABLE IF EXISTS [accounts]`,
 		`CREATE TABLE [accounts] (
 			id BIGINT PRIMARY KEY NOT NULL IDENTITY(1,1),
