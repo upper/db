@@ -146,7 +146,6 @@ func (h *Helper) TearUp() error {
 				case_test string
 		)`,
 
-		// bond
 		/*
 			`DROP TABLE IF EXISTS accounts`,
 			`CREATE TABLE accounts (

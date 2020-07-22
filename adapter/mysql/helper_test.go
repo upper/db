@@ -261,7 +261,6 @@ func (h *Helper) TearUp() error {
 			case_test VARCHAR(60)
 		) CHARSET=utf8`,
 
-		// bond
 		`DROP TABLE IF EXISTS accounts`,
 
 		`CREATE TABLE accounts (
