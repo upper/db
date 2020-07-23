@@ -182,7 +182,7 @@ func ParseURL(s string) (u ConnectionURL, err error) {
 		u.Socket = h
 	} else {
 		if p == "" {
-			u.Host = h
+			u.Host = fmt.Sprintf("%s:26257", h)
 		} else {
 			u.Host = fmt.Sprintf("%s:%s", h, p)
 		}
