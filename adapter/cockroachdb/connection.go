@@ -125,6 +125,7 @@ func (c ConnectionURL) String() (s string) {
 			u = append(u, "port="+escaper.Replace(port))
 		} else {
 			u = append(u, "host="+escaper.Replace(c.Host))
+			u = append(u, "port=26257")
 		}
 	}
 

@@ -39,15 +39,15 @@ func TestConnectionURL(t *testing.T) {
 
 	// Adding a host.
 	c.Host = "localhost"
-	assert.Equal(t, "host=localhost sslmode=disable", c.String())
+	assert.Equal(t, "host=localhost port=26257 sslmode=disable", c.String())
 
 	// Adding a username.
 	c.User = "Anakin"
-	assert.Equal(t, "user=Anakin host=localhost sslmode=disable", c.String())
+	assert.Equal(t, "user=Anakin host=localhost port=26257 sslmode=disable", c.String())
 
 	// Adding a password with special characters.
 	c.Password = "Some Sort of ' Password"
-	assert.Equal(t, `user=Anakin password=Some\ Sort\ of\ \'\ Password host=localhost sslmode=disable`, c.String())
+	assert.Equal(t, `user=Anakin password=Some\ Sort\ of\ \'\ Password host=localhost port=26257 sslmode=disable`, c.String())
 
 	// Adding a port.
 	c.Host = "localhost:1234"
@@ -73,7 +73,7 @@ func TestParseConnectionURL(t *testing.T) {
 
 		assert.Equal(t, "anakin", u.User)
 		assert.Equal(t, "skywalker", u.Password)
-		assert.Equal(t, "localhost", u.Host)
+		assert.Equal(t, "localhost:26257", u.Host)
 		assert.Equal(t, "jedis", u.Database)
 		assert.Zero(t, u.Options["sslmode"], "Failed to parse SSLMode.")
 	}
@@ -104,7 +104,7 @@ func TestParseConnectionURL(t *testing.T) {
 		assert.Equal(t, "anakin", u.User)
 		assert.Equal(t, "skywalker", u.Password)
 		assert.Equal(t, "jedis", u.Database)
-		assert.Equal(t, "localhost", u.Host)
+		assert.Equal(t, "localhost:26257", u.Host)
 		assert.Zero(t, u.Options["sslmode"], "Failed to parse SSLMode.")
 	}
 
