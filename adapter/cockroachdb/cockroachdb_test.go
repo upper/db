@@ -1004,6 +1004,7 @@ func (s *AdapterTests) Test_Issue391_BinaryMode() {
 		Password: settings.Password,
 		Host:     settings.Host,
 		Options: map[string]string{
+			"sslmode":           "disable",
 			"timezone":          testsuite.TimeZone,
 			"binary_parameters": "yes",
 		},

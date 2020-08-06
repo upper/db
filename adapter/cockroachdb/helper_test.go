@@ -38,6 +38,7 @@ var settings = ConnectionURL{
 	Password: os.Getenv("DB_PASSWORD"),
 	Host:     os.Getenv("DB_HOST") + ":" + os.Getenv("DB_PORT"),
 	Options: map[string]string{
+		"sslmode":  "disable",
 		"timezone": testsuite.TimeZone,
 	},
 }

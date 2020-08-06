@@ -35,27 +35,27 @@ func TestConnectionURL(t *testing.T) {
 
 	// Adding a host with port.
 	c.Host = "localhost:1234"
-	assert.Equal(t, "host=localhost port=1234 sslmode=disable", c.String())
+	assert.Equal(t, "host=localhost port=1234 sslmode=require", c.String())
 
 	// Adding a host.
 	c.Host = "localhost"
-	assert.Equal(t, "host=localhost port=26257 sslmode=disable", c.String())
+	assert.Equal(t, "host=localhost port=26257 sslmode=require", c.String())
 
 	// Adding a username.
 	c.User = "Anakin"
-	assert.Equal(t, "user=Anakin host=localhost port=26257 sslmode=disable", c.String())
+	assert.Equal(t, "user=Anakin host=localhost port=26257 sslmode=require", c.String())
 
 	// Adding a password with special characters.
 	c.Password = "Some Sort of ' Password"
-	assert.Equal(t, `user=Anakin password=Some\ Sort\ of\ \'\ Password host=localhost port=26257 sslmode=disable`, c.String())
+	assert.Equal(t, `user=Anakin password=Some\ Sort\ of\ \'\ Password host=localhost port=26257 sslmode=require`, c.String())
 
 	// Adding a port.
 	c.Host = "localhost:1234"
-	assert.Equal(t, `user=Anakin password=Some\ Sort\ of\ \'\ Password host=localhost port=1234 sslmode=disable`, c.String())
+	assert.Equal(t, `user=Anakin password=Some\ Sort\ of\ \'\ Password host=localhost port=1234 sslmode=require`, c.String())
 
 	// Adding a database.
 	c.Database = "MyDatabase"
-	assert.Equal(t, `user=Anakin password=Some\ Sort\ of\ \'\ Password host=localhost port=1234 dbname=MyDatabase sslmode=disable`, c.String())
+	assert.Equal(t, `user=Anakin password=Some\ Sort\ of\ \'\ Password host=localhost port=1234 dbname=MyDatabase sslmode=require`, c.String())
 
 	// Adding options.
 	c.Options = map[string]string{
