@@ -146,9 +146,9 @@ func (c ConnectionURL) String() (s string) {
 		c.Options = map[string]string{}
 	}
 
-	// If not present, SSL mode is assumed disabled.
+	// If not present, SSL mode is assumed required.
 	if sslMode, ok := c.Options["sslmode"]; !ok || sslMode == "" {
-		c.Options["sslmode"] = "disable"
+		c.Options["sslmode"] = "require"
 	}
 
 	for k, v := range c.Options {
