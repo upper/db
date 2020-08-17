@@ -60,6 +60,14 @@ type Settings interface {
 	// MaxOpenConns returns the default maximum number of open connections to the
 	// database.
 	MaxOpenConns() int
+
+	// SetMaxTransactionRetries sets the number of times a transaction can
+	// be retried.
+	SetMaxTransactionRetries(int)
+
+	// MaxTransactionRetries returns the maximum number of times a
+	// transaction can be retried.
+	MaxTransactionRetries() int
 }
 
 type settings struct {
@@ -70,6 +78,8 @@ type settings struct {
 	connMaxLifetime time.Duration
 	maxOpenConns    int
 	maxIdleConns    int
+
+	maxTransactionRetries int
 }
 
 func (c *settings) binaryOption(opt *uint32) bool {
@@ -116,6 +126,21 @@ func (c *settings) MaxIdleConns() int {
 	return c.maxIdleConns
 }
 
+func (c *settings) SetMaxTransactionRetries(n int) {
+	c.Lock()
+	c.maxTransactionRetries = n
+	c.Unlock()
+}
+
+func (c *settings) MaxTransactionRetries() int {
+	c.RLock()
+	defer c.RUnlock()
+	if c.maxTransactionRetries < 1 {
+		return 1
+	}
+	return c.maxTransactionRetries
+}
+
 func (c *settings) SetMaxOpenConns(n int) {
 	c.Lock()
 	c.maxOpenConns = n
@@ -137,6 +162,7 @@ func NewSettings() Settings {
 		connMaxLifetime:               def.connMaxLifetime,
 		maxIdleConns:                  def.maxIdleConns,
 		maxOpenConns:                  def.maxOpenConns,
+		maxTransactionRetries:         def.maxTransactionRetries,
 	}
 }
 
@@ -147,4 +173,5 @@ var DefaultSettings Settings = &settings{
 	connMaxLifetime:               time.Duration(0),
 	maxIdleConns:                  10,
 	maxOpenConns:                  0,
+	maxTransactionRetries:         1,
 }
