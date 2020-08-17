@@ -32,10 +32,6 @@ type hasConvertValues interface {
 	ConvertValues(values []interface{}) []interface{}
 }
 
-type hasReflect interface {
-	Reflect(db.Model)
-}
-
 var Mapper = reflectx.NewMapper("db")
 
 // fetchRow receives a *sql.Rows value and tries to map all the rows into a
@@ -79,10 +75,6 @@ func fetchRow(iter *iterator, dst interface{}) error {
 		itemV.Set(item)
 	} else {
 		itemV.Set(reflect.Indirect(item))
-	}
-
-	if reflector, ok := dst.(hasReflect); ok {
-		reflector.Reflect(dst.(db.Model))
 	}
 
 	return nil

@@ -1,120 +1,78 @@
 package testsuite
 
 import (
+	"database/sql"
 	"fmt"
 	"time"
-
-	"database/sql"
 
 	"github.com/stretchr/testify/suite"
 	"github.com/upper/db/v4"
 	"github.com/upper/db/v4/sqlbuilder"
 )
 
-type Session struct {
-	sqlbuilder.Session
+func Accounts(sess db.Session) db.Collection {
+	return sess.Collection("accounts")
 }
 
-func (d *Session) Accounts() *Accounts {
-	return NewAccounts(d.Session)
+func Users(sess db.Session) db.Collection {
+	return sess.Collection("users")
 }
 
-func (d *Session) UserCollection() *UserCollection {
-	return NewUserCollection(d.Session)
-}
-
-func (d *Session) LogCollection() *LogCollection {
-	return NewLogCollection(d.Session)
-}
-
-func NewSession(sess db.Session) *Session {
-	return &Session{Session: sess.(sqlbuilder.Session)}
-}
-
-func NewAccounts(sess db.Session) *Accounts {
-	return &Accounts{Collection: sess.Collection("accounts")}
-}
-
-func NewUserCollection(sess db.Session) *UserCollection {
-	return &UserCollection{Collection: sess.Collection("users")}
-}
-
-func NewLogCollection(sess db.Session) *LogCollection {
-	return &LogCollection{Collection: sess.Collection("logs")}
+func Logs(sess db.Session) db.Collection {
+	return sess.Collection("logs")
 }
 
 type Log struct {
-	sqlbuilder.Item
-
 	ID      uint64 `db:"id,omitempty"`
 	Message string `db:"message"`
 }
 
 type Account struct {
-	sqlbuilder.Item
-
 	ID        uint64     `db:"id,omitempty"`
 	Name      string     `db:"name"`
 	Disabled  bool       `db:"disabled"`
 	CreatedAt *time.Time `db:"created_at,omitempty"`
 }
 
-func (account *Account) Collection(sess db.Session) db.Collection {
-	return sess.Collection("accounts")
+func (*Account) Collection(sess db.Session) db.Collection {
+	return Accounts(sess)
 }
 
-func (account *Account) AfterCreate(sess db.Session) error {
-	message := fmt.Sprintf("Account %q was created.", account.Name)
+func (a *Account) AfterCreate(sess db.Session) error {
+	message := fmt.Sprintf("Account %q was created.", a.Name)
 	return sess.Save(&Log{Message: message})
 }
 
 type User struct {
-	sqlbuilder.Item
-
 	ID        uint64 `db:"id,omitempty"`
 	AccountID uint64 `db:"account_id"`
 	Username  string `db:"username"`
 }
 
-func (user *User) AfterCreate(sess db.Session) error {
-	message := fmt.Sprintf("User %q was created.", user.Username)
+func (u *User) AfterCreate(sess db.Session) error {
+	message := fmt.Sprintf("User %q was created.", u.Username)
 	return sess.Save(&Log{Message: message})
 }
 
-func (user *User) Collection(sess db.Session) db.Collection {
-	return sess.Collection("users")
+func (*User) Collection(sess db.Session) db.Collection {
+	return Users(sess)
 }
 
-func (l *Log) Collection(sess db.Session) db.Collection {
-	return sess.Collection("logs")
+func (*Log) Collection(sess db.Session) db.Collection {
+	return Logs(sess)
 }
 
-type LogCollection struct {
-	db.Collection
-}
-
-type Accounts struct {
-	db.Collection
-}
-
-type UserCollection struct {
-	db.Collection
-}
-
-type BondTestSuite struct {
-	sess *Session
-
+type RecordTestSuite struct {
 	suite.Suite
-
 	Helper
 }
 
-func (s *BondTestSuite) AfterTest(suiteName, testName string) {
+func (s *RecordTestSuite) AfterTest(suiteName, testName string) {
 	err := s.TearDown()
 	s.NoError(err)
 }
 
-func (s *BondTestSuite) BeforeTest(suiteName, testName string) {
+func (s *RecordTestSuite) BeforeTest(suiteName, testName string) {
 	err := s.TearUp()
 	s.NoError(err)
 
@@ -127,15 +85,9 @@ func (s *BondTestSuite) BeforeTest(suiteName, testName string) {
 		err = cols[i].Truncate()
 		s.NoError(err)
 	}
-
-	s.sess = NewSession(sess)
 }
 
-func (s *BondTestSuite) Session() *Session {
-	return s.sess
-}
-
-func (s *BondTestSuite) TestFindOne() {
+func (s *RecordTestSuite) TestFindOne() {
 	var err error
 	sess := s.Session()
 
@@ -144,44 +96,28 @@ func (s *BondTestSuite) TestFindOne() {
 	s.NoError(err)
 
 	s.NotZero(user.ID)
-
-	s.Equal(db.M{}, user.Changes())
-	user.Username = "jose-2"
-	s.Equal(db.M{"username": "jose-2"}, user.Changes())
-
-	user = User{}
-	err = sess.Get(&user, db.Cond{"username": "jose"})
-
-	s.NoError(err)
-
-	s.Equal(db.M{}, user.Changes())
-	user.Username = "catalina"
-	s.Equal(db.M{"username": "catalina"}, user.Changes())
-
-	err = sess.Save(&user)
-	s.NoError(err)
-
-	s.Equal(db.M{}, user.Changes())
-	user.Username = "nala"
-	s.Equal(db.M{"username": "nala"}, user.Changes())
-
-	err = sess.Save(&user)
-	s.NoError(err)
-	s.Equal(db.M{}, user.Changes())
-
 	userID := user.ID
 
 	user = User{}
-	err = sess.Get(&user, userID)
+	err = Users(sess).Find(userID).One(&user)
+	s.NoError(err)
+	s.Equal("jose", user.Username)
 
-	s.Equal("nala", user.Username)
+	user = User{}
+	err = sess.Get(&user, db.Cond{"username": "jose"})
+	s.NoError(err)
+	s.Equal("jose", user.Username)
+
+	user.Username = "Catalina"
+	err = sess.Save(&user)
+	s.NoError(err)
 
 	user = User{}
 	err = sess.Get(&user, userID)
 	s.NoError(err)
-	s.Equal("nala", user.Username)
+	s.Equal("Catalina", user.Username)
 
-	err = user.Delete(sess)
+	err = sess.Delete(&user)
 	s.NoError(err)
 
 	err = sess.Get(&user, userID)
@@ -193,7 +129,7 @@ func (s *BondTestSuite) TestFindOne() {
 	s.Error(err)
 }
 
-func (s *BondTestSuite) TestAccounts() {
+func (s *RecordTestSuite) TestAccounts() {
 	sess := s.Session()
 
 	user := User{Username: "peter"}
@@ -205,7 +141,7 @@ func (s *BondTestSuite) TestAccounts() {
 	err = sess.Save(&user)
 	s.Error(err, "username should be unique")
 
-	account1 := Account{Name: "Pressly"}
+	account1 := Account{Name: "skywalker"}
 	err = sess.Save(&account1)
 	s.NoError(err)
 
@@ -230,19 +166,19 @@ func (s *BondTestSuite) TestAccounts() {
 	err = sess.Save(&account1)
 	s.NoError(err)
 
-	count, err := sess.Accounts().Count()
+	count, err := Accounts(sess).Count()
 	s.NoError(err)
 	s.Equal(uint64(1), count)
 
-	err = account1.Delete(sess)
+	err = sess.Delete(&account1)
 	s.NoError(err)
 
-	count, err = sess.Accounts().Find().Count()
+	count, err = Accounts(sess).Find().Count()
 	s.NoError(err)
 	s.Zero(count)
 }
 
-func (s *BondTestSuite) TestDelete() {
+func (s *RecordTestSuite) TestDelete() {
 	sess := s.Session()
 
 	account := Account{Name: "Pressly"}
@@ -251,16 +187,16 @@ func (s *BondTestSuite) TestDelete() {
 	s.NotZero(account.ID)
 
 	// Delete by query -- without callbacks
-	err = sess.Accounts().
+	err = Accounts(sess).
 		Find(account.ID).
 		Delete()
 	s.NoError(err)
 
-	count, err := sess.Accounts().Find(account.ID).Count()
+	count, err := Accounts(sess).Find(account.ID).Count()
 	s.Zero(count)
 }
 
-func (s *BondTestSuite) TestSlices() {
+func (s *RecordTestSuite) TestSlices() {
 	sess := s.Session()
 
 	err := sess.Save(&Account{Name: "Apple"})
@@ -270,14 +206,14 @@ func (s *BondTestSuite) TestSlices() {
 	s.NoError(err)
 
 	var accounts []*Account
-	err = sess.Accounts().
+	err = Accounts(sess).
 		Find(db.Cond{}).
 		All(&accounts)
 	s.NoError(err)
 	s.Len(accounts, 2)
 }
 
-func (s *BondTestSuite) TestSelectOnlyIDs() {
+func (s *RecordTestSuite) TestSelectOnlyIDs() {
 	sess := s.Session()
 
 	err := sess.Save(&Account{Name: "Apple"})
@@ -290,7 +226,7 @@ func (s *BondTestSuite) TestSelectOnlyIDs() {
 		Id int64 `db:"id"`
 	}
 
-	err = sess.Accounts().
+	err = Accounts(sess).
 		Find().
 		Select("id").All(&ids)
 	s.NoError(err)
@@ -298,8 +234,8 @@ func (s *BondTestSuite) TestSelectOnlyIDs() {
 	s.NotEmpty(ids[0])
 }
 
-func (s *BondTestSuite) TestTx() {
-	sess := s.Session()
+func (s *RecordTestSuite) TestTx() {
+	sess := s.Session().(sqlbuilder.Session)
 
 	user := User{Username: "peter"}
 	err := sess.Save(&user)
@@ -364,7 +300,7 @@ func (s *BondTestSuite) TestTx() {
 	s.Error(err)
 }
 
-func (s *BondTestSuite) TestInheritedTx() {
+func (s *RecordTestSuite) TestInheritedTx() {
 	sess := s.Session()
 
 	sqlDB := sess.Driver().(*sql.DB)
@@ -440,7 +376,7 @@ func (s *BondTestSuite) TestInheritedTx() {
 	s.NoError(err)
 }
 
-func (s *BondTestSuite) TestUnknownCollection() {
+func (s *RecordTestSuite) TestUnknownCollection() {
 	var err error
 	sess := s.Session()
 

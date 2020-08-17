@@ -9,10 +9,6 @@ import (
 	"github.com/upper/db/v4/sqlbuilder"
 )
 
-type hasReflector interface {
-	Reflect(db.Model)
-}
-
 // CollectionAdapter defines methods to be implemented by SQL adapters.
 type CollectionAdapter interface {
 	// Insert prepares and executes an INSERT statament. When the item is
@@ -248,10 +244,6 @@ func (c *collection) InsertReturning(item interface{}) error {
 		goto cancel
 	}
 
-	if reflector, ok := item.(hasReflector); ok {
-		reflector.Reflect(item.(db.Model))
-	}
-
 	if !inTx {
 		// This is only executed if t.Session() was **not** a transaction and if
 		// sess was created with sess.NewTransaction().
@@ -342,10 +334,6 @@ func (c *collection) UpdateReturning(item interface{}) error {
 		}
 	default:
 		panic("default")
-	}
-
-	if reflector, ok := item.(hasReflector); ok {
-		reflector.Reflect(item.(db.Model))
 	}
 
 	if !inTx {
