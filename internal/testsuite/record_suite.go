@@ -76,7 +76,7 @@ func (s *RecordTestSuite) BeforeTest(suiteName, testName string) {
 	err := s.TearUp()
 	s.NoError(err)
 
-	sess := s.Helper.Session().(sqlbuilder.Session)
+	sess := s.Helper.Session()
 
 	cols, err := sess.Collections()
 	s.NoError(err)
@@ -235,7 +235,7 @@ func (s *RecordTestSuite) TestSelectOnlyIDs() {
 }
 
 func (s *RecordTestSuite) TestTx() {
-	sess := s.Session().(sqlbuilder.Session)
+	sess := s.SQLBuilder()
 
 	user := User{Username: "peter"}
 	err := sess.Save(&user)
@@ -243,21 +243,21 @@ func (s *RecordTestSuite) TestTx() {
 
 	// This transaction should fail because user is a UNIQUE value and we already
 	// have a "peter".
-	err = sess.Tx(func(tx sqlbuilder.Tx) error {
+	err = sess.Tx(func(tx db.Session) error {
 		return tx.Save(&User{Username: "peter"})
 	})
 	s.Error(err)
 
 	// This transaction should fail because user is a UNIQUE value and we already
 	// have a "peter".
-	err = sess.Tx(func(tx sqlbuilder.Tx) error {
+	err = sess.Tx(func(tx db.Session) error {
 		return tx.Save(&User{Username: "peter"})
 	})
 	s.Error(err)
 
 	// This transaction will have no errors, but we'll produce one in order for
 	// it to rollback at the last moment.
-	err = sess.Tx(func(tx sqlbuilder.Tx) error {
+	err = sess.Tx(func(tx db.Session) error {
 		if err := tx.Save(&User{Username: "Joe"}); err != nil {
 			return err
 		}
@@ -272,7 +272,7 @@ func (s *RecordTestSuite) TestTx() {
 
 	// Attempt to add two new unique values, if the transaction above had not
 	// been rolled back this transaction will fail.
-	err = sess.Tx(func(tx sqlbuilder.Tx) error {
+	err = sess.Tx(func(tx db.Session) error {
 		if err := tx.Save(&User{Username: "Joe"}); err != nil {
 			return err
 		}
@@ -286,7 +286,7 @@ func (s *RecordTestSuite) TestTx() {
 	s.NoError(err)
 
 	// If the transaction above was successful, this one will fail.
-	err = sess.Tx(func(tx sqlbuilder.Tx) error {
+	err = sess.Tx(func(tx db.Session) error {
 		if err := tx.Save(&User{Username: "Joe"}); err != nil {
 			return err
 		}

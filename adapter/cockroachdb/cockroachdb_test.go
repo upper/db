@@ -159,7 +159,7 @@ func (s *AdapterTests) SkipTest_Issue469_BadConnection() {
 
 	// At this point the server should have disconnected us. Let's try to create
 	// a transaction anyway.
-	err = sess.Tx(func(sess sqlbuilder.Tx) error {
+	err = sess.Tx(func(sess db.Session) error {
 		var err error
 
 		_, err = sess.Collection("artist").Find().Count()
@@ -175,7 +175,7 @@ func (s *AdapterTests) SkipTest_Issue469_BadConnection() {
 	_, err = sess.Exec(`SET statement_timeout=1000`)
 	s.NoError(err)
 
-	err = sess.Tx(func(sess sqlbuilder.Tx) error {
+	err = sess.Tx(func(sess db.Session) error {
 		var err error
 
 		// This query should succeed.

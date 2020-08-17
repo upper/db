@@ -159,9 +159,9 @@ type Session interface {
 
 	NewTx(ctx context.Context) (sqlbuilder.Tx, error)
 
-	Tx(fn func(sess sqlbuilder.Tx) error) error
+	Tx(fn func(sess db.Session) error) error
 
-	TxContext(ctx context.Context, fn func(sess sqlbuilder.Tx) error) error
+	TxContext(ctx context.Context, fn func(sess db.Session) error) error
 
 	WithContext(context.Context) sqlbuilder.Session
 
@@ -238,16 +238,16 @@ func (sess *session) WithContext(ctx context.Context) sqlbuilder.Session {
 	return newDB
 }
 
-func (sess *session) Tx(fn func(tx sqlbuilder.Tx) error) error {
+func (sess *session) Tx(fn func(sess db.Session) error) error {
 	return TxContext(sess.Context(), sess, fn)
 }
 
-func (sess *session) TxContext(ctx context.Context, fn func(sess sqlbuilder.Tx) error) error {
+func (sess *session) TxContext(ctx context.Context, fn func(sess db.Session) error) error {
 	return TxContext(ctx, sess, fn)
 }
 
 func (sess *session) Err(errIn error) (errOur error) {
-	if convertError, ok := errIn.(errorConverter); ok {
+	if convertError, ok := sess.adapter.(errorConverter); ok {
 		return convertError.Err(errIn)
 	}
 	return errIn
@@ -630,7 +630,6 @@ func (sess *session) NewClone(adapter AdapterSession, checkConn bool) (Session, 
 }
 
 func (sess *session) Close() error {
-
 	defer func() {
 		sess.sqlDBMu.Lock()
 		sess.sqlDB = nil

@@ -24,7 +24,10 @@ package sqladapter
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"sync/atomic"
+	"time"
 
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/sqlbuilder"
@@ -94,18 +97,39 @@ func (w *sessionTx) Rollback() error {
 }
 
 // TxContext creates a transaction context and runs fn within it.
-func TxContext(ctx context.Context, sess sqlbuilder.Session, fn func(tx sqlbuilder.Tx) error) error {
-	tx, err := sess.NewTx(ctx)
-	if err != nil {
-		return err
+func TxContext(ctx context.Context, sess sqlbuilder.Session, fn func(tx db.Session) error) error {
+
+	txFn := func(sess sqlbuilder.Session) error {
+		tx, err := sess.NewTx(ctx)
+		if err != nil {
+			return err
+		}
+		defer tx.Close()
+
+		if err := fn(tx); err != nil {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				return fmt.Errorf("%s: %w", rollbackErr, err)
+			}
+			return err
+		}
+		return tx.Commit()
 	}
 
-	defer tx.Close()
-	if err := fn(tx); err != nil {
-		_ = tx.Rollback()
-		return err
+	var txErr error
+	for i := 0; i < sess.MaxTransactionRetries(); i++ {
+		txErr = sess.(*session).Err(txFn(sess))
+		if txErr == nil {
+			return nil
+		}
+		if errors.Is(txErr, db.ErrTransactionAborted) {
+			time.Sleep(time.Millisecond * 100 * time.Duration(i))
+			continue
+		}
+		return txErr
 	}
-	return tx.Commit()
+
+	return fmt.Errorf("db: giving up trying to commit transaction: %w", txErr)
+
 }
 
 var (
@@ -119,9 +143,10 @@ type txWrapper struct {
 
 var (
 	_ = sqlbuilder.Tx(&txWrapper{})
+	_ = sqlbuilder.Session(&txWrapper{})
 )
 
-func (t *txWrapper) WithContext(ctx context.Context) sqlbuilder.Tx {
+func (t *txWrapper) WithContext(ctx context.Context) sqlbuilder.Session {
 	newTx := *t
 	newTx.SessionTx.SetContext(ctx)
 	return &newTx

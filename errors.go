@@ -57,4 +57,5 @@ var (
 	ErrZeroItemID               = errors.New(`upper: item ID is not defined`)
 	ErrMissingPrimaryKeys       = errors.New(`upper: collection has no primary keys`)
 	ErrWarnSlowQuery            = errors.New(`upper: slow query`)
+	ErrTransactionAborted       = errors.New(`upper: transaction was aborted`)
 )
