@@ -31,8 +31,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	"github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/testsuite"
-	"github.com/upper/db/v4/sqlbuilder"
 )
 
 type int64Compat int64
@@ -162,7 +162,7 @@ func (s *AdapterTests) TestIssue469_BadConnection() {
 
 	// At this point the server should have disconnected us. Let's try to create
 	// a transaction anyway.
-	err = sess.Tx(func(sess sqlbuilder.Tx) error {
+	err = sess.Tx(func(sess db.Session) error {
 		var err error
 
 		_, err = sess.Collection("artist").Find().Count()
@@ -178,7 +178,7 @@ func (s *AdapterTests) TestIssue469_BadConnection() {
 	_, err = sess.Exec(`SET SESSION wait_timeout=1`)
 	s.NoError(err)
 
-	err = sess.Tx(func(sess sqlbuilder.Tx) error {
+	err = sess.Tx(func(sess db.Session) error {
 		var err error
 
 		// This query should succeed.

@@ -54,7 +54,7 @@ type Tx interface {
 	// WithContext returns a copy of the transaction that uses the given context
 	// as default. Copies are safe to use concurrently but they're backed by the
 	// same *sql.Tx, so any copy may commit or rollback the parent transaction.
-	WithContext(context.Context) Tx
+	// WithContext(context.Context) Tx
 
 	// SetTxOptions sets the default TxOptions that is going to be used for new
 	// transactions created in the session.
@@ -82,13 +82,13 @@ type Session interface {
 	// it to the function fn. If fn returns no error the transaction is commited,
 	// else the transaction is rolled back. After being commited or rolled back
 	// the transaction is closed automatically.
-	Tx(fn func(sess Tx) error) error
+	Tx(fn func(sess db.Session) error) error
 
 	// TxContext creates a transaction block on the given context and passes it to
 	// the function fn. If fn returns no error the transaction is commited, else
 	// the transaction is rolled back. After being commited or rolled back the
 	// transaction is closed automatically.
-	TxContext(ctx context.Context, fn func(sess Tx) error) error
+	TxContext(ctx context.Context, fn func(sess db.Session) error) error
 
 	// Context returns the context used as default for queries on this session
 	// and for new transactions.  If no context has been set, a default
