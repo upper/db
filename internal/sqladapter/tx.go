@@ -24,6 +24,7 @@ package sqladapter
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -115,12 +116,16 @@ func TxContext(ctx context.Context, sess sqlbuilder.Session, fn func(tx db.Sessi
 	}
 
 	var txErr error
-	for i := 0; i < db.DefaultSettings.MaxTransactionRetries(); i++ {
-		txErr = txFn(sess)
+	for i := 0; i < sess.MaxTransactionRetries(); i++ {
+		txErr = sess.(*session).Err(txFn(sess))
 		if txErr == nil {
 			return nil
 		}
-		time.Sleep(time.Millisecond * 100 * time.Duration(i))
+		if errors.Is(txErr, db.ErrTransactionAborted) {
+			time.Sleep(time.Millisecond * 100 * time.Duration(i))
+			continue
+		}
+		return txErr
 	}
 
 	return fmt.Errorf("db: giving up trying to commit transaction: %w", txErr)
