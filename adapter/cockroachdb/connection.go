@@ -112,21 +112,23 @@ func (c ConnectionURL) String() (s string) {
 		u = append(u, "password="+escaper.Replace(c.Password))
 	}
 
-	if c.Host != "" {
-		host, port, err := net.SplitHostPort(c.Host)
-		if err == nil {
-			if host == "" {
-				host = "127.0.0.1"
-			}
-			if port == "" {
-				port = "26257"
-			}
-			u = append(u, "host="+escaper.Replace(host))
-			u = append(u, "port="+escaper.Replace(port))
-		} else {
-			u = append(u, "host="+escaper.Replace(c.Host))
-			u = append(u, "port=26257")
+	if c.Host == "" {
+		c.Host = "127.0.0.1:26257"
+	}
+
+	host, port, err := net.SplitHostPort(c.Host)
+	if err == nil {
+		if host == "" {
+			host = "127.0.0.1"
 		}
+		if port == "" {
+			port = "26257"
+		}
+		u = append(u, "host="+escaper.Replace(host))
+		u = append(u, "port="+escaper.Replace(port))
+	} else {
+		u = append(u, "host="+escaper.Replace(c.Host))
+		u = append(u, "port=26257")
 	}
 
 	if c.Socket != "" {

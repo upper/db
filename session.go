@@ -40,8 +40,11 @@ type Session interface {
 	// database.
 	Collections() ([]Collection, error)
 
-	Save(model Model) error
-	Get(model Model, id interface{}) error
+	Save(record Record) error
+
+	Get(record Record, id interface{}) error
+
+	Delete(record Record) error
 
 	// Reset resets all the caching mechanisms the adapter is using.
 	Reset()

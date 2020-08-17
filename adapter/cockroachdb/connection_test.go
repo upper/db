@@ -30,8 +30,8 @@ import (
 func TestConnectionURL(t *testing.T) {
 	c := ConnectionURL{}
 
-	// Default connection string is empty.
-	assert.Equal(t, "", c.String(), "Expecting default connectiong string to be empty")
+	// Default connection string.
+	assert.Equal(t, "host=127.0.0.1 port=26257 sslmode=require", c.String(), "Expecting default connectiong string to be empty")
 
 	// Adding a host with port.
 	c.Host = "localhost:1234"
