@@ -29,8 +29,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/upper/db/v4/internal/unsupported"
-
 	db "github.com/upper/db/v4"
 	mgo "gopkg.in/mgo.v2"
 )
@@ -183,11 +181,15 @@ func (s *Source) Collections() (cols []db.Collection, err error) {
 	return cols, nil
 }
 
-func (s *Source) Get(db.Model, interface{}) error {
+func (s *Source) Delete(db.Record) error {
 	return db.ErrNotImplemented
 }
 
-func (s *Source) Save(db.Model) error {
+func (s *Source) Get(db.Record, interface{}) error {
+	return db.ErrNotImplemented
+}
+
+func (s *Source) Save(db.Record) error {
 	return db.ErrNotImplemented
 }
 
@@ -234,8 +236,4 @@ func (s *Source) versionAtLeast(version ...int) bool {
 		}
 	}
 	return true
-}
-
-func (s *Source) Item(m db.Model) db.Item {
-	return &unsupported.Item{}
 }

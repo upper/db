@@ -28,14 +28,14 @@ import (
 	"github.com/upper/db/v4/internal/testsuite"
 )
 
-type BondTests struct {
-	testsuite.BondTestSuite
+type RecordTests struct {
+	testsuite.RecordTestSuite
 }
 
-func (s *BondTests) SetupSuite() {
+func (s *RecordTests) SetupSuite() {
 	s.Helper = &Helper{}
 }
 
-func TestBond(t *testing.T) {
-	suite.Run(t, &BondTests{})
+func TestRecord(t *testing.T) {
+	suite.Run(t, &RecordTests{})
 }

@@ -19,7 +19,7 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package sqlite
+package ql
 
 import (
 	"testing"
@@ -28,14 +28,14 @@ import (
 	"github.com/upper/db/v4/internal/testsuite"
 )
 
-type BondTests struct {
-	testsuite.BondTestSuite
+type RecordTests struct {
+	testsuite.RecordTestSuite
 }
 
-func (s *BondTests) SetupSuite() {
+func (s *RecordTests) SetupSuite() {
 	s.Helper = &Helper{}
 }
 
-func TestBond(t *testing.T) {
-	suite.Run(t, &BondTests{})
+func SkipTestRecord(t *testing.T) {
+	suite.Run(t, &RecordTests{})
 }
