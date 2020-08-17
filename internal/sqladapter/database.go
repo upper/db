@@ -247,7 +247,7 @@ func (sess *session) TxContext(ctx context.Context, fn func(sess db.Session) err
 }
 
 func (sess *session) Err(errIn error) (errOur error) {
-	if convertError, ok := errIn.(errorConverter); ok {
+	if convertError, ok := sess.adapter.(errorConverter); ok {
 		return convertError.Err(errIn)
 	}
 	return errIn

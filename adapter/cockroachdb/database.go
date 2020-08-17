@@ -33,7 +33,7 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/lib/pq"
+	pq "github.com/lib/pq"
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqladapter"
 	"github.com/upper/db/v4/internal/sqladapter/exql"
@@ -48,6 +48,7 @@ func (*database) Template() *exql.Template {
 }
 
 func (*database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {
+	sess.SetMaxTransactionRetries(5)
 	return sql.Open("postgres", dsn)
 }
 
@@ -125,12 +126,18 @@ func (*database) CompileStatement(sess sqladapter.Session, stmt *exql.Statement,
 	return query, args, nil
 }
 
-func (*database) Err(sess sqladapter.Session, err error) error {
+func (*database) Err(err error) error {
 	if err != nil {
 		s := err.Error()
 		// These errors are not exported so we have to check them by they string value.
 		if strings.Contains(s, `too many clients`) || strings.Contains(s, `remaining connection slots are reserved`) || strings.Contains(s, `too many open`) {
 			return db.ErrTooManyClients
+		}
+		if pqErr, ok := err.(*pq.Error); ok {
+			switch pqErr.Code {
+			case "25P02":
+				return db.ErrTransactionAborted
+			}
 		}
 	}
 	return err
