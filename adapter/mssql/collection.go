@@ -24,7 +24,7 @@ package mssql
 import (
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqladapter"
-	"github.com/upper/db/v4/sqlbuilder"
+	"github.com/upper/db/v4/internal/sqlbuilder"
 )
 
 type collectionAdapter struct {
@@ -56,7 +56,7 @@ func (adt *collectionAdapter) Insert(col sqladapter.Collection, item interface{}
 			var hasIdentityColumn bool
 			var identityColumns int
 
-			row, err := col.SQLBuilder().QueryRow("SELECT COUNT(1) FROM sys.identity_columns WHERE OBJECT_NAME(object_id) = ?", col.Name())
+			row, err := col.SQL().QueryRow("SELECT COUNT(1) FROM sys.identity_columns WHERE OBJECT_NAME(object_id) = ?", col.Name())
 			if err != nil {
 				return nil, err
 			}
@@ -74,17 +74,17 @@ func (adt *collectionAdapter) Insert(col sqladapter.Collection, item interface{}
 		}
 
 		if *adt.hasIdentityColumn {
-			_, err = col.SQLBuilder().Exec("SET IDENTITY_INSERT " + col.Name() + " ON")
+			_, err = col.SQL().Exec("SET IDENTITY_INSERT " + col.Name() + " ON")
 			if err != nil {
 				return nil, err
 			}
 			defer func() {
-				_, _ = col.SQLBuilder().Exec("SET IDENTITY_INSERT " + col.Name() + " OFF")
+				_, _ = col.SQL().Exec("SET IDENTITY_INSERT " + col.Name() + " OFF")
 			}()
 		}
 	}
 
-	q := col.SQLBuilder().InsertInto(col.Name()).
+	q := col.SQL().InsertInto(col.Name()).
 		Columns(columnNames...).
 		Values(columnValues...)
 

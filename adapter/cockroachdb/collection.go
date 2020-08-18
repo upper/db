@@ -32,7 +32,7 @@ type collectionAdapter struct {
 func (*collectionAdapter) Insert(col sqladapter.Collection, item interface{}) (interface{}, error) {
 	pKey := col.PrimaryKeys()
 
-	q := col.SQLBuilder().InsertInto(col.Name()).Values(item)
+	q := col.SQL().InsertInto(col.Name()).Values(item)
 
 	if len(pKey) == 0 {
 		// There is no primary key.

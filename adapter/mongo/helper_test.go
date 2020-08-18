@@ -29,7 +29,6 @@ import (
 
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/testsuite"
-	"github.com/upper/db/v4/sqlbuilder"
 )
 
 var settings = ConnectionURL{
@@ -41,10 +40,6 @@ var settings = ConnectionURL{
 
 type Helper struct {
 	sess db.Session
-}
-
-func (h *Helper) SQLBuilder() sqlbuilder.Session {
-	panic("mongo adapter is incompatile with SQLBuilder interface")
 }
 
 func (h *Helper) Session() db.Session {

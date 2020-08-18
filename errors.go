@@ -58,4 +58,6 @@ var (
 	ErrMissingPrimaryKeys       = errors.New(`upper: collection has no primary keys`)
 	ErrWarnSlowQuery            = errors.New(`upper: slow query`)
 	ErrTransactionAborted       = errors.New(`upper: transaction was aborted`)
+	ErrNotWithinTransaction     = errors.New(`upper: not within transaction`)
+	ErrNotSupportedByAdapter    = errors.New(`upper: not supported by adapter`)
 )

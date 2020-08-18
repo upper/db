@@ -16,7 +16,7 @@ var (
 )
 
 type paginatorQuery struct {
-	sel Selector
+	sel db.Selector
 
 	cursorColumn       string
 	cursorValue        interface{}
@@ -27,7 +27,7 @@ type paginatorQuery struct {
 	pageNumber uint
 }
 
-func newPaginator(sel Selector, pageSize uint) Paginator {
+func newPaginator(sel db.Selector, pageSize uint) db.Paginator {
 	pag := &paginator{}
 	return pag.frame(func(pq *paginatorQuery) error {
 		pq.pageSize = pageSize
@@ -67,7 +67,7 @@ func (pag *paginator) frame(fn func(*paginatorQuery) error) *paginator {
 	return &paginator{prev: pag, fn: fn}
 }
 
-func (pag *paginator) Page(pageNumber uint) Paginator {
+func (pag *paginator) Page(pageNumber uint) db.Paginator {
 	return pag.frame(func(pq *paginatorQuery) error {
 		if pageNumber < 1 {
 			pageNumber = 1
@@ -77,7 +77,7 @@ func (pag *paginator) Page(pageNumber uint) Paginator {
 	})
 }
 
-func (pag *paginator) Cursor(column string) Paginator {
+func (pag *paginator) Cursor(column string) db.Paginator {
 	return pag.frame(func(pq *paginatorQuery) error {
 		pq.cursorColumn = column
 		pq.cursorValue = nil
@@ -85,7 +85,7 @@ func (pag *paginator) Cursor(column string) Paginator {
 	})
 }
 
-func (pag *paginator) NextPage(cursorValue interface{}) Paginator {
+func (pag *paginator) NextPage(cursorValue interface{}) db.Paginator {
 	return pag.frame(func(pq *paginatorQuery) error {
 		if pq.cursorValue != nil && pq.cursorColumn == "" {
 			return errMissingCursorColumn
@@ -105,7 +105,7 @@ func (pag *paginator) NextPage(cursorValue interface{}) Paginator {
 	})
 }
 
-func (pag *paginator) PrevPage(cursorValue interface{}) Paginator {
+func (pag *paginator) PrevPage(cursorValue interface{}) db.Paginator {
 	return pag.frame(func(pq *paginatorQuery) error {
 		if pq.cursorValue != nil && pq.cursorColumn == "" {
 			return errMissingCursorColumn
@@ -167,19 +167,19 @@ func (pag *paginator) One(dest interface{}) error {
 	return pq.sel.One(dest)
 }
 
-func (pag *paginator) Iterator() Iterator {
+func (pag *paginator) Iterator() db.Iterator {
 	pq, err := pag.buildWithCursor()
 	if err != nil {
-		sess := pq.sel.(*selector).SQLBuilder().sess
+		sess := pq.sel.(*selector).SQL().sess
 		return &iterator{sess, nil, err}
 	}
 	return pq.sel.Iterator()
 }
 
-func (pag *paginator) IteratorContext(ctx context.Context) Iterator {
+func (pag *paginator) IteratorContext(ctx context.Context) db.Iterator {
 	pq, err := pag.buildWithCursor()
 	if err != nil {
-		sess := pq.sel.(*selector).SQLBuilder().sess
+		sess := pq.sel.(*selector).SQL().sess
 		return &iterator{sess, nil, err}
 	}
 	return pq.sel.IteratorContext(ctx)
@@ -310,7 +310,7 @@ func (pag *paginator) buildWithCursor() (*paginatorQuery, error) {
 
 	if pqq.cursorColumn != "" {
 		if pqq.cursorReverseOrder {
-			pqq.sel = pqq.sel.(*selector).SQLBuilder().
+			pqq.sel = pqq.sel.(*selector).SQL().
 				SelectFrom(db.Raw("? AS p0", pqq.sel)).
 				OrderBy(pqq.cursorColumn)
 		} else {

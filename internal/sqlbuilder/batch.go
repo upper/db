@@ -1,5 +1,9 @@
 package sqlbuilder
 
+import (
+	"github.com/upper/db/v4"
+)
+
 // BatchInserter provides a helper that can be used to do massive insertions in
 // batches.
 type BatchInserter struct {
@@ -22,7 +26,7 @@ func newBatchInserter(inserter *inserter, size int) *BatchInserter {
 }
 
 // Values pushes column values to be inserted as part of the batch.
-func (b *BatchInserter) Values(values ...interface{}) *BatchInserter {
+func (b *BatchInserter) Values(values ...interface{}) db.BatchInserter {
 	b.values <- values
 	return b
 }

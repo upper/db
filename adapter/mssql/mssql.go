@@ -26,7 +26,7 @@ import (
 
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqladapter"
-	"github.com/upper/db/v4/sqlbuilder"
+	"github.com/upper/db/v4/internal/sqlbuilder"
 )
 
 // Adapter is the public name of the adapter.
@@ -35,8 +35,8 @@ const Adapter = `mssql`
 var registeredAdapter = sqladapter.RegisterAdapter(Adapter, &database{})
 
 // Open establishes a connection to the database server and returns a
-// sqlbuilder.Session instance (which is compatible with db.Session).
-func Open(connURL db.ConnectionURL) (sqlbuilder.Session, error) {
+// db.Session instance (which is compatible with db.Session).
+func Open(connURL db.ConnectionURL) (db.Session, error) {
 	return registeredAdapter.OpenDSN(connURL)
 }
 
@@ -46,6 +46,6 @@ func NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 }
 
 // New creates a sqlbuilder.Sesion instance by wrapping a *sql.DB value.
-func New(sqlDB *sql.DB) (sqlbuilder.Session, error) {
+func New(sqlDB *sql.DB) (db.Session, error) {
 	return registeredAdapter.New(sqlDB)
 }

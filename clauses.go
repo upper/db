@@ -1,4 +1,4 @@
-// Copyright (c) 2015 The github.com/upper/db/sqlbuilder authors. All rights reserved.
+// Copyright (c) 2012-present The upper.io/db authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -19,143 +19,12 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-package sqlbuilder
+package db
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 )
-
-// SQLBuilder defines methods that can be used to build a SQL query with
-// chainable method calls.
-//
-// Queries are immutable, so every call to any method will return a new
-// pointer, if you want to build a query using variables you need to reassign
-// them, like this:
-//
-//  a = builder.Select("name").From("foo") // "a" is created
-//
-//  a.Where(...) // No effect, the value returned from Where is ignored.
-//
-//  a = a.Where(...) // "a" is reassigned and points to a different address.
-//
-type SQLBuilder interface {
-
-	// Select initializes and returns a Selector, it accepts column names as
-	// parameters.
-	//
-	// The returned Selector does not initially point to any table, a call to
-	// From() is required after Select() to complete a valid query.
-	//
-	// Example:
-	//
-	//  q := sqlbuilder.Select("first_name", "last_name").From("people").Where(...)
-	Select(columns ...interface{}) Selector
-
-	// SelectFrom creates a Selector that selects all columns (like SELECT *)
-	// from the given table.
-	//
-	// Example:
-	//
-	//  q := sqlbuilder.SelectFrom("people").Where(...)
-	SelectFrom(table ...interface{}) Selector
-
-	// InsertInto prepares and returns an Inserter targeted at the given table.
-	//
-	// Example:
-	//
-	//   q := sqlbuilder.InsertInto("books").Columns(...).Values(...)
-	InsertInto(table string) Inserter
-
-	// DeleteFrom prepares a Deleter targeted at the given table.
-	//
-	// Example:
-	//
-	//  q := sqlbuilder.DeleteFrom("tasks").Where(...)
-	DeleteFrom(table string) Deleter
-
-	// Update prepares and returns an Updater targeted at the given table.
-	//
-	// Example:
-	//
-	//  q := sqlbuilder.Update("profile").Set(...).Where(...)
-	Update(table string) Updater
-
-	// Exec executes a SQL query that does not return any rows, like sql.Exec.
-	// Queries can be either strings or upper-db statements.
-	//
-	// Example:
-	//
-	//  sqlbuilder.Exec(`INSERT INTO books (title) VALUES("La Ciudad y los Perros")`)
-	Exec(query interface{}, args ...interface{}) (sql.Result, error)
-
-	// ExecContext executes a SQL query that does not return any rows, like sql.ExecContext.
-	// Queries can be either strings or upper-db statements.
-	//
-	// Example:
-	//
-	//  sqlbuilder.ExecContext(ctx, `INSERT INTO books (title) VALUES(?)`, "La Ciudad y los Perros")
-	ExecContext(ctx context.Context, query interface{}, args ...interface{}) (sql.Result, error)
-
-	// Prepare creates a prepared statement for later queries or executions. The
-	// caller must call the statement's Close method when the statement is no
-	// longer needed.
-	Prepare(query interface{}) (*sql.Stmt, error)
-
-	// Prepare creates a prepared statement on the guiven context for later
-	// queries or executions. The caller must call the statement's Close method
-	// when the statement is no longer needed.
-	PrepareContext(ctx context.Context, query interface{}) (*sql.Stmt, error)
-
-	// Query executes a SQL query that returns rows, like sql.Query.  Queries can
-	// be either strings or upper-db statements.
-	//
-	// Example:
-	//
-	//  sqlbuilder.Query(`SELECT * FROM people WHERE name = "Mateo"`)
-	Query(query interface{}, args ...interface{}) (*sql.Rows, error)
-
-	// QueryContext executes a SQL query that returns rows, like
-	// sql.QueryContext.  Queries can be either strings or upper-db statements.
-	//
-	// Example:
-	//
-	//  sqlbuilder.QueryContext(ctx, `SELECT * FROM people WHERE name = ?`, "Mateo")
-	QueryContext(ctx context.Context, query interface{}, args ...interface{}) (*sql.Rows, error)
-
-	// QueryRow executes a SQL query that returns one row, like sql.QueryRow.
-	// Queries can be either strings or upper-db statements.
-	//
-	// Example:
-	//
-	//  sqlbuilder.QueryRow(`SELECT * FROM people WHERE name = "Haruki" AND last_name = "Murakami" LIMIT 1`)
-	QueryRow(query interface{}, args ...interface{}) (*sql.Row, error)
-
-	// QueryRowContext executes a SQL query that returns one row, like
-	// sql.QueryRowContext.  Queries can be either strings or upper-db statements.
-	//
-	// Example:
-	//
-	//  sqlbuilder.QueryRowContext(ctx, `SELECT * FROM people WHERE name = "Haruki" AND last_name = "Murakami" LIMIT 1`)
-	QueryRowContext(ctx context.Context, query interface{}, args ...interface{}) (*sql.Row, error)
-
-	// Iterator executes a SQL query that returns rows and creates an Iterator
-	// with it.
-	//
-	// Example:
-	//
-	//  sqlbuilder.Iterator(`SELECT * FROM people WHERE name LIKE "M%"`)
-	Iterator(query interface{}, args ...interface{}) Iterator
-
-	// IteratorContext executes a SQL query that returns rows and creates an Iterator
-	// with it.
-	//
-	// Example:
-	//
-	//  sqlbuilder.IteratorContext(ctx, `SELECT * FROM people WHERE name LIKE "M%"`)
-	IteratorContext(ctx context.Context, query interface{}, args ...interface{}) Iterator
-}
 
 // Selector represents a SELECT statement.
 type Selector interface {
@@ -359,12 +228,12 @@ type Selector interface {
 	// the Selector.
 	IteratorContext(ctx context.Context) Iterator
 
-	// Preparer provides methods for creating prepared statements.
-	Preparer
+	// SQLPreparer provides methods for creating prepared statements.
+	SQLPreparer
 
-	// Getter provides methods to compile and execute a query that returns
+	// SQLGetter provides methods to compile and execute a query that returns
 	// results.
-	Getter
+	SQLGetter
 
 	// ResultMapper provides methods to retrieve and map results.
 	ResultMapper
@@ -420,17 +289,17 @@ type Inserter interface {
 	// Batch provies a BatchInserter that can be used to insert many elements at
 	// once by issuing several calls to Values(). It accepts a size parameter
 	// which defines the batch size. If size is < 1, the batch size is set to 1.
-	Batch(size int) *BatchInserter
+	Batch(size int) BatchInserter
 
-	// Execer provides the Exec method.
-	Execer
+	// SQLExecer provides the Exec method.
+	SQLExecer
 
-	// Preparer provides methods for creating prepared statements.
-	Preparer
+	// SQLPreparer provides methods for creating prepared statements.
+	SQLPreparer
 
-	// Getter provides methods to return query results from INSERT statements
+	// SQLGetter provides methods to return query results from INSERT statements
 	// that support such feature (e.g.: queries with Returning).
-	Getter
+	SQLGetter
 
 	// fmt.Stringer provides `String() string`, you can use `String()` to compile
 	// the `Inserter` into a string.
@@ -457,11 +326,11 @@ type Deleter interface {
 	// database server.
 	Amend(func(queryIn string) (queryOut string)) Deleter
 
-	// Preparer provides methods for creating prepared statements.
-	Preparer
+	// SQLPreparer provides methods for creating prepared statements.
+	SQLPreparer
 
-	// Execer provides the Exec method.
-	Execer
+	// SQLExecer provides the Exec method.
+	SQLExecer
 
 	// fmt.Stringer provides `String() string`, you can use `String()` to compile
 	// the `Inserter` into a string.
@@ -490,11 +359,11 @@ type Updater interface {
 	// See Selector.Limit for documentation and usage examples.
 	Limit(int) Updater
 
-	// Preparer provides methods for creating prepared statements.
-	Preparer
+	// SQLPreparer provides methods for creating prepared statements.
+	SQLPreparer
 
-	// Execer provides the Exec method.
-	Execer
+	// SQLExecer provides the Exec method.
+	SQLExecer
 
 	// fmt.Stringer provides `String() string`, you can use `String()` to compile
 	// the `Inserter` into a string.
@@ -506,40 +375,6 @@ type Updater interface {
 	// Amend lets you alter the query's text just before sending it to the
 	// database server.
 	Amend(func(queryIn string) (queryOut string)) Updater
-}
-
-// Execer provides methods for executing statements that do not return results.
-type Execer interface {
-	// Exec executes a statement and returns sql.Result.
-	Exec() (sql.Result, error)
-
-	// ExecContext executes a statement and returns sql.Result.
-	ExecContext(context.Context) (sql.Result, error)
-}
-
-// Preparer provides the Prepare and PrepareContext methods for creating
-// prepared statements.
-type Preparer interface {
-	// Prepare creates a prepared statement.
-	Prepare() (*sql.Stmt, error)
-
-	// PrepareContext creates a prepared statement.
-	PrepareContext(context.Context) (*sql.Stmt, error)
-}
-
-// Getter provides methods for executing statements that return results.
-type Getter interface {
-	// Query returns *sql.Rows.
-	Query() (*sql.Rows, error)
-
-	// QueryContext returns *sql.Rows.
-	QueryContext(context.Context) (*sql.Rows, error)
-
-	// QueryRow returns only one row.
-	QueryRow() (*sql.Row, error)
-
-	// QueryRowContext returns only one row.
-	QueryRowContext(ctx context.Context) (*sql.Row, error)
 }
 
 // Paginator provides tools for splitting the results of a query into chunks
@@ -583,12 +418,12 @@ type Paginator interface {
 	// TotalEntries returns the total number of entries in the query.
 	TotalEntries() (uint64, error)
 
-	// Preparer provides methods for creating prepared statements.
-	Preparer
+	// SQLPreparer provides methods for creating prepared statements.
+	SQLPreparer
 
-	// Getter provides methods to compile and execute a query that returns
+	// SQLGetter provides methods to compile and execute a query that returns
 	// results.
-	Getter
+	SQLGetter
 
 	// Iterator provides methods to iterate over the results returned by the
 	// Selector.
@@ -658,16 +493,10 @@ type Iterator interface {
 	Close() error
 }
 
-// SQLEngine represents a SQL engine that can execute SQL queries. This is
-// compatible with *sql.DB.
-type SQLEngine interface {
-	Exec(string, ...interface{}) (sql.Result, error)
-	Prepare(string) (*sql.Stmt, error)
-	Query(string, ...interface{}) (*sql.Rows, error)
-	QueryRow(string, ...interface{}) *sql.Row
-
-	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
-	PrepareContext(context.Context, string) (*sql.Stmt, error)
-	QueryContext(context.Context, string, ...interface{}) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...interface{}) *sql.Row
+type BatchInserter interface {
+	Values(...interface{}) BatchInserter
+	NextResult(interface{}) bool
+	Done()
+	Wait() error
+	Err() error
 }

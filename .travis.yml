@@ -19,6 +19,7 @@ notifications:
 go:
   - "1.13"
   - "1.14"
+  - "1.15"
 
 services:
   - docker
@@ -32,7 +33,7 @@ before_install:
   - sudo service mysql stop
   - sudo service postgresql stop
   - sudo apt-get install -y parallel
-  - sleep 30
+  - sleep 10
 
 install:
   - go get -t -v -d ./...

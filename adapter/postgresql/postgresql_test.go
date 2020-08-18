@@ -38,7 +38,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/testsuite"
-	"github.com/upper/db/v4/sqlbuilder"
 )
 
 type customJSONB struct {
@@ -133,11 +132,11 @@ func (s *AdapterTests) SetupSuite() {
 }
 
 func (s *AdapterTests) Test_Issue469_BadConnection() {
-	sess := s.SQLBuilder()
+	sess := s.Session()
 
 	// Ask the PostgreSQL server to disconnect sessions that remain inactive for more
 	// than 1 second.
-	_, err := sess.Exec(`SET SESSION idle_in_transaction_session_timeout=1000`)
+	_, err := sess.SQL().Exec(`SET SESSION idle_in_transaction_session_timeout=1000`)
 	s.NoError(err)
 
 	// Remain inactive for 2 seconds.
@@ -149,7 +148,7 @@ func (s *AdapterTests) Test_Issue469_BadConnection() {
 
 	// This is a new session, ask the PostgreSQL server to disconnect sessions that
 	// remain inactive for more than 1 second.
-	_, err = sess.Exec(`SET SESSION idle_in_transaction_session_timeout=1000`)
+	_, err = sess.SQL().Exec(`SET SESSION idle_in_transaction_session_timeout=1000`)
 	s.NoError(err)
 
 	// Remain inactive for 2 seconds.
@@ -170,7 +169,7 @@ func (s *AdapterTests) Test_Issue469_BadConnection() {
 
 	// This is a new session, ask the PostgreSQL server to disconnect sessions that
 	// remain inactive for more than 1 second.
-	_, err = sess.Exec(`SET SESSION idle_in_transaction_session_timeout=1000`)
+	_, err = sess.SQL().Exec(`SET SESSION idle_in_transaction_session_timeout=1000`)
 	s.NoError(err)
 
 	err = sess.Tx(func(sess db.Session) error {
@@ -198,7 +197,7 @@ func (s *AdapterTests) Test_Issue469_BadConnection() {
 	s.Error(err, "Expecting an error (can't recover from this)")
 }
 
-func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Session) {
+func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 	type PGTypeInline struct {
 		IntegerArrayPtr *Int64Array  `db:"integer_array_ptr,omitempty"`
 		StringArrayPtr  *StringArray `db:"string_array_ptr,omitempty"`
@@ -511,7 +510,7 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Session) {
 		}
 
 		for i := range pgTypeTests {
-			row, err := sess.InsertInto("pg_types").Values(pgTypeTests[i]).Returning("id").QueryRow()
+			row, err := sess.SQL().InsertInto("pg_types").Values(pgTypeTests[i]).Returning("id").QueryRow()
 			assert.NoError(t, err)
 
 			var id int64
@@ -528,12 +527,12 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Session) {
 			assert.Equal(t, expected, actual)
 
 			var actual2 PGType
-			err = sess.SelectFrom("pg_types").Where("id = ?", id).One(&actual2)
+			err = sess.SQL().SelectFrom("pg_types").Where("id = ?", id).One(&actual2)
 			assert.NoError(t, err)
 			assert.Equal(t, expected, actual2)
 		}
 
-		inserter := sess.InsertInto("pg_types")
+		inserter := sess.SQL().InsertInto("pg_types")
 		for i := range pgTypeTests {
 			inserter = inserter.Values(pgTypeTests[i])
 		}
@@ -543,7 +542,7 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Session) {
 		err = sess.Collection("pg_types").Truncate()
 		assert.NoError(t, err)
 
-		batch := sess.InsertInto("pg_types").Batch(50)
+		batch := sess.SQL().InsertInto("pg_types").Batch(50)
 		go func() {
 			defer batch.Done()
 			for i := range pgTypeTests {
@@ -555,7 +554,7 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Session) {
 		assert.NoError(t, err)
 
 		var values []PGType
-		err = sess.SelectFrom("pg_types").All(&values)
+		err = sess.SQL().SelectFrom("pg_types").All(&values)
 		assert.NoError(t, err)
 
 		for i := range values {
@@ -567,7 +566,7 @@ func testPostgreSQLTypes(t *testing.T, sess sqlbuilder.Session) {
 }
 
 func (s *AdapterTests) TestOptionTypes() {
-	sess := s.SQLBuilder()
+	sess := s.Session()
 
 	optionTypes := sess.Collection("option_types")
 	err := optionTypes.Truncate()
@@ -732,7 +731,7 @@ func (s Settings) Value() (driver.Value, error) {
 }
 
 func (s *AdapterTests) TestOptionTypeJsonbStruct() {
-	sess := s.SQLBuilder()
+	sess := s.Session()
 
 	optionTypes := sess.Collection("option_types")
 
@@ -770,7 +769,7 @@ func (s *AdapterTests) TestOptionTypeJsonbStruct() {
 }
 
 func (s *AdapterTests) TestSchemaCollection() {
-	sess := s.SQLBuilder()
+	sess := s.Session()
 
 	col := sess.Collection("test_schema.test")
 	_, err := col.Insert(map[string]int{"id": 9})
@@ -784,7 +783,7 @@ func (s *AdapterTests) TestSchemaCollection() {
 }
 
 func (s *AdapterTests) Test_Issue340_MaxOpenConns() {
-	sess := s.SQLBuilder()
+	sess := s.Session()
 
 	sess.SetMaxOpenConns(5)
 
@@ -794,7 +793,7 @@ func (s *AdapterTests) Test_Issue340_MaxOpenConns() {
 		go func(i int) {
 			defer wg.Done()
 
-			_, err := sess.Exec(fmt.Sprintf(`SELECT pg_sleep(1.%d)`, i))
+			_, err := sess.SQL().Exec(fmt.Sprintf(`SELECT pg_sleep(1.%d)`, i))
 			if err != nil {
 				s.T().Errorf("%v", err)
 			}
@@ -807,7 +806,7 @@ func (s *AdapterTests) Test_Issue340_MaxOpenConns() {
 }
 
 func (s *AdapterTests) Test_Issue370_InsertUUID() {
-	sess := s.SQLBuilder()
+	sess := s.Session()
 
 	{
 		type itemT struct {
@@ -900,7 +899,7 @@ func (s *AdapterTests) Test_Issue370_InsertUUID() {
 }
 
 func (s *AdapterTests) TestInsertVarcharPrimaryKey() {
-	sess := s.SQLBuilder()
+	sess := s.Session()
 
 	{
 		type itemT struct {
@@ -933,33 +932,35 @@ func (s *AdapterTests) TestInsertVarcharPrimaryKey() {
 }
 
 func (s *AdapterTests) Test_Issue409_TxOptions() {
-	sess := s.SQLBuilder()
-
-	sess.SetTxOptions(sql.TxOptions{
-		ReadOnly: true,
-	})
+	sess := s.Session()
 
 	{
-		col := sess.Collection("publication")
+		err := sess.TxContext(context.Background(), func(tx db.Session) error {
+			col := tx.Collection("publication")
 
-		row := map[string]interface{}{
-			"title":     "foo",
-			"author_id": 1,
-		}
-		err := col.InsertReturning(&row)
+			row := map[string]interface{}{
+				"title":     "foo",
+				"author_id": 1,
+			}
+			err := col.InsertReturning(&row)
+			s.Error(err)
+
+			return err
+		}, &sql.TxOptions{
+			ReadOnly: true,
+		})
 		s.Error(err)
-
 		s.True(strings.Contains(err.Error(), "read-only transaction"))
 	}
 }
 
 func (s *AdapterTests) TestEscapeQuestionMark() {
-	sess := s.SQLBuilder()
+	sess := s.Session()
 
 	var val bool
 
 	{
-		res, err := sess.QueryRow(`SELECT '{"mykey":["val1", "val2"]}'::jsonb->'mykey' ?? ?`, "val2")
+		res, err := sess.SQL().QueryRow(`SELECT '{"mykey":["val1", "val2"]}'::jsonb->'mykey' ?? ?`, "val2")
 		s.NoError(err)
 
 		err = res.Scan(&val)
@@ -968,7 +969,7 @@ func (s *AdapterTests) TestEscapeQuestionMark() {
 	}
 
 	{
-		res, err := sess.QueryRow(`SELECT ?::jsonb->'mykey' ?? ?`, `{"mykey":["val1", "val2"]}`, `val2`)
+		res, err := sess.SQL().QueryRow(`SELECT ?::jsonb->'mykey' ?? ?`, `{"mykey":["val1", "val2"]}`, `val2`)
 		s.NoError(err)
 
 		err = res.Scan(&val)
@@ -977,7 +978,7 @@ func (s *AdapterTests) TestEscapeQuestionMark() {
 	}
 
 	{
-		res, err := sess.QueryRow(`SELECT ?::jsonb->? ?? ?`, `{"mykey":["val1", "val2"]}`, `mykey`, `val2`)
+		res, err := sess.SQL().QueryRow(`SELECT ?::jsonb->? ?? ?`, `{"mykey":["val1", "val2"]}`, `mykey`, `val2`)
 		s.NoError(err)
 
 		err = res.Scan(&val)
@@ -987,7 +988,7 @@ func (s *AdapterTests) TestEscapeQuestionMark() {
 }
 
 func (s *AdapterTests) Test_Issue391_TextMode() {
-	testPostgreSQLTypes(s.T(), s.SQLBuilder())
+	testPostgreSQLTypes(s.T(), s.Session())
 }
 
 func (s *AdapterTests) Test_Issue391_BinaryMode() {
@@ -1012,7 +1013,7 @@ func (s *AdapterTests) Test_Issue391_BinaryMode() {
 }
 
 func (s *AdapterTests) TestStringAndInt64Array() {
-	sess := s.SQLBuilder()
+	sess := s.Session()
 	driver := sess.Driver().(*sql.DB)
 
 	defer func() {
@@ -1094,17 +1095,18 @@ func (s *AdapterTests) Test_Issue210() {
 		)`,
 	}
 
-	sess := s.SQLBuilder()
+	sess := s.Session()
 
-	tx, err := sess.NewTx(context.Background())
-	s.NoError(err)
-
-	for i := range list {
-		_, err = tx.Exec(list[i])
-		s.NoError(err)
-	}
-
-	err = tx.Commit()
+	err := sess.Tx(func(tx db.Session) error {
+		for i := range list {
+			_, err := tx.SQL().Exec(list[i])
+			s.NoError(err)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 	s.NoError(err)
 
 	_, err = sess.Collection("testing123").Find().Count()
@@ -1115,12 +1117,12 @@ func (s *AdapterTests) Test_Issue210() {
 }
 
 func (s *AdapterTests) TestPreparedStatements() {
-	sess := s.SQLBuilder()
+	sess := s.Session()
 
 	var val int
 
 	{
-		stmt, err := sess.Prepare(`SELECT 1`)
+		stmt, err := sess.SQL().Prepare(`SELECT 1`)
 		s.NoError(err)
 		s.NotNil(stmt)
 
@@ -1142,35 +1144,34 @@ func (s *AdapterTests) TestPreparedStatements() {
 	}
 
 	{
-		tx, err := sess.NewTx(context.Background())
-		s.NoError(err)
+		err := sess.Tx(func(tx db.Session) error {
+			stmt, err := tx.SQL().Prepare(`SELECT 2`)
+			s.NoError(err)
+			s.NotNil(stmt)
 
-		stmt, err := tx.Prepare(`SELECT 2`)
-		s.NoError(err)
-		s.NotNil(stmt)
+			q, err := stmt.Query()
+			s.NoError(err)
+			s.NotNil(q)
+			s.True(q.Next())
 
-		q, err := stmt.Query()
-		s.NoError(err)
-		s.NotNil(q)
-		s.True(q.Next())
+			err = q.Scan(&val)
+			s.NoError(err)
 
-		err = q.Scan(&val)
-		s.NoError(err)
+			err = q.Close()
+			s.NoError(err)
 
-		err = q.Close()
-		s.NoError(err)
+			s.Equal(2, val)
 
-		s.Equal(2, val)
+			err = stmt.Close()
+			s.NoError(err)
 
-		err = stmt.Close()
-		s.NoError(err)
-
-		err = tx.Commit()
+			return nil
+		})
 		s.NoError(err)
 	}
 
 	{
-		stmt, err := sess.Select(3).Prepare()
+		stmt, err := sess.SQL().Select(3).Prepare()
 		s.NoError(err)
 		s.NotNil(stmt)
 
@@ -1193,7 +1194,7 @@ func (s *AdapterTests) TestPreparedStatements() {
 }
 
 func (s *AdapterTests) TestNonTrivialSubqueries() {
-	sess := s.SQLBuilder()
+	sess := s.Session()
 
 	// Creating test data
 	artist := sess.Collection("artist")
@@ -1207,9 +1208,9 @@ func (s *AdapterTests) TestNonTrivialSubqueries() {
 	}
 
 	{
-		q, err := sess.Query(`WITH test AS (?) ?`,
-			sess.Select("id AS foo").From("artist"),
-			sess.Select("foo").From("test").Where("foo > ?", 0),
+		q, err := sess.SQL().Query(`WITH test AS (?) ?`,
+			sess.SQL().Select("id AS foo").From("artist"),
+			sess.SQL().Select("foo").From("test").Where("foo > ?", 0),
 		)
 
 		s.NoError(err)
@@ -1225,9 +1226,10 @@ func (s *AdapterTests) TestNonTrivialSubqueries() {
 	}
 
 	{
-		row, err := sess.QueryRow(`WITH test AS (?) ?`,
-			sess.Select("id AS foo").From("artist"),
-			sess.Select("foo").From("test").Where("foo > ?", 0),
+		builder := sess.SQL()
+		row, err := builder.QueryRow(`WITH test AS (?) ?`,
+			builder.Select("id AS foo").From("artist"),
+			builder.Select("foo").From("test").Where("foo > ?", 0),
 		)
 
 		s.NoError(err)
@@ -1240,9 +1242,9 @@ func (s *AdapterTests) TestNonTrivialSubqueries() {
 	}
 
 	{
-		res, err := sess.Exec(
+		res, err := sess.SQL().Exec(
 			`UPDATE artist a1 SET id = ?`,
-			sess.Select(db.Raw("id + 5")).
+			sess.SQL().Select(db.Raw("id + 5")).
 				From("artist a2").
 				Where("a2.id = a1.id"),
 		)
@@ -1252,9 +1254,11 @@ func (s *AdapterTests) TestNonTrivialSubqueries() {
 	}
 
 	{
-		q, err := sess.Query(db.Raw(`WITH test AS (?) ?`,
-			sess.Select("id AS foo").From("artist"),
-			sess.Select("foo").From("test").Where("foo > ?", 0).OrderBy("foo"),
+		builder := sess.SQL()
+
+		q, err := builder.Query(db.Raw(`WITH test AS (?) ?`,
+			builder.Select("id AS foo").From("artist"),
+			builder.Select("foo").From("test").Where("foo > ?", 0).OrderBy("foo"),
 		))
 
 		s.NoError(err)
@@ -1270,8 +1274,8 @@ func (s *AdapterTests) TestNonTrivialSubqueries() {
 	}
 
 	{
-		res, err := sess.Exec(db.Raw(`UPDATE artist a1 SET id = ?`,
-			sess.Select(db.Raw("id + 7")).From("artist a2").Where("a2.id = a1.id"),
+		res, err := sess.SQL().Exec(db.Raw(`UPDATE artist a1 SET id = ?`,
+			sess.SQL().Select(db.Raw("id + 7")).From("artist a2").Where("a2.id = a1.id"),
 		))
 
 		s.NoError(err)
