@@ -136,7 +136,7 @@ func (*database) Err(err error) error {
 		}
 		if pqErr, ok := err.(*pq.Error); ok {
 			switch pqErr.Code {
-			case "25P02":
+			case "25P02", "40001":
 				return db.ErrTransactionAborted
 			}
 		}
