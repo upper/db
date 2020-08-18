@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/immutable"
 	"github.com/upper/db/v4/internal/sqladapter/exql"
 )
@@ -100,15 +101,15 @@ type inserter struct {
 
 var _ = immutable.Immutable(&inserter{})
 
-func (ins *inserter) SQLBuilder() *sqlBuilder {
+func (ins *inserter) SQL() *sqlBuilder {
 	if ins.prev == nil {
 		return ins.builder
 	}
-	return ins.prev.SQLBuilder()
+	return ins.prev.SQL()
 }
 
 func (ins *inserter) template() *exql.Template {
-	return ins.SQLBuilder().t.Template
+	return ins.SQL().t.Template
 }
 
 func (ins *inserter) String() string {
@@ -123,11 +124,11 @@ func (ins *inserter) frame(fn func(*inserterQuery) error) *inserter {
 	return &inserter{prev: ins, fn: fn}
 }
 
-func (ins *inserter) Batch(n int) *BatchInserter {
+func (ins *inserter) Batch(n int) db.BatchInserter {
 	return newBatchInserter(ins, n)
 }
 
-func (ins *inserter) Amend(fn func(string) string) Inserter {
+func (ins *inserter) Amend(fn func(string) string) db.Inserter {
 	return ins.frame(func(iq *inserterQuery) error {
 		iq.amendFn = fn
 		return nil
@@ -142,7 +143,7 @@ func (ins *inserter) Arguments() []interface{} {
 	return iq.arguments
 }
 
-func (ins *inserter) Returning(columns ...string) Inserter {
+func (ins *inserter) Returning(columns ...string) db.Inserter {
 	return ins.frame(func(iq *inserterQuery) error {
 		columnsToFragments(&iq.returning, columns)
 		return nil
@@ -150,7 +151,7 @@ func (ins *inserter) Returning(columns ...string) Inserter {
 }
 
 func (ins *inserter) Exec() (sql.Result, error) {
-	return ins.ExecContext(ins.SQLBuilder().sess.Context())
+	return ins.ExecContext(ins.SQL().sess.Context())
 }
 
 func (ins *inserter) ExecContext(ctx context.Context) (sql.Result, error) {
@@ -158,11 +159,11 @@ func (ins *inserter) ExecContext(ctx context.Context) (sql.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ins.SQLBuilder().sess.StatementExec(ctx, iq.statement(), iq.arguments...)
+	return ins.SQL().sess.StatementExec(ctx, iq.statement(), iq.arguments...)
 }
 
 func (ins *inserter) Prepare() (*sql.Stmt, error) {
-	return ins.PrepareContext(ins.SQLBuilder().sess.Context())
+	return ins.PrepareContext(ins.SQL().sess.Context())
 }
 
 func (ins *inserter) PrepareContext(ctx context.Context) (*sql.Stmt, error) {
@@ -170,11 +171,11 @@ func (ins *inserter) PrepareContext(ctx context.Context) (*sql.Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ins.SQLBuilder().sess.StatementPrepare(ctx, iq.statement())
+	return ins.SQL().sess.StatementPrepare(ctx, iq.statement())
 }
 
 func (ins *inserter) Query() (*sql.Rows, error) {
-	return ins.QueryContext(ins.SQLBuilder().sess.Context())
+	return ins.QueryContext(ins.SQL().sess.Context())
 }
 
 func (ins *inserter) QueryContext(ctx context.Context) (*sql.Rows, error) {
@@ -182,11 +183,11 @@ func (ins *inserter) QueryContext(ctx context.Context) (*sql.Rows, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ins.SQLBuilder().sess.StatementQuery(ctx, iq.statement(), iq.arguments...)
+	return ins.SQL().sess.StatementQuery(ctx, iq.statement(), iq.arguments...)
 }
 
 func (ins *inserter) QueryRow() (*sql.Row, error) {
-	return ins.QueryRowContext(ins.SQLBuilder().sess.Context())
+	return ins.QueryRowContext(ins.SQL().sess.Context())
 }
 
 func (ins *inserter) QueryRowContext(ctx context.Context) (*sql.Row, error) {
@@ -194,33 +195,33 @@ func (ins *inserter) QueryRowContext(ctx context.Context) (*sql.Row, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ins.SQLBuilder().sess.StatementQueryRow(ctx, iq.statement(), iq.arguments...)
+	return ins.SQL().sess.StatementQueryRow(ctx, iq.statement(), iq.arguments...)
 }
 
-func (ins *inserter) Iterator() Iterator {
-	return ins.IteratorContext(ins.SQLBuilder().sess.Context())
+func (ins *inserter) Iterator() db.Iterator {
+	return ins.IteratorContext(ins.SQL().sess.Context())
 }
 
-func (ins *inserter) IteratorContext(ctx context.Context) Iterator {
+func (ins *inserter) IteratorContext(ctx context.Context) db.Iterator {
 	rows, err := ins.QueryContext(ctx)
-	return &iterator{ins.SQLBuilder().sess, rows, err}
+	return &iterator{ins.SQL().sess, rows, err}
 }
 
-func (ins *inserter) Into(table string) Inserter {
+func (ins *inserter) Into(table string) db.Inserter {
 	return ins.frame(func(iq *inserterQuery) error {
 		iq.table = table
 		return nil
 	})
 }
 
-func (ins *inserter) Columns(columns ...string) Inserter {
+func (ins *inserter) Columns(columns ...string) db.Inserter {
 	return ins.frame(func(iq *inserterQuery) error {
 		columnsToFragments(&iq.columns, columns)
 		return nil
 	})
 }
 
-func (ins *inserter) Values(values ...interface{}) Inserter {
+func (ins *inserter) Values(values ...interface{}) db.Inserter {
 	return ins.frame(func(iq *inserterQuery) error {
 		iq.enqueuedValues = append(iq.enqueuedValues, values)
 		return nil

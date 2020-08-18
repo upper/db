@@ -95,7 +95,7 @@ func (s *AdapterTests) SetupSuite() {
 }
 
 func (s *AdapterTests) TestInsertReturningCompositeKey_Issue383() {
-	sess := s.SQLBuilder()
+	sess := s.Session()
 
 	type Admin struct {
 		ID            int       `db:"ID,omitempty"`
@@ -138,11 +138,11 @@ func (s *AdapterTests) TestInsertReturningCompositeKey_Issue383() {
 
 func (s *AdapterTests) TestIssue469_BadConnection() {
 	var err error
-	sess := s.SQLBuilder()
+	sess := s.Session()
 
 	// Ask the MySQL server to disconnect sessions that remain inactive for more
 	// than 1 second.
-	_, err = sess.Exec(`SET SESSION wait_timeout=1`)
+	_, err = sess.SQL().Exec(`SET SESSION wait_timeout=1`)
 	s.NoError(err)
 
 	// Remain inactive for 2 seconds.
@@ -154,7 +154,7 @@ func (s *AdapterTests) TestIssue469_BadConnection() {
 
 	// This is a new session, ask the MySQL server to disconnect sessions that
 	// remain inactive for more than 1 second.
-	_, err = sess.Exec(`SET SESSION wait_timeout=1`)
+	_, err = sess.SQL().Exec(`SET SESSION wait_timeout=1`)
 	s.NoError(err)
 
 	// Remain inactive for 2 seconds.
@@ -175,7 +175,7 @@ func (s *AdapterTests) TestIssue469_BadConnection() {
 
 	// This is a new session, ask the MySQL server to disconnect sessions that
 	// remain inactive for more than 1 second.
-	_, err = sess.Exec(`SET SESSION wait_timeout=1`)
+	_, err = sess.SQL().Exec(`SET SESSION wait_timeout=1`)
 	s.NoError(err)
 
 	err = sess.Tx(func(sess db.Session) error {
@@ -204,7 +204,7 @@ func (s *AdapterTests) TestIssue469_BadConnection() {
 }
 
 func (s *AdapterTests) TestMySQLTypes() {
-	sess := s.SQLBuilder()
+	sess := s.Session()
 
 	type MyType struct {
 		ID int64 `db:"id,omitempty"`
@@ -339,7 +339,7 @@ func (s *AdapterTests) TestMySQLTypes() {
 		}
 
 		for i := range myTypeTests {
-			res, err := sess.InsertInto("my_types").Values(myTypeTests[i]).Exec()
+			res, err := sess.SQL().InsertInto("my_types").Values(myTypeTests[i]).Exec()
 			s.NoError(err)
 
 			id, err := res.LastInsertId()
@@ -356,12 +356,12 @@ func (s *AdapterTests) TestMySQLTypes() {
 			s.Equal(expected, actual)
 
 			var actual2 MyType
-			err = sess.SelectFrom("my_types").Where("id = ?", id).One(&actual2)
+			err = sess.SQL().SelectFrom("my_types").Where("id = ?", id).One(&actual2)
 			s.NoError(err)
 			s.Equal(expected, actual2)
 		}
 
-		inserter := sess.InsertInto("my_types")
+		inserter := sess.SQL().InsertInto("my_types")
 		for i := range myTypeTests {
 			inserter = inserter.Values(myTypeTests[i])
 		}
@@ -371,7 +371,7 @@ func (s *AdapterTests) TestMySQLTypes() {
 		err = sess.Collection("my_types").Truncate()
 		s.NoError(err)
 
-		batch := sess.InsertInto("my_types").Batch(50)
+		batch := sess.SQL().InsertInto("my_types").Batch(50)
 		go func() {
 			defer batch.Done()
 			for i := range myTypeTests {
@@ -383,7 +383,7 @@ func (s *AdapterTests) TestMySQLTypes() {
 		s.NoError(err)
 
 		var values []MyType
-		err = sess.SelectFrom("my_types").All(&values)
+		err = sess.SQL().SelectFrom("my_types").All(&values)
 		s.NoError(err)
 
 		for i := range values {

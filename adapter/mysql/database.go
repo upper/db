@@ -36,7 +36,7 @@ import (
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqladapter"
 	"github.com/upper/db/v4/internal/sqladapter/exql"
-	"github.com/upper/db/v4/sqlbuilder"
+	"github.com/upper/db/v4/internal/sqlbuilder"
 )
 
 // database is the actual implementation of Database
@@ -52,7 +52,8 @@ func (*database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {
 }
 
 func (*database) Collections(sess sqladapter.Session) (collections []string, err error) {
-	q := sess.Select("table_name").
+	q := sess.SQL().
+		Select("table_name").
 		From("information_schema.tables").
 		Where("table_schema = ?", sess.Name())
 
@@ -110,7 +111,8 @@ func (*database) NewCollection() sqladapter.CollectionAdapter {
 }
 
 func (*database) LookupName(sess sqladapter.Session) (string, error) {
-	q := sess.Select(db.Raw("DATABASE() AS name"))
+	q := sess.SQL().
+		Select(db.Raw("DATABASE() AS name"))
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -127,7 +129,8 @@ func (*database) LookupName(sess sqladapter.Session) (string, error) {
 }
 
 func (*database) TableExists(sess sqladapter.Session, name string) error {
-	q := sess.Select("table_name").
+	q := sess.SQL().
+		Select("table_name").
 		From("information_schema.tables").
 		Where("table_schema = ? AND table_name = ?", sess.Name(), name)
 
@@ -149,7 +152,8 @@ func (*database) TableExists(sess sqladapter.Session, name string) error {
 }
 
 func (*database) PrimaryKeys(sess sqladapter.Session, tableName string) ([]string, error) {
-	q := sess.Select("k.column_name").
+	q := sess.SQL().
+		Select("k.column_name").
 		From("information_schema.key_column_usage AS k").
 		Where(`
 			k.constraint_name = 'PRIMARY'

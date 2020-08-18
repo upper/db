@@ -47,7 +47,8 @@ func (*database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {
 }
 
 func (*database) Collections(sess sqladapter.Session) (collections []string, err error) {
-	q := sess.Select(`table_name`).
+	q := sess.SQL().
+		Select(`table_name`).
 		From(`information_schema.tables`).
 		Where(`table_type`, `BASE TABLE`).
 		And(`table_catalog`, sess.Name())
@@ -85,7 +86,8 @@ func (*database) NewCollection() sqladapter.CollectionAdapter {
 }
 
 func (*database) LookupName(sess sqladapter.Session) (string, error) {
-	q := sess.Select(db.Raw(`DB_NAME() AS name`))
+	q := sess.SQL().
+		Select(db.Raw(`DB_NAME() AS name`))
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -100,7 +102,8 @@ func (*database) LookupName(sess sqladapter.Session) (string, error) {
 }
 
 func (*database) TableExists(sess sqladapter.Session, name string) error {
-	q := sess.Select(`table_name`).
+	q := sess.SQL().
+		Select(`table_name`).
 		From(`information_schema.tables`).
 		Where(`table_schema`, sess.Name()).
 		And(`table_name`, name)
@@ -123,7 +126,8 @@ func (*database) TableExists(sess sqladapter.Session, name string) error {
 }
 
 func (*database) PrimaryKeys(sess sqladapter.Session, tableName string) ([]string, error) {
-	q := sess.Select(`k.column_name`).
+	q := sess.SQL().
+		Select(`k.column_name`).
 		From(
 			`information_schema.table_constraints AS t`,
 			`information_schema.key_column_usage AS k`,

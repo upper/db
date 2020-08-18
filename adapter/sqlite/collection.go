@@ -26,7 +26,7 @@ import (
 
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqladapter"
-	"github.com/upper/db/v4/sqlbuilder"
+	"github.com/upper/db/v4/internal/sqlbuilder"
 )
 
 type collectionAdapter struct {
@@ -40,7 +40,7 @@ func (*collectionAdapter) Insert(col sqladapter.Collection, item interface{}) (i
 
 	pKey := col.PrimaryKeys()
 
-	q := col.SQLBuilder().InsertInto(col.Name()).
+	q := col.SQL().InsertInto(col.Name()).
 		Columns(columnNames...).
 		Values(columnValues...)
 

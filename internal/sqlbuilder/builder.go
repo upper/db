@@ -99,7 +99,7 @@ type sqlBuilder struct {
 }
 
 // WithSession returns a query builder that is bound to the given database session.
-func WithSession(sess interface{}, t *exql.Template) SQLBuilder {
+func WithSession(sess interface{}, t *exql.Template) db.SQL {
 	if sqlDB, ok := sess.(*sql.DB); ok {
 		sess = sqlDB
 	}
@@ -110,22 +110,22 @@ func WithSession(sess interface{}, t *exql.Template) SQLBuilder {
 }
 
 // WithTemplate returns a builder that is based on the given template.
-func WithTemplate(t *exql.Template) SQLBuilder {
+func WithTemplate(t *exql.Template) db.SQL {
 	return &sqlBuilder{
 		t: newTemplateWithUtils(t),
 	}
 }
 
-// NewIterator creates an iterator using the given *sql.Rows.
-func NewIterator(rows *sql.Rows) Iterator {
+// Newdb.Iterator creates an iterator using the given *sql.Rows.
+func NewIterator(rows *sql.Rows) db.Iterator {
 	return &iterator{nil, rows, nil}
 }
 
-func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) Iterator {
+func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) db.Iterator {
 	return b.IteratorContext(b.sess.Context(), query, args...)
 }
 
-func (b *sqlBuilder) IteratorContext(ctx context.Context, query interface{}, args ...interface{}) Iterator {
+func (b *sqlBuilder) IteratorContext(ctx context.Context, query interface{}, args ...interface{}) db.Iterator {
 	rows, err := b.QueryContext(ctx, query, args...)
 	return &iterator{b.sess, rows, err}
 }
@@ -198,35 +198,35 @@ func (b *sqlBuilder) QueryRowContext(ctx context.Context, query interface{}, arg
 	}
 }
 
-func (b *sqlBuilder) SelectFrom(table ...interface{}) Selector {
+func (b *sqlBuilder) SelectFrom(table ...interface{}) db.Selector {
 	qs := &selector{
 		builder: b,
 	}
 	return qs.From(table...)
 }
 
-func (b *sqlBuilder) Select(columns ...interface{}) Selector {
+func (b *sqlBuilder) Select(columns ...interface{}) db.Selector {
 	qs := &selector{
 		builder: b,
 	}
 	return qs.Columns(columns...)
 }
 
-func (b *sqlBuilder) InsertInto(table string) Inserter {
+func (b *sqlBuilder) InsertInto(table string) db.Inserter {
 	qi := &inserter{
 		builder: b,
 	}
 	return qi.Into(table)
 }
 
-func (b *sqlBuilder) DeleteFrom(table string) Deleter {
+func (b *sqlBuilder) DeleteFrom(table string) db.Deleter {
 	qd := &deleter{
 		builder: b,
 	}
 	return qd.setTable(table)
 }
 
-func (b *sqlBuilder) Update(table string) Updater {
+func (b *sqlBuilder) Update(table string) db.Updater {
 	qu := &updater{
 		builder: b,
 	}
@@ -356,7 +356,7 @@ func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, err
 				return nil, nil, err
 			}
 			q, a := Preprocess(c, v.Arguments())
-			if _, ok := v.(Selector); ok {
+			if _, ok := v.(db.Selector); ok {
 				q = "(" + q + ")"
 			}
 			f[i] = exql.RawValue(q)
@@ -575,7 +575,7 @@ func (p *exprProxy) StatementQueryRow(ctx context.Context, stmt *exql.Statement,
 }
 
 var (
-	_ = SQLBuilder(&sqlBuilder{})
+	_ = db.SQL(&sqlBuilder{})
 	_ = exprDB(&exprProxy{})
 )
 

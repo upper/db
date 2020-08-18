@@ -27,7 +27,6 @@ import (
 
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/testsuite"
-	"github.com/upper/db/v4/sqlbuilder"
 )
 
 var settings = ConnectionURL{
@@ -39,14 +38,10 @@ var settings = ConnectionURL{
 }
 
 type Helper struct {
-	sess sqlbuilder.Session
+	sess db.Session
 }
 
 func (h *Helper) Session() db.Session {
-	return h.sess
-}
-
-func (h *Helper) SQLBuilder() sqlbuilder.Session {
 	return h.sess
 }
 

@@ -36,7 +36,7 @@ import (
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqladapter"
 	"github.com/upper/db/v4/internal/sqladapter/exql"
-	"github.com/upper/db/v4/sqlbuilder"
+	"github.com/upper/db/v4/internal/sqlbuilder"
 )
 
 type database struct {
@@ -51,7 +51,8 @@ func (*database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {
 }
 
 func (*database) Collections(sess sqladapter.Session) (collections []string, err error) {
-	q := sess.Select("table_name").
+	q := sess.SQL().
+		Select("table_name").
 		From("information_schema.tables").
 		Where("table_schema = ?", "public")
 
@@ -140,7 +141,8 @@ func (*database) NewCollection() sqladapter.CollectionAdapter {
 }
 
 func (*database) LookupName(sess sqladapter.Session) (string, error) {
-	q := sess.Select(db.Raw("CURRENT_DATABASE() AS name"))
+	q := sess.SQL().
+		Select(db.Raw("CURRENT_DATABASE() AS name"))
 
 	iter := q.Iterator()
 	defer iter.Close()
@@ -157,7 +159,8 @@ func (*database) LookupName(sess sqladapter.Session) (string, error) {
 }
 
 func (*database) TableExists(sess sqladapter.Session, name string) error {
-	q := sess.Select("table_name").
+	q := sess.SQL().
+		Select("table_name").
 		From("information_schema.tables").
 		Where("table_catalog = ? AND table_name = ?", sess.Name(), name)
 
@@ -179,7 +182,8 @@ func (*database) TableExists(sess sqladapter.Session, name string) error {
 }
 
 func (*database) PrimaryKeys(sess sqladapter.Session, tableName string) ([]string, error) {
-	q := sess.Select("pg_attribute.attname AS pkey").
+	q := sess.SQL().
+		Select("pg_attribute.attname AS pkey").
 		From("pg_index", "pg_class", "pg_attribute").
 		Where(`
 			pg_class.oid = '` + quotedTableName(tableName) + `'::regclass

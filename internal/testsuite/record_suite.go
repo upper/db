@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 	"github.com/upper/db/v4"
-	"github.com/upper/db/v4/sqlbuilder"
+	"github.com/upper/db/v4/internal/sqlbuilder"
 )
 
 func Accounts(sess db.Session) db.Collection {
@@ -235,7 +235,7 @@ func (s *RecordTestSuite) TestSelectOnlyIDs() {
 }
 
 func (s *RecordTestSuite) TestTx() {
-	sess := s.SQLBuilder()
+	sess := s.Session()
 
 	user := User{Username: "peter"}
 	err := sess.Save(&user)
