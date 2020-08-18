@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/immutable"
 	"github.com/upper/db/v4/internal/sqladapter/exql"
 )
@@ -58,15 +59,15 @@ type deleter struct {
 
 var _ = immutable.Immutable(&deleter{})
 
-func (del *deleter) SQLBuilder() *sqlBuilder {
+func (del *deleter) SQL() *sqlBuilder {
 	if del.prev == nil {
 		return del.builder
 	}
-	return del.prev.SQLBuilder()
+	return del.prev.SQL()
 }
 
 func (del *deleter) template() *exql.Template {
-	return del.SQLBuilder().t.Template
+	return del.SQL().t.Template
 }
 
 func (del *deleter) String() string {
@@ -88,27 +89,27 @@ func (del *deleter) frame(fn func(*deleterQuery) error) *deleter {
 	return &deleter{prev: del, fn: fn}
 }
 
-func (del *deleter) Where(terms ...interface{}) Deleter {
+func (del *deleter) Where(terms ...interface{}) db.Deleter {
 	return del.frame(func(dq *deleterQuery) error {
 		dq.where, dq.whereArgs = &exql.Where{}, []interface{}{}
-		return dq.and(del.SQLBuilder(), terms...)
+		return dq.and(del.SQL(), terms...)
 	})
 }
 
-func (del *deleter) And(terms ...interface{}) Deleter {
+func (del *deleter) And(terms ...interface{}) db.Deleter {
 	return del.frame(func(dq *deleterQuery) error {
-		return dq.and(del.SQLBuilder(), terms...)
+		return dq.and(del.SQL(), terms...)
 	})
 }
 
-func (del *deleter) Limit(limit int) Deleter {
+func (del *deleter) Limit(limit int) db.Deleter {
 	return del.frame(func(dq *deleterQuery) error {
 		dq.limit = limit
 		return nil
 	})
 }
 
-func (del *deleter) Amend(fn func(string) string) Deleter {
+func (del *deleter) Amend(fn func(string) string) db.Deleter {
 	return del.frame(func(dq *deleterQuery) error {
 		dq.amendFn = fn
 		return nil
@@ -128,7 +129,7 @@ func (del *deleter) Arguments() []interface{} {
 }
 
 func (del *deleter) Prepare() (*sql.Stmt, error) {
-	return del.PrepareContext(del.SQLBuilder().sess.Context())
+	return del.PrepareContext(del.SQL().sess.Context())
 }
 
 func (del *deleter) PrepareContext(ctx context.Context) (*sql.Stmt, error) {
@@ -136,11 +137,11 @@ func (del *deleter) PrepareContext(ctx context.Context) (*sql.Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	return del.SQLBuilder().sess.StatementPrepare(ctx, dq.statement())
+	return del.SQL().sess.StatementPrepare(ctx, dq.statement())
 }
 
 func (del *deleter) Exec() (sql.Result, error) {
-	return del.ExecContext(del.SQLBuilder().sess.Context())
+	return del.ExecContext(del.SQL().sess.Context())
 }
 
 func (del *deleter) ExecContext(ctx context.Context) (sql.Result, error) {
@@ -148,7 +149,7 @@ func (del *deleter) ExecContext(ctx context.Context) (sql.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return del.SQLBuilder().sess.StatementExec(ctx, dq.statement(), dq.arguments()...)
+	return del.SQL().sess.StatementExec(ctx, dq.statement(), dq.arguments()...)
 }
 
 func (del *deleter) statement() (*exql.Statement, error) {

@@ -29,7 +29,6 @@ import (
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqladapter"
 	"github.com/upper/db/v4/internal/testsuite"
-	"github.com/upper/db/v4/sqlbuilder"
 )
 
 var settings = ConnectionURL{
@@ -44,10 +43,10 @@ var settings = ConnectionURL{
 }
 
 type Helper struct {
-	sess sqlbuilder.Session
+	sess db.Session
 }
 
-func cleanUp(sess sqlbuilder.Session) error {
+func cleanUp(sess db.Session) error {
 	if activeStatements := sqladapter.NumActiveStatements(); activeStatements > 128 {
 		return fmt.Errorf("Expecting active statements to be less than 128, got %d", activeStatements)
 	}
@@ -66,7 +65,7 @@ func cleanUp(sess sqlbuilder.Session) error {
 	return nil
 }
 
-func getStats(sess sqlbuilder.Session) (map[string]int, error) {
+func getStats(sess db.Session) (map[string]int, error) {
 	stats := make(map[string]int)
 
 	value := 0
@@ -87,10 +86,6 @@ func getStats(sess sqlbuilder.Session) (map[string]int, error) {
 }
 
 func (h *Helper) Session() db.Session {
-	return h.sess
-}
-
-func (h *Helper) SQLBuilder() sqlbuilder.Session {
 	return h.sess
 }
 

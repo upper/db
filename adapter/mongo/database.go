@@ -25,6 +25,8 @@
 package mongo
 
 import (
+	"context"
+	"database/sql"
 	"strings"
 	"sync"
 	"time"
@@ -71,6 +73,19 @@ func Open(settings db.ConnectionURL) (db.Session, error) {
 	return d, nil
 }
 
+func (s *Source) TxContext(context.Context, func(tx db.Session) error, *sql.TxOptions) error {
+	return db.ErrNotSupportedByAdapter
+}
+
+func (s *Source) Tx(func(db.Session) error) error {
+	return db.ErrNotSupportedByAdapter
+}
+
+func (s *Source) SQL() db.SQL {
+	// Not supported
+	panic("sql builder is not supported by mongodb")
+}
+
 func (s *Source) ConnectionURL() db.ConnectionURL {
 	return s.connURL
 }
@@ -115,12 +130,6 @@ func (s *Source) Clone() (db.Session, error) {
 		collections: map[string]*Collection{},
 	}
 	return clone, nil
-}
-
-// NewTransaction should support transactions, but it doesn't as MongoDB
-// currently does not support them.
-func (s *Source) NewTransaction() (db.Tx, error) {
-	return nil, db.ErrUnsupported
 }
 
 // Ping checks whether a connection to the database is still alive by pinging

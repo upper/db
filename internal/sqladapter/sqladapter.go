@@ -27,7 +27,7 @@ import (
 	"database/sql/driver"
 
 	"github.com/upper/db/v4"
-	"github.com/upper/db/v4/sqlbuilder"
+	"github.com/upper/db/v4/internal/sqlbuilder"
 )
 
 // IsKeyValue reports whether v is a valid value for a primary key that can be
@@ -51,7 +51,7 @@ type sqlAdapterWrapper struct {
 	adapter AdapterSession
 }
 
-func (w *sqlAdapterWrapper) OpenDSN(dsn db.ConnectionURL) (sqlbuilder.Session, error) {
+func (w *sqlAdapterWrapper) OpenDSN(dsn db.ConnectionURL) (db.Session, error) {
 	sess := NewSession(dsn, w.adapter)
 	if err := sess.Open(); err != nil {
 		return nil, err
@@ -67,7 +67,7 @@ func (w *sqlAdapterWrapper) NewTx(sqlTx *sql.Tx) (sqlbuilder.Tx, error) {
 	return tx, nil
 }
 
-func (w *sqlAdapterWrapper) New(sqlDB *sql.DB) (sqlbuilder.Session, error) {
+func (w *sqlAdapterWrapper) New(sqlDB *sql.DB) (db.Session, error) {
 	sess := NewSession(nil, w.adapter)
 	if err := sess.BindDB(sqlDB); err != nil {
 		return nil, err

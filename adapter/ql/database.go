@@ -33,7 +33,7 @@ import (
 	"github.com/upper/db/v4/internal/sqladapter"
 	"github.com/upper/db/v4/internal/sqladapter/compat"
 	"github.com/upper/db/v4/internal/sqladapter/exql"
-	"github.com/upper/db/v4/sqlbuilder"
+	"github.com/upper/db/v4/internal/sqlbuilder"
 	_ "modernc.org/ql/driver" // QL driver
 )
 
@@ -50,7 +50,8 @@ func (*database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {
 }
 
 func (*database) Collections(sess sqladapter.Session) (collections []string, err error) {
-	q := sess.Select("Name").
+	q := sess.SQL().
+		Select("Name").
 		From("__Table")
 
 	iter := q.Iterator()
@@ -89,7 +90,7 @@ func (*database) StatementExec(sess sqladapter.Session, ctx context.Context, que
 		return compat.ExecContext(sess.Driver().(*sql.Tx), ctx, query, args)
 	}
 
-	sqlTx, err := compat.BeginTx(sess.Driver().(*sql.DB), ctx, sess.TxOptions())
+	sqlTx, err := compat.BeginTx(sess.Driver().(*sql.DB), ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +119,7 @@ func (*database) LookupName(sess sqladapter.Session) (string, error) {
 }
 
 func (*database) TableExists(sess sqladapter.Session, name string) error {
-	q := sess.Select("Name").
+	q := sess.SQL().Select("Name").
 		From("__Table").
 		Where("Name == ?", name)
 

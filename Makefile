@@ -10,9 +10,9 @@ export TEST_FLAGS
 export PARALLEL_FLAGS
 export UPPER_DB_LOG
 
-test: go-test-sqlbuilder go-test-internal test-adapters
+test: go-test-internal test-adapters
 
-benchmark: go-benchmark-internal go-benchmark-sqlbuilder
+benchmark: go-benchmark-internal
 
 go-benchmark-%:
 	go test -v -benchtime=500ms -bench=. ./$*/...

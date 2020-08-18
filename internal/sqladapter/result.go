@@ -28,15 +28,14 @@ import (
 
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/immutable"
-	"github.com/upper/db/v4/sqlbuilder"
 )
 
 type Result struct {
-	builder sqlbuilder.SQLBuilder
+	builder db.SQL
 
 	err atomic.Value
 
-	iter   sqlbuilder.Iterator
+	iter   db.Iterator
 	iterMu sync.Mutex
 
 	prev *Result
@@ -68,7 +67,7 @@ func filter(conds []interface{}) []interface{} {
 
 // NewResult creates and Results a new Result set on the given table, this set
 // is limited by the given exql.Where conditions.
-func NewResult(builder sqlbuilder.SQLBuilder, table string, conds []interface{}) *Result {
+func NewResult(builder db.SQL, table string, conds []interface{}) *Result {
 	r := &Result{
 		builder: builder,
 	}
@@ -79,11 +78,11 @@ func (r *Result) frame(fn func(*result) error) *Result {
 	return &Result{prev: r, fn: fn}
 }
 
-func (r *Result) SQLBuilder() sqlbuilder.SQLBuilder {
+func (r *Result) SQL() db.SQL {
 	if r.prev == nil {
 		return r.builder
 	}
-	return r.prev.SQLBuilder()
+	return r.prev.SQL()
 }
 
 func (r *Result) from(table string) *Result {
@@ -391,7 +390,7 @@ func (r *Result) Count() (uint64, error) {
 	return counter.Count, nil
 }
 
-func (r *Result) buildPaginator() (sqlbuilder.Paginator, error) {
+func (r *Result) buildPaginator() (db.Paginator, error) {
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -401,7 +400,7 @@ func (r *Result) buildPaginator() (sqlbuilder.Paginator, error) {
 		return nil, err
 	}
 
-	sel := r.SQLBuilder().Select(res.fields...).
+	sel := r.SQL().Select(res.fields...).
 		From(res.table).
 		Limit(res.limit).
 		Offset(res.offset).
@@ -427,7 +426,7 @@ func (r *Result) buildPaginator() (sqlbuilder.Paginator, error) {
 	return pag, nil
 }
 
-func (r *Result) buildDelete() (sqlbuilder.Deleter, error) {
+func (r *Result) buildDelete() (db.Deleter, error) {
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -437,7 +436,7 @@ func (r *Result) buildDelete() (sqlbuilder.Deleter, error) {
 		return nil, err
 	}
 
-	del := r.SQLBuilder().DeleteFrom(res.table).
+	del := r.SQL().DeleteFrom(res.table).
 		Limit(res.limit)
 
 	for i := range res.conds {
@@ -447,7 +446,7 @@ func (r *Result) buildDelete() (sqlbuilder.Deleter, error) {
 	return del, nil
 }
 
-func (r *Result) buildUpdate(values interface{}) (sqlbuilder.Updater, error) {
+func (r *Result) buildUpdate(values interface{}) (db.Updater, error) {
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -457,7 +456,7 @@ func (r *Result) buildUpdate(values interface{}) (sqlbuilder.Updater, error) {
 		return nil, err
 	}
 
-	upd := r.SQLBuilder().Update(res.table).
+	upd := r.SQL().Update(res.table).
 		Set(values).
 		Limit(res.limit)
 
@@ -468,7 +467,7 @@ func (r *Result) buildUpdate(values interface{}) (sqlbuilder.Updater, error) {
 	return upd, nil
 }
 
-func (r *Result) buildCount() (sqlbuilder.Selector, error) {
+func (r *Result) buildCount() (db.Selector, error) {
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -478,7 +477,7 @@ func (r *Result) buildCount() (sqlbuilder.Selector, error) {
 		return nil, err
 	}
 
-	sel := r.SQLBuilder().Select(db.Raw("count(1) AS _t")).
+	sel := r.SQL().Select(db.Raw("count(1) AS _t")).
 		From(res.table).
 		GroupBy(res.groupBy...)
 

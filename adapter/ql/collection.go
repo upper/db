@@ -26,7 +26,7 @@ import (
 
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqladapter"
-	"github.com/upper/db/v4/sqlbuilder"
+	"github.com/upper/db/v4/internal/sqlbuilder"
 )
 
 type resultProxy struct {
@@ -41,7 +41,7 @@ func (r *resultProxy) Select(fields ...interface{}) db.Result {
 			var columns []struct {
 				Name string `db:"Name"`
 			}
-			err := r.col.SQLBuilder().Select("Name").
+			err := r.col.SQL().Select("Name").
 				From("__Column").
 				Where("TableName", r.col.Name()).
 				Iterator().All(&columns)
@@ -86,7 +86,7 @@ func (*collectionAdapter) Insert(col sqladapter.Collection, item interface{}) (i
 		return nil, err
 	}
 
-	q := col.SQLBuilder().InsertInto(col.Name()).
+	q := col.SQL().InsertInto(col.Name()).
 		Columns(columnNames...).
 		Values(columnValues...)
 

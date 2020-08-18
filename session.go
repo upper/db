@@ -21,6 +21,11 @@
 
 package db
 
+import (
+	"context"
+	"database/sql"
+)
+
 // Session is an interface that defines methods for database adapters.
 type Session interface {
 	// ConnectionURL returns the DSN that was used to set up the adapter.
@@ -61,6 +66,21 @@ type Session interface {
 	// Example:
 	//  internalSQLDriver := sess.Driver().(*sql.DB)
 	Driver() interface{}
+
+	// SQL returns a special interface for SQL databases.
+	SQL() SQL
+
+	// Tx creates a transaction block on the default database context and passes
+	// it to the function fn. If fn returns no error the transaction is commited,
+	// else the transaction is rolled back. After being commited or rolled back
+	// the transaction is closed automatically.
+	Tx(fn func(sess Session) error) error
+
+	// TxContext creates a transaction block on the given context and passes it to
+	// the function fn. If fn returns no error the transaction is commited, else
+	// the transaction is rolled back. After being commited or rolled back the
+	// transaction is closed automatically.
+	TxContext(ctx context.Context, fn func(sess Session) error, opts *sql.TxOptions) error
 
 	Settings
 }

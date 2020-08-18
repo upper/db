@@ -34,7 +34,7 @@ import (
 	"github.com/upper/db/v4/internal/sqladapter"
 	"github.com/upper/db/v4/internal/sqladapter/compat"
 	"github.com/upper/db/v4/internal/sqladapter/exql"
-	"github.com/upper/db/v4/sqlbuilder"
+	"github.com/upper/db/v4/internal/sqlbuilder"
 )
 
 // database is the actual implementation of Database
@@ -50,7 +50,8 @@ func (*database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {
 }
 
 func (*database) Collections(sess sqladapter.Session) (collections []string, err error) {
-	q := sess.Select("tbl_name").
+	q := sess.SQL().
+		Select("tbl_name").
 		From("sqlite_master").
 		Where("type = ?", "table")
 
@@ -76,7 +77,7 @@ func (*database) StatementExec(sess sqladapter.Session, ctx context.Context, que
 		return compat.ExecContext(sess.Driver().(*sql.Tx), ctx, query, args)
 	}
 
-	sqlTx, err := compat.BeginTx(sess.Driver().(*sql.DB), ctx, sess.TxOptions())
+	sqlTx, err := compat.BeginTx(sess.Driver().(*sql.DB), ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +106,8 @@ func (*database) LookupName(sess sqladapter.Session) (string, error) {
 }
 
 func (*database) TableExists(sess sqladapter.Session, name string) error {
-	q := sess.Select("tbl_name").
+	q := sess.SQL().
+		Select("tbl_name").
 		From("sqlite_master").
 		Where("type = 'table' AND tbl_name = ?", name)
 
@@ -131,7 +133,7 @@ func (*database) PrimaryKeys(sess sqladapter.Session, tableName string) ([]strin
 
 	stmt := exql.RawSQL(fmt.Sprintf("PRAGMA TABLE_INFO('%s')", tableName))
 
-	rows, err := sess.Query(stmt)
+	rows, err := sess.SQL().Query(stmt)
 	if err != nil {
 		return nil, err
 	}

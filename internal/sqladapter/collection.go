@@ -6,7 +6,7 @@ import (
 
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqladapter/exql"
-	"github.com/upper/db/v4/sqlbuilder"
+	"github.com/upper/db/v4/internal/sqlbuilder"
 )
 
 // CollectionAdapter defines methods to be implemented by SQL adapters.
@@ -53,8 +53,8 @@ type Collection interface {
 	// PrimaryKeys returns the names of all primary keys in the table.
 	PrimaryKeys() []string
 
-	// SQLBuilder returns a sqlbuilder.SQLBuilder instance.
-	SQLBuilder() sqlbuilder.SQLBuilder
+	// SQLBuilder returns a db.SQL instance.
+	SQL() db.SQL
 }
 
 type finder interface {
@@ -88,8 +88,8 @@ func NewCollection(sess Session, name string, adapter CollectionAdapter) Collect
 	return c
 }
 
-func (c *collection) SQLBuilder() sqlbuilder.SQLBuilder {
-	return c.sess.(sqlbuilder.SQLBuilder)
+func (c *collection) SQL() db.SQL {
+	return c.sess.SQL()
 }
 
 func (c *collection) Session() db.Session {
@@ -143,7 +143,7 @@ func (c *collection) Find(conds ...interface{}) db.Result {
 	}
 
 	res := NewResult(
-		c.sess,
+		c.sess.SQL(),
 		c.Name(),
 		c.filterConds(conds...),
 	)
@@ -174,20 +174,17 @@ func (c *collection) InsertReturning(item interface{}) error {
 		return fmt.Errorf(db.ErrMissingPrimaryKeys.Error(), c.Name())
 	}
 
-	var tx SessionTx
-	inTx := false
-
-	if currTx := c.sess.Transaction(); currTx != nil {
-		tx = NewSessionTx(c.sess)
-		inTx = true
+	var tx Session
+	isTransaction := c.sess.IsTransaction()
+	if isTransaction {
+		tx = c.sess
 	} else {
-		// Not within a transaction, let's create one.
 		var err error
-		tx, err = c.sess.NewSessionTx(c.sess.Context())
+		tx, err = c.sess.NewTransaction(c.sess.Context(), nil)
 		if err != nil {
 			return err
 		}
-		defer tx.(Session).Close()
+		defer tx.Close()
 	}
 
 	// Allocate a clone of item.
@@ -196,7 +193,7 @@ func (c *collection) InsertReturning(item interface{}) error {
 
 	itemValue := reflect.ValueOf(item)
 
-	col := tx.(Session).Collection(c.Name())
+	col := tx.Collection(c.Name())
 
 	// Insert item as is and grab the returning ID.
 	var newItemRes db.Result
@@ -244,7 +241,7 @@ func (c *collection) InsertReturning(item interface{}) error {
 		goto cancel
 	}
 
-	if !inTx {
+	if !isTransaction {
 		// This is only executed if t.Session() was **not** a transaction and if
 		// sess was created with sess.NewTransaction().
 		return tx.Commit()
@@ -256,7 +253,7 @@ cancel:
 	// This goto label should only be used when we got an error within a
 	// transaction and we don't want to continue.
 
-	if !inTx {
+	if !isTransaction {
 		// This is only executed if t.Session() was **not** a transaction and if
 		// sess was created with sess.NewTransaction().
 		_ = tx.Rollback()
@@ -278,20 +275,19 @@ func (c *collection) UpdateReturning(item interface{}) error {
 		return fmt.Errorf(db.ErrMissingPrimaryKeys.Error(), c.Name())
 	}
 
-	var tx SessionTx
-	inTx := false
+	var tx Session
+	isTransaction := c.sess.IsTransaction()
 
-	if currTx := c.sess.Transaction(); currTx != nil {
-		tx = NewSessionTx(c.sess)
-		inTx = true
+	if isTransaction {
+		tx = c.sess
 	} else {
 		// Not within a transaction, let's create one.
 		var err error
-		tx, err = c.sess.NewSessionTx(c.sess.Context())
+		tx, err = c.sess.NewTransaction(c.sess.Context(), nil)
 		if err != nil {
 			return err
 		}
-		defer tx.(Session).Close()
+		defer tx.Close()
 	}
 
 	// Allocate a clone of item.
@@ -336,7 +332,7 @@ func (c *collection) UpdateReturning(item interface{}) error {
 		panic("default")
 	}
 
-	if !inTx {
+	if !isTransaction {
 		// This is only executed if t.Session() was **not** a transaction and if
 		// sess was created with sess.NewTransaction().
 		return tx.Commit()
@@ -347,7 +343,7 @@ cancel:
 	// This goto label should only be used when we got an error within a
 	// transaction and we don't want to continue.
 
-	if !inTx {
+	if !isTransaction {
 		// This is only executed if t.Session() was **not** a transaction and if
 		// sess was created with sess.NewTransaction().
 		_ = tx.Rollback()
@@ -360,7 +356,7 @@ func (c *collection) Truncate() error {
 		Type:  exql.Truncate,
 		Table: exql.TableWithName(c.Name()),
 	}
-	if _, err := c.sess.Exec(&stmt); err != nil {
+	if _, err := c.sess.SQL().Exec(&stmt); err != nil {
 		return err
 	}
 	return nil
