@@ -29,7 +29,6 @@ import (
 
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqladapter"
-	"github.com/upper/db/v4/internal/sqlbuilder"
 	"github.com/upper/db/v4/internal/testsuite"
 )
 
@@ -93,7 +92,7 @@ func getStats(sess db.Session) (map[string]int, error) {
 		Value        int    `db:"Value"`
 	}
 
-	iter := sqlbuilder.NewIterator(res)
+	iter := sess.SQL().NewIterator(res)
 	for iter.Next(&result) {
 		stats[result.VariableName] = result.Value
 	}
