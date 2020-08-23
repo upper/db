@@ -116,9 +116,12 @@ func WithTemplate(t *exql.Template) db.SQL {
 	}
 }
 
-// Newdb.Iterator creates an iterator using the given *sql.Rows.
-func NewIterator(rows *sql.Rows) db.Iterator {
-	return &iterator{nil, rows, nil}
+func (b *sqlBuilder) NewIteratorContext(ctx context.Context, rows *sql.Rows) db.Iterator {
+	return &iterator{b.sess, rows, nil}
+}
+
+func (b *sqlBuilder) NewIterator(rows *sql.Rows) db.Iterator {
+	return b.NewIteratorContext(b.sess.Context(), rows)
 }
 
 func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) db.Iterator {
