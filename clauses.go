@@ -468,31 +468,6 @@ type ResultMapper interface {
 	One(dest interface{}) error
 }
 
-// Iterator provides methods for iterating over query results.
-type Iterator interface {
-	// ResultMapper provides methods to retrieve and map results.
-	ResultMapper
-
-	// Scan dumps the current result into the given pointer variable pointers.
-	Scan(dest ...interface{}) error
-
-	// NextScan advances the iterator and performs Scan.
-	NextScan(dest ...interface{}) error
-
-	// ScanOne advances the iterator, performs Scan and closes the iterator.
-	ScanOne(dest ...interface{}) error
-
-	// Next dumps the current element into the given destination, which could be
-	// a pointer to either a map or a struct.
-	Next(dest ...interface{}) bool
-
-	// Err returns the last error produced by the cursor.
-	Err() error
-
-	// Close closes the iterator and frees up the cursor.
-	Close() error
-}
-
 type BatchInserter interface {
 	Values(...interface{}) BatchInserter
 	NextResult(interface{}) bool

@@ -154,6 +154,12 @@ type SQL interface {
 	//
 	//  sqlbuilder.IteratorContext(ctx, `SELECT * FROM people WHERE name LIKE "M%"`)
 	IteratorContext(ctx context.Context, query interface{}, args ...interface{}) Iterator
+
+	// NewIterator converts a *sql.Rows value into an Iterator.
+	NewIterator(rows *sql.Rows) Iterator
+
+	// NewIteratorContext converts a *sql.Rows value into an Iterator.
+	NewIteratorContext(ctx context.Context, rows *sql.Rows) Iterator
 }
 
 // SQLExecer provides methods for executing statements that do not return
