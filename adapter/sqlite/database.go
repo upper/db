@@ -34,7 +34,6 @@ import (
 	"github.com/upper/db/v4/internal/sqladapter"
 	"github.com/upper/db/v4/internal/sqladapter/compat"
 	"github.com/upper/db/v4/internal/sqladapter/exql"
-	"github.com/upper/db/v4/internal/sqlbuilder"
 )
 
 // database is the actual implementation of Database
@@ -143,7 +142,7 @@ func (*database) PrimaryKeys(sess sqladapter.Session, tableName string) ([]strin
 		PK   int    `db:"pk"`
 	}{}
 
-	if err := sqlbuilder.NewIterator(rows).All(&columns); err != nil {
+	if err := sess.SQL().NewIterator(rows).All(&columns); err != nil {
 		return nil, err
 	}
 
