@@ -24,3 +24,33 @@ package db
 type Store interface {
 	Collection
 }
+
+type StoreSaver interface {
+	Store
+
+	Save(record Record) error
+}
+
+type StoreCreator interface {
+	Store
+
+	Create(record Record) error
+}
+
+type StoreDeleter interface {
+	Store
+
+	Delete(record Record) error
+}
+
+type StoreUpdater interface {
+	Store
+
+	Update(record Record) error
+}
+
+type StoreGetter interface {
+	Store
+
+	Get(record Record, id interface{}) error
+}

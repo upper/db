@@ -10,22 +10,40 @@ import (
 	"github.com/upper/db/v4/internal/sqlbuilder"
 )
 
-func Accounts(sess db.Session) db.Collection {
-	return sess.Collection("accounts")
+type AccountsStore struct {
+	db.Collection
 }
 
-func Users(sess db.Session) db.Collection {
-	return sess.Collection("users")
+type UsersStore struct {
+	db.Collection
 }
 
-func Logs(sess db.Session) db.Collection {
-	return sess.Collection("logs")
+type LogsStore struct {
+	db.Collection
+}
+
+func Accounts(sess db.Session) db.Store {
+	return &AccountsStore{sess.Collection("accounts")}
+}
+
+func Users(sess db.Session) *UsersStore {
+	return &UsersStore{sess.Collection("users")}
+}
+
+func Logs(sess db.Session) *LogsStore {
+	return &LogsStore{sess.Collection("logs")}
 }
 
 type Log struct {
 	ID      uint64 `db:"id,omitempty"`
 	Message string `db:"message"`
 }
+
+func (*Log) Store(sess db.Session) db.Store {
+	return Logs(sess)
+}
+
+var _ = db.Store(&LogsStore{})
 
 type Account struct {
 	ID        uint64     `db:"id,omitempty"`
@@ -34,12 +52,12 @@ type Account struct {
 	CreatedAt *time.Time `db:"created_at,omitempty"`
 }
 
-func (*Account) Collection(sess db.Session) db.Collection {
+func (*Account) Store(sess db.Session) db.Store {
 	return Accounts(sess)
 }
 
-func (a *Account) AfterCreate(sess db.Session) error {
-	message := fmt.Sprintf("Account %q was created.", a.Name)
+func (account *Account) AfterCreate(sess db.Session) error {
+	message := fmt.Sprintf("Account %q was created.", account.Name)
 	return sess.Save(&Log{Message: message})
 }
 
@@ -49,17 +67,13 @@ type User struct {
 	Username  string `db:"username"`
 }
 
-func (u *User) AfterCreate(sess db.Session) error {
-	message := fmt.Sprintf("User %q was created.", u.Username)
+func (user *User) AfterCreate(sess db.Session) error {
+	message := fmt.Sprintf("User %q was created.", user.Username)
 	return sess.Save(&Log{Message: message})
 }
 
-func (*User) Collection(sess db.Session) db.Collection {
+func (*User) Store(sess db.Session) db.Store {
 	return Users(sess)
-}
-
-func (*Log) Collection(sess db.Session) db.Collection {
-	return Logs(sess)
 }
 
 type RecordTestSuite struct {

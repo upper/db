@@ -19,10 +19,6 @@ import (
 	"github.com/upper/db/v4/internal/sqlbuilder"
 )
 
-type hasPrimaryKeys interface {
-	PrimaryKeys() []string
-}
-
 var (
 	lastSessID uint64
 	lastTxID   uint64
@@ -346,7 +342,11 @@ func (sess *session) Open() error {
 }
 
 func (sess *session) Get(record db.Record, id interface{}) error {
-	return record.Collection(sess).Find(id).One(record)
+	store := record.Store(sess)
+	if getter, ok := store.(db.StoreGetter); ok {
+		return getter.Get(record, id)
+	}
+	return store.Find(id).One(record)
 }
 
 func (sess *session) Save(record db.Record) error {
@@ -358,7 +358,16 @@ func (sess *session) Save(record db.Record) error {
 		return db.ErrExpectingPointerToStruct
 	}
 
-	_, fields := recordPrimaryKeyFieldValues(sess, record)
+	store := record.Store(sess)
+
+	if saver, ok := store.(db.StoreSaver); ok {
+		return saver.Save(record)
+	}
+
+	_, fields, err := recordPrimaryKeyFieldValues(store, record)
+	if err != nil {
+		return err
+	}
 	isCreate := true
 	for i := range fields {
 		if fields[i] != reflect.Zero(reflect.TypeOf(fields[i])).Interface() {
@@ -368,9 +377,9 @@ func (sess *session) Save(record db.Record) error {
 	}
 
 	if isCreate {
-		return recordCreate(sess, record)
+		return recordCreate(store, record)
 	}
-	return recordUpdate(sess, record)
+	return recordUpdate(store, record)
 }
 
 func (sess *session) Delete(record db.Record) error {
@@ -382,10 +391,7 @@ func (sess *session) Delete(record db.Record) error {
 		return db.ErrExpectingPointerToStruct
 	}
 
-	conds, err := recordID(sess, record)
-	if err != nil {
-		return err
-	}
+	store := record.Store(sess)
 
 	if hook, ok := record.(db.BeforeDeleteHook); ok {
 		if err := hook.BeforeDelete(sess); err != nil {
@@ -393,8 +399,18 @@ func (sess *session) Delete(record db.Record) error {
 		}
 	}
 
-	if err := record.Collection(sess).Find(conds).Delete(); err != nil {
-		return err
+	if deleter, ok := store.(db.StoreDeleter); ok {
+		if err := deleter.Delete(record); err != nil {
+			return err
+		}
+	} else {
+		conds, err := recordID(store, record)
+		if err != nil {
+			return err
+		}
+		if err := store.Find(conds).Delete(); err != nil {
+			return err
+		}
 	}
 
 	if hook, ok := record.(db.AfterDeleteHook); ok {
@@ -403,91 +419,6 @@ func (sess *session) Delete(record db.Record) error {
 		}
 	}
 
-	return nil
-}
-
-func recordID(sess db.Session, record db.Record) (db.Cond, error) {
-	if record == nil {
-		return nil, db.ErrNilItem
-	}
-
-	id := db.Cond{}
-
-	keys, fields := recordPrimaryKeyFieldValues(sess, record)
-	for i := range fields {
-		if fields[i] == reflect.Zero(reflect.TypeOf(fields[i])).Interface() {
-			return nil, db.ErrZeroItemID
-		}
-		id[keys[i]] = fields[i]
-	}
-	if len(id) < 1 {
-		return nil, db.ErrZeroItemID
-	}
-
-	return id, nil
-}
-
-func recordPrimaryKeyFieldValues(sess db.Session, record db.Record) ([]string, []interface{}) {
-	pKeys := record.Collection(sess).(hasPrimaryKeys).PrimaryKeys()
-	fields := sqlbuilder.Mapper.FieldsByName(reflect.ValueOf(record), pKeys)
-
-	values := make([]interface{}, 0, len(fields))
-	for i := range fields {
-		if fields[i].IsValid() {
-			values = append(values, fields[i].Interface())
-		}
-	}
-
-	return pKeys, values
-}
-
-func recordCreate(sess db.Session, record db.Record) error {
-	if validator, ok := record.(db.Validator); ok {
-		if err := validator.Validate(); err != nil {
-			return err
-		}
-	}
-
-	if hook, ok := record.(db.BeforeCreateHook); ok {
-		if err := hook.BeforeCreate(sess); err != nil {
-			return err
-		}
-	}
-
-	if err := record.Collection(sess).InsertReturning(record); err != nil {
-		return err
-	}
-
-	if hook, ok := record.(db.AfterCreateHook); ok {
-		if err := hook.AfterCreate(sess); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func recordUpdate(sess db.Session, record db.Record) error {
-	if validator, ok := record.(db.Validator); ok {
-		if err := validator.Validate(); err != nil {
-			return err
-		}
-	}
-
-	if hook, ok := record.(db.BeforeUpdateHook); ok {
-		if err := hook.BeforeUpdate(sess); err != nil {
-			return err
-		}
-	}
-
-	if err := record.Collection(sess).UpdateReturning(record); err != nil {
-		return err
-	}
-
-	if hook, ok := record.(db.AfterUpdateHook); ok {
-		if err := hook.AfterUpdate(sess); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 

@@ -22,21 +22,19 @@ package db
 
 // Record is the equivalence between concrete database schemas and Go values.
 type Record interface {
-	Collection(sess Session) Collection
+	Store(sess Session) Store
 }
 
-// HasSave is an interface that defines an (optional) Save function for records
-// that is called when persisting an item (creating or updating). If Save is
-// not defined, upper/db will attempt to either create or update the item based
-// on whether the values for item's primary key are defined.
-type HasSave interface {
-	Save(sess Session) error
+type HasConstraints interface {
+	Constraints() Cond
 }
 
 // Validator is an interface that defined an (optional) Validate function for
 // records that is called before persisting an item (creating or updating). If
 // Validate returns an error the current operation is rolled back.
 type Validator interface {
+	Record
+
 	Validate() error
 }
 
@@ -44,6 +42,8 @@ type Validator interface {
 // records that is called before creating an item. If BeforeCreate returns an
 // error the create process is rolled back.
 type BeforeCreateHook interface {
+	Record
+
 	BeforeCreate(Session) error
 }
 
@@ -51,6 +51,8 @@ type BeforeCreateHook interface {
 // records that is called after creating an item. If AfterCreate returns an
 // error the create process is rolled back.
 type AfterCreateHook interface {
+	Record
+
 	AfterCreate(Session) error
 }
 
@@ -58,6 +60,8 @@ type AfterCreateHook interface {
 // records that is called before updating an item. If BeforeUpdate returns an
 // error the update process is rolled back.
 type BeforeUpdateHook interface {
+	Record
+
 	BeforeUpdate(Session) error
 }
 
@@ -65,6 +69,8 @@ type BeforeUpdateHook interface {
 // records that is called after updating an item. If AfterUpdate returns an
 // error the update process is rolled back.
 type AfterUpdateHook interface {
+	Record
+
 	AfterUpdate(Session) error
 }
 
@@ -72,6 +78,8 @@ type AfterUpdateHook interface {
 // records that is called before removing an item. If BeforeDelete returns an
 // error the delete process is rolled back.
 type BeforeDeleteHook interface {
+	Record
+
 	BeforeDelete(Session) error
 }
 
@@ -79,5 +87,7 @@ type BeforeDeleteHook interface {
 // records that is called after removing an item. If AfterDelete returns
 // an error the delete process is rolled back.
 type AfterDeleteHook interface {
+	Record
+
 	AfterDelete(Session) error
 }
