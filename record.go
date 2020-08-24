@@ -30,7 +30,7 @@ type HasConstraints interface {
 }
 
 // Validator is an interface that defined an (optional) Validate function for
-// records that is called before persisting an item (creating or updating). If
+// records that is called before persisting a record (creating or updating). If
 // Validate returns an error the current operation is rolled back.
 type Validator interface {
 	Record
@@ -39,7 +39,7 @@ type Validator interface {
 }
 
 // BeforeCreateHook is an interface that defines an BeforeCreate function for
-// records that is called before creating an item. If BeforeCreate returns an
+// records that is called before creating a record. If BeforeCreate returns an
 // error the create process is rolled back.
 type BeforeCreateHook interface {
 	Record
@@ -48,7 +48,7 @@ type BeforeCreateHook interface {
 }
 
 // AfterCreateHook is an interface that defines an AfterCreate function for
-// records that is called after creating an item. If AfterCreate returns an
+// records that is called after creating a record. If AfterCreate returns an
 // error the create process is rolled back.
 type AfterCreateHook interface {
 	Record
@@ -57,7 +57,7 @@ type AfterCreateHook interface {
 }
 
 // BeforeUpdateHook is an interface that defines a BeforeUpdate function for
-// records that is called before updating an item. If BeforeUpdate returns an
+// records that is called before updating a record. If BeforeUpdate returns an
 // error the update process is rolled back.
 type BeforeUpdateHook interface {
 	Record
@@ -66,7 +66,7 @@ type BeforeUpdateHook interface {
 }
 
 // AfterUpdateHook is an interface that defines an AfterUpdate function for
-// records that is called after updating an item. If AfterUpdate returns an
+// records that is called after updating a record. If AfterUpdate returns an
 // error the update process is rolled back.
 type AfterUpdateHook interface {
 	Record
@@ -75,7 +75,7 @@ type AfterUpdateHook interface {
 }
 
 // BeforeDeleteHook is an interface that defines a BeforeDelete function for
-// records that is called before removing an item. If BeforeDelete returns an
+// records that is called before removing a record. If BeforeDelete returns an
 // error the delete process is rolled back.
 type BeforeDeleteHook interface {
 	Record
@@ -84,7 +84,7 @@ type BeforeDeleteHook interface {
 }
 
 // AfterDeleteHook is an interface that defines a AfterDelete function for
-// records that is called after removing an item. If AfterDelete returns
+// records that is called after removing a record. If AfterDelete returns
 // an error the delete process is rolled back.
 type AfterDeleteHook interface {
 	Record

@@ -45,7 +45,7 @@ type Collection interface {
 	// values, such as timestamps, or IDs.
 	InsertReturning(item interface{}) error
 
-	// UpdateReturning updates an item from the collection and refreshes the item
+	// UpdateReturning updates a record from the collection and refreshes the item
 	// with actual data from the database. This is useful to get automatic
 	// values, such as timestamps, or IDs.
 	UpdateReturning(item interface{}) error
