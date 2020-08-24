@@ -33,8 +33,6 @@ type HasConstraints interface {
 // records that is called before persisting a record (creating or updating). If
 // Validate returns an error the current operation is rolled back.
 type Validator interface {
-	Record
-
 	Validate() error
 }
 
@@ -42,8 +40,6 @@ type Validator interface {
 // records that is called before creating a record. If BeforeCreate returns an
 // error the create process is rolled back.
 type BeforeCreateHook interface {
-	Record
-
 	BeforeCreate(Session) error
 }
 
@@ -51,8 +47,6 @@ type BeforeCreateHook interface {
 // records that is called after creating a record. If AfterCreate returns an
 // error the create process is rolled back.
 type AfterCreateHook interface {
-	Record
-
 	AfterCreate(Session) error
 }
 
@@ -60,8 +54,6 @@ type AfterCreateHook interface {
 // records that is called before updating a record. If BeforeUpdate returns an
 // error the update process is rolled back.
 type BeforeUpdateHook interface {
-	Record
-
 	BeforeUpdate(Session) error
 }
 
@@ -69,8 +61,6 @@ type BeforeUpdateHook interface {
 // records that is called after updating a record. If AfterUpdate returns an
 // error the update process is rolled back.
 type AfterUpdateHook interface {
-	Record
-
 	AfterUpdate(Session) error
 }
 
@@ -78,8 +68,6 @@ type AfterUpdateHook interface {
 // records that is called before removing a record. If BeforeDelete returns an
 // error the delete process is rolled back.
 type BeforeDeleteHook interface {
-	Record
-
 	BeforeDelete(Session) error
 }
 
@@ -87,7 +75,5 @@ type BeforeDeleteHook interface {
 // records that is called after removing a record. If AfterDelete returns
 // an error the delete process is rolled back.
 type AfterDeleteHook interface {
-	Record
-
 	AfterDelete(Session) error
 }
