@@ -9,7 +9,7 @@ import (
 
 func recordID(store db.Store, record db.Record) (db.Cond, error) {
 	if record == nil {
-		return nil, db.ErrNilItem
+		return nil, db.ErrNilRecord
 	}
 
 	if hasConstraints, ok := record.(db.HasConstraints); ok {
@@ -24,12 +24,12 @@ func recordID(store db.Store, record db.Record) (db.Cond, error) {
 	}
 	for i := range fields {
 		if fields[i] == reflect.Zero(reflect.TypeOf(fields[i])).Interface() {
-			return nil, db.ErrZeroItemID
+			return nil, db.ErrRecordIDIsZero
 		}
 		id[keys[i]] = fields[i]
 	}
 	if len(id) < 1 {
-		return nil, db.ErrZeroItemID
+		return nil, db.ErrRecordIDIsZero
 	}
 
 	return id, nil

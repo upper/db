@@ -266,7 +266,7 @@ func (col *Collection) UpdateReturning(item interface{}) error {
 	return db.ErrUnsupported
 }
 
-// Insert inserts an item (map or struct) into the collection.
+// Insert inserts a record (map or struct) into the collection.
 func (col *Collection) Insert(item interface{}) (*db.InsertResult, error) {
 	var err error
 

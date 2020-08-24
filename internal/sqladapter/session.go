@@ -351,7 +351,7 @@ func (sess *session) Get(record db.Record, id interface{}) error {
 
 func (sess *session) Save(record db.Record) error {
 	if record == nil {
-		return db.ErrNilItem
+		return db.ErrNilRecord
 	}
 
 	if reflect.TypeOf(record).Kind() != reflect.Ptr {
@@ -384,7 +384,7 @@ func (sess *session) Save(record db.Record) error {
 
 func (sess *session) Delete(record db.Record) error {
 	if record == nil {
-		return db.ErrNilItem
+		return db.ErrNilRecord
 	}
 
 	if reflect.TypeOf(record).Kind() != reflect.Ptr {
