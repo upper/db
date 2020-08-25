@@ -580,9 +580,9 @@ func queryLog(status *sqladapter.QueryStatus) {
 	}
 
 	if status.Err != nil || slowQuery {
-		db.Log().Warn(status)
+		db.LC().Warn(status)
 		return
 	}
 
-	db.Log().Debug(status)
+	db.LC().Debug(status)
 }

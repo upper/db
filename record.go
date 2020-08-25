@@ -25,55 +25,58 @@ type Record interface {
 	Store(sess Session) Store
 }
 
+// HasConstraints is an interface for records that defines a Constraints method
+// that returns the record's own constraints.
 type HasConstraints interface {
 	Constraints() Cond
 }
 
-// Validator is an interface that defined an (optional) Validate function for
-// records that is called before persisting a record (creating or updating). If
-// Validate returns an error the current operation is rolled back.
+// Validator is an interface for records that defines an (optional) Validate
+// method that is called before persisting a record (creating or updating).  If
+// Validate returns an error the current operation is cancelled and rolled
+// back.
 type Validator interface {
 	Validate() error
 }
 
-// BeforeCreateHook is an interface that defines an BeforeCreate function for
-// records that is called before creating a record. If BeforeCreate returns an
-// error the create process is rolled back.
+// BeforeCreateHook is an interface for records that defines an BeforeCreate
+// method that is called before creating a record. If BeforeCreate returns an
+// error the create process is cancelled and rolled back.
 type BeforeCreateHook interface {
 	BeforeCreate(Session) error
 }
 
-// AfterCreateHook is an interface that defines an AfterCreate function for
-// records that is called after creating a record. If AfterCreate returns an
-// error the create process is rolled back.
+// AfterCreateHook is an interface for records that defines an AfterCreate
+// method that is called after creating a record. If AfterCreate returns an
+// error the create process is cancelled and rolled back.
 type AfterCreateHook interface {
 	AfterCreate(Session) error
 }
 
-// BeforeUpdateHook is an interface that defines a BeforeUpdate function for
-// records that is called before updating a record. If BeforeUpdate returns an
-// error the update process is rolled back.
+// BeforeUpdateHook is an interface for records that defines a BeforeUpdate
+// method that is called before updating a record. If BeforeUpdate returns an
+// error the update process is cancelled and rolled back.
 type BeforeUpdateHook interface {
 	BeforeUpdate(Session) error
 }
 
-// AfterUpdateHook is an interface that defines an AfterUpdate function for
-// records that is called after updating a record. If AfterUpdate returns an
-// error the update process is rolled back.
+// AfterUpdateHook is an interface for records that defines an AfterUpdate
+// method that is called after updating a record. If AfterUpdate returns an
+// error the update process is cancelled and rolled back.
 type AfterUpdateHook interface {
 	AfterUpdate(Session) error
 }
 
-// BeforeDeleteHook is an interface that defines a BeforeDelete function for
-// records that is called before removing a record. If BeforeDelete returns an
-// error the delete process is rolled back.
+// BeforeDeleteHook is an interface for records that defines a BeforeDelete
+// method that is called before removing a record. If BeforeDelete returns an
+// error the delete process is cancelled and rolled back.
 type BeforeDeleteHook interface {
 	BeforeDelete(Session) error
 }
 
-// AfterDeleteHook is an interface that defines a AfterDelete function for
-// records that is called after removing a record. If AfterDelete returns
-// an error the delete process is rolled back.
+// AfterDeleteHook is an interface for records that defines a AfterDelete
+// method that is called after removing a record. If AfterDelete returns an
+// error the delete process is cancelled and rolled back.
 type AfterDeleteHook interface {
 	AfterDelete(Session) error
 }

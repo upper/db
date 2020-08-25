@@ -21,26 +21,37 @@
 
 package db
 
+// Store represents a data store.
 type Store interface {
 	Collection
 }
 
+// StoreSaver is an interface for data stores that defines a Save method that
+// has the task of persisting a record.
 type StoreSaver interface {
 	Save(record Record) error
 }
 
+// StoreCreator is an interface for data stores that defines a Create method
+// that has the task of creating a new record.
 type StoreCreator interface {
 	Create(record Record) error
 }
 
+// StoreDeleter is an interface for data stores that defines a Delete method
+// that has the task of removing a record.
 type StoreDeleter interface {
 	Delete(record Record) error
 }
 
+// StoreUpdater is an interface for data stores that defines a Update method
+// that has the task of updating a record.
 type StoreUpdater interface {
 	Update(record Record) error
 }
 
+// StoreGetter is an interface for data stores that defines a Get method that
+// has the task of retrieving a record.
 type StoreGetter interface {
 	Get(record Record, id interface{}) error
 }

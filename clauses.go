@@ -468,10 +468,22 @@ type ResultMapper interface {
 	One(dest interface{}) error
 }
 
+// BatchInserter provides an interface to do massive insertions in batches.
 type BatchInserter interface {
+	// Values pushes column values to be inserted as part of the batch.
 	Values(...interface{}) BatchInserter
-	NextResult(interface{}) bool
+
+	// NextResult dumps the next slice of results to dst, which can mean having
+	// the IDs of all inserted elements in the batch.
+	NextResult(dst interface{}) bool
+
+	// Done signals that no more elements are going to be added.
 	Done()
+
+	// Wait blocks until the whole batch is executed.
 	Wait() error
+
+	// Err returns the last error that happened while executing the batch (or nil
+	// if no error happened).
 	Err() error
 }
