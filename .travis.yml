@@ -1,43 +1,23 @@
 language: go
 
 go:
-#  - 1.1 // QL fails to compile on lower then go1.2.
-#  - 1.2 // "go get" SSL problems with go1.2.
-#  - 1.2.1
-#  - 1.2.2
-  - 1.3.3
-  - 1.4.3
-  - 1.5.3
+  - '1.13'
 
 env:
   - GOARCH=amd64
 
 install:
-  - sudo apt-get install bzr
-  - rm -rf $HOME/gopath/src/upper.io
-  - mkdir -p $HOME/gopath/src/upper.io
-  - rsync -az $TRAVIS_BUILD_DIR/ $HOME/gopath/src/upper.io/db.v1/
-  - export TRAVIS_BUILD_DIR=$HOME/gopath/src/upper.io/db.v1
-  - cd $TRAVIS_BUILD_DIR
-  - go get -v github.com/cznic/ql/ql
   - go get ./...
+  - go get -v modernc.org/ql/ql
 
 services:
   - mongodb
 
-before_script:
-  - make -C mysql/_dumps
-  - make -C postgresql/_dumps
-  - make -C mongo/_dumps
-  - make -C ql/_dumps
-  - make -C sqlite/_dumps
-
+# this is too old to be supported, we're only going to test if it compiles.
 script:
-  - cd $HOME/gopath/src/upper.io/db.v1
-  - go version
-  - go test -v -host 127.0.0.1
-  - go test -v -host 127.0.0.1 upper.io/db.v1/postgresql
-  - go test -v -host 127.0.0.1 upper.io/db.v1/mysql
-  - go test -v -host 127.0.0.1 upper.io/db.v1/mongo
-  - go test -v upper.io/db.v1/ql
-  - go test -v upper.io/db.v1/sqlite
+  - cd $HOME/gopath/src/github.com/upper/db
+  - go build github.com/upper/db/postgresql
+  - go build github.com/upper/db/mysql
+  - go build github.com/upper/db/mongo
+  - go build github.com/upper/db/ql
+  - go build github.com/upper/db/sqlite

@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2016 The upper.io/db.v1 authors. All rights reserved.
+// Copyright (c) 2012-2016 The github.com/upper/db authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -30,7 +30,7 @@ import (
 
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"upper.io/db.v1"
+	"github.com/upper/db"
 )
 
 // Mongodb Collection

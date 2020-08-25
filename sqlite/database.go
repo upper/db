@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2016 The upper.io/db.v1 authors. All rights reserved.
+// Copyright (c) 2012-2016 The github.com/upper/db authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -29,11 +29,11 @@ import (
 	"time"
 	// Importing SQLite3 driver.
 	_ "github.com/mattn/go-sqlite3"
-	"upper.io/db.v1/util/cache"
-	"upper.io/db.v1"
-	"upper.io/db.v1/util/schema"
-	"upper.io/db.v1/util/sqlgen"
-	"upper.io/db.v1/util/sqlutil"
+	"github.com/upper/db/util/cache"
+	"github.com/upper/db"
+	"github.com/upper/db/util/schema"
+	"github.com/upper/db/util/sqlgen"
+	"github.com/upper/db/util/sqlutil"
 )
 
 const (

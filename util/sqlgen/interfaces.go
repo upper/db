@@ -1,7 +1,7 @@
 package sqlgen
 
 import (
-	"upper.io/db.v1/util/cache"
+	"github.com/upper/db/util/cache"
 )
 
 type cc interface {
