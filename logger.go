@@ -29,8 +29,10 @@ import (
 	"strings"
 )
 
+// LogLevel represents a verbosity level for logs
 type LogLevel int8
 
+// Log levels
 const (
 	LogLevelTrace LogLevel = -1
 
@@ -62,7 +64,8 @@ const (
 
 var defaultLogger Logger = log.New(os.Stdout, "", log.LstdFlags)
 
-// Logger
+// Logger represents a logging interface that is compatible with the standard
+// "log" and with many other logging libraries.
 type Logger interface {
 	Fatal(v ...interface{})
 	Fatalf(format string, v ...interface{})
@@ -74,7 +77,8 @@ type Logger interface {
 	Panicf(format string, v ...interface{})
 }
 
-// LoggingCollector represents a logging collector.
+// LoggingCollector provides different methods for collecting and classifying
+// log messages.
 type LoggingCollector interface {
 	Enabled(LogLevel) bool
 
@@ -224,7 +228,8 @@ var defaultLoggingCollector LoggingCollector = &loggingCollector{
 	logger: defaultLogger,
 }
 
-func Log() LoggingCollector {
+// LC returns the logging collector.
+func LC() LoggingCollector {
 	return defaultLoggingCollector
 }
 
@@ -232,7 +237,7 @@ func init() {
 	if logLevel := strings.ToUpper(os.Getenv("UPPER_DB_LOG")); logLevel != "" {
 		for ll := range logLevels {
 			if ll.String() == logLevel {
-				Log().SetLevel(ll)
+				LC().SetLevel(ll)
 				break
 			}
 		}

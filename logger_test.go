@@ -28,5 +28,5 @@ import (
 
 func TestLogger(t *testing.T) {
 	err := errors.New("fake error")
-	Log().Error(err)
+	LC().Error(err)
 }

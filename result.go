@@ -179,20 +179,25 @@ type Result interface {
 	Close() error
 }
 
+// InsertResult provides infomation about an insert operation.
 type InsertResult struct {
 	id interface{}
 }
 
+// ID returns the ID of the newly inserted record.
 func (r *InsertResult) ID() ID {
 	return r.id
 }
 
+// Value satisfies driver.Valuer
 func (r InsertResult) Value() (driver.Value, error) {
 	return r.id, nil
 }
 
+// NewInsertResult creates an InsertResult
 func NewInsertResult(id interface{}) *InsertResult {
 	return &InsertResult{id: id}
 }
 
+// ID represents a record ID
 type ID interface{}

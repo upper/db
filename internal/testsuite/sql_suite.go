@@ -188,14 +188,14 @@ func (s *SQLTestSuite) TestTruncateAllCollections() {
 }
 
 func (s *SQLTestSuite) TestQueryLogger() {
-	logLevel := db.Log().Level()
+	logLevel := db.LC().Level()
 
-	db.Log().SetLogger(logrus.New())
-	db.Log().SetLevel(db.LogLevelDebug)
+	db.LC().SetLogger(logrus.New())
+	db.LC().SetLevel(db.LogLevelDebug)
 
 	defer func() {
-		db.Log().SetLogger(nil)
-		db.Log().SetLevel(logLevel)
+		db.LC().SetLogger(nil)
+		db.LC().SetLevel(logLevel)
 	}()
 
 	sess := s.Session()

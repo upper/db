@@ -641,11 +641,11 @@ func queryLog(status *QueryStatus) {
 	}
 
 	if status.Err != nil || slowQuery {
-		db.Log().Warn(status)
+		db.LC().Warn(status)
 		return
 	}
 
-	db.Log().Debug(status)
+	db.LC().Debug(status)
 }
 
 func (sess *session) StatementPrepare(ctx context.Context, stmt *exql.Statement) (sqlStmt *sql.Stmt, err error) {
