@@ -1,9 +1,9 @@
-# upper.io/db.v1.v1/internal/cache
+# github.com/upper/db.v1/internal/cache
 
 [![Build Status](https://travis-ci.org/upper/cache.svg?branch=master)](https://travis-ci.org/upper/cache)
 
 This is a naïve implementation of a volatile cache. You can use
-`upper.io/db.v1.v1/internal/cache` to save the output of complex or time-wasting functions such
+`github.com/upper/db.v1/internal/cache` to save the output of complex or time-wasting functions such
 as the output of template generators.
 
 ## How to use it?

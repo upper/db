@@ -1,6 +1,6 @@
-# SQLite3 adapter for upper.io/db.v1
+# SQLite3 adapter for github.com/upper/db
 
 Please read the full docs, acknowledgements and examples at
-[https://upper.io/db.v1/sqlite][1]
+[https://github.com/upper/db/sqlite][1]
 
-[1]: https://upper.io/db.v1/sqlite
+[1]: https://github.com/upper/db/sqlite
