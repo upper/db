@@ -45,10 +45,13 @@ type Session interface {
 	// database.
 	Collections() ([]Collection, error)
 
+	// Save creates or updates a record.
 	Save(record Record) error
 
-	Get(record Record, id interface{}) error
+	// Get retrieves a record that matches the given condition.
+	Get(record Record, cond interface{}) error
 
+	// Delete deletes a record.
 	Delete(record Record) error
 
 	// Reset resets all the caching mechanisms the adapter is using.
