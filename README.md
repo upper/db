@@ -1,11 +1,12 @@
 <p align="center">
-  <img src="https://upper.io/db.v3/images/gopher.svg" width="256" />
+  <img src="//upper.io/img/gopher.svg" width="256" />
 </p>
 
-# upper/db [![Build Status](https://travis-ci.org/upper/db.svg?branch=v4)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/github.com/upper/db?status.svg)](https://godoc.org/github.com/upper/db)
+# upper/db [![Build Status](https://travis-ci.org/upper/db.svg?branch=v4)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/github.com/upper/db?status.svg)](https://pkg.go.dev/github.com/upper/db/v4)
 
 `upper/db` is a productive data access layer (DAL) for [Go](https://golang.org)
 that provides agnostic tools to work with different data sources, such as:
+
 * PostgreSQL
 * MySQL
 * MSSQL
@@ -14,11 +15,7 @@ that provides agnostic tools to work with different data sources, such as:
 * QL
 * SQLite
 
-## Install
-
-```
-go get github.com/upper/db/v4
-```
+See [upper.io/v4](//upper.io/v4) for documentation and code samples.
 
 ## The tour
 
@@ -26,52 +23,6 @@ go get github.com/upper/db/v4
 
 Take the [tour](https://tour.upper.io) to see real live examples in your
 browser.
-
-## Live demos
-
-You can run the following example on our [playground](https://demo.upper.io):
-
-```go
-package main
-
-import (
-	"log"
-
-	"github.com/upper/db/v4/adapter/postgresql"
-)
-
-var settings = postgresql.ConnectionURL{
-	Host:     "demo.upper.io",
-	Database: "booktown",
-	User:     "demouser",
-	Password: "demop4ss",
-}
-
-type Book struct {
-	ID        int    `db:"id"`
-	Title     string `db:"title"`
-	AuthorID  int    `db:"author_id"`
-	SubjectID int    `db:"subject_id"`
-}
-
-func main() {
-	sess, err := postgresql.Open(settings)
-	if err != nil {
-		log.Fatalf("db.Open(): %q\n", err)
-	}
-	defer sess.Close()
-
-	var books []Book
-	err = sess.Collection("books").Find().All(&books)
-	if err != nil {
-		log.Fatalf("Find(): %q\n", err)
-	}
-
-	for i, book := range books {
-		log.Printf("Book %d: %#v\n", i, book)
-	}
-}
-```
 
 ## License
 

@@ -208,6 +208,7 @@ func (s *RecordTestSuite) TestDelete() {
 
 	count, err := Accounts(sess).Find(account.ID).Count()
 	s.Zero(count)
+	s.NoError(err)
 }
 
 func (s *RecordTestSuite) TestSlices() {

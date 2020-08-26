@@ -1,8 +1,8 @@
-SHELL					        ?= bash
+SHELL                 ?= bash
 
-COCKROACHDB_VERSION      ?= v20.1.3
-COCKROACHDB_SUPPORTED    ?= v19.1.9 $(COCKROACHDB_VERSION)
-PROJECT                  ?= upper_cockroachdb_$(COCKROACHDB_VERSION)
+COCKROACHDB_VERSION   ?= v20.1.3
+COCKROACHDB_SUPPORTED ?= v19.1.9 $(COCKROACHDB_VERSION)
+PROJECT               ?= upper_cockroachdb_$(COCKROACHDB_VERSION)
 
 DB_HOST               ?= 127.0.0.1
 DB_PORT               ?= 26257

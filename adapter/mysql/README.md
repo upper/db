@@ -1,7 +1,5 @@
-# MySQL adapter for upper.io/db
+# MySQL adapter for upper/db
 
-See the full docs, acknowledgements and examples at
-[https://upper.io/db.v3/mysql][1]
-
-[1]: https://upper.io/db.v3/mysql
+Please read the full docs, acknowledgements and examples at
+[https://upper.io/v4/mysql/](https://upper.io/v4/mysql/).
 
