@@ -483,10 +483,7 @@ func (sess *session) Rollback() error {
 }
 
 func (sess *session) IsTransaction() bool {
-	if sess.sqlTx != nil {
-		return true
-	}
-	return false
+	return sess.sqlTx != nil
 }
 
 func (sess *session) Transaction() *sql.Tx {

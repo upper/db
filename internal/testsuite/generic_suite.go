@@ -791,7 +791,6 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 		s.NoError(err)
 		s.Equal(0, len(items))
 	}
-	return
 
 	// Test: is nil
 	{

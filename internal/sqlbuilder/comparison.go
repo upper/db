@@ -35,10 +35,6 @@ var comparisonOperators = map[adapter.ComparisonOperator]string{
 	adapter.ComparisonOperatorNotRegExp: "NOT REGEXP",
 }
 
-type hasCustomOperator interface {
-	CustomOperator() string
-}
-
 type operatorWrapper struct {
 	tu *templateWithUtils
 	cv *exql.ColumnValue
