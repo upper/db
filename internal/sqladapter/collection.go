@@ -1,59 +1,64 @@
 package sqladapter
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 
-	db "upper.io/db.v3"
-	"upper.io/db.v3/internal/sqladapter/exql"
-	"upper.io/db.v3/lib/reflectx"
+	db "github.com/upper/db/v4"
+	"github.com/upper/db/v4/internal/sqladapter/exql"
+	"github.com/upper/db/v4/internal/sqlbuilder"
 )
 
-var mapper = reflectx.NewMapper("db")
-
-var errMissingPrimaryKeys = errors.New("Table %q has no primary keys")
-
-// Collection represents a SQL table.
-type Collection interface {
-	PartialCollection
-	BaseCollection
+// CollectionAdapter defines methods to be implemented by SQL adapters.
+type CollectionAdapter interface {
+	// Insert prepares and executes an INSERT statament. When the item is
+	// succefully added, Insert returns a unique identifier of the newly added
+	// element (or nil if the unique identifier couldn't be determined).
+	Insert(Collection, interface{}) (interface{}, error)
 }
 
-// PartialCollection defines methods that must be implemented by the adapter.
-type PartialCollection interface {
-	// Database returns the parent database.
-	Database() Database
+// Collection satisfies db.Collection.
+type Collection interface {
+	// Insert inserts a new item into the collection.
+	Insert(interface{}) (*db.InsertResult, error)
 
-	// Name returns the name of the table.
+	// Name returns the name of the collection.
 	Name() string
 
-	// Insert inserts a new item into the collection.
-	Insert(interface{}) (interface{}, error)
-}
+	// Session returns the db.Session the collection belongs to.
+	Session() db.Session
 
-// BaseCollection provides logic for methods that can be shared across all SQL
-// adapters.
-type BaseCollection interface {
-	// Exists returns true if the collection exists.
-	Exists() bool
+	// Exists returns true if the collection exists, false otherwise.
+	Exists() (bool, error)
 
-	// Find creates and returns a new result set.
+	// Find defined a new result set.
 	Find(conds ...interface{}) db.Result
 
-	// Truncate removes all items on the collection.
+	Count() (uint64, error)
+
+	// Truncate removes all elements on the collection and resets the
+	// collection's IDs.
 	Truncate() error
 
-	// InsertReturning inserts a new item and updates it with the
-	// actual values from the database.
-	InsertReturning(interface{}) error
+	// InsertReturning inserts a new item into the collection and refreshes the
+	// item with actual data from the database. This is useful to get automatic
+	// values, such as timestamps, or IDs.
+	InsertReturning(item interface{}) error
 
-	// UpdateReturning updates an item and returns the actual values from the
-	// database.
-	UpdateReturning(interface{}) error
+	// UpdateReturning updates a record from the collection and refreshes the item
+	// with actual data from the database. This is useful to get automatic
+	// values, such as timestamps, or IDs.
+	UpdateReturning(item interface{}) error
 
-	// PrimaryKeys returns the table's primary keys.
+	// PrimaryKeys returns the names of all primary keys in the table.
 	PrimaryKeys() []string
+
+	// SQLBuilder returns a db.SQL instance.
+	SQL() db.SQL
+}
+
+type finder interface {
+	Find(Collection, *Result, ...interface{}) db.Result
 }
 
 type condsFilter interface {
@@ -62,64 +67,99 @@ type condsFilter interface {
 
 // collection is the implementation of Collection.
 type collection struct {
-	BaseCollection
-	PartialCollection
+	name string
+	sess Session
 
-	pk  []string
+	adapter CollectionAdapter
+
 	err error
 }
 
-var (
-	_ = Collection(&collection{})
-)
-
-// NewBaseCollection returns a collection with basic methods.
-func NewBaseCollection(p PartialCollection) BaseCollection {
-	c := &collection{PartialCollection: p}
-	c.pk, c.err = c.Database().PrimaryKeys(c.Name())
+// NewCollection initializes a Collection by wrapping a CollectionAdapter.
+func NewCollection(sess Session, name string, adapter CollectionAdapter) Collection {
+	if adapter == nil {
+		panic("upper: received nil adapter")
+	}
+	c := &collection{
+		sess:    sess,
+		name:    name,
+		adapter: adapter,
+	}
 	return c
 }
 
-// PrimaryKeys returns the collection's primary keys, if any.
+func (c *collection) SQL() db.SQL {
+	return c.sess.SQL()
+}
+
+func (c *collection) Session() db.Session {
+	return c.sess
+}
+
+func (c *collection) Name() string {
+	return c.name
+}
+
+func (c *collection) Count() (uint64, error) {
+	return c.Find().Count()
+}
+
+func (c *collection) Insert(item interface{}) (*db.InsertResult, error) {
+	id, err := c.adapter.Insert(c, item)
+	if err != nil {
+		return nil, err
+	}
+
+	return db.NewInsertResult(id), nil
+}
+
 func (c *collection) PrimaryKeys() []string {
-	return c.pk
+	pk, err := c.sess.PrimaryKeys(c.Name())
+	if err == nil {
+		return pk
+	}
+	c.err = err
+	return nil
 }
 
 func (c *collection) filterConds(conds ...interface{}) []interface{} {
-	if tr, ok := c.PartialCollection.(condsFilter); ok {
-		return tr.FilterConds(conds...)
-	}
-	if len(conds) == 1 && len(c.pk) == 1 {
+	pk := c.PrimaryKeys()
+	if len(conds) == 1 && len(pk) == 1 {
 		if id := conds[0]; IsKeyValue(id) {
-			conds[0] = db.Cond{c.pk[0]: db.Eq(id)}
+			conds[0] = db.Cond{pk[0]: db.Eq(id)}
 		}
+	}
+	if tr, ok := c.adapter.(condsFilter); ok {
+		return tr.FilterConds(conds...)
 	}
 	return conds
 }
 
-// Find creates a result set with the given conditions.
 func (c *collection) Find(conds ...interface{}) db.Result {
 	if c.err != nil {
 		res := &Result{}
 		res.setErr(c.err)
 		return res
 	}
-	return NewResult(
-		c.Database(),
+
+	res := NewResult(
+		c.sess.SQL(),
 		c.Name(),
 		c.filterConds(conds...),
 	)
-}
-
-// Exists returns true if the collection exists.
-func (c *collection) Exists() bool {
-	if err := c.Database().TableExists(c.Name()); err != nil {
-		return false
+	if f, ok := c.adapter.(finder); ok {
+		return f.Find(c, res, conds...)
 	}
-	return true
+	return res
 }
 
-// InsertReturning inserts an item and updates the given variable reference.
+func (c *collection) Exists() (bool, error) {
+	if err := c.sess.TableExists(c.Name()); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func (c *collection) InsertReturning(item interface{}) error {
 	if item == nil || reflect.TypeOf(item).Kind() != reflect.Ptr {
 		return fmt.Errorf("Expecting a pointer but got %T", item)
@@ -128,26 +168,23 @@ func (c *collection) InsertReturning(item interface{}) error {
 	// Grab primary keys
 	pks := c.PrimaryKeys()
 	if len(pks) == 0 {
-		if !c.Exists() {
-			return db.ErrCollectionDoesNotExist
+		if ok, err := c.Exists(); !ok {
+			return err
 		}
-		return fmt.Errorf(errMissingPrimaryKeys.Error(), c.Name())
+		return fmt.Errorf(db.ErrMissingPrimaryKeys.Error(), c.Name())
 	}
 
-	var tx DatabaseTx
-	inTx := false
-
-	if currTx := c.Database().Transaction(); currTx != nil {
-		tx = NewDatabaseTx(c.Database())
-		inTx = true
+	var tx Session
+	isTransaction := c.sess.IsTransaction()
+	if isTransaction {
+		tx = c.sess
 	} else {
-		// Not within a transaction, let's create one.
 		var err error
-		tx, err = c.Database().NewDatabaseTx(c.Database().Context())
+		tx, err = c.sess.NewTransaction(c.sess.Context(), nil)
 		if err != nil {
 			return err
 		}
-		defer tx.(Database).Close()
+		defer tx.Close()
 	}
 
 	// Allocate a clone of item.
@@ -156,7 +193,7 @@ func (c *collection) InsertReturning(item interface{}) error {
 
 	itemValue := reflect.ValueOf(item)
 
-	col := tx.(Database).Collection(c.Name())
+	col := tx.Collection(c.Name())
 
 	// Insert item as is and grab the returning ID.
 	var newItemRes db.Result
@@ -186,9 +223,9 @@ func (c *collection) InsertReturning(item interface{}) error {
 	switch reflect.ValueOf(newItem).Elem().Kind() {
 	case reflect.Struct:
 		// Get valid fields from newItem to overwrite those that are on item.
-		newItemFieldMap = mapper.ValidFieldMap(reflect.ValueOf(newItem))
+		newItemFieldMap = sqlbuilder.Mapper.ValidFieldMap(reflect.ValueOf(newItem))
 		for fieldName := range newItemFieldMap {
-			mapper.FieldByName(itemValue, fieldName).Set(newItemFieldMap[fieldName])
+			sqlbuilder.Mapper.FieldByName(itemValue, fieldName).Set(newItemFieldMap[fieldName])
 		}
 	case reflect.Map:
 		newItemV := reflect.ValueOf(newItem).Elem()
@@ -204,8 +241,8 @@ func (c *collection) InsertReturning(item interface{}) error {
 		goto cancel
 	}
 
-	if !inTx {
-		// This is only executed if t.Database() was **not** a transaction and if
+	if !isTransaction {
+		// This is only executed if t.Session() was **not** a transaction and if
 		// sess was created with sess.NewTransaction().
 		return tx.Commit()
 	}
@@ -216,8 +253,8 @@ cancel:
 	// This goto label should only be used when we got an error within a
 	// transaction and we don't want to continue.
 
-	if !inTx {
-		// This is only executed if t.Database() was **not** a transaction and if
+	if !isTransaction {
+		// This is only executed if t.Session() was **not** a transaction and if
 		// sess was created with sess.NewTransaction().
 		_ = tx.Rollback()
 	}
@@ -232,26 +269,25 @@ func (c *collection) UpdateReturning(item interface{}) error {
 	// Grab primary keys
 	pks := c.PrimaryKeys()
 	if len(pks) == 0 {
-		if !c.Exists() {
-			return db.ErrCollectionDoesNotExist
+		if ok, err := c.Exists(); !ok {
+			return err
 		}
-		return fmt.Errorf(errMissingPrimaryKeys.Error(), c.Name())
+		return fmt.Errorf(db.ErrMissingPrimaryKeys.Error(), c.Name())
 	}
 
-	var tx DatabaseTx
-	inTx := false
+	var tx Session
+	isTransaction := c.sess.IsTransaction()
 
-	if currTx := c.Database().Transaction(); currTx != nil {
-		tx = NewDatabaseTx(c.Database())
-		inTx = true
+	if isTransaction {
+		tx = c.sess
 	} else {
 		// Not within a transaction, let's create one.
 		var err error
-		tx, err = c.Database().NewDatabaseTx(c.Database().Context())
+		tx, err = c.sess.NewTransaction(c.sess.Context(), nil)
 		if err != nil {
 			return err
 		}
-		defer tx.(Database).Close()
+		defer tx.Close()
 	}
 
 	// Allocate a clone of item.
@@ -262,10 +298,10 @@ func (c *collection) UpdateReturning(item interface{}) error {
 
 	conds := db.Cond{}
 	for _, pk := range pks {
-		conds[pk] = db.Eq(mapper.FieldByName(itemValue, pk).Interface())
+		conds[pk] = db.Eq(sqlbuilder.Mapper.FieldByName(itemValue, pk).Interface())
 	}
 
-	col := tx.(Database).Collection(c.Name())
+	col := tx.(Session).Collection(c.Name())
 
 	err := col.Find(conds).Update(item)
 	if err != nil {
@@ -279,9 +315,9 @@ func (c *collection) UpdateReturning(item interface{}) error {
 	switch reflect.ValueOf(defaultItem).Elem().Kind() {
 	case reflect.Struct:
 		// Get valid fields from defaultItem to overwrite those that are on item.
-		defaultItemFieldMap = mapper.ValidFieldMap(reflect.ValueOf(defaultItem))
+		defaultItemFieldMap = sqlbuilder.Mapper.ValidFieldMap(reflect.ValueOf(defaultItem))
 		for fieldName := range defaultItemFieldMap {
-			mapper.FieldByName(itemValue, fieldName).Set(defaultItemFieldMap[fieldName])
+			sqlbuilder.Mapper.FieldByName(itemValue, fieldName).Set(defaultItemFieldMap[fieldName])
 		}
 	case reflect.Map:
 		defaultItemV := reflect.ValueOf(defaultItem).Elem()
@@ -296,8 +332,8 @@ func (c *collection) UpdateReturning(item interface{}) error {
 		panic("default")
 	}
 
-	if !inTx {
-		// This is only executed if t.Database() was **not** a transaction and if
+	if !isTransaction {
+		// This is only executed if t.Session() was **not** a transaction and if
 		// sess was created with sess.NewTransaction().
 		return tx.Commit()
 	}
@@ -307,21 +343,20 @@ cancel:
 	// This goto label should only be used when we got an error within a
 	// transaction and we don't want to continue.
 
-	if !inTx {
-		// This is only executed if t.Database() was **not** a transaction and if
+	if !isTransaction {
+		// This is only executed if t.Session() was **not** a transaction and if
 		// sess was created with sess.NewTransaction().
 		_ = tx.Rollback()
 	}
 	return err
 }
 
-// Truncate deletes all rows from the table.
 func (c *collection) Truncate() error {
 	stmt := exql.Statement{
 		Type:  exql.Truncate,
 		Table: exql.TableWithName(c.Name()),
 	}
-	if _, err := c.Database().Exec(&stmt); err != nil {
+	if _, err := c.sess.SQL().Exec(&stmt); err != nil {
 		return err
 	}
 	return nil

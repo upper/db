@@ -4,8 +4,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	db "upper.io/db.v3"
-	"upper.io/db.v3/lib/sqlbuilder"
+	db "github.com/upper/db/v4"
 )
 
 const TimeZone = "Canada/Eastern"
@@ -13,8 +12,7 @@ const TimeZone = "Canada/Eastern"
 var TimeLocation, _ = time.LoadLocation(TimeZone)
 
 type Helper interface {
-	SQLBuilder() sqlbuilder.Database
-	Session() db.Database
+	Session() db.Session
 
 	Adapter() string
 

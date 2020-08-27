@@ -24,299 +24,136 @@ package db
 import (
 	"reflect"
 	"time"
+
+	"github.com/upper/db/v4/internal/adapter"
 )
 
-// Comparison defines methods for representing comparison operators in a
-// portable way across databases.
-type Comparison interface {
-	Operator() ComparisonOperator
-
-	Value() interface{}
+// Comparison represents a relationship between values.
+type Comparison struct {
+	*adapter.Comparison
 }
 
-// ComparisonOperator is a type we use to label comparison operators.
-type ComparisonOperator uint8
-
-// Comparison operators
-const (
-	ComparisonOperatorNone ComparisonOperator = iota
-
-	ComparisonOperatorEqual
-	ComparisonOperatorNotEqual
-
-	ComparisonOperatorLessThan
-	ComparisonOperatorGreaterThan
-
-	ComparisonOperatorLessThanOrEqualTo
-	ComparisonOperatorGreaterThanOrEqualTo
-
-	ComparisonOperatorBetween
-	ComparisonOperatorNotBetween
-
-	ComparisonOperatorIn
-	ComparisonOperatorNotIn
-
-	ComparisonOperatorIs
-	ComparisonOperatorIsNot
-
-	ComparisonOperatorLike
-	ComparisonOperatorNotLike
-
-	ComparisonOperatorRegExp
-	ComparisonOperatorNotRegExp
-
-	ComparisonOperatorAfter
-	ComparisonOperatorBefore
-
-	ComparisonOperatorOnOrAfter
-	ComparisonOperatorOnOrBefore
-)
-
-type dbComparisonOperator struct {
-	t  ComparisonOperator
-	op string
-	v  interface{}
+// Gte is a comparison that means: is greater than or equal to value.
+func Gte(value interface{}) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorGreaterThanOrEqualTo, value)}
 }
 
-func (c *dbComparisonOperator) CustomOperator() string {
-	return c.op
+// Lte is a comparison that means: is less than or equal to value.
+func Lte(value interface{}) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorLessThanOrEqualTo, value)}
 }
 
-func (c *dbComparisonOperator) Operator() ComparisonOperator {
-	return c.t
+// Eq is a comparison that means: is equal to value.
+func Eq(value interface{}) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorEqual, value)}
 }
 
-func (c *dbComparisonOperator) Value() interface{} {
-	return c.v
+// NotEq is a comparison that means: is not equal to value.
+func NotEq(value interface{}) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorNotEqual, value)}
 }
 
-// Gte indicates whether the reference is greater than or equal to the given
-// argument.
-func Gte(v interface{}) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorGreaterThanOrEqualTo,
-		v: v,
-	}
+// Gt is a comparison that means: is greater than value.
+func Gt(value interface{}) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorGreaterThan, value)}
 }
 
-// Lte indicates whether the reference is less than or equal to the given
-// argument.
-func Lte(v interface{}) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorLessThanOrEqualTo,
-		v: v,
-	}
+// Lt is a comparison that means: is less than value.
+func Lt(value interface{}) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorLessThan, value)}
 }
 
-// Eq indicates whether the constraint is equal to the given argument.
-func Eq(v interface{}) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorEqual,
-		v: v,
-	}
+// In is a comparison that means: is any of the values.
+func In(value ...interface{}) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorIn, toInterfaceArray(value))}
 }
 
-// NotEq indicates whether the constraint is not equal to the given argument.
-func NotEq(v interface{}) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorNotEqual,
-		v: v,
-	}
+// NotIn is a comparison that means: is none of the values.
+func NotIn(value ...interface{}) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorNotIn, toInterfaceArray(value))}
 }
 
-// Gt indicates whether the constraint is greater than the given argument.
-func Gt(v interface{}) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorGreaterThan,
-		v: v,
-	}
+// After is a comparison that means: is after the (time.Time) value.
+func After(value time.Time) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorGreaterThan, value)}
 }
 
-// Lt indicates whether the constraint is less than the given argument.
-func Lt(v interface{}) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorLessThan,
-		v: v,
-	}
+// Before is a comparison that means: is before the (time.Time) value.
+func Before(value time.Time) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorLessThan, value)}
 }
 
-// In indicates whether the argument is part of the reference.
-func In(v interface{}) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorIn,
-		v: toInterfaceArray(v),
-	}
+// OnOrAfter is a comparison that means: is on or after the (time.Time) value.
+func OnOrAfter(value time.Time) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorGreaterThanOrEqualTo, value)}
 }
 
-// NotIn indicates whether the argument is not part of the reference.
-func NotIn(v interface{}) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorNotIn,
-		v: toInterfaceArray(v),
-	}
+// OnOrBefore is a comparison that means: is on or before the (time.Time) value.
+func OnOrBefore(value time.Time) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorLessThanOrEqualTo, value)}
 }
 
-// After indicates whether the reference is after the given time.
-func After(t time.Time) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorGreaterThan,
-		v: t,
-	}
+// Between is a comparison that means: is between lowerBound and upperBound.
+func Between(lowerBound interface{}, upperBound interface{}) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorBetween, []interface{}{lowerBound, upperBound})}
 }
 
-// Before indicates whether the reference is before the given time.
-func Before(t time.Time) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorLessThan,
-		v: t,
-	}
+// NotBetween is a comparison that means: is not between lowerBound and upperBound.
+func NotBetween(lowerBound interface{}, upperBound interface{}) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorNotBetween, []interface{}{lowerBound, upperBound})}
 }
 
-// OnOrAfter indicater whether the reference is after or equal to the given
-// time value.
-func OnOrAfter(t time.Time) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorGreaterThanOrEqualTo,
-		v: t,
-	}
+// Is is a comparison that means: is equivalent to nil, true or false.
+func Is(value interface{}) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorIs, value)}
 }
 
-// OnOrBefore indicates whether the reference is before or equal to the given
-// time value.
-func OnOrBefore(t time.Time) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorLessThanOrEqualTo,
-		v: t,
-	}
+// IsNot is a comparison that means: is not equivalent to nil, true nor false.
+func IsNot(value interface{}) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorIsNot, value)}
 }
 
-// Between indicates whether the reference is contained between the two given
-// values.
-func Between(a interface{}, b interface{}) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorBetween,
-		v: []interface{}{a, b},
-	}
+// IsNull is a comparison that means: is equivalent to nil.
+func IsNull() *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorIs, nil)}
 }
 
-// NotBetween indicates whether the reference is not contained between the two
-// given values.
-func NotBetween(a interface{}, b interface{}) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorNotBetween,
-		v: []interface{}{a, b},
-	}
+// IsNotNull is a comparison that means: is not equivalent to nil.
+func IsNotNull() *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorIsNot, nil)}
 }
 
-// Is indicates whether the reference is nil, true or false.
-func Is(v interface{}) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorIs,
-		v: v,
-	}
+// Like is a comparison that checks whether the reference matches the wildcard
+// value.
+func Like(value string) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorLike, value)}
 }
 
-// IsNot indicates whether the reference is not nil, true nor false.
-func IsNot(v interface{}) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorIsNot,
-		v: v,
-	}
+// NotLike is a comparison that checks whether the reference does not match the
+// wildcard value.
+func NotLike(value string) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorNotLike, value)}
 }
 
-// IsNull indicates whether the reference is a NULL value.
-func IsNull() Comparison {
-	return Is(nil)
+// RegExp is a comparison that checks whether the reference matches the regular
+// expression.
+func RegExp(value string) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorRegExp, value)}
 }
 
-// IsNotNull indicates whether the reference is a NULL value.
-func IsNotNull() Comparison {
-	return IsNot(nil)
+// NotRegExp is a comparison that checks whether the reference does not match
+// the regular expression.
+func NotRegExp(value string) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorNotRegExp, value)}
 }
 
-/*
-// IsDistinctFrom indicates whether the reference is different from
-// the given value, including NULL values.
-func IsDistinctFrom(v interface{}) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorIsDistinctFrom,
-		v: v,
-	}
+// Op returns a custom comparison operator.
+func Op(customOperator string, value interface{}) *Comparison {
+	return &Comparison{adapter.NewCustomComparisonOperator(customOperator, value)}
 }
 
-// IsNotDistinctFrom indicates whether the reference is not different from the
-// given value, including NULL values.
-func IsNotDistinctFrom(v interface{}) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorIsNotDistinctFrom,
-		v: v,
-	}
-}
-*/
-
-// Like indicates whether the reference matches the wildcard value.
-func Like(v string) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorLike,
-		v: v,
-	}
-}
-
-// NotLike indicates whether the reference does not match the wildcard value.
-func NotLike(v string) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorNotLike,
-		v: v,
-	}
-}
-
-/*
-// ILike indicates whether the reference matches the wildcard value (case
-// insensitive).
-func ILike(v string) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorILike,
-		v: v,
-	}
-}
-
-// NotILike indicates whether the reference does not match the wildcard value
-// (case insensitive).
-func NotILike(v string) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorNotILike,
-		v: v,
-	}
-}
-*/
-
-// RegExp indicates whether the reference matches the regexp pattern.
-func RegExp(v string) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorRegExp,
-		v: v,
-	}
-}
-
-// NotRegExp indicates whether the reference does not match the regexp pattern.
-func NotRegExp(v string) Comparison {
-	return &dbComparisonOperator{
-		t: ComparisonOperatorNotRegExp,
-		v: v,
-	}
-}
-
-// Op represents a custom comparison operator against the reference.
-func Op(customOperator string, v interface{}) Comparison {
-	return &dbComparisonOperator{
-		op: customOperator,
-		t:  ComparisonOperatorNone,
-		v:  v,
-	}
-}
-
-func toInterfaceArray(v interface{}) []interface{} {
-	rv := reflect.ValueOf(v)
+func toInterfaceArray(value interface{}) []interface{} {
+	rv := reflect.ValueOf(value)
 	switch rv.Type().Kind() {
 	case reflect.Ptr:
 		return toInterfaceArray(rv.Elem().Interface())
@@ -328,7 +165,5 @@ func toInterfaceArray(v interface{}) []interface{} {
 		}
 		return args
 	}
-	return []interface{}{v}
+	return []interface{}{value}
 }
-
-var _ = Comparison(&dbComparisonOperator{})
