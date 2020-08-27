@@ -1,6 +1,7 @@
 package testsuite
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -1791,10 +1792,8 @@ func (s *SQLTestSuite) TestCustomType() {
 }
 
 func (s *SQLTestSuite) Test_Issue565() {
-	sess := s.Session().(sqlbuilder.Database)
 	ctx, _ := context.WithTimeout(context.Background(), time.Nanosecond)
-
-	sess = sess.WithContext(ctx)
+	sess := s.Session().WithContext(ctx)
 
 	var result birthday
 	err := sess.Collection("birthdays").Find().Select("name").One(&result)

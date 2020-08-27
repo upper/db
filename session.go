@@ -85,5 +85,16 @@ type Session interface {
 	// transaction is closed automatically.
 	TxContext(ctx context.Context, fn func(sess Session) error, opts *sql.TxOptions) error
 
+	// Context returns the context used as default for queries on this session
+	// and for new transactions.  If no context has been set, a default
+	// context.Background() is returned.
+	Context() context.Context
+
+	// WithContext returns a copy of the session that uses the given context as
+	// default. Copies are safe to use concurrently but they're backed by the
+	// same Session. You may close a copy at any point but that won't close the
+	// parent session.
+	WithContext(ctx context.Context) Session
+
 	Settings
 }

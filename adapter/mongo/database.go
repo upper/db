@@ -44,6 +44,8 @@ var connTimeout = time.Second * 5
 type Source struct {
 	db.Settings
 
+	ctx context.Context
+
 	name          string
 	connURL       db.ConnectionURL
 	session       *mgo.Session
@@ -66,7 +68,7 @@ func init() {
 
 // Open stablishes a new connection to a SQL server.
 func Open(settings db.ConnectionURL) (db.Session, error) {
-	d := &Source{Settings: db.NewSettings()}
+	d := &Source{Settings: db.NewSettings(), ctx: context.Background()}
 	if err := d.Open(settings); err != nil {
 		return nil, err
 	}
@@ -200,6 +202,22 @@ func (s *Source) Get(db.Record, interface{}) error {
 
 func (s *Source) Save(db.Record) error {
 	return db.ErrNotImplemented
+}
+
+func (s *Source) Context() context.Context {
+	return s.ctx
+}
+
+func (s *Source) WithContext(ctx context.Context) db.Session {
+	return &Source{
+		ctx:      ctx,
+		Settings: s.Settings,
+		name:     s.name,
+		connURL:  s.connURL,
+		session:  s.session,
+		database: s.database,
+		version:  s.version,
+	}
 }
 
 // Collection returns a collection by name.

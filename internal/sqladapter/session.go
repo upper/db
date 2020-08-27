@@ -234,6 +234,7 @@ var (
 
 func (sess *session) WithContext(ctx context.Context) db.Session {
 	newDB, _ := sess.NewClone(sess.adapter, false)
+	newDB.SetContext(ctx)
 	return newDB
 }
 
