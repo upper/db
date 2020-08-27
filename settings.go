@@ -29,19 +29,10 @@ import (
 
 // Settings defines methods to get or set configuration values.
 type Settings interface {
-	// SetLogging enables or disables logging.
-	SetLogging(bool)
-	// LoggingEnabled returns true if logging is enabled, false otherwise.
-	LoggingEnabled() bool
-
-	// SetLogger defines which logger to use.
-	SetLogger(Logger)
-	// Returns the currently configured logger.
-	Logger() Logger
-
 	// SetPreparedStatementCache enables or disables the prepared statement
 	// cache.
 	SetPreparedStatementCache(bool)
+
 	// PreparedStatementCacheEnabled returns true if the prepared statement cache
 	// is enabled, false otherwise.
 	PreparedStatementCacheEnabled() bool
@@ -69,6 +60,14 @@ type Settings interface {
 	// MaxOpenConns returns the default maximum number of open connections to the
 	// database.
 	MaxOpenConns() int
+
+	// SetMaxTransactionRetries sets the number of times a transaction can
+	// be retried.
+	SetMaxTransactionRetries(int)
+
+	// MaxTransactionRetries returns the maximum number of times a
+	// transaction can be retried.
+	MaxTransactionRetries() int
 }
 
 type settings struct {
@@ -80,28 +79,7 @@ type settings struct {
 	maxOpenConns    int
 	maxIdleConns    int
 
-	loggingEnabled uint32
-	queryLogger    Logger
-	queryLoggerMu  sync.RWMutex
-	defaultLogger  defaultLogger
-}
-
-func (c *settings) Logger() Logger {
-	c.queryLoggerMu.RLock()
-	defer c.queryLoggerMu.RUnlock()
-
-	if c.queryLogger == nil {
-		return &c.defaultLogger
-	}
-
-	return c.queryLogger
-}
-
-func (c *settings) SetLogger(lg Logger) {
-	c.queryLoggerMu.Lock()
-	defer c.queryLoggerMu.Unlock()
-
-	c.queryLogger = lg
+	maxTransactionRetries int
 }
 
 func (c *settings) binaryOption(opt *uint32) bool {
@@ -114,14 +92,6 @@ func (c *settings) setBinaryOption(opt *uint32, value bool) {
 		return
 	}
 	atomic.StoreUint32(opt, 0)
-}
-
-func (c *settings) SetLogging(value bool) {
-	c.setBinaryOption(&c.loggingEnabled, value)
-}
-
-func (c *settings) LoggingEnabled() bool {
-	return c.binaryOption(&c.loggingEnabled)
 }
 
 func (c *settings) SetPreparedStatementCache(value bool) {
@@ -156,6 +126,21 @@ func (c *settings) MaxIdleConns() int {
 	return c.maxIdleConns
 }
 
+func (c *settings) SetMaxTransactionRetries(n int) {
+	c.Lock()
+	c.maxTransactionRetries = n
+	c.Unlock()
+}
+
+func (c *settings) MaxTransactionRetries() int {
+	c.RLock()
+	defer c.RUnlock()
+	if c.maxTransactionRetries < 1 {
+		return 1
+	}
+	return c.maxTransactionRetries
+}
+
 func (c *settings) SetMaxOpenConns(n int) {
 	c.Lock()
 	c.maxOpenConns = n
@@ -178,6 +163,7 @@ func NewSettings() Settings {
 		connMaxLifetime:               def.connMaxLifetime,
 		maxIdleConns:                  def.maxIdleConns,
 		maxOpenConns:                  def.maxOpenConns,
+		maxTransactionRetries:         def.maxTransactionRetries,
 	}
 }
 
@@ -188,4 +174,5 @@ var DefaultSettings Settings = &settings{
 	connMaxLifetime:               time.Duration(0),
 	maxIdleConns:                  10,
 	maxOpenConns:                  0,
+	maxTransactionRetries:         1,
 }

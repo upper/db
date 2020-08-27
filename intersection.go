@@ -21,35 +21,34 @@
 
 package db
 
-// Intersection represents a compound joined by AND.
-type Intersection struct {
-	*compound
+import (
+	"github.com/upper/db/v4/internal/adapter"
+)
+
+// AndExpr represents an expression joined by a logical conjuction (AND).
+type AndExpr struct {
+	*adapter.LogicalExprGroup
 }
 
-// And adds more terms to the compound.
-func (a *Intersection) And(andConds ...Compound) *Intersection {
-	var fn func(*[]Compound) error
+// And adds more expressions to the group.
+func (a *AndExpr) And(andConds ...LogicalExpr) *AndExpr {
+	var fn func(*[]LogicalExpr) error
 	if len(andConds) > 0 {
-		fn = func(in *[]Compound) error {
+		fn = func(in *[]LogicalExpr) error {
 			*in = append(*in, andConds...)
 			return nil
 		}
 	}
-	return &Intersection{a.compound.frame(fn)}
+	return &AndExpr{a.LogicalExprGroup.Frame(fn)}
 }
 
-// Empty returns false if this struct holds no conditions.
-func (a *Intersection) Empty() bool {
-	return a.compound.Empty()
-}
-
-// Operator returns the AND operator.
-func (a *Intersection) Operator() CompoundOperator {
-	return OperatorAnd
+// Empty returns false if the expressions has zero conditions.
+func (a *AndExpr) Empty() bool {
+	return a.LogicalExprGroup.Empty()
 }
 
 // And joins conditions under logical conjunction. Conditions can be
-// represented by db.Cond{}, db.Or() or db.And().
+// represented by `db.Cond{}`, `db.Or()` or `db.And()`.
 //
 // Examples:
 //
@@ -67,6 +66,8 @@ func (a *Intersection) Operator() CompoundOperator {
 //		),
 //		db.Cond{"last_name": "Mouse"},
 //	)
-func And(conds ...Compound) *Intersection {
-	return &Intersection{newCompound(conds...)}
+func And(conds ...LogicalExpr) *AndExpr {
+	return &AndExpr{adapter.NewLogicalExprGroup(adapter.LogicalOperatorAnd, conds...)}
 }
+
+var _ = adapter.LogicalExpr(&AndExpr{})

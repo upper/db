@@ -21,18 +21,14 @@
 
 package db
 
-// Function interface defines methods for representing database functions.
-// This is an exported interface but it's rarely used directly, you may want to
-// use the `db.Func()` function instead.
-type Function interface {
-	// Name returns the function name.
-	Name() string
+import (
+	"github.com/upper/db/v4/internal/adapter"
+)
 
-	// Argument returns the function arguments.
-	Arguments() []interface{}
-}
+// FuncExpr represents functions.
+type FuncExpr = adapter.FuncExpr
 
-// Func represents a database function and satisfies the db.Function interface.
+// Func returns a database function expression.
 //
 // Examples:
 //
@@ -47,21 +43,6 @@ type Function interface {
 //
 //	// RTRIM("Hello  ")
 //	db.Func("RTRIM", "Hello  ")
-func Func(name string, args ...interface{}) Function {
-	return &dbFunc{name: name, args: args}
+func Func(name string, args ...interface{}) *FuncExpr {
+	return adapter.NewFuncExpr(name, args)
 }
-
-type dbFunc struct {
-	name string
-	args []interface{}
-}
-
-func (f *dbFunc) Arguments() []interface{} {
-	return f.args
-}
-
-func (f *dbFunc) Name() string {
-	return f.name
-}
-
-var _ = Function(&dbFunc{})

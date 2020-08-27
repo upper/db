@@ -25,8 +25,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	db "github.com/upper/db/v4"
 	"gopkg.in/mgo.v2/bson"
-	db "upper.io/db.v3"
 )
 
 type birthday struct {
@@ -149,18 +149,18 @@ func (s *GenericTestSuite) TestDatesAndUnicode() {
 
 	col := sess.Collection(`birthdays`)
 
-	id, err := col.Insert(controlItem)
+	record, err := col.Insert(controlItem)
 	s.NoError(err)
-	s.NotZero(id)
+	s.NotZero(record.ID())
 
 	var res db.Result
 	switch s.Adapter() {
 	case "mongo":
-		res = col.Find(db.Cond{"_id": id.(bson.ObjectId)})
+		res = col.Find(db.Cond{"_id": record.ID().(bson.ObjectId)})
 	case "ql":
-		res = col.Find(db.Cond{"id()": id})
+		res = col.Find(db.Cond{"id()": record.ID()})
 	default:
-		res = col.Find(db.Cond{"id": id})
+		res = col.Find(db.Cond{"id": record.ID()})
 	}
 
 	var total uint64
@@ -724,9 +724,9 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 	// Test: in
 	{
 		var items []birthday
-		names := []string{"Peter", "Eve Smith", "Daria López", "Alex López"}
+		names := []interface{}{"Peter", "Eve Smith", "Daria López", "Alex López"}
 		err := birthdays.Find(db.Cond{
-			"name": db.In(names),
+			"name": db.In(names...),
 		}).All(&items)
 		s.NoError(err)
 		s.Equal(4, len(items))
@@ -744,9 +744,9 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 	// Test: not in
 	{
 		var items []birthday
-		names := []string{"Peter", "Eve Smith", "Daria López", "Alex López"}
+		names := []interface{}{"Peter", "Eve Smith", "Daria López", "Alex López"}
 		err := birthdays.Find(db.Cond{
-			"name": db.NotIn(names),
+			"name": db.NotIn(names...),
 		}).All(&items)
 		s.NoError(err)
 		s.Equal(4, len(items))
@@ -764,9 +764,9 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 	// Test: not in
 	{
 		var items []birthday
-		names := []string{"Peter", "Eve Smith", "Daria López", "Alex López"}
+		names := []interface{}{"Peter", "Eve Smith", "Daria López", "Alex López"}
 		err := birthdays.Find(db.Cond{
-			"name": db.NotIn(names),
+			"name": db.NotIn(names...),
 		}).All(&items)
 		s.NoError(err)
 		s.Equal(4, len(items))

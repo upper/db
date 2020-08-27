@@ -1,0 +1,47 @@
+SHELL                 ?= bash
+
+COCKROACHDB_VERSION   ?= v19.1.9
+#COCKROACHDB_VERSION   ?= v20.1.3
+COCKROACHDB_SUPPORTED ?= v19.1.9 $(COCKROACHDB_VERSION)
+PROJECT               ?= upper_cockroachdb_$(COCKROACHDB_VERSION)
+
+DB_HOST               ?= 127.0.0.1
+DB_PORT               ?= 26257
+
+DB_NAME               ?= upperio
+DB_USERNAME           ?= upperio_user
+
+TEST_FLAGS            ?=
+PARALLEL_FLAGS        ?= --halt-on-error 2 --jobs 1
+
+export COCKROACHDB_VERSION
+
+export DB_HOST
+export DB_NAME
+export DB_PASSWORD
+export DB_PORT
+export DB_USERNAME
+
+export TEST_FLAGS
+
+test:
+	go test -v $(TEST_FLAGS)
+
+server-up: server-down
+	docker-compose -p $(PROJECT) up -d && \
+	sleep 5 && \
+	psql -Uroot -h$(DB_HOST) -p$(DB_PORT) postgres -c "\
+		DROP USER IF EXISTS $(DB_USERNAME); \
+		DROP DATABASE IF EXISTS $(DB_NAME); \
+		CREATE DATABASE $(DB_NAME); \
+		CREATE USER $(DB_USERNAME); \
+		GRANT ALL ON DATABASE $(DB_NAME) TO $(DB_USERNAME); \
+	"
+
+server-down:
+	docker-compose -p $(PROJECT) down
+
+test-extended:
+	parallel $(PARALLEL_FLAGS) \
+		"COCKROACHDB_VERSION={} DB_PORT=\$$(($(DB_PORT)+{#})) $(MAKE) server-up test server-down" ::: \
+		$(COCKROACHDB_SUPPORTED)

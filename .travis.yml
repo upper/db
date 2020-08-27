@@ -8,6 +8,7 @@ env:
   global:
     - GOARCH=amd64
     - DB_HOST=127.0.0.1
+    - UPPER_DB_LOG=ERROR
   matrix:
     - TEST_CMD="make test"
     - TEST_CMD="make benchmark"
@@ -16,9 +17,9 @@ notifications:
   email: false
 
 go:
-  - "1.12"
   - "1.13"
   - "1.14"
+  - "1.15"
 
 services:
   - docker
@@ -32,13 +33,9 @@ before_install:
   - sudo service mysql stop
   - sudo service postgresql stop
   - sudo apt-get install -y parallel
-  - sleep 30
+  - sleep 10
 
 install:
-  - mkdir -p $GOPATH/src/upper.io
-  - export TRAVIS_BUILD_DIR=$GOPATH/src/upper.io/db.v3
-  - mv $PWD $TRAVIS_BUILD_DIR
-  - cd $TRAVIS_BUILD_DIR
   - go get -t -v -d ./...
   - go get -v modernc.org/ql/ql
 
