@@ -41,6 +41,8 @@ var settings = ConnectionURL{
 	},
 }
 
+const preparedStatementsKey = "pg_prepared_statements_count"
+
 type Helper struct {
 	sess db.Session
 }
@@ -57,8 +59,8 @@ func cleanUp(sess db.Session) error {
 		return err
 	}
 
-	if stats["pg_prepared_statements_count"] != 0 {
-		return fmt.Errorf(`Expecting "Prepared_stmt_count" to be 0, got %d`, stats["Prepared_stmt_count"])
+	if stats[preparedStatementsKey] != 0 {
+		return fmt.Errorf(`Expecting %q to be 0, got %d`, preparedStatementsKey, stats[preparedStatementsKey])
 	}
 
 	return nil
@@ -75,7 +77,7 @@ func getStats(sess db.Session) (map[string]int, error) {
 		return nil, err
 	}
 
-	stats["pg_prepared_statements_count"] = value
+	stats[preparedStatementsKey] = value
 
 	return stats, nil
 }

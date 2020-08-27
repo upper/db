@@ -42,6 +42,8 @@ var settings = ConnectionURL{
 	},
 }
 
+const preparedStatementsKey = "pg_prepared_statements_count"
+
 type Helper struct {
 	sess db.Session
 }
@@ -58,8 +60,8 @@ func cleanUp(sess db.Session) error {
 		return err
 	}
 
-	if stats["pg_prepared_statements_count"] != 0 {
-		return fmt.Errorf(`Expecting "Prepared_stmt_count" to be 0, got %d`, stats["Prepared_stmt_count"])
+	if stats[preparedStatementsKey] > 1 {
+		return fmt.Errorf(`Expecting %q to be less or equal to 1, got %d`, preparedStatementsKey, stats[preparedStatementsKey])
 	}
 
 	return nil
@@ -67,20 +69,16 @@ func cleanUp(sess db.Session) error {
 
 func getStats(sess db.Session) (map[string]int, error) {
 	stats := make(map[string]int)
+	var value int
 
-	value := 0
+	row := sess.Driver().(*sql.DB).QueryRow(`SELECT count(1) AS value FROM pg_prepared_statements`)
+	err := row.Scan(&value)
+	if err != nil {
+		// Will work only with CockroachDB 20+
+		value = -1
+	}
 
-	/*
-		row := sess.Driver().(*sql.DB).QueryRow(`SELECT count(1) AS value FROM pg_prepared_statements`)
-
-		var value int
-		err := row.Scan(&value)
-		if err != nil {
-			return nil, err
-		}
-	*/
-
-	stats["pg_prepared_statements_count"] = value
+	stats[preparedStatementsKey] = value
 
 	return stats, nil
 }
