@@ -1,5 +1,5 @@
 <p align="center">
-  ![upper.io](https://upper.io/img/gopher.svg)
+  <img src="https://upper.io/img/gopher.svg" width="256">
 </p>
 
 # upper/db [![Build Status](https://travis-ci.org/upper/db.svg?branch=v4)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/github.com/upper/db?status.svg)](https://pkg.go.dev/github.com/upper/db/v4)
