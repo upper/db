@@ -153,7 +153,7 @@ const (
   `
 
 	adapterTruncateLayout = `
-		DELETE FROM {{.Table | compile}}
+    DELETE FROM {{.Table | compile}}
   `
 
 	adapterDropDatabaseLayout = `
