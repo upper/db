@@ -25,8 +25,9 @@ var (
 )
 
 var (
-	slowQueryThreshold       = time.Millisecond * 200
-	retryTransactionWaitTime = time.Millisecond * 20
+	slowQueryThreshold          = time.Millisecond * 200
+	retryTransactionWaitTime    = time.Millisecond * 10
+	retryTransactionMaxWaitTime = time.Second * 1
 )
 
 // hasCleanUp is implemented by structs that have a clean up routine that needs
@@ -1011,7 +1012,7 @@ func TxContext(ctx context.Context, sess db.Session, fn func(tx db.Session) erro
 
 		if err := fn(tx); err != nil {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				return fmt.Errorf("%s: %w", rollbackErr, err)
+				return fmt.Errorf("%v: %w", rollbackErr, err)
 			}
 			return err
 		}
@@ -1028,9 +1029,12 @@ func TxContext(ctx context.Context, sess db.Session, fn func(tx db.Session) erro
 		}
 		if errors.Is(txErr, db.ErrTransactionAborted) {
 			time.Sleep(retryTime)
-			if retryTime < time.Second {
-				retryTime = retryTime * 2
+
+			retryTime = retryTime * 2
+			if retryTime > retryTransactionMaxWaitTime {
+				retryTime = retryTransactionMaxWaitTime
 			}
+
 			continue
 		}
 		return txErr
