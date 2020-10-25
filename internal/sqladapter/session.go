@@ -231,6 +231,7 @@ type session struct {
 
 var (
 	_ = db.Session(&session{})
+	_ = Session(&session{})
 )
 
 func (sess *session) WithContext(ctx context.Context) db.Session {

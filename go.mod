@@ -3,6 +3,7 @@ module github.com/upper/db/v4
 go 1.15
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/denisenkom/go-mssqldb v0.0.0-20200620013148-b91950f658ec
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/google/uuid v1.1.1
