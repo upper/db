@@ -65,6 +65,12 @@ func filter(conds []interface{}) []interface{} {
 	return conds
 }
 
+func NewErrorResult(err error) *Result {
+	r := &Result{}
+	r.setErr(err)
+	return r
+}
+
 // NewResult creates and Results a new Result set on the given table, this set
 // is limited by the given exql.Where conditions.
 func NewResult(builder db.SQL, table string, conds []interface{}) *Result {
@@ -209,6 +215,14 @@ func (r *Result) Select(fields ...interface{}) db.Result {
 		res.fields = fields
 		return nil
 	})
+}
+
+func (r *Result) Arguments() []interface{} {
+	query, err := r.buildPaginator()
+	if err != nil {
+		panic(err.Error())
+	}
+	return query.Arguments()
 }
 
 // String satisfies fmt.Stringer

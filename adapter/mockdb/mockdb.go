@@ -122,6 +122,7 @@ type MockCollection struct {
 	db *MockDB
 
 	insert func(interface{}) (interface{}, error)
+	findFn func(conds ...interface{}) (result []interface{}, err error)
 
 	primaryKeys []string
 }
@@ -131,7 +132,13 @@ func (c *MockCollection) PrimaryKeys(primaryKeys []string) *MockCollection {
 	return c
 }
 
-func (c *MockCollection) Insert(fn func(interface{}) (interface{}, error)) {
+func (c *MockCollection) Insert(fn func(interface{}) (interface{}, error)) *MockCollection {
 	c.db.mock.ExpectBegin()
 	c.insert = fn
+	return c
+}
+
+func (c *MockCollection) Get(findFn func(cond ...interface{}) ([]interface{}, error)) *MockCollection {
+	c.findFn = findFn
+	return c
 }

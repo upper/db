@@ -187,4 +187,30 @@ func TestMockDatabase(t *testing.T) {
 		assert.NotNil(t, driver)
 		assert.NotNil(t, driver.(*sql.DB))
 	}
+
+	{
+		itemID := int64(42)
+
+		item := mockItem{
+			collection: "items",
+		}
+
+		Mock(sess).
+			Collection("items").
+			PrimaryKeys([]string{"id"}).
+			Get(func(conds ...interface{}) ([]interface{}, error) {
+				now := time.Now()
+				item := &mockItem{
+					ID:        itemID,
+					CreatedAt: &now,
+				}
+				return []interface{}{item}, nil
+			})
+
+		err := sess.Get(&item, db.Cond{"id": itemID})
+		assert.NoError(t, err)
+
+		assert.NotZero(t, item.ID)
+		assert.NotZero(t, item.CreatedAt)
+	}
 }

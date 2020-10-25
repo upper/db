@@ -57,8 +57,8 @@ type Collection interface {
 	SQL() db.SQL
 }
 
-type finder interface {
-	Find(Collection, *Result, ...interface{}) db.Result
+type Finder interface {
+	Find(col Collection, res *Result, conds []interface{}) db.Result
 }
 
 type condsFilter interface {
@@ -147,8 +147,9 @@ func (c *collection) Find(conds ...interface{}) db.Result {
 		c.Name(),
 		c.filterConds(conds...),
 	)
-	if f, ok := c.adapter.(finder); ok {
-		return f.Find(c, res, conds...)
+
+	if finder, ok := c.adapter.(Finder); ok {
+		return finder.Find(c, res, conds)
 	}
 	return res
 }

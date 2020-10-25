@@ -22,9 +22,11 @@
 package mockdb
 
 import (
+	"database/sql/driver"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqladapter"
+	"github.com/upper/db/v4/internal/sqlbuilder"
 )
 
 type collectionAdapter struct {
@@ -57,3 +59,70 @@ func (*collectionAdapter) Insert(col sqladapter.Collection, item interface{}) (i
 
 	return id, nil
 }
+
+func (*collectionAdapter) Find(col sqladapter.Collection, res *sqladapter.Result, conds []interface{}) db.Result {
+	c, ok := loadCollection(col)
+	if !ok {
+		return sqladapter.NewErrorResult(db.ErrInvalidCollection)
+	}
+
+	if c.findFn == nil {
+		return res
+	}
+
+	items, err := c.findFn(conds...)
+	if err != nil {
+		return sqladapter.NewErrorResult(err)
+	}
+
+	columns := []string{}
+	rows := []map[string]interface{}{}
+	for i := range items {
+		names, values, err := sqlbuilder.Map(items[i], nil)
+		if err != nil {
+			return sqladapter.NewErrorResult(err)
+		}
+		row := map[string]interface{}{}
+		for i := range names {
+			if !inSlice(columns, names[i]) {
+				columns = append(columns, names[i])
+			}
+			row[names[i]] = values[i]
+		}
+		rows = append(rows, row)
+	}
+
+	mockRows := sqlmock.NewRows(columns)
+
+	for i := range rows {
+		row := []driver.Value{}
+		for _, column := range columns {
+			row = append(row, rows[i][column])
+		}
+		mockRows.AddRow(row...)
+	}
+
+	args := []driver.Value{}
+	for _, arg := range res.Arguments() {
+		args = append(args, arg)
+	}
+
+	c.db.mock.ExpectQuery("SELECT").
+		WithArgs(args...).
+		WillReturnRows(mockRows)
+
+	return res
+}
+
+func inSlice(list []string, item string) bool {
+	for i := range list {
+		if list[i] == item {
+			return true
+		}
+	}
+	return false
+}
+
+var _ = interface {
+	sqladapter.Finder
+}(&collectionAdapter{})
