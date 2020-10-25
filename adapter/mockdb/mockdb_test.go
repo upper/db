@@ -148,15 +148,38 @@ func TestMockDatabase(t *testing.T) {
 		assert.Zero(t, item.CreatedAt)
 	}
 
-	return
+	{
+		errPingError := errors.New("ping error")
+
+		Mock(sess).Ping(errPingError)
+
+		err := sess.Ping()
+		assert.Error(t, err)
+		assert.True(t, errors.Is(errPingError, err))
+	}
 
 	{
+		Mock(sess).Ping(nil)
+
 		err := sess.Ping()
 		assert.NoError(t, err)
 	}
 
 	{
-		sess.Reset()
+		errPingError := errors.New("ping error")
+
+		Mock(sess).Ping(errPingError)
+
+		err := sess.Ping()
+		assert.Error(t, err)
+		assert.True(t, errors.Is(errPingError, err))
+
+		Mock(sess).Reset()
+
+		Mock(sess).Ping(nil)
+
+		err = sess.Ping()
+		assert.NoError(t, err)
 	}
 
 	{

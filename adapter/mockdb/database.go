@@ -34,17 +34,13 @@ import (
 var errMissingSession = errors.New("no such session")
 
 var (
-	sessionsMu sync.RWMutex
-	sessions   = map[string]*MockDB{}
+	sessions = map[string]*MockDB{}
 )
 
 type database struct {
 }
 
 func (*database) Collections(sess sqladapter.Session) (collections []string, err error) {
-	sessionsMu.RLock()
-	defer sessionsMu.RUnlock()
-
 	s, ok := loadSession(sess)
 	if !ok {
 		return nil, errMissingSession
@@ -63,9 +59,6 @@ func (*database) NewCollection() sqladapter.CollectionAdapter {
 }
 
 func (d *database) LookupName(sess sqladapter.Session) (string, error) {
-	sessionsMu.RLock()
-	defer sessionsMu.RUnlock()
-
 	s, ok := loadSession(sess)
 	if !ok {
 		return "", errMissingSession
@@ -75,7 +68,7 @@ func (d *database) LookupName(sess sqladapter.Session) (string, error) {
 }
 
 func (d *database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {
-	sqlDB, mock, err := sqlmock.New()
+	sqlDB, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
 	if err != nil {
 		return nil, err
 	}
@@ -85,22 +78,20 @@ func (d *database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error)
 		return nil, err
 	}
 
-	sessionsMu.Lock()
 	storeSession(sess, &MockDB{
+		sess:        sess,
 		db:          sqlDB,
 		mock:        mock,
 		connURL:     connURL,
 		collections: sync.Map{},
 	})
-	sessionsMu.Unlock()
+
+	mock.ExpectPing()
 
 	return sqlDB, nil
 }
 
 func (*database) PrimaryKeys(sess sqladapter.Session, tableName string) ([]string, error) {
-	sessionsMu.RLock()
-	defer sessionsMu.RUnlock()
-
 	s, ok := loadSession(sess)
 	if !ok {
 		return nil, db.ErrNotConnected
@@ -115,9 +106,6 @@ func (*database) PrimaryKeys(sess sqladapter.Session, tableName string) ([]strin
 }
 
 func (*database) TableExists(sess sqladapter.Session, name string) error {
-	sessionsMu.RLock()
-	defer sessionsMu.RUnlock()
-
 	s, ok := loadSession(sess)
 	if !ok {
 		return db.ErrNotConnected

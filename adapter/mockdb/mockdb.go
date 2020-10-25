@@ -55,6 +55,7 @@ func New(sqlDB *sql.DB) (db.Session, error) {
 }
 
 type MockDB struct {
+	sess    sqladapter.Session
 	ctx     context.Context
 	db      *sql.DB
 	connURL ConnectionURL
@@ -89,6 +90,32 @@ func (m *MockDB) Collection(name string) *MockCollection {
 		m.collections.Store(strings.ToLower(name), mockCollection)
 	}
 	return mockCollection
+}
+
+func (m *MockDB) Ping(err error) *MockDB {
+	if err == nil {
+		m.mock.ExpectPing()
+	} else {
+		m.mock.ExpectPing().
+			WillReturnError(err)
+	}
+	return m
+}
+
+func (m *MockDB) Reset() error {
+	sqlDB, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
+	if err != nil {
+		return err
+	}
+	m.db = sqlDB
+	m.mock = mock
+	m.collections = sync.Map{}
+
+	mock.ExpectPing()
+	if err := m.sess.BindDB(m.db); err != nil {
+		return err
+	}
+	return nil
 }
 
 type MockCollection struct {
