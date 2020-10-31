@@ -23,6 +23,7 @@ package mockdb
 
 import (
 	"database/sql/driver"
+	"fmt"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqladapter"
@@ -38,26 +39,63 @@ func (*collectionAdapter) Insert(col sqladapter.Collection, item interface{}) (i
 		return nil, db.ErrInvalidCollection
 	}
 
-	if c.insert == nil {
-		c.db.mock.ExpectRollback()
+	if c.insertFn == nil {
 		return nil, db.ErrNotImplemented
 	}
 
-	id, err := c.insert(item)
+	lastInsertID, err := c.insertFn(item)
 	if err != nil {
-		c.db.mock.ExpectRollback()
 		return nil, err
 	}
 
-	rows := sqlmock.NewRows(col.PrimaryKeys()).AddRow(id)
+	columnNames, columnValues, err := sqlbuilder.Map(item, nil)
+	if err != nil {
+		return nil, err
+	}
 
-	c.db.mock.ExpectQuery("SELECT").
-		WithArgs(1).
-		WillReturnRows(rows)
+	// Define query
+	q := col.SQL().InsertInto(col.Name()).
+		Columns(columnNames...).
+		Values(columnValues...)
 
-	c.db.mock.ExpectCommit()
+	// Set expectations
+	expectedExec := c.db.mock.ExpectExec(
+		fmt.Sprintf("INSERT INTO %q", col.Name()),
+	).WithArgs(argumentsToValues(q.Arguments())...)
 
-	return id, nil
+	result := sqlmock.NewResult(lastInsertID, 1)
+	expectedExec.WillReturnResult(result)
+
+	res, err := q.Exec()
+	if err != nil {
+		return nil, err
+	}
+
+	pKey := col.PrimaryKeys()
+	lastID, err := res.LastInsertId()
+	if err == nil && len(pKey) <= 1 {
+		return lastID, nil
+	}
+
+	keyMap := db.Cond{}
+	for i := range columnNames {
+		for j := 0; j < len(pKey); j++ {
+			if pKey[j] == columnNames[i] {
+				keyMap[pKey[j]] = columnValues[i]
+			}
+		}
+	}
+
+	// There was an auto column among primary keys, let's search for it.
+	if lastID > 0 {
+		for j := 0; j < len(pKey); j++ {
+			if keyMap[pKey[j]] == nil {
+				keyMap[pKey[j]] = lastID
+			}
+		}
+	}
+
+	return keyMap, nil
 }
 
 func (*collectionAdapter) Find(col sqladapter.Collection, res *sqladapter.Result, conds []interface{}) db.Result {
@@ -67,7 +105,7 @@ func (*collectionAdapter) Find(col sqladapter.Collection, res *sqladapter.Result
 	}
 
 	if c.findFn == nil {
-		return res
+		return sqladapter.NewErrorResult(db.ErrNoMoreRows)
 	}
 
 	items, err := c.findFn(conds...)
@@ -102,13 +140,9 @@ func (*collectionAdapter) Find(col sqladapter.Collection, res *sqladapter.Result
 		mockRows.AddRow(row...)
 	}
 
-	args := []driver.Value{}
-	for _, arg := range res.Arguments() {
-		args = append(args, arg)
-	}
-
-	c.db.mock.ExpectQuery("SELECT").
-		WithArgs(args...).
+	c.db.mock.ExpectQuery(
+		fmt.Sprintf("SELECT .+ FROM %q", col.Name())).
+		WithArgs(argumentsToValues(res.Arguments())...).
 		WillReturnRows(mockRows)
 
 	return res
@@ -121,6 +155,14 @@ func inSlice(list []string, item string) bool {
 		}
 	}
 	return false
+}
+
+func argumentsToValues(args []interface{}) []driver.Value {
+	values := []driver.Value{}
+	for i := range args {
+		values = append(values, args[i])
+	}
+	return values
 }
 
 var _ = interface {

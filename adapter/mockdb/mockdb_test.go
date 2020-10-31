@@ -34,9 +34,9 @@ import (
 type mockItem struct {
 	collection string
 
-	ID        int64      `db:"id"`
+	ID        int64      `db:"id,omitempty"`
 	Title     string     `db:"title"`
-	CreatedAt *time.Time `db:"created_at"`
+	CreatedAt *time.Time `db:"created_at,omitempty"`
 }
 
 func (i *mockItem) Store(sess db.Session) db.Store {
@@ -107,19 +107,33 @@ func TestMockDatabase(t *testing.T) {
 
 		Mock(sess).
 			Collection("test_items").
-			PrimaryKeys([]string{"id"}).
-			Insert(func(record interface{}) (interface{}, error) {
+			PrimaryKeys([]string{"id"})
+
+		Mock(sess).Tx(func(m *MockDB) error {
+			col := m.Collection("test_items")
+
+			col.Insert(func(record interface{}) (int64, error) {
+				return 1, nil
+			})
+
+			col.Get(func(conds ...interface{}) ([]interface{}, error) {
 				now := time.Now()
-				item := record.(*mockItem)
+
+				item := mockItem{}
 				item.ID = 1
 				item.CreatedAt = &now
-				return item.ID, nil
+
+				return []interface{}{item}, nil
 			})
+
+			return nil
+		})
 
 		err := sess.Save(&item)
 		assert.NoError(t, err)
 
 		assert.NotZero(t, item.ID)
+		assert.Equal(t, int64(1), item.ID)
 		assert.NotZero(t, item.CreatedAt)
 	}
 
@@ -135,10 +149,15 @@ func TestMockDatabase(t *testing.T) {
 
 		Mock(sess).
 			Collection("test_items").
-			PrimaryKeys([]string{"id"}).
-			Insert(func(record interface{}) (interface{}, error) {
-				return nil, errFailed
+			PrimaryKeys([]string{"id"})
+
+		Mock(sess).Tx(func(m *MockDB) error {
+			col := m.Collection("test_items")
+			col.Insert(func(record interface{}) (int64, error) {
+				return 0, errFailed
 			})
+			return nil
+		})
 
 		err := sess.Save(&item)
 		assert.Error(t, err)
@@ -212,5 +231,20 @@ func TestMockDatabase(t *testing.T) {
 
 		assert.NotZero(t, item.ID)
 		assert.NotZero(t, item.CreatedAt)
+	}
+
+	{
+		Mock(sess).Reset()
+
+		Mock(sess).
+			Collection("items").
+			PrimaryKeys([]string{"id"})
+
+		item := mockItem{
+			collection: "items",
+		}
+
+		err := sess.Get(&item, db.Cond{"id": 1})
+		assert.True(t, errors.Is(db.ErrNoMoreRows, err))
 	}
 }

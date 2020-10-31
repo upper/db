@@ -86,6 +86,7 @@ func (d *database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error)
 		collections: sync.Map{},
 	})
 
+	mock.MatchExpectationsInOrder(false)
 	mock.ExpectPing()
 
 	return sqlDB, nil

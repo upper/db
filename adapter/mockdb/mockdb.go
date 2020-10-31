@@ -102,15 +102,28 @@ func (m *MockDB) Ping(err error) *MockDB {
 	return m
 }
 
+func (m *MockDB) Tx(txFn func(m *MockDB) error) {
+	m.mock.ExpectBegin()
+	err := txFn(m)
+	if err != nil {
+		m.mock.ExpectRollback().
+			WillReturnError(err)
+		return
+	}
+	m.mock.ExpectCommit()
+}
+
 func (m *MockDB) Reset() error {
 	sqlDB, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
 	if err != nil {
 		return err
 	}
+
 	m.db = sqlDB
 	m.mock = mock
 	m.collections = sync.Map{}
 
+	mock.MatchExpectationsInOrder(false)
 	mock.ExpectPing()
 	if err := m.sess.BindDB(m.db); err != nil {
 		return err
@@ -121,8 +134,8 @@ func (m *MockDB) Reset() error {
 type MockCollection struct {
 	db *MockDB
 
-	insert func(interface{}) (interface{}, error)
-	findFn func(conds ...interface{}) (result []interface{}, err error)
+	insertFn func(interface{}) (int64, error)
+	findFn   func(conds ...interface{}) (result []interface{}, err error)
 
 	primaryKeys []string
 }
@@ -132,9 +145,8 @@ func (c *MockCollection) PrimaryKeys(primaryKeys []string) *MockCollection {
 	return c
 }
 
-func (c *MockCollection) Insert(fn func(interface{}) (interface{}, error)) *MockCollection {
-	c.db.mock.ExpectBegin()
-	c.insert = fn
+func (c *MockCollection) Insert(fn func(interface{}) (int64, error)) *MockCollection {
+	c.insertFn = fn
 	return c
 }
 
