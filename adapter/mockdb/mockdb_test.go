@@ -247,4 +247,23 @@ func TestMockDatabase(t *testing.T) {
 		err := sess.Get(&item, db.Cond{"id": 1})
 		assert.True(t, errors.Is(db.ErrNoMoreRows, err))
 	}
+
+	{
+		Mock(sess).Reset()
+
+		Mock(sess).
+			Collection("items").
+			PrimaryKeys([]string{"id"}).
+			Delete(func() (int64, error) {
+				return 1, nil
+			})
+
+		item := mockItem{
+			collection: "items",
+			ID:         1,
+		}
+
+		err := sess.Delete(&item)
+		assert.NoError(t, err)
+	}
 }

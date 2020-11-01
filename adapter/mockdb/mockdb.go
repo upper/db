@@ -24,6 +24,8 @@ package mockdb
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -81,13 +83,15 @@ func (m *MockDB) getCollection(name string) (*MockCollection, bool) {
 }
 
 func (m *MockDB) Collection(name string) *MockCollection {
+	name = strings.ToLower(name)
 	mockCollection, ok := m.getCollection(name)
 	if !ok {
 		mockCollection = &MockCollection{
 			db:          m,
+			name:        name,
 			primaryKeys: []string{},
 		}
-		m.collections.Store(strings.ToLower(name), mockCollection)
+		m.collections.Store(name, mockCollection)
 	}
 	return mockCollection
 }
@@ -132,16 +136,23 @@ func (m *MockDB) Reset() error {
 }
 
 type MockCollection struct {
-	db *MockDB
+	db   *MockDB
+	name string
 
 	insertFn func(interface{}) (int64, error)
 	findFn   func(conds ...interface{}) (result []interface{}, err error)
+	deleteFn func() (int64, error)
 
 	primaryKeys []string
 }
 
 func (c *MockCollection) PrimaryKeys(primaryKeys []string) *MockCollection {
 	c.primaryKeys = primaryKeys
+	return c
+}
+
+func (c *MockCollection) Delete(fn func() (int64, error)) *MockCollection {
+	c.deleteFn = fn
 	return c
 }
 
@@ -154,3 +165,171 @@ func (c *MockCollection) Get(findFn func(cond ...interface{}) ([]interface{}, er
 	c.findFn = findFn
 	return c
 }
+
+type MockResult struct {
+	res *sqladapter.Result
+	c   *MockCollection
+}
+
+func (r *MockResult) Limit(limit int) db.Result {
+	r.res.Limit(limit)
+	return r
+}
+
+func (r *MockResult) Offset(offset int) db.Result {
+	r.res.Offset(offset)
+	return r
+}
+
+func (r *MockResult) OrderBy(columns ...interface{}) db.Result {
+	r.res.OrderBy(columns...)
+	return r
+}
+
+func (r *MockResult) Select(columns ...interface{}) db.Result {
+	r.res.Select(columns...)
+	return r
+}
+
+func (r *MockResult) And(conds ...interface{}) db.Result {
+	r.res.And(conds...)
+	return r
+}
+
+func (r *MockResult) GroupBy(columns ...interface{}) db.Result {
+	r.res.GroupBy(columns...)
+	return r
+}
+
+func (r *MockResult) Delete() error {
+	if r.c.deleteFn == nil {
+		return db.ErrNoMoreRows
+	}
+
+	rowsAffected, err := r.c.deleteFn()
+
+	expectExec := r.c.db.mock.ExpectExec(
+		fmt.Sprintf(`DELETE FROM %q`, r.c.name),
+	)
+
+	if err != nil {
+		expectExec.WillReturnError(err)
+	}
+
+	expectExec.WithArgs(argumentsToValues(r.res.Arguments())...)
+	expectExec.WillReturnResult(sqlmock.NewResult(0, rowsAffected))
+
+	return r.res.Delete()
+}
+
+func (r *MockResult) Update(record interface{}) error {
+	return r.res.Update(record)
+}
+
+func (r *MockResult) Count() (uint64, error) {
+	return r.res.Count()
+}
+
+func (r *MockResult) Exists() (bool, error) {
+	return r.res.Exists()
+}
+
+func (r *MockResult) Next(item interface{}) bool {
+	return r.res.Next(item)
+}
+
+func (r *MockResult) Err() error {
+	return r.res.Err()
+}
+
+func (r *MockResult) One(item interface{}) error {
+	if r.c.findFn == nil {
+		return db.ErrNoMoreRows
+	}
+
+	items, err := r.c.findFn(nil)
+	if err != nil {
+		return err
+	}
+
+	columns := []string{}
+	rows := []map[string]interface{}{}
+	for i := range items {
+		names, values, err := sqlbuilder.Map(items[i], nil)
+		if err != nil {
+			return err
+		}
+		row := map[string]interface{}{}
+		for i := range names {
+			if !inSlice(columns, names[i]) {
+				columns = append(columns, names[i])
+			}
+			row[names[i]] = values[i]
+		}
+		rows = append(rows, row)
+	}
+
+	mockRows := sqlmock.NewRows(columns)
+
+	for i := range rows {
+		row := []driver.Value{}
+		for _, column := range columns {
+			row = append(row, rows[i][column])
+		}
+		mockRows.AddRow(row...)
+	}
+
+	r.c.db.mock.ExpectQuery(
+		fmt.Sprintf("SELECT .+ FROM %q", r.c.name)).
+		WithArgs(argumentsToValues(r.res.Arguments())...).
+		WillReturnRows(mockRows)
+
+	return r.res.One(item)
+}
+
+func (r *MockResult) All(items interface{}) error {
+	return r.res.All(items)
+}
+
+func (r *MockResult) Paginate(pageSize uint) db.Result {
+	r.res.Paginate(pageSize)
+	return r
+}
+
+func (r *MockResult) Page(pageNumber uint) db.Result {
+	r.res.Page(pageNumber)
+	return r
+}
+
+func (r *MockResult) Cursor(column string) db.Result {
+	r.res.Cursor(column)
+	return r
+}
+
+func (r *MockResult) NextPage(cursor interface{}) db.Result {
+	r.res.NextPage(cursor)
+	return r
+}
+
+func (r *MockResult) String() string {
+	return r.res.String()
+}
+
+func (r *MockResult) PrevPage(cursor interface{}) db.Result {
+	r.res.PrevPage(cursor)
+	return r
+}
+
+func (r *MockResult) TotalPages() (uint, error) {
+	return r.res.TotalPages()
+}
+
+func (r *MockResult) TotalEntries() (uint64, error) {
+	return r.res.TotalEntries()
+}
+
+func (r *MockResult) Close() error {
+	return r.res.Close()
+}
+
+var _ = db.Result(&MockResult{})

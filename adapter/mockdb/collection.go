@@ -104,48 +104,10 @@ func (*collectionAdapter) Find(col sqladapter.Collection, res *sqladapter.Result
 		return sqladapter.NewErrorResult(db.ErrInvalidCollection)
 	}
 
-	if c.findFn == nil {
-		return sqladapter.NewErrorResult(db.ErrNoMoreRows)
+	return &MockResult{
+		res: res,
+		c:   c,
 	}
-
-	items, err := c.findFn(conds...)
-	if err != nil {
-		return sqladapter.NewErrorResult(err)
-	}
-
-	columns := []string{}
-	rows := []map[string]interface{}{}
-	for i := range items {
-		names, values, err := sqlbuilder.Map(items[i], nil)
-		if err != nil {
-			return sqladapter.NewErrorResult(err)
-		}
-		row := map[string]interface{}{}
-		for i := range names {
-			if !inSlice(columns, names[i]) {
-				columns = append(columns, names[i])
-			}
-			row[names[i]] = values[i]
-		}
-		rows = append(rows, row)
-	}
-
-	mockRows := sqlmock.NewRows(columns)
-
-	for i := range rows {
-		row := []driver.Value{}
-		for _, column := range columns {
-			row = append(row, rows[i][column])
-		}
-		mockRows.AddRow(row...)
-	}
-
-	c.db.mock.ExpectQuery(
-		fmt.Sprintf("SELECT .+ FROM %q", col.Name())).
-		WithArgs(argumentsToValues(res.Arguments())...).
-		WillReturnRows(mockRows)
-
-	return res
 }
 
 func inSlice(list []string, item string) bool {
