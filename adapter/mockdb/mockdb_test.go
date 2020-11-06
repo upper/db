@@ -432,3 +432,38 @@ func TestMockSQL(t *testing.T) {
 		assert.Equal(t, "pepe", user.FirstName)
 	}
 }
+
+func TestMockCollection(t *testing.T) {
+	type User struct {
+		ID        int64  `db:"id,omitempty"`
+		FirstName string `db:"first_name"`
+		LastName  string `db:"last_name"`
+	}
+
+	settings := ConnectionURL{}
+
+	sess, err := Open(settings)
+	assert.NoError(t, err)
+	assert.NotNil(t, sess.(db.Session))
+	assert.NotNil(t, sess.(sqladapter.Session))
+
+	Mock(sess).
+		Collection("users").
+		PrimaryKeys([]string{"id"}).
+		Get(
+			func(conds ...interface{}) ([]interface{}, error) {
+				return []interface{}{
+					User{
+						ID: 1,
+					},
+				}, nil
+			},
+		)
+
+	col := sess.Collection("users")
+
+	users := []User{}
+	err = col.Find().All(&users)
+
+	assert.NoError(t, err)
+}

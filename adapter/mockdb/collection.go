@@ -104,6 +104,21 @@ func (*collectionAdapter) Find(col sqladapter.Collection, res *sqladapter.Result
 		return sqladapter.NewErrorResult(db.ErrInvalidCollection)
 	}
 
+	if c.findFn != nil {
+		expectedQuery := c.db.mock.ExpectQuery("SELECT")
+
+		items, err := c.findFn(conds...)
+		if err != nil {
+			expectedQuery.WillReturnError(err)
+			return sqladapter.NewErrorResult(err)
+		}
+		rows, err := Rows(items...)
+		if err != nil {
+			return sqladapter.NewErrorResult(err)
+		}
+		expectedQuery.WillReturnRows(rows)
+	}
+
 	return &MockResult{
 		res: res,
 		c:   c,
