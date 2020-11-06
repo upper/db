@@ -43,7 +43,7 @@ func (i *mockItem) Store(sess db.Session) db.Store {
 	return sess.Collection(i.collection)
 }
 
-func TestMockDatabase(t *testing.T) {
+func TestMockSessionMethods(t *testing.T) {
 	settings := ConnectionURL{}
 
 	sess, err := Open(settings)
@@ -75,7 +75,6 @@ func TestMockDatabase(t *testing.T) {
 		ok, err := items.Exists()
 		assert.False(t, ok)
 		assert.True(t, errors.Is(err, db.ErrCollectionDoesNotExist))
-
 	}
 
 	{
@@ -265,5 +264,171 @@ func TestMockDatabase(t *testing.T) {
 
 		err := sess.Delete(&item)
 		assert.NoError(t, err)
+	}
+
+	{
+		driver := sess.Driver()
+
+		sqlDB := driver.(*sql.DB)
+		assert.NotNil(t, sqlDB)
+	}
+
+	{
+		Mock(sess).Tx(func(m *MockDB) error {
+			return nil
+		})
+
+		err := sess.Tx(func(sess db.Session) error {
+			return nil
+		})
+
+		assert.Nil(t, err)
+	}
+
+	{
+		errTx := errors.New("error inside transaction")
+
+		Mock(sess).Tx(func(m *MockDB) error {
+			return errTx
+		})
+
+		err := sess.Tx(func(sess db.Session) error {
+			return errTx
+		})
+
+		assert.NotNil(t, err)
+		assert.Equal(t, errTx, err)
+
+		assert.True(t, errors.Is(errTx, err))
+	}
+}
+
+func TestMockSQL(t *testing.T) {
+	type User struct {
+		ID        int64  `db:"id,omitempty"`
+		FirstName string `db:"first_name"`
+		LastName  string `db:"last_name"`
+	}
+
+	settings := ConnectionURL{}
+
+	sess, err := Open(settings)
+	assert.NoError(t, err)
+
+	{
+		sqlDB := sess.SQL()
+		assert.NotNil(t, sqlDB)
+	}
+
+	{
+		sqlDB := sess.SQL()
+		assert.NotNil(t, sqlDB)
+
+		q := sqlDB.SelectFrom("users")
+		assert.NotNil(t, q)
+
+		users := []User{}
+		err := q.All(&users)
+		assert.Error(t, err)
+	}
+
+	{
+		errSelect := errors.New("SQL error")
+
+		sqlDB := sess.SQL()
+		assert.NotNil(t, sqlDB)
+
+		Mock(sess).SQL().
+			ExpectQuery("SELECT").
+			WillReturnError(errSelect)
+
+		q := sqlDB.SelectFrom("users")
+		assert.NotNil(t, q)
+
+		users := []User{}
+		err := q.All(&users)
+		assert.Error(t, err)
+
+		assert.True(t, errors.Is(errSelect, err))
+	}
+
+	{
+		sqlDB := sess.SQL()
+		assert.NotNil(t, sqlDB)
+
+		Mock(sess).SQL().
+			ExpectQuery(`SELECT * FROM "users"`).
+			WillReturnError(nil)
+
+		q := sqlDB.SelectFrom("users")
+		assert.NotNil(t, q)
+
+		users := []User{}
+		err := q.All(&users)
+		assert.Error(t, err)
+	}
+
+	{
+		sqlDB := sess.SQL()
+		assert.NotNil(t, sqlDB)
+
+		Mock(sess).
+			Collection("users").
+			PrimaryKeys([]string{"id"})
+
+		rows, err := Rows(
+			User{
+				ID:        1,
+				FirstName: "pepe",
+				LastName:  "pecas",
+			},
+		)
+		assert.NoError(t, err)
+
+		Mock(sess).SQL().
+			ExpectQuery(`SELECT * FROM users`).
+			WillReturnRows(rows)
+
+		q := sqlDB.SelectFrom("users")
+		assert.NotNil(t, q)
+
+		users := []User{}
+		err = q.All(&users)
+		assert.NoError(t, err)
+
+		assert.Len(t, users, 1)
+
+		assert.Equal(t, "pepe", users[0].FirstName)
+	}
+
+	{
+		sqlDB := sess.SQL()
+		assert.NotNil(t, sqlDB)
+
+		Mock(sess).
+			Collection("users").
+			PrimaryKeys([]string{"id"})
+
+		rows, err := Rows(
+			User{
+				ID:        1,
+				FirstName: "pepe",
+				LastName:  "pecas",
+			},
+		)
+		assert.NoError(t, err)
+
+		Mock(sess).SQL().
+			ExpectQuery(`SELECT * FROM users`).
+			WillReturnRows(rows)
+
+		q := sqlDB.SelectFrom("users")
+		assert.NotNil(t, q)
+
+		user := User{}
+		err = q.One(&user)
+		assert.NoError(t, err)
+
+		assert.Equal(t, "pepe", user.FirstName)
 	}
 }

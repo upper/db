@@ -26,6 +26,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -110,15 +111,16 @@ func (m *MockDB) Tx(txFn func(m *MockDB) error) {
 	m.mock.ExpectBegin()
 	err := txFn(m)
 	if err != nil {
-		m.mock.ExpectRollback().
-			WillReturnError(err)
+		// m.mock.ExpectRollback().
+		//	WillReturnError(err)
+		m.mock.ExpectRollback()
 		return
 	}
 	m.mock.ExpectCommit()
 }
 
 func (m *MockDB) Reset() error {
-	sqlDB, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
+	sqlDB, mock, err := newSQLMock()
 	if err != nil {
 		return err
 	}
@@ -133,6 +135,10 @@ func (m *MockDB) Reset() error {
 		return err
 	}
 	return nil
+}
+
+func (r *MockDB) SQL() sqlmock.SqlmockCommon {
+	return r.mock
 }
 
 type MockCollection struct {
@@ -252,35 +258,12 @@ func (r *MockResult) One(item interface{}) error {
 		return err
 	}
 
-	columns := []string{}
-	rows := []map[string]interface{}{}
-	for i := range items {
-		names, values, err := sqlbuilder.Map(items[i], nil)
-		if err != nil {
-			return err
-		}
-		row := map[string]interface{}{}
-		for i := range names {
-			if !inSlice(columns, names[i]) {
-				columns = append(columns, names[i])
-			}
-			row[names[i]] = values[i]
-		}
-		rows = append(rows, row)
+	mockRows, err := Rows(items...)
+	if err != nil {
+		return err
 	}
 
-	mockRows := sqlmock.NewRows(columns)
-
-	for i := range rows {
-		row := []driver.Value{}
-		for _, column := range columns {
-			row = append(row, rows[i][column])
-		}
-		mockRows.AddRow(row...)
-	}
-
-	r.c.db.mock.ExpectQuery(
-		fmt.Sprintf("SELECT .+ FROM %q", r.c.name)).
+	r.c.db.mock.ExpectQuery("SELECT").
 		WithArgs(argumentsToValues(r.res.Arguments())...).
 		WillReturnRows(mockRows)
 
@@ -333,3 +316,57 @@ func (r *MockResult) Close() error {
 }
 
 var _ = db.Result(&MockResult{})
+
+func Rows(items ...interface{}) (*sqlmock.Rows, error) {
+	columns := []string{}
+	rows := []map[string]interface{}{}
+	for i := range items {
+		names, values, err := sqlbuilder.Map(items[i], nil)
+		if err != nil {
+			return nil, err
+		}
+		row := map[string]interface{}{}
+		for i := range names {
+			if !inSlice(columns, names[i]) {
+				columns = append(columns, names[i])
+			}
+			row[names[i]] = values[i]
+		}
+		rows = append(rows, row)
+	}
+
+	mockRows := sqlmock.NewRows(columns)
+
+	for i := range rows {
+		row := []driver.Value{}
+		for _, column := range columns {
+			row = append(row, rows[i][column])
+		}
+		mockRows.AddRow(row...)
+	}
+
+	return mockRows, nil
+}
+
+var reWhitespace = regexp.MustCompile(`[\s\t\r\n]+`)
+
+var queryMatcher = sqlmock.QueryMatcherFunc(func(expectedSQL, actualSQL string) error {
+	expectedSQL = reWhitespace.ReplaceAllString(expectedSQL, " ")
+	actualSQL = reWhitespace.ReplaceAllString(actualSQL, " ")
+
+	expectedSQL = strings.ReplaceAll(expectedSQL, `"`, ``)
+	actualSQL = strings.ReplaceAll(actualSQL, `"`, ``)
+
+	if strings.HasPrefix(actualSQL, expectedSQL) {
+		return nil
+	}
+
+	return fmt.Errorf("got %q, expecting %q", actualSQL, expectedSQL)
+})
+
+func newSQLMock() (*sql.DB, sqlmock.Sqlmock, error) {
+	return sqlmock.New(
+		sqlmock.MonitorPingsOption(true),
+		sqlmock.QueryMatcherOption(queryMatcher),
+	)
+}

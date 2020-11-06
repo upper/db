@@ -24,7 +24,6 @@ package mockdb
 import (
 	"database/sql"
 	"errors"
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqladapter"
 	"github.com/upper/db/v4/internal/sqladapter/exql"
@@ -68,7 +67,7 @@ func (d *database) LookupName(sess sqladapter.Session) (string, error) {
 }
 
 func (d *database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {
-	sqlDB, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
+	sqlDB, mock, err := newSQLMock()
 	if err != nil {
 		return nil, err
 	}
