@@ -898,6 +898,62 @@ func (s *AdapterTests) Test_Issue370_InsertUUID() {
 	}
 }
 
+type uuidRecord struct {
+	ID   string `db:"id,omitempty"`
+	Name string `db:"name"`
+}
+
+func (r *uuidRecord) Store(sess db.Session) db.Store {
+	return sess.Collection("auto_uuid_records")
+}
+
+func (s *AdapterTests) TestIncorrectBinaryFormat() {
+	sess := s.Session()
+
+	{
+		item1 := uuidRecord{
+			Name: "Jonny",
+		}
+
+		col := sess.Collection("auto_uuid_records")
+		err := col.Truncate()
+		s.NoError(err)
+
+		err = col.InsertReturning(&item1)
+		s.NoError(err)
+	}
+
+	{
+		newUUID := uuid.New()
+
+		item1 := uuidRecord{
+			ID:   newUUID.String(),
+			Name: "Jonny",
+		}
+
+		col := sess.Collection("auto_uuid_records")
+		err := col.Truncate()
+		s.NoError(err)
+
+		id, err := col.Insert(item1)
+		s.NoError(err)
+		s.NotZero(id)
+	}
+
+	{
+		item1 := uuidRecord{
+			Name: "Jonny",
+		}
+
+		col := sess.Collection("auto_uuid_records")
+		err := col.Truncate()
+		s.NoError(err)
+
+		err = sess.Save(&item1)
+		s.NoError(err)
+	}
+}
+
 func (s *AdapterTests) TestInsertVarcharPrimaryKey() {
 	sess := s.Session()
 

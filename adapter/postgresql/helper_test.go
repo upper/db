@@ -244,6 +244,14 @@ func (h *Helper) TearUp() error {
 			name VARCHAR(25)
 		)`,
 
+		`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`,
+
+		`DROP TABLE IF EXISTS auto_uuid_records`,
+		`CREATE TABLE auto_uuid_records (
+			id UUID PRIMARY KEY NOT NULL DEFAULT uuid_generate_v4(),
+			name VARCHAR(25)
+		)`,
+
 		`DROP TABLE IF EXISTS issue_370_2`,
 		`CREATE TABLE issue_370_2 (
 			id INTEGER[3] PRIMARY KEY,
