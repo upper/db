@@ -1283,6 +1283,25 @@ func (s *AdapterTests) TestNonTrivialSubqueries() {
 	}
 }
 
+func (s *AdapterTests) Test_Issue601_ErrorCarrying() {
+	var items []interface{}
+	var err error
+
+	sess := s.Session()
+
+	_, err = sess.SQL().Exec(`DROP TABLE IF EXISTS issue_601`)
+	s.NoError(err)
+
+	err = sess.Collection("issue_601").Find().All(&items)
+	s.Error(err)
+
+	_, err = sess.SQL().Exec(`CREATE TABLE issue_601 (id INTEGER PRIMARY KEY)`)
+	s.NoError(err)
+
+	err = sess.Collection("issue_601").Find().All(&items)
+	s.NoError(err)
+}
+
 func TestAdapter(t *testing.T) {
 	suite.Run(t, &AdapterTests{})
 }
