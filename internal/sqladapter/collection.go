@@ -51,7 +51,7 @@ type Collection interface {
 	UpdateReturning(item interface{}) error
 
 	// PrimaryKeys returns the names of all primary keys in the table.
-	PrimaryKeys() []string
+	PrimaryKeys() ([]string, error)
 
 	// SQLBuilder returns a db.SQL instance.
 	SQL() db.SQL
@@ -71,8 +71,6 @@ type collection struct {
 	sess Session
 
 	adapter CollectionAdapter
-
-	err error
 }
 
 // NewCollection initializes a Collection by wrapping a CollectionAdapter.
@@ -113,39 +111,37 @@ func (c *collection) Insert(item interface{}) (*db.InsertResult, error) {
 	return db.NewInsertResult(id), nil
 }
 
-func (c *collection) PrimaryKeys() []string {
-	pk, err := c.sess.PrimaryKeys(c.Name())
-	if err == nil {
-		return pk
-	}
-	c.err = err
-	return nil
+func (c *collection) PrimaryKeys() ([]string, error) {
+	return c.sess.PrimaryKeys(c.Name())
 }
 
-func (c *collection) filterConds(conds ...interface{}) []interface{} {
-	pk := c.PrimaryKeys()
+func (c *collection) filterConds(conds ...interface{}) ([]interface{}, error) {
+	pk, err := c.PrimaryKeys()
+	if err != nil {
+		return nil, err
+	}
 	if len(conds) == 1 && len(pk) == 1 {
 		if id := conds[0]; IsKeyValue(id) {
 			conds[0] = db.Cond{pk[0]: db.Eq(id)}
 		}
 	}
 	if tr, ok := c.adapter.(condsFilter); ok {
-		return tr.FilterConds(conds...)
+		return tr.FilterConds(conds...), nil
 	}
-	return conds
+	return conds, nil
 }
 
 func (c *collection) Find(conds ...interface{}) db.Result {
-	if c.err != nil {
+	filteredConds, err := c.filterConds(conds...)
+	if err != nil {
 		res := &Result{}
-		res.setErr(c.err)
+		res.setErr(err)
 		return res
 	}
-
 	res := NewResult(
 		c.sess.SQL(),
 		c.Name(),
-		c.filterConds(conds...),
+		filteredConds,
 	)
 	if f, ok := c.adapter.(finder); ok {
 		return f.Find(c, res, conds...)
@@ -166,7 +162,11 @@ func (c *collection) InsertReturning(item interface{}) error {
 	}
 
 	// Grab primary keys
-	pks := c.PrimaryKeys()
+	pks, err := c.PrimaryKeys()
+	if err != nil {
+		return err
+	}
+
 	if len(pks) == 0 {
 		if ok, err := c.Exists(); !ok {
 			return err
@@ -267,7 +267,11 @@ func (c *collection) UpdateReturning(item interface{}) error {
 	}
 
 	// Grab primary keys
-	pks := c.PrimaryKeys()
+	pks, err := c.PrimaryKeys()
+	if err != nil {
+		return err
+	}
+
 	if len(pks) == 0 {
 		if ok, err := c.Exists(); !ok {
 			return err
@@ -303,7 +307,7 @@ func (c *collection) UpdateReturning(item interface{}) error {
 
 	col := tx.(Session).Collection(c.Name())
 
-	err := col.Find(conds).Update(item)
+	err = col.Find(conds).Update(item)
 	if err != nil {
 		goto cancel
 	}

@@ -36,7 +36,10 @@ func (*collectionAdapter) Insert(col sqladapter.Collection, item interface{}) (i
 		return nil, err
 	}
 
-	pKey := col.PrimaryKeys()
+	pKey, err := col.PrimaryKeys()
+	if err != nil {
+		return nil, err
+	}
 
 	q := col.SQL().InsertInto(col.Name()).
 		Columns(columnNames...).

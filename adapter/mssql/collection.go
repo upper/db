@@ -37,7 +37,10 @@ func (adt *collectionAdapter) Insert(col sqladapter.Collection, item interface{}
 		return nil, err
 	}
 
-	pKey := col.PrimaryKeys()
+	pKey, err := col.PrimaryKeys()
+	if err != nil {
+		return nil, err
+	}
 
 	var hasKeys bool
 	for i := range columnNames {
