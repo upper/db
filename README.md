@@ -2,7 +2,7 @@
   <img src="https://upper.io/img/gopher.svg" width="256">
 </p>
 
-# upper/db [![Build Status](https://travis-ci.org/upper/db.svg?branch=v4)](https://travis-ci.org/upper/db) [![GoDoc](https://godoc.org/github.com/upper/db?status.svg)](https://pkg.go.dev/github.com/upper/db/v4)
+# upper/db [![Build Status](https://travis-ci.com/upper/db.svg?branch=v4)](https://travis-ci.com/upper/db) [![GoDoc](https://godoc.org/github.com/upper/db?status.svg)](https://pkg.go.dev/github.com/upper/db/v4)
 
 `upper/db` is a productive data access layer (DAL) for [Go](https://golang.org)
 that provides agnostic tools to work with different data sources, such as:
