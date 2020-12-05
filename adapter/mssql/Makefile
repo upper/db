@@ -29,7 +29,7 @@ test:
 
 server-up: server-down
 	docker-compose -p $(PROJECT) up -d && \
-	sleep 15
+	sleep 20
 
 server-down:
 	docker-compose -p $(PROJECT) down

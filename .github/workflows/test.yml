@@ -1,0 +1,37 @@
+on: [push, pull_request]
+
+name: unit-tests
+
+jobs:
+
+  test:
+
+    strategy:
+      matrix:
+        go-version: [1.13.x, 1.14.x, 1.15.x]
+        os: [ubuntu-latest]
+        target: [test, benchmark]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Set env vars
+        run: |
+          echo "GOARCH=amd64" >> $GITHUB_ENV
+          echo "DB_HOST=127.0.0.1" >> $GITHUB_ENV
+          echo "UPPER_DB_LOG=ERROR" >> $GITHUB_ENV
+
+      - name: Get requisites
+        run: |
+          go get -v modernc.org/ql/ql
+
+      - name: Execute main task
+        run: make ${{ matrix.target }}
