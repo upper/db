@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	detectrace "github.com/ipfs/go-detect-race"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/suite"
 	db "github.com/upper/db/v4"
@@ -104,6 +105,16 @@ func (s *SQLTestSuite) TestPreparedStatementsCache() {
 	// This limit was chosen because, by default, MySQL accepts 16k statements
 	// and dies. See https://github.com/upper/db/issues/287
 	limit := 20000
+
+	if detectrace.WithRace() {
+		// When running this test under the Go race detector we quickly reach the limit
+		// of 8128 alive goroutines it can handle, so we set it to a safer number.
+		//
+		// Note that in order to fully stress this feature you'll have to run this
+		// test without the race detector.
+		limit = 8000
+	}
+
 	var wg sync.WaitGroup
 
 	for i := 0; i < limit; i++ {

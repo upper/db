@@ -28,10 +28,11 @@ import (
 	"strings"
 )
 
-const connectionScheme = `file`
+const defaultConnectionScheme = `file`
 
 // ConnectionURL implements a QL connection struct.
 type ConnectionURL struct {
+	Scheme   string
 	Database string
 	Options  map[string]string
 }
@@ -60,9 +61,12 @@ func (c ConnectionURL) String() (s string) {
 
 	// Building URL.
 	u := url.URL{
-		Scheme:   connectionScheme,
+		Scheme:   c.Scheme,
 		Path:     c.Database,
 		RawQuery: vv.Encode(),
+	}
+	if u.Scheme == "" {
+		u.Scheme = defaultConnectionScheme
 	}
 
 	return u.String()
@@ -72,23 +76,22 @@ func (c ConnectionURL) String() (s string) {
 func ParseURL(s string) (conn ConnectionURL, err error) {
 	var u *url.URL
 
-	if !strings.HasPrefix(s, connectionScheme+"://") {
-		return conn, fmt.Errorf(`Expecting file:// connection scheme.`)
-	}
-
 	if u, err = url.Parse(s); err != nil {
 		return conn, err
 	}
 
-	conn.Database = u.Host + u.Path
-	conn.Options = map[string]string{}
+	if u.Scheme != "file" && u.Scheme != "memory" && u.Scheme != "" {
+		return conn, fmt.Errorf(`Expecting file:// or memory:// connection scheme.`)
+	}
 
 	var vv url.Values
-
 	if vv, err = url.ParseQuery(u.RawQuery); err != nil {
 		return conn, err
 	}
 
+	conn.Scheme = u.Scheme
+	conn.Database = u.Host + u.Path
+	conn.Options = map[string]string{}
 	for k := range vv {
 		conn.Options[k] = vv.Get(k)
 	}

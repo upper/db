@@ -46,7 +46,7 @@ func (*database) Template() *exql.Template {
 }
 
 func (*database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {
-	return sql.Open("ql", dsn)
+	return sql.Open("ql2", dsn)
 }
 
 func (*database) Collections(sess sqladapter.Session) (collections []string, err error) {

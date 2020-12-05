@@ -1,6 +1,6 @@
-SHELL ?= bash
+SHELL                 ?= bash
 
-DB_NAME ?= ql-test.db
+DB_NAME               ?= memory://virtual.db
 TEST_FLAGS            ?=
 
 export DB_NAME
@@ -8,16 +8,13 @@ export DB_NAME
 build:
 	go build && go install
 
-require-client:
-	@if [ -z "$$(which ql)" ]; then \
-		echo 'Missing "ql" command. Please install the QL cli tool and try again.' && \
-		exit 1; \
-	fi
+# Temporarily disabled due to https://gitlab.com/cznic/ql/-/issues/225
+#test:
+#	go test -v -race -timeout 20m $(TEST_FLAGS)
 
-reset-db: require-client
-	rm -f $(DB_NAME)
+test: test-no-race
 
-test: reset-db
+test-no-race:
 	go test -v $(TEST_FLAGS)
 
 test-extended: test

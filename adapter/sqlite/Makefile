@@ -3,6 +3,7 @@ DB_NAME               ?= sqlite3-test.db
 TEST_FLAGS            ?=
 
 export DB_NAME
+
 export TEST_FLAGS
 
 build:
@@ -18,6 +19,9 @@ reset-db: require-client
 	rm -f $(DB_NAME)
 
 test: reset-db
+	go test -v -race -timeout 20m $(TEST_FLAGS)
+
+test-no-race:
 	go test -v $(TEST_FLAGS)
 
 test-extended: test
