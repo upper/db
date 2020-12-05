@@ -1633,7 +1633,7 @@ func (s *SQLTestSuite) TestPaginator_Issue607() {
 	}
 
 	artists := []*artistType{}
-	paginator := sess.SQL().Select("name").From("artist").Where("name LIKE ?", "artist-%").Paginate(10)
+	paginator := sess.SQL().Select("name").From("artist").Paginate(10)
 
 	err = paginator.Page(1).All(&artists)
 	s.NoError(err)
@@ -1670,6 +1670,26 @@ func (s *SQLTestSuite) TestPaginator_Issue607() {
 		s.NotZero(totalPages)
 		s.Equal(uint(10), totalPages, "expect number of pages to change")
 	}
+
+	artists = []*artistType{}
+
+	cond := db.Cond{"name": db.Like("artist-1.%")}
+	if s.Adapter() == "ql" {
+		cond = db.Cond{"name": db.Like("artist-1.")}
+	}
+
+	paginator = sess.SQL().Select("name").From("artist").Where(cond).Paginate(10)
+
+	err = paginator.Page(1).All(&artists)
+	s.NoError(err)
+
+	{
+		totalPages, err := paginator.TotalPages()
+		s.NoError(err)
+		s.NotZero(totalPages)
+		s.Equal(uint(5), totalPages, "expect same 5 pages from the first batch")
+	}
+
 }
 
 func (s *SQLTestSuite) TestSession() {
