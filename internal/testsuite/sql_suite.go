@@ -1607,6 +1607,71 @@ func (s *SQLTestSuite) TestPaginator() {
 	}
 }
 
+func (s *SQLTestSuite) TestPaginator_Issue607() {
+	sess := s.Session()
+
+	err := sess.Collection("artist").Truncate()
+	s.NoError(err)
+
+	// Add first batch
+	{
+		batch := sess.SQL().InsertInto("artist").Batch(50)
+
+		go func() {
+			defer batch.Done()
+			for i := 0; i < 49; i++ {
+				value := struct {
+					Name string `db:"name"`
+				}{fmt.Sprintf("artist-1.%d", i)}
+				batch.Values(value)
+			}
+		}()
+
+		err = batch.Wait()
+		s.NoError(err)
+		s.NoError(batch.Err())
+	}
+
+	artists := []*artistType{}
+	paginator := sess.SQL().Select("name").From("artist").Where("name LIKE ?", "artist-%").Paginate(10)
+
+	err = paginator.Page(1).All(&artists)
+	s.NoError(err)
+
+	{
+		totalPages, err := paginator.TotalPages()
+		s.NoError(err)
+		s.NotZero(totalPages)
+		s.Equal(uint(5), totalPages)
+	}
+
+	// Add second batch
+	{
+		batch := sess.SQL().InsertInto("artist").Batch(50)
+
+		go func() {
+			defer batch.Done()
+			for i := 0; i < 49; i++ {
+				value := struct {
+					Name string `db:"name"`
+				}{fmt.Sprintf("artist-2.%d", i)}
+				batch.Values(value)
+			}
+		}()
+
+		err = batch.Wait()
+		s.NoError(err)
+		s.NoError(batch.Err())
+	}
+
+	{
+		totalPages, err := paginator.TotalPages()
+		s.NoError(err)
+		s.NotZero(totalPages)
+		s.Equal(uint(10), totalPages, "expect number of pages to change")
+	}
+}
+
 func (s *SQLTestSuite) TestSession() {
 	sess := s.Session()
 
