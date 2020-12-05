@@ -1,8 +1,9 @@
-SHELL ?= bash
-
-DB_NAME ?= sqlite3-test.db
+SHELL                 ?= bash
+DB_NAME               ?= sqlite3-test.db
+TEST_FLAGS            ?=
 
 export DB_NAME
+export TEST_FLAGS
 
 build:
 	go build && go install
@@ -17,6 +18,6 @@ reset-db: require-client
 	rm -f $(DB_NAME)
 
 test: reset-db
-	go test -v
+	go test -v $(TEST_FLAGS)
 
 test-extended: test
