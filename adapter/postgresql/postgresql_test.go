@@ -899,13 +899,19 @@ func (s *AdapterTests) Test_Issue370_InsertUUID() {
 }
 
 type uuidRecord struct {
-	ID   string `db:"id,omitempty"`
-	Name string `db:"name"`
+	ID        string    `json:"id" db:"id,omitempty"`
+	Name      string    `json:"name" db:"name"`
+	CreatedAt time.Time `json:"created_at,omitempty" db:"created_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty" db:"updated_at,omitempty"`
 }
 
 func (r *uuidRecord) Store(sess db.Session) db.Store {
 	return sess.Collection("auto_uuid_records")
 }
+
+var _ interface {
+	db.Record
+} = &uuidRecord{}
 
 func (s *AdapterTests) TestIncorrectBinaryFormat() {
 	sess := s.Session()

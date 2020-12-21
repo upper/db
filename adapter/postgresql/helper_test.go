@@ -248,8 +248,10 @@ func (h *Helper) TearUp() error {
 
 		`DROP TABLE IF EXISTS auto_uuid_records`,
 		`CREATE TABLE auto_uuid_records (
-			id UUID PRIMARY KEY NOT NULL DEFAULT uuid_generate_v4(),
-			name VARCHAR(25)
+			name character varying(256) NOT NULL,
+			created_at timestamp without time zone DEFAULT now() NOT NULL,
+			updated_at timestamp without time zone DEFAULT now() NOT NULL,
+			id uuid PRIMARY KEY NOT NULL DEFAULT public.uuid_generate_v4()
 		)`,
 
 		`DROP TABLE IF EXISTS issue_370_2`,

@@ -55,7 +55,7 @@ var (
 	ErrUnsupportedValue         = errors.New(`upper: value does not support unmarshaling`)
 	ErrNilRecord                = errors.New(`upper: invalid item (nil)`)
 	ErrRecordIDIsZero           = errors.New(`upper: item ID is not defined`)
-	ErrMissingPrimaryKeys       = errors.New(`upper: collection has no primary keys`)
+	ErrMissingPrimaryKeys       = errors.New(`upper: collection %q has no primary keys`)
 	ErrWarnSlowQuery            = errors.New(`upper: slow query`)
 	ErrTransactionAborted       = errors.New(`upper: transaction was aborted`)
 	ErrNotWithinTransaction     = errors.New(`upper: not within transaction`)
