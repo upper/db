@@ -22,27 +22,21 @@
 package ql
 
 import (
+	"github.com/stretchr/testify/assert"
 	"path/filepath"
 	"testing"
 )
 
 func TestConnectionURL(t *testing.T) {
-
 	c := ConnectionURL{}
 
-	// Default connection string is only the protocol.
-	if c.String() != "" {
-		t.Fatal(`Expecting default connectiong string to be empty, got:`, c.String())
-	}
+	assert.Zero(t, c.String())
 
 	// Adding a database name.
 	c.Database = "file://myfilename"
-
 	absoluteName, _ := filepath.Abs(c.Database)
 
-	if c.String() != "file://"+absoluteName+"" {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
+	assert.Equal(t, "file://"+absoluteName, c.String())
 
 	// Adding an option.
 	c.Options = map[string]string{
@@ -50,17 +44,11 @@ func TestConnectionURL(t *testing.T) {
 		"mode":  "ro",
 	}
 
-	if c.String() != "file://"+absoluteName+"?cache=foobar&mode=ro" {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
+	assert.Equal(t, "file://"+absoluteName+"?cache=foobar&mode=ro", c.String())
 
 	// Setting another database.
 	c.Database = "/another/database"
-
-	if c.String() != `file:///another/database?cache=foobar&mode=ro` {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
-
+	assert.Equal(t, `file:///another/database?cache=foobar&mode=ro`, c.String())
 }
 
 func TestParseConnectionURL(t *testing.T) {
@@ -69,37 +57,25 @@ func TestParseConnectionURL(t *testing.T) {
 	var err error
 
 	s = "file://mydatabase.db"
-
-	if u, err = ParseURL(s); err != nil {
-		t.Fatal(err)
-	}
-
-	if u.Database != "mydatabase.db" {
-		t.Fatal("Failed to parse database.")
-	}
+	u, err = ParseURL(s)
+	assert.NoError(t, err)
+	assert.Equal(t, "mydatabase.db", u.Database)
 
 	s = "file:///path/to/my/database.db?mode=ro&cache=foobar"
+	u, err = ParseURL(s)
+	assert.NoError(t, err)
+	assert.Equal(t, "/path/to/my/database.db", u.Database)
 
-	if u, err = ParseURL(s); err != nil {
-		t.Fatal(err)
-	}
+	s = "memory:///path/to/my/database.db?mode=ro&cache=foobar"
+	u, err = ParseURL(s)
+	assert.NoError(t, err)
+	assert.Equal(t, "/path/to/my/database.db", u.Database)
 
-	if u.Database != "/path/to/my/database.db" {
-		t.Fatal("Failed to parse username.")
-	}
-
-	if u.Options["cache"] != "foobar" {
-		t.Fatal("Expecting option.")
-	}
-
-	if u.Options["mode"] != "ro" {
-		t.Fatal("Expecting option.")
-	}
+	assert.Equal(t, "foobar", u.Options["cache"])
+	assert.Equal(t, "ro", u.Options["mode"])
 
 	s = "http://example.org"
-
-	if _, err = ParseURL(s); err == nil {
-		t.Fatal("Expecting error.")
-	}
-
+	u, err = ParseURL(s)
+	assert.Error(t, err)
+	assert.Zero(t, u.Database)
 }

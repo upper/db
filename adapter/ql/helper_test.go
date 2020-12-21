@@ -29,8 +29,12 @@ import (
 	"github.com/upper/db/v4/internal/testsuite"
 )
 
-var settings = ConnectionURL{
-	Database: os.Getenv("DB_NAME"),
+var (
+	settings ConnectionURL
+)
+
+func init() {
+	settings, _ = ParseURL(os.Getenv("DB_NAME"))
 }
 
 type Helper struct {
