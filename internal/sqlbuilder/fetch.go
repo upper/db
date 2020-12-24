@@ -156,25 +156,26 @@ func fetchResult(iter *iterator, itemT reflect.Type, columns []string) (reflect.
 
 		values := make([]interface{}, len(columns))
 		typeMap := Mapper.TypeMap(itemT)
-		fieldMap := typeMap.Names
-
+		fieldIndex := typeMap.Index
 		for i, k := range columns {
-			fi, ok := fieldMap[k]
-			if !ok {
-				values[i] = new(interface{})
-				continue
-			}
+			values[i] = new(interface{})
+			for idx, fi := range fieldIndex {
+				if fi.Name == k {
+					// Check for deprecated jsonb tag.
+					if _, hasJSONBTag := fi.Options["jsonb"]; hasJSONBTag {
+						return item, errDeprecatedJSONBTag
+					}
 
-			// Check for deprecated jsonb tag.
-			if _, hasJSONBTag := fi.Options["jsonb"]; hasJSONBTag {
-				return item, errDeprecatedJSONBTag
-			}
+					f := reflectx.FieldByIndexes(item, fi.Index)
+					values[i] = f.Addr().Interface()
 
-			f := reflectx.FieldByIndexes(item, fi.Index)
-			values[i] = f.Addr().Interface()
-
-			if u, ok := values[i].(db.Unmarshaler); ok {
-				values[i] = scanner{u}
+					if u, ok := values[i].(db.Unmarshaler); ok {
+						values[i] = scanner{u}
+					}
+					// Make sure duplicate fields get the correct value
+					fieldIndex = fieldIndex[idx:]
+					break
+				}
 			}
 		}
 
