@@ -898,64 +898,86 @@ func (s *AdapterTests) Test_Issue370_InsertUUID() {
 	}
 }
 
-type uuidRecord struct {
+type issue602Organization struct {
 	ID        string    `json:"id" db:"id,omitempty"`
 	Name      string    `json:"name" db:"name"`
 	CreatedAt time.Time `json:"created_at,omitempty" db:"created_at,omitempty"`
 	UpdatedAt time.Time `json:"updated_at,omitempty" db:"updated_at,omitempty"`
 }
 
-func (r *uuidRecord) Store(sess db.Session) db.Store {
-	return sess.Collection("auto_uuid_records")
+type issue602OrganizationStore struct {
+	db.Store
+}
+
+func (r *issue602Organization) BeforeUpdate(db.Session) error {
+	return nil
+}
+
+func (r *issue602Organization) Store(sess db.Session) db.Store {
+	return issue602OrganizationStore{sess.Collection("issue_602_organizations")}
 }
 
 var _ interface {
 	db.Record
-} = &uuidRecord{}
+	db.BeforeUpdateHook
+} = &issue602Organization{}
 
 func (s *AdapterTests) TestIncorrectBinaryFormat() {
 	sess := s.Session()
 
 	{
-		item1 := uuidRecord{
+		item := issue602Organization{
 			Name: "Jonny",
 		}
 
-		col := sess.Collection("auto_uuid_records")
+		col := sess.Collection("issue_602_organizations")
 		err := col.Truncate()
 		s.NoError(err)
 
-		err = col.InsertReturning(&item1)
+		err = sess.Save(&item)
+		s.NoError(err)
+	}
+
+	{
+		item := issue602Organization{
+			Name: "Jonny",
+		}
+
+		col := sess.Collection("issue_602_organizations")
+		err := col.Truncate()
+		s.NoError(err)
+
+		err = col.InsertReturning(&item)
 		s.NoError(err)
 	}
 
 	{
 		newUUID := uuid.New()
 
-		item1 := uuidRecord{
+		item := issue602Organization{
 			ID:   newUUID.String(),
 			Name: "Jonny",
 		}
 
-		col := sess.Collection("auto_uuid_records")
+		col := sess.Collection("issue_602_organizations")
 		err := col.Truncate()
 		s.NoError(err)
 
-		id, err := col.Insert(item1)
+		id, err := col.Insert(item)
 		s.NoError(err)
 		s.NotZero(id)
 	}
 
 	{
-		item1 := uuidRecord{
+		item := issue602Organization{
 			Name: "Jonny",
 		}
 
-		col := sess.Collection("auto_uuid_records")
+		col := sess.Collection("issue_602_organizations")
 		err := col.Truncate()
 		s.NoError(err)
 
-		err = sess.Save(&item1)
+		err = sess.Save(&item)
 		s.NoError(err)
 	}
 }
