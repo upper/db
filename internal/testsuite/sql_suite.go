@@ -112,7 +112,7 @@ func (s *SQLTestSuite) TestPreparedStatementsCache() {
 		//
 		// Note that in order to fully stress this feature you'll have to run this
 		// test without the race detector.
-		limit = 8000
+		limit = 100
 	}
 
 	var wg sync.WaitGroup
