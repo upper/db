@@ -20,7 +20,7 @@ type CollectionAdapter interface {
 // Collection satisfies db.Collection.
 type Collection interface {
 	// Insert inserts a new item into the collection.
-	Insert(interface{}) (*db.InsertResult, error)
+	Insert(interface{}) (db.InsertResult, error)
 
 	// Name returns the name of the collection.
 	Name() string
@@ -102,7 +102,7 @@ func (c *collection) Count() (uint64, error) {
 	return c.Find().Count()
 }
 
-func (c *collection) Insert(item interface{}) (*db.InsertResult, error) {
+func (c *collection) Insert(item interface{}) (db.InsertResult, error) {
 	id, err := c.adapter.Insert(c, item)
 	if err != nil {
 		return nil, err

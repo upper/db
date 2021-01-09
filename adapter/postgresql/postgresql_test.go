@@ -258,11 +258,15 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		IntegerValuePtr *int64   `db:"integer_value_ptr,omitempty"`
 		VarcharValuePtr *string  `db:"varchar_value_ptr,omitempty"`
 		DecimalValuePtr *float64 `db:"decimal_value_ptr,omitempty"`
+
+		UUIDValueString *string `db:"uuid_value_string,omitempty"`
 	}
 
 	integerValue := int64(10)
 	stringValue := string("ten")
 	decimalValue := float64(10.0)
+
+	uuidStringValue := "52356d08-6a16-4839-9224-75f0a547e13c"
 
 	integerArrayValue := Int64Array{1, 2, 3, 4}
 	stringArrayValue := StringArray{"a", "b", "c"}
@@ -271,6 +275,9 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 	testValue := "Hello world!"
 
 	origPgTypeTests := []PGType{
+		PGType{
+			UUIDValueString: &uuidStringValue,
+		},
 		PGType{
 			UInt8Value:      7,
 			UInt8ValueArray: uint8CompatArray{1, 2, 3, 4, 5, 6},
@@ -895,6 +902,104 @@ func (s *AdapterTests) Test_Issue370_InsertUUID() {
 		err = col.Find(db.Cond{"id": item1.ID}).One(&item3)
 		s.NoError(err)
 		s.Equal(item1.Name, item3.Name)
+	}
+}
+
+type issue602Organization struct {
+	ID        string    `json:"id" db:"id,omitempty"`
+	Name      string    `json:"name" db:"name"`
+	CreatedAt time.Time `json:"created_at,omitempty" db:"created_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty" db:"updated_at,omitempty"`
+}
+
+type issue602OrganizationStore struct {
+	db.Store
+}
+
+func (r *issue602Organization) BeforeUpdate(db.Session) error {
+	return nil
+}
+
+func (r *issue602Organization) Store(sess db.Session) db.Store {
+	return issue602OrganizationStore{sess.Collection("issue_602_organizations")}
+}
+
+var _ interface {
+	db.Record
+	db.BeforeUpdateHook
+} = &issue602Organization{}
+
+func (s *AdapterTests) Test_Issue602_IncorrectBinaryFormat() {
+	settingsWithBinaryMode := ConnectionURL{
+		Database: settings.Database,
+		User:     settings.User,
+		Password: settings.Password,
+		Host:     settings.Host,
+		Options: map[string]string{
+			"timezone":          testsuite.TimeZone,
+			"binary_parameters": "yes",
+		},
+	}
+
+	sess, err := Open(settingsWithBinaryMode)
+	if err != nil {
+		s.T().Errorf("%v", err)
+	}
+
+	{
+		item := issue602Organization{
+			Name: "Jonny",
+		}
+
+		col := sess.Collection("issue_602_organizations")
+		err := col.Truncate()
+		s.NoError(err)
+
+		err = sess.Save(&item)
+		s.NoError(err)
+	}
+
+	{
+		item := issue602Organization{
+			Name: "Jonny",
+		}
+
+		col := sess.Collection("issue_602_organizations")
+		err := col.Truncate()
+		s.NoError(err)
+
+		err = col.InsertReturning(&item)
+		s.NoError(err)
+	}
+
+	{
+		newUUID := uuid.New()
+
+		item := issue602Organization{
+			ID:   newUUID.String(),
+			Name: "Jonny",
+		}
+
+		col := sess.Collection("issue_602_organizations")
+		err := col.Truncate()
+		s.NoError(err)
+
+		id, err := col.Insert(item)
+		s.NoError(err)
+		s.NotZero(id)
+	}
+
+	{
+		item := issue602Organization{
+			Name: "Jonny",
+		}
+
+		col := sess.Collection("issue_602_organizations")
+		err := col.Truncate()
+		s.NoError(err)
+
+		err = sess.Save(&item)
+		s.NoError(err)
 	}
 }
 

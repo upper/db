@@ -21,6 +21,11 @@
 
 package adapter
 
+// ConstraintValuer allows constraints to use specific values of their own.
+type ConstraintValuer interface {
+	ConstraintValue() interface{}
+}
+
 // Constraint interface represents a single condition, like "a = 1".  where `a`
 // is the key and `1` is the value. This is an exported interface but it's
 // rarely used directly, you may want to use the `db.Cond{}` map instead.
@@ -51,6 +56,9 @@ func (c constraint) Key() interface{} {
 }
 
 func (c constraint) Value() interface{} {
+	if constraintValuer, ok := c.v.(ConstraintValuer); ok {
+		return constraintValuer.ConstraintValue()
+	}
 	return c.v
 }
 

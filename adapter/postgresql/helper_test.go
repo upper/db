@@ -236,6 +236,8 @@ func (h *Helper) TearUp() error {
 			, varchar_value_ptr varchar(64)
 			, decimal_value_ptr decimal
 
+			, uuid_value_string UUID
+
 		)`,
 
 		`DROP TABLE IF EXISTS issue_370`,
@@ -243,6 +245,18 @@ func (h *Helper) TearUp() error {
 			id UUID PRIMARY KEY,
 			name VARCHAR(25)
 		)`,
+
+		`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`,
+
+		`DROP TABLE IF EXISTS issue_602_organizations`,
+		`CREATE TABLE issue_602_organizations (
+			name character varying(256) NOT NULL,
+			created_at timestamp without time zone DEFAULT now() NOT NULL,
+			updated_at timestamp without time zone DEFAULT now() NOT NULL,
+			id uuid DEFAULT public.uuid_generate_v4() NOT NULL
+		)`,
+
+		`ALTER TABLE ONLY issue_602_organizations ADD CONSTRAINT issue_602_organizations_pkey PRIMARY KEY (id)`,
 
 		`DROP TABLE IF EXISTS issue_370_2`,
 		`CREATE TABLE issue_370_2 (
