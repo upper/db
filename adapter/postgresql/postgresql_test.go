@@ -923,7 +923,21 @@ var _ interface {
 } = &issue602Organization{}
 
 func (s *AdapterTests) TestIncorrectBinaryFormat() {
-	sess := s.Session()
+	settingsWithBinaryMode := ConnectionURL{
+		Database: settings.Database,
+		User:     settings.User,
+		Password: settings.Password,
+		Host:     settings.Host,
+		Options: map[string]string{
+			"timezone":          testsuite.TimeZone,
+			"binary_parameters": "yes",
+		},
+	}
+
+	sess, err := Open(settingsWithBinaryMode)
+	if err != nil {
+		s.T().Errorf("%v", err)
+	}
 
 	{
 		item := issue602Organization{
