@@ -127,7 +127,7 @@ func (s *SQLTestSuite) TestPreparedStatementsCache() {
 			// prepared statement everytime it's called.
 			res := sess.Collection("artist").
 				Find().
-				Select(db.Raw(fmt.Sprintf("count(%d)", i)))
+				Select(db.Raw(fmt.Sprintf("count(%d) AS c", i)))
 
 			var count map[string]uint64
 			err := res.One(&count)
