@@ -267,7 +267,7 @@ func (col *Collection) UpdateReturning(item interface{}) error {
 }
 
 // Insert inserts a record (map or struct) into the collection.
-func (col *Collection) Insert(item interface{}) (*db.InsertResult, error) {
+func (col *Collection) Insert(item interface{}) (db.InsertResult, error) {
 	var err error
 
 	id := getID(item)

@@ -180,24 +180,35 @@ type Result interface {
 }
 
 // InsertResult provides infomation about an insert operation.
-type InsertResult struct {
+type InsertResult interface {
+	// ID returns the ID of the newly inserted record.
+	ID() ID
+}
+
+type insertResult struct {
 	id interface{}
 }
 
-// ID returns the ID of the newly inserted record.
-func (r *InsertResult) ID() ID {
+func (r *insertResult) ID() ID {
+	return r.id
+}
+
+// ConstraintValue satisfies adapter.ConstraintValuer
+func (r *insertResult) ConstraintValue() interface{} {
 	return r.id
 }
 
 // Value satisfies driver.Valuer
-func (r InsertResult) Value() (driver.Value, error) {
+func (r *insertResult) Value() (driver.Value, error) {
 	return r.id, nil
 }
 
 // NewInsertResult creates an InsertResult
-func NewInsertResult(id interface{}) *InsertResult {
-	return &InsertResult{id: id}
+func NewInsertResult(id interface{}) InsertResult {
+	return &insertResult{id: id}
 }
 
 // ID represents a record ID
 type ID interface{}
+
+var _ = driver.Valuer(&insertResult{})

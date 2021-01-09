@@ -258,11 +258,15 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		IntegerValuePtr *int64   `db:"integer_value_ptr,omitempty"`
 		VarcharValuePtr *string  `db:"varchar_value_ptr,omitempty"`
 		DecimalValuePtr *float64 `db:"decimal_value_ptr,omitempty"`
+
+		UUIDValueString *string `db:"uuid_value_string,omitempty"`
 	}
 
 	integerValue := int64(10)
 	stringValue := string("ten")
 	decimalValue := float64(10.0)
+
+	uuidStringValue := "52356d08-6a16-4839-9224-75f0a547e13c"
 
 	integerArrayValue := Int64Array{1, 2, 3, 4}
 	stringArrayValue := StringArray{"a", "b", "c"}
@@ -271,6 +275,9 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 	testValue := "Hello world!"
 
 	origPgTypeTests := []PGType{
+		PGType{
+			UUIDValueString: &uuidStringValue,
+		},
 		PGType{
 			UInt8Value:      7,
 			UInt8ValueArray: uint8CompatArray{1, 2, 3, 4, 5, 6},
@@ -922,7 +929,7 @@ var _ interface {
 	db.BeforeUpdateHook
 } = &issue602Organization{}
 
-func (s *AdapterTests) TestIncorrectBinaryFormat() {
+func (s *AdapterTests) Test_Issue602_IncorrectBinaryFormat() {
 	settingsWithBinaryMode := ConnectionURL{
 		Database: settings.Database,
 		User:     settings.User,

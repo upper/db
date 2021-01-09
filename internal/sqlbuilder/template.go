@@ -128,7 +128,7 @@ func (tu *templateWithUtils) toWhereWithArguments(term interface{}) (where exql.
 		where.Conditions = append(where.Conditions, frag)
 		return
 
-	case *db.InsertResult:
+	case db.InsertResult:
 		return tu.toWhereWithArguments(t.ID())
 
 	case adapter.Constraint:

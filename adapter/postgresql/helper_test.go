@@ -236,6 +236,8 @@ func (h *Helper) TearUp() error {
 			, varchar_value_ptr varchar(64)
 			, decimal_value_ptr decimal
 
+			, uuid_value_string UUID
+
 		)`,
 
 		`DROP TABLE IF EXISTS issue_370`,

@@ -43,7 +43,7 @@ type Collection interface {
 	// on both the database adapter and the column storing the ID.  The ID
 	// returned by Insert() could be passed directly to Find() to retrieve the
 	// newly added element.
-	Insert(interface{}) (*InsertResult, error)
+	Insert(interface{}) (InsertResult, error)
 
 	// InsertReturning is like Insert() but it takes a pointer to map or struct
 	// and, if the operation succeeds, updates it with data from the newly
