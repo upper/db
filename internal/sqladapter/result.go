@@ -234,7 +234,8 @@ func (r *Result) All(dst interface{}) error {
 
 // One fetches only one Result from the set.
 func (r *Result) One(dst interface{}) error {
-	query, err := r.buildPaginator()
+	one := r.Limit(1).(*Result)
+	query, err := one.buildPaginator()
 	if err != nil {
 		r.setErr(err)
 		return err
