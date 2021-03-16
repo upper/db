@@ -32,7 +32,7 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/lib/pq" // PostgreSQL driver.
+	_ "github.com/jackc/pgx/v4" // PostgreSQL driver.
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqladapter"
 	"github.com/upper/db/v4/internal/sqladapter/exql"

@@ -31,10 +31,18 @@ import (
 	"github.com/upper/db/v4/internal/sqlbuilder"
 )
 
+func xx() {
+	// TODO: switch types to use github.com/jackc/pgtype
+	// may need to wrap these types..
+	// x := pgtype.VarcharArray{}
+	// x.Set()
+}
+
 // Array returns a sqlbuilder.ScannerValuer for any given slice. Slice elements
 // may require their own sqlbuilder.ScannerValuer.
 func Array(in interface{}) sqlbuilder.ScannerValuer {
-	return pq.Array(in)
+	panic("TODO")
+	// return pq.Array(in)
 }
 
 // JSONB represents a PostgreSQL's JSONB value:

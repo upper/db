@@ -9,8 +9,8 @@ DB_HOST               ?= 127.0.0.1
 DB_PORT               ?= 5432
 
 DB_NAME               ?= upperio
-DB_USERNAME           ?= upperio_user
-DB_PASSWORD           ?= upperio//s3cr37
+DB_USERNAME           ?= postgres
+DB_PASSWORD           ?=
 
 TEST_FLAGS            ?=
 PARALLEL_FLAGS        ?= --halt-on-error 2 --jobs 1
