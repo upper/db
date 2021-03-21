@@ -35,33 +35,33 @@ func TestConnectionURL(t *testing.T) {
 
 	// Adding a host with port.
 	c.Host = "localhost:1234"
-	assert.Equal(t, "host=localhost port=1234 sslmode=disable", c.String())
+	assert.Equal(t, "host=localhost port=1234 sslmode=disable statement_cache_capacity=0", c.String())
 
 	// Adding a host.
 	c.Host = "localhost"
-	assert.Equal(t, "host=localhost sslmode=disable", c.String())
+	assert.Equal(t, "host=localhost sslmode=disable statement_cache_capacity=0", c.String())
 
 	// Adding a username.
 	c.User = "Anakin"
-	assert.Equal(t, "user=Anakin host=localhost sslmode=disable", c.String())
+	assert.Equal(t, `host=localhost sslmode=disable statement_cache_capacity=0 user=Anakin`, c.String())
 
 	// Adding a password with special characters.
 	c.Password = "Some Sort of ' Password"
-	assert.Equal(t, `user=Anakin password=Some\ Sort\ of\ \'\ Password host=localhost sslmode=disable`, c.String())
+	assert.Equal(t, `host=localhost password=Some\ Sort\ of\ \'\ Password sslmode=disable statement_cache_capacity=0 user=Anakin`, c.String())
 
 	// Adding a port.
 	c.Host = "localhost:1234"
-	assert.Equal(t, `user=Anakin password=Some\ Sort\ of\ \'\ Password host=localhost port=1234 sslmode=disable`, c.String())
+	assert.Equal(t, `host=localhost password=Some\ Sort\ of\ \'\ Password port=1234 sslmode=disable statement_cache_capacity=0 user=Anakin`, c.String())
 
 	// Adding a database.
 	c.Database = "MyDatabase"
-	assert.Equal(t, `user=Anakin password=Some\ Sort\ of\ \'\ Password host=localhost port=1234 dbname=MyDatabase sslmode=disable`, c.String())
+	assert.Equal(t, `dbname=MyDatabase host=localhost password=Some\ Sort\ of\ \'\ Password port=1234 sslmode=disable statement_cache_capacity=0 user=Anakin`, c.String())
 
 	// Adding options.
 	c.Options = map[string]string{
 		"sslmode": "verify-full",
 	}
-	assert.Equal(t, `user=Anakin password=Some\ Sort\ of\ \'\ Password host=localhost port=1234 dbname=MyDatabase sslmode=verify-full`, c.String())
+	assert.Equal(t, `dbname=MyDatabase host=localhost password=Some\ Sort\ of\ \'\ Password port=1234 sslmode=verify-full statement_cache_capacity=0 user=Anakin`, c.String())
 }
 
 func TestParseConnectionURL(t *testing.T) {

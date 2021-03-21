@@ -9,7 +9,7 @@ import (
 
 const TimeZone = "Canada/Eastern"
 
-var TimeLocation, _ = time.LoadLocation(TimeZone)
+var defaultTimeLocation, _ = time.LoadLocation(TimeZone)
 
 type Helper interface {
 	Session() db.Session

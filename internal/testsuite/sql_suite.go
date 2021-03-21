@@ -677,11 +677,9 @@ func (s *SQLTestSuite) TestInlineStructs() {
 	var createdAt time.Time
 
 	switch s.Adapter() {
-	case "postgresql", "cockroachdb":
-		createdAt = time.Date(2016, time.January, 1, 2, 3, 4, 0, time.FixedZone("", 0))
 	case "mysql":
 		// MySQL uses a global time zone
-		createdAt = time.Date(2016, time.January, 1, 2, 3, 4, 0, TimeLocation)
+		createdAt = time.Date(2016, time.January, 1, 2, 3, 4, 0, defaultTimeLocation)
 	default:
 		createdAt = time.Date(2016, time.January, 1, 2, 3, 4, 0, time.UTC)
 	}
@@ -1178,20 +1176,18 @@ func (s *SQLTestSuite) TestDataTypes() {
 	s.NoError(err)
 
 	// Inserting our test subject.
-	loc, err := time.LoadLocation(TimeZone)
+	//loc, err := time.LoadLocation(TimeZone)
 	s.NoError(err)
 
-	ts := time.Date(2011, 7, 28, 1, 2, 3, 0, loc) // timestamp with time zone
+	ts := time.Date(2011, 7, 28, 1, 2, 3, 0, time.Local) // timestamp with time zone
 
 	var tnz time.Time
 	switch s.Adapter() {
-	case "postgresql", "cockroachdb":
-		tnz = time.Date(2012, 7, 28, 1, 2, 3, 0, time.FixedZone("", 0)) // timestamp without time zone
 	case "mysql":
 		// MySQL uses a global timezone
-		tnz = time.Date(2012, 7, 28, 1, 2, 3, 0, TimeLocation)
+		tnz = time.Date(2012, 7, 28, 1, 2, 3, 0, defaultTimeLocation)
 	default:
-		tnz = time.Date(2012, 7, 28, 1, 2, 3, 0, time.UTC) // timestamp without time zone
+		tnz = ts.In(time.UTC)
 	}
 
 	testValues := testValuesStruct{
@@ -1234,10 +1230,16 @@ func (s *SQLTestSuite) TestDataTypes() {
 
 	// Copy the default date (this value is set by the database)
 	testValues.DateD = item.DateD
-	item.Date = item.Date.In(loc)
+	//item.Date = item.Date.In(time.UTC)
+
+	s.Equal(testValues.Date, item.Date)
+	s.Equal(testValues.DateN, item.DateN)
+	s.Equal(testValues.DateP, item.DateP)
+	s.Equal(testValues.DateD, item.DateD)
 
 	// The original value and the test subject must match.
 	s.Equal(testValues, item)
+	return
 }
 
 func (s *SQLTestSuite) TestUpdateWithNullColumn() {

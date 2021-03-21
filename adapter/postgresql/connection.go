@@ -24,10 +24,10 @@ package postgresql
 import (
 	"fmt"
 	"net"
+	"net/url"
+	"sort"
 	"strings"
 	"unicode"
-
-	"github.com/lib/pq"
 )
 
 // scanner implements a tokenizer for libpq-style option strings.
@@ -100,10 +100,9 @@ var escaper = strings.NewReplacer(` `, `\ `, `'`, `\'`, `\`, `\\`)
 
 // String reassembles the parsed PostgreSQL connection URL into a valid DSN.
 func (c ConnectionURL) String() (s string) {
-	u := make([]string, 0, 6)
+	u := []string{}
 
 	// TODO: This surely needs some sort of escaping.
-
 	if c.User != "" {
 		u = append(u, "user="+escaper.Replace(c.User))
 	}
@@ -150,9 +149,14 @@ func (c ConnectionURL) String() (s string) {
 		c.Options["sslmode"] = "disable"
 	}
 
+	// Disabled by default
+	c.Options["statement_cache_capacity"] = "0"
+
 	for k, v := range c.Options {
 		u = append(u, escaper.Replace(k)+"="+escaper.Replace(v))
 	}
+
+	sort.Strings(u)
 
 	return strings.Join(u, " ")
 }
@@ -165,7 +169,7 @@ func ParseURL(s string) (u ConnectionURL, err error) {
 	o := make(values)
 
 	if strings.HasPrefix(s, "postgres://") || strings.HasPrefix(s, "postgresql://") {
-		s, err = pq.ParseURL(s)
+		s, err = parseURL(s)
 		if err != nil {
 			return u, err
 		}
@@ -289,4 +293,73 @@ func parseOpts(name string, o values) error {
 // newScanner returns a new scanner initialized with the option string s.
 func newScanner(s string) *scanner {
 	return &scanner{[]rune(s), 0}
+}
+
+// ParseURL no longer needs to be used by clients of this library since supplying a URL as a
+// connection string to sql.Open() is now supported:
+//
+//	sql.Open("postgres", "postgres://bob:secret@1.2.3.4:5432/mydb?sslmode=verify-full")
+//
+// It remains exported here for backwards-compatibility.
+//
+// ParseURL converts a url to a connection string for driver.Open.
+// Example:
+//
+//	"postgres://bob:secret@1.2.3.4:5432/mydb?sslmode=verify-full"
+//
+// converts to:
+//
+//	"user=bob password=secret host=1.2.3.4 port=5432 dbname=mydb sslmode=verify-full"
+//
+// A minimal example:
+//
+//	"postgres://"
+//
+// This will be blank, causing driver.Open to use all of the defaults
+//
+// NOTE: vendored/copied from github.com/lib/pq
+func parseURL(uri string) (string, error) {
+	u, err := url.Parse(uri)
+	if err != nil {
+		return "", err
+	}
+
+	if u.Scheme != "postgres" && u.Scheme != "postgresql" {
+		return "", fmt.Errorf("invalid connection protocol: %s", u.Scheme)
+	}
+
+	var kvs []string
+	escaper := strings.NewReplacer(` `, `\ `, `'`, `\'`, `\`, `\\`)
+	accrue := func(k, v string) {
+		if v != "" {
+			kvs = append(kvs, k+"="+escaper.Replace(v))
+		}
+	}
+
+	if u.User != nil {
+		v := u.User.Username()
+		accrue("user", v)
+
+		v, _ = u.User.Password()
+		accrue("password", v)
+	}
+
+	if host, port, err := net.SplitHostPort(u.Host); err != nil {
+		accrue("host", u.Host)
+	} else {
+		accrue("host", host)
+		accrue("port", port)
+	}
+
+	if u.Path != "" {
+		accrue("dbname", u.Path[1:])
+	}
+
+	q := u.Query()
+	for k := range q {
+		accrue(k, q.Get(k))
+	}
+
+	sort.Strings(kvs) // Makes testing easier (not a performance concern)
+	return strings.Join(kvs, " "), nil
 }
