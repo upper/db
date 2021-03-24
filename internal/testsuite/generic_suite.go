@@ -139,6 +139,8 @@ func (s *GenericTestSuite) TestDatesAndUnicode() {
 	case "sqlite", "ql", "mssql":
 		// Lacks support for storing timezones
 		born = born.In(time.UTC)
+	case "mysql":
+		born = time.Date(1941, time.January, 5, 0, 0, 0, 0, defaultTimeLocation)
 	}
 
 	controlItem := birthday{
@@ -181,8 +183,9 @@ func (s *GenericTestSuite) TestDatesAndUnicode() {
 	case "sqlite", "ql", "mssql":
 		testItem.Born = testItem.Born.In(time.UTC)
 	}
+	s.Equal(controlItem.Born, testItem.Born)
+	s.Equal(controlItem.BornUT, testItem.BornUT)
 	s.Equal(controlItem, testItem)
-	return
 
 	var testItems []birthday
 	err = res.All(&testItems)

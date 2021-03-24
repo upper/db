@@ -1175,19 +1175,19 @@ func (s *SQLTestSuite) TestDataTypes() {
 	err := dataTypes.Truncate()
 	s.NoError(err)
 
-	// Inserting our test subject.
-	//loc, err := time.LoadLocation(TimeZone)
-	s.NoError(err)
+	testTimeZone := time.Local
+	switch s.Adapter() {
+	case "mysql": // MySQL uses a global time zone
+		testTimeZone = defaultTimeLocation
+	}
 
-	ts := time.Date(2011, 7, 28, 1, 2, 3, 0, time.Local) // timestamp with time zone
+	ts := time.Date(2011, 7, 28, 1, 2, 3, 0, testTimeZone)
+	tnz := ts.In(time.UTC)
 
-	var tnz time.Time
 	switch s.Adapter() {
 	case "mysql":
 		// MySQL uses a global timezone
-		tnz = time.Date(2012, 7, 28, 1, 2, 3, 0, defaultTimeLocation)
-	default:
-		tnz = ts.In(time.UTC)
+		tnz = ts.In(defaultTimeLocation)
 	}
 
 	testValues := testValuesStruct{
@@ -1230,7 +1230,8 @@ func (s *SQLTestSuite) TestDataTypes() {
 
 	// Copy the default date (this value is set by the database)
 	testValues.DateD = item.DateD
-	//item.Date = item.Date.In(time.UTC)
+
+	item.Date = item.Date.In(testTimeZone)
 
 	s.Equal(testValues.Date, item.Date)
 	s.Equal(testValues.DateN, item.DateN)
@@ -1239,7 +1240,6 @@ func (s *SQLTestSuite) TestDataTypes() {
 
 	// The original value and the test subject must match.
 	s.Equal(testValues, item)
-	return
 }
 
 func (s *SQLTestSuite) TestUpdateWithNullColumn() {
