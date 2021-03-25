@@ -24,7 +24,7 @@ func TestScanJSONB(t *testing.T) {
 	}
 	{
 		a := testStruct{}
-		err := DecodeJSONB(&a, []byte(`{"x": 5, "z": "Hello", "v": null}`))
+		err := ScanJSONB(&a, []byte(`{"x": 5, "z": "Hello", "v": null}`))
 		assert.NoError(t, err)
 		assert.Equal(t, "Hello", a.Z)
 		assert.Equal(t, nil, a.V.V)

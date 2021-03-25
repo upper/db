@@ -23,10 +23,9 @@ package postgresql
 
 import (
 	"database/sql/driver"
-	"encoding/json"
-	"errors"
 	"reflect"
 
+	"github.com/jackc/pgtype"
 	"github.com/lib/pq"
 	"github.com/upper/db/v4/internal/sqlbuilder"
 )
@@ -46,32 +45,40 @@ type JSONB struct {
 
 // MarshalJSON encodes the wrapper value as JSON.
 func (j JSONB) MarshalJSON() ([]byte, error) {
-	return json.Marshal(j.V)
+	t := &pgtype.JSONB{}
+	if err := t.Set(j.V); err != nil {
+		return nil, err
+	}
+	return t.MarshalJSON()
 }
 
 // UnmarshalJSON decodes the given JSON into the wrapped value.
 func (j *JSONB) UnmarshalJSON(b []byte) error {
-	var v interface{}
-	if err := json.Unmarshal(b, &v); err != nil {
+	t := &pgtype.JSONB{}
+	if err := t.UnmarshalJSON(b); err != nil {
 		return err
 	}
-	j.V = v
+	if j.V == nil {
+		j.V = t.Get()
+		return nil
+	}
+	if err := t.AssignTo(&j.V); err != nil {
+		return err
+	}
 	return nil
 }
 
 // Scan satisfies the sql.Scanner interface.
 func (j *JSONB) Scan(src interface{}) error {
-	if src == nil {
-		j.V = nil
+	t := &pgtype.JSONB{}
+	if err := t.Scan(src); err != nil {
+		return err
+	}
+	if j.V == nil {
+		j.V = t.Get()
 		return nil
 	}
-
-	b, ok := src.([]byte)
-	if !ok {
-		return errors.New("Scan source was not []bytes")
-	}
-
-	if err := json.Unmarshal(b, &j.V); err != nil {
+	if err := t.AssignTo(&j.V); err != nil {
 		return err
 	}
 	return nil
@@ -79,58 +86,66 @@ func (j *JSONB) Scan(src interface{}) error {
 
 // Value satisfies the driver.Valuer interface.
 func (j JSONB) Value() (driver.Value, error) {
-	// See https://github.com/lib/pq/issues/528#issuecomment-257197239 on why are
-	// we returning string instead of []byte.
-	if j.V == nil {
-		return nil, nil
-	}
-	if v, ok := j.V.(json.RawMessage); ok {
-		return string(v), nil
-	}
-	b, err := json.Marshal(j.V)
-	if err != nil {
+	t := &pgtype.JSONB{}
+	if err := t.Set(j.V); err != nil {
 		return nil, err
 	}
-	return string(b), nil
+	return t.Value()
 }
 
 // StringArray represents a one-dimensional array of strings (`[]string{}`)
 // that is compatible with PostgreSQL's text array (`text[]`). StringArray
 // satisfies sqlbuilder.ScannerValuer.
-type StringArray pq.StringArray
+type StringArray []string
 
 // Value satisfies the driver.Valuer interface.
 func (a StringArray) Value() (driver.Value, error) {
-	return pq.StringArray(a).Value()
+	t := pgtype.TextArray{}
+	if err := t.Set(a); err != nil {
+		return nil, err
+	}
+	return t.Value()
 }
 
 // Scan satisfies the sql.Scanner interface.
-func (a *StringArray) Scan(src interface{}) error {
-	s := pq.StringArray(*a)
-	if err := s.Scan(src); err != nil {
+func (sa *StringArray) Scan(src interface{}) error {
+	d := []string{}
+	t := pgtype.TextArray{}
+	if err := t.Scan(src); err != nil {
 		return err
 	}
-	*a = StringArray(s)
+	if err := t.AssignTo(&d); err != nil {
+		return err
+	}
+	*sa = StringArray(d)
 	return nil
 }
 
 // Int64Array represents a one-dimensional array of int64s (`[]int64{}`) that
 // is compatible with PostgreSQL's integer array (`integer[]`). Int64Array
 // satisfies sqlbuilder.ScannerValuer.
-type Int64Array pq.Int64Array
+type Int64Array []int64
 
 // Value satisfies the driver.Valuer interface.
-func (i Int64Array) Value() (driver.Value, error) {
-	return pq.Int64Array(i).Value()
+func (i64a Int64Array) Value() (driver.Value, error) {
+	t := pgtype.Int8Array{}
+	if err := t.Set(i64a); err != nil {
+		return nil, err
+	}
+	return t.Value()
 }
 
 // Scan satisfies the sql.Scanner interface.
-func (i *Int64Array) Scan(src interface{}) error {
-	s := pq.Int64Array(*i)
-	if err := s.Scan(src); err != nil {
+func (i64a *Int64Array) Scan(src interface{}) error {
+	d := []int64{}
+	t := pgtype.Int8Array{}
+	if err := t.Scan(src); err != nil {
 		return err
 	}
-	*i = Int64Array(s)
+	if err := t.AssignTo(&d); err != nil {
+		return err
+	}
+	*i64a = Int64Array(d)
 	return nil
 }
 
@@ -237,16 +252,6 @@ func JSONBValue(i interface{}) (driver.Value, error) {
 func ScanJSONB(dst interface{}, src interface{}) error {
 	v := JSONB{dst}
 	return v.Scan(src)
-}
-
-// EncodeJSONB is deprecated and going to be removed. Use ScanJSONB instead.
-func EncodeJSONB(i interface{}) (driver.Value, error) {
-	return JSONBValue(i)
-}
-
-// DecodeJSONB is deprecated and going to be removed. Use JSONBValue instead.
-func DecodeJSONB(dst interface{}, src interface{}) error {
-	return ScanJSONB(dst, src)
 }
 
 // JSONBConverter provides a helper method WrapValue that satisfies
