@@ -134,14 +134,15 @@ func (s *GenericTestSuite) BeforeTest(suiteName, testName string) {
 func (s *GenericTestSuite) TestDatesAndUnicode() {
 	sess := s.Session()
 
-	born := time.Date(1941, time.January, 5, 0, 0, 0, 0, time.Local)
+	testTimeZone := time.Local
 	switch s.Adapter() {
-	case "sqlite", "ql", "mssql":
-		// Lacks support for storing timezones
-		born = born.In(time.UTC)
-	case "mysql":
-		born = time.Date(1941, time.January, 5, 0, 0, 0, 0, defaultTimeLocation)
+	case "mysql", "cockroachdb":
+		testTimeZone = defaultTimeLocation
+	case "sqlite", "ql":
+		testTimeZone = time.UTC
 	}
+
+	born := time.Date(1941, time.January, 5, 0, 0, 0, 0, testTimeZone)
 
 	controlItem := birthday{
 		Name:   "Hayao Miyazaki",
