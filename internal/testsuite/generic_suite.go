@@ -138,7 +138,7 @@ func (s *GenericTestSuite) TestDatesAndUnicode() {
 	switch s.Adapter() {
 	case "mysql", "cockroachdb":
 		testTimeZone = defaultTimeLocation
-	case "sqlite", "ql":
+	case "sqlite", "ql", "mssql":
 		testTimeZone = time.UTC
 	}
 
