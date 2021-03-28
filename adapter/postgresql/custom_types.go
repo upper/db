@@ -152,40 +152,56 @@ func (i64a *Int64Array) Scan(src interface{}) error {
 // Float64Array represents a one-dimensional array of float64s (`[]float64{}`)
 // that is compatible with PostgreSQL's double precision array (`double
 // precision[]`). Float64Array satisfies sqlbuilder.ScannerValuer.
-type Float64Array pq.Float64Array
+type Float64Array []float64
 
 // Value satisfies the driver.Valuer interface.
-func (f Float64Array) Value() (driver.Value, error) {
-	return pq.Float64Array(f).Value()
+func (f64a Float64Array) Value() (driver.Value, error) {
+	t := pgtype.Float8Array{}
+	if err := t.Set(f64a); err != nil {
+		return nil, err
+	}
+	return t.Value()
 }
 
 // Scan satisfies the sql.Scanner interface.
-func (f *Float64Array) Scan(src interface{}) error {
-	s := pq.Float64Array(*f)
-	if err := s.Scan(src); err != nil {
+func (f64a *Float64Array) Scan(src interface{}) error {
+	d := []float64{}
+	t := pgtype.Float8Array{}
+	if err := t.Scan(src); err != nil {
 		return err
 	}
-	*f = Float64Array(s)
+	if err := t.AssignTo(&d); err != nil {
+		return err
+	}
+	*f64a = Float64Array(d)
 	return nil
 }
 
 // BoolArray represents a one-dimensional array of int64s (`[]bool{}`) that
 // is compatible with PostgreSQL's boolean type (`boolean[]`). BoolArray
 // satisfies sqlbuilder.ScannerValuer.
-type BoolArray pq.BoolArray
+type BoolArray []bool
 
 // Value satisfies the driver.Valuer interface.
-func (b BoolArray) Value() (driver.Value, error) {
-	return pq.BoolArray(b).Value()
+func (ba BoolArray) Value() (driver.Value, error) {
+	t := pgtype.BoolArray{}
+	if err := t.Set(ba); err != nil {
+		return nil, err
+	}
+	return t.Value()
 }
 
 // Scan satisfies the sql.Scanner interface.
-func (b *BoolArray) Scan(src interface{}) error {
-	s := pq.BoolArray(*b)
-	if err := s.Scan(src); err != nil {
+func (ba *BoolArray) Scan(src interface{}) error {
+	d := []bool{}
+	t := pgtype.BoolArray{}
+	if err := t.Scan(src); err != nil {
 		return err
 	}
-	*b = BoolArray(s)
+	if err := t.AssignTo(&d); err != nil {
+		return err
+	}
+	*ba = BoolArray(d)
 	return nil
 }
 
