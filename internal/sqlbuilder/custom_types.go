@@ -34,24 +34,7 @@ var (
 
 	// ScannerType is the reflection type for the sql.Scanner interface.
 	ScannerType = reflect.TypeOf((*sql.Scanner)(nil)).Elem()
-
-	// ValueWrapperType is the reflection type for the sql.ValueWrapper interface.
-	ValueWrapperType = reflect.TypeOf((*ValueWrapper)(nil)).Elem()
 )
-
-// ValueWrapper defines a method WrapValue that query arguments can use to wrap
-// themselves around helper types right before being used in a query.
-//
-// Example:
-//
-//   func (a MyCustomArray) WrapValue(value interface{}) interface{} {
-//     // postgresql.Array adds a driver.Valuer and sql.Scanner around
-//     // custom arrays.
-//	   return postgresql.Array(values)
-//   }
-type ValueWrapper interface {
-	WrapValue(value interface{}) interface{}
-}
 
 // ScannerValuer represents a value that satisfies both driver.Valuer and
 // sql.Scanner interfaces.

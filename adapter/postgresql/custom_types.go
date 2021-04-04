@@ -23,18 +23,10 @@ package postgresql
 
 import (
 	"database/sql/driver"
-	"reflect"
 
 	"github.com/jackc/pgtype"
-	"github.com/lib/pq"
 	"github.com/upper/db/v4/internal/sqlbuilder"
 )
-
-// Array returns a sqlbuilder.ScannerValuer for any given slice. Slice elements
-// may require their own sqlbuilder.ScannerValuer.
-func Array(in interface{}) sqlbuilder.ScannerValuer {
-	return pq.Array(in)
-}
 
 // JSONB represents a PostgreSQL's JSONB value:
 // https://www.postgresql.org/docs/9.6/static/datatype-json.html. JSONB
@@ -121,6 +113,57 @@ func (sa *StringArray) Scan(src interface{}) error {
 	return nil
 }
 
+type Bytea []byte
+
+func (b Bytea) Value() (driver.Value, error) {
+	t := pgtype.Bytea{Bytes: b}
+	if err := t.Set(b); err != nil {
+		return nil, err
+	}
+	return t.Value()
+}
+
+func (b *Bytea) Scan(src interface{}) error {
+	d := []byte{}
+	t := pgtype.Bytea{}
+	if err := t.Scan(src); err != nil {
+		return err
+	}
+	if err := t.AssignTo(&d); err != nil {
+		return err
+	}
+	*b = Bytea(d)
+	return nil
+}
+
+// ByteaArray represents a one-dimensional array of strings (`[]string{}`)
+// that is compatible with PostgreSQL's text array (`text[]`). ByteaArray
+// satisfies sqlbuilder.ScannerValuer.
+type ByteaArray [][]byte
+
+// Value satisfies the driver.Valuer interface.
+func (a ByteaArray) Value() (driver.Value, error) {
+	t := pgtype.ByteaArray{}
+	if err := t.Set(a); err != nil {
+		return nil, err
+	}
+	return t.Value()
+}
+
+// Scan satisfies the sql.Scanner interface.
+func (ba *ByteaArray) Scan(src interface{}) error {
+	d := [][]byte{}
+	t := pgtype.ByteaArray{}
+	if err := t.Scan(src); err != nil {
+		return err
+	}
+	if err := t.AssignTo(&d); err != nil {
+		return err
+	}
+	*ba = ByteaArray(d)
+	return nil
+}
+
 // Int64Array represents a one-dimensional array of int64s (`[]int64{}`) that
 // is compatible with PostgreSQL's integer array (`integer[]`). Int64Array
 // satisfies sqlbuilder.ScannerValuer.
@@ -146,6 +189,34 @@ func (i64a *Int64Array) Scan(src interface{}) error {
 		return err
 	}
 	*i64a = Int64Array(d)
+	return nil
+}
+
+// Int32Array represents a one-dimensional array of int32s (`[]int32{}`) that
+// is compatible with PostgreSQL's integer array (`integer[]`). Int32Array
+// satisfies sqlbuilder.ScannerValuer.
+type Int32Array []int32
+
+// Value satisfies the driver.Valuer interface.
+func (i32a Int32Array) Value() (driver.Value, error) {
+	t := pgtype.Int4Array{}
+	if err := t.Set(i32a); err != nil {
+		return nil, err
+	}
+	return t.Value()
+}
+
+// Scan satisfies the sql.Scanner interface.
+func (i32a *Int32Array) Scan(src interface{}) error {
+	d := []int32{}
+	t := pgtype.Int4Array{}
+	if err := t.Scan(src); err != nil {
+		return err
+	}
+	if err := t.AssignTo(&d); err != nil {
+		return err
+	}
+	*i32a = Int32Array(d)
 	return nil
 }
 
@@ -177,6 +248,34 @@ func (f64a *Float64Array) Scan(src interface{}) error {
 	return nil
 }
 
+// Float32Array represents a one-dimensional array of float32s (`[]float32{}`)
+// that is compatible with PostgreSQL's double precision array (`double
+// precision[]`). Float32Array satisfies sqlbuilder.ScannerValuer.
+type Float32Array []float32
+
+// Value satisfies the driver.Valuer interface.
+func (f32a Float32Array) Value() (driver.Value, error) {
+	t := pgtype.Float8Array{}
+	if err := t.Set(f32a); err != nil {
+		return nil, err
+	}
+	return t.Value()
+}
+
+// Scan satisfies the sql.Scanner interface.
+func (f32a *Float32Array) Scan(src interface{}) error {
+	d := []float32{}
+	t := pgtype.Float8Array{}
+	if err := t.Scan(src); err != nil {
+		return err
+	}
+	if err := t.AssignTo(&d); err != nil {
+		return err
+	}
+	*f32a = Float32Array(d)
+	return nil
+}
+
 // BoolArray represents a one-dimensional array of int64s (`[]bool{}`) that
 // is compatible with PostgreSQL's boolean type (`boolean[]`). BoolArray
 // satisfies sqlbuilder.ScannerValuer.
@@ -202,27 +301,6 @@ func (ba *BoolArray) Scan(src interface{}) error {
 		return err
 	}
 	*ba = BoolArray(d)
-	return nil
-}
-
-// GenericArray represents a one-dimensional array of any type
-// (`[]interface{}`) that is compatible with PostgreSQL's array type.
-// GenericArray satisfies sqlbuilder.ScannerValuer and its elements may need to
-// satisfy sqlbuilder.ScannerValuer too.
-type GenericArray pq.GenericArray
-
-// Value satisfies the driver.Valuer interface.
-func (g GenericArray) Value() (driver.Value, error) {
-	return pq.GenericArray(g).Value()
-}
-
-// Scan satisfies the sql.Scanner interface.
-func (g *GenericArray) Scan(src interface{}) error {
-	s := pq.GenericArray(*g)
-	if err := s.Scan(src); err != nil {
-		return err
-	}
-	*g = GenericArray(s)
 	return nil
 }
 
@@ -270,80 +348,13 @@ func ScanJSONB(dst interface{}, src interface{}) error {
 	return v.Scan(src)
 }
 
-// JSONBConverter provides a helper method WrapValue that satisfies
-// sqlbuilder.ValueWrapper, can be used to encode Go structs into JSONB
-// PostgreSQL types and vice versa.
-//
-// Example:
-//
-//   type MyCustomStruct struct {
-//     ID int64 `db:"id" json:"id"`
-//     Name string `db:"name" json:"name"`
-//     ...
-//     postgresql.JSONBConverter
-//   }
-type JSONBConverter struct {
-}
-
-// WrapValue satisfies sqlbuilder.ValueWrapper
-func (obj *JSONBConverter) WrapValue(src interface{}) interface{} {
-	return &JSONB{src}
-}
-
-func autoWrap(elem reflect.Value, v interface{}) interface{} {
-	kind := elem.Kind()
-
-	if kind == reflect.Invalid {
-		return v
-	}
-
-	if elem.Type().Implements(sqlbuilder.ScannerType) {
-		return v
-	}
-
-	if elem.Type().Implements(sqlbuilder.ValuerType) {
-		return v
-	}
-
-	if elem.Type().Implements(sqlbuilder.ValueWrapperType) {
-		if elem.Type().Kind() == reflect.Ptr {
-			w := reflect.ValueOf(v)
-			if w.Kind() == reflect.Ptr {
-				z := reflect.Zero(w.Elem().Type())
-				w.Elem().Set(z)
-				return &JSONB{v}
-			}
-		}
-		vw := elem.Interface().(sqlbuilder.ValueWrapper)
-		return vw.WrapValue(elem.Interface())
-	}
-
-	switch kind {
-	case reflect.Ptr:
-		return autoWrap(elem.Elem(), v)
-	case reflect.Slice:
-		return &JSONB{v}
-	case reflect.Map:
-		if reflect.TypeOf(v).Kind() == reflect.Ptr {
-			w := reflect.ValueOf(v)
-			z := reflect.New(w.Elem().Type())
-			w.Elem().Set(z.Elem())
-		}
-		return &JSONB{v}
-	}
-
-	return v
-}
-
 // Type checks.
 var (
-	_ sqlbuilder.ValueWrapper = &JSONBConverter{}
-
 	_ sqlbuilder.ScannerValuer = &StringArray{}
 	_ sqlbuilder.ScannerValuer = &Int64Array{}
 	_ sqlbuilder.ScannerValuer = &Float64Array{}
+	_ sqlbuilder.ScannerValuer = &Float32Array{}
 	_ sqlbuilder.ScannerValuer = &BoolArray{}
-	_ sqlbuilder.ScannerValuer = &GenericArray{}
 	_ sqlbuilder.ScannerValuer = &JSONBMap{}
 	_ sqlbuilder.ScannerValuer = &JSONBArray{}
 )

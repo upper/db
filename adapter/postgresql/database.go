@@ -28,7 +28,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"reflect"
 	"strings"
 	"time"
 
@@ -77,9 +76,9 @@ func (*database) ConvertValues(values []interface{}) []interface{} {
 	for i := range values {
 		switch v := values[i].(type) {
 		case *string, *bool, *int, *uint, *int64, *uint64, *int32, *uint32, *int16, *uint16, *int8, *uint8, *float32, *float64, *[]uint8, sql.Scanner, *sql.Scanner, *time.Time:
-			// Handled by pq.
+			// Handled by the driver.
 		case string, bool, int, uint, int64, uint64, int32, uint32, int16, uint16, int8, uint8, float32, float64, []uint8, driver.Valuer, *driver.Valuer, time.Time:
-			// Handled by pq.
+			// Handled by the driver.
 
 		case *[]int64:
 			values[i] = (*Int64Array)(v)
@@ -102,15 +101,9 @@ func (*database) ConvertValues(values []interface{}) []interface{} {
 			values[i] = (*BoolArray)(&v)
 		case map[string]interface{}:
 			values[i] = (*JSONBMap)(&v)
-
-		case sqlbuilder.ValueWrapper:
-			values[i] = v.WrapValue(v)
-
-		default:
-			values[i] = autoWrap(reflect.ValueOf(values[i]), values[i])
 		}
-
 	}
+
 	return values
 }
 

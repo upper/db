@@ -27,7 +27,6 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"math/rand"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -40,6 +39,26 @@ import (
 	"github.com/upper/db/v4/internal/testsuite"
 )
 
+type customJSONBObjectArray []customJSONB
+
+func (c customJSONBObjectArray) Value() (driver.Value, error) {
+	return JSONBValue(c)
+}
+
+func (c *customJSONBObjectArray) Scan(src interface{}) error {
+	return ScanJSONB(c, src)
+}
+
+type customJSONBObjectMap map[string]customJSONB
+
+func (c customJSONBObjectMap) Value() (driver.Value, error) {
+	return JSONBValue(c)
+}
+
+func (c *customJSONBObjectMap) Scan(src interface{}) error {
+	return ScanJSONB(c, src)
+}
+
 type customJSONB struct {
 	N string  `json:"name"`
 	V float64 `json:"value"`
@@ -51,13 +70,6 @@ func (c customJSONB) Value() (driver.Value, error) {
 
 func (c *customJSONB) Scan(src interface{}) error {
 	return ScanJSONB(c, src)
-}
-
-type autoCustomJSONB struct {
-	N string  `json:"name"`
-	V float64 `json:"value"`
-
-	*JSONBConverter
 }
 
 var (
@@ -73,55 +85,59 @@ type stringCompat string
 
 type uint8Compat uint8
 
-type int64CompatArray []int64Compat
-
 type uint8CompatArray []uint8Compat
 
+func (ua uint8CompatArray) Value() (driver.Value, error) {
+	v := make(Bytea, len(ua))
+	for i := range ua {
+		v[i] = byte(ua[i])
+	}
+	return v.Value()
+}
+
+func (ua *uint8CompatArray) Scan(src interface{}) error {
+	ba := Bytea{}
+	if err := ba.Scan(src); err != nil {
+		return err
+	}
+	dst := make([]uint8Compat, len(ba))
+	for i := range ba {
+		dst[i] = uint8Compat(ba[i])
+	}
+	if len(dst) < 1 {
+		return nil
+	}
+	*ua = dst
+	return nil
+}
+
+type int64CompatArray []int64Compat
+
+func (i64a int64CompatArray) Value() (driver.Value, error) {
+	v := make(Int64Array, len(i64a))
+	for i := range i64a {
+		v[i] = int64(i64a[i])
+	}
+	return v.Value()
+}
+
+func (i64a *int64CompatArray) Scan(src interface{}) error {
+	s := Int64Array{}
+	if err := s.Scan(src); err != nil {
+		return err
+	}
+	dst := make([]int64Compat, len(s))
+	for i := range s {
+		dst[i] = int64Compat(s[i])
+	}
+	if len(dst) < 1 {
+		return nil
+	}
+	*i64a = dst
+	return nil
+}
+
 type uintCompatArray []uintCompat
-
-func (u *uint8Compat) Scan(src interface{}) error {
-	if src != nil {
-		switch v := src.(type) {
-		case int64:
-			*u = uint8Compat((src).(int64))
-		case []byte:
-			i, err := strconv.ParseInt(string(v), 10, 64)
-			if err != nil {
-				return err
-			}
-			*u = uint8Compat(i)
-		default:
-			panic(fmt.Sprintf("expected type %T", src))
-		}
-	}
-	return nil
-}
-
-func (u uint8CompatArray) WrapValue(src interface{}) interface{} {
-	return Array(src)
-}
-
-func (u *int64Compat) Scan(src interface{}) error {
-	if src != nil {
-		switch v := src.(type) {
-		case int64:
-			*u = int64Compat((src).(int64))
-		case []byte:
-			i, err := strconv.ParseInt(string(v), 10, 64)
-			if err != nil {
-				return err
-			}
-			*u = int64Compat(i)
-		default:
-			panic(fmt.Sprintf("expected type %T", src))
-		}
-	}
-	return nil
-}
-
-func (u int64CompatArray) WrapValue(src interface{}) interface{} {
-	return Array(src)
-}
 
 type AdapterTests struct {
 	testsuite.Suite
@@ -208,8 +224,8 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		AutoIntegerArray    []int64                `db:"auto_integer_array"`
 		AutoStringArray     []string               `db:"auto_string_array"`
 		AutoJSONBMap        map[string]interface{} `db:"auto_jsonb_map"`
-		AutoJSONBMapString  map[string]string      `db:"auto_jsonb_map_string"`
-		AutoJSONBMapInteger map[string]int64       `db:"auto_jsonb_map_integer"`
+		AutoJSONBMapString  map[string]interface{} `db:"auto_jsonb_map_string"`
+		AutoJSONBMapInteger map[string]interface{} `db:"auto_jsonb_map_integer"`
 	}
 
 	type PGType struct {
@@ -218,8 +234,8 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		UInt8Value      uint8Compat      `db:"uint8_value"`
 		UInt8ValueArray uint8CompatArray `db:"uint8_value_array"`
 
-		Int64Value      int64Compat      `db:"int64_value"`
-		Int64ValueArray int64CompatArray `db:"int64_value_array"`
+		Int64Value      int64Compat       `db:"int64_value"`
+		Int64ValueArray *int64CompatArray `db:"int64_value_array"`
 
 		IntegerArray Int64Array  `db:"integer_array"`
 		StringArray  StringArray `db:"string_array,stringarray"`
@@ -232,14 +248,14 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		JSONBObject JSONB      `db:"jsonb_object"`
 		JSONBArray  JSONBArray `db:"jsonb_array"`
 
-		CustomJSONBObject     customJSONB     `db:"custom_jsonb_object"`
-		AutoCustomJSONBObject autoCustomJSONB `db:"auto_custom_jsonb_object"`
+		CustomJSONBObject     customJSONB `db:"custom_jsonb_object"`
+		AutoCustomJSONBObject customJSONB `db:"auto_custom_jsonb_object"`
 
-		CustomJSONBObjectPtr     *customJSONB     `db:"custom_jsonb_object_ptr,omitempty"`
-		AutoCustomJSONBObjectPtr *autoCustomJSONB `db:"auto_custom_jsonb_object_ptr,omitempty"`
+		CustomJSONBObjectPtr     *customJSONB `db:"custom_jsonb_object_ptr,omitempty"`
+		AutoCustomJSONBObjectPtr *customJSONB `db:"auto_custom_jsonb_object_ptr,omitempty"`
 
-		AutoCustomJSONBObjectArray []autoCustomJSONB          `db:"auto_custom_jsonb_object_array"`
-		AutoCustomJSONBObjectMap   map[string]autoCustomJSONB `db:"auto_custom_jsonb_object_map"`
+		AutoCustomJSONBObjectArray *customJSONBObjectArray `db:"auto_custom_jsonb_object_array"`
+		AutoCustomJSONBObjectMap   *customJSONBObjectMap   `db:"auto_custom_jsonb_object_map"`
 
 		StringValue  string  `db:"string_value"`
 		IntegerValue int64   `db:"integer_value"`
@@ -250,9 +266,9 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		UIntCompatValue   uintCompat   `db:"uinteger_compat_value"`
 		StringCompatValue stringCompat `db:"string_compat_value"`
 
-		Int64CompatValueJSONBArray  []int64Compat   `db:"integer_compat_value_jsonb_array"`
-		UIntCompatValueJSONBArray   uintCompatArray `db:"uinteger_compat_value_jsonb_array"`
-		StringCompatValueJSONBArray []stringCompat  `db:"string_compat_value_jsonb_array"`
+		Int64CompatValueJSONBArray  JSONBArray `db:"integer_compat_value_jsonb_array"`
+		UIntCompatValueJSONBArray   JSONBArray `db:"uinteger_compat_value_jsonb_array"`
+		StringCompatValueJSONBArray JSONBArray `db:"string_compat_value_jsonb_array"`
 
 		StringValuePtr  *string  `db:"string_value_ptr,omitempty"`
 		IntegerValuePtr *int64   `db:"integer_value_ptr,omitempty"`
@@ -284,7 +300,7 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		},
 		PGType{
 			Int64Value:      -1,
-			Int64ValueArray: int64CompatArray{1, 2, 3, -4, 5, 6},
+			Int64ValueArray: &int64CompatArray{1, 2, 3, -4, 5, 6},
 		},
 		PGType{
 			UInt8Value:      1,
@@ -292,11 +308,10 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		},
 		PGType{
 			Int64Value:      1,
-			Int64ValueArray: int64CompatArray{7, 7, 7},
+			Int64ValueArray: &int64CompatArray{7, 7, 7},
 		},
 		PGType{
-			Int64Value:      1,
-			Int64ValueArray: int64CompatArray{},
+			Int64Value: 1,
 		},
 		PGType{
 			Int64Value:      99,
@@ -308,22 +323,22 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 			StringCompatValue: "abc",
 		},
 		PGType{
-			Int64CompatValueJSONBArray:  []int64Compat{1, -2, 3, -4},
-			UIntCompatValueJSONBArray:   []uintCompat{1, 2, 3, 4},
-			StringCompatValueJSONBArray: []stringCompat{"a", "b", "", "c"},
+			Int64CompatValueJSONBArray:  JSONBArray{1.0, -2.0, 3.0, -4.0},
+			UIntCompatValueJSONBArray:   JSONBArray{1.0, 2.0, 3.0, 4.0},
+			StringCompatValueJSONBArray: JSONBArray{"a", "b", "", "c"},
 		},
 		PGType{
-			Int64CompatValueJSONBArray:  []int64Compat(nil),
-			UIntCompatValueJSONBArray:   []uintCompat(nil),
-			StringCompatValueJSONBArray: []stringCompat(nil),
+			Int64CompatValueJSONBArray:  JSONBArray(nil),
+			UIntCompatValueJSONBArray:   JSONBArray(nil),
+			StringCompatValueJSONBArray: JSONBArray(nil),
 		},
 		PGType{
 			IntegerValuePtr: &integerValue,
 			StringValuePtr:  &stringValue,
 			DecimalValuePtr: &decimalValue,
 			PGTypeAutoInline: PGTypeAutoInline{
-				AutoJSONBMapString:  map[string]string{"a": "x", "b": "67"},
-				AutoJSONBMapInteger: map[string]int64{"a": 12, "b": 13},
+				AutoJSONBMapString:  map[string]interface{}{"a": "x", "b": "67"},
+				AutoJSONBMapInteger: map[string]interface{}{"a": 12.0, "b": 13.0},
 			},
 		},
 		PGType{
@@ -341,19 +356,19 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 			},
 		},
 		PGType{
-			AutoCustomJSONBObjectArray: []autoCustomJSONB{
-				autoCustomJSONB{
+			AutoCustomJSONBObjectArray: &customJSONBObjectArray{
+				customJSONB{
 					N: "Hello",
 				},
-				autoCustomJSONB{
+				customJSONB{
 					N: "World",
 				},
 			},
-			AutoCustomJSONBObjectMap: map[string]autoCustomJSONB{
-				"a": autoCustomJSONB{
+			AutoCustomJSONBObjectMap: &customJSONBObjectMap{
+				"a": customJSONB{
 					N: "Hello",
 				},
-				"b": autoCustomJSONB{
+				"b": customJSONB{
 					N: "World",
 				},
 			},
@@ -433,20 +448,20 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 			CustomJSONBObject: customJSONB{
 				N: "Hello",
 			},
-			AutoCustomJSONBObject: autoCustomJSONB{
+			AutoCustomJSONBObject: customJSONB{
 				N: "World",
 			},
 			StringArray: []string{"", "", "", ``, `""`},
 		},
 		PGType{
 			CustomJSONBObject:     customJSONB{},
-			AutoCustomJSONBObject: autoCustomJSONB{},
+			AutoCustomJSONBObject: customJSONB{},
 		},
 		PGType{
 			CustomJSONBObject: customJSONB{
 				N: "Hello 1",
 			},
-			AutoCustomJSONBObject: autoCustomJSONB{
+			AutoCustomJSONBObject: customJSONB{
 				N: "World 2",
 			},
 		},
@@ -456,13 +471,13 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		},
 		PGType{
 			CustomJSONBObjectPtr:     &customJSONB{},
-			AutoCustomJSONBObjectPtr: &autoCustomJSONB{},
+			AutoCustomJSONBObjectPtr: &customJSONB{},
 		},
 		PGType{
 			CustomJSONBObjectPtr: &customJSONB{
 				N: "Hello 3",
 			},
-			AutoCustomJSONBObjectPtr: &autoCustomJSONB{
+			AutoCustomJSONBObjectPtr: &customJSONB{
 				N: "World 4",
 			},
 		},
