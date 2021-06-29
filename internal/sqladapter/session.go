@@ -361,27 +361,30 @@ func (sess *session) Save(record db.Record) error {
 	}
 
 	store := record.Store(sess)
-
 	if saver, ok := store.(db.StoreSaver); ok {
 		return saver.Save(record)
 	}
 
-	_, fields, err := recordPrimaryKeyFieldValues(store, record)
+	id := db.Cond{}
+	keys, values, err := recordPrimaryKeyFieldValues(store, record)
 	if err != nil {
 		return err
 	}
-	isCreate := true
-	for i := range fields {
-		if fields[i] != reflect.Zero(reflect.TypeOf(fields[i])).Interface() {
-			isCreate = false
-			break
+	for i := range values {
+		if values[i] != reflect.Zero(reflect.TypeOf(values[i])).Interface() {
+			id[keys[i]] = values[i]
 		}
 	}
 
-	if isCreate {
-		return recordCreate(store, record)
+	if len(id) > 0 && len(id) == len(values) {
+		// check if record exists before updating it
+		exists, _ := store.Find(id).Count()
+		if exists > 0 {
+			return recordUpdate(store, record)
+		}
 	}
-	return recordUpdate(store, record)
+
+	return recordCreate(store, record)
 }
 
 func (sess *session) Delete(record db.Record) error {
