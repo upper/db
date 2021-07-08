@@ -41,12 +41,11 @@ import (
 
 type customJSONBObjectArray []customJSONB
 
-func (c customJSONBObjectArray) Value() (driver.Value, error) {
-	return JSONBValue(c)
-}
-
-func (c *customJSONBObjectArray) Scan(src interface{}) error {
-	return ScanJSONB(c, src)
+func (customJSONBObjectArray) ConvertValue(in interface{}) interface {
+	sql.Scanner
+	driver.Valuer
+} {
+	return &JSONB{in}
 }
 
 type customJSONBObjectMap map[string]customJSONB
@@ -62,20 +61,9 @@ func (c *customJSONBObjectMap) Scan(src interface{}) error {
 type customJSONB struct {
 	N string  `json:"name"`
 	V float64 `json:"value"`
-}
 
-func (c customJSONB) Value() (driver.Value, error) {
-	return JSONBValue(c)
+	*JSONBConverter
 }
-
-func (c *customJSONB) Scan(src interface{}) error {
-	return ScanJSONB(c, src)
-}
-
-var (
-	_ = driver.Valuer(&customJSONB{})
-	_ = sql.Scanner(&customJSONB{})
-)
 
 type int64Compat int64
 
@@ -511,7 +499,6 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 	}
 
 	for i := 0; i < 100; i++ {
-
 		pgTypeTests := make([]PGType, len(origPgTypeTests))
 		perm := rand.Perm(len(origPgTypeTests))
 		for i, v := range perm {
@@ -582,6 +569,7 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		for i := range values {
 			expected := pgTypeTests[i]
 			expected.ID = values[i].ID
+
 			assert.Equal(t, expected, values[i])
 		}
 	}

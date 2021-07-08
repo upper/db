@@ -211,7 +211,7 @@ func (s *AdapterTests) TestMySQLTypes() {
 
 		JSONMap JSONMap `db:"json_map"`
 
-		JSONObject JSON      `db:"json_object"`
+		JSONObject JSONMap   `db:"json_object"`
 		JSONArray  JSONArray `db:"json_array"`
 
 		CustomJSONObject     customJSON     `db:"custom_json_object"`
@@ -301,6 +301,7 @@ func (s *AdapterTests) TestMySQLTypes() {
 				N: "World 4",
 			},
 		},
+		MyType{},
 		MyType{
 			CustomJSONObject: customJSON{
 				V: 4.4,

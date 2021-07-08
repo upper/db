@@ -97,8 +97,11 @@ func (u *uint8Compat) Scan(src interface{}) error {
 	return nil
 }
 
-func (u uint8CompatArray) WrapValue(src interface{}) interface{} {
-	return Array(src)
+func (uint8CompatArray) ConvertValue(in interface{}) interface {
+	sql.Scanner
+	driver.Valuer
+} {
+	return Array(in)
 }
 
 func (u *int64Compat) Scan(src interface{}) error {
@@ -119,8 +122,11 @@ func (u *int64Compat) Scan(src interface{}) error {
 	return nil
 }
 
-func (u int64CompatArray) WrapValue(src interface{}) interface{} {
-	return Array(src)
+func (int64CompatArray) ConvertValue(in interface{}) interface {
+	sql.Scanner
+	driver.Valuer
+} {
+	return Array(in)
 }
 
 type AdapterTests struct {

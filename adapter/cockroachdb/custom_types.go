@@ -22,6 +22,7 @@
 package cockroachdb
 
 import (
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -61,8 +62,12 @@ func (j *JSONB) UnmarshalJSON(b []byte) error {
 
 // Scan satisfies the sql.Scanner interface.
 func (j *JSONB) Scan(src interface{}) error {
+	if j.V == nil {
+		return nil
+	}
 	if src == nil {
-		j.V = nil
+		dv := reflect.Indirect(reflect.ValueOf(j.V))
+		dv.Set(reflect.Zero(dv.Type()))
 		return nil
 	}
 
@@ -71,7 +76,7 @@ func (j *JSONB) Scan(src interface{}) error {
 		return errors.New("Scan source was not []bytes")
 	}
 
-	if err := json.Unmarshal(b, &j.V); err != nil {
+	if err := json.Unmarshal(b, j.V); err != nil {
 		return err
 	}
 	return nil
@@ -264,60 +269,15 @@ func DecodeJSONB(dst interface{}, src interface{}) error {
 type JSONBConverter struct {
 }
 
-// WrapValue satisfies sqlbuilder.ValueWrapper
-func (obj *JSONBConverter) WrapValue(src interface{}) interface{} {
+func (*JSONBConverter) ConvertValue(src interface{}) interface {
+	sql.Scanner
+	driver.Valuer
+} {
 	return &JSONB{src}
-}
-
-func autoWrap(elem reflect.Value, v interface{}) interface{} {
-	kind := elem.Kind()
-
-	if kind == reflect.Invalid {
-		return v
-	}
-
-	if elem.Type().Implements(sqlbuilder.ScannerType) {
-		return v
-	}
-
-	if elem.Type().Implements(sqlbuilder.ValuerType) {
-		return v
-	}
-
-	if elem.Type().Implements(sqlbuilder.ValueWrapperType) {
-		if elem.Type().Kind() == reflect.Ptr {
-			w := reflect.ValueOf(v)
-			if w.Kind() == reflect.Ptr {
-				z := reflect.Zero(w.Elem().Type())
-				w.Elem().Set(z)
-				return &JSONB{v}
-			}
-		}
-		vw := elem.Interface().(sqlbuilder.ValueWrapper)
-		return vw.WrapValue(elem.Interface())
-	}
-
-	switch kind {
-	case reflect.Ptr:
-		return autoWrap(elem.Elem(), v)
-	case reflect.Slice:
-		return &JSONB{v}
-	case reflect.Map:
-		if reflect.TypeOf(v).Kind() == reflect.Ptr {
-			w := reflect.ValueOf(v)
-			z := reflect.New(w.Elem().Type())
-			w.Elem().Set(z.Elem())
-		}
-		return &JSONB{v}
-	}
-
-	return v
 }
 
 // Type checks.
 var (
-	_ sqlbuilder.ValueWrapper = &JSONBConverter{}
-
 	_ sqlbuilder.ScannerValuer = &StringArray{}
 	_ sqlbuilder.ScannerValuer = &Int64Array{}
 	_ sqlbuilder.ScannerValuer = &Float64Array{}

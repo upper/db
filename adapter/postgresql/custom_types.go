@@ -22,6 +22,7 @@
 package postgresql
 
 import (
+	"database/sql"
 	"database/sql/driver"
 
 	"github.com/jackc/pgtype"
@@ -32,13 +33,13 @@ import (
 // https://www.postgresql.org/docs/9.6/static/datatype-json.html. JSONB
 // satisfies sqlbuilder.ScannerValuer.
 type JSONB struct {
-	V interface{}
+	v interface{}
 }
 
 // MarshalJSON encodes the wrapper value as JSON.
 func (j JSONB) MarshalJSON() ([]byte, error) {
 	t := &pgtype.JSONB{}
-	if err := t.Set(j.V); err != nil {
+	if err := t.Set(j.v); err != nil {
 		return nil, err
 	}
 	return t.MarshalJSON()
@@ -50,11 +51,11 @@ func (j *JSONB) UnmarshalJSON(b []byte) error {
 	if err := t.UnmarshalJSON(b); err != nil {
 		return err
 	}
-	if j.V == nil {
-		j.V = t.Get()
+	if j.v == nil {
+		j.v = t.Get()
 		return nil
 	}
-	if err := t.AssignTo(&j.V); err != nil {
+	if err := t.AssignTo(&j.v); err != nil {
 		return err
 	}
 	return nil
@@ -66,11 +67,11 @@ func (j *JSONB) Scan(src interface{}) error {
 	if err := t.Scan(src); err != nil {
 		return err
 	}
-	if j.V == nil {
-		j.V = t.Get()
+	if j.v == nil {
+		j.v = t.Get()
 		return nil
 	}
-	if err := t.AssignTo(&j.V); err != nil {
+	if err := t.AssignTo(j.v); err != nil {
 		return err
 	}
 	return nil
@@ -79,7 +80,7 @@ func (j *JSONB) Scan(src interface{}) error {
 // Value satisfies the driver.Valuer interface.
 func (j JSONB) Value() (driver.Value, error) {
 	t := &pgtype.JSONB{}
-	if err := t.Set(j.V); err != nil {
+	if err := t.Set(j.v); err != nil {
 		return nil, err
 	}
 	return t.Value()
@@ -348,6 +349,16 @@ func ScanJSONB(dst interface{}, src interface{}) error {
 	return v.Scan(src)
 }
 
+type JSONBConverter struct {
+}
+
+func (*JSONBConverter) ConvertValue(in interface{}) interface {
+	sql.Scanner
+	driver.Valuer
+} {
+	return &JSONB{in}
+}
+
 // Type checks.
 var (
 	_ sqlbuilder.ScannerValuer = &StringArray{}
@@ -357,4 +368,5 @@ var (
 	_ sqlbuilder.ScannerValuer = &BoolArray{}
 	_ sqlbuilder.ScannerValuer = &JSONBMap{}
 	_ sqlbuilder.ScannerValuer = &JSONBArray{}
+	_ sqlbuilder.ScannerValuer = &JSONB{}
 )

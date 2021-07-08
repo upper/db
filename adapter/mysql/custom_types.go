@@ -22,6 +22,7 @@
 package mysql
 
 import (
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -54,17 +55,20 @@ func (j *JSON) UnmarshalJSON(b []byte) error {
 
 // Scan satisfies the sql.Scanner interface.
 func (j *JSON) Scan(src interface{}) error {
-	if src == nil {
-		j.V = nil
+	if j.V == nil {
 		return nil
 	}
-
+	if src == nil {
+		dv := reflect.Indirect(reflect.ValueOf(j.V))
+		dv.Set(reflect.Zero(dv.Type()))
+		return nil
+	}
 	b, ok := src.([]byte)
 	if !ok {
 		return errors.New("Scan source was not []bytes")
 	}
 
-	if err := json.Unmarshal(b, &j.V); err != nil {
+	if err := json.Unmarshal(b, j.V); err != nil {
 		return err
 	}
 	return nil
@@ -153,62 +157,18 @@ func DecodeJSON(dst interface{}, src interface{}) error {
 //     ...
 //     mysql.JSONConverter
 //   }
-type JSONConverter struct {
-}
+type JSONConverter struct{}
 
-// WrapValue satisfies sqlbuilder.ValueWrapper
-func (obj *JSONConverter) WrapValue(src interface{}) interface{} {
-	return &JSON{src}
-}
-
-func autoWrap(elem reflect.Value, v interface{}) interface{} {
-	kind := elem.Kind()
-
-	if kind == reflect.Invalid {
-		return v
-	}
-
-	if elem.Type().Implements(sqlbuilder.ScannerType) {
-		return v
-	}
-
-	if elem.Type().Implements(sqlbuilder.ValuerType) {
-		return v
-	}
-
-	if elem.Type().Implements(sqlbuilder.ValueWrapperType) {
-		if elem.Type().Kind() == reflect.Ptr {
-			w := reflect.ValueOf(v)
-			if w.Kind() == reflect.Ptr {
-				z := reflect.Zero(w.Elem().Type())
-				w.Elem().Set(z)
-				return &JSON{v}
-			}
-		}
-		vw := elem.Interface().(sqlbuilder.ValueWrapper)
-		return vw.WrapValue(elem.Interface())
-	}
-
-	switch kind {
-	case reflect.Ptr:
-		return autoWrap(elem.Elem(), v)
-	case reflect.Slice:
-		return &JSON{v}
-	case reflect.Map:
-		if reflect.TypeOf(v).Kind() == reflect.Ptr {
-			w := reflect.ValueOf(v)
-			z := reflect.New(w.Elem().Type())
-			w.Elem().Set(z.Elem())
-		}
-		return &JSON{v}
-	}
-
-	return v
+func (*JSONConverter) ConvertValue(in interface{}) interface {
+	sql.Scanner
+	driver.Valuer
+} {
+	return &JSON{in}
 }
 
 // Type checks.
 var (
-	_ sqlbuilder.ValueWrapper  = &JSONConverter{}
 	_ sqlbuilder.ScannerValuer = &JSONMap{}
 	_ sqlbuilder.ScannerValuer = &JSONArray{}
+	_ sqlbuilder.ScannerValuer = &JSON{}
 )

@@ -24,12 +24,21 @@ package sqlbuilder
 import (
 	"reflect"
 
+	"database/sql"
+	"database/sql/driver"
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/reflectx"
 )
 
-type hasConvertValues interface {
-	ConvertValues(values []interface{}) []interface{}
+type sessValueConverter interface {
+	ConvertValue(in interface{}) interface{}
+}
+
+type valueConverter interface {
+	ConvertValue(in interface{}) (out interface {
+		sql.Scanner
+		driver.Valuer
+	})
 }
 
 var Mapper = reflectx.NewMapper("db")
@@ -130,6 +139,7 @@ func fetchRows(iter *iterator, dst interface{}) error {
 }
 
 func fetchResult(iter *iterator, itemT reflect.Type, columns []string) (reflect.Value, error) {
+
 	var item reflect.Value
 	var err error
 	rows := iter.cursor
@@ -171,15 +181,24 @@ func fetchResult(iter *iterator, itemT reflect.Type, columns []string) (reflect.
 			}
 
 			f := reflectx.FieldByIndexes(item, fi.Index)
-			values[i] = f.Addr().Interface()
 
-			if u, ok := values[i].(db.Unmarshaler); ok {
-				values[i] = scanner{u}
+			// TODO: type switch + scanner
+
+			if w, ok := f.Interface().(valueConverter); ok {
+				wrapper := w.ConvertValue(f.Addr().Interface())
+				z := reflect.ValueOf(wrapper)
+				values[i] = z.Interface()
+			} else {
+				values[i] = f.Addr().Interface()
 			}
-		}
 
-		if converter, ok := iter.sess.(hasConvertValues); ok {
-			values = converter.ConvertValues(values)
+			if unmarshaler, ok := values[i].(db.Unmarshaler); ok {
+				values[i] = scanner{unmarshaler}
+			}
+
+			if converter, ok := iter.sess.(sessValueConverter); ok {
+				values[i] = converter.ConvertValue(values[i])
+			}
 		}
 
 		if err = rows.Scan(values...); err != nil {

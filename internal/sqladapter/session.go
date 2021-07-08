@@ -3,6 +3,7 @@ package sqladapter
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"math"
@@ -47,9 +48,17 @@ type statementCompiler interface {
 	CompileStatement(sess Session, stmt *exql.Statement, args []interface{}) (string, []interface{}, error)
 }
 
+// sessValueConverter converts values before being passed to the underlying driver.
+type sessValueConverter interface {
+	ConvertValue(in interface{}) interface{}
+}
+
 // valueConverter converts values before being passed to the underlying driver.
 type valueConverter interface {
-	ConvertValues(values []interface{}) []interface{}
+	ConvertValue(in interface{}) interface {
+		sql.Scanner
+		driver.Valuer
+	}
 }
 
 // errorConverter converts an error value from the underlying driver into
@@ -680,11 +689,23 @@ func (sess *session) StatementPrepare(ctx context.Context, stmt *exql.Statement)
 	return
 }
 
-func (sess *session) ConvertValues(values []interface{}) []interface{} {
-	if converter, ok := sess.adapter.(valueConverter); ok {
-		return converter.ConvertValues(values)
+func (sess *session) ConvertValue(value interface{}) interface{} {
+	if scannerValuer, ok := value.(sqlbuilder.ScannerValuer); ok {
+		return scannerValuer
 	}
-	return values
+
+	dv := reflect.Indirect(reflect.ValueOf(value))
+	if dv.IsValid() {
+		if converter, ok := dv.Interface().(valueConverter); ok {
+			return converter.ConvertValue(dv.Interface())
+		}
+	}
+
+	if converter, ok := sess.adapter.(sessValueConverter); ok {
+		return converter.ConvertValue(value)
+	}
+
+	return value
 }
 
 func (sess *session) StatementExec(ctx context.Context, stmt *exql.Statement, args ...interface{}) (res sql.Result, err error) {
@@ -850,8 +871,8 @@ func (sess *session) Driver() interface{} {
 
 // compileStatement compiles the given statement into a string.
 func (sess *session) compileStatement(stmt *exql.Statement, args []interface{}) (string, []interface{}, error) {
-	if converter, ok := sess.adapter.(valueConverter); ok {
-		args = converter.ConvertValues(args)
+	for i := range args {
+		args[i] = sess.ConvertValue(args[i])
 	}
 	if statementCompiler, ok := sess.adapter.(statementCompiler); ok {
 		return statementCompiler.CompileStatement(sess, stmt, args)

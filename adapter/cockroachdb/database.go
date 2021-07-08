@@ -31,7 +31,6 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"time"
 
 	pq "github.com/lib/pq"
 	db "github.com/upper/db/v4"
@@ -75,45 +74,57 @@ func (*database) Collections(sess sqladapter.Session) (collections []string, err
 	return collections, nil
 }
 
-func (*database) ConvertValues(values []interface{}) []interface{} {
-	for i := range values {
-		switch v := values[i].(type) {
-		case *string, *bool, *int, *uint, *int64, *uint64, *int32, *uint32, *int16, *uint16, *int8, *uint8, *float32, *float64, *[]uint8, sql.Scanner, *sql.Scanner, *time.Time:
-			// Handled by pq.
-		case string, bool, int, uint, int64, uint64, int32, uint32, int16, uint16, int8, uint8, float32, float64, []uint8, driver.Valuer, *driver.Valuer, time.Time:
-			// Handled by pq.
+func (*database) ConvertValue(in interface{}) interface{} {
+	switch v := in.(type) {
 
-		case *[]int64:
-			values[i] = (*Int64Array)(v)
-		case *[]string:
-			values[i] = (*StringArray)(v)
-		case *[]float64:
-			values[i] = (*Float64Array)(v)
-		case *[]bool:
-			values[i] = (*BoolArray)(v)
-		case *map[string]interface{}:
-			values[i] = (*JSONBMap)(v)
+	case *[]int64:
+		return (*Int64Array)(v)
+	case *[]string:
+		return (*StringArray)(v)
+	case *[]float64:
+		return (*Float64Array)(v)
+	case *[]bool:
+		return (*BoolArray)(v)
+	case *map[string]interface{}:
+		return (*JSONBMap)(v)
 
-		case []int64:
-			values[i] = (*Int64Array)(&v)
-		case []string:
-			values[i] = (*StringArray)(&v)
-		case []float64:
-			values[i] = (*Float64Array)(&v)
-		case []bool:
-			values[i] = (*BoolArray)(&v)
-		case map[string]interface{}:
-			values[i] = (*JSONBMap)(&v)
+	case []int64:
+		return (*Int64Array)(&v)
+	case []string:
+		return (*StringArray)(&v)
+	case []float64:
+		return (*Float64Array)(&v)
+	case []bool:
+		return (*BoolArray)(&v)
+	case map[string]interface{}:
+		return (*JSONBMap)(&v)
 
-		case sqlbuilder.ValueWrapper:
-			values[i] = v.WrapValue(v)
+	case sql.Scanner, driver.Valuer:
+		return v
+	case *sql.Scanner, *driver.Valuer:
+		return v
+	}
 
-		default:
-			values[i] = autoWrap(reflect.ValueOf(values[i]), values[i])
+	dv := reflect.ValueOf(in)
+	if dv.IsValid() {
+		if dv.Type().Kind() == reflect.Ptr {
+			dv = dv.Elem()
 		}
 
+		switch dv.Kind() {
+		case reflect.Map:
+			if reflect.TypeOf(in).Kind() == reflect.Ptr {
+				w := reflect.ValueOf(in)
+				z := reflect.New(w.Elem().Type())
+				w.Elem().Set(z.Elem())
+			}
+			return &JSONB{in}
+		case reflect.Slice:
+			return &JSONB{in}
+		}
 	}
-	return values
+
+	return in
 }
 
 func (*database) CompileStatement(sess sqladapter.Session, stmt *exql.Statement, args []interface{}) (string, []interface{}, error) {
