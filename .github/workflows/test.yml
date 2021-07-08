@@ -8,9 +8,14 @@ jobs:
 
     strategy:
       matrix:
-        go-version: [1.16.x]
         os: [ubuntu-latest]
-        target: [test, benchmark]
+        include:
+          - go-version: 1.16.x
+            target: test
+          - go-version: 1.15.x
+            target: go-test-internal test-adapter-postgresql test-adapter-cockroachdb test-adapter-mysql test-adapter-mssql test-adapter-sqlite test-adapter-mongo
+          - go-version: 1.14.x
+            target: go-test-internal test-adapter-postgresql test-adapter-cockroachdb test-adapter-mysql test-adapter-mssql test-adapter-sqlite test-adapter-mongo
 
     runs-on: ${{ matrix.os }}
 
@@ -29,7 +34,5 @@ jobs:
           echo "DB_HOST=127.0.0.1" >> $GITHUB_ENV
           echo "UPPER_DB_LOG=ERROR" >> $GITHUB_ENV
 
-      - name: Execute main task
-        env:
-          GO111MODULE: "on"
+      - name: Execute target
         run: make ${{ matrix.target }}
