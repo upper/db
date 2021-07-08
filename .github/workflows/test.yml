@@ -30,4 +30,6 @@ jobs:
           echo "UPPER_DB_LOG=ERROR" >> $GITHUB_ENV
 
       - name: Execute main task
+        env:
+          GO111MODULE: "on"
         run: make ${{ matrix.target }}
