@@ -98,69 +98,6 @@ type ConnectionURL struct {
 
 var escaper = strings.NewReplacer(` `, `\ `, `'`, `\'`, `\`, `\\`)
 
-// String reassembles the parsed PostgreSQL connection URL into a valid DSN.
-func (c ConnectionURL) String() (s string) {
-	u := []string{}
-
-	// TODO: This surely needs some sort of escaping.
-	if c.User != "" {
-		u = append(u, "user="+escaper.Replace(c.User))
-	}
-
-	if c.Password != "" {
-		u = append(u, "password="+escaper.Replace(c.Password))
-	}
-
-	if c.Host != "" {
-		host, port, err := net.SplitHostPort(c.Host)
-		if err == nil {
-			if host == "" {
-				host = "127.0.0.1"
-			}
-			if port == "" {
-				port = "5432"
-			}
-			u = append(u, "host="+escaper.Replace(host))
-			u = append(u, "port="+escaper.Replace(port))
-		} else {
-			u = append(u, "host="+escaper.Replace(c.Host))
-		}
-	}
-
-	if c.Socket != "" {
-		u = append(u, "host="+escaper.Replace(c.Socket))
-	}
-
-	if c.Database != "" {
-		u = append(u, "dbname="+escaper.Replace(c.Database))
-	}
-
-	// Is there actually any connection data?
-	if len(u) == 0 {
-		return ""
-	}
-
-	if c.Options == nil {
-		c.Options = map[string]string{}
-	}
-
-	// If not present, SSL mode is assumed disabled.
-	if sslMode, ok := c.Options["sslmode"]; !ok || sslMode == "" {
-		c.Options["sslmode"] = "disable"
-	}
-
-	// Disabled by default
-	c.Options["statement_cache_capacity"] = "0"
-
-	for k, v := range c.Options {
-		u = append(u, escaper.Replace(k)+"="+escaper.Replace(v))
-	}
-
-	sort.Strings(u)
-
-	return strings.Join(u, " ")
-}
-
 // ParseURL parses the given DSN into a ConnectionURL struct.
 // A typical PostgreSQL connection URL looks like:
 //

@@ -19,17 +19,15 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Package postgresql wraps the https://github.com/jackc/pgx PostgreSQL driver.
+// Package postgresql provides an adapter for PostgreSQL.
 // See https://github.com/upper/db/adapter/postgresql for documentation,
 // particularities and usage examples.
 package postgresql
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 
-	_ "github.com/jackc/pgx/v4/stdlib"
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqladapter"
 	"github.com/upper/db/v4/internal/sqladapter/exql"
@@ -41,10 +39,6 @@ type database struct {
 
 func (*database) Template() *exql.Template {
 	return template
-}
-
-func (*database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {
-	return sql.Open("pgx", dsn)
 }
 
 func (*database) Collections(sess sqladapter.Session) (collections []string, err error) {
