@@ -24,10 +24,14 @@ package postgresql
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import (
+	"bytes"
 	"database/sql/driver"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
+	"strconv"
 
 	"github.com/lib/pq"
 )
@@ -195,16 +199,68 @@ func (b *BoolArray) Scan(src interface{}) error {
 
 type Bytea []byte
 
-// Value satisfies the driver.Valuer interface.
-func (b Bytea) Value() (driver.Value, error) {
-	return pq.Array([]byte(b)).Value()
-}
-
 // Scan satisfies the sql.Scanner interface.
 func (b *Bytea) Scan(src interface{}) error {
-	s := pq.Array([]byte(*b))
-	if err := s.Scan(src); err != nil {
+	decoded, err := parseBytea(src.([]byte))
+	if err != nil {
 		return err
 	}
+	if len(decoded) < 1 {
+		*b = nil
+		return nil
+	}
+	(*b) = make(Bytea, len(decoded))
+	for i := range decoded {
+		(*b)[i] = decoded[i]
+	}
 	return nil
+}
+
+// Parse a bytea value received from the server.  Both "hex" and the legacy
+// "escape" format are supported.
+func parseBytea(s []byte) (result []byte, err error) {
+	if len(s) >= 2 && bytes.Equal(s[:2], []byte("\\x")) {
+		// bytea_output = hex
+		s = s[2:] // trim off leading "\\x"
+		result = make([]byte, hex.DecodedLen(len(s)))
+		_, err := hex.Decode(result, s)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// bytea_output = escape
+		for len(s) > 0 {
+			if s[0] == '\\' {
+				// escaped '\\'
+				if len(s) >= 2 && s[1] == '\\' {
+					result = append(result, '\\')
+					s = s[2:]
+					continue
+				}
+
+				// '\\' followed by an octal number
+				if len(s) < 4 {
+					return nil, fmt.Errorf("invalid bytea sequence %v", s)
+				}
+				r, err := strconv.ParseInt(string(s[1:4]), 8, 9)
+				if err != nil {
+					return nil, fmt.Errorf("could not parse bytea value: %s", err.Error())
+				}
+				result = append(result, byte(r))
+				s = s[4:]
+			} else {
+				// We hit an unescaped, raw byte.  Try to read in as many as
+				// possible in one go.
+				i := bytes.IndexByte(s, '\\')
+				if i == -1 {
+					result = append(result, s...)
+					break
+				}
+				result = append(result, s[:i]...)
+				s = s[i:]
+			}
+		}
+	}
+
+	return result, nil
 }

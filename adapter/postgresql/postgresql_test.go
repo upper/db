@@ -76,26 +76,26 @@ type uint8Compat uint8
 type uint8CompatArray []uint8Compat
 
 func (ua uint8CompatArray) Value() (driver.Value, error) {
-	v := make(Bytea, len(ua))
+	v := make([]byte, len(ua))
 	for i := range ua {
 		v[i] = byte(ua[i])
 	}
-	return v.Value()
+	return v, nil
 }
 
 func (ua *uint8CompatArray) Scan(src interface{}) error {
-	ba := Bytea{}
-	if err := ba.Scan(src); err != nil {
-		return err
-	}
-	dst := make([]uint8Compat, len(ba))
-	for i := range ba {
-		dst[i] = uint8Compat(ba[i])
-	}
-	if len(dst) < 1 {
+	decoded := Bytea{}
+	if err := decoded.Scan(src); err != nil {
 		return nil
 	}
-	*ua = dst
+	if len(decoded) < 1 {
+		*ua = nil
+		return nil
+	}
+	*ua = make([]uint8Compat, len(decoded))
+	for i := range decoded {
+		(*ua)[i] = uint8Compat(decoded[i])
+	}
 	return nil
 }
 
