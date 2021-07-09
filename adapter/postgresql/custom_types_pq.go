@@ -56,7 +56,7 @@ func (j *JSONB) UnmarshalJSON(b []byte) error {
 
 // Scan satisfies the sql.Scanner interface.
 func (j *JSONB) Scan(src interface{}) error {
-	if src == nil {
+	if j.v == nil {
 		return nil
 	}
 	if src == nil {
@@ -197,36 +197,14 @@ type Bytea []byte
 
 // Value satisfies the driver.Valuer interface.
 func (b Bytea) Value() (driver.Value, error) {
-	return pq.ByteaArray([][]byte{}).Value()
+	return pq.Array([]byte(b)).Value()
 }
 
 // Scan satisfies the sql.Scanner interface.
 func (b *Bytea) Scan(src interface{}) error {
-	s := pq.ByteaArray([][]byte{})
+	s := pq.Array([]byte(*b))
 	if err := s.Scan(src); err != nil {
 		return err
 	}
-	*b = Bytea(s[0])
-	return nil
-}
-
-// GenericArray represents a one-dimensional array of any type
-// (`[]interface{}`) that is compatible with PostgreSQL's array type.
-// GenericArray satisfies sqlbuilder.ScannerValuer and its elements may need to
-// satisfy sqlbuilder.ScannerValuer too.
-type GenericArray pq.GenericArray
-
-// Value satisfies the driver.Valuer interface.
-func (g GenericArray) Value() (driver.Value, error) {
-	return pq.GenericArray(g).Value()
-}
-
-// Scan satisfies the sql.Scanner interface.
-func (g *GenericArray) Scan(src interface{}) error {
-	s := pq.GenericArray(*g)
-	if err := s.Scan(src); err != nil {
-		return err
-	}
-	*g = GenericArray(s)
 	return nil
 }
