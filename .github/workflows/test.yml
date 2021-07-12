@@ -29,9 +29,5 @@ jobs:
           echo "DB_HOST=127.0.0.1" >> $GITHUB_ENV
           echo "UPPER_DB_LOG=ERROR" >> $GITHUB_ENV
 
-      - name: Get requisites
-        run: |
-          go get -v modernc.org/ql/ql
-
       - name: Execute main task
         run: make ${{ matrix.target }}

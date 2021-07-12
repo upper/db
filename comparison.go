@@ -68,8 +68,18 @@ func In(value ...interface{}) *Comparison {
 	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorIn, toInterfaceArray(value))}
 }
 
+// AnyOf is a comparison that means: is any of the values of the slice.
+func AnyOf(value interface{}) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorIn, toInterfaceArray(value))}
+}
+
 // NotIn is a comparison that means: is none of the values.
 func NotIn(value ...interface{}) *Comparison {
+	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorNotIn, toInterfaceArray(value))}
+}
+
+// NotAnyOf is a comparison that means: is none of the values of the slice.
+func NotAnyOf(value interface{}) *Comparison {
 	return &Comparison{adapter.NewComparisonOperator(adapter.ComparisonOperatorNotIn, toInterfaceArray(value))}
 }
 

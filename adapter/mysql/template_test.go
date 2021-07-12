@@ -161,6 +161,11 @@ func TestTemplateSelect(t *testing.T) {
 			"SELECT * FROM `artist` WHERE (`id` IN ($1, $2) AND `name` LIKE $3)",
 			b.SelectFrom("artist").Where(db.Cond{"name LIKE": "%foo", "id": db.In(1, 2)}).String(),
 		)
+
+		assert.Equal(
+			"SELECT * FROM `artist` WHERE (`id` IN ($1, $2) AND `name` LIKE $3)",
+			b.SelectFrom("artist").Where(db.Cond{"name LIKE": "%foo", "id": db.AnyOf([]int{1, 2})}).String(),
+		)
 	}
 }
 
