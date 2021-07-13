@@ -28,5 +28,5 @@ jobs:
           echo "DB_HOST=127.0.0.1" >> $GITHUB_ENV
           echo "UPPER_DB_LOG=ERROR" >> $GITHUB_ENV
 
-      - name: Execute target
-        run: make ${{ matrix.target }}
+      - name: Run target
+        run: make test
