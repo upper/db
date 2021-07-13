@@ -31,7 +31,7 @@ import (
 )
 
 type sessValueConverter interface {
-	ConvertValue(in interface{}) interface{}
+	ConvertValue(interface{}) interface{}
 }
 
 type valueConverter interface {
@@ -188,16 +188,19 @@ func fetchResult(iter *iterator, itemT reflect.Type, columns []string) (reflect.
 				wrapper := w.ConvertValue(f.Addr().Interface())
 				z := reflect.ValueOf(wrapper)
 				values[i] = z.Interface()
+				continue
 			} else {
 				values[i] = f.Addr().Interface()
 			}
 
 			if unmarshaler, ok := values[i].(db.Unmarshaler); ok {
 				values[i] = scanner{unmarshaler}
+				continue
 			}
 
 			if converter, ok := iter.sess.(sessValueConverter); ok {
 				values[i] = converter.ConvertValue(values[i])
+				continue
 			}
 		}
 

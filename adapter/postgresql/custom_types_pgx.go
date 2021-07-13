@@ -1,7 +1,5 @@
 // +build !pq
 
-package postgresql
-
 // Copyright (c) 2012-present The upper.io/db authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
@@ -22,6 +20,8 @@ package postgresql
 // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+package postgresql
 
 import (
 	"database/sql/driver"

@@ -27,6 +27,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -94,6 +95,8 @@ type ConnectionURL struct {
 	Socket   string
 	Database string
 	Options  map[string]string
+
+	timezone *time.Location
 }
 
 var escaper = strings.NewReplacer(` `, `\ `, `'`, `\'`, `\`, `\\`)
@@ -102,7 +105,7 @@ var escaper = strings.NewReplacer(` `, `\ `, `'`, `\'`, `\`, `\\`)
 // A typical PostgreSQL connection URL looks like:
 //
 //   postgres://bob:secret@1.2.3.4:5432/mydb?sslmode=verify-full
-func ParseURL(s string) (u ConnectionURL, err error) {
+func ParseURL(s string) (u *ConnectionURL, err error) {
 	o := make(values)
 
 	if strings.HasPrefix(s, "postgres://") || strings.HasPrefix(s, "postgresql://") {
@@ -115,6 +118,7 @@ func ParseURL(s string) (u ConnectionURL, err error) {
 	if err := parseOpts(s, o); err != nil {
 		return u, err
 	}
+	u = &ConnectionURL{}
 
 	u.User = o.Get("user")
 	u.Password = o.Get("password")
@@ -143,6 +147,10 @@ func ParseURL(s string) (u ConnectionURL, err error) {
 		default:
 			u.Options[k] = o[k]
 		}
+	}
+
+	if timezone, ok := u.Options["timezone"]; ok {
+		u.timezone, _ = time.LoadLocation(timezone)
 	}
 
 	return u, err

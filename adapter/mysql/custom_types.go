@@ -76,8 +76,6 @@ func (j *JSON) Scan(src interface{}) error {
 
 // Value satisfies the driver.Valuer interface.
 func (j JSON) Value() (driver.Value, error) {
-	// See https://github.com/lib/pq/issues/528#issuecomment-257197239 on why are
-	// we returning string instead of []byte.
 	if j.V == nil {
 		return nil, nil
 	}

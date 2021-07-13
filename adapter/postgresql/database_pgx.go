@@ -24,11 +24,22 @@ package postgresql
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import (
+	"context"
 	"database/sql"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/upper/db/v4/internal/sqladapter"
+	"time"
 )
 
 func (*database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {
+	connURL, err := ParseURL(dsn)
+	if err != nil {
+		return nil, err
+	}
+	if tz := connURL.Options["timezone"]; tz != "" {
+		loc, _ := time.LoadLocation(tz)
+		ctx := context.WithValue(sess.Context(), "timezone", loc)
+		sess.SetContext(ctx)
+	}
 	return sql.Open("pgx", dsn)
 }

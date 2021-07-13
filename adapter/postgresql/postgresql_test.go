@@ -938,8 +938,8 @@ func (s *AdapterTests) Test_Issue602_IncorrectBinaryFormat() {
 		User:     settings.User,
 		Password: settings.Password,
 		Host:     settings.Host,
-		Options:  map[string]string{
-			//"timezone":          testsuite.TimeZone,
+		Options: map[string]string{
+			"timezone": testsuite.TimeZone,
 			//"binary_parameters": "yes",
 		},
 	}
@@ -1105,8 +1105,8 @@ func (s *AdapterTests) Test_Issue391_BinaryMode() {
 		User:     settings.User,
 		Password: settings.Password,
 		Host:     settings.Host,
-		Options:  map[string]string{
-			//"timezone":          testsuite.TimeZone,
+		Options: map[string]string{
+			"timezone": testsuite.TimeZone,
 			//"binary_parameters": "yes",
 		},
 	}

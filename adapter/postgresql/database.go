@@ -87,6 +87,7 @@ func (*database) ConvertValue(in interface{}) interface{} {
 		return (*BoolArray)(&v)
 	case map[string]interface{}:
 		return (*JSONBMap)(&v)
+
 	}
 	return in
 }

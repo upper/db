@@ -53,6 +53,11 @@ type sessValueConverter interface {
 	ConvertValue(in interface{}) interface{}
 }
 
+// sessValueConverterContext converts values before being passed to the underlying driver.
+type sessValueConverterContext interface {
+	ConvertValueContext(ctx context.Context, in interface{}) interface{}
+}
+
 // valueConverter converts values before being passed to the underlying driver.
 type valueConverter interface {
 	ConvertValue(in interface{}) interface {
@@ -699,6 +704,10 @@ func (sess *session) ConvertValue(value interface{}) interface{} {
 		if converter, ok := dv.Interface().(valueConverter); ok {
 			return converter.ConvertValue(dv.Interface())
 		}
+	}
+
+	if converter, ok := sess.adapter.(sessValueConverterContext); ok {
+		return converter.ConvertValueContext(sess.Context(), value)
 	}
 
 	if converter, ok := sess.adapter.(sessValueConverter); ok {

@@ -22,8 +22,10 @@
 package postgresql
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
+	"time"
 
 	"github.com/upper/db/v4/internal/sqlbuilder"
 )
@@ -80,6 +82,56 @@ func (*JSONBConverter) ConvertValue(in interface{}) interface {
 	driver.Valuer
 } {
 	return &JSONB{in}
+}
+
+type timeWrapper struct {
+	v   **time.Time
+	loc *time.Location
+}
+
+func (t timeWrapper) Value() (driver.Value, error) {
+	if *t.v != nil {
+		return **t.v, nil
+	}
+	return nil, nil
+}
+
+func (t *timeWrapper) Scan(src interface{}) error {
+	if src == nil {
+		nilTime := (*time.Time)(nil)
+		if t.v == nil {
+			t.v = &nilTime
+		} else {
+			*(t.v) = nilTime
+		}
+		return nil
+	}
+	tz := src.(time.Time)
+	if t.loc != nil && (tz.Location() == time.Local) {
+		tz = tz.In(t.loc)
+	}
+	if tz.Location().String() == "" {
+		tz = tz.In(time.UTC)
+	}
+	if *(t.v) == nil {
+		*(t.v) = &tz
+	} else {
+		**t.v = tz
+	}
+	return nil
+}
+
+func (d *database) ConvertValueContext(ctx context.Context, in interface{}) interface{} {
+	tz, _ := ctx.Value("timezone").(*time.Location)
+
+	switch v := in.(type) {
+	case *time.Time:
+		return &timeWrapper{&v, tz}
+	case **time.Time:
+		return &timeWrapper{v, tz}
+	}
+
+	return d.ConvertValue(in)
 }
 
 // Type checks.

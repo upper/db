@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"time"
 
 	"github.com/lib/pq"
 )
@@ -215,6 +216,8 @@ func (b *Bytea) Scan(src interface{}) error {
 	}
 	return nil
 }
+
+type Time time.Time
 
 // Parse a bytea value received from the server.  Both "hex" and the legacy
 // "escape" format are supported.

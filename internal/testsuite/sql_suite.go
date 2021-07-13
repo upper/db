@@ -678,8 +678,6 @@ func (s *SQLTestSuite) TestInlineStructs() {
 	switch s.Adapter() {
 	case "mysql": // MySQL uses a global time zone
 		testTimeZone = defaultTimeLocation
-	case "cockroachdb":
-		testTimeZone = time.FixedZone("", 0)
 	}
 
 	createdAt := time.Date(2016, time.January, 1, 2, 3, 4, 0, testTimeZone)
@@ -1177,7 +1175,7 @@ func (s *SQLTestSuite) TestDataTypes() {
 
 	testTimeZone := time.Local
 	switch s.Adapter() {
-	case "mysql": // MySQL uses a global time zone
+	case "mysql", "postgresql": // MySQL uses a global time zone
 		testTimeZone = defaultTimeLocation
 	}
 
@@ -1188,8 +1186,6 @@ func (s *SQLTestSuite) TestDataTypes() {
 	case "mysql":
 		// MySQL uses a global timezone
 		tnz = ts.In(defaultTimeLocation)
-	case "cockroachdb":
-		tnz = ts.In(time.FixedZone("", 0))
 	}
 
 	testValues := testValuesStruct{
@@ -1202,10 +1198,10 @@ func (s *SQLTestSuite) TestDataTypes() {
 		"Hello world!",
 		[]byte("Hello world!"),
 
-		ts,
-		nil,
-		&tnz,
-		nil,
+		ts,   // Date
+		nil,  // DateN
+		&tnz, // DateP
+		nil,  // DateD
 		int64(time.Second * time.Duration(7331)),
 	}
 	id, err := dataTypes.Insert(testValues)
@@ -1228,7 +1224,9 @@ func (s *SQLTestSuite) TestDataTypes() {
 
 	err = res.One(&item)
 	s.NoError(err)
+
 	s.NotNil(item.DateD)
+	s.NotNil(item.Date)
 
 	// Copy the default date (this value is set by the database)
 	testValues.DateD = item.DateD
