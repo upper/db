@@ -22,178 +22,13 @@
 package cockroachdb
 
 import (
+	"context"
+	"database/sql"
 	"database/sql/driver"
-	"encoding/json"
-	"errors"
-	"reflect"
+	"time"
 
-	"github.com/lib/pq"
 	"github.com/upper/db/v4/internal/sqlbuilder"
 )
-
-// Array returns a sqlbuilder.ScannerValuer for any given slice. Slice elements
-// may require their own sqlbuilder.ScannerValuer.
-func Array(in interface{}) sqlbuilder.ScannerValuer {
-	return pq.Array(in)
-}
-
-// JSONB represents a PostgreSQL's JSONB value:
-// https://www.cockroachdb.org/docs/9.6/static/datatype-json.html. JSONB
-// satisfies sqlbuilder.ScannerValuer.
-type JSONB struct {
-	V interface{}
-}
-
-// MarshalJSON encodes the wrapper value as JSON.
-func (j JSONB) MarshalJSON() ([]byte, error) {
-	return json.Marshal(j.V)
-}
-
-// UnmarshalJSON decodes the given JSON into the wrapped value.
-func (j *JSONB) UnmarshalJSON(b []byte) error {
-	var v interface{}
-	if err := json.Unmarshal(b, &v); err != nil {
-		return err
-	}
-	j.V = v
-	return nil
-}
-
-// Scan satisfies the sql.Scanner interface.
-func (j *JSONB) Scan(src interface{}) error {
-	if src == nil {
-		j.V = nil
-		return nil
-	}
-
-	b, ok := src.([]byte)
-	if !ok {
-		return errors.New("Scan source was not []bytes")
-	}
-
-	if err := json.Unmarshal(b, &j.V); err != nil {
-		return err
-	}
-	return nil
-}
-
-// Value satisfies the driver.Valuer interface.
-func (j JSONB) Value() (driver.Value, error) {
-	// See https://github.com/lib/pq/issues/528#issuecomment-257197239 on why are
-	// we returning string instead of []byte.
-	if j.V == nil {
-		return nil, nil
-	}
-	if v, ok := j.V.(json.RawMessage); ok {
-		return string(v), nil
-	}
-	b, err := json.Marshal(j.V)
-	if err != nil {
-		return nil, err
-	}
-	return string(b), nil
-}
-
-// StringArray represents a one-dimensional array of strings (`[]string{}`)
-// that is compatible with PostgreSQL's text array (`text[]`). StringArray
-// satisfies sqlbuilder.ScannerValuer.
-type StringArray pq.StringArray
-
-// Value satisfies the driver.Valuer interface.
-func (a StringArray) Value() (driver.Value, error) {
-	return pq.StringArray(a).Value()
-}
-
-// Scan satisfies the sql.Scanner interface.
-func (a *StringArray) Scan(src interface{}) error {
-	s := pq.StringArray(*a)
-	if err := s.Scan(src); err != nil {
-		return err
-	}
-	*a = StringArray(s)
-	return nil
-}
-
-// Int64Array represents a one-dimensional array of int64s (`[]int64{}`) that
-// is compatible with PostgreSQL's integer array (`integer[]`). Int64Array
-// satisfies sqlbuilder.ScannerValuer.
-type Int64Array pq.Int64Array
-
-// Value satisfies the driver.Valuer interface.
-func (i Int64Array) Value() (driver.Value, error) {
-	return pq.Int64Array(i).Value()
-}
-
-// Scan satisfies the sql.Scanner interface.
-func (i *Int64Array) Scan(src interface{}) error {
-	s := pq.Int64Array(*i)
-	if err := s.Scan(src); err != nil {
-		return err
-	}
-	*i = Int64Array(s)
-	return nil
-}
-
-// Float64Array represents a one-dimensional array of float64s (`[]float64{}`)
-// that is compatible with PostgreSQL's double precision array (`double
-// precision[]`). Float64Array satisfies sqlbuilder.ScannerValuer.
-type Float64Array pq.Float64Array
-
-// Value satisfies the driver.Valuer interface.
-func (f Float64Array) Value() (driver.Value, error) {
-	return pq.Float64Array(f).Value()
-}
-
-// Scan satisfies the sql.Scanner interface.
-func (f *Float64Array) Scan(src interface{}) error {
-	s := pq.Float64Array(*f)
-	if err := s.Scan(src); err != nil {
-		return err
-	}
-	*f = Float64Array(s)
-	return nil
-}
-
-// BoolArray represents a one-dimensional array of int64s (`[]bool{}`) that
-// is compatible with PostgreSQL's boolean type (`boolean[]`). BoolArray
-// satisfies sqlbuilder.ScannerValuer.
-type BoolArray pq.BoolArray
-
-// Value satisfies the driver.Valuer interface.
-func (b BoolArray) Value() (driver.Value, error) {
-	return pq.BoolArray(b).Value()
-}
-
-// Scan satisfies the sql.Scanner interface.
-func (b *BoolArray) Scan(src interface{}) error {
-	s := pq.BoolArray(*b)
-	if err := s.Scan(src); err != nil {
-		return err
-	}
-	*b = BoolArray(s)
-	return nil
-}
-
-// GenericArray represents a one-dimensional array of any type
-// (`[]interface{}`) that is compatible with PostgreSQL's array type.
-// GenericArray satisfies sqlbuilder.ScannerValuer and its elements may need to
-// satisfy sqlbuilder.ScannerValuer too.
-type GenericArray pq.GenericArray
-
-// Value satisfies the driver.Valuer interface.
-func (g GenericArray) Value() (driver.Value, error) {
-	return pq.GenericArray(g).Value()
-}
-
-// Scan satisfies the sql.Scanner interface.
-func (g *GenericArray) Scan(src interface{}) error {
-	s := pq.GenericArray(*g)
-	if err := s.Scan(src); err != nil {
-		return err
-	}
-	*g = GenericArray(s)
-	return nil
-}
 
 // JSONBMap represents a map of interfaces with string keys
 // (`map[string]interface{}`) that is compatible with PostgreSQL's JSONB type.
@@ -264,65 +99,69 @@ func DecodeJSONB(dst interface{}, src interface{}) error {
 type JSONBConverter struct {
 }
 
-// WrapValue satisfies sqlbuilder.ValueWrapper
-func (obj *JSONBConverter) WrapValue(src interface{}) interface{} {
+func (*JSONBConverter) ConvertValue(src interface{}) interface {
+	sql.Scanner
+	driver.Valuer
+} {
 	return &JSONB{src}
 }
 
-func autoWrap(elem reflect.Value, v interface{}) interface{} {
-	kind := elem.Kind()
+type timeWrapper struct {
+	v   **time.Time
+	loc *time.Location
+}
 
-	if kind == reflect.Invalid {
-		return v
+func (t timeWrapper) Value() (driver.Value, error) {
+	if *t.v != nil {
+		return **t.v, nil
 	}
+	return nil, nil
+}
 
-	if elem.Type().Implements(sqlbuilder.ScannerType) {
-		return v
-	}
-
-	if elem.Type().Implements(sqlbuilder.ValuerType) {
-		return v
-	}
-
-	if elem.Type().Implements(sqlbuilder.ValueWrapperType) {
-		if elem.Type().Kind() == reflect.Ptr {
-			w := reflect.ValueOf(v)
-			if w.Kind() == reflect.Ptr {
-				z := reflect.Zero(w.Elem().Type())
-				w.Elem().Set(z)
-				return &JSONB{v}
-			}
+func (t *timeWrapper) Scan(src interface{}) error {
+	if src == nil {
+		nilTime := (*time.Time)(nil)
+		if t.v == nil {
+			t.v = &nilTime
+		} else {
+			*(t.v) = nilTime
 		}
-		vw := elem.Interface().(sqlbuilder.ValueWrapper)
-		return vw.WrapValue(elem.Interface())
+		return nil
+	}
+	tz := src.(time.Time)
+	if t.loc != nil && (tz.Location() == time.Local) {
+		tz = tz.In(t.loc)
+	}
+	if tz.Location().String() == "" {
+		tz = tz.In(time.UTC)
+	}
+	if *(t.v) == nil {
+		*(t.v) = &tz
+	} else {
+		**t.v = tz
+	}
+	return nil
+}
+
+func (d *database) ConvertValueContext(ctx context.Context, in interface{}) interface{} {
+	tz, _ := ctx.Value("timezone").(*time.Location)
+
+	switch v := in.(type) {
+	case *time.Time:
+		return &timeWrapper{&v, tz}
+	case **time.Time:
+		return &timeWrapper{v, tz}
 	}
 
-	switch kind {
-	case reflect.Ptr:
-		return autoWrap(elem.Elem(), v)
-	case reflect.Slice:
-		return &JSONB{v}
-	case reflect.Map:
-		if reflect.TypeOf(v).Kind() == reflect.Ptr {
-			w := reflect.ValueOf(v)
-			z := reflect.New(w.Elem().Type())
-			w.Elem().Set(z.Elem())
-		}
-		return &JSONB{v}
-	}
-
-	return v
+	return d.ConvertValue(in)
 }
 
 // Type checks.
 var (
-	_ sqlbuilder.ValueWrapper = &JSONBConverter{}
-
 	_ sqlbuilder.ScannerValuer = &StringArray{}
 	_ sqlbuilder.ScannerValuer = &Int64Array{}
 	_ sqlbuilder.ScannerValuer = &Float64Array{}
 	_ sqlbuilder.ScannerValuer = &BoolArray{}
-	_ sqlbuilder.ScannerValuer = &GenericArray{}
 	_ sqlbuilder.ScannerValuer = &JSONBMap{}
 	_ sqlbuilder.ScannerValuer = &JSONBArray{}
 )

@@ -7,6 +7,8 @@ require (
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/google/uuid v1.1.1
 	github.com/ipfs/go-detect-race v0.0.1
+	github.com/jackc/pgtype v1.7.0
+	github.com/jackc/pgx/v4 v4.11.0
 	github.com/lib/pq v1.10.2
 	github.com/mattn/go-sqlite3 v1.14.7
 	github.com/sirupsen/logrus v1.7.0

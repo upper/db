@@ -24,10 +24,11 @@ package postgresql
 import (
 	"fmt"
 	"net"
+	"net/url"
+	"sort"
 	"strings"
+	"time"
 	"unicode"
-
-	"github.com/lib/pq"
 )
 
 // scanner implements a tokenizer for libpq-style option strings.
@@ -94,78 +95,21 @@ type ConnectionURL struct {
 	Socket   string
 	Database string
 	Options  map[string]string
+
+	timezone *time.Location
 }
 
 var escaper = strings.NewReplacer(` `, `\ `, `'`, `\'`, `\`, `\\`)
-
-// String reassembles the parsed PostgreSQL connection URL into a valid DSN.
-func (c ConnectionURL) String() (s string) {
-	u := make([]string, 0, 6)
-
-	// TODO: This surely needs some sort of escaping.
-
-	if c.User != "" {
-		u = append(u, "user="+escaper.Replace(c.User))
-	}
-
-	if c.Password != "" {
-		u = append(u, "password="+escaper.Replace(c.Password))
-	}
-
-	if c.Host != "" {
-		host, port, err := net.SplitHostPort(c.Host)
-		if err == nil {
-			if host == "" {
-				host = "127.0.0.1"
-			}
-			if port == "" {
-				port = "5432"
-			}
-			u = append(u, "host="+escaper.Replace(host))
-			u = append(u, "port="+escaper.Replace(port))
-		} else {
-			u = append(u, "host="+escaper.Replace(c.Host))
-		}
-	}
-
-	if c.Socket != "" {
-		u = append(u, "host="+escaper.Replace(c.Socket))
-	}
-
-	if c.Database != "" {
-		u = append(u, "dbname="+escaper.Replace(c.Database))
-	}
-
-	// Is there actually any connection data?
-	if len(u) == 0 {
-		return ""
-	}
-
-	if c.Options == nil {
-		c.Options = map[string]string{}
-	}
-
-	// If not present, SSL mode is assumed disabled.
-	if sslMode, ok := c.Options["sslmode"]; !ok || sslMode == "" {
-		c.Options["sslmode"] = "disable"
-	}
-
-	for k, v := range c.Options {
-		u = append(u, escaper.Replace(k)+"="+escaper.Replace(v))
-	}
-
-	return strings.Join(u, " ")
-}
 
 // ParseURL parses the given DSN into a ConnectionURL struct.
 // A typical PostgreSQL connection URL looks like:
 //
 //   postgres://bob:secret@1.2.3.4:5432/mydb?sslmode=verify-full
-func ParseURL(s string) (u ConnectionURL, err error) {
+func ParseURL(s string) (u *ConnectionURL, err error) {
 	o := make(values)
 
 	if strings.HasPrefix(s, "postgres://") || strings.HasPrefix(s, "postgresql://") {
-		s, err = pq.ParseURL(s)
+		s, err = parseURL(s)
 		if err != nil {
 			return u, err
 		}
@@ -174,6 +118,7 @@ func ParseURL(s string) (u ConnectionURL, err error) {
 	if err := parseOpts(s, o); err != nil {
 		return u, err
 	}
+	u = &ConnectionURL{}
 
 	u.User = o.Get("user")
 	u.Password = o.Get("password")
@@ -202,6 +147,10 @@ func ParseURL(s string) (u ConnectionURL, err error) {
 		default:
 			u.Options[k] = o[k]
 		}
+	}
+
+	if timezone, ok := u.Options["timezone"]; ok {
+		u.timezone, _ = time.LoadLocation(timezone)
 	}
 
 	return u, err
@@ -289,4 +238,73 @@ func parseOpts(name string, o values) error {
 // newScanner returns a new scanner initialized with the option string s.
 func newScanner(s string) *scanner {
 	return &scanner{[]rune(s), 0}
+}
+
+// ParseURL no longer needs to be used by clients of this library since supplying a URL as a
+// connection string to sql.Open() is now supported:
+//
+//	sql.Open("postgres", "postgres://bob:secret@1.2.3.4:5432/mydb?sslmode=verify-full")
+//
+// It remains exported here for backwards-compatibility.
+//
+// ParseURL converts a url to a connection string for driver.Open.
+// Example:
+//
+//	"postgres://bob:secret@1.2.3.4:5432/mydb?sslmode=verify-full"
+//
+// converts to:
+//
+//	"user=bob password=secret host=1.2.3.4 port=5432 dbname=mydb sslmode=verify-full"
+//
+// A minimal example:
+//
+//	"postgres://"
+//
+// This will be blank, causing driver.Open to use all of the defaults
+//
+// NOTE: vendored/copied from github.com/lib/pq
+func parseURL(uri string) (string, error) {
+	u, err := url.Parse(uri)
+	if err != nil {
+		return "", err
+	}
+
+	if u.Scheme != "postgres" && u.Scheme != "postgresql" {
+		return "", fmt.Errorf("invalid connection protocol: %s", u.Scheme)
+	}
+
+	var kvs []string
+	escaper := strings.NewReplacer(` `, `\ `, `'`, `\'`, `\`, `\\`)
+	accrue := func(k, v string) {
+		if v != "" {
+			kvs = append(kvs, k+"="+escaper.Replace(v))
+		}
+	}
+
+	if u.User != nil {
+		v := u.User.Username()
+		accrue("user", v)
+
+		v, _ = u.User.Password()
+		accrue("password", v)
+	}
+
+	if host, port, err := net.SplitHostPort(u.Host); err != nil {
+		accrue("host", u.Host)
+	} else {
+		accrue("host", host)
+		accrue("port", port)
+	}
+
+	if u.Path != "" {
+		accrue("dbname", u.Path[1:])
+	}
+
+	q := u.Query()
+	for k := range q {
+		accrue(k, q.Get(k))
+	}
+
+	sort.Strings(kvs) // Makes testing easier (not a performance concern)
+	return strings.Join(kvs, " "), nil
 }

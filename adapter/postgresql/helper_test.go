@@ -186,7 +186,7 @@ func (h *Helper) TearUp() error {
 		`DROP TABLE IF EXISTS pg_types`,
 		`CREATE TABLE pg_types (id serial primary key
 			, uint8_value smallint
-			, uint8_value_array smallint[]
+			, uint8_value_array bytea
 
 			, int64_value smallint
 			, int64_value_array smallint[]

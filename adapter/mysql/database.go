@@ -25,10 +25,8 @@
 package mysql
 
 import (
-	"database/sql/driver"
 	"reflect"
 	"strings"
-	"time"
 
 	"database/sql"
 
@@ -36,7 +34,6 @@ import (
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqladapter"
 	"github.com/upper/db/v4/internal/sqladapter/exql"
-	"github.com/upper/db/v4/internal/sqlbuilder"
 )
 
 // database is the actual implementation of Database
@@ -74,25 +71,35 @@ func (*database) Collections(sess sqladapter.Session) (collections []string, err
 	return collections, nil
 }
 
-func (*database) ConvertValues(values []interface{}) []interface{} {
-	for i := range values {
-		switch v := values[i].(type) {
-		case *string, *bool, *int, *uint, *int64, *uint64, *int32, *uint32, *int16, *uint16, *int8, *uint8, *float32, *float64, *[]uint8, sql.Scanner, *sql.Scanner, *time.Time:
-		case string, bool, int, uint, int64, uint64, int32, uint32, int16, uint16, int8, uint8, float32, float64, []uint8, driver.Valuer, *driver.Valuer, time.Time:
-		case *map[string]interface{}:
-			values[i] = (*JSONMap)(v)
+func (d *database) ConvertValue(in interface{}) interface{} {
+	switch v := in.(type) {
+	case *map[string]interface{}:
+		return (*JSONMap)(v)
 
-		case map[string]interface{}:
-			values[i] = (*JSONMap)(&v)
+	case map[string]interface{}:
+		return (*JSONMap)(&v)
+	}
 
-		case sqlbuilder.ValueWrapper:
-			values[i] = v.WrapValue(v)
+	dv := reflect.ValueOf(in)
+	if dv.IsValid() {
+		if dv.Type().Kind() == reflect.Ptr {
+			dv = dv.Elem()
+		}
 
-		default:
-			values[i] = autoWrap(reflect.ValueOf(values[i]), values[i])
+		switch dv.Kind() {
+		case reflect.Map:
+			if reflect.TypeOf(in).Kind() == reflect.Ptr {
+				w := reflect.ValueOf(in)
+				z := reflect.New(w.Elem().Type())
+				w.Elem().Set(z.Elem())
+			}
+			return &JSON{in}
+		case reflect.Slice:
+			return &JSON{in}
 		}
 	}
-	return values
+
+	return in
 }
 
 func (*database) Err(err error) error {

@@ -24,7 +24,7 @@ export DB_USERNAME
 export TEST_FLAGS
 
 test:
-	go test -v -race -timeout 20m $(TEST_FLAGS)
+	go test -v -failfast -race -timeout 20m $(TEST_FLAGS)
 
 test-no-race:
 	go test -v $(TEST_FLAGS)

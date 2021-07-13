@@ -191,7 +191,7 @@ func (h *Helper) TearUp() error {
 			//`CREATE TABLE IF NOT EXISTS test_schema.test (id integer)`,
 			`CREATE TABLE IF NOT EXISTS pg_types (id serial primary key
 			, uint8_value smallint
-			, uint8_value_array smallint[]
+			, uint8_value_array bytea
 
 			, int64_value smallint
 			, int64_value_array smallint[]
@@ -240,6 +240,8 @@ func (h *Helper) TearUp() error {
 			, integer_value_ptr int
 			, varchar_value_ptr varchar(64)
 			, decimal_value_ptr decimal
+
+			, uuid_value_string UUID
 
 		)`,
 			`CREATE TABLE IF NOT EXISTS issue_370 (
