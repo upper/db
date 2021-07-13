@@ -41,12 +41,12 @@ import (
 // https://www.postgresql.org/docs/9.6/static/datatype-json.html. JSONB
 // satisfies sqlbuilder.ScannerValuer.
 type JSONB struct {
-	v interface{}
+	Data interface{}
 }
 
 // MarshalJSON encodes the wrapper value as JSON.
 func (j JSONB) MarshalJSON() ([]byte, error) {
-	return json.Marshal(j.v)
+	return json.Marshal(j.Data)
 }
 
 // UnmarshalJSON decodes the given JSON into the wrapped value.
@@ -55,17 +55,17 @@ func (j *JSONB) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &v); err != nil {
 		return err
 	}
-	j.v = v
+	j.Data = v
 	return nil
 }
 
 // Scan satisfies the sql.Scanner interface.
 func (j *JSONB) Scan(src interface{}) error {
-	if j.v == nil {
+	if j.Data == nil {
 		return nil
 	}
 	if src == nil {
-		dv := reflect.Indirect(reflect.ValueOf(j.v))
+		dv := reflect.Indirect(reflect.ValueOf(j.Data))
 		dv.Set(reflect.Zero(dv.Type()))
 		return nil
 	}
@@ -75,7 +75,7 @@ func (j *JSONB) Scan(src interface{}) error {
 		return errors.New("Scan source was not []bytes")
 	}
 
-	if err := json.Unmarshal(b, j.v); err != nil {
+	if err := json.Unmarshal(b, j.Data); err != nil {
 		return err
 	}
 	return nil
@@ -85,13 +85,13 @@ func (j *JSONB) Scan(src interface{}) error {
 func (j JSONB) Value() (driver.Value, error) {
 	// See https://github.com/lib/pq/issues/528#issuecomment-257197239 on why are
 	// we returning string instead of []byte.
-	if j.v == nil {
+	if j.Data == nil {
 		return nil, nil
 	}
-	if v, ok := j.v.(json.RawMessage); ok {
+	if v, ok := j.Data.(json.RawMessage); ok {
 		return string(v), nil
 	}
-	b, err := json.Marshal(j.v)
+	b, err := json.Marshal(j.Data)
 	if err != nil {
 		return nil, err
 	}

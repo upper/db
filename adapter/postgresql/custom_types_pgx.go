@@ -33,13 +33,13 @@ import (
 // https://www.postgresql.org/docs/9.6/static/datatype-json.html. JSONB
 // satisfies sqlbuilder.ScannerValuer.
 type JSONB struct {
-	v interface{}
+	Data interface{}
 }
 
 // MarshalJSON encodes the wrapper value as JSON.
 func (j JSONB) MarshalJSON() ([]byte, error) {
 	t := &pgtype.JSONB{}
-	if err := t.Set(j.v); err != nil {
+	if err := t.Set(j.Data); err != nil {
 		return nil, err
 	}
 	return t.MarshalJSON()
@@ -51,11 +51,11 @@ func (j *JSONB) UnmarshalJSON(b []byte) error {
 	if err := t.UnmarshalJSON(b); err != nil {
 		return err
 	}
-	if j.v == nil {
-		j.v = t.Get()
+	if j.Data == nil {
+		j.Data = t.Get()
 		return nil
 	}
-	if err := t.AssignTo(&j.v); err != nil {
+	if err := t.AssignTo(&j.Data); err != nil {
 		return err
 	}
 	return nil
@@ -67,11 +67,11 @@ func (j *JSONB) Scan(src interface{}) error {
 	if err := t.Scan(src); err != nil {
 		return err
 	}
-	if j.v == nil {
-		j.v = t.Get()
+	if j.Data == nil {
+		j.Data = t.Get()
 		return nil
 	}
-	if err := t.AssignTo(j.v); err != nil {
+	if err := t.AssignTo(j.Data); err != nil {
 		return err
 	}
 	return nil
@@ -80,7 +80,7 @@ func (j *JSONB) Scan(src interface{}) error {
 // Value satisfies the driver.Valuer interface.
 func (j JSONB) Value() (driver.Value, error) {
 	t := &pgtype.JSONB{}
-	if err := t.Set(j.v); err != nil {
+	if err := t.Set(j.Data); err != nil {
 		return nil, err
 	}
 	return t.Value()
