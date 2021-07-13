@@ -46,11 +46,6 @@ func (*database) Template() *exql.Template {
 	return template
 }
 
-func (*database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {
-	sess.SetMaxTransactionRetries(15)
-	return sql.Open("postgres", dsn)
-}
-
 func (*database) Collections(sess sqladapter.Session) (collections []string, err error) {
 	q := sess.SQL().
 		Select("table_name").
