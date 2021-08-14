@@ -674,17 +674,13 @@ func (s *SQLTestSuite) TestInlineStructs() {
 		},
 	}
 
-	var createdAt time.Time
-
+	testTimeZone := time.UTC
 	switch s.Adapter() {
-	case "postgresql", "cockroachdb":
-		createdAt = time.Date(2016, time.January, 1, 2, 3, 4, 0, time.FixedZone("", 0))
-	case "mysql":
-		// MySQL uses a global time zone
-		createdAt = time.Date(2016, time.January, 1, 2, 3, 4, 0, TimeLocation)
-	default:
-		createdAt = time.Date(2016, time.January, 1, 2, 3, 4, 0, time.UTC)
+	case "mysql": // MySQL uses a global time zone
+		testTimeZone = defaultTimeLocation
 	}
+
+	createdAt := time.Date(2016, time.January, 1, 2, 3, 4, 0, testTimeZone)
 	rec.Details.Created = createdAt
 
 	record, err := review.Insert(rec)
@@ -1177,21 +1173,19 @@ func (s *SQLTestSuite) TestDataTypes() {
 	err := dataTypes.Truncate()
 	s.NoError(err)
 
-	// Inserting our test subject.
-	loc, err := time.LoadLocation(TimeZone)
-	s.NoError(err)
-
-	ts := time.Date(2011, 7, 28, 1, 2, 3, 0, loc) // timestamp with time zone
-
-	var tnz time.Time
+	testTimeZone := time.Local
 	switch s.Adapter() {
-	case "postgresql", "cockroachdb":
-		tnz = time.Date(2012, 7, 28, 1, 2, 3, 0, time.FixedZone("", 0)) // timestamp without time zone
+	case "mysql", "postgresql": // MySQL uses a global time zone
+		testTimeZone = defaultTimeLocation
+	}
+
+	ts := time.Date(2011, 7, 28, 1, 2, 3, 0, testTimeZone)
+	tnz := ts.In(time.UTC)
+
+	switch s.Adapter() {
 	case "mysql":
 		// MySQL uses a global timezone
-		tnz = time.Date(2012, 7, 28, 1, 2, 3, 0, TimeLocation)
-	default:
-		tnz = time.Date(2012, 7, 28, 1, 2, 3, 0, time.UTC) // timestamp without time zone
+		tnz = ts.In(defaultTimeLocation)
 	}
 
 	testValues := testValuesStruct{
@@ -1204,10 +1198,10 @@ func (s *SQLTestSuite) TestDataTypes() {
 		"Hello world!",
 		[]byte("Hello world!"),
 
-		ts,
-		nil,
-		&tnz,
-		nil,
+		ts,   // Date
+		nil,  // DateN
+		&tnz, // DateP
+		nil,  // DateD
 		int64(time.Second * time.Duration(7331)),
 	}
 	id, err := dataTypes.Insert(testValues)
@@ -1230,11 +1224,18 @@ func (s *SQLTestSuite) TestDataTypes() {
 
 	err = res.One(&item)
 	s.NoError(err)
+
 	s.NotNil(item.DateD)
+	s.NotNil(item.Date)
 
 	// Copy the default date (this value is set by the database)
 	testValues.DateD = item.DateD
-	item.Date = item.Date.In(loc)
+	item.Date = item.Date.In(testTimeZone)
+
+	s.Equal(testValues.Date, item.Date)
+	s.Equal(testValues.DateN, item.DateN)
+	s.Equal(testValues.DateP, item.DateP)
+	s.Equal(testValues.DateD, item.DateD)
 
 	// The original value and the test subject must match.
 	s.Equal(testValues, item)

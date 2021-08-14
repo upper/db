@@ -19,9 +19,9 @@ reset-db: require-client
 	rm -f $(DB_NAME)
 
 test: reset-db
-	go test -v -race -timeout 20m $(TEST_FLAGS)
+	go test -v -failfast -race -timeout 20m $(TEST_FLAGS)
 
 test-no-race:
-	go test -v $(TEST_FLAGS)
+	go test -v -failfast $(TEST_FLAGS)
 
 test-extended: test

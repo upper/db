@@ -202,7 +202,6 @@ func (m *Mapper) TraversalsByName(t reflect.Type, names []string) [][]int {
 
 // FieldByIndexes returns a value for a particular struct traversal.
 func FieldByIndexes(v reflect.Value, indexes []int) reflect.Value {
-
 	for _, i := range indexes {
 		v = reflect.Indirect(v).Field(i)
 		// if this is a pointer, it's possible it is nil
@@ -214,7 +213,6 @@ func FieldByIndexes(v reflect.Value, indexes []int) reflect.Value {
 			v.Set(reflect.MakeMap(v.Type()))
 		}
 	}
-
 	return v
 }
 

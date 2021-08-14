@@ -42,8 +42,6 @@ func expandQuery(in string, args []interface{}, fn func(interface{}) (string, []
 
 // toInterfaceArguments converts the given value into an array of interfaces.
 func toInterfaceArguments(value interface{}) (args []interface{}, isSlice bool) {
-	v := reflect.ValueOf(value)
-
 	if value == nil {
 		return nil, false
 	}
@@ -53,6 +51,7 @@ func toInterfaceArguments(value interface{}) (args []interface{}, isSlice bool) 
 		return []interface{}{t}, false
 	}
 
+	v := reflect.ValueOf(value)
 	if v.Type().Kind() == reflect.Slice {
 		var i, total int
 
