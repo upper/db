@@ -15,6 +15,6 @@ build:
 test: test-no-race
 
 test-no-race:
-	go test -v $(TEST_FLAGS)
+	go test -v -failfast $(TEST_FLAGS)
 
 test-extended: test
