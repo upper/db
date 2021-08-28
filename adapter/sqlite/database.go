@@ -97,11 +97,33 @@ func (*database) NewCollection() sqladapter.CollectionAdapter {
 }
 
 func (*database) LookupName(sess sqladapter.Session) (string, error) {
-	connURL, err := ParseURL(sess.ConnectionURL().String())
+	connURL := sess.ConnectionURL()
+	if connURL != nil {
+		connURL, err := ParseURL(connURL.String())
+		if err != nil {
+			return "", err
+		}
+		return connURL.Database, nil
+	}
+
+	// sess.ConnectionURL() is nil if using sqlite.New
+	rows, err := sess.SQL().Query(exql.RawSQL("PRAGMA database_list"))
 	if err != nil {
 		return "", err
 	}
-	return connURL.Database, nil
+	dbInfo := struct {
+		Name string `db:"name"`
+		File string `db:"file"`
+	}{}
+
+	if err := sess.SQL().NewIterator(rows).One(&dbInfo); err != nil {
+		return "", err
+	}
+	if dbInfo.File != "" {
+		return dbInfo.File, nil
+	}
+	// dbInfo.File is empty if in memory mode
+	return dbInfo.Name, nil
 }
 
 func (*database) TableExists(sess sqladapter.Session, name string) error {
