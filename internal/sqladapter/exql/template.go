@@ -81,7 +81,7 @@ func (layout *Template) MustCompile(templateText string, data interface{}) strin
 	var b bytes.Buffer
 
 	v, ok := layout.getTemplate(templateText)
-	if !ok || true {
+	if !ok {
 		v = template.
 			Must(template.New("").
 				Funcs(map[string]interface{}{
