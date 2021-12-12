@@ -1,7 +1,7 @@
 SHELL					        ?= bash
 
-MSSQL_VERSION         ?= 2017-latest
-MSSQL_SUPPORTED       ?= 2019-latest $(MSSQL_VERSION)
+MSSQL_VERSION         ?= 2019-latest
+MSSQL_SUPPORTED       ?= $(MSSQL_VERSION) 2017-latest
 PROJECT               ?= upper_mssql_$(MSSQL_VERSION)
 
 DB_HOST               ?= 127.0.0.1
