@@ -1,7 +1,7 @@
 SHELL					        ?= bash
 
-POSTGRES_VERSION      ?= 11-alpine
-POSTGRES_SUPPORTED    ?= 13-alpine 12-alpine $(POSTGRES_VERSION) 10-alpine 9-alpine
+POSTGRES_VERSION      ?= 14-alpine
+POSTGRES_SUPPORTED    ?= $(POSTGRES_VERSION) 13-alpine 11-alpine 12-alpine
 
 PROJECT               ?= upper_postgres_$(POSTGRES_VERSION)
 
