@@ -1,3 +1,4 @@
+//go:build !pq
 // +build !pq
 
 // Copyright (c) 2012-present The upper.io/db authors. All rights reserved.
@@ -49,7 +50,7 @@ func (c ConnectionURL) String() (s string) {
 				host = "127.0.0.1"
 			}
 			if port == "" {
-				port = "5432"
+				port = "26257"
 			}
 			u = append(u, "host="+escaper.Replace(host))
 			u = append(u, "port="+escaper.Replace(port))
@@ -75,9 +76,9 @@ func (c ConnectionURL) String() (s string) {
 		c.Options = map[string]string{}
 	}
 
-	// If not present, SSL mode is assumed disabled.
+	// If not present, SSL mode is assumed "prefer".
 	if sslMode, ok := c.Options["sslmode"]; !ok || sslMode == "" {
-		c.Options["sslmode"] = "disable"
+		c.Options["sslmode"] = "prefer"
 	}
 
 	// Disabled by default
