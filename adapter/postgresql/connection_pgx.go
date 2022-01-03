@@ -1,3 +1,4 @@
+//go:build !pq
 // +build !pq
 
 package postgresql
@@ -75,9 +76,9 @@ func (c ConnectionURL) String() (s string) {
 		c.Options = map[string]string{}
 	}
 
-	// If not present, SSL mode is assumed disabled.
+	// If not present, SSL mode is assumed "prefer".
 	if sslMode, ok := c.Options["sslmode"]; !ok || sslMode == "" {
-		c.Options["sslmode"] = "disable"
+		c.Options["sslmode"] = "prefer"
 	}
 
 	// Disabled by default
