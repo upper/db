@@ -42,15 +42,15 @@ func TestConnectionURL(t *testing.T) {
 
 	// Adding a host.
 	c.Host = "localhost"
-	assert.Equal(t, "host=localhost sslmode=prefer statement_cache_capacity=0", c.String())
+	assert.Equal(t, "host=localhost port=26257 sslmode=prefer statement_cache_capacity=0", c.String())
 
 	// Adding a username.
 	c.User = "Anakin"
-	assert.Equal(t, `host=localhost sslmode=prefer statement_cache_capacity=0 user=Anakin`, c.String())
+	assert.Equal(t, `host=localhost port=26257 sslmode=prefer statement_cache_capacity=0 user=Anakin`, c.String())
 
 	// Adding a password with special characters.
 	c.Password = "Some Sort of ' Password"
-	assert.Equal(t, `host=localhost password=Some\ Sort\ of\ \'\ Password sslmode=prefer statement_cache_capacity=0 user=Anakin`, c.String())
+	assert.Equal(t, `host=localhost password=Some\ Sort\ of\ \'\ Password port=26257 sslmode=prefer statement_cache_capacity=0 user=Anakin`, c.String())
 
 	// Adding a port.
 	c.Host = "localhost:1234"

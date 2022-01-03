@@ -49,14 +49,14 @@ func (c ConnectionURL) String() (s string) {
 			if host == "" {
 				host = "127.0.0.1"
 			}
-			if port == "" {
-				port = "26257"
-			}
 			u = append(u, "host="+escaper.Replace(host))
-			u = append(u, "port="+escaper.Replace(port))
 		} else {
 			u = append(u, "host="+escaper.Replace(c.Host))
 		}
+		if port == "" {
+			port = "26257"
+		}
+		u = append(u, "port="+escaper.Replace(port))
 	}
 
 	if c.Socket != "" {
