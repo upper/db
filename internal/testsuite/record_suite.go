@@ -1,6 +1,7 @@
 package testsuite
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -400,4 +401,28 @@ func (s *RecordTestSuite) TestUnknownCollection() {
 
 	_, err = sess.Collection("users").Insert(&User{Username: "Foo"})
 	s.NoError(err)
+}
+
+func (s *RecordTestSuite) TestContextCanceled() {
+	var err error
+
+	sess := s.Session()
+
+	err = sess.Collection("users").Truncate()
+	s.NoError(err)
+
+	{
+		ctx, cancelFn := context.WithTimeout(context.Background(), time.Minute)
+		canceledSess := sess.WithContext(ctx)
+
+		cancelFn()
+
+		user := User{Username: "foo"}
+		err = canceledSess.Save(&user)
+		s.Error(err)
+
+		c, err := sess.Collection("users").Count()
+		s.NoError(err)
+		s.Equal(uint64(0), c)
+	}
 }
