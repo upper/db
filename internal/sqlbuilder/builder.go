@@ -29,7 +29,6 @@ import (
 	"fmt"
 	"log"
 	"reflect"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -71,10 +70,6 @@ type fieldValue struct {
 	fields []string
 	values []interface{}
 }
-
-var (
-	reInvisibleChars = regexp.MustCompile(`[\s\r\n\t]+`)
-)
 
 var (
 	sqlPlaceholder = exql.RawValue(`?`)
@@ -347,11 +342,10 @@ func Map(item interface{}, options *MapOptions) ([]string, []interface{}, error)
 }
 
 func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, error) {
-	l := len(columns)
-	f := make([]exql.Fragment, l)
+	f := make([]exql.Fragment, len(columns))
 	args := []interface{}{}
 
-	for i := 0; i < l; i++ {
+	for i := range columns {
 		switch v := columns[i].(type) {
 		case compilable:
 			c, err := v.Compile()
@@ -393,19 +387,44 @@ func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, err
 	return f, args, nil
 }
 
-func prepareQueryForDisplay(in string) (out string) {
-	j := 1
-	for i := range in {
+func prepareQueryForDisplay(in string) string {
+	out := make([]byte, 0, len(in))
+
+	offset := 0
+	whitespace := true
+	placeholders := 1
+
+	for i := 0; i < len(in); i++ {
+		if in[i] == ' ' || in[i] == '\r' || in[i] == '\n' || in[i] == '\t' {
+			if whitespace {
+				offset = i
+			} else {
+				whitespace = true
+				out = append(out, in[offset:i]...)
+				offset = i
+			}
+			continue
+		}
+		if whitespace {
+			whitespace = false
+			if len(out) > 0 {
+				out = append(out, ' ')
+			}
+			offset = i
+		}
 		if in[i] == '?' {
-			out = out + "$" + strconv.Itoa(j)
-			j++
-		} else {
-			out = out + string(in[i])
+			out = append(out, in[offset:i]...)
+			offset = i + 1
+
+			out = append(out, '$')
+			out = append(out, strconv.Itoa(placeholders)...)
+			placeholders++
 		}
 	}
-
-	out = reInvisibleChars.ReplaceAllString(out, ` `)
-	return strings.TrimSpace(out)
+	if !whitespace {
+		out = append(out, in[offset:len(in)]...)
+	}
+	return string(out)
 }
 
 func (iter *iterator) NextScan(dst ...interface{}) error {

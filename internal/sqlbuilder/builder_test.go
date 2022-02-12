@@ -2,11 +2,16 @@ package sqlbuilder
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	db "github.com/upper/db/v4"
+)
+
+var (
+	reInvisibleChars = regexp.MustCompile(`[\s\r\n\t]+`)
 )
 
 func TestSelect(t *testing.T) {
