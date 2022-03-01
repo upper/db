@@ -22,11 +22,30 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"runtime"
 	"strings"
+	"time"
+)
+
+const (
+	fmtLogSessID       = `Session ID:     %05d`
+	fmtLogTxID         = `Transaction ID: %05d`
+	fmtLogQuery        = `Query:          %s`
+	fmtLogArgs         = `Arguments:      %#v`
+	fmtLogRowsAffected = `Rows affected:  %d`
+	fmtLogLastInsertID = `Last insert ID: %d`
+	fmtLogError        = `Error:          %v`
+	fmtLogTimeTaken    = `Time taken:     %0.5fs`
+	fmtLogContext      = `Context:        %v`
+)
+
+var (
+	reInvisibleChars = regexp.MustCompile(`[\s\r\n\t]+`)
 )
 
 // LogLevel represents a verbosity level for logs
@@ -161,6 +180,7 @@ func (c *loggingCollector) log(level LogLevel, v ...interface{}) {
 		format = fmt.Sprintf("log_level=%s file=%s:%d\n", level, file, line)
 	}
 	format = "upper/db: " + format
+
 	v = append([]interface{}{format}, v...)
 
 	if level >= LogLevelPanic {
@@ -226,6 +246,67 @@ func (c *loggingCollector) Panic(v ...interface{}) {
 var defaultLoggingCollector LoggingCollector = &loggingCollector{
 	level:  defaultLogLevel,
 	logger: defaultLogger,
+}
+
+// QueryStatus represents the status of a query after being executed.
+type QueryStatus struct {
+	SessID uint64
+	TxID   uint64
+
+	RowsAffected *int64
+	LastInsertID *int64
+
+	Query string
+	Args  []interface{}
+
+	Err error
+
+	Start time.Time
+	End   time.Time
+
+	Context context.Context
+}
+
+// String returns a formatted log message.
+func (q *QueryStatus) String() string {
+	lines := make([]string, 0, 8)
+
+	if q.SessID > 0 {
+		lines = append(lines, fmt.Sprintf(fmtLogSessID, q.SessID))
+	}
+
+	if q.TxID > 0 {
+		lines = append(lines, fmt.Sprintf(fmtLogTxID, q.TxID))
+	}
+
+	if query := q.Query; query != "" {
+		query = reInvisibleChars.ReplaceAllString(query, ` `)
+		query = strings.TrimSpace(query)
+		lines = append(lines, fmt.Sprintf(fmtLogQuery, query))
+	}
+
+	if len(q.Args) > 0 {
+		lines = append(lines, fmt.Sprintf(fmtLogArgs, q.Args))
+	}
+
+	if q.RowsAffected != nil {
+		lines = append(lines, fmt.Sprintf(fmtLogRowsAffected, *q.RowsAffected))
+	}
+	if q.LastInsertID != nil {
+		lines = append(lines, fmt.Sprintf(fmtLogLastInsertID, *q.LastInsertID))
+	}
+
+	if q.Err != nil {
+		lines = append(lines, fmt.Sprintf(fmtLogError, q.Err))
+	}
+
+	lines = append(lines, fmt.Sprintf(fmtLogTimeTaken, float64(q.End.UnixNano()-q.Start.UnixNano())/float64(1e9)))
+
+	if q.Context != nil {
+		lines = append(lines, fmt.Sprintf(fmtLogContext, q.Context))
+	}
+
+	return "\t" + strings.Replace(strings.Join(lines, "\n"), "\n", "\n\t", -1) + "\n\n"
 }
 
 // LC returns the logging collector.
