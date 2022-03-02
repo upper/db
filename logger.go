@@ -44,6 +44,11 @@ const (
 	fmtLogContext      = `Context:        %v`
 )
 
+const (
+	maxFrames  = 20
+	skipFrames = 4
+)
+
 var (
 	reInvisibleChars = regexp.MustCompile(`[\s\r\n\t]+`)
 )
@@ -157,32 +162,18 @@ func (c *loggingCollector) SetLogger(logger Logger) {
 }
 
 func (c *loggingCollector) logf(level LogLevel, f string, v ...interface{}) {
-	format := level.String() + "\n" + f
-	if _, file, line, ok := runtime.Caller(2); ok {
-		format = fmt.Sprintf("log_level=%s file=%s:%d\n%s", level, file, line, f)
-	}
-	format = "upper/db: " + format
-
 	if level >= LogLevelPanic {
-		c.Logger().Panicf(format, v...)
+		c.Logger().Panicf(f, v...)
 	}
 	if level >= LogLevelFatal {
-		c.Logger().Fatalf(format, v...)
+		c.Logger().Fatalf(f, v...)
 	}
 	if c.Enabled(level) {
-		c.Logger().Printf(format, v...)
+		c.Logger().Printf(f, v...)
 	}
 }
 
 func (c *loggingCollector) log(level LogLevel, v ...interface{}) {
-	format := level.String() + "\n"
-	if _, file, line, ok := runtime.Caller(2); ok {
-		format = fmt.Sprintf("log_level=%s file=%s:%d\n", level, file, line)
-	}
-	format = "upper/db: " + format
-
-	v = append([]interface{}{format}, v...)
-
 	if level >= LogLevelPanic {
 		c.Logger().Panic(v...)
 	}
@@ -256,8 +247,8 @@ type QueryStatus struct {
 	RowsAffected *int64
 	LastInsertID *int64
 
-	Query string
-	Args  []interface{}
+	RawQuery string
+	Args     []interface{}
 
 	Err error
 
@@ -265,6 +256,22 @@ type QueryStatus struct {
 	End   time.Time
 
 	Context context.Context
+}
+
+func (q *QueryStatus) Query() string {
+	query := reInvisibleChars.ReplaceAllString(q.RawQuery, " ")
+	query = strings.TrimSpace(query)
+	return query
+}
+
+func (q *QueryStatus) Stack() []string {
+	frames := collectFrames()
+	lines := make([]string, 0, len(frames))
+
+	for _, frame := range frames {
+		lines = append(lines, fmt.Sprintf("%s@%s:%d", frame.Function, frame.File, frame.Line))
+	}
+	return lines
 }
 
 // String returns a formatted log message.
@@ -279,10 +286,8 @@ func (q *QueryStatus) String() string {
 		lines = append(lines, fmt.Sprintf(fmtLogTxID, q.TxID))
 	}
 
-	if query := q.Query; query != "" {
-		query = reInvisibleChars.ReplaceAllString(query, ` `)
-		query = strings.TrimSpace(query)
-		lines = append(lines, fmt.Sprintf(fmtLogQuery, query))
+	if query := q.RawQuery; query != "" {
+		lines = append(lines, fmt.Sprintf(fmtLogQuery, q.Query()))
 	}
 
 	if len(q.Args) > 0 {
@@ -323,4 +328,38 @@ func init() {
 			}
 		}
 	}
+}
+
+func collectFrames() []runtime.Frame {
+	pc := make([]uintptr, maxFrames)
+	n := runtime.Callers(skipFrames, pc)
+	if n == 0 {
+		return nil
+	}
+
+	pc = pc[:n]
+	frames := runtime.CallersFrames(pc)
+
+	collectedFrames := make([]runtime.Frame, 0, maxFrames)
+	discardedFrames := make([]runtime.Frame, 0, maxFrames)
+	for {
+		frame, more := frames.Next()
+
+		// collect all frames except those from upper/db and runtime stack
+		if !strings.Contains(frame.Function, "upper/db") && !strings.Contains(frame.Function, "runtime") {
+			collectedFrames = append(collectedFrames, frame)
+		} else {
+			discardedFrames = append(discardedFrames, frame)
+		}
+
+		if !more {
+			break
+		}
+	}
+
+	if len(collectedFrames) < 1 {
+		return discardedFrames
+	}
+
+	return collectedFrames
 }

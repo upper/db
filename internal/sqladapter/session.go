@@ -669,13 +669,13 @@ func (sess *session) StatementPrepare(ctx context.Context, stmt *exql.Statement)
 
 	defer func(start time.Time) {
 		queryLog(&db.QueryStatus{
-			TxID:    sess.txID,
-			SessID:  sess.sessID,
-			Query:   query,
-			Err:     err,
-			Start:   start,
-			End:     time.Now(),
-			Context: ctx,
+			TxID:     sess.txID,
+			SessID:   sess.sessID,
+			RawQuery: query,
+			Err:      err,
+			Start:    start,
+			End:      time.Now(),
+			Context:  ctx,
 		})
 	}(time.Now())
 
@@ -722,14 +722,14 @@ func (sess *session) StatementExec(ctx context.Context, stmt *exql.Statement, ar
 
 	defer func(start time.Time) {
 		status := db.QueryStatus{
-			TxID:    sess.txID,
-			SessID:  sess.sessID,
-			Query:   query,
-			Args:    args,
-			Err:     err,
-			Start:   start,
-			End:     time.Now(),
-			Context: ctx,
+			TxID:     sess.txID,
+			SessID:   sess.sessID,
+			RawQuery: query,
+			Args:     args,
+			Err:      err,
+			Start:    start,
+			End:      time.Now(),
+			Context:  ctx,
 		}
 
 		if res != nil {
@@ -786,14 +786,14 @@ func (sess *session) StatementQuery(ctx context.Context, stmt *exql.Statement, a
 
 	defer func(start time.Time) {
 		status := db.QueryStatus{
-			TxID:    sess.txID,
-			SessID:  sess.sessID,
-			Query:   query,
-			Args:    args,
-			Err:     err,
-			Start:   start,
-			End:     time.Now(),
-			Context: ctx,
+			TxID:     sess.txID,
+			SessID:   sess.sessID,
+			RawQuery: query,
+			Args:     args,
+			Err:      err,
+			Start:    start,
+			End:      time.Now(),
+			Context:  ctx,
 		}
 		queryLog(&status)
 	}(time.Now())
@@ -832,14 +832,14 @@ func (sess *session) StatementQueryRow(ctx context.Context, stmt *exql.Statement
 
 	defer func(start time.Time) {
 		status := db.QueryStatus{
-			TxID:    sess.txID,
-			SessID:  sess.sessID,
-			Query:   query,
-			Args:    args,
-			Err:     err,
-			Start:   start,
-			End:     time.Now(),
-			Context: ctx,
+			TxID:     sess.txID,
+			SessID:   sess.sessID,
+			RawQuery: query,
+			Args:     args,
+			Err:      err,
+			Start:    start,
+			End:      time.Now(),
+			Context:  ctx,
 		}
 		queryLog(&status)
 	}(time.Now())
