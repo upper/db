@@ -230,10 +230,10 @@ func (res *result) All(dst interface{}) error {
 
 	defer func(start time.Time) {
 		queryLog(&db.QueryStatus{
-			Query: rq.debugQuery("Find.All"),
-			Err:   err,
-			Start: start,
-			End:   time.Now(),
+			RawQuery: rq.debugQuery("Find.All"),
+			Err:      err,
+			Start:    start,
+			End:      time.Now(),
 		})
 	}(time.Now())
 
@@ -267,10 +267,10 @@ func (res *result) One(dst interface{}) error {
 
 	defer func(start time.Time) {
 		queryLog(&db.QueryStatus{
-			Query: rq.debugQuery("Find.One"),
-			Err:   err,
-			Start: start,
-			End:   time.Now(),
+			RawQuery: rq.debugQuery("Find.One"),
+			Err:      err,
+			Start:    start,
+			End:      time.Now(),
 		})
 	}(time.Now())
 
@@ -308,10 +308,10 @@ func (res *result) Next(dst interface{}) bool {
 
 		defer func(start time.Time) {
 			queryLog(&db.QueryStatus{
-				Query: rq.debugQuery("Find.Next"),
-				Err:   err,
-				Start: start,
-				End:   time.Now(),
+				RawQuery: rq.debugQuery("Find.Next"),
+				Err:      err,
+				Start:    start,
+				End:      time.Now(),
 			})
 		}(time.Now())
 
@@ -335,10 +335,10 @@ func (res *result) Delete() error {
 
 	defer func(start time.Time) {
 		queryLog(&db.QueryStatus{
-			Query: rq.debugQuery("Remove"),
-			Err:   err,
-			Start: start,
-			End:   time.Now(),
+			RawQuery: rq.debugQuery("Remove"),
+			Err:      err,
+			Start:    start,
+			End:      time.Now(),
 		})
 	}(time.Now())
 
@@ -372,10 +372,10 @@ func (res *result) Update(src interface{}) (err error) {
 
 	defer func(start time.Time) {
 		queryLog(&db.QueryStatus{
-			Query: rq.debugQuery("Update"),
-			Err:   err,
-			Start: start,
-			End:   time.Now(),
+			RawQuery: rq.debugQuery("Update"),
+			Err:      err,
+			Start:    start,
+			End:      time.Now(),
 		})
 	}(time.Now())
 
@@ -487,10 +487,10 @@ func (res *result) Count() (total uint64, err error) {
 
 	defer func(start time.Time) {
 		queryLog(&db.QueryStatus{
-			Query: rq.debugQuery("Find.Count"),
-			Err:   err,
-			Start: start,
-			End:   time.Now(),
+			RawQuery: rq.debugQuery("Find.Count"),
+			Err:      err,
+			Start:    start,
+			End:      time.Now(),
 		})
 	}(time.Now())
 
