@@ -36,7 +36,6 @@ import (
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/upper/db/v4/internal/immutable"
-	"github.com/upper/db/v4/internal/sqladapter"
 )
 
 type resultQuery struct {
@@ -230,11 +229,11 @@ func (res *result) All(dst interface{}) error {
 	}
 
 	defer func(start time.Time) {
-		queryLog(&sqladapter.QueryStatus{
-			Query: rq.debugQuery("Find.All"),
-			Err:   err,
-			Start: start,
-			End:   time.Now(),
+		queryLog(&db.QueryStatus{
+			RawQuery: rq.debugQuery("Find.All"),
+			Err:      err,
+			Start:    start,
+			End:      time.Now(),
 		})
 	}(time.Now())
 
@@ -267,11 +266,11 @@ func (res *result) One(dst interface{}) error {
 	}
 
 	defer func(start time.Time) {
-		queryLog(&sqladapter.QueryStatus{
-			Query: rq.debugQuery("Find.One"),
-			Err:   err,
-			Start: start,
-			End:   time.Now(),
+		queryLog(&db.QueryStatus{
+			RawQuery: rq.debugQuery("Find.One"),
+			Err:      err,
+			Start:    start,
+			End:      time.Now(),
 		})
 	}(time.Now())
 
@@ -308,11 +307,11 @@ func (res *result) Next(dst interface{}) bool {
 		}
 
 		defer func(start time.Time) {
-			queryLog(&sqladapter.QueryStatus{
-				Query: rq.debugQuery("Find.Next"),
-				Err:   err,
-				Start: start,
-				End:   time.Now(),
+			queryLog(&db.QueryStatus{
+				RawQuery: rq.debugQuery("Find.Next"),
+				Err:      err,
+				Start:    start,
+				End:      time.Now(),
 			})
 		}(time.Now())
 
@@ -335,11 +334,11 @@ func (res *result) Delete() error {
 	}
 
 	defer func(start time.Time) {
-		queryLog(&sqladapter.QueryStatus{
-			Query: rq.debugQuery("Remove"),
-			Err:   err,
-			Start: start,
-			End:   time.Now(),
+		queryLog(&db.QueryStatus{
+			RawQuery: rq.debugQuery("Remove"),
+			Err:      err,
+			Start:    start,
+			End:      time.Now(),
 		})
 	}(time.Now())
 
@@ -372,11 +371,11 @@ func (res *result) Update(src interface{}) (err error) {
 	}
 
 	defer func(start time.Time) {
-		queryLog(&sqladapter.QueryStatus{
-			Query: rq.debugQuery("Update"),
-			Err:   err,
-			Start: start,
-			End:   time.Now(),
+		queryLog(&db.QueryStatus{
+			RawQuery: rq.debugQuery("Update"),
+			Err:      err,
+			Start:    start,
+			End:      time.Now(),
 		})
 	}(time.Now())
 
@@ -487,11 +486,11 @@ func (res *result) Count() (total uint64, err error) {
 	}
 
 	defer func(start time.Time) {
-		queryLog(&sqladapter.QueryStatus{
-			Query: rq.debugQuery("Find.Count"),
-			Err:   err,
-			Start: start,
-			End:   time.Now(),
+		queryLog(&db.QueryStatus{
+			RawQuery: rq.debugQuery("Find.Count"),
+			Err:      err,
+			Start:    start,
+			End:      time.Now(),
 		})
 	}(time.Now())
 
@@ -570,7 +569,7 @@ func mustJSON(in interface{}) (out []byte) {
 	return out
 }
 
-func queryLog(status *sqladapter.QueryStatus) {
+func queryLog(status *db.QueryStatus) {
 	diff := status.End.Sub(status.Start)
 
 	slowQuery := false

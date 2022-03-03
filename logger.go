@@ -22,11 +22,36 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"runtime"
 	"strings"
+	"time"
+)
+
+const (
+	fmtLogSessID       = `Session ID:     %05d`
+	fmtLogTxID         = `Transaction ID: %05d`
+	fmtLogQuery        = `Query:          %s`
+	fmtLogArgs         = `Arguments:      %#v`
+	fmtLogRowsAffected = `Rows affected:  %d`
+	fmtLogLastInsertID = `Last insert ID: %d`
+	fmtLogError        = `Error:          %v`
+	fmtLogStack        = `Stack:          %v`
+	fmtLogTimeTaken    = `Time taken:     %0.5fs`
+	fmtLogContext      = `Context:        %v`
+)
+
+const (
+	maxFrames  = 30
+	skipFrames = 3
+)
+
+var (
+	reInvisibleChars = regexp.MustCompile(`[\s\r\n\t]+`)
 )
 
 // LogLevel represents a verbosity level for logs
@@ -138,31 +163,18 @@ func (c *loggingCollector) SetLogger(logger Logger) {
 }
 
 func (c *loggingCollector) logf(level LogLevel, f string, v ...interface{}) {
-	format := level.String() + "\n" + f
-	if _, file, line, ok := runtime.Caller(2); ok {
-		format = fmt.Sprintf("log_level=%s file=%s:%d\n%s", level, file, line, f)
-	}
-	format = "upper/db: " + format
-
 	if level >= LogLevelPanic {
-		c.Logger().Panicf(format, v...)
+		c.Logger().Panicf(f, v...)
 	}
 	if level >= LogLevelFatal {
-		c.Logger().Fatalf(format, v...)
+		c.Logger().Fatalf(f, v...)
 	}
 	if c.Enabled(level) {
-		c.Logger().Printf(format, v...)
+		c.Logger().Printf(f, v...)
 	}
 }
 
 func (c *loggingCollector) log(level LogLevel, v ...interface{}) {
-	format := level.String() + "\n"
-	if _, file, line, ok := runtime.Caller(2); ok {
-		format = fmt.Sprintf("log_level=%s file=%s:%d\n", level, file, line)
-	}
-	format = "upper/db: " + format
-	v = append([]interface{}{format}, v...)
-
 	if level >= LogLevelPanic {
 		c.Logger().Panic(v...)
 	}
@@ -228,6 +240,85 @@ var defaultLoggingCollector LoggingCollector = &loggingCollector{
 	logger: defaultLogger,
 }
 
+// QueryStatus represents the status of a query after being executed.
+type QueryStatus struct {
+	SessID uint64
+	TxID   uint64
+
+	RowsAffected *int64
+	LastInsertID *int64
+
+	RawQuery string
+	Args     []interface{}
+
+	Err error
+
+	Start time.Time
+	End   time.Time
+
+	Context context.Context
+}
+
+func (q *QueryStatus) Query() string {
+	query := reInvisibleChars.ReplaceAllString(q.RawQuery, " ")
+	query = strings.TrimSpace(query)
+	return query
+}
+
+func (q *QueryStatus) Stack() []string {
+	frames := collectFrames()
+	lines := make([]string, 0, len(frames))
+
+	for _, frame := range frames {
+		lines = append(lines, fmt.Sprintf("%s@%s:%d", frame.Function, frame.File, frame.Line))
+	}
+	return lines
+}
+
+// String returns a formatted log message.
+func (q *QueryStatus) String() string {
+	lines := make([]string, 0, 8)
+
+	if q.SessID > 0 {
+		lines = append(lines, fmt.Sprintf(fmtLogSessID, q.SessID))
+	}
+
+	if q.TxID > 0 {
+		lines = append(lines, fmt.Sprintf(fmtLogTxID, q.TxID))
+	}
+
+	if query := q.RawQuery; query != "" {
+		lines = append(lines, fmt.Sprintf(fmtLogQuery, q.Query()))
+	}
+
+	if len(q.Args) > 0 {
+		lines = append(lines, fmt.Sprintf(fmtLogArgs, q.Args))
+	}
+
+	if stack := q.Stack(); len(stack) > 0 {
+		lines = append(lines, fmt.Sprintf(fmtLogStack, "\n\t"+strings.Join(stack, "\n\t")))
+	}
+
+	if q.RowsAffected != nil {
+		lines = append(lines, fmt.Sprintf(fmtLogRowsAffected, *q.RowsAffected))
+	}
+	if q.LastInsertID != nil {
+		lines = append(lines, fmt.Sprintf(fmtLogLastInsertID, *q.LastInsertID))
+	}
+
+	if q.Err != nil {
+		lines = append(lines, fmt.Sprintf(fmtLogError, q.Err))
+	}
+
+	lines = append(lines, fmt.Sprintf(fmtLogTimeTaken, float64(q.End.UnixNano()-q.Start.UnixNano())/float64(1e9)))
+
+	if q.Context != nil {
+		lines = append(lines, fmt.Sprintf(fmtLogContext, q.Context))
+	}
+
+	return "\t" + strings.Replace(strings.Join(lines, "\n"), "\n", "\n\t", -1) + "\n\n"
+}
+
 // LC returns the logging collector.
 func LC() LoggingCollector {
 	return defaultLoggingCollector
@@ -242,4 +333,38 @@ func init() {
 			}
 		}
 	}
+}
+
+func collectFrames() []runtime.Frame {
+	pc := make([]uintptr, maxFrames)
+	n := runtime.Callers(skipFrames, pc)
+	if n == 0 {
+		return nil
+	}
+
+	pc = pc[:n]
+	frames := runtime.CallersFrames(pc)
+
+	collectedFrames := make([]runtime.Frame, 0, maxFrames)
+	discardedFrames := make([]runtime.Frame, 0, maxFrames)
+	for {
+		frame, more := frames.Next()
+
+		// collect all frames except those from upper/db and runtime stack
+		if (strings.Contains(frame.Function, "upper/db") || strings.Contains(frame.Function, "/go/src/")) && !strings.Contains(frame.Function, "test") {
+			discardedFrames = append(discardedFrames, frame)
+		} else {
+			collectedFrames = append(collectedFrames, frame)
+		}
+
+		if !more {
+			break
+		}
+	}
+
+	if len(collectedFrames) < 1 {
+		return discardedFrames
+	}
+
+	return collectedFrames
 }
