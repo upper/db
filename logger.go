@@ -40,13 +40,14 @@ const (
 	fmtLogRowsAffected = `Rows affected:  %d`
 	fmtLogLastInsertID = `Last insert ID: %d`
 	fmtLogError        = `Error:          %v`
+	fmtLogStack        = `Stack:          %v`
 	fmtLogTimeTaken    = `Time taken:     %0.5fs`
 	fmtLogContext      = `Context:        %v`
 )
 
 const (
-	maxFrames  = 20
-	skipFrames = 4
+	maxFrames  = 30
+	skipFrames = 3
 )
 
 var (
@@ -294,6 +295,10 @@ func (q *QueryStatus) String() string {
 		lines = append(lines, fmt.Sprintf(fmtLogArgs, q.Args))
 	}
 
+	if stack := q.Stack(); len(stack) > 0 {
+		lines = append(lines, fmt.Sprintf(fmtLogStack, "\n\t"+strings.Join(stack, "\n\t")))
+	}
+
 	if q.RowsAffected != nil {
 		lines = append(lines, fmt.Sprintf(fmtLogRowsAffected, *q.RowsAffected))
 	}
@@ -346,10 +351,10 @@ func collectFrames() []runtime.Frame {
 		frame, more := frames.Next()
 
 		// collect all frames except those from upper/db and runtime stack
-		if !strings.Contains(frame.Function, "upper/db") && !strings.Contains(frame.Function, "runtime") {
-			collectedFrames = append(collectedFrames, frame)
-		} else {
+		if (strings.Contains(frame.Function, "upper/db") || strings.Contains(frame.Function, "/go/src/")) && !strings.Contains(frame.Function, "test") {
 			discardedFrames = append(discardedFrames, frame)
+		} else {
+			collectedFrames = append(collectedFrames, frame)
 		}
 
 		if !more {
