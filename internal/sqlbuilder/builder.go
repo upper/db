@@ -115,10 +115,16 @@ func WithTemplate(t *exql.Template) db.SQL {
 
 func (b *sqlBuilder) contextWithDefaultTimeout() (context.Context, context.CancelFunc) {
 	ctx := b.sess.Context()
+
+	if b.settings.DefaultQueryTimeout() == 0 {
+		return ctx, nil
+	}
+
 	var cancel context.CancelFunc
 	if _, ok := ctx.Deadline(); !ok {
 		ctx, cancel = context.WithTimeout(ctx, b.settings.DefaultQueryTimeout())
 	}
+
 	return ctx, cancel
 }
 
