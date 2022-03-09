@@ -31,9 +31,6 @@ type Collection interface {
 	// reference.
 	Session() Session
 
-	// TODO: the methods below has no default context..
-	// we should think to add FindCtx(), CountCtx(), InsertCtx(), etc.. for the context-version of each method..
-
 	// Find defines a new result set.
 	Find(...interface{}) Result
 
