@@ -89,8 +89,9 @@ type exprDB interface {
 }
 
 type sqlBuilder struct {
-	sess exprDB
-	t    *templateWithUtils
+	sess     exprDB
+	settings db.Settings
+	t        *templateWithUtils
 }
 
 // WithSession returns a query builder that is bound to the given database session.
@@ -99,8 +100,9 @@ func WithSession(sess interface{}, t *exql.Template) db.SQL {
 		sess = sqlDB
 	}
 	return &sqlBuilder{
-		sess: sess.(exprDB), // Let it panic, it will show the developer an informative error.
-		t:    newTemplateWithUtils(t),
+		sess:     sess.(exprDB), // Let it panic, it will show the developer an informative error.
+		settings: sess.(db.Settings),
+		t:        newTemplateWithUtils(t),
 	}
 }
 
@@ -109,6 +111,20 @@ func WithTemplate(t *exql.Template) db.SQL {
 	return &sqlBuilder{
 		t: newTemplateWithUtils(t),
 	}
+}
+
+func (b *sqlBuilder) contextWithDefaultTimeout(parent context.Context) (context.Context, context.CancelFunc) {
+	if b.settings.DefaultQueryTimeout() == 0 {
+		return parent, nil
+	}
+
+	var ctx context.Context = parent
+	var cancel context.CancelFunc
+	if _, ok := parent.Deadline(); !ok {
+		ctx, cancel = context.WithTimeout(ctx, b.settings.DefaultQueryTimeout())
+	}
+
+	return ctx, cancel
 }
 
 func (b *sqlBuilder) NewIteratorContext(ctx context.Context, rows *sql.Rows) db.Iterator {
@@ -124,6 +140,10 @@ func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) db.Iterato
 }
 
 func (b *sqlBuilder) IteratorContext(ctx context.Context, query interface{}, args ...interface{}) db.Iterator {
+	ctx, cancel := b.contextWithDefaultTimeout(ctx)
+	if cancel != nil {
+		defer cancel()
+	}
 	rows, err := b.QueryContext(ctx, query, args...)
 	return &iterator{b.sess, rows, err}
 }
@@ -133,6 +153,13 @@ func (b *sqlBuilder) Prepare(query interface{}) (*sql.Stmt, error) {
 }
 
 func (b *sqlBuilder) PrepareContext(ctx context.Context, query interface{}) (*sql.Stmt, error) {
+	// NOTE: the timeout context here may not be applicable, but if its making a request to the
+	// remote database, then this may be useful still. Let's investigate further in the future.
+	// ctx, cancel := b.contextWithDefaultTimeout(ctx)
+	// if cancel != nil {
+	// 	defer cancel()
+	// }
+
 	switch q := query.(type) {
 	case *exql.Statement:
 		return b.sess.StatementPrepare(ctx, q)
@@ -150,6 +177,11 @@ func (b *sqlBuilder) Exec(query interface{}, args ...interface{}) (sql.Result, e
 }
 
 func (b *sqlBuilder) ExecContext(ctx context.Context, query interface{}, args ...interface{}) (sql.Result, error) {
+	ctx, cancel := b.contextWithDefaultTimeout(ctx)
+	if cancel != nil {
+		defer cancel()
+	}
+
 	switch q := query.(type) {
 	case *exql.Statement:
 		return b.sess.StatementExec(ctx, q, args...)
@@ -167,6 +199,11 @@ func (b *sqlBuilder) Query(query interface{}, args ...interface{}) (*sql.Rows, e
 }
 
 func (b *sqlBuilder) QueryContext(ctx context.Context, query interface{}, args ...interface{}) (*sql.Rows, error) {
+	ctx, cancel := b.contextWithDefaultTimeout(ctx)
+	if cancel != nil {
+		defer cancel()
+	}
+
 	switch q := query.(type) {
 	case *exql.Statement:
 		return b.sess.StatementQuery(ctx, q, args...)
@@ -184,6 +221,11 @@ func (b *sqlBuilder) QueryRow(query interface{}, args ...interface{}) (*sql.Row,
 }
 
 func (b *sqlBuilder) QueryRowContext(ctx context.Context, query interface{}, args ...interface{}) (*sql.Row, error) {
+	ctx, cancel := b.contextWithDefaultTimeout(ctx)
+	if cancel != nil {
+		defer cancel()
+	}
+
 	switch q := query.(type) {
 	case *exql.Statement:
 		return b.sess.StatementQueryRow(ctx, q, args...)
