@@ -98,6 +98,7 @@ func WithSession(sess interface{}, t *exql.Template) db.SQL {
 	if sqlDB, ok := sess.(*sql.DB); ok {
 		sess = sqlDB
 	}
+	// TODO: we need the upper settings info here.. cuz we have to set a default timeout, etc.
 	return &sqlBuilder{
 		sess: sess.(exprDB), // Let it panic, it will show the developer an informative error.
 		t:    newTemplateWithUtils(t),
@@ -120,6 +121,8 @@ func (b *sqlBuilder) NewIterator(rows *sql.Rows) db.Iterator {
 }
 
 func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) db.Iterator {
+	// TODO: for every method in sqlBuilder which doesn't accept a context, lets set a default timeout value
+	// from the settings
 	return b.IteratorContext(b.sess.Context(), query, args...)
 }
 
