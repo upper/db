@@ -293,6 +293,10 @@ func (sess *session) TableExists(name string) error {
 }
 
 func (sess *session) NewTransaction(ctx context.Context, opts *sql.TxOptions) (Session, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	clone, err := sess.NewClone(sess.adapter, false)
 	if err != nil {
 		return nil, err
@@ -453,7 +457,7 @@ func (sess *session) Context() context.Context {
 	sess.mu.Lock()
 	defer sess.mu.Unlock()
 	if sess.ctx == nil {
-		sess.ctx = context.Background()
+		return context.Background()
 	}
 	return sess.ctx
 }

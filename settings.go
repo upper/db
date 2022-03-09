@@ -185,9 +185,9 @@ func (c *settings) MaxOpenConns() int {
 }
 
 func (c *settings) SetDefaultQueryTimeout(t time.Duration) {
-	c.RLock()
+	c.Lock()
 	c.defaultQueryTimeout = t
-	c.RUnlock()
+	c.Unlock()
 }
 
 func (c *settings) DefaultQueryTimeout() time.Duration {
