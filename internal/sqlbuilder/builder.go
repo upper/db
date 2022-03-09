@@ -89,8 +89,9 @@ type exprDB interface {
 }
 
 type sqlBuilder struct {
-	sess exprDB
-	t    *templateWithUtils
+	sess     exprDB
+	settings db.Settings
+	t        *templateWithUtils
 }
 
 // WithSession returns a query builder that is bound to the given database session.
@@ -98,10 +99,10 @@ func WithSession(sess interface{}, t *exql.Template) db.SQL {
 	if sqlDB, ok := sess.(*sql.DB); ok {
 		sess = sqlDB
 	}
-	// TODO: we need the upper settings info here.. cuz we have to set a default timeout, etc.
 	return &sqlBuilder{
-		sess: sess.(exprDB), // Let it panic, it will show the developer an informative error.
-		t:    newTemplateWithUtils(t),
+		sess:     sess.(exprDB), // Let it panic, it will show the developer an informative error.
+		settings: sess.(db.Settings),
+		t:        newTemplateWithUtils(t),
 	}
 }
 
@@ -112,18 +113,33 @@ func WithTemplate(t *exql.Template) db.SQL {
 	}
 }
 
+func (b *sqlBuilder) contextWithDefaultTimeout() (context.Context, context.CancelFunc) {
+	ctx := b.sess.Context()
+	var cancel context.CancelFunc
+	if _, ok := ctx.Deadline(); !ok {
+		ctx, cancel = context.WithTimeout(ctx, b.settings.DefaultQueryTimeout())
+	}
+	return ctx, cancel
+}
+
 func (b *sqlBuilder) NewIteratorContext(ctx context.Context, rows *sql.Rows) db.Iterator {
 	return &iterator{b.sess, rows, nil}
 }
 
 func (b *sqlBuilder) NewIterator(rows *sql.Rows) db.Iterator {
-	return b.NewIteratorContext(b.sess.Context(), rows)
+	ctx, cancel := b.contextWithDefaultTimeout()
+	if cancel != nil {
+		defer cancel()
+	}
+	return b.NewIteratorContext(ctx, rows)
 }
 
 func (b *sqlBuilder) Iterator(query interface{}, args ...interface{}) db.Iterator {
-	// TODO: for every method in sqlBuilder which doesn't accept a context, lets set a default timeout value
-	// from the settings
-	return b.IteratorContext(b.sess.Context(), query, args...)
+	ctx, cancel := b.contextWithDefaultTimeout()
+	if cancel != nil {
+		defer cancel()
+	}
+	return b.IteratorContext(ctx, query, args...)
 }
 
 func (b *sqlBuilder) IteratorContext(ctx context.Context, query interface{}, args ...interface{}) db.Iterator {
@@ -132,7 +148,11 @@ func (b *sqlBuilder) IteratorContext(ctx context.Context, query interface{}, arg
 }
 
 func (b *sqlBuilder) Prepare(query interface{}) (*sql.Stmt, error) {
-	return b.PrepareContext(b.sess.Context(), query)
+	ctx, cancel := b.contextWithDefaultTimeout()
+	if cancel != nil {
+		defer cancel()
+	}
+	return b.PrepareContext(ctx, query)
 }
 
 func (b *sqlBuilder) PrepareContext(ctx context.Context, query interface{}) (*sql.Stmt, error) {
@@ -149,7 +169,11 @@ func (b *sqlBuilder) PrepareContext(ctx context.Context, query interface{}) (*sq
 }
 
 func (b *sqlBuilder) Exec(query interface{}, args ...interface{}) (sql.Result, error) {
-	return b.ExecContext(b.sess.Context(), query, args...)
+	ctx, cancel := b.contextWithDefaultTimeout()
+	if cancel != nil {
+		defer cancel()
+	}
+	return b.ExecContext(ctx, query, args...)
 }
 
 func (b *sqlBuilder) ExecContext(ctx context.Context, query interface{}, args ...interface{}) (sql.Result, error) {
@@ -166,7 +190,11 @@ func (b *sqlBuilder) ExecContext(ctx context.Context, query interface{}, args ..
 }
 
 func (b *sqlBuilder) Query(query interface{}, args ...interface{}) (*sql.Rows, error) {
-	return b.QueryContext(b.sess.Context(), query, args...)
+	ctx, cancel := b.contextWithDefaultTimeout()
+	if cancel != nil {
+		defer cancel()
+	}
+	return b.QueryContext(ctx, query, args...)
 }
 
 func (b *sqlBuilder) QueryContext(ctx context.Context, query interface{}, args ...interface{}) (*sql.Rows, error) {
@@ -183,7 +211,11 @@ func (b *sqlBuilder) QueryContext(ctx context.Context, query interface{}, args .
 }
 
 func (b *sqlBuilder) QueryRow(query interface{}, args ...interface{}) (*sql.Row, error) {
-	return b.QueryRowContext(b.sess.Context(), query, args...)
+	ctx, cancel := b.contextWithDefaultTimeout()
+	if cancel != nil {
+		defer cancel()
+	}
+	return b.QueryRowContext(ctx, query, args...)
 }
 
 func (b *sqlBuilder) QueryRowContext(ctx context.Context, query interface{}, args ...interface{}) (*sql.Row, error) {
