@@ -141,7 +141,7 @@ type Session interface {
 
 	// WaitForConnection attempts to run the given connection function a fixed
 	// number of times before failing.
-	WaitForConnection(context.Context, func() error) error
+	WaitForConnection(func() error) error
 
 	// BindDB sets the *sql.DB the session will use.
 	BindDB(*sql.DB) error
@@ -293,20 +293,6 @@ func (sess *session) TableExists(name string) error {
 }
 
 func (sess *session) NewTransaction(ctx context.Context, opts *sql.TxOptions) (Session, error) {
-	// set a default query timeout if one set on settings and isn't passed directly to the func call
-	var cancel context.CancelFunc
-	if ctx == nil {
-		if sess.DefaultQueryTimeout() > 0 {
-			ctx, cancel = context.WithTimeout(context.Background(), sess.DefaultQueryTimeout())
-			defer cancel()
-		} else {
-			ctx = context.Background()
-		}
-	} else if _, ok := ctx.Deadline(); !ok && sess.DefaultQueryTimeout() > 0 {
-		ctx, cancel = context.WithTimeout(context.Background(), sess.DefaultQueryTimeout())
-		defer cancel()
-	}
-
 	clone, err := sess.NewClone(sess.adapter, false)
 	if err != nil {
 		return nil, err
@@ -320,7 +306,7 @@ func (sess *session) NewTransaction(ctx context.Context, opts *sql.TxOptions) (S
 		return err
 	}
 
-	if err := clone.WaitForConnection(ctx, connFn); err != nil {
+	if err := clone.WaitForConnection(connFn); err != nil {
 		return nil, err
 	}
 
@@ -362,7 +348,7 @@ func (sess *session) Open() error {
 		return nil
 	}
 
-	if err := sess.WaitForConnection(context.Background(), connFn); err != nil {
+	if err := sess.WaitForConnection(connFn); err != nil {
 		return err
 	}
 
@@ -966,7 +952,7 @@ var waitForConnMu sync.Mutex
 // connectFn returns an error, then WaitForConnection will keep trying until
 // connectFn returns nil. Maximum waiting time is 5s after having acquired the
 // lock.
-func (sess *session) WaitForConnection(ctx context.Context, connectFn func() error) error {
+func (sess *session) WaitForConnection(connectFn func() error) error {
 	// This lock ensures first-come, first-served and prevents opening too many
 	// file descriptors.
 	waitForConnMu.Lock()
@@ -980,11 +966,6 @@ func (sess *session) WaitForConnection(ctx context.Context, connectFn func() err
 		err := connectFn()
 		if err == nil {
 			return nil // Connected!
-		}
-
-		// Stop processing if the context is intended to be cancelled
-		if ctx.Err() != nil {
-			return err
 		}
 
 		// Only attempt to reconnect if the error is too many clients.
