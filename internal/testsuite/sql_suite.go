@@ -1898,3 +1898,54 @@ func (s *SQLTestSuite) Test_Issue565() {
 	s.Error(err)
 	s.Zero(result.Name)
 }
+
+func (s *SQLTestSuite) TestQueryTimeout() {
+	sess := s.Session()
+
+	sess.Collection("birthdays").Insert(birthday{
+		Name: "Foo",
+		Born: time.Now(),
+	})
+
+	{
+		sess.SetDefaultQueryTimeout(time.Second)
+
+		var result birthday
+		err := sess.Collection("birthdays").Find().Select("name").One(&result)
+
+		s.NoError(err, "one second should have been enough for the query to succeed")
+		s.NotZero(result.Name)
+	}
+
+	{
+		sess.SetDefaultQueryTimeout(time.Nanosecond)
+
+		var result birthday
+		err := sess.Collection("birthdays").Find().Select("name").One(&result)
+
+		s.Error(err, "expecting the query to be canceled")
+		s.Zero(result.Name)
+	}
+
+	{
+		sess.SetDefaultQueryTimeout(time.Second)
+
+		var result birthday
+		err := sess.SQL().Select("name").From("birthdays").One(&result)
+
+		s.NoError(err, "one second should have been enough for the query to succeed")
+		s.NotZero(result.Name)
+	}
+
+	{
+		sess.SetDefaultQueryTimeout(time.Nanosecond)
+
+		var result birthday
+		err := sess.SQL().Select("name").From("birthdays").One(&result)
+
+		s.Error(err, "expecting the query to be canceled")
+		s.Zero(result.Name)
+	}
+
+	sess.SetDefaultQueryTimeout(0)
+}
