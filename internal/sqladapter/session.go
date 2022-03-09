@@ -302,7 +302,7 @@ func (sess *session) NewTransaction(ctx context.Context, opts *sql.TxOptions) (S
 		} else {
 			ctx = context.Background()
 		}
-	} else if _, ok := ctx.Deadline(); !ok {
+	} else if _, ok := ctx.Deadline(); !ok && sess.DefaultQueryTimeout() > 0 {
 		ctx, cancel = context.WithTimeout(context.Background(), sess.DefaultQueryTimeout())
 		defer cancel()
 	}
