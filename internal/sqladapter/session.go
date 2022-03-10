@@ -358,6 +358,7 @@ func (sess *sessionWithContext) Open() error {
 		}
 
 		sqlDB.SetConnMaxLifetime(sess.ConnMaxLifetime())
+		sqlDB.SetConnMaxIdleTime(sess.ConnMaxIdleTime())
 		sqlDB.SetMaxIdleConns(sess.MaxIdleConns())
 		sqlDB.SetMaxOpenConns(sess.MaxOpenConns())
 		return nil
@@ -558,6 +559,13 @@ func (sess *sessionWithContext) SetConnMaxLifetime(t time.Duration) {
 	sess.Settings.SetConnMaxLifetime(t)
 	if sessDB := sess.DB(); sessDB != nil {
 		sessDB.SetConnMaxLifetime(sess.Settings.ConnMaxLifetime())
+	}
+}
+
+func (sess *sessionWithContext) SetConnMaxIdleTime(t time.Duration) {
+	sess.Settings.SetConnMaxIdleTime(t)
+	if sessDB := sess.DB(); sessDB != nil {
+		sessDB.SetConnMaxIdleTime(sess.Settings.ConnMaxIdleTime())
 	}
 }
 
@@ -1021,6 +1029,7 @@ func ReplaceWithDollarSign(in string) string {
 func copySettings(from Session, into Session) {
 	into.SetPreparedStatementCache(from.PreparedStatementCacheEnabled())
 	into.SetConnMaxLifetime(from.ConnMaxLifetime())
+	into.SetConnMaxIdleTime(from.ConnMaxIdleTime())
 	into.SetMaxIdleConns(from.MaxIdleConns())
 	into.SetMaxOpenConns(from.MaxOpenConns())
 }

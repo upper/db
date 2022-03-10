@@ -45,6 +45,14 @@ type Settings interface {
 	// may be reused.
 	ConnMaxLifetime() time.Duration
 
+	// SetConnMaxIdleTime sets the default maximum amount of time a connection
+	// may remain idle.
+	SetConnMaxIdleTime(time.Duration)
+
+	// ConnMaxIdleTime returns the default maximum amount of time a connection
+	// may remain idle.
+	ConnMaxIdleTime() time.Duration
+
 	// SetMaxIdleConns sets the default maximum number of connections in the idle
 	// connection pool.
 	SetMaxIdleConns(int)
@@ -76,6 +84,7 @@ type settings struct {
 	preparedStatementCacheEnabled uint32
 
 	connMaxLifetime time.Duration
+	connMaxIdleTime time.Duration
 	maxOpenConns    int
 	maxIdleConns    int
 
@@ -112,6 +121,18 @@ func (c *settings) ConnMaxLifetime() time.Duration {
 	c.RLock()
 	defer c.RUnlock()
 	return c.connMaxLifetime
+}
+
+func (c *settings) SetConnMaxIdleTime(t time.Duration) {
+	c.Lock()
+	c.connMaxIdleTime = t
+	c.Unlock()
+}
+
+func (c *settings) ConnMaxIdleTime() time.Duration {
+	c.RLock()
+	defer c.RUnlock()
+	return c.connMaxIdleTime
 }
 
 func (c *settings) SetMaxIdleConns(n int) {
@@ -160,6 +181,7 @@ func NewSettings() Settings {
 	return &settings{
 		preparedStatementCacheEnabled: def.preparedStatementCacheEnabled,
 		connMaxLifetime:               def.connMaxLifetime,
+		connMaxIdleTime:               def.connMaxIdleTime,
 		maxIdleConns:                  def.maxIdleConns,
 		maxOpenConns:                  def.maxOpenConns,
 		maxTransactionRetries:         def.maxTransactionRetries,
@@ -171,6 +193,7 @@ func NewSettings() Settings {
 var DefaultSettings Settings = &settings{
 	preparedStatementCacheEnabled: 0,
 	connMaxLifetime:               time.Duration(0),
+	connMaxIdleTime:               time.Duration(0),
 	maxIdleConns:                  10,
 	maxOpenConns:                  0,
 	maxTransactionRetries:         1,
