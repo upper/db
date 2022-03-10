@@ -90,10 +90,9 @@ type Session interface {
 	// context.Background() is returned.
 	Context() context.Context
 
-	// WithContext returns a copy of the session that uses the given context as
-	// default. Copies are safe to use concurrently but they're backed by the
-	// same Session. You may close a copy at any point but that won't close the
-	// parent session.
+	// WithContext returns the same session on a different default context. The
+	// session is identical to the original one in all ways except for the
+	// context.
 	WithContext(ctx context.Context) Session
 
 	Settings

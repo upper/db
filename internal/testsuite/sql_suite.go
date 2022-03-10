@@ -1889,12 +1889,60 @@ func (s *SQLTestSuite) TestCustomType() {
 }
 
 func (s *SQLTestSuite) Test_Issue565() {
-	ctx, _ := context.WithTimeout(context.Background(), time.Nanosecond)
-	sess := s.Session().WithContext(ctx)
+	s.Session().Collection("birthdays").Insert(&birthday{
+		Name: "Lucy",
+		Born: time.Now(),
+	})
 
-	var result birthday
-	err := sess.Collection("birthdays").Find().Select("name").One(&result)
+	parentCtx := context.WithValue(s.Session().Context(), "carry", 1)
+	s.NotZero(parentCtx.Value("carry"))
 
-	s.Error(err)
-	s.Zero(result.Name)
+	{
+		ctx, cancel := context.WithTimeout(parentCtx, time.Nanosecond)
+		defer cancel()
+
+		sess := s.Session()
+
+		s.T().Logf("SESSP-CTX-1: %p", sess)
+		sess = sess.WithContext(ctx)
+		s.T().Logf("SESSP-CTX-2: %p", sess)
+
+		var result birthday
+		err := sess.Collection("birthdays").Find().Select("name").One(&result)
+
+		s.Error(err)
+		s.Zero(result.Name)
+
+		s.NotZero(ctx.Value("carry"))
+	}
+
+	{
+		ctx, cancel := context.WithTimeout(parentCtx, time.Second*10)
+		cancel() // cancel before passing
+
+		sess := s.Session().WithContext(ctx)
+
+		var result birthday
+		err := sess.Collection("birthdays").Find().Select("name").One(&result)
+
+		s.Error(err)
+		s.Zero(result.Name)
+
+		s.NotZero(ctx.Value("carry"))
+	}
+
+	{
+		ctx, cancel := context.WithTimeout(parentCtx, time.Second)
+		defer cancel()
+
+		sess := s.Session().WithContext(ctx)
+
+		var result birthday
+		err := sess.Collection("birthdays").Find().Select("name").One(&result)
+
+		s.NoError(err)
+		s.NotZero(result.Name)
+
+		s.NotZero(ctx.Value("carry"))
+	}
 }

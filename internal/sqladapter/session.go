@@ -161,7 +161,7 @@ type Session interface {
 	// Context returns the default context the session is using.
 	Context() context.Context
 
-	// SetContext sets a default context for the session.
+	// SetContext sets the default context for the session.
 	SetContext(context.Context)
 
 	NewTransaction(ctx context.Context, opts *sql.TxOptions) (Session, error)
@@ -183,31 +183,35 @@ type Session interface {
 
 // NewTx wraps a *sql.Tx and returns a Tx.
 func NewTx(adapter AdapterSession, tx *sql.Tx) (Session, error) {
-	sess := &session{
-		Settings: db.DefaultSettings,
+	sessTx := &sessionWithContext{
+		session: &session{
+			Settings: db.DefaultSettings,
 
-		sqlTx:             tx,
-		adapter:           adapter,
-		cachedPKs:         cache.NewCache(),
-		cachedCollections: cache.NewCache(),
-		cachedStatements:  cache.NewCache(),
+			sqlTx:             tx,
+			adapter:           adapter,
+			cachedPKs:         cache.NewCache(),
+			cachedCollections: cache.NewCache(),
+			cachedStatements:  cache.NewCache(),
+		},
+		ctx: context.Background(),
 	}
-	sess.builder = sqlbuilder.WithSession(sess, adapter.Template())
-	return sess, nil
+	return sessTx, nil
 }
 
 // NewSession creates a new Session.
 func NewSession(connURL db.ConnectionURL, adapter AdapterSession) Session {
-	sess := &session{
-		Settings: db.DefaultSettings,
+	sess := &sessionWithContext{
+		session: &session{
+			Settings: db.DefaultSettings,
 
-		connURL:           connURL,
-		adapter:           adapter,
-		cachedPKs:         cache.NewCache(),
-		cachedCollections: cache.NewCache(),
-		cachedStatements:  cache.NewCache(),
+			connURL:           connURL,
+			adapter:           adapter,
+			cachedPKs:         cache.NewCache(),
+			cachedCollections: cache.NewCache(),
+			cachedStatements:  cache.NewCache(),
+		},
+		ctx: context.Background(),
 	}
-	sess.builder = sqlbuilder.WithSession(sess, adapter.Template())
 	return sess
 }
 
@@ -224,7 +228,6 @@ type session struct {
 	name           string
 
 	mu        sync.Mutex // guards ctx, txOptions
-	ctx       context.Context
 	txOptions *sql.TxOptions
 
 	sqlDBMu sync.Mutex // guards sess, baseTx
@@ -243,36 +246,46 @@ type session struct {
 	template *exql.Template
 }
 
-var (
-	_ = db.Session(&session{})
-)
+type sessionWithContext struct {
+	*session
 
-func (sess *session) WithContext(ctx context.Context) db.Session {
-	newDB, _ := sess.NewClone(sess.adapter, false)
-	newDB.SetContext(ctx)
-	return newDB
+	ctx context.Context
 }
 
-func (sess *session) Tx(fn func(sess db.Session) error) error {
+func (sess *sessionWithContext) WithContext(ctx context.Context) db.Session {
+	if ctx == nil {
+		panic("nil context")
+	}
+	newSess := &sessionWithContext{
+		session: sess.session,
+		ctx:     ctx,
+	}
+	return newSess
+}
+
+func (sess *sessionWithContext) Tx(fn func(sess db.Session) error) error {
 	return TxContext(sess.Context(), sess, fn, nil)
 }
 
-func (sess *session) TxContext(ctx context.Context, fn func(sess db.Session) error, opts *sql.TxOptions) error {
+func (sess *sessionWithContext) TxContext(ctx context.Context, fn func(sess db.Session) error, opts *sql.TxOptions) error {
 	return TxContext(ctx, sess, fn, opts)
 }
 
-func (sess *session) SQL() db.SQL {
-	return sess.builder
+func (sess *sessionWithContext) SQL() db.SQL {
+	return sqlbuilder.WithSession(
+		sess,
+		sess.adapter.Template(),
+	)
 }
 
-func (sess *session) Err(errIn error) (errOur error) {
+func (sess *sessionWithContext) Err(errIn error) (errOur error) {
 	if convertError, ok := sess.adapter.(errorConverter); ok {
 		return convertError.Err(errIn)
 	}
 	return errIn
 }
 
-func (sess *session) PrimaryKeys(tableName string) ([]string, error) {
+func (sess *sessionWithContext) PrimaryKeys(tableName string) ([]string, error) {
 	h := cache.String(tableName)
 	cachedPK, ok := sess.cachedPKs.ReadRaw(h)
 	if ok {
@@ -288,11 +301,11 @@ func (sess *session) PrimaryKeys(tableName string) ([]string, error) {
 	return pk, nil
 }
 
-func (sess *session) TableExists(name string) error {
+func (sess *sessionWithContext) TableExists(name string) error {
 	return sess.adapter.TableExists(sess, name)
 }
 
-func (sess *session) NewTransaction(ctx context.Context, opts *sql.TxOptions) (Session, error) {
+func (sess *sessionWithContext) NewTransaction(ctx context.Context, opts *sql.TxOptions) (Session, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -316,7 +329,7 @@ func (sess *session) NewTransaction(ctx context.Context, opts *sql.TxOptions) (S
 	return clone, nil
 }
 
-func (sess *session) Collections() ([]db.Collection, error) {
+func (sess *sessionWithContext) Collections() ([]db.Collection, error) {
 	names, err := sess.adapter.Collections(sess)
 	if err != nil {
 		return nil, err
@@ -330,11 +343,11 @@ func (sess *session) Collections() ([]db.Collection, error) {
 	return collections, nil
 }
 
-func (sess *session) ConnectionURL() db.ConnectionURL {
+func (sess *sessionWithContext) ConnectionURL() db.ConnectionURL {
 	return sess.connURL
 }
 
-func (sess *session) Open() error {
+func (sess *sessionWithContext) Open() error {
 	var sqlDB *sql.DB
 	var err error
 
@@ -357,7 +370,7 @@ func (sess *session) Open() error {
 	return sess.BindDB(sqlDB)
 }
 
-func (sess *session) Get(record db.Record, id interface{}) error {
+func (sess *sessionWithContext) Get(record db.Record, id interface{}) error {
 	store := record.Store(sess)
 	if getter, ok := store.(db.StoreGetter); ok {
 		return getter.Get(record, id)
@@ -365,7 +378,7 @@ func (sess *session) Get(record db.Record, id interface{}) error {
 	return store.Find(id).One(record)
 }
 
-func (sess *session) Save(record db.Record) error {
+func (sess *sessionWithContext) Save(record db.Record) error {
 	if record == nil {
 		return db.ErrNilRecord
 	}
@@ -401,7 +414,7 @@ func (sess *session) Save(record db.Record) error {
 	return recordCreate(store, record)
 }
 
-func (sess *session) Delete(record db.Record) error {
+func (sess *sessionWithContext) Delete(record db.Record) error {
 	if record == nil {
 		return db.ErrNilRecord
 	}
@@ -441,32 +454,27 @@ func (sess *session) Delete(record db.Record) error {
 	return nil
 }
 
-func (sess *session) DB() *sql.DB {
+func (sess *sessionWithContext) DB() *sql.DB {
 	return sess.sqlDB
 }
 
-func (sess *session) SetContext(ctx context.Context) {
+func (sess *sessionWithContext) SetContext(ctx context.Context) {
 	sess.mu.Lock()
 	sess.ctx = ctx
 	sess.mu.Unlock()
 }
 
-func (sess *session) Context() context.Context {
-	sess.mu.Lock()
-	defer sess.mu.Unlock()
-	if sess.ctx == nil {
-		return context.Background()
-	}
+func (sess *sessionWithContext) Context() context.Context {
 	return sess.ctx
 }
 
-func (sess *session) SetTxOptions(txOptions sql.TxOptions) {
+func (sess *sessionWithContext) SetTxOptions(txOptions sql.TxOptions) {
 	sess.mu.Lock()
 	sess.txOptions = &txOptions
 	sess.mu.Unlock()
 }
 
-func (sess *session) TxOptions() *sql.TxOptions {
+func (sess *sessionWithContext) TxOptions() *sql.TxOptions {
 	sess.mu.Lock()
 	defer sess.mu.Unlock()
 	if sess.txOptions == nil {
@@ -475,7 +483,7 @@ func (sess *session) TxOptions() *sql.TxOptions {
 	return sess.txOptions
 }
 
-func (sess *session) BindTx(ctx context.Context, tx *sql.Tx) error {
+func (sess *sessionWithContext) BindTx(ctx context.Context, tx *sql.Tx) error {
 	sess.sqlDBMu.Lock()
 	defer sess.sqlDBMu.Unlock()
 
@@ -487,29 +495,29 @@ func (sess *session) BindTx(ctx context.Context, tx *sql.Tx) error {
 	return nil
 }
 
-func (sess *session) Commit() error {
+func (sess *sessionWithContext) Commit() error {
 	if sess.sqlTx != nil {
 		return sess.sqlTx.Commit()
 	}
 	return db.ErrNotWithinTransaction
 }
 
-func (sess *session) Rollback() error {
+func (sess *sessionWithContext) Rollback() error {
 	if sess.sqlTx != nil {
 		return sess.sqlTx.Rollback()
 	}
 	return db.ErrNotWithinTransaction
 }
 
-func (sess *session) IsTransaction() bool {
+func (sess *sessionWithContext) IsTransaction() bool {
 	return sess.sqlTx != nil
 }
 
-func (sess *session) Transaction() *sql.Tx {
+func (sess *sessionWithContext) Transaction() *sql.Tx {
 	return sess.sqlTx
 }
 
-func (sess *session) Name() string {
+func (sess *sessionWithContext) Name() string {
 	sess.lookupNameOnce.Do(func() {
 		if sess.name == "" {
 			sess.name, _ = sess.adapter.LookupName(sess)
@@ -519,7 +527,8 @@ func (sess *session) Name() string {
 	return sess.name
 }
 
-func (sess *session) BindDB(sqlDB *sql.DB) error {
+func (sess *sessionWithContext) BindDB(sqlDB *sql.DB) error {
+
 	sess.sqlDBMu.Lock()
 	sess.sqlDB = sqlDB
 	sess.sqlDBMu.Unlock()
@@ -538,28 +547,28 @@ func (sess *session) BindDB(sqlDB *sql.DB) error {
 	return nil
 }
 
-func (sess *session) Ping() error {
+func (sess *sessionWithContext) Ping() error {
 	if sess.sqlDB != nil {
 		return sess.sqlDB.Ping()
 	}
 	return db.ErrNotConnected
 }
 
-func (sess *session) SetConnMaxLifetime(t time.Duration) {
+func (sess *sessionWithContext) SetConnMaxLifetime(t time.Duration) {
 	sess.Settings.SetConnMaxLifetime(t)
 	if sessDB := sess.DB(); sessDB != nil {
 		sessDB.SetConnMaxLifetime(sess.Settings.ConnMaxLifetime())
 	}
 }
 
-func (sess *session) SetMaxIdleConns(n int) {
+func (sess *sessionWithContext) SetMaxIdleConns(n int) {
 	sess.Settings.SetMaxIdleConns(n)
 	if sessDB := sess.DB(); sessDB != nil {
 		sessDB.SetMaxIdleConns(sess.Settings.MaxIdleConns())
 	}
 }
 
-func (sess *session) SetMaxOpenConns(n int) {
+func (sess *sessionWithContext) SetMaxOpenConns(n int) {
 	sess.Settings.SetMaxOpenConns(n)
 	if sessDB := sess.DB(); sessDB != nil {
 		sessDB.SetMaxOpenConns(sess.Settings.MaxOpenConns())
@@ -567,7 +576,7 @@ func (sess *session) SetMaxOpenConns(n int) {
 }
 
 // Reset removes all caches.
-func (sess *session) Reset() {
+func (sess *sessionWithContext) Reset() {
 	sess.cacheMu.Lock()
 	defer sess.cacheMu.Unlock()
 
@@ -580,8 +589,9 @@ func (sess *session) Reset() {
 	}
 }
 
-func (sess *session) NewClone(adapter AdapterSession, checkConn bool) (Session, error) {
-	newSess := NewSession(sess.connURL, adapter).(*session)
+func (sess *sessionWithContext) NewClone(adapter AdapterSession, checkConn bool) (Session, error) {
+
+	newSess := NewSession(sess.connURL, adapter).(*sessionWithContext)
 
 	newSess.name = sess.name
 	newSess.sqlDB = sess.sqlDB
@@ -602,7 +612,7 @@ func (sess *session) NewClone(adapter AdapterSession, checkConn bool) (Session, 
 	return newSess, nil
 }
 
-func (sess *session) Close() error {
+func (sess *sessionWithContext) Close() error {
 	defer func() {
 		sess.sqlDBMu.Lock()
 		sess.sqlDB = nil
@@ -630,21 +640,21 @@ func (sess *session) Close() error {
 	return nil
 }
 
-func (sess *session) Collection(name string) db.Collection {
+func (sess *sessionWithContext) Collection(name string) db.Collection {
 	sess.cacheMu.Lock()
 	defer sess.cacheMu.Unlock()
 
 	h := cache.String(name)
-
-	cachedCol, ok := sess.cachedCollections.ReadRaw(h)
-	if ok {
-		return cachedCol.(db.Collection)
+	col, ok := sess.cachedCollections.ReadRaw(h)
+	if !ok {
+		col = newCollection(name, sess.adapter.NewCollection())
+		sess.cachedCollections.Write(h, col)
 	}
 
-	col := NewCollection(sess, name, sess.adapter.NewCollection())
-	sess.cachedCollections.Write(h, col)
-
-	return col
+	return &collectionWithSession{
+		collection: col.(*collection),
+		session:    sess,
+	}
 }
 
 func queryLog(status *db.QueryStatus) {
@@ -664,7 +674,7 @@ func queryLog(status *db.QueryStatus) {
 	db.LC().Debug(status)
 }
 
-func (sess *session) StatementPrepare(ctx context.Context, stmt *exql.Statement) (sqlStmt *sql.Stmt, err error) {
+func (sess *sessionWithContext) StatementPrepare(ctx context.Context, stmt *exql.Statement) (sqlStmt *sql.Stmt, err error) {
 	var query string
 
 	defer func(start time.Time) {
@@ -694,7 +704,7 @@ func (sess *session) StatementPrepare(ctx context.Context, stmt *exql.Statement)
 	return
 }
 
-func (sess *session) ConvertValue(value interface{}) interface{} {
+func (sess *sessionWithContext) ConvertValue(value interface{}) interface{} {
 	if scannerValuer, ok := value.(sqlbuilder.ScannerValuer); ok {
 		return scannerValuer
 	}
@@ -717,7 +727,7 @@ func (sess *session) ConvertValue(value interface{}) interface{} {
 	return value
 }
 
-func (sess *session) StatementExec(ctx context.Context, stmt *exql.Statement, args ...interface{}) (res sql.Result, err error) {
+func (sess *sessionWithContext) StatementExec(ctx context.Context, stmt *exql.Statement, args ...interface{}) (res sql.Result, err error) {
 	var query string
 
 	defer func(start time.Time) {
@@ -781,7 +791,7 @@ func (sess *session) StatementExec(ctx context.Context, stmt *exql.Statement, ar
 }
 
 // StatementQuery compiles and executes a statement that returns rows.
-func (sess *session) StatementQuery(ctx context.Context, stmt *exql.Statement, args ...interface{}) (rows *sql.Rows, err error) {
+func (sess *sessionWithContext) StatementQuery(ctx context.Context, stmt *exql.Statement, args ...interface{}) (rows *sql.Rows, err error) {
 	var query string
 
 	defer func(start time.Time) {
@@ -822,12 +832,11 @@ func (sess *session) StatementQuery(ctx context.Context, stmt *exql.Statement, a
 
 	rows, err = compat.QueryContext(sess.sqlDB, ctx, query, args)
 	return
-
 }
 
 // StatementQueryRow compiles and executes a statement that returns at most one
 // row.
-func (sess *session) StatementQueryRow(ctx context.Context, stmt *exql.Statement, args ...interface{}) (row *sql.Row, err error) {
+func (sess *sessionWithContext) StatementQueryRow(ctx context.Context, stmt *exql.Statement, args ...interface{}) (row *sql.Row, err error) {
 	var query string
 
 	defer func(start time.Time) {
@@ -871,7 +880,7 @@ func (sess *session) StatementQueryRow(ctx context.Context, stmt *exql.Statement
 }
 
 // Driver returns the underlying *sql.DB or *sql.Tx instance.
-func (sess *session) Driver() interface{} {
+func (sess *sessionWithContext) Driver() interface{} {
 	if sess.sqlTx != nil {
 		return sess.sqlTx
 	}
@@ -879,7 +888,7 @@ func (sess *session) Driver() interface{} {
 }
 
 // compileStatement compiles the given statement into a string.
-func (sess *session) compileStatement(stmt *exql.Statement, args []interface{}) (string, []interface{}, error) {
+func (sess *sessionWithContext) compileStatement(stmt *exql.Statement, args []interface{}) (string, []interface{}, error) {
 	for i := range args {
 		args[i] = sess.ConvertValue(args[i])
 	}
@@ -897,7 +906,7 @@ func (sess *session) compileStatement(stmt *exql.Statement, args []interface{}) 
 
 // prepareStatement compiles a query and tries to use previously generated
 // statement.
-func (sess *session) prepareStatement(ctx context.Context, stmt *exql.Statement, args []interface{}) (*Stmt, string, []interface{}, error) {
+func (sess *sessionWithContext) prepareStatement(ctx context.Context, stmt *exql.Statement, args []interface{}) (*Stmt, string, []interface{}, error) {
 	sess.sqlDBMu.Lock()
 	defer sess.sqlDBMu.Unlock()
 
@@ -947,7 +956,7 @@ var waitForConnMu sync.Mutex
 // connectFn returns an error, then WaitForConnection will keep trying until
 // connectFn returns nil. Maximum waiting time is 5s after having acquired the
 // lock.
-func (sess *session) WaitForConnection(connectFn func() error) error {
+func (sess *sessionWithContext) WaitForConnection(connectFn func() error) error {
 	// This lock ensures first-come, first-served and prevents opening too many
 	// file descriptors.
 	waitForConnMu.Lock()
@@ -1032,8 +1041,6 @@ func newBaseTxID() uint64 {
 	return atomic.AddUint64(&lastTxID, 1)
 }
 
-var _ db.Session = &session{}
-
 // TxContext creates a transaction context and runs fn within it.
 func TxContext(ctx context.Context, sess db.Session, fn func(tx db.Session) error, opts *sql.TxOptions) error {
 	txFn := func(sess db.Session) error {
@@ -1056,7 +1063,7 @@ func TxContext(ctx context.Context, sess db.Session, fn func(tx db.Session) erro
 
 	var txErr error
 	for i := 0; i < sess.MaxTransactionRetries(); i++ {
-		txErr = sess.(*session).Err(txFn(sess))
+		txErr = sess.(*sessionWithContext).Err(txFn(sess))
 		if txErr == nil {
 			return nil
 		}
@@ -1075,3 +1082,5 @@ func TxContext(ctx context.Context, sess db.Session, fn func(tx db.Session) erro
 
 	return fmt.Errorf("db: giving up trying to commit transaction: %w", txErr)
 }
+
+var _ = db.Session(&sessionWithContext{})

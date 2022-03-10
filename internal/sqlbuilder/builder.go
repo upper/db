@@ -27,7 +27,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"reflect"
 	"sort"
 	"strconv"
@@ -560,7 +559,6 @@ type exprProxy struct {
 }
 
 func (p *exprProxy) Context() context.Context {
-	log.Printf("Missing context")
 	return context.Background()
 }
 
