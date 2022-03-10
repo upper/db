@@ -1903,9 +1903,7 @@ func (s *SQLTestSuite) Test_Issue565() {
 
 		sess := s.Session()
 
-		s.T().Logf("SESSP-CTX-1: %p", sess)
 		sess = sess.WithContext(ctx)
-		s.T().Logf("SESSP-CTX-2: %p", sess)
 
 		var result birthday
 		err := sess.Collection("birthdays").Find().Select("name").One(&result)
