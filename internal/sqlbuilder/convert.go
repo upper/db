@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	sqlDefault = exql.RawValue(`DEFAULT`)
+	sqlDefault = &exql.Raw{Value: "DEFAULT"}
 )
 
 func expandQuery(in string, args []interface{}, fn func(interface{}) (string, []interface{})) (string, []interface{}) {

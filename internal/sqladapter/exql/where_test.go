@@ -1,6 +1,7 @@
 package exql
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -66,6 +67,7 @@ func TestWhereAndRawOrAnd(t *testing.T) {
 		JoinWithAnd(
 			&ColumnValue{Column: &Column{Name: "id"}, Operator: ">", Value: NewValue(&Raw{Value: "8"})},
 			&ColumnValue{Column: &Column{Name: "id"}, Operator: "<", Value: NewValue(&Raw{Value: "99"})},
+			&ColumnValue{Column: &Column{Name: "id"}, Operator: "<", Value: NewValue(1)},
 		),
 		&ColumnValue{Column: &Column{Name: "name"}, Operator: "=", Value: NewValue("John")},
 		&Raw{Value: "city_id = 728"},
@@ -79,12 +81,10 @@ func TestWhereAndRawOrAnd(t *testing.T) {
 		),
 	)
 
-	s := mustTrim(where.Compile(defaultTemplate))
-
-	e := `WHERE (("id" > 8 AND "id" < 99) AND "name" = 'John' AND city_id = 728 AND ("last_name" = 'Smith' OR "last_name" = 'Reyes') AND ("age" > 18 AND "age" < 41))`
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.Equal(t,
+		`WHERE (("id" > 8 AND "id" < 99 AND "id" < '1') AND "name" = 'John' AND city_id = 728 AND ("last_name" = 'Smith' OR "last_name" = 'Reyes') AND ("age" > 18 AND "age" < 41))`,
+		mustTrim(where.Compile(defaultTemplate)),
+	)
 }
 
 func BenchmarkWhere(b *testing.B) {

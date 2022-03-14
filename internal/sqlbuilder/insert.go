@@ -60,7 +60,7 @@ func (iq *inserterQuery) processValues() ([]*exql.Values, []interface{}, error) 
 			l := len(enqueuedValue)
 			placeholders := make([]exql.Fragment, l)
 			for i := 0; i < l; i++ {
-				placeholders[i] = exql.RawValue(`?`)
+				placeholders[i] = sqlPlaceholder
 			}
 			values = append(values, exql.NewValueGroup(placeholders...))
 		}

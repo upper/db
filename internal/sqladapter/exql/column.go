@@ -1,20 +1,17 @@
 package exql
 
 import (
-	"fmt"
 	"strings"
 )
 
-type columnT struct {
+type columnWithAlias struct {
 	Name  string
 	Alias string
 }
 
 // Column represents a SQL column.
 type Column struct {
-	Name  interface{}
-	Alias string
-	hash  hash
+	Name interface{}
 }
 
 var _ = Fragment(&Column{})
@@ -25,8 +22,8 @@ func ColumnWithName(name string) *Column {
 }
 
 // Hash returns a unique identifier for the struct.
-func (c *Column) Hash() string {
-	return c.hash.Hash(c)
+func (c *Column) Hash() uint64 {
+	return quickHash(FragmentType_Column, c.Name)
 }
 
 // Compile transforms the ColumnValue into an equivalent SQL representation.
@@ -35,20 +32,17 @@ func (c *Column) Compile(layout *Template) (compiled string, err error) {
 		return z, nil
 	}
 
-	alias := c.Alias
-
+	var alias string
 	switch value := c.Name.(type) {
 	case string:
-		input := trimString(value)
+		value = trimString(value)
 
-		chunks := separateByAS(input)
-
+		chunks := separateByAS(value)
 		if len(chunks) == 1 {
-			chunks = separateBySpace(input)
+			chunks = separateBySpace(value)
 		}
 
 		name := chunks[0]
-
 		nameChunks := strings.SplitN(name, layout.ColumnSeparator, 2)
 
 		for i := range nameChunks {
@@ -65,17 +59,19 @@ func (c *Column) Compile(layout *Template) (compiled string, err error) {
 			alias = trimString(chunks[1])
 			alias = layout.MustCompile(layout.IdentifierQuote, Raw{Value: alias})
 		}
-	case Raw:
-		compiled = value.String()
+	case compilable:
+		compiled, err = value.Compile(layout)
+		if err != nil {
+			return "", err
+		}
 	default:
-		compiled = fmt.Sprintf("%v", c.Name)
+		return "", ErrExpectingHashable
 	}
 
 	if alias != "" {
-		compiled = layout.MustCompile(layout.ColumnAliasLayout, columnT{compiled, alias})
+		compiled = layout.MustCompile(layout.ColumnAliasLayout, columnWithAlias{compiled, alias})
 	}
 
 	layout.Write(c, compiled)
-
 	return
 }

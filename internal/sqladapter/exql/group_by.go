@@ -3,7 +3,6 @@ package exql
 // GroupBy represents a SQL's "group by" statement.
 type GroupBy struct {
 	Columns Fragment
-	hash    hash
 }
 
 var _ = Fragment(&GroupBy{})
@@ -13,8 +12,8 @@ type groupByT struct {
 }
 
 // Hash returns a unique identifier.
-func (g *GroupBy) Hash() string {
-	return g.hash.Hash(g)
+func (g *GroupBy) Hash() uint64 {
+	return quickHash(FragmentType_GroupBy, g.Columns)
 }
 
 // GroupByColumns creates and returns a GroupBy with the given column.

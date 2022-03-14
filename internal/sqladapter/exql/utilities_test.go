@@ -20,6 +20,20 @@ var (
 	stringWithLeadingBlanks = string(bytesWithLeadingBlanks)
 )
 
+var (
+	reInvisible = regexp.MustCompile(`[\t\n\r]`)
+	reSpace     = regexp.MustCompile(`\s+`)
+)
+
+func mustTrim(a string, err error) string {
+	if err != nil {
+		panic(err.Error())
+	}
+	a = reInvisible.ReplaceAllString(strings.TrimSpace(a), " ")
+	a = reSpace.ReplaceAllString(strings.TrimSpace(a), " ")
+	return a
+}
+
 func TestUtilIsBlankSymbol(t *testing.T) {
 	if isBlankSymbol(' ') == false {
 		t.Fail()

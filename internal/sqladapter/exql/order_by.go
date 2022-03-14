@@ -1,7 +1,6 @@
 package exql
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -10,16 +9,20 @@ type Order uint8
 
 // Possible values for Order
 const (
-	DefaultOrder = Order(iota)
-	Ascendent
-	Descendent
+	Order_Default Order = iota
+
+	Order_Ascendent
+	Order_Descendent
 )
+
+func (o Order) Hash() uint64 {
+	return quickHash(FragmentType_Order, uint8(o))
+}
 
 // SortColumn represents the column-order relation in an ORDER BY clause.
 type SortColumn struct {
 	Column Fragment
 	Order
-	hash hash
 }
 
 var _ = Fragment(&SortColumn{})
@@ -34,7 +37,6 @@ var _ = Fragment(&SortColumn{})
 // SortColumns represents the columns in an ORDER BY clause.
 type SortColumns struct {
 	Columns []Fragment
-	hash    hash
 }
 
 var _ = Fragment(&SortColumns{})
@@ -42,7 +44,6 @@ var _ = Fragment(&SortColumns{})
 // OrderBy represents an ORDER BY clause.
 type OrderBy struct {
 	SortColumns Fragment
-	hash        hash
 }
 
 var _ = Fragment(&OrderBy{})
@@ -62,8 +63,8 @@ func JoinWithOrderBy(sc *SortColumns) *OrderBy {
 }
 
 // Hash returns a unique identifier for the struct.
-func (s *SortColumn) Hash() string {
-	return s.hash.Hash(s)
+func (s *SortColumn) Hash() uint64 {
+	return quickHash(FragmentType_SortColumn, s.Column, s.Order)
 }
 
 // Compile transforms the SortColumn into an equivalent SQL representation.
@@ -93,8 +94,12 @@ func (s *SortColumn) Compile(layout *Template) (compiled string, err error) {
 }
 
 // Hash returns a unique identifier for the struct.
-func (s *SortColumns) Hash() string {
-	return s.hash.Hash(s)
+func (s *SortColumns) Hash() uint64 {
+	h := initHash(FragmentType_SortColumns)
+	for i := range s.Columns {
+		h = addToHash(h, s.Columns[i])
+	}
+	return h
 }
 
 // Compile transforms the SortColumns into an equivalent SQL representation.
@@ -120,8 +125,8 @@ func (s *SortColumns) Compile(layout *Template) (compiled string, err error) {
 }
 
 // Hash returns a unique identifier for the struct.
-func (s *OrderBy) Hash() string {
-	return s.hash.Hash(s)
+func (s *OrderBy) Hash() uint64 {
+	return quickHash(FragmentType_OrderBy, s.SortColumns)
 }
 
 // Compile transforms the SortColumn into an equivalent SQL representation.
@@ -147,17 +152,12 @@ func (s *OrderBy) Compile(layout *Template) (compiled string, err error) {
 	return
 }
 
-// Hash returns a unique identifier.
-func (s *Order) Hash() string {
-	return fmt.Sprintf("%T.%d", s, uint8(*s))
-}
-
 // Compile transforms the SortColumn into an equivalent SQL representation.
 func (s Order) Compile(layout *Template) (string, error) {
 	switch s {
-	case Ascendent:
+	case Order_Ascendent:
 		return layout.AscKeyword, nil
-	case Descendent:
+	case Order_Descendent:
 		return layout.DescKeyword, nil
 	}
 	return "", nil

@@ -3,12 +3,11 @@ package exql
 // Returning represents a RETURNING clause.
 type Returning struct {
 	*Columns
-	hash hash
 }
 
 // Hash returns a unique identifier for the struct.
-func (r *Returning) Hash() string {
-	return r.hash.Hash(r)
+func (r *Returning) Hash() uint64 {
+	return quickHash(FragmentType_Returning, r.Columns)
 }
 
 var _ = Fragment(&Returning{})

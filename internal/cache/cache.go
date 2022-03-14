@@ -24,25 +24,21 @@ package cache
 import (
 	"container/list"
 	"errors"
-	"fmt"
-	"strconv"
 	"sync"
-
-	"github.com/upper/db/v4/internal/cache/hashstructure"
 )
 
 const defaultCapacity = 128
 
 // Cache holds a map of volatile key -> values.
 type Cache struct {
-	cache    map[string]*list.Element
-	li       *list.List
-	capacity int
+	keys     *list.List
+	items    map[uint64]*list.Element
 	mu       sync.RWMutex
+	capacity int
 }
 
-type item struct {
-	key   string
+type cacheItem struct {
+	key   uint64
 	value interface{}
 }
 
@@ -52,11 +48,11 @@ func NewCacheWithCapacity(capacity int) (*Cache, error) {
 	if capacity < 1 {
 		return nil, errors.New("Capacity must be greater than zero.")
 	}
-	return &Cache{
-		cache:    make(map[string]*list.Element),
-		li:       list.New(),
+	c := &Cache{
 		capacity: capacity,
-	}, nil
+	}
+	c.init()
+	return c, nil
 }
 
 // NewCache initializes a new caching space with default settings.
@@ -66,6 +62,11 @@ func NewCache() *Cache {
 		panic(err.Error()) // Should never happen as we're not providing a negative defaultCapacity.
 	}
 	return c
+}
+
+func (c *Cache) init() {
+	c.items = make(map[uint64]*list.Element)
+	c.keys = list.New()
 }
 
 // Read attempts to retrieve a cached value as a string, if the value does not
@@ -84,33 +85,35 @@ func (c *Cache) Read(h Hashable) (string, bool) {
 func (c *Cache) ReadRaw(h Hashable) (interface{}, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	data, ok := c.cache[h.Hash()]
+
+	item, ok := c.items[h.Hash()]
 	if ok {
-		return data.Value.(*item).value, true
+		return item.Value.(*cacheItem).value, true
 	}
+
 	return nil, false
 }
 
 // Write stores a value in memory. If the value already exists its overwritten.
 func (c *Cache) Write(h Hashable, value interface{}) {
-	key := h.Hash()
-
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if el, ok := c.cache[key]; ok {
-		el.Value.(*item).value = value
-		c.li.MoveToFront(el)
+	key := h.Hash()
+
+	if item, ok := c.items[key]; ok {
+		item.Value.(*cacheItem).value = value
+		c.keys.MoveToFront(item)
 		return
 	}
 
-	c.cache[key] = c.li.PushFront(&item{key, value})
+	c.items[key] = c.keys.PushFront(&cacheItem{key, value})
 
-	for c.li.Len() > c.capacity {
-		el := c.li.Remove(c.li.Back())
-		delete(c.cache, el.(*item).key)
-		if p, ok := el.(*item).value.(HasOnPurge); ok {
-			p.OnPurge()
+	for c.keys.Len() > c.capacity {
+		item := c.keys.Remove(c.keys.Back()).(*cacheItem)
+		delete(c.items, item.key)
+		if p, ok := item.value.(HasOnEvict); ok {
+			p.OnEvict()
 		}
 	}
 }
@@ -120,33 +123,12 @@ func (c *Cache) Write(h Hashable, value interface{}) {
 func (c *Cache) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for _, el := range c.cache {
-		if p, ok := el.Value.(*item).value.(HasOnPurge); ok {
-			p.OnPurge()
+
+	for _, item := range c.items {
+		if p, ok := item.Value.(*cacheItem).value.(HasOnEvict); ok {
+			p.OnEvict()
 		}
 	}
-	c.cache = make(map[string]*list.Element)
-	c.li.Init()
-}
 
-// Hash returns a hash of the given struct.
-func Hash(v interface{}) string {
-	q, err := hashstructure.Hash(v, nil)
-	if err != nil {
-		panic(fmt.Sprintf("Could not hash struct: %v", err.Error()))
-	}
-	return strconv.FormatUint(q, 10)
-}
-
-type hash struct {
-	name string
-}
-
-func (h *hash) Hash() string {
-	return h.name
-}
-
-// String returns a Hashable that produces a hash equal to the given string.
-func String(s string) Hashable {
-	return &hash{s}
+	c.init()
 }

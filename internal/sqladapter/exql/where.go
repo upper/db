@@ -13,7 +13,6 @@ type And Where
 // Where represents an SQL WHERE clause.
 type Where struct {
 	Conditions []Fragment
-	hash       hash
 }
 
 var _ = Fragment(&Where{})
@@ -38,8 +37,12 @@ func JoinWithAnd(conditions ...Fragment) *And {
 }
 
 // Hash returns a unique identifier for the struct.
-func (w *Where) Hash() string {
-	return w.hash.Hash(w)
+func (w *Where) Hash() uint64 {
+	h := initHash(FragmentType_Where)
+	for i := range w.Conditions {
+		h = addToHash(h, w.Conditions[i])
+	}
+	return h
 }
 
 // Appends adds the conditions to the ones that already exist.
@@ -51,15 +54,13 @@ func (w *Where) Append(a *Where) *Where {
 }
 
 // Hash returns a unique identifier.
-func (o *Or) Hash() string {
-	w := Where(*o)
-	return `Or(` + w.Hash() + `)`
+func (o *Or) Hash() uint64 {
+	return quickHash(FragmentType_Or, (*Where)(o))
 }
 
 // Hash returns a unique identifier.
-func (a *And) Hash() string {
-	w := Where(*a)
-	return `And(` + w.Hash() + `)`
+func (a *And) Hash() uint64 {
+	return quickHash(FragmentType_And, (*Where)(a))
 }
 
 // Compile transforms the Or into an equivalent SQL representation.

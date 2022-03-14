@@ -14,14 +14,17 @@ type innerJoinT struct {
 // Joins represents the union of different join conditions.
 type Joins struct {
 	Conditions []Fragment
-	hash       hash
 }
 
 var _ = Fragment(&Joins{})
 
 // Hash returns a unique identifier for the struct.
-func (j *Joins) Hash() string {
-	return j.hash.Hash(j)
+func (j *Joins) Hash() uint64 {
+	h := initHash(FragmentType_Joins)
+	for i := range j.Conditions {
+		h = addToHash(h, j.Conditions[i])
+	}
+	return h
 }
 
 // Compile transforms the Where into an equivalent SQL representation.
@@ -66,14 +69,13 @@ type Join struct {
 	Table Fragment
 	On    Fragment
 	Using Fragment
-	hash  hash
 }
 
 var _ = Fragment(&Join{})
 
 // Hash returns a unique identifier for the struct.
-func (j *Join) Hash() string {
-	return j.hash.Hash(j)
+func (j *Join) Hash() uint64 {
+	return quickHash(FragmentType_Join, j.Type, j.Table, j.On, j.Using)
 }
 
 // Compile transforms the Join into its equivalent SQL representation.
@@ -118,9 +120,8 @@ type On Where
 
 var _ = Fragment(&On{})
 
-// Hash returns a unique identifier.
-func (o *On) Hash() string {
-	return o.hash.Hash(o)
+func (o *On) Hash() uint64 {
+	return (*Where)(o).Hash()
 }
 
 // Compile transforms the On into an equivalent SQL representation.
@@ -151,9 +152,8 @@ type usingT struct {
 	Columns string
 }
 
-// Hash returns a unique identifier.
-func (u *Using) Hash() string {
-	return u.hash.Hash(u)
+func (u *Using) Hash() uint64 {
+	return (*Columns)(u).Hash()
 }
 
 // Compile transforms the Using into an equivalent SQL representation.

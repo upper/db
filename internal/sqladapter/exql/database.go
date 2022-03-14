@@ -3,7 +3,6 @@ package exql
 // Database represents a SQL database.
 type Database struct {
 	Name string
-	hash hash
 }
 
 var _ = Fragment(&Database{})
@@ -14,8 +13,8 @@ func DatabaseWithName(name string) *Database {
 }
 
 // Hash returns a unique identifier for the struct.
-func (d *Database) Hash() string {
-	return d.hash.Hash(d)
+func (d *Database) Hash() uint64 {
+	return quickHash(FragmentType_Database, d.Name)
 }
 
 // Compile transforms the Database into an equivalent SQL representation.

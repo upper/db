@@ -2,6 +2,8 @@ package exql
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestColumns(t *testing.T) {
@@ -14,14 +16,8 @@ func TestColumns(t *testing.T) {
 	)
 
 	s, err := columns.Compile(defaultTemplate)
-	if err != nil {
-		t.Fatal()
-	}
-
-	e := `"id", "customer", "service_id", "role"."name", "role"."id"`
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, `"id", "customer", "service_id", "role"."name", "role"."id"`, s)
 }
 
 func BenchmarkJoinColumns(b *testing.B) {
@@ -42,6 +38,7 @@ func BenchmarkColumnsHash(b *testing.B) {
 		&Column{Name: "role.name"},
 		&Column{Name: "role.id"},
 	)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		c.Hash()
 	}
@@ -55,6 +52,7 @@ func BenchmarkColumnsCompile(b *testing.B) {
 		&Column{Name: "role.name"},
 		&Column{Name: "role.id"},
 	)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = c.Compile(defaultTemplate)
 	}

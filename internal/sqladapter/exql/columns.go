@@ -7,14 +7,17 @@ import (
 // Columns represents an array of Column.
 type Columns struct {
 	Columns []Fragment
-	hash    hash
 }
 
 var _ = Fragment(&Columns{})
 
 // Hash returns a unique identifier.
-func (c *Columns) Hash() string {
-	return c.hash.Hash(c)
+func (c *Columns) Hash() uint64 {
+	h := initHash(FragmentType_Columns)
+	for i := range c.Columns {
+		h = addToHash(h, c.Columns[i])
+	}
+	return h
 }
 
 // JoinColumns creates and returns an array of Column.

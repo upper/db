@@ -1,211 +1,134 @@
 package exql
 
 import (
-	"regexp"
-	"strings"
 	"testing"
-)
 
-var (
-	reInvisible = regexp.MustCompile(`[\t\n\r]`)
-	reSpace     = regexp.MustCompile(`\s+`)
+	"github.com/stretchr/testify/assert"
 )
-
-func mustTrim(a string, err error) string {
-	if err != nil {
-		panic(err.Error())
-	}
-	a = reInvisible.ReplaceAllString(strings.TrimSpace(a), " ")
-	a = reSpace.ReplaceAllString(strings.TrimSpace(a), " ")
-	return a
-}
 
 func TestTruncateTable(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:  Truncate,
 		Table: TableWithName("table_name"),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `TRUNCATE TABLE "table_name"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `TRUNCATE TABLE "table_name"`, s)
 }
 
 func TestDropTable(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:  DropTable,
 		Table: TableWithName("table_name"),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `DROP TABLE "table_name"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `DROP TABLE "table_name"`, s)
 }
 
 func TestDropDatabase(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:     DropDatabase,
 		Database: &Database{Name: "table_name"},
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `DROP DATABASE "table_name"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `DROP DATABASE "table_name"`, s)
 }
 
 func TestCount(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:  Count,
 		Table: TableWithName("table_name"),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT COUNT(1) AS _t FROM "table_name"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `SELECT COUNT(1) AS _t FROM "table_name"`, s)
 }
 
 func TestCountRelation(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:  Count,
 		Table: TableWithName("information_schema.tables"),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT COUNT(1) AS _t FROM "information_schema"."tables"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `SELECT COUNT(1) AS _t FROM "information_schema"."tables"`, s)
 }
 
 func TestCountWhere(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:  Count,
 		Table: TableWithName("table_name"),
 		Where: WhereConditions(
-			&ColumnValue{Column: &Column{Name: "a"}, Operator: "=", Value: NewValue(RawValue("7"))},
+			&ColumnValue{Column: &Column{Name: "a"}, Operator: "=", Value: &Raw{Value: "7"}},
 		),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT COUNT(1) AS _t FROM "table_name" WHERE ("a" = 7)`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `SELECT COUNT(1) AS _t FROM "table_name" WHERE ("a" = 7)`, s)
 }
 
 func TestSelectStarFrom(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:  Select,
 		Table: TableWithName("table_name"),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT * FROM "table_name"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `SELECT * FROM "table_name"`, s)
 }
 
 func TestSelectStarFromAlias(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:  Select,
 		Table: TableWithName("table.name AS foo"),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT * FROM "table"."name" AS "foo"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `SELECT * FROM "table"."name" AS "foo"`, s)
 }
 
 func TestSelectStarFromRawWhere(t *testing.T) {
-	var s, e string
-	var stmt Statement
+	{
+		stmt := Statement{
+			Type:  Select,
+			Table: TableWithName("table.name AS foo"),
+			Where: WhereConditions(
+				&Raw{Value: "foo.id = bar.foo_id"},
+			),
+		}
 
-	stmt = Statement{
-		Type:  Select,
-		Table: TableWithName("table.name AS foo"),
-		Where: WhereConditions(
-			&Raw{Value: "foo.id = bar.foo_id"},
-		),
+		s := mustTrim(stmt.Compile(defaultTemplate))
+		assert.Equal(t, `SELECT * FROM "table"."name" AS "foo" WHERE (foo.id = bar.foo_id)`, s)
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT * FROM "table"."name" AS "foo" WHERE (foo.id = bar.foo_id)`
+	{
+		stmt := Statement{
+			Type:  Select,
+			Table: TableWithName("table.name AS foo"),
+			Where: WhereConditions(
+				&Raw{Value: "foo.id = bar.foo_id"},
+				&Raw{Value: "baz.id = exp.baz_id"},
+			),
+		}
 
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
-
-	stmt = Statement{
-		Type:  Select,
-		Table: TableWithName("table.name AS foo"),
-		Where: WhereConditions(
-			&Raw{Value: "foo.id = bar.foo_id"},
-			&Raw{Value: "baz.id = exp.baz_id"},
-		),
-	}
-
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT * FROM "table"."name" AS "foo" WHERE (foo.id = bar.foo_id AND baz.id = exp.baz_id)`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
+		s := mustTrim(stmt.Compile(defaultTemplate))
+		assert.Equal(t, `SELECT * FROM "table"."name" AS "foo" WHERE (foo.id = bar.foo_id AND baz.id = exp.baz_id)`, s)
 	}
 }
 
 func TestSelectStarFromMany(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:  Select,
 		Table: TableWithName("first.table AS foo, second.table as BAR, third.table aS baz"),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT * FROM "first"."table" AS "foo", "second"."table" AS "BAR", "third"."table" AS "baz"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `SELECT * FROM "first"."table" AS "foo", "second"."table" AS "BAR", "third"."table" AS "baz"`, s)
 }
 
 func TestSelectTableStarFromMany(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type: Select,
 		Columns: JoinColumns(
@@ -216,17 +139,11 @@ func TestSelectTableStarFromMany(t *testing.T) {
 		Table: TableWithName("first.table AS foo, second.table as BAR, third.table aS baz"),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo"."name", "BAR".*, "baz"."last_name" FROM "first"."table" AS "foo", "second"."table" AS "BAR", "third"."table" AS "baz"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `SELECT "foo"."name", "BAR".*, "baz"."last_name" FROM "first"."table" AS "foo", "second"."table" AS "BAR", "third"."table" AS "baz"`, s)
 }
 
 func TestSelectArtistNameFrom(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:  Select,
 		Table: TableWithName("artist"),
@@ -235,17 +152,11 @@ func TestSelectArtistNameFrom(t *testing.T) {
 		),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT "artist"."name" FROM "artist"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `SELECT "artist"."name" FROM "artist"`, s)
 }
 
 func TestSelectJoin(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:  Select,
 		Table: TableWithName("artist a"),
@@ -264,17 +175,11 @@ func TestSelectJoin(t *testing.T) {
 		}),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT "a"."name" FROM "artist" AS "a" JOIN "books" AS "b" ON ("b"."author_id" = "a"."id")`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `SELECT "a"."name" FROM "artist" AS "a" JOIN "books" AS "b" ON ("b"."author_id" = "a"."id")`, s)
 }
 
 func TestSelectJoinUsing(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:  Select,
 		Table: TableWithName("artist a"),
@@ -290,12 +195,8 @@ func TestSelectJoinUsing(t *testing.T) {
 		}),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT "a"."name" FROM "artist" AS "a" JOIN "books" AS "b" USING ("artist_id", "country")`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `SELECT "a"."name" FROM "artist" AS "a" JOIN "books" AS "b" USING ("artist_id", "country")`, s)
 }
 
 func TestSelectUnfinishedJoin(t *testing.T) {
@@ -309,15 +210,10 @@ func TestSelectUnfinishedJoin(t *testing.T) {
 	}
 
 	s := mustTrim(stmt.Compile(defaultTemplate))
-	e := `SELECT "a"."name" FROM "artist" AS "a"`
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.Equal(t, `SELECT "a"."name" FROM "artist" AS "a"`, s)
 }
 
 func TestSelectNaturalJoin(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:  Select,
 		Table: TableWithName("artist"),
@@ -326,17 +222,11 @@ func TestSelectNaturalJoin(t *testing.T) {
 		}),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT * FROM "artist" NATURAL JOIN "books"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `SELECT * FROM "artist" NATURAL JOIN "books"`, s)
 }
 
 func TestSelectRawFrom(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:  Select,
 		Table: TableWithName(`artist`),
@@ -346,17 +236,11 @@ func TestSelectRawFrom(t *testing.T) {
 		),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT "artist"."name", CONCAT(artist.name, " ", artist.last_name) FROM "artist"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `SELECT "artist"."name", CONCAT(artist.name, " ", artist.last_name) FROM "artist"`, s)
 }
 
 func TestSelectFieldsFrom(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type: Select,
 		Columns: JoinColumns(
@@ -367,300 +251,248 @@ func TestSelectFieldsFrom(t *testing.T) {
 		Table: TableWithName("table_name"),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table_name"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `SELECT "foo", "bar", "baz" FROM "table_name"`, s)
 }
 
 func TestSelectFieldsFromWithLimitOffset(t *testing.T) {
-	var s, e string
-	var stmt Statement
+	{
+		stmt := Statement{
+			Type: Select,
+			Columns: JoinColumns(
+				&Column{Name: "foo"},
+				&Column{Name: "bar"},
+				&Column{Name: "baz"},
+			),
+			Limit: 42,
+			Table: TableWithName("table_name"),
+		}
 
-	// LIMIT only.
-	stmt = Statement{
-		Type: Select,
-		Columns: JoinColumns(
-			&Column{Name: "foo"},
-			&Column{Name: "bar"},
-			&Column{Name: "baz"},
-		),
-		Limit: 42,
-		Table: TableWithName("table_name"),
+		s := mustTrim(stmt.Compile(defaultTemplate))
+		assert.Equal(t, `SELECT "foo", "bar", "baz" FROM "table_name" LIMIT 42`, s)
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table_name" LIMIT 42`
+	{
+		stmt := Statement{
+			Type: Select,
+			Columns: JoinColumns(
+				&Column{Name: "foo"},
+				&Column{Name: "bar"},
+				&Column{Name: "baz"},
+			),
+			Offset: 17,
+			Table:  TableWithName("table_name"),
+		}
 
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
+		s := mustTrim(stmt.Compile(defaultTemplate))
+		assert.Equal(t, `SELECT "foo", "bar", "baz" FROM "table_name" OFFSET 17`, s)
 	}
 
-	// OFFSET only.
-	stmt = Statement{
-		Type: Select,
-		Columns: JoinColumns(
-			&Column{Name: "foo"},
-			&Column{Name: "bar"},
-			&Column{Name: "baz"},
-		),
-		Offset: 17,
-		Table:  TableWithName("table_name"),
-	}
+	{
+		stmt := Statement{
+			Type: Select,
+			Columns: JoinColumns(
+				&Column{Name: "foo"},
+				&Column{Name: "bar"},
+				&Column{Name: "baz"},
+			),
+			Limit:  42,
+			Offset: 17,
+			Table:  TableWithName("table_name"),
+		}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table_name" OFFSET 17`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
-
-	// LIMIT AND OFFSET.
-	stmt = Statement{
-		Type: Select,
-		Columns: JoinColumns(
-			&Column{Name: "foo"},
-			&Column{Name: "bar"},
-			&Column{Name: "baz"},
-		),
-		Limit:  42,
-		Offset: 17,
-		Table:  TableWithName("table_name"),
-	}
-
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table_name" LIMIT 42 OFFSET 17`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
+		s := mustTrim(stmt.Compile(defaultTemplate))
+		assert.Equal(t, `SELECT "foo", "bar", "baz" FROM "table_name" LIMIT 42 OFFSET 17`, s)
 	}
 }
 
 func TestStatementGroupBy(t *testing.T) {
-	var s, e string
-	var stmt Statement
+	{
+		stmt := Statement{
+			Type: Select,
+			Columns: JoinColumns(
+				&Column{Name: "foo"},
+				&Column{Name: "bar"},
+				&Column{Name: "baz"},
+			),
+			GroupBy: GroupByColumns(
+				&Column{Name: "foo"},
+			),
+			Table: TableWithName("table_name"),
+		}
 
-	// Simple GROUP BY
-	stmt = Statement{
-		Type: Select,
-		Columns: JoinColumns(
-			&Column{Name: "foo"},
-			&Column{Name: "bar"},
-			&Column{Name: "baz"},
-		),
-		GroupBy: GroupByColumns(
-			&Column{Name: "foo"},
-		),
-		Table: TableWithName("table_name"),
+		s := mustTrim(stmt.Compile(defaultTemplate))
+		assert.Equal(t, `SELECT "foo", "bar", "baz" FROM "table_name" GROUP BY "foo"`, s)
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table_name" GROUP BY "foo"`
+	{
+		stmt := Statement{
+			Type: Select,
+			Columns: JoinColumns(
+				&Column{Name: "foo"},
+				&Column{Name: "bar"},
+				&Column{Name: "baz"},
+			),
+			GroupBy: GroupByColumns(
+				&Column{Name: "foo"},
+				&Column{Name: "bar"},
+			),
+			Table: TableWithName("table_name"),
+		}
 
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
-
-	stmt = Statement{
-		Type: Select,
-		Columns: JoinColumns(
-			&Column{Name: "foo"},
-			&Column{Name: "bar"},
-			&Column{Name: "baz"},
-		),
-		GroupBy: GroupByColumns(
-			&Column{Name: "foo"},
-			&Column{Name: "bar"},
-		),
-		Table: TableWithName("table_name"),
-	}
-
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table_name" GROUP BY "foo", "bar"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
+		s := mustTrim(stmt.Compile(defaultTemplate))
+		assert.Equal(t, `SELECT "foo", "bar", "baz" FROM "table_name" GROUP BY "foo", "bar"`, s)
 	}
 }
 
 func TestSelectFieldsFromWithOrderBy(t *testing.T) {
-	var s, e string
-	var stmt Statement
-
-	// Simple ORDER BY
-	stmt = Statement{
-		Type: Select,
-		Columns: JoinColumns(
-			&Column{Name: "foo"},
-			&Column{Name: "bar"},
-			&Column{Name: "baz"},
-		),
-		OrderBy: JoinWithOrderBy(
-			JoinSortColumns(
-				&SortColumn{Column: &Column{Name: "foo"}},
+	{
+		stmt := Statement{
+			Type: Select,
+			Columns: JoinColumns(
+				&Column{Name: "foo"},
+				&Column{Name: "bar"},
+				&Column{Name: "baz"},
 			),
-		),
-		Table: TableWithName("table_name"),
-	}
-
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY "foo"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
-
-	// ORDER BY field ASC
-	stmt = Statement{
-		Type: Select,
-		Columns: JoinColumns(
-			&Column{Name: "foo"},
-			&Column{Name: "bar"},
-			&Column{Name: "baz"},
-		),
-		OrderBy: JoinWithOrderBy(
-			JoinSortColumns(
-				&SortColumn{Column: &Column{Name: "foo"}, Order: Ascendent},
+			OrderBy: JoinWithOrderBy(
+				JoinSortColumns(
+					&SortColumn{Column: &Column{Name: "foo"}},
+				),
 			),
-		),
-		Table: TableWithName("table_name"),
+			Table: TableWithName("table_name"),
+		}
+
+		s := mustTrim(stmt.Compile(defaultTemplate))
+		assert.Equal(t, `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY "foo"`, s)
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY "foo" ASC`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
-
-	// ORDER BY field DESC
-	stmt = Statement{
-		Type: Select,
-		Columns: JoinColumns(
-			&Column{Name: "foo"},
-			&Column{Name: "bar"},
-			&Column{Name: "baz"},
-		),
-		OrderBy: JoinWithOrderBy(
-			JoinSortColumns(
-				&SortColumn{Column: &Column{Name: "foo"}, Order: Descendent},
+	{
+		stmt := Statement{
+			Type: Select,
+			Columns: JoinColumns(
+				&Column{Name: "foo"},
+				&Column{Name: "bar"},
+				&Column{Name: "baz"},
 			),
-		),
-		Table: TableWithName("table_name"),
-	}
-
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY "foo" DESC`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
-
-	// ORDER BY many fields
-	stmt = Statement{
-		Type: Select,
-		Columns: JoinColumns(
-			&Column{Name: "foo"},
-			&Column{Name: "bar"},
-			&Column{Name: "baz"},
-		),
-		OrderBy: JoinWithOrderBy(
-			JoinSortColumns(
-				&SortColumn{Column: &Column{Name: "foo"}, Order: Descendent},
-				&SortColumn{Column: &Column{Name: "bar"}, Order: Ascendent},
-				&SortColumn{Column: &Column{Name: "baz"}, Order: Descendent},
+			OrderBy: JoinWithOrderBy(
+				JoinSortColumns(
+					&SortColumn{Column: &Column{Name: "foo"}, Order: Order_Ascendent},
+				),
 			),
-		),
-		Table: TableWithName("table_name"),
+			Table: TableWithName("table_name"),
+		}
+
+		s := mustTrim(stmt.Compile(defaultTemplate))
+		assert.Equal(t, `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY "foo" ASC`, s)
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY "foo" DESC, "bar" ASC, "baz" DESC`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
-
-	// ORDER BY function
-	stmt = Statement{
-		Type: Select,
-		Columns: JoinColumns(
-			&Column{Name: "foo"},
-			&Column{Name: "bar"},
-			&Column{Name: "baz"},
-		),
-		OrderBy: JoinWithOrderBy(
-			JoinSortColumns(
-				&SortColumn{Column: &Column{Name: Raw{Value: "FOO()"}}, Order: Descendent},
-				&SortColumn{Column: &Column{Name: Raw{Value: "BAR()"}}, Order: Ascendent},
+	{
+		stmt := Statement{
+			Type: Select,
+			Columns: JoinColumns(
+				&Column{Name: "foo"},
+				&Column{Name: "bar"},
+				&Column{Name: "baz"},
 			),
-		),
-		Table: TableWithName("table_name"),
+			OrderBy: JoinWithOrderBy(
+				JoinSortColumns(
+					&SortColumn{Column: &Column{Name: "foo"}, Order: Order_Descendent},
+				),
+			),
+			Table: TableWithName("table_name"),
+		}
+
+		s := mustTrim(stmt.Compile(defaultTemplate))
+		assert.Equal(t, `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY "foo" DESC`, s)
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY FOO() DESC, BAR() ASC`
+	{
+		stmt := Statement{
+			Type: Select,
+			Columns: JoinColumns(
+				&Column{Name: "foo"},
+				&Column{Name: "bar"},
+				&Column{Name: "baz"},
+			),
+			OrderBy: JoinWithOrderBy(
+				JoinSortColumns(
+					&SortColumn{Column: &Column{Name: "foo"}, Order: Order_Descendent},
+					&SortColumn{Column: &Column{Name: "bar"}, Order: Order_Ascendent},
+					&SortColumn{Column: &Column{Name: "baz"}, Order: Order_Descendent},
+				),
+			),
+			Table: TableWithName("table_name"),
+		}
 
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
+		s := mustTrim(stmt.Compile(defaultTemplate))
+		assert.Equal(t, `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY "foo" DESC, "bar" ASC, "baz" DESC`, s)
+	}
+
+	{
+		stmt := Statement{
+			Type: Select,
+			Columns: JoinColumns(
+				&Column{Name: "foo"},
+				&Column{Name: "bar"},
+				&Column{Name: "baz"},
+			),
+			OrderBy: JoinWithOrderBy(
+				JoinSortColumns(
+					&SortColumn{Column: &Column{Name: Raw{Value: "FOO()"}}, Order: Order_Descendent},
+					&SortColumn{Column: &Column{Name: Raw{Value: "BAR()"}}, Order: Order_Ascendent},
+				),
+			),
+			Table: TableWithName("table_name"),
+		}
+
+		s := mustTrim(stmt.Compile(defaultTemplate))
+		assert.Equal(t, `SELECT "foo", "bar", "baz" FROM "table_name" ORDER BY FOO() DESC, BAR() ASC`, s)
 	}
 }
 
 func TestSelectFieldsFromWhere(t *testing.T) {
-	var s, e string
+	{
+		stmt := Statement{
+			Type: Select,
+			Columns: JoinColumns(
+				&Column{Name: "foo"},
+				&Column{Name: "bar"},
+				&Column{Name: "baz"},
+			),
+			Table: TableWithName("table_name"),
+			Where: WhereConditions(
+				&ColumnValue{Column: &Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
+			),
+		}
 
-	stmt := Statement{
-		Type: Select,
-		Columns: JoinColumns(
-			&Column{Name: "foo"},
-			&Column{Name: "bar"},
-			&Column{Name: "baz"},
-		),
-		Table: TableWithName("table_name"),
-		Where: WhereConditions(
-			&ColumnValue{Column: &Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
-		),
-	}
-
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table_name" WHERE ("baz" = '99')`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
+		s := mustTrim(stmt.Compile(defaultTemplate))
+		assert.Equal(t, `SELECT "foo", "bar", "baz" FROM "table_name" WHERE ("baz" = '99')`, s)
 	}
 }
 
 func TestSelectFieldsFromWhereLimitOffset(t *testing.T) {
-	var s, e string
+	{
+		stmt := Statement{
+			Type: Select,
+			Columns: JoinColumns(
+				&Column{Name: "foo"},
+				&Column{Name: "bar"},
+				&Column{Name: "baz"},
+			),
+			Table: TableWithName("table_name"),
+			Where: WhereConditions(
+				&ColumnValue{Column: &Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
+			),
+			Limit:  10,
+			Offset: 23,
+		}
 
-	stmt := Statement{
-		Type: Select,
-		Columns: JoinColumns(
-			&Column{Name: "foo"},
-			&Column{Name: "bar"},
-			&Column{Name: "baz"},
-		),
-		Table: TableWithName("table_name"),
-		Where: WhereConditions(
-			&ColumnValue{Column: &Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
-		),
-		Limit:  10,
-		Offset: 23,
-	}
-
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `SELECT "foo", "bar", "baz" FROM "table_name" WHERE ("baz" = '99') LIMIT 10 OFFSET 23`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
+		s := mustTrim(stmt.Compile(defaultTemplate))
+		assert.Equal(t, `SELECT "foo", "bar", "baz" FROM "table_name" WHERE ("baz" = '99') LIMIT 10 OFFSET 23`, s)
 	}
 }
 
 func TestDelete(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:  Delete,
 		Table: TableWithName("table_name"),
@@ -669,59 +501,46 @@ func TestDelete(t *testing.T) {
 		),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `DELETE FROM "table_name" WHERE ("baz" = '99')`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `DELETE FROM "table_name" WHERE ("baz" = '99')`, s)
 }
 
 func TestUpdate(t *testing.T) {
-	var s, e string
-	var stmt Statement
+	{
+		stmt := Statement{
+			Type:  Update,
+			Table: TableWithName("table_name"),
+			ColumnValues: JoinColumnValues(
+				&ColumnValue{Column: &Column{Name: "foo"}, Operator: "=", Value: NewValue(76)},
+			),
+			Where: WhereConditions(
+				&ColumnValue{Column: &Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
+			),
+		}
 
-	stmt = Statement{
-		Type:  Update,
-		Table: TableWithName("table_name"),
-		ColumnValues: JoinColumnValues(
-			&ColumnValue{Column: &Column{Name: "foo"}, Operator: "=", Value: NewValue(76)},
-		),
-		Where: WhereConditions(
-			&ColumnValue{Column: &Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
-		),
+		s := mustTrim(stmt.Compile(defaultTemplate))
+		assert.Equal(t, `UPDATE "table_name" SET "foo" = '76' WHERE ("baz" = '99')`, s)
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `UPDATE "table_name" SET "foo" = '76' WHERE ("baz" = '99')`
+	{
+		stmt := Statement{
+			Type:  Update,
+			Table: TableWithName("table_name"),
+			ColumnValues: JoinColumnValues(
+				&ColumnValue{Column: &Column{Name: "foo"}, Operator: "=", Value: NewValue(76)},
+				&ColumnValue{Column: &Column{Name: "bar"}, Operator: "=", Value: NewValue(Raw{Value: "88"})},
+			),
+			Where: WhereConditions(
+				&ColumnValue{Column: &Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
+			),
+		}
 
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
-
-	stmt = Statement{
-		Type:  Update,
-		Table: TableWithName("table_name"),
-		ColumnValues: JoinColumnValues(
-			&ColumnValue{Column: &Column{Name: "foo"}, Operator: "=", Value: NewValue(76)},
-			&ColumnValue{Column: &Column{Name: "bar"}, Operator: "=", Value: NewValue(Raw{Value: "88"})},
-		),
-		Where: WhereConditions(
-			&ColumnValue{Column: &Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
-		),
-	}
-
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `UPDATE "table_name" SET "foo" = '76', "bar" = 88 WHERE ("baz" = '99')`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
+		s := mustTrim(stmt.Compile(defaultTemplate))
+		assert.Equal(t, `UPDATE "table_name" SET "foo" = '76', "bar" = 88 WHERE ("baz" = '99')`, s)
 	}
 }
 
 func TestInsert(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:  Insert,
 		Table: TableWithName("table_name"),
@@ -737,17 +556,11 @@ func TestInsert(t *testing.T) {
 		),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `INSERT INTO "table_name" ("foo", "bar", "baz") VALUES ('1', '2', 3)`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `INSERT INTO "table_name" ("foo", "bar", "baz") VALUES ('1', '2', 3)`, s)
 }
 
 func TestInsertMultiple(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:  Insert,
 		Table: TableWithName("table_name"),
@@ -760,27 +573,21 @@ func TestInsertMultiple(t *testing.T) {
 			NewValueGroup(
 				NewValue("1"),
 				NewValue("2"),
-				NewValue(RawValue("3")),
+				NewValue(&Raw{Value: "3"}),
 			),
 			NewValueGroup(
-				NewValue(RawValue("4")),
-				NewValue(RawValue("5")),
-				NewValue(RawValue("6")),
+				NewValue(&Raw{Value: "4"}),
+				NewValue(&Raw{Value: "5"}),
+				NewValue(&Raw{Value: "6"}),
 			),
 		),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `INSERT INTO "table_name" ("foo", "bar", "baz") VALUES ('1', '2', 3), (4, 5, 6)`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `INSERT INTO "table_name" ("foo", "bar", "baz") VALUES ('1', '2', 3), (4, 5, 6)`, s)
 }
 
 func TestInsertReturning(t *testing.T) {
-	var s, e string
-
 	stmt := Statement{
 		Type:  Insert,
 		Table: TableWithName("table_name"),
@@ -799,23 +606,15 @@ func TestInsertReturning(t *testing.T) {
 		),
 	}
 
-	s = mustTrim(stmt.Compile(defaultTemplate))
-	e = `INSERT INTO "table_name" ("foo", "bar", "baz") VALUES ('1', '2', 3) RETURNING "id"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(stmt.Compile(defaultTemplate))
+	assert.Equal(t, `INSERT INTO "table_name" ("foo", "bar", "baz") VALUES ('1', '2', 3) RETURNING "id"`, s)
 }
 
 func TestRawSQLStatement(t *testing.T) {
 	stmt := RawSQL(`SELECT * FROM "foo" ORDER BY "bar"`)
 
 	s := mustTrim(stmt.Compile(defaultTemplate))
-	e := `SELECT * FROM "foo" ORDER BY "bar"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.Equal(t, `SELECT * FROM "foo" ORDER BY "bar"`, s)
 }
 
 func BenchmarkStatementSimpleQuery(b *testing.B) {
@@ -827,6 +626,7 @@ func BenchmarkStatementSimpleQuery(b *testing.B) {
 		),
 	}
 
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = stmt.Compile(defaultTemplate)
 	}
@@ -841,6 +641,7 @@ func BenchmarkStatementSimpleQueryHash(b *testing.B) {
 		),
 	}
 
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = stmt.Hash()
 	}
@@ -875,6 +676,7 @@ func BenchmarkStatementComplexQuery(b *testing.B) {
 		),
 	}
 
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = stmt.Compile(defaultTemplate)
 	}

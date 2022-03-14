@@ -23,6 +23,7 @@ package cache
 
 import (
 	"fmt"
+	"hash/fnv"
 	"testing"
 )
 
@@ -32,8 +33,10 @@ type cacheableT struct {
 	Name string
 }
 
-func (ct *cacheableT) Hash() string {
-	return Hash(ct)
+func (ct *cacheableT) Hash() uint64 {
+	s := fnv.New64()
+	s.Sum([]byte(ct.Name))
+	return s.Sum64()
 }
 
 var (
@@ -74,6 +77,13 @@ func TestCacheReadExistentValue(t *testing.T) {
 func BenchmarkNewCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		NewCache()
+	}
+}
+
+func BenchmarkNewCacheAndClear(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		c := NewCache()
+		c.Clear()
 	}
 }
 
