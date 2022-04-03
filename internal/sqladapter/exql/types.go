@@ -1,9 +1,7 @@
 package exql
 
-type FragmentType uint32
-
 const (
-	FragmentType_None FragmentType = iota
+	FragmentType_None uint64 = iota + 713910251627
 
 	FragmentType_And
 	FragmentType_Column
@@ -29,6 +27,8 @@ const (
 	FragmentType_StatementType
 	FragmentType_Table
 	FragmentType_Value
+	FragmentType_On
+	FragmentType_Using
 	FragmentType_ValueGroups
 	FragmentType_Values
 	FragmentType_Where

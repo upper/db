@@ -276,14 +276,14 @@ func (sel *selector) OrderBy(columns ...interface{}) db.Selector {
 				if strings.HasPrefix(value, "-") {
 					sort = &exql.SortColumn{
 						Column: exql.ColumnWithName(value[1:]),
-						Order:  exql.Descendent,
+						Order:  exql.Order_Descendent,
 					}
 				} else {
 					chunks := strings.SplitN(value, " ", 2)
 
-					order := exql.Ascendent
+					order := exql.Order_Ascendent
 					if len(chunks) > 1 && strings.ToUpper(chunks[1]) == "DESC" {
-						order = exql.Descendent
+						order = exql.Order_Descendent
 					}
 
 					sort = &exql.SortColumn{

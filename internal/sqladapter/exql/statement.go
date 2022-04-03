@@ -4,6 +4,8 @@ import (
 	"errors"
 	"reflect"
 	"strings"
+
+	"github.com/upper/db/v4/internal/cache"
 )
 
 var errUnknownTemplateType = errors.New("Unknown template type")
@@ -40,7 +42,10 @@ func (layout *Template) doCompile(c Fragment) (string, error) {
 
 // Hash returns a unique identifier for the struct.
 func (s *Statement) Hash() uint64 {
-	return quickHash(
+	if s == nil {
+		return cache.NewHash(FragmentType_Statement, nil)
+	}
+	return cache.NewHash(
 		FragmentType_Statement,
 		s.Type,
 		s.Table,

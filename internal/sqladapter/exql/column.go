@@ -3,6 +3,8 @@ package exql
 import (
 	"fmt"
 	"strings"
+
+	"github.com/upper/db/v4/internal/cache"
 )
 
 type columnWithAlias struct {
@@ -24,7 +26,10 @@ func ColumnWithName(name string) *Column {
 
 // Hash returns a unique identifier for the struct.
 func (c *Column) Hash() uint64 {
-	return quickHash(FragmentType_Column, c.Name)
+	if c == nil {
+		return cache.NewHash(FragmentType_Column, nil)
+	}
+	return cache.NewHash(FragmentType_Column, c.Name)
 }
 
 // Compile transforms the ColumnValue into an equivalent SQL representation.

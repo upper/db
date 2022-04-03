@@ -1,6 +1,7 @@
 package exql
 
 import (
+	"github.com/upper/db/v4/internal/cache"
 	"strings"
 )
 
@@ -21,7 +22,10 @@ type columnValueT struct {
 
 // Hash returns a unique identifier for the struct.
 func (c *ColumnValue) Hash() uint64 {
-	return quickHash(FragmentType_ColumnValue, c.Column, c.Operator, c.Value)
+	if c == nil {
+		return cache.NewHash(FragmentType_ColumnValue, nil)
+	}
+	return cache.NewHash(FragmentType_ColumnValue, c.Column, c.Operator, c.Value)
 }
 
 // Compile transforms the ColumnValue into an equivalent SQL representation.
@@ -74,9 +78,9 @@ func (c *ColumnValues) Insert(values ...Fragment) *ColumnValues {
 
 // Hash returns a unique identifier for the struct.
 func (c *ColumnValues) Hash() uint64 {
-	h := initHash(FragmentType_ColumnValues)
+	h := cache.InitHash(FragmentType_ColumnValues)
 	for i := range c.ColumnValues {
-		h = addToHash(h, c.ColumnValues[i])
+		h = cache.AddToHash(h, c.ColumnValues[i])
 	}
 	return h
 }

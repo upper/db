@@ -2,6 +2,8 @@ package exql
 
 import (
 	"strings"
+
+	"github.com/upper/db/v4/internal/cache"
 )
 
 // Columns represents an array of Column.
@@ -13,9 +15,12 @@ var _ = Fragment(&Columns{})
 
 // Hash returns a unique identifier.
 func (c *Columns) Hash() uint64 {
-	h := initHash(FragmentType_Columns)
+	if c == nil {
+		return cache.NewHash(FragmentType_Columns, nil)
+	}
+	h := cache.InitHash(FragmentType_Columns)
 	for i := range c.Columns {
-		h = addToHash(h, c.Columns[i])
+		h = cache.AddToHash(h, c.Columns[i])
 	}
 	return h
 }
@@ -51,7 +56,6 @@ func (c *Columns) IsEmpty() bool {
 
 // Compile transforms the Columns into an equivalent SQL representation.
 func (c *Columns) Compile(layout *Template) (compiled string, err error) {
-
 	if z, ok := layout.Read(c); ok {
 		return z, nil
 	}

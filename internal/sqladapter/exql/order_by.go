@@ -2,6 +2,8 @@ package exql
 
 import (
 	"strings"
+
+	"github.com/upper/db/v4/internal/cache"
 )
 
 // Order represents the order in which SQL results are sorted.
@@ -16,7 +18,7 @@ const (
 )
 
 func (o Order) Hash() uint64 {
-	return quickHash(FragmentType_Order, uint8(o))
+	return cache.NewHash(FragmentType_Order, uint8(o))
 }
 
 // SortColumn represents the column-order relation in an ORDER BY clause.
@@ -64,7 +66,10 @@ func JoinWithOrderBy(sc *SortColumns) *OrderBy {
 
 // Hash returns a unique identifier for the struct.
 func (s *SortColumn) Hash() uint64 {
-	return quickHash(FragmentType_SortColumn, s.Column, s.Order)
+	if s == nil {
+		return cache.NewHash(FragmentType_SortColumn, nil)
+	}
+	return cache.NewHash(FragmentType_SortColumn, s.Column, s.Order)
 }
 
 // Compile transforms the SortColumn into an equivalent SQL representation.
@@ -95,9 +100,12 @@ func (s *SortColumn) Compile(layout *Template) (compiled string, err error) {
 
 // Hash returns a unique identifier for the struct.
 func (s *SortColumns) Hash() uint64 {
-	h := initHash(FragmentType_SortColumns)
+	if s == nil {
+		return cache.NewHash(FragmentType_SortColumns, nil)
+	}
+	h := cache.InitHash(FragmentType_SortColumns)
 	for i := range s.Columns {
-		h = addToHash(h, s.Columns[i])
+		h = cache.AddToHash(h, s.Columns[i])
 	}
 	return h
 }
@@ -126,7 +134,10 @@ func (s *SortColumns) Compile(layout *Template) (compiled string, err error) {
 
 // Hash returns a unique identifier for the struct.
 func (s *OrderBy) Hash() uint64 {
-	return quickHash(FragmentType_OrderBy, s.SortColumns)
+	if s == nil {
+		return cache.NewHash(FragmentType_OrderBy, nil)
+	}
+	return cache.NewHash(FragmentType_OrderBy, s.SortColumns)
 }
 
 // Compile transforms the SortColumn into an equivalent SQL representation.

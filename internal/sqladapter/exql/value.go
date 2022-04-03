@@ -2,6 +2,8 @@ package exql
 
 import (
 	"strings"
+
+	"github.com/upper/db/v4/internal/cache"
 )
 
 // ValueGroups represents an array of value groups.
@@ -56,7 +58,10 @@ func NewValue(v interface{}) *Value {
 
 // Hash returns a unique identifier for the struct.
 func (v *Value) Hash() uint64 {
-	return quickHash(FragmentType_Value, v.V)
+	if v == nil {
+		return cache.NewHash(FragmentType_Value, nil)
+	}
+	return cache.NewHash(FragmentType_Value, v.V)
 }
 
 // Compile transforms the Value into an equivalent SQL representation.
@@ -88,9 +93,12 @@ func (v *Value) Compile(layout *Template) (compiled string, err error) {
 
 // Hash returns a unique identifier for the struct.
 func (vs *Values) Hash() uint64 {
-	h := initHash(FragmentType_Values)
+	if vs == nil {
+		return cache.NewHash(FragmentType_Values, nil)
+	}
+	h := cache.InitHash(FragmentType_Values)
 	for i := range vs.Values {
-		h = addToHash(h, vs.Values[i])
+		h = cache.AddToHash(h, vs.Values[i])
 	}
 	return h
 }
@@ -119,9 +127,12 @@ func (vs *Values) Compile(layout *Template) (compiled string, err error) {
 
 // Hash returns a unique identifier for the struct.
 func (vg *ValueGroups) Hash() uint64 {
-	h := initHash(FragmentType_ValueGroups)
+	if vg == nil {
+		return cache.NewHash(FragmentType_ValueGroups, nil)
+	}
+	h := cache.InitHash(FragmentType_ValueGroups)
 	for i := range vg.Values {
-		h = addToHash(h, vg.Values[i])
+		h = cache.AddToHash(h, vg.Values[i])
 	}
 	return h
 }

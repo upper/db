@@ -6,6 +6,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"reflect"
 	"strconv"
@@ -285,8 +286,9 @@ func (sess *sessionWithContext) Err(errIn error) (errOur error) {
 	return errIn
 }
 
-func (sess *sessionWithContext) PrimaryKeys(tableName string) ([]string, error) {
-	h := cache.String(tableName)
+func (sess *session) PrimaryKeys(tableName string) ([]string, error) {
+	h := cache.NewHashable(hashTypePrimaryKeys, tableName)
+
 	cachedPK, ok := sess.cachedPKs.ReadRaw(h)
 	if ok {
 		return cachedPK.([]string), nil
@@ -652,11 +654,12 @@ func (sess *sessionWithContext) Collection(name string) db.Collection {
 	sess.cacheMu.Lock()
 	defer sess.cacheMu.Unlock()
 
-	h := cache.String(name)
-	col, ok := sess.cachedCollections.ReadRaw(h)
-	if !ok {
-		col = newCollection(name, sess.adapter.NewCollection())
-		sess.cachedCollections.Write(h, col)
+	h := cache.NewHashable(hashTypeCollection, name)
+
+	cachedCol, ok := sess.cachedCollections.ReadRaw(h)
+	log.Printf("CACHED: %v, ok: %v", cachedCol, ok)
+	if ok {
+		return cachedCol.(db.Collection)
 	}
 
 	return &collectionWithSession{

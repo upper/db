@@ -2,6 +2,8 @@ package exql
 
 import (
 	"fmt"
+
+	"github.com/upper/db/v4/internal/cache"
 )
 
 var (
@@ -26,8 +28,11 @@ func NewRawValue(v interface{}) (*Raw, error) {
 }
 
 // Hash returns a unique identifier for the struct.
-func (r Raw) Hash() uint64 {
-	return quickHash(FragmentType_Raw, r.Value)
+func (r *Raw) Hash() uint64 {
+	if r == nil {
+		return cache.NewHash(FragmentType_Raw, nil)
+	}
+	return cache.NewHash(FragmentType_Raw, r.Value)
 }
 
 // Compile returns the raw value.

@@ -1,5 +1,9 @@
 package exql
 
+import (
+	"github.com/upper/db/v4/internal/cache"
+)
+
 // GroupBy represents a SQL's "group by" statement.
 type GroupBy struct {
 	Columns Fragment
@@ -13,7 +17,10 @@ type groupByT struct {
 
 // Hash returns a unique identifier.
 func (g *GroupBy) Hash() uint64 {
-	return quickHash(FragmentType_GroupBy, g.Columns)
+	if g == nil {
+		return cache.NewHash(FragmentType_GroupBy, nil)
+	}
+	return cache.NewHash(FragmentType_GroupBy, g.Columns)
 }
 
 // GroupByColumns creates and returns a GroupBy with the given column.

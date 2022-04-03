@@ -30,7 +30,7 @@ const (
 )
 
 func (t Type) Hash() uint64 {
-	return quickHash(FragmentType_StatementType, uint8(t))
+	return cache.NewHash(FragmentType_StatementType, uint8(t))
 }
 
 type (
@@ -41,11 +41,11 @@ type (
 )
 
 func (t Limit) Hash() uint64 {
-	return quickHash(FragmentType_Limit, uint64(t))
+	return cache.NewHash(FragmentType_Limit, uint64(t))
 }
 
 func (t Offset) Hash() uint64 {
-	return quickHash(FragmentType_Offset, uint64(t))
+	return cache.NewHash(FragmentType_Offset, uint64(t))
 }
 
 // Template is an SQL template.
