@@ -1,7 +1,5 @@
 package exql
 
-import (
-	"errors"
+const (
+	errExpectingHashableFmt = "expecting hashable value, got %T"
 )
-
-var ErrExpectingHashable = errors.New("expecting hashable value")

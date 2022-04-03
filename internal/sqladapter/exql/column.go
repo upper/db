@@ -1,6 +1,7 @@
 package exql
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -65,7 +66,7 @@ func (c *Column) Compile(layout *Template) (compiled string, err error) {
 			return "", err
 		}
 	default:
-		return "", ErrExpectingHashable
+		return "", fmt.Errorf(errExpectingHashableFmt, c.Name)
 	}
 
 	if alias != "" {

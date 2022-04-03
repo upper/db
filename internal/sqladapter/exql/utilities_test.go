@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"unicode"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -35,89 +37,49 @@ func mustTrim(a string, err error) string {
 }
 
 func TestUtilIsBlankSymbol(t *testing.T) {
-	if isBlankSymbol(' ') == false {
-		t.Fail()
-	}
-	if isBlankSymbol('\n') == false {
-		t.Fail()
-	}
-	if isBlankSymbol('\t') == false {
-		t.Fail()
-	}
-	if isBlankSymbol('\r') == false {
-		t.Fail()
-	}
-	if isBlankSymbol('x') == true {
-		t.Fail()
-	}
+	assert.True(t, isBlankSymbol(' '))
+	assert.True(t, isBlankSymbol('\n'))
+	assert.True(t, isBlankSymbol('\t'))
+	assert.True(t, isBlankSymbol('\r'))
+	assert.False(t, isBlankSymbol('x'))
 }
 
 func TestUtilTrimBytes(t *testing.T) {
 	var trimmed []byte
 
 	trimmed = trimBytes([]byte("  \t\nHello World!     \n"))
-	if string(trimmed) != "Hello World!" {
-		t.Fatalf("Got: %s\n", string(trimmed))
-	}
+	assert.Equal(t, "Hello World!", string(trimmed))
 
 	trimmed = trimBytes([]byte("Nope"))
-	if string(trimmed) != "Nope" {
-		t.Fatalf("Got: %s\n", string(trimmed))
-	}
+	assert.Equal(t, "Nope", string(trimmed))
 
 	trimmed = trimBytes([]byte(""))
-	if string(trimmed) != "" {
-		t.Fatalf("Got: %s\n", string(trimmed))
-	}
+	assert.Equal(t, "", string(trimmed))
 
 	trimmed = trimBytes([]byte(" "))
-	if string(trimmed) != "" {
-		t.Fatalf("Got: %s\n", string(trimmed))
-	}
+	assert.Equal(t, "", string(trimmed))
 
 	trimmed = trimBytes(nil)
-	if string(trimmed) != "" {
-		t.Fatalf("Got: %s\n", string(trimmed))
-	}
+	assert.Equal(t, "", string(trimmed))
 }
 
 func TestUtilSeparateByComma(t *testing.T) {
 	chunks := separateByComma("Hello,,World!,Enjoy")
+	assert.Equal(t, 4, len(chunks))
 
-	if len(chunks) != 4 {
-		t.Fatal()
-	}
-
-	if chunks[0] != "Hello" {
-		t.Fatal()
-	}
-	if chunks[1] != "" {
-		t.Fatal()
-	}
-	if chunks[2] != "World!" {
-		t.Fatal()
-	}
-	if chunks[3] != "Enjoy" {
-		t.Fatal()
-	}
+	assert.Equal(t, "Hello", chunks[0])
+	assert.Equal(t, "", chunks[1])
+	assert.Equal(t, "World!", chunks[2])
+	assert.Equal(t, "Enjoy", chunks[3])
 }
 
 func TestUtilSeparateBySpace(t *testing.T) {
 	chunks := separateBySpace("       Hello        World!        Enjoy")
+	assert.Equal(t, 3, len(chunks))
 
-	if len(chunks) != 3 {
-		t.Fatal()
-	}
-
-	if chunks[0] != "Hello" {
-		t.Fatal()
-	}
-	if chunks[1] != "World!" {
-		t.Fatal()
-	}
-	if chunks[2] != "Enjoy" {
-		t.Fatal()
-	}
+	assert.Equal(t, "Hello", chunks[0])
+	assert.Equal(t, "World!", chunks[1])
+	assert.Equal(t, "Enjoy", chunks[2])
 }
 
 func TestUtilSeparateByAS(t *testing.T) {
@@ -131,96 +93,44 @@ func TestUtilSeparateByAS(t *testing.T) {
 
 	for _, test := range tests {
 		chunks = separateByAS(test)
+		assert.Len(t, chunks, 2)
 
-		if len(chunks) != 2 {
-			t.Fatalf(`Expecting 2 results.`)
-		}
-
-		if chunks[0] != "table.Name" {
-			t.Fatal(`Expecting first result to be "table.Name".`)
-		}
-		if chunks[1] != "myTableAlias" {
-			t.Fatal(`Expecting second result to be myTableAlias.`)
-		}
+		assert.Equal(t, "table.Name", chunks[0])
+		assert.Equal(t, "myTableAlias", chunks[1])
 	}
 
 	// Single character.
 	chunks = separateByAS("a")
-
-	if len(chunks) != 1 {
-		t.Fatalf(`Expecting 1 results.`)
-	}
-
-	if chunks[0] != "a" {
-		t.Fatal(`Expecting first result to be "a".`)
-	}
+	assert.Len(t, chunks, 1)
+	assert.Equal(t, "a", chunks[0])
 
 	// Empty name
 	chunks = separateByAS("")
-
-	if len(chunks) != 1 {
-		t.Fatalf(`Expecting 1 results.`)
-	}
-
-	if chunks[0] != "" {
-		t.Fatal(`Expecting first result to be "".`)
-	}
+	assert.Len(t, chunks, 1)
+	assert.Equal(t, "", chunks[0])
 
 	// Single name
 	chunks = separateByAS("  A Single Table ")
-
-	if len(chunks) != 1 {
-		t.Fatalf(`Expecting 1 results.`)
-	}
-
-	if chunks[0] != "A Single Table" {
-		t.Fatal(`Expecting first result to be "ASingleTable".`)
-	}
+	assert.Len(t, chunks, 1)
+	assert.Equal(t, "A Single Table", chunks[0])
 
 	// Minimal expression.
 	chunks = separateByAS("a AS b")
-
-	if len(chunks) != 2 {
-		t.Fatalf(`Expecting 2 results.`)
-	}
-
-	if chunks[0] != "a" {
-		t.Fatal(`Expecting first result to be "a".`)
-	}
-
-	if chunks[1] != "b" {
-		t.Fatal(`Expecting first result to be "b".`)
-	}
+	assert.Len(t, chunks, 2)
+	assert.Equal(t, "a", chunks[0])
+	assert.Equal(t, "b", chunks[1])
 
 	// Minimal expression with spaces.
 	chunks = separateByAS("   a    AS    b ")
-
-	if len(chunks) != 2 {
-		t.Fatalf(`Expecting 2 results.`)
-	}
-
-	if chunks[0] != "a" {
-		t.Fatal(`Expecting first result to be "a".`)
-	}
-
-	if chunks[1] != "b" {
-		t.Fatal(`Expecting first result to be "b".`)
-	}
+	assert.Len(t, chunks, 2)
+	assert.Equal(t, "a", chunks[0])
+	assert.Equal(t, "b", chunks[1])
 
 	// Minimal expression + 1 with spaces.
 	chunks = separateByAS("   a    AS    bb ")
-
-	if len(chunks) != 2 {
-		t.Fatalf(`Expecting 2 results.`)
-	}
-
-	if chunks[0] != "a" {
-		t.Fatal(`Expecting first result to be "a".`)
-	}
-
-	if chunks[1] != "bb" {
-		t.Fatal(`Expecting first result to be "bb".`)
-	}
+	assert.Len(t, chunks, 2)
+	assert.Equal(t, "a", chunks[0])
+	assert.Equal(t, "bb", chunks[1])
 }
 
 func BenchmarkUtilIsBlankSymbol(b *testing.B) {
@@ -266,6 +176,7 @@ func BenchmarkUtilSeparateByComma(b *testing.B) {
 
 func BenchmarkUtilRegExpSeparateByComma(b *testing.B) {
 	sep := regexp.MustCompile(`\s*?,\s*?`)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = sep.Split(stringWithCommas, -1)
 	}
@@ -279,6 +190,7 @@ func BenchmarkUtilSeparateBySpace(b *testing.B) {
 
 func BenchmarkUtilRegExpSeparateBySpace(b *testing.B) {
 	sep := regexp.MustCompile(`\s+`)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = sep.Split(stringWithSpaces, -1)
 	}
@@ -292,6 +204,7 @@ func BenchmarkUtilSeparateByAS(b *testing.B) {
 
 func BenchmarkUtilRegExpSeparateByAS(b *testing.B) {
 	sep := regexp.MustCompile(`(?i:\s+AS\s+)`)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = sep.Split(stringWithASKeyword, -1)
 	}

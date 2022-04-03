@@ -1,111 +1,55 @@
 package exql
 
 import (
+	"github.com/stretchr/testify/assert"
+
 	"testing"
 )
 
 func TestTableSimple(t *testing.T) {
-	var s, e string
-
 	table := TableWithName("artist")
-
-	s = mustTrim(table.Compile(defaultTemplate))
-	e = `"artist"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.Equal(t, `"artist"`, mustTrim(table.Compile(defaultTemplate)))
 }
 
 func TestTableCompound(t *testing.T) {
-	var s, e string
-
 	table := TableWithName("artist.foo")
-
-	s = mustTrim(table.Compile(defaultTemplate))
-	e = `"artist"."foo"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.Equal(t, `"artist"."foo"`, mustTrim(table.Compile(defaultTemplate)))
 }
 
 func TestTableCompoundAlias(t *testing.T) {
-	var s, e string
-
 	table := TableWithName("artist.foo AS baz")
 
-	s = mustTrim(table.Compile(defaultTemplate))
-	e = `"artist"."foo" AS "baz"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.Equal(t, `"artist"."foo" AS "baz"`, mustTrim(table.Compile(defaultTemplate)))
 }
 
 func TestTableImplicitAlias(t *testing.T) {
-	var s, e string
-
 	table := TableWithName("artist.foo baz")
 
-	s = mustTrim(table.Compile(defaultTemplate))
-	e = `"artist"."foo" AS "baz"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.Equal(t, `"artist"."foo" AS "baz"`, mustTrim(table.Compile(defaultTemplate)))
 }
 
 func TestTableMultiple(t *testing.T) {
-	var s, e string
-
 	table := TableWithName("artist.foo, artist.bar, artist.baz")
 
-	s = mustTrim(table.Compile(defaultTemplate))
-	e = `"artist"."foo", "artist"."bar", "artist"."baz"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.Equal(t, `"artist"."foo", "artist"."bar", "artist"."baz"`, mustTrim(table.Compile(defaultTemplate)))
 }
 
 func TestTableMultipleAlias(t *testing.T) {
-	var s, e string
-
 	table := TableWithName("artist.foo AS foo, artist.bar as bar, artist.baz As baz")
 
-	s = mustTrim(table.Compile(defaultTemplate))
-	e = `"artist"."foo" AS "foo", "artist"."bar" AS "bar", "artist"."baz" AS "baz"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.Equal(t, `"artist"."foo" AS "foo", "artist"."bar" AS "bar", "artist"."baz" AS "baz"`, mustTrim(table.Compile(defaultTemplate)))
 }
 
 func TestTableMinimal(t *testing.T) {
-	var s, e string
-
 	table := TableWithName("a")
 
-	s = mustTrim(table.Compile(defaultTemplate))
-	e = `"a"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.Equal(t, `"a"`, mustTrim(table.Compile(defaultTemplate)))
 }
 
 func TestTableEmpty(t *testing.T) {
-	var s, e string
-
 	table := TableWithName("")
 
-	s = mustTrim(table.Compile(defaultTemplate))
-	e = ``
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.Equal(t, "", mustTrim(table.Compile(defaultTemplate)))
 }
 
 func BenchmarkTableWithName(b *testing.B) {
@@ -116,6 +60,7 @@ func BenchmarkTableWithName(b *testing.B) {
 
 func BenchmarkTableHash(b *testing.B) {
 	t := TableWithName("name")
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		t.Hash()
 	}
@@ -123,6 +68,7 @@ func BenchmarkTableHash(b *testing.B) {
 
 func BenchmarkTableCompile(b *testing.B) {
 	t := TableWithName("name")
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = t.Compile(defaultTemplate)
 	}

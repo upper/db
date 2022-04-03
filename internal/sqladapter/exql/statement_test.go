@@ -232,7 +232,7 @@ func TestSelectRawFrom(t *testing.T) {
 		Table: TableWithName(`artist`),
 		Columns: JoinColumns(
 			&Column{Name: `artist.name`},
-			&Column{Name: Raw{Value: `CONCAT(artist.name, " ", artist.last_name)`}},
+			&Column{Name: &Raw{Value: `CONCAT(artist.name, " ", artist.last_name)`}},
 		),
 	}
 
@@ -438,8 +438,8 @@ func TestSelectFieldsFromWithOrderBy(t *testing.T) {
 			),
 			OrderBy: JoinWithOrderBy(
 				JoinSortColumns(
-					&SortColumn{Column: &Column{Name: Raw{Value: "FOO()"}}, Order: Order_Descendent},
-					&SortColumn{Column: &Column{Name: Raw{Value: "BAR()"}}, Order: Order_Ascendent},
+					&SortColumn{Column: &Column{Name: &Raw{Value: "FOO()"}}, Order: Order_Descendent},
+					&SortColumn{Column: &Column{Name: &Raw{Value: "BAR()"}}, Order: Order_Ascendent},
 				),
 			),
 			Table: TableWithName("table_name"),
@@ -528,7 +528,7 @@ func TestUpdate(t *testing.T) {
 			Table: TableWithName("table_name"),
 			ColumnValues: JoinColumnValues(
 				&ColumnValue{Column: &Column{Name: "foo"}, Operator: "=", Value: NewValue(76)},
-				&ColumnValue{Column: &Column{Name: "bar"}, Operator: "=", Value: NewValue(Raw{Value: "88"})},
+				&ColumnValue{Column: &Column{Name: "bar"}, Operator: "=", Value: NewValue(&Raw{Value: "88"})},
 			),
 			Where: WhereConditions(
 				&ColumnValue{Column: &Column{Name: "baz"}, Operator: "=", Value: NewValue(99)},
@@ -552,7 +552,7 @@ func TestInsert(t *testing.T) {
 		Values: NewValueGroup(
 			&Value{V: "1"},
 			&Value{V: 2},
-			&Value{V: Raw{Value: "3"}},
+			&Value{V: &Raw{Value: "3"}},
 		),
 	}
 
@@ -602,7 +602,7 @@ func TestInsertReturning(t *testing.T) {
 		Values: NewValueGroup(
 			&Value{V: "1"},
 			&Value{V: 2},
-			&Value{V: Raw{Value: "3"}},
+			&Value{V: &Raw{Value: "3"}},
 		),
 	}
 
@@ -622,7 +622,7 @@ func BenchmarkStatementSimpleQuery(b *testing.B) {
 		Type:  Count,
 		Table: TableWithName("table_name"),
 		Where: WhereConditions(
-			&ColumnValue{Column: &Column{Name: "a"}, Operator: "=", Value: NewValue(Raw{Value: "7"})},
+			&ColumnValue{Column: &Column{Name: "a"}, Operator: "=", Value: NewValue(&Raw{Value: "7"})},
 		),
 	}
 
@@ -637,7 +637,7 @@ func BenchmarkStatementSimpleQueryHash(b *testing.B) {
 		Type:  Count,
 		Table: TableWithName("table_name"),
 		Where: WhereConditions(
-			&ColumnValue{Column: &Column{Name: "a"}, Operator: "=", Value: NewValue(Raw{Value: "7"})},
+			&ColumnValue{Column: &Column{Name: "a"}, Operator: "=", Value: NewValue(&Raw{Value: "7"})},
 		),
 	}
 
@@ -653,7 +653,7 @@ func BenchmarkStatementSimpleQueryNoCache(b *testing.B) {
 			Type:  Count,
 			Table: TableWithName("table_name"),
 			Where: WhereConditions(
-				&ColumnValue{Column: &Column{Name: "a"}, Operator: "=", Value: NewValue(Raw{Value: "7"})},
+				&ColumnValue{Column: &Column{Name: "a"}, Operator: "=", Value: NewValue(&Raw{Value: "7"})},
 			),
 		}
 		_, _ = stmt.Compile(defaultTemplate)
@@ -672,7 +672,7 @@ func BenchmarkStatementComplexQuery(b *testing.B) {
 		Values: NewValueGroup(
 			&Value{V: "1"},
 			&Value{V: 2},
-			&Value{V: Raw{Value: "3"}},
+			&Value{V: &Raw{Value: "3"}},
 		),
 	}
 
@@ -695,7 +695,7 @@ func BenchmarkStatementComplexQueryNoCache(b *testing.B) {
 			Values: NewValueGroup(
 				&Value{V: "1"},
 				&Value{V: 2},
-				&Value{V: Raw{Value: "3"}},
+				&Value{V: &Raw{Value: "3"}},
 			),
 		}
 		_, _ = stmt.Compile(defaultTemplate)
