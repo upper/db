@@ -57,7 +57,7 @@ func toInterfaceArguments(value interface{}) (args []interface{}, isSlice bool) 
 
 		// Byte slice gets transformed into a string.
 		if v.Type().Elem().Kind() == reflect.Uint8 {
-			return []interface{}{string(value.([]byte))}, false
+			return []interface{}{string(v.Bytes())}, false
 		}
 
 		total = v.Len()
