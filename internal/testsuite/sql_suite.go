@@ -1898,3 +1898,34 @@ func (s *SQLTestSuite) Test_Issue565() {
 	s.Error(err)
 	s.Zero(result.Name)
 }
+
+func (s *SQLTestSuite) TestSelectFromSubquery() {
+	sess := s.Session()
+
+	{
+		var artists []artistType
+		q := sess.SQL().SelectFrom(
+			sess.SQL().SelectFrom("artist").Where(db.Cond{
+				"name": db.IsNotNull(),
+			}),
+		).As("_q")
+		err := q.All(&artists)
+		s.NoError(err)
+
+		s.NotZero(len(artists))
+	}
+
+	{
+		var artists []artistType
+		q := sess.SQL().SelectFrom(
+			sess.Collection("artist").Find(db.Cond{
+				"name": db.IsNotNull(),
+			}),
+		).As("_q")
+		err := q.All(&artists)
+		s.NoError(err)
+
+		s.NotZero(len(artists))
+	}
+
+}

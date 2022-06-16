@@ -51,7 +51,11 @@ var defaultMapOptions = MapOptions{
 	IncludeNil:    false,
 }
 
-type compilable interface {
+type hasPaginator interface {
+	Paginator() (db.Paginator, error)
+}
+
+type isCompilable interface {
 	Compile() (string, error)
 	Arguments() []interface{}
 }
@@ -347,7 +351,17 @@ func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, err
 
 	for i := range columns {
 		switch v := columns[i].(type) {
-		case compilable:
+		case hasPaginator:
+			p, err := v.Paginator()
+			if err != nil {
+				return nil, nil, err
+			}
+
+			q, a := Preprocess(p.String(), p.Arguments())
+
+			f[i] = exql.RawValue("(" + q + ")")
+			args = append(args, a...)
+		case isCompilable:
 			c, err := v.Compile()
 			if err != nil {
 				return nil, nil, err
