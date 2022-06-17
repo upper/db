@@ -213,7 +213,7 @@ func (r *Result) Select(fields ...interface{}) db.Result {
 
 // String satisfies fmt.Stringer
 func (r *Result) String() string {
-	query, err := r.buildPaginator()
+	query, err := r.Paginator()
 	if err != nil {
 		panic(err.Error())
 	}
@@ -222,7 +222,7 @@ func (r *Result) String() string {
 
 // All dumps all Results into a pointer to an slice of structs or maps.
 func (r *Result) All(dst interface{}) error {
-	query, err := r.buildPaginator()
+	query, err := r.Paginator()
 	if err != nil {
 		r.setErr(err)
 		return err
@@ -235,7 +235,7 @@ func (r *Result) All(dst interface{}) error {
 // One fetches only one Result from the set.
 func (r *Result) One(dst interface{}) error {
 	one := r.Limit(1).(*Result)
-	query, err := one.buildPaginator()
+	query, err := one.Paginator()
 	if err != nil {
 		r.setErr(err)
 		return err
@@ -251,7 +251,7 @@ func (r *Result) Next(dst interface{}) bool {
 	defer r.iterMu.Unlock()
 
 	if r.iter == nil {
-		query, err := r.buildPaginator()
+		query, err := r.Paginator()
 		if err != nil {
 			r.setErr(err)
 			return false
@@ -309,7 +309,7 @@ func (r *Result) Update(values interface{}) error {
 }
 
 func (r *Result) TotalPages() (uint, error) {
-	query, err := r.buildPaginator()
+	query, err := r.Paginator()
 	if err != nil {
 		r.setErr(err)
 		return 0, err
@@ -325,7 +325,7 @@ func (r *Result) TotalPages() (uint, error) {
 }
 
 func (r *Result) TotalEntries() (uint64, error) {
-	query, err := r.buildPaginator()
+	query, err := r.Paginator()
 	if err != nil {
 		r.setErr(err)
 		return 0, err
@@ -391,7 +391,7 @@ func (r *Result) Count() (uint64, error) {
 	return counter.Count, nil
 }
 
-func (r *Result) buildPaginator() (db.Paginator, error) {
+func (r *Result) Paginator() (db.Paginator, error) {
 	if err := r.Err(); err != nil {
 		return nil, err
 	}

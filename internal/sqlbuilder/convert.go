@@ -122,7 +122,13 @@ func preprocessFn(arg interface{}) (string, []interface{}) {
 		switch t := arg.(type) {
 		case *adapter.RawExpr:
 			return Preprocess(t.Raw(), t.Arguments())
-		case compilable:
+		case hasPaginator:
+			p, err := t.Paginator()
+			if err == nil {
+				return `(` + p.String() + `)`, p.Arguments()
+			}
+			panic(err.Error())
+		case isCompilable:
 			c, err := t.Compile()
 			if err == nil {
 				return `(` + c + `)`, t.Arguments()
