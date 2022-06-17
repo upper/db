@@ -240,6 +240,7 @@ func (r *Result) One(dst interface{}) error {
 		r.setErr(err)
 		return err
 	}
+
 	err = query.Iterator().One(dst)
 	r.setErr(err)
 	return err

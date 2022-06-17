@@ -7,12 +7,10 @@ import (
 	"github.com/upper/db/v4"
 )
 
-func TestInterfaces(t *testing.T) {
-	var (
-		_ db.Collection = &collection{}
-		_ Collection    = &collection{}
-	)
-}
+var (
+	_ db.Collection = &collectionWithSession{}
+	_ Collection    = &collectionWithSession{}
+)
 
 func TestReplaceWithDollarSign(t *testing.T) {
 	tests := []struct {
