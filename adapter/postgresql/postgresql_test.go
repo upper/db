@@ -230,7 +230,7 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		StringArray  StringArray `db:"string_array,stringarray"`
 		JSONBMap     JSONBMap    `db:"jsonb_map"`
 
-		RawJSONBMap json.RawMessage `db:"raw_jsonb_map"`
+		RawJSONBMap *json.RawMessage `db:"raw_jsonb_map,omitempty"`
 
 		PGTypeInline `db:",inline"`
 
@@ -278,6 +278,7 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 	integerArrayValue := Int64Array{1, 2, 3, 4}
 	stringArrayValue := StringArray{"a", "b", "c"}
 	jsonbMapValue := JSONBMap{"Hello": "World"}
+	rawJSONBMap := json.RawMessage(`{"foo": "bar"}`)
 
 	testValue := "Hello world!"
 
@@ -333,7 +334,7 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 			},
 		},
 		PGType{
-			RawJSONBMap: json.RawMessage(`{"foo": "bar"}`),
+			RawJSONBMap: &rawJSONBMap,
 		},
 		PGType{
 			IntegerValue: integerValue,
