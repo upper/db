@@ -82,6 +82,7 @@ func (*database) StatementExec(sess sqladapter.Session, ctx context.Context, que
 	}
 
 	if res, err = compat.ExecContext(sqlTx, ctx, query, args); err != nil {
+		_ = sqlTx.Rollback()
 		return nil, err
 	}
 
