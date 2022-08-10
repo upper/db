@@ -647,7 +647,6 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 			s.True(item.Born.After(ref))
 		}
 	}
-	return
 
 	// Test: less than
 	{
