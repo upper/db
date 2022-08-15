@@ -70,7 +70,13 @@ func expandArgument(arg interface{}) ([]byte, []interface{}) {
 		switch t := arg.(type) {
 		case *adapter.RawExpr:
 			return expandQuery([]byte(t.Raw()), t.Arguments())
-		case compilable:
+		case hasPaginator:
+			p, err := t.Paginator()
+			if err == nil {
+				return append([]byte{'('}, append([]byte(p.String()), ')')...), p.Arguments()
+			}
+			panic(err.Error())
+		case isCompilable:
 			s, err := t.Compile()
 			if err == nil {
 				return append([]byte{'('}, append([]byte(s), ')')...), t.Arguments()
@@ -150,40 +156,6 @@ func toColumnsValuesAndArguments(columnNames []string, columnValues []interface{
 	}
 
 	return columns, values, arguments, nil
-}
-
-func preprocessFn(arg interface{}) (string, []interface{}) {
-	values, isSlice := toInterfaceArguments(arg)
-
-	if isSlice {
-		if len(values) == 0 {
-			return `(NULL)`, nil
-		}
-		return `(?` + strings.Repeat(`, ?`, len(values)-1) + `)`, values
-	}
-
-	if len(values) == 1 {
-		switch t := arg.(type) {
-		case *adapter.RawExpr:
-			return Preprocess(t.Raw(), t.Arguments())
-		case hasPaginator:
-			p, err := t.Paginator()
-			if err == nil {
-				return `(` + p.String() + `)`, p.Arguments()
-			}
-			panic(err.Error())
-		case isCompilable:
-			c, err := t.Compile()
-			if err == nil {
-				return `(` + c + `)`, t.Arguments()
-			}
-			panic(err.Error())
-		}
-	} else if len(values) == 0 {
-		return `NULL`, nil
-	}
-
-	return "", []interface{}{arg}
 }
 
 // Preprocess expands arguments that needs to be expanded and compiles a query

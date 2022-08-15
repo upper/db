@@ -286,7 +286,7 @@ func (sess *sessionWithContext) Err(errIn error) (errOur error) {
 	return errIn
 }
 
-func (sess *session) PrimaryKeys(tableName string) ([]string, error) {
+func (sess *sessionWithContext) PrimaryKeys(tableName string) ([]string, error) {
 	h := cache.NewHashable(hashTypePrimaryKeys, tableName)
 
 	cachedPK, ok := sess.cachedPKs.ReadRaw(h)
@@ -656,9 +656,10 @@ func (sess *sessionWithContext) Collection(name string) db.Collection {
 
 	h := cache.NewHashable(hashTypeCollection, name)
 
-	cachedCol, ok := sess.cachedCollections.ReadRaw(h)
-	if ok {
-		return cachedCol.(db.Collection)
+	col, ok := sess.cachedCollections.ReadRaw(h)
+	if !ok {
+		col = newCollection(name, sess.adapter.NewCollection())
+		sess.cachedCollections.Write(h, col)
 	}
 
 	return &collectionWithSession{

@@ -358,7 +358,7 @@ func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, err
 
 			q, a := Preprocess(p.String(), p.Arguments())
 
-			f[i] = exql.RawValue("(" + q + ")")
+			f[i] = &exql.Raw{Value: "(" + q + ")"}
 			args = append(args, a...)
 		case isCompilable:
 			c, err := v.Compile()
