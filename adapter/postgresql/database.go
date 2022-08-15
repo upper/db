@@ -99,7 +99,7 @@ func (*database) CompileStatement(sess sqladapter.Session, stmt *exql.Statement,
 	}
 
 	query, args := sqlbuilder.Preprocess(compiled, args)
-	query = sqladapter.ReplaceWithDollarSign(query)
+	query = string(sqladapter.ReplaceWithDollarSign([]byte(query)))
 	return query, args, nil
 }
 

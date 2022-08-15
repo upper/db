@@ -76,10 +76,10 @@ func BenchmarkJoinColumnValues(b *testing.B) {
 func BenchmarkColumnValuesHash(b *testing.B) {
 	cvs := JoinColumnValues(
 		&ColumnValue{Column: ColumnWithName("id"), Operator: ">", Value: NewValue(8)},
-		&ColumnValue{Column: ColumnWithName("other.id"), Operator: "<", Value: NewValue(Raw{Value: "100"})},
+		&ColumnValue{Column: ColumnWithName("other.id"), Operator: "<", Value: NewValue(&Raw{Value: "100"})},
 		&ColumnValue{Column: ColumnWithName("name"), Operator: "=", Value: NewValue("Haruki Murakami")},
-		&ColumnValue{Column: ColumnWithName("created"), Operator: ">=", Value: NewValue(Raw{Value: "NOW()"})},
-		&ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(Raw{Value: "NOW()"})},
+		&ColumnValue{Column: ColumnWithName("created"), Operator: ">=", Value: NewValue(&Raw{Value: "NOW()"})},
+		&ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(&Raw{Value: "NOW()"})},
 	)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -90,10 +90,10 @@ func BenchmarkColumnValuesHash(b *testing.B) {
 func BenchmarkColumnValuesCompile(b *testing.B) {
 	cvs := JoinColumnValues(
 		&ColumnValue{Column: ColumnWithName("id"), Operator: ">", Value: NewValue(8)},
-		&ColumnValue{Column: ColumnWithName("other.id"), Operator: "<", Value: NewValue(Raw{Value: "100"})},
+		&ColumnValue{Column: ColumnWithName("other.id"), Operator: "<", Value: NewValue(&Raw{Value: "100"})},
 		&ColumnValue{Column: ColumnWithName("name"), Operator: "=", Value: NewValue("Haruki Murakami")},
-		&ColumnValue{Column: ColumnWithName("created"), Operator: ">=", Value: NewValue(Raw{Value: "NOW()"})},
-		&ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(Raw{Value: "NOW()"})},
+		&ColumnValue{Column: ColumnWithName("created"), Operator: ">=", Value: NewValue(&Raw{Value: "NOW()"})},
+		&ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(&Raw{Value: "NOW()"})},
 	)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -105,10 +105,10 @@ func BenchmarkColumnValuesCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		cvs := JoinColumnValues(
 			&ColumnValue{Column: ColumnWithName("id"), Operator: ">", Value: NewValue(8)},
-			&ColumnValue{Column: ColumnWithName("other.id"), Operator: "<", Value: NewValue(Raw{Value: "100"})},
+			&ColumnValue{Column: ColumnWithName("other.id"), Operator: "<", Value: NewValue(&Raw{Value: "100"})},
 			&ColumnValue{Column: ColumnWithName("name"), Operator: "=", Value: NewValue("Haruki Murakami")},
-			&ColumnValue{Column: ColumnWithName("created"), Operator: ">=", Value: NewValue(Raw{Value: "NOW()"})},
-			&ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(Raw{Value: "NOW()"})},
+			&ColumnValue{Column: ColumnWithName("created"), Operator: ">=", Value: NewValue(&Raw{Value: "NOW()"})},
+			&ColumnValue{Column: ColumnWithName("modified"), Operator: "<=", Value: NewValue(&Raw{Value: "NOW()"})},
 		)
 		_, _ = cvs.Compile(defaultTemplate)
 	}

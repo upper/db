@@ -1,9 +1,9 @@
 package sqlbuilder
 
 import (
+	"bytes"
 	"database/sql/driver"
 	"reflect"
-	"strings"
 
 	"github.com/upper/db/v4/internal/adapter"
 	"github.com/upper/db/v4/internal/sqladapter/exql"
@@ -13,31 +13,75 @@ var (
 	sqlDefault = &exql.Raw{Value: "DEFAULT"}
 )
 
-func expandQuery(in string, args []interface{}, fn func(interface{}) (string, []interface{})) (string, []interface{}) {
-	argn := 0
-	argx := make([]interface{}, 0, len(args))
-	for i := 0; i < len(in); i++ {
-		if in[i] != '?' {
+func expandQuery(in []byte, inArgs []interface{}) ([]byte, []interface{}) {
+	out := make([]byte, 0, len(in))
+	outArgs := make([]interface{}, 0, len(inArgs))
+
+	i := 0
+	for i < len(in) && len(inArgs) > 0 {
+		if in[i] == '?' {
+			out = append(out, in[:i]...)
+			in = in[i+1:]
+			i = 0
+
+			replace, replaceArgs := expandArgument(inArgs[0])
+			inArgs = inArgs[1:]
+
+			if len(replace) > 0 {
+				replace, replaceArgs = expandQuery(replace, replaceArgs)
+				out = append(out, replace...)
+			} else {
+				out = append(out, '?')
+			}
+
+			outArgs = append(outArgs, replaceArgs...)
 			continue
 		}
-		if len(args) > argn {
-			k, values := fn(args[argn])
-			k, values = expandQuery(k, values, fn)
+		i = i + 1
+	}
 
-			if k != "" {
-				in = in[:i] + k + in[i+1:]
-				i += len(k) - 1
-			}
-			if len(values) > 0 {
-				argx = append(argx, values...)
-			}
-			argn++
+	if len(out) < 1 {
+		return in, inArgs
+	}
+
+	out = append(out, in[:len(in)]...)
+	in = nil
+
+	outArgs = append(outArgs, inArgs[:len(inArgs)]...)
+	inArgs = nil
+
+	return out, outArgs
+}
+
+func expandArgument(arg interface{}) ([]byte, []interface{}) {
+	values, isSlice := toInterfaceArguments(arg)
+
+	if isSlice {
+		if len(values) == 0 {
+			return []byte("(NULL)"), nil
 		}
+		buf := bytes.Repeat([]byte(" ?,"), len(values))
+		buf[0] = '('
+		buf[len(buf)-1] = ')'
+		return buf, values
 	}
-	if len(argx) < len(args) {
-		argx = append(argx, args[argn:]...)
+
+	if len(values) == 1 {
+		switch t := arg.(type) {
+		case *adapter.RawExpr:
+			return expandQuery([]byte(t.Raw()), t.Arguments())
+		case compilable:
+			s, err := t.Compile()
+			if err == nil {
+				return append([]byte{'('}, append([]byte(s), ')')...), t.Arguments()
+			}
+			panic(err.Error())
+		}
+	} else if len(values) == 0 {
+		return []byte("NULL"), nil
 	}
-	return in, argx
+
+	return nil, []interface{}{arg}
 }
 
 // toInterfaceArguments converts the given value into an array of interfaces.
@@ -145,5 +189,6 @@ func preprocessFn(arg interface{}) (string, []interface{}) {
 // Preprocess expands arguments that needs to be expanded and compiles a query
 // into a single string.
 func Preprocess(in string, args []interface{}) (string, []interface{}) {
-	return expandQuery(in, args, preprocessFn)
+	b, args := expandQuery([]byte(in), args)
+	return string(b), args
 }
