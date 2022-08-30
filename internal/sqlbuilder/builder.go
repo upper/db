@@ -75,7 +75,7 @@ type fieldValue struct {
 }
 
 var (
-	sqlPlaceholder = exql.RawValue(`?`)
+	sqlPlaceholder = &exql.Raw{Value: `?`}
 )
 
 var (
@@ -358,7 +358,7 @@ func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, err
 
 			q, a := Preprocess(p.String(), p.Arguments())
 
-			f[i] = exql.RawValue("(" + q + ")")
+			f[i] = &exql.Raw{Value: "(" + q + ")"}
 			args = append(args, a...)
 		case isCompilable:
 			c, err := v.Compile()
@@ -369,7 +369,7 @@ func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, err
 			if _, ok := v.(db.Selector); ok {
 				q = "(" + q + ")"
 			}
-			f[i] = exql.RawValue(q)
+			f[i] = &exql.Raw{Value: q}
 			args = append(args, a...)
 		case *adapter.FuncExpr:
 			fnName, fnArgs := v.Name(), v.Arguments()
@@ -379,22 +379,24 @@ func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, err
 				fnName = fnName + "(?" + strings.Repeat("?, ", len(fnArgs)-1) + ")"
 			}
 			fnName, fnArgs = Preprocess(fnName, fnArgs)
-			f[i] = exql.RawValue(fnName)
+			f[i] = &exql.Raw{Value: fnName}
 			args = append(args, fnArgs...)
 		case *adapter.RawExpr:
 			q, a := Preprocess(v.Raw(), v.Arguments())
-			f[i] = exql.RawValue(q)
+			f[i] = &exql.Raw{Value: q}
 			args = append(args, a...)
 		case exql.Fragment:
 			f[i] = v
 		case string:
 			f[i] = exql.ColumnWithName(v)
-		case int:
-			f[i] = exql.RawValue(fmt.Sprintf("%v", v))
-		case interface{}:
-			f[i] = exql.ColumnWithName(fmt.Sprintf("%v", v))
+		case fmt.Stringer:
+			f[i] = exql.ColumnWithName(v.String())
 		default:
-			return nil, nil, fmt.Errorf("unexpected argument type %T for Select() argument", v)
+			var err error
+			f[i], err = exql.NewRawValue(columns[i])
+			if err != nil {
+				return nil, nil, fmt.Errorf("unexpected argument type %T for Select() argument: %w", v, err)
+			}
 		}
 	}
 	return f, args, nil

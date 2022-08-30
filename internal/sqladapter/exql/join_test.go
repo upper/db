@@ -3,11 +3,11 @@ package exql
 import (
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestOnAndRawOrAnd(t *testing.T) {
-	var s, e string
-
 	on := OnConditions(
 		JoinWithAnd(
 			&ColumnValue{Column: &Column{Name: "id"}, Operator: ">", Value: NewValue(&Raw{Value: "8"})},
@@ -25,33 +25,21 @@ func TestOnAndRawOrAnd(t *testing.T) {
 		),
 	)
 
-	s = mustTrim(on.Compile(defaultTemplate))
-	e = `ON (("id" > 8 AND "id" < 99) AND "name" = 'John' AND city_id = 728 AND ("last_name" = 'Smith' OR "last_name" = 'Reyes') AND ("age" > 18 AND "age" < 41))`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(on.Compile(defaultTemplate))
+	assert.Equal(t, `ON (("id" > 8 AND "id" < 99) AND "name" = 'John' AND city_id = 728 AND ("last_name" = 'Smith' OR "last_name" = 'Reyes') AND ("age" > 18 AND "age" < 41))`, s)
 }
 
 func TestUsing(t *testing.T) {
-	var s, e string
-
 	using := UsingColumns(
 		&Column{Name: "country"},
 		&Column{Name: "state"},
 	)
 
-	s = mustTrim(using.Compile(defaultTemplate))
-	e = `USING ("country", "state")`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(using.Compile(defaultTemplate))
+	assert.Equal(t, `USING ("country", "state")`, s)
 }
 
 func TestJoinOn(t *testing.T) {
-	var s, e string
-
 	join := JoinConditions(
 		&Join{
 			Table: TableWithName("countries c"),
@@ -70,17 +58,11 @@ func TestJoinOn(t *testing.T) {
 		},
 	)
 
-	s = mustTrim(join.Compile(defaultTemplate))
-	e = `JOIN "countries" AS "c" ON ("p"."country_id" = "a"."id" AND "p"."country_code" = "a"."code")`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(join.Compile(defaultTemplate))
+	assert.Equal(t, `JOIN "countries" AS "c" ON ("p"."country_id" = "a"."id" AND "p"."country_code" = "a"."code")`, s)
 }
 
 func TestInnerJoinOn(t *testing.T) {
-	var s, e string
-
 	join := JoinConditions(&Join{
 		Type:  "INNER",
 		Table: TableWithName("countries c"),
@@ -98,81 +80,51 @@ func TestInnerJoinOn(t *testing.T) {
 		),
 	})
 
-	s = mustTrim(join.Compile(defaultTemplate))
-	e = `INNER JOIN "countries" AS "c" ON ("p"."country_id" = "a"."id" AND "p"."country_code" = "a"."code")`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(join.Compile(defaultTemplate))
+	assert.Equal(t, `INNER JOIN "countries" AS "c" ON ("p"."country_id" = "a"."id" AND "p"."country_code" = "a"."code")`, s)
 }
 
 func TestLeftJoinUsing(t *testing.T) {
-	var s, e string
-
 	join := JoinConditions(&Join{
 		Type:  "LEFT",
 		Table: TableWithName("countries"),
 		Using: UsingColumns(ColumnWithName("name")),
 	})
 
-	s = mustTrim(join.Compile(defaultTemplate))
-	e = `LEFT JOIN "countries" USING ("name")`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(join.Compile(defaultTemplate))
+	assert.Equal(t, `LEFT JOIN "countries" USING ("name")`, s)
 }
 
 func TestNaturalJoinOn(t *testing.T) {
-	var s, e string
-
 	join := JoinConditions(&Join{
 		Table: TableWithName("countries"),
 	})
 
-	s = mustTrim(join.Compile(defaultTemplate))
-	e = `NATURAL JOIN "countries"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(join.Compile(defaultTemplate))
+	assert.Equal(t, `NATURAL JOIN "countries"`, s)
 }
 
 func TestNaturalInnerJoinOn(t *testing.T) {
-	var s, e string
-
 	join := JoinConditions(&Join{
 		Type:  "INNER",
 		Table: TableWithName("countries"),
 	})
 
-	s = mustTrim(join.Compile(defaultTemplate))
-	e = `NATURAL INNER JOIN "countries"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(join.Compile(defaultTemplate))
+	assert.Equal(t, `NATURAL INNER JOIN "countries"`, s)
 }
 
 func TestCrossJoin(t *testing.T) {
-	var s, e string
-
 	join := JoinConditions(&Join{
 		Type:  "CROSS",
 		Table: TableWithName("countries"),
 	})
 
-	s = mustTrim(join.Compile(defaultTemplate))
-	e = `CROSS JOIN "countries"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(join.Compile(defaultTemplate))
+	assert.Equal(t, `CROSS JOIN "countries"`, s)
 }
 
 func TestMultipleJoins(t *testing.T) {
-	var s, e string
-
 	join := JoinConditions(&Join{
 		Type:  "LEFT",
 		Table: TableWithName("countries"),
@@ -180,12 +132,8 @@ func TestMultipleJoins(t *testing.T) {
 		Table: TableWithName("cities"),
 	})
 
-	s = mustTrim(join.Compile(defaultTemplate))
-	e = `NATURAL LEFT JOIN "countries" NATURAL JOIN "cities"`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	s := mustTrim(join.Compile(defaultTemplate))
+	assert.Equal(t, `NATURAL LEFT JOIN "countries" NATURAL JOIN "cities"`, s)
 }
 
 func BenchmarkJoin(b *testing.B) {
@@ -224,6 +172,7 @@ func BenchmarkCompileJoin(b *testing.B) {
 			},
 		),
 	})
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = j.Compile(defaultTemplate)
 	}

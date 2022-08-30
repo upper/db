@@ -1,14 +1,20 @@
 package exql
 
+import (
+	"github.com/upper/db/v4/internal/cache"
+)
+
 // Returning represents a RETURNING clause.
 type Returning struct {
 	*Columns
-	hash hash
 }
 
 // Hash returns a unique identifier for the struct.
-func (r *Returning) Hash() string {
-	return r.hash.Hash(r)
+func (r *Returning) Hash() uint64 {
+	if r == nil {
+		return cache.NewHash(FragmentType_Returning, nil)
+	}
+	return cache.NewHash(FragmentType_Returning, r.Columns)
 }
 
 var _ = Fragment(&Returning{})

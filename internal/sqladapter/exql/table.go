@@ -2,6 +2,8 @@ package exql
 
 import (
 	"strings"
+
+	"github.com/upper/db/v4/internal/cache"
 )
 
 type tableT struct {
@@ -12,7 +14,6 @@ type tableT struct {
 // Table struct represents a SQL table.
 type Table struct {
 	Name interface{}
-	hash hash
 }
 
 var _ = Fragment(&Table{})
@@ -57,8 +58,11 @@ func TableWithName(name string) *Table {
 }
 
 // Hash returns a string hash of the table value.
-func (t *Table) Hash() string {
-	return t.hash.Hash(t)
+func (t *Table) Hash() uint64 {
+	if t == nil {
+		return cache.NewHash(FragmentType_Table, nil)
+	}
+	return cache.NewHash(FragmentType_Table, t.Name)
 }
 
 // Compile transforms a table struct into a SQL chunk.

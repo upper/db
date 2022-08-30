@@ -257,7 +257,7 @@ func (sel *selector) OrderBy(columns ...interface{}) db.Selector {
 			case *adapter.RawExpr:
 				query, args := Preprocess(value.Raw(), value.Arguments())
 				sort = &exql.SortColumn{
-					Column: exql.RawValue(query),
+					Column: &exql.Raw{Value: query},
 				}
 				sq.orderByArgs = append(sq.orderByArgs, args...)
 			case *adapter.FuncExpr:
@@ -269,21 +269,21 @@ func (sel *selector) OrderBy(columns ...interface{}) db.Selector {
 				}
 				fnName, fnArgs = Preprocess(fnName, fnArgs)
 				sort = &exql.SortColumn{
-					Column: exql.RawValue(fnName),
+					Column: &exql.Raw{Value: fnName},
 				}
 				sq.orderByArgs = append(sq.orderByArgs, fnArgs...)
 			case string:
 				if strings.HasPrefix(value, "-") {
 					sort = &exql.SortColumn{
 						Column: exql.ColumnWithName(value[1:]),
-						Order:  exql.Descendent,
+						Order:  exql.Order_Descendent,
 					}
 				} else {
 					chunks := strings.SplitN(value, " ", 2)
 
-					order := exql.Ascendent
+					order := exql.Order_Ascendent
 					if len(chunks) > 1 && strings.ToUpper(chunks[1]) == "DESC" {
-						order = exql.Descendent
+						order = exql.Order_Descendent
 					}
 
 					sort = &exql.SortColumn{
@@ -418,7 +418,7 @@ func (sel *selector) As(alias string) db.Selector {
 			if err != nil {
 				return err
 			}
-			sq.table.Columns[last] = exql.RawValue(raw.Value + " AS " + compiled)
+			sq.table.Columns[last] = &exql.Raw{Value: raw.Value + " AS " + compiled}
 		}
 		return nil
 	})

@@ -2,6 +2,8 @@ package exql
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGroupBy(t *testing.T) {
@@ -14,10 +16,7 @@ func TestGroupBy(t *testing.T) {
 	)
 
 	s := mustTrim(columns.Compile(defaultTemplate))
-	e := `GROUP BY "id", "customer", "service_id", "role"."name", "role"."id"`
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.Equal(t, `GROUP BY "id", "customer", "service_id", "role"."name", "role"."id"`, s)
 }
 
 func BenchmarkGroupByColumns(b *testing.B) {
@@ -38,6 +37,7 @@ func BenchmarkGroupByHash(b *testing.B) {
 		&Column{Name: "role.name"},
 		&Column{Name: "role.id"},
 	)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		c.Hash()
 	}
@@ -51,6 +51,7 @@ func BenchmarkGroupByCompile(b *testing.B) {
 		&Column{Name: "role.name"},
 		&Column{Name: "role.id"},
 	)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = c.Compile(defaultTemplate)
 	}

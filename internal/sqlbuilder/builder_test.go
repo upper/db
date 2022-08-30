@@ -1428,9 +1428,10 @@ func BenchmarkSelect4(b *testing.B) {
 }
 
 func BenchmarkSelect5(b *testing.B) {
-	bt := WithTemplate(&testTemplate)
+	t := WithTemplate(&testTemplate)
+	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		_ = bt.SelectFrom("artist a").
+		_ = t.SelectFrom("artist a").
 			LeftJoin("publication p1").On("p1.id = a.id").
 			RightJoin("publication p2").On("p2.id = a.id").
 			String()

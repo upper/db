@@ -2,19 +2,27 @@ package exql
 
 import (
 	"strings"
+
+	"github.com/upper/db/v4/internal/cache"
 )
 
 // Columns represents an array of Column.
 type Columns struct {
 	Columns []Fragment
-	hash    hash
 }
 
 var _ = Fragment(&Columns{})
 
 // Hash returns a unique identifier.
-func (c *Columns) Hash() string {
-	return c.hash.Hash(c)
+func (c *Columns) Hash() uint64 {
+	if c == nil {
+		return cache.NewHash(FragmentType_Columns, nil)
+	}
+	h := cache.InitHash(FragmentType_Columns)
+	for i := range c.Columns {
+		h = cache.AddToHash(h, c.Columns[i])
+	}
+	return h
 }
 
 // JoinColumns creates and returns an array of Column.
@@ -48,7 +56,6 @@ func (c *Columns) IsEmpty() bool {
 
 // Compile transforms the Columns into an equivalent SQL representation.
 func (c *Columns) Compile(layout *Template) (compiled string, err error) {
-
 	if z, ok := layout.Read(c); ok {
 		return z, nil
 	}

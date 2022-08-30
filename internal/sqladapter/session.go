@@ -1,6 +1,7 @@
 package sqladapter
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"database/sql/driver"
@@ -286,7 +287,8 @@ func (sess *sessionWithContext) Err(errIn error) (errOur error) {
 }
 
 func (sess *sessionWithContext) PrimaryKeys(tableName string) ([]string, error) {
-	h := cache.String(tableName)
+	h := cache.NewHashable(hashTypePrimaryKeys, tableName)
+
 	cachedPK, ok := sess.cachedPKs.ReadRaw(h)
 	if ok {
 		return cachedPK.([]string), nil
@@ -652,7 +654,8 @@ func (sess *sessionWithContext) Collection(name string) db.Collection {
 	sess.cacheMu.Lock()
 	defer sess.cacheMu.Unlock()
 
-	h := cache.String(name)
+	h := cache.NewHashable(hashTypeCollection, name)
+
 	col, ok := sess.cachedCollections.ReadRaw(h)
 	if !ok {
 		col = newCollection(name, sess.adapter.NewCollection())
@@ -1001,29 +1004,37 @@ func (sess *sessionWithContext) WaitForConnection(connectFn func() error) error 
 
 // ReplaceWithDollarSign turns a SQL statament with '?' placeholders into
 // dollar placeholders, like $1, $2, ..., $n
-func ReplaceWithDollarSign(in string) string {
-	buf := []byte(in)
-	out := make([]byte, 0, len(buf))
+func ReplaceWithDollarSign(buf []byte) []byte {
+	z := bytes.Count(buf, []byte{'?'})
+	// the capacity is a quick estimation of the total memory required, this
+	// reduces reallocations
+	out := make([]byte, 0, len(buf)+z*3)
 
-	i, j, k, t := 0, 1, 0, len(buf)
-
-	for i < t {
+	var i, k = 0, 1
+	for i < len(buf) {
 		if buf[i] == '?' {
-			out = append(out, buf[k:i]...)
-			k = i + 1
+			out = append(out, buf[:i]...)
+			buf = buf[i+1:]
+			i = 0
 
-			if k < t && buf[k] == '?' {
-				i = k
-			} else {
-				out = append(out, []byte("$"+strconv.Itoa(j))...)
-				j++
+			if len(buf) > 0 && buf[0] == '?' {
+				out = append(out, '?')
+				buf = buf[1:]
+				continue
 			}
-		}
-		i++
-	}
-	out = append(out, buf[k:i]...)
 
-	return string(out)
+			out = append(out, '$')
+			out = append(out, []byte(strconv.Itoa(k))...)
+			k = k + 1
+			continue
+		}
+		i = i + 1
+	}
+
+	out = append(out, buf[:len(buf)]...)
+	buf = nil
+
+	return out
 }
 
 func copySettings(from Session, into Session) {

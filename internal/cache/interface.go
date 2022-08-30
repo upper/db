@@ -24,11 +24,11 @@ package cache
 // Hashable types must implement a method that returns a key. This key will be
 // associated with a cached value.
 type Hashable interface {
-	Hash() string
+	Hash() uint64
 }
 
-// HasOnPurge type is (optionally) implemented by cache objects to clean after
+// HasOnEvict type is (optionally) implemented by cache objects to clean after
 // themselves.
-type HasOnPurge interface {
-	OnPurge()
+type HasOnEvict interface {
+	OnEvict()
 }

@@ -2,6 +2,8 @@ package exql
 
 import (
 	"strings"
+
+	"github.com/upper/db/v4/internal/cache"
 )
 
 type innerJoinT struct {
@@ -14,14 +16,20 @@ type innerJoinT struct {
 // Joins represents the union of different join conditions.
 type Joins struct {
 	Conditions []Fragment
-	hash       hash
 }
 
 var _ = Fragment(&Joins{})
 
 // Hash returns a unique identifier for the struct.
-func (j *Joins) Hash() string {
-	return j.hash.Hash(j)
+func (j *Joins) Hash() uint64 {
+	if j == nil {
+		return cache.NewHash(FragmentType_Joins, nil)
+	}
+	h := cache.InitHash(FragmentType_Joins)
+	for i := range j.Conditions {
+		h = cache.AddToHash(h, j.Conditions[i])
+	}
+	return h
 }
 
 // Compile transforms the Where into an equivalent SQL representation.
@@ -66,14 +74,16 @@ type Join struct {
 	Table Fragment
 	On    Fragment
 	Using Fragment
-	hash  hash
 }
 
 var _ = Fragment(&Join{})
 
 // Hash returns a unique identifier for the struct.
-func (j *Join) Hash() string {
-	return j.hash.Hash(j)
+func (j *Join) Hash() uint64 {
+	if j == nil {
+		return cache.NewHash(FragmentType_Join, nil)
+	}
+	return cache.NewHash(FragmentType_Join, j.Type, j.Table, j.On, j.Using)
 }
 
 // Compile transforms the Join into its equivalent SQL representation.
@@ -118,9 +128,11 @@ type On Where
 
 var _ = Fragment(&On{})
 
-// Hash returns a unique identifier.
-func (o *On) Hash() string {
-	return o.hash.Hash(o)
+func (o *On) Hash() uint64 {
+	if o == nil {
+		return cache.NewHash(FragmentType_On, nil)
+	}
+	return cache.NewHash(FragmentType_On, (*Where)(o))
 }
 
 // Compile transforms the On into an equivalent SQL representation.
@@ -151,9 +163,11 @@ type usingT struct {
 	Columns string
 }
 
-// Hash returns a unique identifier.
-func (u *Using) Hash() string {
-	return u.hash.Hash(u)
+func (u *Using) Hash() uint64 {
+	if u == nil {
+		return cache.NewHash(FragmentType_Using, nil)
+	}
+	return cache.NewHash(FragmentType_Using, (*Columns)(u))
 }
 
 // Compile transforms the Using into an equivalent SQL representation.

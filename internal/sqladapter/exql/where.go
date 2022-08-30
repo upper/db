@@ -2,6 +2,8 @@ package exql
 
 import (
 	"strings"
+
+	"github.com/upper/db/v4/internal/cache"
 )
 
 // Or represents an SQL OR operator.
@@ -13,7 +15,6 @@ type And Where
 // Where represents an SQL WHERE clause.
 type Where struct {
 	Conditions []Fragment
-	hash       hash
 }
 
 var _ = Fragment(&Where{})
@@ -38,8 +39,15 @@ func JoinWithAnd(conditions ...Fragment) *And {
 }
 
 // Hash returns a unique identifier for the struct.
-func (w *Where) Hash() string {
-	return w.hash.Hash(w)
+func (w *Where) Hash() uint64 {
+	if w == nil {
+		return cache.NewHash(FragmentType_Where, nil)
+	}
+	h := cache.InitHash(FragmentType_Where)
+	for i := range w.Conditions {
+		h = cache.AddToHash(h, w.Conditions[i])
+	}
+	return h
 }
 
 // Appends adds the conditions to the ones that already exist.
@@ -51,15 +59,19 @@ func (w *Where) Append(a *Where) *Where {
 }
 
 // Hash returns a unique identifier.
-func (o *Or) Hash() string {
-	w := Where(*o)
-	return `Or(` + w.Hash() + `)`
+func (o *Or) Hash() uint64 {
+	if o == nil {
+		return cache.NewHash(FragmentType_Or, nil)
+	}
+	return cache.NewHash(FragmentType_Or, (*Where)(o))
 }
 
 // Hash returns a unique identifier.
-func (a *And) Hash() string {
-	w := Where(*a)
-	return `And(` + w.Hash() + `)`
+func (a *And) Hash() uint64 {
+	if a == nil {
+		return cache.NewHash(FragmentType_And, nil)
+	}
+	return cache.NewHash(FragmentType_And, (*Where)(a))
 }
 
 // Compile transforms the Or into an equivalent SQL representation.

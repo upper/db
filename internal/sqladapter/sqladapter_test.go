@@ -40,6 +40,6 @@ func TestReplaceWithDollarSign(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		assert.Equal(t, test.out, ReplaceWithDollarSign(test.in))
+		assert.Equal(t, []byte(test.out), ReplaceWithDollarSign([]byte(test.in)))
 	}
 }

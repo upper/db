@@ -2,6 +2,8 @@ package exql
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestOrderBy(t *testing.T) {
@@ -12,38 +14,29 @@ func TestOrderBy(t *testing.T) {
 	)
 
 	s := mustTrim(o.Compile(defaultTemplate))
-	e := `ORDER BY "foo"`
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.Equal(t, `ORDER BY "foo"`, s)
 }
 
 func TestOrderByRaw(t *testing.T) {
 	o := JoinWithOrderBy(
 		JoinSortColumns(
-			&SortColumn{Column: RawValue("CASE WHEN id IN ? THEN 0 ELSE 1 END")},
+			&SortColumn{Column: &Raw{Value: "CASE WHEN id IN ? THEN 0 ELSE 1 END"}},
 		),
 	)
 
 	s := mustTrim(o.Compile(defaultTemplate))
-	e := `ORDER BY CASE WHEN id IN ? THEN 0 ELSE 1 END`
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.Equal(t, `ORDER BY CASE WHEN id IN ? THEN 0 ELSE 1 END`, s)
 }
 
 func TestOrderByDesc(t *testing.T) {
 	o := JoinWithOrderBy(
 		JoinSortColumns(
-			&SortColumn{Column: &Column{Name: "foo"}, Order: Descendent},
+			&SortColumn{Column: &Column{Name: "foo"}, Order: Order_Descendent},
 		),
 	)
 
 	s := mustTrim(o.Compile(defaultTemplate))
-	e := `ORDER BY "foo" DESC`
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.Equal(t, `ORDER BY "foo" DESC`, s)
 }
 
 func BenchmarkOrderBy(b *testing.B) {
@@ -62,6 +55,7 @@ func BenchmarkOrderByHash(b *testing.B) {
 			&SortColumn{Column: &Column{Name: "foo"}},
 		),
 	}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		o.Hash()
 	}
@@ -73,6 +67,7 @@ func BenchmarkCompileOrderByCompile(b *testing.B) {
 			&SortColumn{Column: &Column{Name: "foo"}},
 		),
 	}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = o.Compile(defaultTemplate)
 	}
@@ -90,7 +85,7 @@ func BenchmarkCompileOrderByCompileNoCache(b *testing.B) {
 }
 
 func BenchmarkCompileOrderCompile(b *testing.B) {
-	o := Descendent
+	o := Order_Descendent
 	for i := 0; i < b.N; i++ {
 		_, _ = o.Compile(defaultTemplate)
 	}
@@ -98,13 +93,14 @@ func BenchmarkCompileOrderCompile(b *testing.B) {
 
 func BenchmarkCompileOrderCompileNoCache(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		o := Descendent
+		o := Order_Descendent
 		_, _ = o.Compile(defaultTemplate)
 	}
 }
 
 func BenchmarkSortColumnHash(b *testing.B) {
 	s := &SortColumn{Column: &Column{Name: "foo"}}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		s.Hash()
 	}
@@ -112,6 +108,7 @@ func BenchmarkSortColumnHash(b *testing.B) {
 
 func BenchmarkSortColumnCompile(b *testing.B) {
 	s := &SortColumn{Column: &Column{Name: "foo"}}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = s.Compile(defaultTemplate)
 	}
@@ -129,6 +126,7 @@ func BenchmarkSortColumnsHash(b *testing.B) {
 		&SortColumn{Column: &Column{Name: "foo"}},
 		&SortColumn{Column: &Column{Name: "bar"}},
 	)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		s.Hash()
 	}
@@ -139,6 +137,7 @@ func BenchmarkSortColumnsCompile(b *testing.B) {
 		&SortColumn{Column: &Column{Name: "foo"}},
 		&SortColumn{Column: &Column{Name: "bar"}},
 	)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = s.Compile(defaultTemplate)
 	}

@@ -2,47 +2,22 @@ package exql
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRawString(t *testing.T) {
 	raw := &Raw{Value: "foo"}
-
 	s, err := raw.Compile(defaultTemplate)
-	if err != nil {
-		t.Fatal()
-	}
-
-	e := `foo`
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, `foo`, s)
 }
 
 func TestRawCompile(t *testing.T) {
 	raw := &Raw{Value: "foo"}
-
 	s, err := raw.Compile(defaultTemplate)
-	if err != nil {
-		t.Fatal()
-	}
-
-	e := `foo`
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
-}
-
-func TestRawHash(t *testing.T) {
-	var s, e string
-
-	raw := &Raw{Value: "foo"}
-
-	s = raw.Hash()
-	e = `*exql.Raw:5772950988983410957`
-
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, `foo`, s)
 }
 
 func BenchmarkRawCreate(b *testing.B) {
@@ -53,6 +28,7 @@ func BenchmarkRawCreate(b *testing.B) {
 
 func BenchmarkRawString(b *testing.B) {
 	raw := &Raw{Value: "foo"}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = raw.String()
 	}
@@ -60,6 +36,7 @@ func BenchmarkRawString(b *testing.B) {
 
 func BenchmarkRawCompile(b *testing.B) {
 	raw := &Raw{Value: "foo"}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = raw.Compile(defaultTemplate)
 	}
@@ -67,6 +44,7 @@ func BenchmarkRawCompile(b *testing.B) {
 
 func BenchmarkRawHash(b *testing.B) {
 	raw := &Raw{Value: "foo"}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		raw.Hash()
 	}

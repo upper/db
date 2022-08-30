@@ -2,7 +2,8 @@ package exql
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/upper/db/v4/internal/cache"
 )
 
 var (
@@ -11,18 +12,27 @@ var (
 
 // Raw represents a value that is meant to be used in a query without escaping.
 type Raw struct {
-	Value string // Value should not be modified after assigned.
-	hash  hash
+	Value string
 }
 
-// RawValue creates and returns a new raw value.
-func RawValue(v string) *Raw {
-	return &Raw{Value: strings.TrimSpace(v)}
+func NewRawValue(v interface{}) (*Raw, error) {
+	switch t := v.(type) {
+	case string:
+		return &Raw{Value: t}, nil
+	case int, uint, int64, uint64, int32, uint32, int16, uint16:
+		return &Raw{Value: fmt.Sprintf("%d", t)}, nil
+	case fmt.Stringer:
+		return &Raw{Value: t.String()}, nil
+	}
+	return nil, fmt.Errorf("unexpected type: %T", v)
 }
 
 // Hash returns a unique identifier for the struct.
-func (r *Raw) Hash() string {
-	return r.hash.Hash(r)
+func (r *Raw) Hash() uint64 {
+	if r == nil {
+		return cache.NewHash(FragmentType_Raw, nil)
+	}
+	return cache.NewHash(FragmentType_Raw, r.Value)
 }
 
 // Compile returns the raw value.

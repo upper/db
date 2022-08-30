@@ -1,9 +1,12 @@
 package exql
 
+import (
+	"github.com/upper/db/v4/internal/cache"
+)
+
 // Database represents a SQL database.
 type Database struct {
 	Name string
-	hash hash
 }
 
 var _ = Fragment(&Database{})
@@ -14,8 +17,11 @@ func DatabaseWithName(name string) *Database {
 }
 
 // Hash returns a unique identifier for the struct.
-func (d *Database) Hash() string {
-	return d.hash.Hash(d)
+func (d *Database) Hash() uint64 {
+	if d == nil {
+		return cache.NewHash(FragmentType_Database, nil)
+	}
+	return cache.NewHash(FragmentType_Database, d.Name)
 }
 
 // Compile transforms the Database into an equivalent SQL representation.

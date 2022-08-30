@@ -1,6 +1,7 @@
 package exql
 
 import (
+	"github.com/upper/db/v4/internal/cache"
 	"strings"
 )
 
@@ -9,7 +10,6 @@ type ColumnValue struct {
 	Column   Fragment
 	Operator string
 	Value    Fragment
-	hash     hash
 }
 
 var _ = Fragment(&ColumnValue{})
@@ -21,8 +21,11 @@ type columnValueT struct {
 }
 
 // Hash returns a unique identifier for the struct.
-func (c *ColumnValue) Hash() string {
-	return c.hash.Hash(c)
+func (c *ColumnValue) Hash() uint64 {
+	if c == nil {
+		return cache.NewHash(FragmentType_ColumnValue, nil)
+	}
+	return cache.NewHash(FragmentType_ColumnValue, c.Column, c.Operator, c.Value)
 }
 
 // Compile transforms the ColumnValue into an equivalent SQL representation.
@@ -58,7 +61,6 @@ func (c *ColumnValue) Compile(layout *Template) (compiled string, err error) {
 // ColumnValues represents an array of ColumnValue
 type ColumnValues struct {
 	ColumnValues []Fragment
-	hash         hash
 }
 
 var _ = Fragment(&ColumnValues{})
@@ -71,13 +73,16 @@ func JoinColumnValues(values ...Fragment) *ColumnValues {
 // Insert adds a column to the columns array.
 func (c *ColumnValues) Insert(values ...Fragment) *ColumnValues {
 	c.ColumnValues = append(c.ColumnValues, values...)
-	c.hash.Reset()
 	return c
 }
 
 // Hash returns a unique identifier for the struct.
-func (c *ColumnValues) Hash() string {
-	return c.hash.Hash(c)
+func (c *ColumnValues) Hash() uint64 {
+	h := cache.InitHash(FragmentType_ColumnValues)
+	for i := range c.ColumnValues {
+		h = cache.AddToHash(h, c.ColumnValues[i])
+	}
+	return h
 }
 
 // Compile transforms the ColumnValues into its SQL representation.

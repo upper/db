@@ -12,7 +12,7 @@ var (
 )
 
 // Stmt represents a *sql.Stmt that is cached and provides the
-// OnPurge method to allow it to clean after itself.
+// OnEvict method to allow it to clean after itself.
 type Stmt struct {
 	*sql.Stmt
 
@@ -69,8 +69,8 @@ func (c *Stmt) checkClose() error {
 	return nil
 }
 
-// OnPurge marks the statement as ready to be cleaned up.
-func (c *Stmt) OnPurge() {
+// OnEvict marks the statement as ready to be cleaned up.
+func (c *Stmt) OnEvict() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

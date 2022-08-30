@@ -2,31 +2,59 @@ package exql
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestValue(t *testing.T) {
 	val := NewValue(1)
 
 	s, err := val.Compile(defaultTemplate)
-	if err != nil {
-		t.Fatal()
-	}
-
-	e := `'1'`
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, `'1'`, s)
 
 	val = NewValue(&Raw{Value: "NOW()"})
 
 	s, err = val.Compile(defaultTemplate)
-	if err != nil {
-		t.Fatal()
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, `NOW()`, s)
+}
 
-	e = `NOW()`
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
+func TestSameRawValue(t *testing.T) {
+	{
+		val := NewValue(&Raw{Value: `"1"`})
+
+		s, err := val.Compile(defaultTemplate)
+		assert.NoError(t, err)
+		assert.Equal(t, `"1"`, s)
+	}
+	{
+		val := NewValue(&Raw{Value: `'1'`})
+
+		s, err := val.Compile(defaultTemplate)
+		assert.NoError(t, err)
+		assert.Equal(t, `'1'`, s)
+	}
+	{
+		val := NewValue(&Raw{Value: `1`})
+
+		s, err := val.Compile(defaultTemplate)
+		assert.NoError(t, err)
+		assert.Equal(t, `1`, s)
+	}
+	{
+		val := NewValue("1")
+
+		s, err := val.Compile(defaultTemplate)
+		assert.NoError(t, err)
+		assert.Equal(t, `'1'`, s)
+	}
+	{
+		val := NewValue(1)
+
+		s, err := val.Compile(defaultTemplate)
+		assert.NoError(t, err)
+		assert.Equal(t, `'1'`, s)
 	}
 }
 
@@ -38,14 +66,9 @@ func TestValues(t *testing.T) {
 	)
 
 	s, err := val.Compile(defaultTemplate)
-	if err != nil {
-		t.Fatal()
-	}
+	assert.NoError(t, err)
 
-	e := `(1, 2, '3')`
-	if s != e {
-		t.Fatalf("Got: %s, Expecting: %s", s, e)
-	}
+	assert.Equal(t, `(1, 2, '3')`, s)
 }
 
 func BenchmarkValue(b *testing.B) {
@@ -56,6 +79,7 @@ func BenchmarkValue(b *testing.B) {
 
 func BenchmarkValueHash(b *testing.B) {
 	v := NewValue("a")
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = v.Hash()
 	}
@@ -63,6 +87,7 @@ func BenchmarkValueHash(b *testing.B) {
 
 func BenchmarkValueCompile(b *testing.B) {
 	v := NewValue("a")
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = v.Compile(defaultTemplate)
 	}
@@ -83,6 +108,7 @@ func BenchmarkValues(b *testing.B) {
 
 func BenchmarkValuesHash(b *testing.B) {
 	vs := NewValueGroup(NewValue("a"), NewValue("b"))
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = vs.Hash()
 	}
@@ -90,6 +116,7 @@ func BenchmarkValuesHash(b *testing.B) {
 
 func BenchmarkValuesCompile(b *testing.B) {
 	vs := NewValueGroup(NewValue("a"), NewValue("b"))
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = vs.Compile(defaultTemplate)
 	}
