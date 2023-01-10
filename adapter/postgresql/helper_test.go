@@ -195,6 +195,7 @@ func (h *Helper) TearUp() error {
 			, string_array text[]
 			, jsonb_map jsonb
 			, raw_jsonb_map jsonb
+			, raw_jsonb_text jsonb
 
 			, integer_array_ptr integer[]
 			, string_array_ptr text[]
