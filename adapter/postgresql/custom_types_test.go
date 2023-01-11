@@ -57,6 +57,24 @@ func TestScanJSONB(t *testing.T) {
 		assert.Equal(t, nil, a.V)
 	}
 	{
+		var a []byte
+		err := ScanJSONB(&a, []byte(`{"age":[{"\u003e":"1h"}]}`))
+		assert.NoError(t, err)
+		assert.Equal(t, `{"age":[{"\u003e":"1h"}]}`, string(a))
+	}
+	{
+		var a json.RawMessage
+		err := ScanJSONB(&a, []byte(`{"age":[{"\u003e":"1h"}]}`))
+		assert.NoError(t, err)
+		assert.Equal(t, `{"age":[{"\u003e":"1h"}]}`, string(a))
+	}
+	{
+		var a json.RawMessage
+		err := ScanJSONB(&a, []byte("{\"age\":[{\"\u003e\":\"1h\"}]}"))
+		assert.NoError(t, err)
+		assert.Equal(t, `{"age":[{">":"1h"}]}`, string(a))
+	}
+	{
 		a := []*testStruct{}
 		err := json.Unmarshal([]byte(`[{}]`), &a)
 		assert.NoError(t, err)
