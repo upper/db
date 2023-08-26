@@ -62,9 +62,7 @@ func (tu *templateWithUtils) toWhereWithArguments(term interface{}) (where exql.
 					}
 					cv, v := tu.toColumnValues(adapter.NewConstraint(key, val))
 					args = append(args, v...)
-					for i := range cv.ColumnValues {
-						where.Conditions = append(where.Conditions, cv.ColumnValues[i])
-					}
+					where.Conditions = append(where.Conditions, cv.ColumnValues...)
 				}
 				return
 			}
