@@ -1,6 +1,6 @@
 SHELL                 ?= /bin/bash
 
-PARALLEL_FLAGS        ?= --halt-on-error 2 --jobs=4 -v -u
+PARALLEL_FLAGS        ?= --halt-on-error 2 --jobs=2 -v -u
 
 TEST_FLAGS            ?=
 
