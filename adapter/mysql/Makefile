@@ -1,6 +1,6 @@
 SHELL					        ?= bash
 
-MYSQL_VERSION         ?= 8
+MYSQL_VERSION         ?= 8.1
 MYSQL_SUPPORTED       ?= $(MYSQL_VERSION) 5.7
 PROJECT               ?= upper_mysql_$(MYSQL_VERSION)
 
