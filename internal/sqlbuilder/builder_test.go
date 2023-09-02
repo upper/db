@@ -873,6 +873,32 @@ func TestSelect(t *testing.T) {
 			sel.Arguments(),
 		)
 
+		{
+			sel := b.Select(db.Func("FOO", "A", "B", 1)).From("accounts").Where(db.Cond{"time": db.Func("FUNCTION", "20170103", "YYYYMMDD", 1, "E")})
+
+			assert.Equal(
+				`SELECT FOO($1, $2, $3) FROM "accounts" WHERE ("time" = FUNCTION($4, $5, $6, $7))`,
+				sel.String(),
+			)
+			assert.Equal(
+				[]interface{}{"A", "B", 1, "20170103", "YYYYMMDD", 1, "E"},
+				sel.Arguments(),
+			)
+		}
+
+		{
+
+			sel := b.Select(db.Func("FOO", "A", "B", 1)).From("accounts").Where(db.Cond{db.Func("FUNCTION", "20170103", "YYYYMMDD", 1, "E"): db.Func("FOO", 1)})
+
+			assert.Equal(
+				`SELECT FOO($1, $2, $3) FROM "accounts" WHERE (FUNCTION($4, $5, $6, $7) = FOO($8))`,
+				sel.String(),
+			)
+			assert.Equal(
+				[]interface{}{"A", "B", 1, "20170103", "YYYYMMDD", 1, "E", 1},
+				sel.Arguments(),
+			)
+		}
 	}
 }
 

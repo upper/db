@@ -161,20 +161,31 @@ func (tu *templateWithUtils) toColumnValues(term interface{}) (cv exql.ColumnVal
 	case adapter.Constraint:
 		columnValue := exql.ColumnValue{}
 
-		// Getting column and operator.
-		if column, ok := t.Key().(string); ok {
-			chunks := strings.SplitN(strings.TrimSpace(column), " ", 2)
+		// TODO: Key and Value are similar. Can we refactor this? Maybe think about
+		// Left/Right rather than Key/Value.
+
+		switch key := t.Key().(type) {
+		case string:
+			chunks := strings.SplitN(strings.TrimSpace(key), " ", 2)
 			columnValue.Column = exql.ColumnWithName(chunks[0])
 			if len(chunks) > 1 {
 				columnValue.Operator = chunks[1]
 			}
-		} else {
-			if rawValue, ok := t.Key().(*adapter.RawExpr); ok {
-				columnValue.Column = &exql.Raw{Value: rawValue.Raw()}
-				args = append(args, rawValue.Arguments()...)
+		case *adapter.RawExpr:
+			columnValue.Column = &exql.Raw{Value: key.Raw()}
+			args = append(args, key.Arguments()...)
+		case *db.FuncExpr:
+			fnName, fnArgs := key.Name(), key.Arguments()
+			if len(fnArgs) == 0 {
+				fnName = fnName + "()"
 			} else {
-				columnValue.Column = &exql.Raw{Value: fmt.Sprintf("%v", t.Key())}
+				fnName = fnName + "(?" + strings.Repeat(", ?", len(fnArgs)-1) + ")"
 			}
+			fnName, fnArgs = Preprocess(fnName, fnArgs)
+			columnValue.Column = &exql.Raw{Value: fnName}
+			args = append(args, fnArgs...)
+		default:
+			columnValue.Column = &exql.Raw{Value: fmt.Sprintf("%v", key)}
 		}
 
 		switch value := t.Value().(type) {
@@ -185,7 +196,7 @@ func (tu *templateWithUtils) toColumnValues(term interface{}) (cv exql.ColumnVal
 				fnName = fnName + "()"
 			} else {
 				// A function with one or more arguments.
-				fnName = fnName + "(?" + strings.Repeat("?, ", len(fnArgs)-1) + ")"
+				fnName = fnName + "(?" + strings.Repeat(", ?", len(fnArgs)-1) + ")"
 			}
 			fnName, fnArgs = Preprocess(fnName, fnArgs)
 			columnValue.Value = &exql.Raw{Value: fnName}
