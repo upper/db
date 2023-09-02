@@ -11,7 +11,6 @@ require (
 	github.com/jackc/pgx/v4 v4.15.0
 	github.com/lib/pq v1.10.4
 	github.com/mattn/go-sqlite3 v1.14.9
-	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/segmentio/fasthash v1.0.3
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
@@ -20,6 +19,6 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
+	gopkg.in/yaml.v3 v3.0.0 // indirect
 	modernc.org/ql v1.4.0
 )
