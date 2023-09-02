@@ -376,7 +376,7 @@ func columnFragments(columns []interface{}) ([]exql.Fragment, []interface{}, err
 			if len(fnArgs) == 0 {
 				fnName = fnName + "()"
 			} else {
-				fnName = fnName + "(?" + strings.Repeat("?, ", len(fnArgs)-1) + ")"
+				fnName = fnName + "(?" + strings.Repeat(", ?", len(fnArgs)-1) + ")"
 			}
 			fnName, fnArgs = Preprocess(fnName, fnArgs)
 			f[i] = &exql.Raw{Value: fnName}
