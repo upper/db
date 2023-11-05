@@ -1,6 +1,7 @@
 SHELL                 ?= /bin/bash
+CPU_CORES             ?= $(shell nproc)
 
-PARALLEL_FLAGS        ?= --halt-on-error 2 --jobs=2 -v -u
+PARALLEL_FLAGS        ?= --halt-on-error 2 --jobs=$(CPU_CORES) -v -u
 
 TEST_FLAGS            ?=
 
