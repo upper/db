@@ -123,6 +123,9 @@ const (
     DELETE
       FROM {{.Table | compile}}
       {{.Where | compile}}
+      {{if .Limit}}
+        LIMIT {{.Limit}}
+      {{end}}
   `
 	adapterUpdateLayout = `
     UPDATE
