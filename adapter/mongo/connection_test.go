@@ -102,6 +102,10 @@ func TestParseConnectionURL(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if u.Scheme != "mongodb" {
+		t.Fatal("Invalid scheme")
+	}
+
 	if u.Database != "another_database" {
 		t.Fatal("Failed to get database.")
 	}
@@ -130,6 +134,20 @@ func TestParseConnectionURL(t *testing.T) {
 
 	if _, err = ParseURL(s); err == nil {
 		t.Fatal("Expecting error.")
+	}
+
+	s = "mongodb+srv://myDatabaseUser:D1fficultP%40ssw0rd@db1.example.net:27017,db2.example.net:2500/?replicaSet=test&connectTimeoutMS=300000"
+
+	if u, err = ParseURL(s); err != nil {
+		t.Fatal(err)
+	}
+
+	if u.Scheme != "mongodb+srv" {
+		t.Fatal("Invalid scheme")
+	}
+
+	if u.Database != "" {
+		t.Fatal("Invalid database")
 	}
 
 }

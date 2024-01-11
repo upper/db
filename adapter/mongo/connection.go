@@ -27,10 +27,9 @@ import (
 	"strings"
 )
 
-const connectionScheme = `mongodb`
-
 // ConnectionURL implements a MongoDB connection struct.
 type ConnectionURL struct {
+	Scheme   string
 	User     string
 	Password string
 	Host     string
@@ -39,11 +38,6 @@ type ConnectionURL struct {
 }
 
 func (c ConnectionURL) String() (s string) {
-
-	if c.Database == "" {
-		return ""
-	}
-
 	vv := url.Values{}
 
 	// Do we have any options?
@@ -69,7 +63,7 @@ func (c ConnectionURL) String() (s string) {
 
 	// Building URL.
 	u := url.URL{
-		Scheme:   connectionScheme,
+		Scheme:   c.Scheme,
 		Path:     c.Database,
 		Host:     c.Host,
 		User:     userInfo,
@@ -80,17 +74,20 @@ func (c ConnectionURL) String() (s string) {
 }
 
 // ParseURL parses s into a ConnectionURL struct.
+// See https://www.mongodb.com/docs/manual/reference/connection-string/
 func ParseURL(s string) (conn ConnectionURL, err error) {
 	var u *url.URL
 
-	if !strings.HasPrefix(s, connectionScheme+"://") {
-		return conn, fmt.Errorf(`Expecting mongodb:// connection scheme.`)
+	hasPrefix := strings.HasPrefix(s, "mongodb://") || strings.HasPrefix(s, "mongodb+srv://")
+	if !hasPrefix {
+		return conn, fmt.Errorf("invalid scheme")
 	}
 
 	if u, err = url.Parse(s); err != nil {
 		return conn, err
 	}
 
+	conn.Scheme = u.Scheme
 	conn.Host = u.Host
 
 	// Deleting / from start of the string.
