@@ -2,7 +2,7 @@ SHELL					        ?= bash
 
 MONGO_VERSION         ?= 4
 MONGO_SUPPORTED       ?= $(MONGO_VERSION) 3
-PROJECT               ?= upper_mongo_$(MONGO_VERSION)
+PROJECT               ?= $(subst .,_,"upper_mongo_$(MONGO_VERSION)")
 
 DB_HOST               ?= 127.0.0.1
 DB_PORT               ?= 27017
@@ -31,11 +31,11 @@ test-no-race:
 	go test -v -failfast $(TEST_FLAGS)
 
 server-up: server-down
-	docker-compose -p $(PROJECT) up -d && \
+	docker compose -p $(PROJECT) up -d && \
 	sleep 10
 
 server-down:
-	docker-compose -p $(PROJECT) down
+	docker compose -p $(PROJECT) down
 
 test-extended:
 	parallel $(PARALLEL_FLAGS) \

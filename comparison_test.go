@@ -22,6 +22,7 @@
 package db
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -29,7 +30,7 @@ import (
 	"github.com/upper/db/v4/internal/adapter"
 )
 
-func TestComparison(t *testing.T) {
+func TestComparisonOperators(t *testing.T) {
 	testTimeVal := time.Now()
 
 	testCases := []struct {
@@ -127,6 +128,8 @@ func TestComparison(t *testing.T) {
 	}
 
 	for i := range testCases {
-		assert.Equal(t, testCases[i].expects, testCases[i].result.Comparison)
+		t.Run(fmt.Sprintf("Case %02d", i), func(t *testing.T) {
+			assert.Equal(t, testCases[i].expects, testCases[i].result.Comparison)
+		})
 	}
 }

@@ -22,9 +22,10 @@
 package ql
 
 import (
-	"github.com/stretchr/testify/assert"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConnectionURL(t *testing.T) {

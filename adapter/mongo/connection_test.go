@@ -23,23 +23,20 @@ package mongo
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConnectionURL(t *testing.T) {
-
 	c := ConnectionURL{}
 
 	// Default connection string is only the protocol.
-	if c.String() != "" {
-		t.Fatal(`Expecting default connectiong string to be empty, got:`, c.String())
-	}
+	assert.Equal(t, "", c.String(), "Expecting default connectiong string to be empty")
 
 	// Adding a database name.
 	c.Database = "myfilename"
-
-	if c.String() != "mongodb://myfilename" {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
+	assert.Equal(t, "mongodb://myfilename", c.String())
 
 	// Adding an option.
 	c.Options = map[string]string{
@@ -54,31 +51,22 @@ func TestConnectionURL(t *testing.T) {
 	// Setting host.
 	c.Host = "localhost"
 
-	if c.String() != "mongodb://user:pass@localhost/myfilename?cache=foobar&mode=ro" {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
+	assert.Equal(t, "mongodb://user:pass@localhost/myfilename?cache=foobar&mode=ro", c.String())
 
 	// Setting host and port.
 	c.Host = "localhost:27017"
 
-	if c.String() != "mongodb://user:pass@localhost:27017/myfilename?cache=foobar&mode=ro" {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
+	assert.Equal(t, "mongodb://user:pass@localhost:27017/myfilename?cache=foobar&mode=ro", c.String())
 
 	// Setting cluster.
 	c.Host = "localhost,1.2.3.4,example.org:1234"
 
-	if c.String() != "mongodb://user:pass@localhost,1.2.3.4,example.org:1234/myfilename?cache=foobar&mode=ro" {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
+	assert.Equal(t, "mongodb://user:pass@localhost,1.2.3.4,example.org:1234/myfilename?cache=foobar&mode=ro", c.String())
 
 	// Setting another database.
 	c.Database = "another_database"
 
-	if c.String() != "mongodb://user:pass@localhost,1.2.3.4,example.org:1234/another_database?cache=foobar&mode=ro" {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
-
+	assert.Equal(t, "mongodb://user:pass@localhost,1.2.3.4,example.org:1234/another_database?cache=foobar&mode=ro", c.String())
 }
 
 func TestParseConnectionURL(t *testing.T) {
@@ -88,48 +76,24 @@ func TestParseConnectionURL(t *testing.T) {
 
 	s = "mongodb:///mydatabase"
 
-	if u, err = ParseURL(s); err != nil {
-		t.Fatal(err)
-	}
+	u, err = ParseURL(s)
+	require.NoError(t, err)
 
-	if u.Database != "mydatabase" {
-		t.Fatal("Failed to parse database.")
-	}
+	assert.Equal(t, "mydatabase", u.Database)
 
 	s = "mongodb://user:pass@localhost,1.2.3.4,example.org:1234/another_database?cache=foobar&mode=ro"
 
-	if u, err = ParseURL(s); err != nil {
-		t.Fatal(err)
-	}
+	u, err = ParseURL(s)
+	require.NoError(t, err)
 
-	if u.Database != "another_database" {
-		t.Fatal("Failed to get database.")
-	}
-
-	if u.Options["cache"] != "foobar" {
-		t.Fatal("Expecting option.")
-	}
-
-	if u.Options["mode"] != "ro" {
-		t.Fatal("Expecting option.")
-	}
-
-	if u.User != "user" {
-		t.Fatal("Expecting user.")
-	}
-
-	if u.Password != "pass" {
-		t.Fatal("Expecting password.")
-	}
-
-	if u.Host != "localhost,1.2.3.4,example.org:1234" {
-		t.Fatal("Expecting host.")
-	}
+	assert.Equal(t, "another_database", u.Database)
+	assert.Equal(t, "foobar", u.Options["cache"])
+	assert.Equal(t, "ro", u.Options["mode"])
+	assert.Equal(t, "user", u.User)
+	assert.Equal(t, "pass", u.Password)
+	assert.Equal(t, "localhost,1.2.3.4,example.org:1234", u.Host)
 
 	s = "http://example.org"
-
-	if _, err = ParseURL(s); err == nil {
-		t.Fatal("Expecting error.")
-	}
-
+	_, err = ParseURL(s)
+	require.Error(t, err)
 }

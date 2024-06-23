@@ -307,7 +307,7 @@ func (c *collectionWithSession) UpdateReturning(item interface{}) error {
 		conds[pk] = db.Eq(sqlbuilder.Mapper.FieldByName(itemValue, pk).Interface())
 	}
 
-	col := tx.(Session).Collection(c.Name())
+	col := tx.Collection(c.Name())
 
 	err = col.Find(conds).Update(item)
 	if err != nil {

@@ -2,68 +2,50 @@ package db
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCond(t *testing.T) {
-	c := Cond{}
+	t.Run("Base", func(t *testing.T) {
+		var c Cond
 
-	if !c.Empty() {
-		t.Fatal("Cond is empty.")
-	}
+		c = Cond{}
+		assert.True(t, c.Empty())
 
-	c = Cond{"id": 1}
-	if c.Empty() {
-		t.Fatal("Cond is not empty.")
-	}
-}
+		c = Cond{"id": 1}
+		assert.False(t, c.Empty())
+	})
 
-func TestCondAnd(t *testing.T) {
-	a := And()
+	t.Run("And", func(t *testing.T) {
+		var a *AndExpr
 
-	if !a.Empty() {
-		t.Fatal("Cond is empty")
-	}
+		a = And()
+		assert.True(t, a.Empty())
 
-	_ = a.And(Cond{"id": 1})
+		_ = a.And(Cond{"id": 1})
+		assert.True(t, a.Empty(), "conditions are immutable")
 
-	if !a.Empty() {
-		t.Fatal("Cond is still empty")
-	}
+		a = a.And(Cond{"name": "Ana"})
+		assert.False(t, a.Empty())
 
-	a = a.And(Cond{"name": "Ana"})
+		a = a.And().And()
+		assert.False(t, a.Empty())
+	})
 
-	if a.Empty() {
-		t.Fatal("Cond is not empty anymore")
-	}
+	t.Run("Or", func(t *testing.T) {
+		var a *OrExpr
 
-	a = a.And().And()
+		a = Or()
+		assert.True(t, a.Empty())
 
-	if a.Empty() {
-		t.Fatal("Cond is not empty anymore")
-	}
-}
+		_ = a.Or(Cond{"id": 1})
+		assert.True(t, a.Empty(), "conditions are immutable")
 
-func TestCondOr(t *testing.T) {
-	a := Or()
+		a = a.Or(Cond{"name": "Ana"})
+		assert.False(t, a.Empty())
 
-	if !a.Empty() {
-		t.Fatal("Cond is empty")
-	}
-
-	_ = a.Or(Cond{"id": 1})
-
-	if !a.Empty() {
-		t.Fatal("Cond is empty")
-	}
-
-	a = a.Or(Cond{"name": "Ana"})
-
-	if a.Empty() {
-		t.Fatal("Cond is not empty")
-	}
-
-	a = a.Or().Or()
-	if a.Empty() {
-		t.Fatal("Cond is not empty")
-	}
+		a = a.Or().Or()
+		assert.False(t, a.Empty())
+	})
 }

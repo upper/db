@@ -1,8 +1,9 @@
-SHELL                 ?= /bin/bash
+SHELL                 ?= bash
+CPU_CORES             ?= $(shell nproc)
 
-PARALLEL_FLAGS        ?= --halt-on-error 2 --jobs=2 -v -u
+PARALLEL_FLAGS        ?= --halt-on-error 2 --jobs=$(CPU_CORES) -v -u
 
-TEST_FLAGS            ?=
+TEST_FLAGS            ?= -v -failfast -race -timeout 20m
 
 UPPER_DB_LOG          ?= WARN
 

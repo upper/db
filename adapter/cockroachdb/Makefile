@@ -1,8 +1,8 @@
 SHELL                 ?= bash
 
-COCKROACHDB_VERSION   ?= v23.1.8
-COCKROACHDB_SUPPORTED ?= $(COCKROACHDB_VERSION) v22.2.9 v21.2.9
-PROJECT               ?= upper_cockroachdb_$(COCKROACHDB_VERSION)
+COCKROACHDB_VERSION   ?= v23.2.6
+COCKROACHDB_SUPPORTED ?= $(COCKROACHDB_VERSION) v22.2.19 v21.2.17
+PROJECT               ?= $(subst .,_,"upper_cockroachdb_$(COCKROACHDB_VERSION)")
 
 DB_HOST               ?= 127.0.0.1
 DB_PORT               ?= 26257
@@ -30,7 +30,7 @@ test-no-race:
 	go test -v -failfast $(TEST_FLAGS)
 
 server-up: server-down
-	docker-compose -p $(PROJECT) up -d && \
+	docker compose -p $(PROJECT) up -d && \
 	sleep 5 && \
 	psql -Uroot -h$(DB_HOST) -p$(DB_PORT) postgres -c "\
 		DROP USER IF EXISTS $(DB_USERNAME); \
@@ -41,7 +41,7 @@ server-up: server-down
 	"
 
 server-down:
-	docker-compose -p $(PROJECT) down
+	docker compose -p $(PROJECT) down
 
 test-extended:
 	parallel $(PARALLEL_FLAGS) \

@@ -126,8 +126,6 @@ func (i64a *int64CompatArray) Scan(src interface{}) error {
 	return nil
 }
 
-type uintCompatArray []uintCompat
-
 type AdapterTests struct {
 	testsuite.Suite
 }
