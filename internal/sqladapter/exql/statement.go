@@ -10,7 +10,7 @@ import (
 
 var errUnknownTemplateType = errors.New("Unknown template type")
 
-//  represents different kinds of SQL statements.
+// represents different kinds of SQL statements.
 type Statement struct {
 	Type
 	Table        Fragment

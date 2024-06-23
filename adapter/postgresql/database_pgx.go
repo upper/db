@@ -27,10 +27,11 @@ package postgresql
 import (
 	"context"
 	"database/sql"
+	"time"
+
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqladapter"
-	"time"
 )
 
 func (*database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {

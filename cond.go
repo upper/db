@@ -43,20 +43,20 @@ type LogicalOperator = adapter.LogicalOperator
 //
 // Examples:
 //
-//  // Age equals 18.
-//  db.Cond{"age": 18}
+//	// Age equals 18.
+//	db.Cond{"age": 18}
 //
-//  // Age is greater than or equal to 18.
-//  db.Cond{"age >=": 18}
+//	// Age is greater than or equal to 18.
+//	db.Cond{"age >=": 18}
 //
-//  // id is any of the values 1, 2 or 3.
-//  db.Cond{"id IN": []{1, 2, 3}}
+//	// id is any of the values 1, 2 or 3.
+//	db.Cond{"id IN": []{1, 2, 3}}
 //
-//  // Age is lower than 18 (MongoDB syntax)
-//  db.Cond{"age $lt": 18}
+//	// Age is lower than 18 (MongoDB syntax)
+//	db.Cond{"age $lt": 18}
 //
-//  // age > 32 and age < 35
-//  db.Cond{"age >": 32, "age <": 35}
+//	// age > 32 and age < 35
+//	db.Cond{"age >": 32, "age <": 35}
 type Cond map[interface{}]interface{}
 
 // Empty returns false if there are no conditions.

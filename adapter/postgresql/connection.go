@@ -77,14 +77,14 @@ func (vs values) Isset(k string) bool {
 //
 // You can use a ConnectionURL struct as an argument for Open:
 //
-//   var settings = postgresql.ConnectionURL{
-//     Host:       "localhost",          // PostgreSQL server IP or name.
-//     Database:   "peanuts",            // Database name.
-//     User:       "cbrown",             // Optional user name.
-//     Password:   "snoopy",             // Optional user password.
-//   }
+//	var settings = postgresql.ConnectionURL{
+//	  Host:       "localhost",          // PostgreSQL server IP or name.
+//	  Database:   "peanuts",            // Database name.
+//	  User:       "cbrown",             // Optional user name.
+//	  Password:   "snoopy",             // Optional user password.
+//	}
 //
-//   sess, err = postgresql.Open(settings)
+//	sess, err = postgresql.Open(settings)
 //
 // If you already have a valid DSN, you can use ParseURL to convert it into
 // a ConnectionURL before passing it to Open.
@@ -104,7 +104,7 @@ var escaper = strings.NewReplacer(` `, `\ `, `'`, `\'`, `\`, `\\`)
 // ParseURL parses the given DSN into a ConnectionURL struct.
 // A typical PostgreSQL connection URL looks like:
 //
-//   postgres://bob:secret@1.2.3.4:5432/mydb?sslmode=verify-full
+//	postgres://bob:secret@1.2.3.4:5432/mydb?sslmode=verify-full
 func ParseURL(s string) (u *ConnectionURL, err error) {
 	o := make(values)
 
@@ -260,7 +260,7 @@ func newScanner(s string) *scanner {
 //
 //	"postgres://"
 //
-// This will be blank, causing driver.Open to use all of the defaults
+// # This will be blank, causing driver.Open to use all of the defaults
 //
 // NOTE: vendored/copied from github.com/lib/pq
 func parseURL(uri string) (string, error) {
