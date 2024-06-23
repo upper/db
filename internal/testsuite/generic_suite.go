@@ -133,6 +133,7 @@ func (s *GenericTestSuite) TestDatesAndUnicode() {
 	sess := s.Session()
 
 	testTimeZone := time.Local
+
 	switch s.Adapter() {
 	case "mysql", "cockroachdb", "postgresql":
 		testTimeZone = defaultTimeLocation
