@@ -1,3 +1,4 @@
+//go:build pq
 // +build pq
 
 // Copyright (c) 2012-present The upper.io/db authors. All rights reserved.
@@ -38,7 +39,7 @@ func (*database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {
 	}
 	if tz := connURL.Options["timezone"]; tz != "" {
 		loc, _ := time.LoadLocation(tz)
-		ctx := context.WithValue(sess.Context(), "timezone", loc)
+		ctx := context.WithValue(sess.Context(), db.ContextKey("timezone"), loc)
 		sess.SetContext(ctx)
 	}
 	return sql.Open("postgres", dsn)
