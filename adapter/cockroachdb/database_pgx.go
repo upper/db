@@ -30,7 +30,7 @@ import (
 
 	"time"
 
-	_ "github.com/jackc/pgx/v4/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqladapter"
 )
@@ -41,7 +41,11 @@ func (*database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {
 		return nil, err
 	}
 	if tz := connURL.Options["timezone"]; tz != "" {
-		loc, _ := time.LoadLocation(tz)
+		loc, err := time.LoadLocation(tz)
+		if err != nil {
+			return nil, err
+		}
+
 		ctx := context.WithValue(sess.Context(), db.ContextKey("timezone"), loc)
 		sess.SetContext(ctx)
 	}

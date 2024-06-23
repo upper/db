@@ -82,7 +82,7 @@ func (c ConnectionURL) String() (s string) {
 	}
 
 	// Disabled by default
-	c.Options["statement_cache_capacity"] = "0"
+	c.Options["default_query_exec_mode"] = "cache_describe"
 
 	for k, v := range c.Options {
 		u = append(u, escaper.Replace(k)+"="+escaper.Replace(v))
