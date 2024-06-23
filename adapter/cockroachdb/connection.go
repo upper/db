@@ -75,14 +75,14 @@ func (vs values) Isset(k string) bool {
 //
 // You can use a ConnectionURL struct as an argument for Open:
 //
-//   var settings = cockroachdb.ConnectionURL{
-//     Host:       "localhost",          // Database server IP or host name.
-//     Database:   "peanuts",            // Database name.
-//     User:       "cbrown",             // Optional user name.
-//     Password:   "snoopy",             // Optional user password.
-//   }
+//	var settings = cockroachdb.ConnectionURL{
+//	  Host:       "localhost",          // Database server IP or host name.
+//	  Database:   "peanuts",            // Database name.
+//	  User:       "cbrown",             // Optional user name.
+//	  Password:   "snoopy",             // Optional user password.
+//	}
 //
-//   sess, err = cockroachdb.Open(settings)
+//	sess, err = cockroachdb.Open(settings)
 //
 // If you already have a valid DSN, you can use ParseURL to convert it into
 // a ConnectionURL before passing it to Open.

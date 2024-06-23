@@ -1,6 +1,7 @@
 package sqladapter
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -39,7 +40,9 @@ func TestReplaceWithDollarSign(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		assert.Equal(t, []byte(test.out), ReplaceWithDollarSign([]byte(test.in)))
+	for i, test := range tests {
+		t.Run(fmt.Sprintf("Case_%03d", i), func(t *testing.T) {
+			assert.Equal(t, []byte(test.out), ReplaceWithDollarSign([]byte(test.in)))
+		})
 	}
 }

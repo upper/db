@@ -27,6 +27,7 @@ import (
 	"database/sql/driver"
 	"time"
 
+	"github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/sqlbuilder"
 )
 
@@ -90,12 +91,12 @@ func DecodeJSONB(dst interface{}, src interface{}) error {
 //
 // Example:
 //
-//   type MyCustomStruct struct {
-//     ID int64 `db:"id" json:"id"`
-//     Name string `db:"name" json:"name"`
-//     ...
-//     cockroachdb.JSONBConverter
-//   }
+//	type MyCustomStruct struct {
+//	  ID int64 `db:"id" json:"id"`
+//	  Name string `db:"name" json:"name"`
+//	  ...
+//	  cockroachdb.JSONBConverter
+//	}
 type JSONBConverter struct {
 }
 
@@ -144,7 +145,7 @@ func (t *timeWrapper) Scan(src interface{}) error {
 }
 
 func (d *database) ConvertValueContext(ctx context.Context, in interface{}) interface{} {
-	tz, _ := ctx.Value("timezone").(*time.Location)
+	tz, _ := ctx.Value(db.ContextKey("timezone")).(*time.Location)
 
 	switch v := in.(type) {
 	case *time.Time:

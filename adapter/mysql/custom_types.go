@@ -149,12 +149,12 @@ func DecodeJSON(dst interface{}, src interface{}) error {
 //
 // Example:
 //
-//   type MyCustomStruct struct {
-//     ID int64 `db:"id" json:"id"`
-//     Name string `db:"name" json:"name"`
-//     ...
-//     mysql.JSONConverter
-//   }
+//	type MyCustomStruct struct {
+//	  ID int64 `db:"id" json:"id"`
+//	  Name string `db:"name" json:"name"`
+//	  ...
+//	  mysql.JSONConverter
+//	}
 type JSONConverter struct{}
 
 func (*JSONConverter) ConvertValue(in interface{}) interface {

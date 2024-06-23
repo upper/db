@@ -24,25 +24,23 @@ package sqlite
 import (
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConnectionURL(t *testing.T) {
 
 	c := ConnectionURL{}
 
-	// Default connection string is only the protocol.
-	if c.String() != "" {
-		t.Fatal(`Expecting default connectiong string to be empty, got:`, c.String())
-	}
+	assert.Equal(t, "", c.String(), "Expecting default connectiong string to be empty")
 
 	// Adding a database name.
 	c.Database = "myfilename"
 
 	absoluteName, _ := filepath.Abs(c.Database)
 
-	if c.String() != "file://"+absoluteName+"?_busy_timeout=10000" {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
+	assert.Equal(t, "file://"+absoluteName+"?_busy_timeout=10000", c.String())
 
 	// Adding an option.
 	c.Options = map[string]string{
@@ -50,17 +48,12 @@ func TestConnectionURL(t *testing.T) {
 		"mode":  "ro",
 	}
 
-	if c.String() != "file://"+absoluteName+"?_busy_timeout=10000&cache=foobar&mode=ro" {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
+	assert.Equal(t, "file://"+absoluteName+"?_busy_timeout=10000&cache=foobar&mode=ro", c.String())
 
 	// Setting another database.
 	c.Database = "/another/database"
 
-	if c.String() != `file:///another/database?_busy_timeout=10000&cache=foobar&mode=ro` {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
-
+	assert.Equal(t, "file:///another/database?_busy_timeout=10000&cache=foobar&mode=ro", c.String())
 }
 
 func TestParseConnectionURL(t *testing.T) {
@@ -70,40 +63,24 @@ func TestParseConnectionURL(t *testing.T) {
 
 	s = "file://mydatabase.db"
 
-	if u, err = ParseURL(s); err != nil {
-		t.Fatal(err)
-	}
+	u, err = ParseURL(s)
+	require.NoError(t, err)
 
-	if u.Database != "mydatabase.db" {
-		t.Fatal("Failed to parse database.")
-	}
+	assert.Equal(t, "mydatabase.db", u.Database)
 
-	if u.Options["cache"] != "shared" {
-		t.Fatal("If not defined, cache should be shared by default.")
-	}
+	assert.Equal(t, "shared", u.Options["cache"])
 
 	s = "file:///path/to/my/database.db?_busy_timeout=10000&mode=ro&cache=foobar"
 
-	if u, err = ParseURL(s); err != nil {
-		t.Fatal(err)
-	}
+	u, err = ParseURL(s)
+	require.NoError(t, err)
 
-	if u.Database != "/path/to/my/database.db" {
-		t.Fatal("Failed to parse username.")
-	}
+	assert.Equal(t, "/path/to/my/database.db", u.Database)
 
-	if u.Options["cache"] != "foobar" {
-		t.Fatal("Expecting option.")
-	}
-
-	if u.Options["mode"] != "ro" {
-		t.Fatal("Expecting option.")
-	}
+	assert.Equal(t, "foobar", u.Options["cache"])
+	assert.Equal(t, "ro", u.Options["mode"])
 
 	s = "http://example.org"
-
-	if _, err = ParseURL(s); err == nil {
-		t.Fatal("Expecting error.")
-	}
-
+	_, err = ParseURL(s)
+	require.Error(t, err)
 }

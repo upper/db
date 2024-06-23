@@ -31,9 +31,10 @@ const defaultCapacity = 128
 
 // Cache holds a map of volatile key -> values.
 type Cache struct {
+	mu sync.RWMutex
+
 	keys     *list.List
 	items    map[uint64]*list.Element
-	mu       sync.RWMutex
 	capacity int
 }
 
@@ -48,9 +49,11 @@ func NewCacheWithCapacity(capacity int) (*Cache, error) {
 	if capacity < 1 {
 		return nil, errors.New("Capacity must be greater than zero.")
 	}
+
 	c := &Cache{
 		capacity: capacity,
 	}
+
 	c.init()
 	return c, nil
 }
@@ -58,9 +61,11 @@ func NewCacheWithCapacity(capacity int) (*Cache, error) {
 // NewCache initializes a new caching space with default settings.
 func NewCache() *Cache {
 	c, err := NewCacheWithCapacity(defaultCapacity)
+
 	if err != nil {
 		panic(err.Error()) // Should never happen as we're not providing a negative defaultCapacity.
 	}
+
 	return c
 }
 
@@ -112,8 +117,9 @@ func (c *Cache) Write(h Hashable, value interface{}) {
 	for c.keys.Len() > c.capacity {
 		item := c.keys.Remove(c.keys.Back()).(*cacheItem)
 		delete(c.items, item.key)
-		if p, ok := item.value.(HasOnEvict); ok {
-			p.OnEvict()
+
+		if evictor, hasOnEvict := item.value.(HasOnEvict); hasOnEvict {
+			evictor.OnEvict()
 		}
 	}
 }

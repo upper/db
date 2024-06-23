@@ -33,12 +33,11 @@ import (
 // pointer, if you want to build a query using variables you need to reassign
 // them, like this:
 //
-//  a = builder.Select("name").From("foo") // "a" is created
+//	a = builder.Select("name").From("foo") // "a" is created
 //
-//  a.Where(...) // No effect, the value returned from Where is ignored.
+//	a.Where(...) // No effect, the value returned from Where is ignored.
 //
-//  a = a.Where(...) // "a" is reassigned and points to a different address.
-//
+//	a = a.Where(...) // "a" is reassigned and points to a different address.
 type SQL interface {
 
 	// Select initializes and returns a Selector, it accepts column names as

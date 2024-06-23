@@ -25,9 +25,9 @@ import (
 	"fmt"
 	"hash/fnv"
 	"testing"
-)
 
-var c *Cache
+	"github.com/stretchr/testify/assert"
+)
 
 type cacheableT struct {
 	Name string
@@ -39,39 +39,34 @@ func (ct *cacheableT) Hash() uint64 {
 	return s.Sum64()
 }
 
-var (
-	key   = cacheableT{"foo"}
-	value = "bar"
-)
+func TestCache(t *testing.T) {
+	var c *Cache
 
-func TestNewCache(t *testing.T) {
-	c = NewCache()
-	if c == nil {
-		t.Fatal("Expecting a new cache object.")
-	}
-}
+	var (
+		key   = cacheableT{"foo"}
+		value = "bar"
+	)
 
-func TestCacheReadNonExistentValue(t *testing.T) {
-	if _, ok := c.Read(&key); ok {
-		t.Fatal("Expecting false.")
-	}
-}
+	t.Run("New", func(t *testing.T) {
+		c = NewCache()
+		assert.NotNil(t, c)
+	})
 
-func TestCacheWritingValue(t *testing.T) {
-	c.Write(&key, value)
-	c.Write(&key, value)
-}
+	t.Run("ReadNonExistentValue", func(t *testing.T) {
+		_, ok := c.Read(&key)
+		assert.False(t, ok)
+	})
 
-func TestCacheReadExistentValue(t *testing.T) {
-	s, ok := c.Read(&key)
+	t.Run("Write", func(t *testing.T) {
+		c.Write(&key, value)
+		c.Write(&key, value)
+	})
 
-	if !ok {
-		t.Fatal("Expecting true.")
-	}
-
-	if s != value {
-		t.Fatal("Expecting value.")
-	}
+	t.Run("ReadExistentValue", func(t *testing.T) {
+		v, ok := c.Read(&key)
+		assert.True(t, ok)
+		assert.Equal(t, value, v)
+	})
 }
 
 func BenchmarkNewCache(b *testing.B) {
@@ -88,6 +83,8 @@ func BenchmarkNewCacheAndClear(b *testing.B) {
 }
 
 func BenchmarkReadNonExistentValue(b *testing.B) {
+	key := cacheableT{"foo"}
+
 	z := NewCache()
 	for i := 0; i < b.N; i++ {
 		z.Read(&key)
@@ -95,6 +92,9 @@ func BenchmarkReadNonExistentValue(b *testing.B) {
 }
 
 func BenchmarkWriteSameValue(b *testing.B) {
+	key := cacheableT{"foo"}
+	value := "bar"
+
 	z := NewCache()
 	for i := 0; i < b.N; i++ {
 		z.Write(&key, value)
@@ -102,6 +102,8 @@ func BenchmarkWriteSameValue(b *testing.B) {
 }
 
 func BenchmarkWriteNewValue(b *testing.B) {
+	value := "bar"
+
 	z := NewCache()
 	for i := 0; i < b.N; i++ {
 		key := cacheableT{fmt.Sprintf("item-%d", i)}
@@ -110,6 +112,9 @@ func BenchmarkWriteNewValue(b *testing.B) {
 }
 
 func BenchmarkReadExistentValue(b *testing.B) {
+	key := cacheableT{"foo"}
+	value := "bar"
+
 	z := NewCache()
 	z.Write(&key, value)
 	for i := 0; i < b.N; i++ {

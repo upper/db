@@ -44,10 +44,10 @@ func expandQuery(in []byte, inArgs []interface{}) ([]byte, []interface{}) {
 		return in, inArgs
 	}
 
-	out = append(out, in[:len(in)]...)
+	out = append(out, in[:]...)
 	in = nil
 
-	outArgs = append(outArgs, inArgs[:len(inArgs)]...)
+	outArgs = append(outArgs, inArgs[:]...)
 	inArgs = nil
 
 	return out, outArgs
