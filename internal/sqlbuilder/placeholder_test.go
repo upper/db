@@ -1,6 +1,7 @@
 package sqlbuilder
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -65,8 +66,10 @@ func TestPrepareForDisplay(t *testing.T) {
 			Out: "$1$2$3",
 		},
 	}
-	for _, sample := range samples {
-		assert.Equal(t, sample.Out, prepareQueryForDisplay(sample.In))
+	for i, sample := range samples {
+		t.Run(fmt.Sprintf("sample %d", i), func(t *testing.T) {
+			assert.Equal(t, sample.Out, prepareQueryForDisplay(sample.In))
+		})
 	}
 }
 

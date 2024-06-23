@@ -23,23 +23,20 @@ package mssql
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConnectionURL(t *testing.T) {
-
 	c := ConnectionURL{}
 
 	// Zero value equals to an empty string.
-	if c.String() != "" {
-		t.Fatal(`Expecting default connectiong string to be empty, got:`, c.String())
-	}
+	assert.Equal(t, "", c.String(), "Expecting default connectiong string to be empty")
 
 	// Adding a database name.
 	c.Database = "mydbname"
-
-	if c.String() != "sqlserver://127.0.0.1?database=mydbname" {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
+	assert.Equal(t, "sqlserver://127.0.0.1?database=mydbname", c.String())
 
 	// Adding an option.
 	c.Options = map[string]string{
@@ -48,9 +45,7 @@ func TestConnectionURL(t *testing.T) {
 		"instance":           "instance1",
 	}
 
-	if c.String() != "sqlserver://127.0.0.1/instance1?connection+timeout=30&database=mydbname&param1=value1" {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
+	assert.Equal(t, "sqlserver://127.0.0.1/instance1?connection+timeout=30&database=mydbname&param1=value1", c.String())
 
 	// Setting default options
 	c.Options = nil
@@ -59,16 +54,11 @@ func TestConnectionURL(t *testing.T) {
 	c.User = "user"
 	c.Password = "pass"
 
-	if c.String() != `sqlserver://user:pass@127.0.0.1?database=mydbname` {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
+	assert.Equal(t, `sqlserver://user:pass@127.0.0.1?database=mydbname`, c.String())
 
 	// Setting host.
 	c.Host = "1.2.3.4:1433"
-
-	if c.String() != `sqlserver://user:pass@1.2.3.4:1433?database=mydbname` {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
+	assert.Equal(t, `sqlserver://user:pass@1.2.3.4:1433?database=mydbname`, c.String())
 }
 
 func TestParseConnectionURL(t *testing.T) {
@@ -78,23 +68,11 @@ func TestParseConnectionURL(t *testing.T) {
 
 	s = "sqlserver://user:pass@127.0.0.1:1433?connection+timeout=30&database=mydbname&param1=value1"
 
-	if u, err = ParseURL(s); err != nil {
-		t.Fatal(err)
-	}
+	u, err = ParseURL(s)
+	require.NoError(t, err)
 
-	if u.User != "user" {
-		t.Fatal("Expecting username.")
-	}
-
-	if u.Password != "pass" {
-		t.Fatal("Expecting password.")
-	}
-
-	if u.Host != "127.0.0.1:1433" {
-		t.Fatal("Expecting host.")
-	}
-
-	if u.Database != "mydbname" {
-		t.Fatal("Expecting database.")
-	}
+	assert.Equal(t, "user", u.User)
+	assert.Equal(t, "pass", u.Password)
+	assert.Equal(t, "127.0.0.1:1433", u.Host)
+	assert.Equal(t, "mydbname", u.Database)
 }

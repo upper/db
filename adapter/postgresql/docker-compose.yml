@@ -1,7 +1,4 @@
-version: '3'
-
 services:
-
   server:
     image: postgres:${POSTGRES_VERSION:-11}
     environment:

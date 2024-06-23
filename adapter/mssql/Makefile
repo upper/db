@@ -2,7 +2,7 @@ SHELL					        ?= bash
 
 MSSQL_VERSION         ?= 2022-latest
 MSSQL_SUPPORTED       ?= $(MSSQL_VERSION) 2019-latest
-PROJECT               ?= upper_mssql_$(MSSQL_VERSION)
+PROJECT               ?= $(subst .,_,"upper_mssql_$(MSSQL_VERSION)")
 
 DB_HOST               ?= 127.0.0.1
 DB_PORT               ?= 1433
@@ -31,11 +31,11 @@ test-no-race:
 	go test -v -failfast $(TEST_FLAGS)
 
 server-up: server-down
-	docker-compose -p $(PROJECT) up -d && \
+	docker compose -p $(PROJECT) up -d && \
 	sleep 20
 
 server-down:
-	docker-compose -p $(PROJECT) down
+	docker compose -p $(PROJECT) down
 
 test-extended:
 	parallel $(PARALLEL_FLAGS) \

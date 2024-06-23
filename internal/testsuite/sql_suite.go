@@ -1886,13 +1886,16 @@ func (s *SQLTestSuite) TestCustomType() {
 }
 
 func (s *SQLTestSuite) Test_Issue565() {
-	s.Session().Collection("birthdays").Insert(&birthday{
+	_, err := s.Session().Collection("birthdays").Insert(&birthday{
 		Name: "Lucy",
 		Born: time.Now(),
 	})
+	s.NoError(err)
 
-	parentCtx := context.WithValue(s.Session().Context(), "carry", 1)
-	s.NotZero(parentCtx.Value("carry"))
+	ctxKeyCarry := db.ContextKey("carry")
+
+	parentCtx := context.WithValue(s.Session().Context(), ctxKeyCarry, 1)
+	s.NotZero(parentCtx.Value(ctxKeyCarry))
 
 	{
 		ctx, cancel := context.WithTimeout(parentCtx, time.Nanosecond)
@@ -1908,7 +1911,7 @@ func (s *SQLTestSuite) Test_Issue565() {
 		s.Error(err)
 		s.Zero(result.Name)
 
-		s.NotZero(ctx.Value("carry"))
+		s.NotZero(ctx.Value(ctxKeyCarry))
 	}
 
 	{
@@ -1923,7 +1926,7 @@ func (s *SQLTestSuite) Test_Issue565() {
 		s.Error(err)
 		s.Zero(result.Name)
 
-		s.NotZero(ctx.Value("carry"))
+		s.NotZero(ctx.Value(ctxKeyCarry))
 	}
 
 	{
@@ -1938,7 +1941,7 @@ func (s *SQLTestSuite) Test_Issue565() {
 		s.NoError(err)
 		s.NotZero(result.Name)
 
-		s.NotZero(ctx.Value("carry"))
+		s.NotZero(ctx.Value(ctxKeyCarry))
 	}
 }
 

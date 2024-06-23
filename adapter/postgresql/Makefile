@@ -2,8 +2,7 @@ SHELL					        ?= bash
 
 POSTGRES_VERSION      ?= 16-alpine
 POSTGRES_SUPPORTED    ?= $(POSTGRES_VERSION) 15-alpine 14-alpine
-
-PROJECT               ?= upper_postgres_$(POSTGRES_VERSION)
+PROJECT               ?= $(subst .,_,"upper_postgres_$(POSTGRES_VERSION)")
 
 DB_HOST               ?= 127.0.0.1
 DB_PORT               ?= 5432
@@ -26,17 +25,14 @@ export DB_USERNAME
 export TEST_FLAGS
 
 test:
-	go test -v -failfast -race -timeout 20m $(TEST_FLAGS)
-
-test-no-race:
-	go test -v -failfast $(TEST_FLAGS)
+	go test $(TEST_FLAGS)
 
 server-up: server-down
-	docker-compose -p $(PROJECT) up -d && \
+	docker compose -p $(PROJECT) up -d && \
 	sleep 10
 
 server-down:
-	docker-compose -p $(PROJECT) down
+	docker compose -p $(PROJECT) down
 
 test-extended:
 	parallel $(PARALLEL_FLAGS) \

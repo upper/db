@@ -1,7 +1,4 @@
-version: '3'
-
 services:
-
   server:
     image: cockroachdb/cockroach:${COCKROACHDB_VERSION:-v2}
     environment:

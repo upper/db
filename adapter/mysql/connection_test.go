@@ -23,6 +23,9 @@ package mysql
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConnectionURL(t *testing.T) {
@@ -30,26 +33,19 @@ func TestConnectionURL(t *testing.T) {
 	c := ConnectionURL{}
 
 	// Zero value equals to an empty string.
-	if c.String() != "" {
-		t.Fatal(`Expecting default connectiong string to be empty, got:`, c.String())
-	}
+	assert.Equal(t, "", c.String(), "Expecting default connectiong string to be empty")
 
 	// Adding a database name.
 	c.Database = "mydbname"
+	assert.Equal(t, "/mydbname?charset=utf8&parseTime=true", c.String())
 
-	if c.String() != "/mydbname?charset=utf8&parseTime=true" {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
-
-	// Adding an option.
+	// Adding options
 	c.Options = map[string]string{
 		"charset": "utf8mb4,utf8",
 		"sys_var": "esc@ped",
 	}
 
-	if c.String() != "/mydbname?charset=utf8mb4%2Cutf8&parseTime=true&sys_var=esc%40ped" {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
+	assert.Equal(t, "/mydbname?charset=utf8mb4%2Cutf8&parseTime=true&sys_var=esc%40ped", c.String())
 
 	// Setting default options
 	c.Options = nil
@@ -58,24 +54,17 @@ func TestConnectionURL(t *testing.T) {
 	c.User = "user"
 	c.Password = "pass"
 
-	if c.String() != `user:pass@/mydbname?charset=utf8&parseTime=true` {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
+	assert.Equal(t, "user:pass@/mydbname?charset=utf8&parseTime=true", c.String())
 
 	// Setting host.
 	c.Host = "1.2.3.4:3306"
 
-	if c.String() != `user:pass@tcp(1.2.3.4:3306)/mydbname?charset=utf8&parseTime=true` {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
+	assert.Equal(t, `user:pass@tcp(1.2.3.4:3306)/mydbname?charset=utf8&parseTime=true`, c.String())
 
 	// Setting socket.
 	c.Socket = "/path/to/socket"
 
-	if c.String() != `user:pass@unix(/path/to/socket)/mydbname?charset=utf8&parseTime=true` {
-		t.Fatal(`Test failed, got:`, c.String())
-	}
-
+	assert.Equal(t, `user:pass@unix(/path/to/socket)/mydbname?charset=utf8&parseTime=true`, c.String())
 }
 
 func TestParseConnectionURL(t *testing.T) {
@@ -85,54 +74,22 @@ func TestParseConnectionURL(t *testing.T) {
 
 	s = "user:pass@unix(/path/to/socket)/mydbname?charset=utf8"
 
-	if u, err = ParseURL(s); err != nil {
-		t.Fatal(err)
-	}
+	u, err = ParseURL(s)
+	require.NoError(t, err)
 
-	if u.User != "user" {
-		t.Fatal("Expecting username.")
-	}
-
-	if u.Password != "pass" {
-		t.Fatal("Expecting password.")
-	}
-
-	if u.Socket != "/path/to/socket" {
-		t.Fatal("Expecting socket.")
-	}
-
-	if u.Database != "mydbname" {
-		t.Fatal("Expecting database.")
-	}
-
-	if u.Options["charset"] != "utf8" {
-		t.Fatal("Expecting charset.")
-	}
+	assert.Equal(t, "user", u.User)
+	assert.Equal(t, "pass", u.Password)
+	assert.Equal(t, "/path/to/socket", u.Socket)
+	assert.Equal(t, "mydbname", u.Database)
+	assert.Equal(t, "utf8", u.Options["charset"])
 
 	s = "user:pass@tcp(1.2.3.4:5678)/mydbname?charset=utf8"
+	u, err = ParseURL(s)
+	require.NoError(t, err)
 
-	if u, err = ParseURL(s); err != nil {
-		t.Fatal(err)
-	}
-
-	if u.User != "user" {
-		t.Fatal("Expecting username.")
-	}
-
-	if u.Password != "pass" {
-		t.Fatal("Expecting password.")
-	}
-
-	if u.Host != "1.2.3.4:5678" {
-		t.Fatal("Expecting host.")
-	}
-
-	if u.Database != "mydbname" {
-		t.Fatal("Expecting database.")
-	}
-
-	if u.Options["charset"] != "utf8" {
-		t.Fatal("Expecting charset.")
-	}
-
+	assert.Equal(t, "user", u.User)
+	assert.Equal(t, "pass", u.Password)
+	assert.Equal(t, "1.2.3.4:5678", u.Host)
+	assert.Equal(t, "mydbname", u.Database)
+	assert.Equal(t, "utf8", u.Options["charset"])
 }

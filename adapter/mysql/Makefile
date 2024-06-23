@@ -1,8 +1,8 @@
 SHELL					        ?= bash
 
-MYSQL_VERSION         ?= 8.1
+MYSQL_VERSION         ?= 8.4
 MYSQL_SUPPORTED       ?= $(MYSQL_VERSION) 5.7
-PROJECT               ?= upper_mysql_$(MYSQL_VERSION)
+PROJECT               ?= $(subst .,_,"upper_mysql_$(MYSQL_VERSION)")
 
 DB_HOST               ?= 127.0.0.1
 DB_PORT               ?= 3306
@@ -31,11 +31,11 @@ test-no-race:
 	go test -v -failfast $(TEST_FLAGS)
 
 server-up: server-down
-	docker-compose -p $(PROJECT) up -d && \
+	docker compose -p $(PROJECT) up -d && \
 	sleep 15
 
 server-down:
-	docker-compose -p $(PROJECT) down
+	docker compose -p $(PROJECT) down
 
 test-extended:
 	parallel $(PARALLEL_FLAGS) \
