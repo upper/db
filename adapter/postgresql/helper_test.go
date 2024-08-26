@@ -239,7 +239,7 @@ func (h *Helper) TearUp() error {
 			, decimal_value_ptr decimal
 
 			, uuid_value_string UUID
-
+			, ip_addr_ptr inet null
 		)`,
 
 		`DROP TABLE IF EXISTS issue_370`,

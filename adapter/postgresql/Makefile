@@ -11,7 +11,7 @@ DB_NAME               ?= upperio
 DB_USERNAME           ?= upperio_user
 DB_PASSWORD           ?= upperio//s3cr37
 
-TEST_FLAGS            ?=
+TEST_FLAGS            ?= -v -failfast
 PARALLEL_FLAGS        ?= --halt-on-error 2 --jobs 1
 
 export POSTGRES_VERSION
