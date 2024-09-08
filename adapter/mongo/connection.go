@@ -27,6 +27,11 @@ import (
 	"strings"
 )
 
+const (
+	defaultScheme = "mongodb"
+	srvScheme     = "mongodb+srv"
+)
+
 // ConnectionURL implements a MongoDB connection struct.
 type ConnectionURL struct {
 	Scheme   string
@@ -39,6 +44,10 @@ type ConnectionURL struct {
 
 func (c ConnectionURL) String() (s string) {
 	vv := url.Values{}
+
+	if c.Database == "" {
+		return ""
+	}
 
 	// Do we have any options?
 	if c.Options == nil {
@@ -61,6 +70,10 @@ func (c ConnectionURL) String() (s string) {
 		}
 	}
 
+	if c.Scheme == "" {
+		c.Scheme = defaultScheme
+	}
+
 	// Building URL.
 	u := url.URL{
 		Scheme:   c.Scheme,
@@ -78,7 +91,7 @@ func (c ConnectionURL) String() (s string) {
 func ParseURL(s string) (conn ConnectionURL, err error) {
 	var u *url.URL
 
-	hasPrefix := strings.HasPrefix(s, "mongodb://") || strings.HasPrefix(s, "mongodb+srv://")
+	hasPrefix := strings.HasPrefix(s, defaultScheme+"://") || strings.HasPrefix(s, srvScheme+"://")
 	if !hasPrefix {
 		return conn, fmt.Errorf("invalid scheme")
 	}
