@@ -150,7 +150,10 @@ func ParseURL(s string) (u *ConnectionURL, err error) {
 	}
 
 	if timezone, ok := u.Options["timezone"]; ok {
-		u.timezone, _ = time.LoadLocation(timezone)
+		u.timezone, err = time.LoadLocation(timezone)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return u, err

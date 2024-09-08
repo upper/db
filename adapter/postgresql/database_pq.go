@@ -40,7 +40,11 @@ func (*database) OpenDSN(sess sqladapter.Session, dsn string) (*sql.DB, error) {
 		return nil, err
 	}
 	if tz := connURL.Options["timezone"]; tz != "" {
-		loc, _ := time.LoadLocation(tz)
+		loc, err := time.LoadLocation(tz)
+		if err != nil {
+			return nil, err
+		}
+
 		ctx := context.WithValue(sess.Context(), db.ContextKey("timezone"), loc)
 		sess.SetContext(ctx)
 	}

@@ -38,33 +38,33 @@ func TestConnectionURL(t *testing.T) {
 
 	// Adding a host with port.
 	c.Host = "localhost:1234"
-	assert.Equal(t, "host=localhost port=1234 sslmode=prefer statement_cache_capacity=0", c.String())
+	assert.Equal(t, "default_query_exec_mode=cache_describe host=localhost port=1234 sslmode=prefer", c.String())
 
 	// Adding a host.
 	c.Host = "localhost"
-	assert.Equal(t, "host=localhost port=26257 sslmode=prefer statement_cache_capacity=0", c.String())
+	assert.Equal(t, "default_query_exec_mode=cache_describe host=localhost port=26257 sslmode=prefer", c.String())
 
 	// Adding a username.
 	c.User = "Anakin"
-	assert.Equal(t, `host=localhost port=26257 sslmode=prefer statement_cache_capacity=0 user=Anakin`, c.String())
+	assert.Equal(t, `default_query_exec_mode=cache_describe host=localhost port=26257 sslmode=prefer user=Anakin`, c.String())
 
 	// Adding a password with special characters.
 	c.Password = "Some Sort of ' Password"
-	assert.Equal(t, `host=localhost password=Some\ Sort\ of\ \'\ Password port=26257 sslmode=prefer statement_cache_capacity=0 user=Anakin`, c.String())
+	assert.Equal(t, `default_query_exec_mode=cache_describe host=localhost password=Some\ Sort\ of\ \'\ Password port=26257 sslmode=prefer user=Anakin`, c.String())
 
 	// Adding a port.
 	c.Host = "localhost:1234"
-	assert.Equal(t, `host=localhost password=Some\ Sort\ of\ \'\ Password port=1234 sslmode=prefer statement_cache_capacity=0 user=Anakin`, c.String())
+	assert.Equal(t, `default_query_exec_mode=cache_describe host=localhost password=Some\ Sort\ of\ \'\ Password port=1234 sslmode=prefer user=Anakin`, c.String())
 
 	// Adding a database.
 	c.Database = "MyDatabase"
-	assert.Equal(t, `dbname=MyDatabase host=localhost password=Some\ Sort\ of\ \'\ Password port=1234 sslmode=prefer statement_cache_capacity=0 user=Anakin`, c.String())
+	assert.Equal(t, `dbname=MyDatabase default_query_exec_mode=cache_describe host=localhost password=Some\ Sort\ of\ \'\ Password port=1234 sslmode=prefer user=Anakin`, c.String())
 
 	// Adding options.
 	c.Options = map[string]string{
 		"sslmode": "verify-full",
 	}
-	assert.Equal(t, `dbname=MyDatabase host=localhost password=Some\ Sort\ of\ \'\ Password port=1234 sslmode=verify-full statement_cache_capacity=0 user=Anakin`, c.String())
+	assert.Equal(t, `dbname=MyDatabase default_query_exec_mode=cache_describe host=localhost password=Some\ Sort\ of\ \'\ Password port=1234 sslmode=verify-full user=Anakin`, c.String())
 }
 
 func TestParseConnectionURL(t *testing.T) {

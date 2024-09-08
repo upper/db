@@ -28,6 +28,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"net"
 	"strings"
 	"sync"
 	"testing"
@@ -266,6 +267,8 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		DecimalValuePtr *float64 `db:"decimal_value_ptr,omitempty"`
 
 		UUIDValueString *string `db:"uuid_value_string,omitempty"`
+
+		IPAddrPtr *net.IPNet `db:"ip_addr_ptr,omitempty"`
 	}
 
 	integerValue := int64(10)
