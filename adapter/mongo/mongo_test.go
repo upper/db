@@ -33,7 +33,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/testsuite"
-	"gopkg.in/mgo.v2/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type artistType struct {

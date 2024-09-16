@@ -17,6 +17,7 @@ require (
 	github.com/segmentio/fasthash v1.0.3
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
+	go.mongodb.org/mongo-driver v1.16.1 // indirect
 	golang.org/x/crypto v0.24.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22
 	modernc.org/b v1.1.0 // indirect

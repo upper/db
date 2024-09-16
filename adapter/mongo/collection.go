@@ -22,22 +22,22 @@
 package mongo
 
 import (
+	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 
-	"reflect"
-
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/adapter"
-	mgo "gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // Collection represents a mongodb collection.
 type Collection struct {
 	parent     *Source
-	collection *mgo.Collection
+	collection *mongo.Collection
 }
 
 var (
@@ -108,9 +108,15 @@ func compare(field string, cmp *adapter.Comparison) (string, interface{}) {
 		}
 		return field, bson.M{"$ne": value}
 	case adapter.ComparisonOperatorRegExp, adapter.ComparisonOperatorLike:
-		return field, bson.RegEx{Pattern: value.(string), Options: ""}
+		return field, bson.M{
+			"$regex": value.(string),
+		}
 	case adapter.ComparisonOperatorNotRegExp, adapter.ComparisonOperatorNotLike:
-		return field, bson.M{"$not": bson.RegEx{Pattern: value.(string), Options: ""}}
+		return field, bson.M{
+			"$not": bson.M{
+				"$regex": value.(string),
+			},
+		}
 	}
 
 	if cmpOp, ok := comparisonOperators[op]; ok {
@@ -236,13 +242,12 @@ func (col *Collection) compileQuery(terms ...interface{}) interface{} {
 
 // Name returns the name of the table or tables that form the collection.
 func (col *Collection) Name() string {
-	return col.collection.Name
+	return col.collection.Name()
 }
 
 // Truncate deletes all rows from the table.
 func (col *Collection) Truncate() error {
-	err := col.collection.DropCollection()
-
+	err := col.collection.Drop(context.Background())
 	if err != nil {
 		return err
 	}
@@ -268,100 +273,33 @@ func (col *Collection) UpdateReturning(item interface{}) error {
 
 // Insert inserts a record (map or struct) into the collection.
 func (col *Collection) Insert(item interface{}) (db.InsertResult, error) {
-	var err error
+	ctx := context.Background()
 
-	id := getID(item)
-
-	if col.parent.versionAtLeast(2, 6, 0, 0) {
-		// this breaks MongoDb older than 2.6
-		if _, err = col.collection.Upsert(bson.M{"_id": id}, item); err != nil {
-			return nil, err
-		}
-	} else {
-		// Allocating a new ID.
-		if err = col.collection.Insert(bson.M{"_id": id}); err != nil {
-			return nil, err
-		}
-
-		// Now append data the user wants to append.
-		if err = col.collection.Update(bson.M{"_id": id}, item); err != nil {
-			// Cleanup allocated ID
-			if err := col.collection.Remove(bson.M{"_id": id}); err != nil {
-				return nil, err
-			}
-			return nil, err
-		}
+	res, err := col.collection.InsertOne(ctx, item)
+	if err != nil {
+		return nil, err
 	}
 
-	return db.NewInsertResult(id), nil
+	return db.NewInsertResult(res.InsertedID), nil
 }
 
 // Exists returns true if the collection exists.
 func (col *Collection) Exists() (bool, error) {
-	query := col.parent.database.C(`system.namespaces`).Find(map[string]string{`name`: fmt.Sprintf(`%s.%s`, col.parent.database.Name, col.collection.Name)})
-	count, err := query.Count()
-	return count > 0, err
-}
+	ctx := context.Background()
+	mcol := col.parent.database.Collection("system.namespaces")
 
-// Fetches object _id or generates a new one if object doesn't have one or the one it has is invalid
-func getID(item interface{}) interface{} {
-	v := reflect.ValueOf(item) // convert interface to Value
-	v = reflect.Indirect(v)    // convert pointers
+	mcur, err := mcol.Find(ctx, bson.M{
+		"name": fmt.Sprintf("%s.%s", col.parent.database.Name, col.collection.Name),
+	})
+	if err != nil {
+		return false, err
+	}
+	defer mcur.Close(ctx)
 
-	switch v.Kind() {
-	case reflect.Map:
-		if inItem, ok := item.(map[string]interface{}); ok {
-			if id, ok := inItem["_id"]; ok {
-				bsonID, ok := id.(bson.ObjectId)
-				if ok {
-					return bsonID
-				}
-			}
-		}
-	case reflect.Struct:
-		t := v.Type()
-
-		idCacheMutex.RLock()
-		fieldName, found := idCache[t]
-		idCacheMutex.RUnlock()
-
-		if !found {
-			for n := 0; n < t.NumField(); n++ {
-				field := t.Field(n)
-				if field.PkgPath != "" {
-					continue // Private field
-				}
-
-				tag := field.Tag.Get("bson")
-				if tag == "" {
-					tag = field.Tag.Get("db")
-				}
-
-				if tag == "" {
-					continue
-				}
-
-				parts := strings.Split(tag, ",")
-
-				if parts[0] == "_id" {
-					fieldName = field.Name
-					idCacheMutex.RLock()
-					idCache[t] = fieldName
-					idCacheMutex.RUnlock()
-					break
-				}
-			}
-		}
-		if fieldName != "" {
-			if bsonID, ok := v.FieldByName(fieldName).Interface().(bson.ObjectId); ok {
-				if bsonID.Valid() {
-					return bsonID
-				}
-			} else {
-				return v.FieldByName(fieldName).Interface()
-			}
-		}
+	hasNext := mcur.Next(ctx)
+	if err := mcur.Err(); err != nil {
+		return false, err
 	}
 
-	return bson.NewObjectId()
+	return hasNext, nil
 }

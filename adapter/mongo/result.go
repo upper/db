@@ -22,6 +22,7 @@
 package mongo
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -32,8 +33,10 @@ import (
 	"encoding/json"
 
 	db "github.com/upper/db/v4"
-	mgo "gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+	"go.mongodb.org/mongo-driver/bson"
+	//"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/upper/db/v4/internal/immutable"
 )
@@ -57,7 +60,8 @@ type resultQuery struct {
 }
 
 type result struct {
-	iter  *mgo.Iter
+	cur *mongo.Cursor
+
 	err   error
 	errMu sync.Mutex
 
@@ -237,10 +241,11 @@ func (res *result) All(dst interface{}) error {
 		})
 	}(time.Now())
 
-	err = q.All(dst)
-	if errors.Is(err, mgo.ErrNotFound) {
+	err = q.All(context.Background(), dst)
+	if errors.Is(err, mongo.ErrNoDocuments) {
 		return db.ErrNoMoreRows
 	}
+
 	return err
 }
 
@@ -255,6 +260,8 @@ func (res *result) GroupBy(fields ...interface{}) db.Result {
 
 // One fetches only one result from the resultset.
 func (res *result) One(dst interface{}) error {
+	ctx := context.Background()
+
 	rq, err := res.build()
 	if err != nil {
 		return err
@@ -274,10 +281,20 @@ func (res *result) One(dst interface{}) error {
 		})
 	}(time.Now())
 
-	err = q.One(dst)
-	if errors.Is(err, mgo.ErrNotFound) {
+	if !q.Next(ctx) {
+		if q.Err() != nil {
+			return q.Err()
+		}
 		return db.ErrNoMoreRows
 	}
+
+	defer q.Close(ctx)
+
+	err = q.Decode(dst)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return db.ErrNoMoreRows
+	}
+
 	return err
 }
 
@@ -295,7 +312,9 @@ func (res *result) setErr(err error) {
 }
 
 func (res *result) Next(dst interface{}) bool {
-	if res.iter == nil {
+	ctx := context.Background()
+
+	if res.cur == nil {
 		rq, err := res.build()
 		if err != nil {
 			return false
@@ -315,11 +334,11 @@ func (res *result) Next(dst interface{}) bool {
 			})
 		}(time.Now())
 
-		res.iter = q.Iter()
+		res.cur = q
 	}
 
-	if !res.iter.Next(dst) {
-		res.setErr(res.iter.Err())
+	if !res.cur.Next(ctx) {
+		res.setErr(res.cur.Err())
 		return false
 	}
 
@@ -328,6 +347,8 @@ func (res *result) Next(dst interface{}) bool {
 
 // Delete remove the matching items from the collection.
 func (res *result) Delete() error {
+	ctx := context.Background()
+
 	rq, err := res.build()
 	if err != nil {
 		return err
@@ -342,7 +363,7 @@ func (res *result) Delete() error {
 		})
 	}(time.Now())
 
-	_, err = rq.c.collection.RemoveAll(rq.conditions)
+	_, err = rq.c.collection.DeleteMany(ctx, rq.conditions)
 	if err != nil {
 		return err
 	}
@@ -352,17 +373,22 @@ func (res *result) Delete() error {
 
 // Close closes the result set.
 func (r *result) Close() error {
+	ctx := context.Background()
 	var err error
-	if r.iter != nil {
-		err = r.iter.Close()
-		r.iter = nil
+
+	if r.cur != nil {
+		err = r.cur.Close(ctx)
+		r.cur = nil
 	}
+
 	return err
 }
 
 // Update modified matching items from the collection with values of the given
 // map or struct.
 func (res *result) Update(src interface{}) (err error) {
+	ctx := context.Background()
+
 	updateSet := map[string]interface{}{"$set": src}
 
 	rq, err := res.build()
@@ -379,7 +405,7 @@ func (res *result) Update(src interface{}) (err error) {
 		})
 	}(time.Now())
 
-	_, err = rq.c.collection.UpdateAll(rq.conditions, updateSet)
+	_, err = rq.c.collection.UpdateMany(ctx, rq.conditions, updateSet)
 	if err != nil {
 		return err
 	}
@@ -409,13 +435,15 @@ func (res *result) build() (*resultQuery, error) {
 	return rq, nil
 }
 
-// query executes a mgo query.
-func (r *resultQuery) query() (*mgo.Query, error) {
+// query executes a mongo query.
+func (r *resultQuery) query() (*mongo.Cursor, error) {
+	ctx := context.Background()
+
+	opts := options.Find()
+
 	if len(r.groupBy) > 0 {
 		return nil, db.ErrUnsupported
 	}
-
-	q := r.c.collection.Find(r.conditions)
 
 	if r.pageSize > 0 {
 		r.offset = int(r.pageSize * r.pageNumber)
@@ -423,15 +451,23 @@ func (r *resultQuery) query() (*mgo.Query, error) {
 	}
 
 	if r.offset > 0 {
-		q.Skip(r.offset)
+		opts.SetSkip(int64(r.offset))
 	}
 
 	if r.limit > 0 {
-		q.Limit(r.limit)
+		opts.SetLimit(int64(r.limit))
 	}
 
 	if len(r.sort) > 0 {
-		q.Sort(r.sort...)
+		sort := bson.D{}
+		for _, field := range r.sort {
+			key, value := field, 1
+			if key[0] == '-' {
+				key, value = key[1:], -1
+			}
+			sort = append(sort, bson.E{Key: key, Value: value})
+		}
+		opts.SetSort(sort)
 	}
 
 	selectedFields := bson.M{}
@@ -445,23 +481,16 @@ func (r *resultQuery) query() (*mgo.Query, error) {
 	}
 
 	if r.cursorReverseOrder {
-		ids := make([]bson.ObjectId, 0, r.limit)
-
-		iter := q.Select(bson.M{"_id": true}).Iter()
-		defer iter.Close()
-
-		var item map[string]bson.ObjectId
-		for iter.Next(&item) {
-			ids = append(ids, item["_id"])
-		}
-
-		r.conditions = bson.M{"_id": bson.M{"$in": ids}}
-
-		q = r.c.collection.Find(r.conditions)
+		panic("not implemented")
 	}
 
 	if len(selectedFields) > 0 {
-		q.Select(selectedFields)
+		panic("not implemented")
+	}
+
+	q, err := r.c.collection.Find(ctx, r.conditions, opts)
+	if err != nil {
+		return nil, err
 	}
 
 	return q, nil
@@ -480,26 +509,7 @@ func (res *result) Exists() (bool, error) {
 
 // Count counts matching elements.
 func (res *result) Count() (total uint64, err error) {
-	rq, err := res.build()
-	if err != nil {
-		return 0, err
-	}
-
-	defer func(start time.Time) {
-		queryLog(&db.QueryStatus{
-			RawQuery: rq.debugQuery("Find.Count"),
-			Err:      err,
-			Start:    start,
-			End:      time.Now(),
-		})
-	}(time.Now())
-
-	q := rq.c.collection.Find(rq.conditions)
-
-	var c int
-	c, err = q.Count()
-
-	return uint64(c), err
+	panic("not implemented")
 }
 
 func (res *result) Prev() immutable.Immutable {
