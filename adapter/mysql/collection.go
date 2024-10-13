@@ -63,15 +63,6 @@ func (*collectionAdapter) Insert(col sqladapter.Collection, item interface{}) (i
 			}
 		}
 	}
-
-	// There was an auto column among primary keys, let's search for it.
-	if lastID > 0 {
-		for j := 0; j < len(pKey); j++ {
-			if keyMap[pKey[j]] == nil {
-				keyMap[pKey[j]] = lastID
-			}
-		}
-	}
-
+	keyMap[0] = lastID
 	return keyMap, nil
 }
