@@ -63,6 +63,6 @@ func (*collectionAdapter) Insert(col sqladapter.Collection, item interface{}) (i
 			}
 		}
 	}
-	keyMap[0] = lastID
+	keyMap[pKey[0]] = lastID
 	return keyMap, nil
 }
