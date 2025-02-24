@@ -73,6 +73,12 @@ func (*database) Collections(sess sqladapter.Session) (collections []string, err
 
 func (d *database) ConvertValue(in interface{}) interface{} {
 	switch v := in.(type) {
+	case *[]uint8:
+		return v
+
+	case []uint8:
+		return &v
+
 	case *map[string]interface{}:
 		return (*JSONMap)(v)
 
