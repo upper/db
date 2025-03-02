@@ -128,8 +128,8 @@ func compare(field string, cmp *adapter.Comparison) (string, interface{}) {
 	panic(fmt.Sprintf("Unsupported operator %v", op))
 }
 
-// compileStatement transforms conditions into something *mgo.Session can
-// understand.
+// compileStatement transforms upper-db conditions into something that the
+// adapter can understand.
 func compileStatement(cond db.Cond) bson.M {
 	conds := bson.M{}
 
@@ -176,10 +176,7 @@ func compileStatement(cond db.Cond) bson.M {
 	return conds
 }
 
-// compileConditions compiles terms into something *mgo.Session can
-// understand.
 func (col *Collection) compileConditions(term interface{}) interface{} {
-
 	switch t := term.(type) {
 	case []interface{}:
 		values := []interface{}{}
@@ -214,8 +211,6 @@ func (col *Collection) compileConditions(term interface{}) interface{} {
 	return nil
 }
 
-// compileQuery compiles terms into something that *mgo.Session can
-// understand.
 func (col *Collection) compileQuery(terms ...interface{}) interface{} {
 	compiled := col.compileConditions(terms)
 	if compiled == nil {
@@ -289,7 +284,7 @@ func (col *Collection) Exists() (bool, error) {
 	mcol := col.parent.database.Collection("system.namespaces")
 
 	mcur, err := mcol.Find(ctx, bson.M{
-		"name": fmt.Sprintf("%s.%s", col.parent.database.Name, col.collection.Name),
+		"name": fmt.Sprintf("%s.%s", col.parent.database.Name(), col.collection.Name()),
 	})
 	if err != nil {
 		return false, err

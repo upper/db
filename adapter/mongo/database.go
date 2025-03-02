@@ -27,11 +27,13 @@ package mongo
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
 
 	db "github.com/upper/db/v4"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -68,11 +70,18 @@ func init() {
 }
 
 // Open stablishes a new connection to a SQL server.
-func Open(settings db.ConnectionURL) (db.Session, error) {
-	d := &Source{Settings: db.NewSettings(), ctx: context.Background()}
-	if err := d.Open(settings); err != nil {
-		return nil, err
+func Open(connURL db.ConnectionURL) (db.Session, error) {
+	ctx := context.Background()
+	settings := db.NewSettings()
+
+	d := &Source{
+		Settings: settings,
+		ctx:      ctx,
 	}
+	if err := d.Open(connURL); err != nil {
+		return nil, fmt.Errorf("Open: %w", err)
+	}
+
 	return d, nil
 }
 
@@ -146,10 +155,10 @@ func (s *Source) Ping() error {
 func (s *Source) Reset() {
 	s.collectionsMu.Lock()
 	defer s.collectionsMu.Unlock()
+
 	s.collections = make(map[string]*Collection)
 }
 
-// Driver returns the underlying *mgo.Session instance.
 func (s *Source) Driver() interface{} {
 	return s.session
 }
@@ -165,11 +174,16 @@ func (s *Source) open() error {
 	}
 
 	if s.session, err = mongo.Connect(ctx, opts...); err != nil {
-		return err
+		return fmt.Errorf("mongo.Connect: %w", err)
 	}
 
 	s.collections = map[string]*Collection{}
-	s.database = s.session.Database("")
+	s.database = s.session.Database(settings.Database)
+
+	// ping
+	if err = s.Ping(); err != nil {
+		return fmt.Errorf("Ping: %w", err)
+	}
 
 	return nil
 }
@@ -185,16 +199,18 @@ func (s *Source) Close() error {
 
 // Collections returns a list of non-system tables from the database.
 func (s *Source) Collections() (cols []db.Collection, err error) {
-	var rawcols []string
+	ctx := context.Background()
+
+	var mgocols []string
 	var col string
 
-	if rawcols, err = s.database.ListCollectionNames(context.Background(), nil); err != nil {
-		return nil, err
+	if mgocols, err = s.database.ListCollectionNames(ctx, bson.D{}); err != nil {
+		return nil, fmt.Errorf("ListCollectionNames: %w", err)
 	}
 
-	cols = make([]db.Collection, 0, len(rawcols))
+	cols = make([]db.Collection, 0, len(mgocols))
 
-	for _, col = range rawcols {
+	for _, col = range mgocols {
 		if !strings.HasPrefix(col, "system.") {
 			cols = append(cols, s.Collection(col))
 		}

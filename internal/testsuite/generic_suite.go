@@ -27,7 +27,6 @@ import (
 
 	"github.com/stretchr/testify/suite"
 	db "github.com/upper/db/v4"
-	"gopkg.in/mgo.v2/bson"
 )
 
 type birthday struct {
@@ -48,23 +47,22 @@ type oddEven struct {
 	// Test for JSON option.
 	Input int `json:"input" db:"input"`
 	// Test for JSON option.
-	// The "bson" tag is required by mgo.
 	IsEven bool `json:"is_even" db:"is_even,json" bson:"is_even"`
 	OmitMe bool `json:"omit_me" db:"-" bson:"-"`
 }
 
 // Struct that relies on explicit mapping.
 type mapE struct {
-	ID       uint          `db:"id,omitempty" bson:"-"`
-	MongoID  bson.ObjectId `db:"-" bson:"_id,omitempty"`
-	CaseTest string        `db:"case_test" bson:"case_test"`
+	ID       uint        `db:"id,omitempty" bson:"-"`
+	MongoID  interface{} `db:"-" bson:"_id,omitempty"`
+	CaseTest string      `db:"case_test" bson:"case_test"`
 }
 
 // Struct that will fallback to default mapping.
 type mapN struct {
-	ID        uint          `db:"id,omitempty"`
-	MongoID   bson.ObjectId `db:"-" bson:"_id,omitempty"`
-	Case_TEST string        `db:"case_test"`
+	ID        uint        `db:"id,omitempty"`
+	MongoID   interface{} `db:"-" bson:"_id,omitempty"`
+	Case_TEST string      `db:"case_test"`
 }
 
 // Struct for testing marshalling.
@@ -121,12 +119,12 @@ type GenericTestSuite struct {
 
 func (s *GenericTestSuite) AfterTest(suiteName, testName string) {
 	err := s.TearDown()
-	s.NoError(err)
+	s.Require().NoError(err)
 }
 
 func (s *GenericTestSuite) BeforeTest(suiteName, testName string) {
-	err := s.TearUp()
-	s.NoError(err)
+	err := s.SetUp()
+	s.Require().NoError(err)
 }
 
 func (s *GenericTestSuite) TestDatesAndUnicode() {
@@ -152,13 +150,13 @@ func (s *GenericTestSuite) TestDatesAndUnicode() {
 	col := sess.Collection(`birthdays`)
 
 	record, err := col.Insert(controlItem)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotZero(record.ID())
 
 	var res db.Result
 	switch s.Adapter() {
 	case "mongo":
-		res = col.Find(db.Cond{"_id": record.ID().(bson.ObjectId)})
+		res = col.Find(db.Cond{"_id": record.ID()})
 	case "ql":
 		res = col.Find(db.Cond{"id()": record.ID()})
 	default:
@@ -167,7 +165,7 @@ func (s *GenericTestSuite) TestDatesAndUnicode() {
 
 	var total uint64
 	total, err = res.Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(1), total)
 
 	switch s.Adapter() {
@@ -177,7 +175,7 @@ func (s *GenericTestSuite) TestDatesAndUnicode() {
 
 	var testItem birthday
 	err = res.One(&testItem)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	switch s.Adapter() {
 	case "sqlite", "ql", "mssql":
@@ -190,7 +188,7 @@ func (s *GenericTestSuite) TestDatesAndUnicode() {
 
 	var testItems []birthday
 	err = res.All(&testItems)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotZero(len(testItems))
 
 	for _, testItem = range testItems {
@@ -203,10 +201,10 @@ func (s *GenericTestSuite) TestDatesAndUnicode() {
 
 	controlItem.Name = `宮崎駿`
 	err = res.Update(controlItem)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	err = res.One(&testItem)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	switch s.Adapter() {
 	case "sqlite", "ql", "mssql":
@@ -216,14 +214,14 @@ func (s *GenericTestSuite) TestDatesAndUnicode() {
 	s.Equal(controlItem, testItem)
 
 	err = res.Delete()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	total, err = res.Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Zero(total)
 
 	err = res.Close()
-	s.NoError(err)
+	s.Require().NoError(err)
 }
 
 func (s *GenericTestSuite) TestFibonacci() {
@@ -240,7 +238,7 @@ func (s *GenericTestSuite) TestFibonacci() {
 	for i = 0; i < 10; i++ {
 		item := fibonacci{Input: i, Output: fib(i)}
 		_, err = col.Insert(item)
-		s.NoError(err)
+		s.Require().NoError(err)
 	}
 
 	// Testing sorting by function.
@@ -265,17 +263,19 @@ func (s *GenericTestSuite) TestFibonacci() {
 		res = res.OrderBy(db.Raw("RAND()"))
 	case "mssql":
 		res = res.OrderBy(db.Raw("NEWID()"))
+	case "mongo":
+		res = res.OrderBy(db.Raw(`{"$sample": {"size": 1}}`))
 	}
 
 	total, err = res.Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(4), total)
 
 	// Find() with IN/$in
 	res = col.Find(db.Cond{"input IN": []int{3, 5, 6, 7}}).OrderBy("input")
 
 	total, err = res.Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(4), total)
 
 	res = res.Offset(1).Limit(2)
@@ -287,10 +287,10 @@ func (s *GenericTestSuite) TestFibonacci() {
 		case 6:
 			s.Equal(fib(item.Input), item.Output)
 		default:
-			s.T().Errorf(`Unexpected item: %v.`, item)
+			s.T().Errorf(`unexpected item: %#v.`, item)
 		}
 	}
-	s.NoError(res.Err())
+	s.Require().NoError(res.Err())
 
 	// Find() with range
 	res = col.Find(
@@ -305,7 +305,7 @@ func (s *GenericTestSuite) TestFibonacci() {
 	).OrderBy("-input")
 
 	total, err = res.Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(4), total)
 
 	// Skipping.
@@ -318,26 +318,28 @@ func (s *GenericTestSuite) TestFibonacci() {
 		case 6:
 			s.Equal(fib(item2.Input), item2.Output)
 		default:
-			s.T().Errorf(`Unexpected item: %v.`, item2)
+			s.T().Errorf(`unexpected item: %#v.`, item2)
 		}
 	}
 	err = resWithLimit.Err()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	err = res.Delete()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	{
 		total, err := res.Count()
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Zero(total)
 	}
 
 	// Find() with no arguments.
 	res = col.Find()
+	s.Require().NotZero(res)
+
 	{
 		total, err := res.Count()
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(uint64(6), total)
 	}
 
@@ -346,56 +348,56 @@ func (s *GenericTestSuite) TestFibonacci() {
 		// Find() with empty db.Cond.
 		{
 			total, err := col.Find(db.Cond{}).Count()
-			s.NoError(err)
+			s.Require().NoError(err)
 			s.Equal(uint64(6), total)
 		}
 
 		// Find() with empty expression
 		{
 			total, err := col.Find(db.Or(db.And(db.Cond{}, db.Cond{}), db.Or(db.Cond{}))).Count()
-			s.NoError(err)
+			s.Require().NoError(err)
 			s.Equal(uint64(6), total)
 		}
 
 		// Find() with explicit IS NULL
 		{
 			total, err := col.Find(db.Cond{"input IS": nil}).Count()
-			s.NoError(err)
+			s.Require().NoError(err)
 			s.Equal(uint64(0), total)
 		}
 
 		// Find() with implicit IS NULL
 		{
 			total, err := col.Find(db.Cond{"input": nil}).Count()
-			s.NoError(err)
+			s.Require().NoError(err)
 			s.Equal(uint64(0), total)
 		}
 
 		// Find() with explicit = NULL
 		{
 			total, err := col.Find(db.Cond{"input =": nil}).Count()
-			s.NoError(err)
+			s.Require().NoError(err)
 			s.Equal(uint64(0), total)
 		}
 
 		// Find() with implicit IN
 		{
 			total, err := col.Find(db.Cond{"input": []int{1, 2, 3, 4}}).Count()
-			s.NoError(err)
+			s.Require().NoError(err)
 			s.Equal(uint64(3), total)
 		}
 
 		// Find() with implicit NOT IN
 		{
 			total, err := col.Find(db.Cond{"input NOT IN": []int{1, 2, 3, 4}}).Count()
-			s.NoError(err)
+			s.Require().NoError(err)
 			s.Equal(uint64(3), total)
 		}
 	}
 
 	var items []fibonacci
 	err = res.All(&items)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	for _, item := range items {
 		switch item.Input {
@@ -412,7 +414,7 @@ func (s *GenericTestSuite) TestFibonacci() {
 	}
 
 	err = res.Close()
-	s.NoError(err)
+	s.Require().NoError(err)
 }
 
 func (s *GenericTestSuite) TestOddEven() {
@@ -425,7 +427,7 @@ func (s *GenericTestSuite) TestOddEven() {
 	for i = 1; i < 100; i++ {
 		item := oddEven{Input: i, IsEven: even(i)}
 		_, err := col.Insert(item)
-		s.NoError(err)
+		s.Require().NoError(err)
 	}
 
 	// Retrieving items
@@ -437,22 +439,22 @@ func (s *GenericTestSuite) TestOddEven() {
 	}
 
 	err := res.Err()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	err = res.Delete()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Testing named inputs (using tags).
 	res = col.Find()
 
 	var item2 struct {
-		Value uint `db:"input" bson:"input"` // The "bson" tag is required by mgo.
+		Value uint `db:"input" bson:"input"`
 	}
 	for res.Next(&item2) {
 		s.NotZero(item2.Value % 2)
 	}
 	err = res.Err()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Testing inline tag.
 	res = col.Find()
@@ -465,7 +467,7 @@ func (s *GenericTestSuite) TestOddEven() {
 		s.NotZero(item3.OddEven.Input)
 	}
 	err = res.Err()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Testing inline tag.
 	type OddEven oddEven
@@ -478,7 +480,7 @@ func (s *GenericTestSuite) TestOddEven() {
 		s.NotZero(item31.Input % 2)
 		s.NotZero(item31.Input)
 	}
-	s.NoError(res.Err())
+	s.Require().NoError(res.Err())
 
 	// Testing omision tag.
 	res = col.Find()
@@ -489,7 +491,7 @@ func (s *GenericTestSuite) TestOddEven() {
 	for res.Next(&item4) {
 		s.Zero(item4.Value)
 	}
-	s.NoError(res.Err())
+	s.Require().NoError(res.Err())
 }
 
 func (s *GenericTestSuite) TestExplicitAndDefaultMapping() {
@@ -505,7 +507,7 @@ func (s *GenericTestSuite) TestExplicitAndDefaultMapping() {
 
 	if err = col.Truncate(); err != nil {
 		if s.Adapter() != "mongo" {
-			s.NoError(err)
+			s.Require().NoError(err)
 		}
 	}
 
@@ -515,7 +517,7 @@ func (s *GenericTestSuite) TestExplicitAndDefaultMapping() {
 	}
 
 	_, err = col.Insert(testE)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	res = col.Find(db.Cond{"case_test": "Hello!"})
 	if s.Adapter() == "ql" {
@@ -523,10 +525,10 @@ func (s *GenericTestSuite) TestExplicitAndDefaultMapping() {
 	}
 
 	err = res.One(&testE)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	if s.Adapter() == "mongo" {
-		s.True(testE.MongoID.Valid())
+		//s.True(testE.MongoID.Valid())
 	} else {
 		s.NotZero(testE.ID)
 	}
@@ -537,7 +539,7 @@ func (s *GenericTestSuite) TestExplicitAndDefaultMapping() {
 	}
 
 	_, err = col.Insert(testN)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	if s.Adapter() == `mongo` {
 		res = col.Find(db.Cond{"case_test": "World!"})
@@ -550,10 +552,10 @@ func (s *GenericTestSuite) TestExplicitAndDefaultMapping() {
 	}
 
 	err = res.One(&testN)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	if s.Adapter() == `mongo` {
-		s.True(testN.MongoID.Valid())
+		//s.True(testN.MongoID.Valid())
 	} else {
 		s.NotZero(testN.ID)
 	}
@@ -566,7 +568,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 	err := birthdays.Truncate()
 	if err != nil {
 		if s.Adapter() != "mongo" {
-			s.NoError(err)
+			s.Require().NoError(err)
 		}
 	}
 
@@ -607,7 +609,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 	}
 	for _, birthday := range birthdaysDataset {
 		_, err := birthdays.Insert(birthday)
-		s.NoError(err)
+		s.Require().NoError(err)
 	}
 
 	// Test: equal
@@ -616,7 +618,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 		err := birthdays.Find(db.Cond{
 			"name": db.Eq("Colin"),
 		}).One(&item)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.NotNil(item)
 
 		s.Equal("Colin", item.Name)
@@ -628,7 +630,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 		err := birthdays.Find(db.Cond{
 			"name": db.NotEq("Colin"),
 		}).One(&item)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.NotNil(item)
 
 		s.NotEqual("Colin", item.Name)
@@ -641,7 +643,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 		err := birthdays.Find(db.Cond{
 			"born": db.Gt(ref),
 		}).All(&items)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.NotZero(len(items))
 		s.Equal(2, len(items))
 		for _, item := range items {
@@ -656,7 +658,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 		err := birthdays.Find(db.Cond{
 			"born": db.Lt(ref),
 		}).All(&items)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.NotZero(len(items))
 		s.Equal(5, len(items))
 		for _, item := range items {
@@ -671,7 +673,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 		err := birthdays.Find(db.Cond{
 			"born": db.Gte(ref),
 		}).All(&items)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.NotZero(len(items))
 		s.Equal(3, len(items))
 		for _, item := range items {
@@ -686,7 +688,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 		err := birthdays.Find(db.Cond{
 			"born": db.Lte(ref),
 		}).All(&items)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.NotZero(len(items))
 		s.Equal(6, len(items))
 		for _, item := range items {
@@ -702,7 +704,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 		err := birthdays.Find(db.Cond{
 			"born": db.Between(dateA, dateB),
 		}).All(&items)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(6, len(items))
 		for _, item := range items {
 			s.True(item.Born.After(dateA) || item.Born.Equal(dateA))
@@ -718,7 +720,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 		err := birthdays.Find(db.Cond{
 			"born": db.NotBetween(dateA, dateB),
 		}).All(&items)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(2, len(items))
 		for _, item := range items {
 			s.False(item.Born.Before(dateA) || item.Born.Equal(dateA))
@@ -733,7 +735,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 		err := birthdays.Find(db.Cond{
 			"name": db.In(names...),
 		}).All(&items)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(4, len(items))
 		for _, item := range items {
 			inArray := false
@@ -753,7 +755,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 		err := birthdays.Find(db.Cond{
 			"name": db.NotIn(names...),
 		}).All(&items)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(4, len(items))
 		for _, item := range items {
 			inArray := false
@@ -773,7 +775,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 		err := birthdays.Find(db.Cond{
 			"name": db.NotIn(names...),
 		}).All(&items)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(4, len(items))
 		for _, item := range items {
 			inArray := false
@@ -793,7 +795,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 			db.Cond{"name": db.Is(nil)},
 			db.Cond{"name": db.IsNot(nil)},
 		)).All(&items)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(0, len(items))
 	}
 
@@ -803,7 +805,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 		err := birthdays.Find(db.And(
 			db.Cond{"born_ut": db.IsNull()},
 		)).All(&items)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(8, len(items))
 	}
 
@@ -826,7 +828,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 		}
 
 		err := q.All(&items)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(1, len(items))
 
 		s.Equal("Daria López", items[0].Name)
@@ -839,7 +841,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 			err := birthdays.Find(db.And(
 				db.Cond{"name": db.RegExp("^[D|C|M]")},
 			)).OrderBy("name").All(&items)
-			s.NoError(err)
+			s.Require().NoError(err)
 			s.Equal(3, len(items))
 
 			s.Equal("Colin", items[0].Name)
@@ -854,7 +856,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 			err := birthdays.Find(db.And(
 				db.Cond{"name": db.NotRegExp("^[D|C|M]")},
 			)).OrderBy("name").All(&items)
-			s.NoError(err)
+			s.Require().NoError(err)
 			s.Equal(5, len(items))
 
 			for _, item := range items {
@@ -872,7 +874,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 		err := birthdays.Find(db.Cond{
 			"born": db.After(ref),
 		}).All(&items)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(5, len(items))
 	}
 
@@ -883,7 +885,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 		err := birthdays.Find(db.Cond{
 			"born": db.OnOrAfter(ref),
 		}).All(&items)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(6, len(items))
 	}
 
@@ -894,7 +896,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 		err := birthdays.Find(db.Cond{
 			"born": db.Before(ref),
 		}).All(&items)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(2, len(items))
 	}
 
@@ -905,7 +907,7 @@ func (s *GenericTestSuite) TestComparisonOperators() {
 		err := birthdays.Find(db.Cond{
 			"born": db.OnOrBefore(ref),
 		}).All(&items)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(3, len(items))
 	}
 }

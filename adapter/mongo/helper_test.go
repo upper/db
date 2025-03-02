@@ -22,13 +22,15 @@
 package mongo
 
 import (
+	"context"
 	"fmt"
 	"os"
 
-	"go.mongodb.org/mongo-driver/mongo"
-
 	db "github.com/upper/db/v4"
+
 	"github.com/upper/db/v4/internal/testsuite"
+
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var settings = ConnectionURL{
@@ -54,7 +56,9 @@ func (h *Helper) TearDown() error {
 	return h.sess.Close()
 }
 
-func (h *Helper) TearUp() error {
+func (h *Helper) SetUp() error {
+	ctx := context.Background()
+
 	var err error
 
 	h.sess, err = Open(settings)
@@ -62,23 +66,23 @@ func (h *Helper) TearUp() error {
 		return err
 	}
 
-	mgod, ok := h.sess.Driver().(*mgo.Session)
+	mgdb, ok := h.sess.Driver().(*mongo.Client)
 	if !ok {
-		panic("expecting mgo.Session")
+		panic("expecting *mongo.Client")
 	}
 
-	var col *mgo.Collection
-	col = mgod.DB(settings.Database).C("birthdays")
-	_ = col.DropCollection()
+	var col *mongo.Collection
+	col = mgdb.Database(settings.Database).Collection("birthdays")
+	_ = col.Drop(ctx)
 
-	col = mgod.DB(settings.Database).C("fibonacci")
-	_ = col.DropCollection()
+	col = mgdb.Database(settings.Database).Collection("fibonacci")
+	_ = col.Drop(ctx)
 
-	col = mgod.DB(settings.Database).C("is_even")
-	_ = col.DropCollection()
+	col = mgdb.Database(settings.Database).Collection("is_even")
+	_ = col.Drop(ctx)
 
-	col = mgod.DB(settings.Database).C("CaSe_TesT")
-	_ = col.DropCollection()
+	col = mgdb.Database(settings.Database).Collection("CaSe_TesT")
+	_ = col.Drop(ctx)
 
 	// Getting a pointer to the "artist" collection.
 	artist := h.sess.Collection("artist")
@@ -89,7 +93,7 @@ func (h *Helper) TearUp() error {
 			Name: fmt.Sprintf("artist-%d", i),
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("insert: %w", err)
 		}
 	}
 

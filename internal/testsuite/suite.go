@@ -16,7 +16,7 @@ type Helper interface {
 
 	Adapter() string
 
-	TearUp() error
+	SetUp() error
 	TearDown() error
 }
 
@@ -32,6 +32,6 @@ func (s *Suite) AfterTest(suiteName, testName string) {
 }
 
 func (s *Suite) BeforeTest(suiteName, testName string) {
-	err := s.TearUp()
+	err := s.SetUp()
 	s.NoError(err)
 }

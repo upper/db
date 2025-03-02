@@ -1,7 +1,7 @@
 SHELL					        ?= bash
 
-MONGO_VERSION         ?= 4
-MONGO_SUPPORTED       ?= $(MONGO_VERSION) 3
+MONGO_VERSION         ?= 8
+MONGO_SUPPORTED       ?= $(MONGO_VERSION) 7
 PROJECT               ?= $(subst .,_,"upper_mongo_$(MONGO_VERSION)")
 
 DB_HOST               ?= 127.0.0.1

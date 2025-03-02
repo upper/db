@@ -97,7 +97,7 @@ func ParseURL(s string) (conn ConnectionURL, err error) {
 	}
 
 	if u, err = url.Parse(s); err != nil {
-		return conn, err
+		return conn, fmt.Errorf("invalid URL: %v", err)
 	}
 
 	conn.Scheme = u.Scheme
@@ -118,12 +118,12 @@ func ParseURL(s string) (conn ConnectionURL, err error) {
 	var vv url.Values
 
 	if vv, err = url.ParseQuery(u.RawQuery); err != nil {
-		return conn, err
+		return conn, fmt.Errorf("invalid query: %v", err)
 	}
 
 	for k := range vv {
 		conn.Options[k] = vv.Get(k)
 	}
 
-	return conn, err
+	return conn, nil
 }

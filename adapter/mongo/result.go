@@ -342,6 +342,12 @@ func (res *result) Next(dst interface{}) bool {
 		return false
 	}
 
+	err := res.cur.Decode(dst)
+	if err != nil {
+		res.setErr(err)
+		return false
+	}
+
 	return true
 }
 
@@ -432,6 +438,11 @@ func (res *result) build() (*resultQuery, error) {
 			rq.sort = append(rq.sort, rq.cursorColumn)
 		}
 	}
+
+	if rq.conditions == nil {
+		rq.conditions = bson.D{}
+	}
+
 	return rq, nil
 }
 
@@ -481,7 +492,7 @@ func (r *resultQuery) query() (*mongo.Cursor, error) {
 	}
 
 	if r.cursorReverseOrder {
-		panic("not implemented")
+		opts.SetSort(bson.D{{"_id", -1}})
 	}
 
 	if len(selectedFields) > 0 {
@@ -496,20 +507,62 @@ func (r *resultQuery) query() (*mongo.Cursor, error) {
 	return q, nil
 }
 
+func (r *resultQuery) count() (int64, error) {
+	ctx := context.Background()
+
+	opts := options.Count()
+
+	if len(r.groupBy) > 0 {
+		return 0, db.ErrUnsupported
+	}
+
+	n, err := r.c.collection.CountDocuments(ctx, r.conditions, opts)
+	if err != nil {
+		return 0, fmt.Errorf("CountDocuments: %w", err)
+	}
+
+	return n, nil
+}
+
 func (res *result) Exists() (bool, error) {
 	total, err := res.Count()
 	if err != nil {
 		return false, err
 	}
+
 	if total > 0 {
 		return true, nil
 	}
+
 	return false, nil
 }
 
 // Count counts matching elements.
 func (res *result) Count() (total uint64, err error) {
-	panic("not implemented")
+	if res == nil {
+		return 0, nil
+	}
+
+	rq, err := res.build()
+	if err != nil {
+		return 0, err
+	}
+
+	defer func(start time.Time) {
+		queryLog(&db.QueryStatus{
+			RawQuery: rq.debugQuery("Count"),
+			Err:      err,
+			Start:    start,
+			End:      time.Now(),
+		})
+	}(time.Now())
+
+	count, err := rq.count()
+	if err != nil {
+		return 0, err
+	}
+
+	return uint64(count), nil
 }
 
 func (res *result) Prev() immutable.Immutable {
@@ -531,7 +584,7 @@ func (res *result) Base() interface{} {
 }
 
 func (r *resultQuery) debugQuery(action string) string {
-	query := fmt.Sprintf("db.%s.%s", r.c.collection.Name, action)
+	query := fmt.Sprintf("db.%s.%s", r.c.collection.Name(), action)
 
 	if r.conditions != nil {
 		query = fmt.Sprintf("%s.conds(%v)", query, r.conditions)

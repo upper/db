@@ -71,7 +71,7 @@ func (s *SQLTestSuite) AfterTest(suiteName, testName string) {
 }
 
 func (s *SQLTestSuite) BeforeTest(suiteName, testName string) {
-	err := s.TearUp()
+	err := s.SetUp()
 	s.NoError(err)
 
 	sess := s.Session()
