@@ -19,20 +19,23 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Package mongo wraps the gopkg.in/mgo.v2 MongoDB driver. See
-// https://github.com/upper/db/adapter/mongo for documentation, particularities and usage
-// examples.
+// Package mongo wraps the official MongoDB driver. See
+// https://github.com/upper/db/adapter/mongo for documentation, particularities
+// and usage examples.
 package mongo
 
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
 
 	db "github.com/upper/db/v4"
-	mgo "gopkg.in/mgo.v2"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Adapter holds the name of the mongodb adapter.
@@ -48,8 +51,8 @@ type Source struct {
 
 	name          string
 	connURL       db.ConnectionURL
-	session       *mgo.Session
-	database      *mgo.Database
+	session       *mongo.Client // rename to client
+	database      *mongo.Database
 	version       []int
 	collections   map[string]*Collection
 	collectionsMu sync.Mutex
@@ -67,11 +70,18 @@ func init() {
 }
 
 // Open stablishes a new connection to a SQL server.
-func Open(settings db.ConnectionURL) (db.Session, error) {
-	d := &Source{Settings: db.NewSettings(), ctx: context.Background()}
-	if err := d.Open(settings); err != nil {
-		return nil, err
+func Open(connURL db.ConnectionURL) (db.Session, error) {
+	ctx := context.Background()
+	settings := db.NewSettings()
+
+	d := &Source{
+		Settings: settings,
+		ctx:      ctx,
 	}
+	if err := d.Open(connURL); err != nil {
+		return nil, fmt.Errorf("Open: %w", err)
+	}
+
 	return d, nil
 }
 
@@ -120,33 +130,35 @@ func (s *Source) Open(connURL db.ConnectionURL) error {
 
 // Clone returns a cloned db.Session session.
 func (s *Source) Clone() (db.Session, error) {
-	newSession := s.session.Copy()
 	clone := &Source{
 		Settings: db.NewSettings(),
 
 		name:        s.name,
 		connURL:     s.connURL,
-		session:     newSession,
-		database:    newSession.DB(s.database.Name),
 		version:     s.version,
 		collections: map[string]*Collection{},
 	}
+
+	if err := clone.open(); err != nil {
+		return nil, err
+	}
+
 	return clone, nil
 }
 
 // Ping checks whether a connection to the database is still alive by pinging
 // it, establishing a connection if necessary.
 func (s *Source) Ping() error {
-	return s.session.Ping()
+	return s.session.Ping(context.Background(), nil)
 }
 
 func (s *Source) Reset() {
 	s.collectionsMu.Lock()
 	defer s.collectionsMu.Unlock()
+
 	s.collections = make(map[string]*Collection)
 }
 
-// Driver returns the underlying *mgo.Session instance.
 func (s *Source) Driver() interface{} {
 	return s.session
 }
@@ -154,12 +166,24 @@ func (s *Source) Driver() interface{} {
 func (s *Source) open() error {
 	var err error
 
-	if s.session, err = mgo.DialWithTimeout(s.connURL.String(), connTimeout); err != nil {
-		return err
+	ctx, cancel := context.WithTimeout(context.Background(), connTimeout)
+	defer cancel()
+
+	opts := []*options.ClientOptions{
+		options.Client().ApplyURI(s.connURL.String()),
+	}
+
+	if s.session, err = mongo.Connect(ctx, opts...); err != nil {
+		return fmt.Errorf("mongo.Connect: %w", err)
 	}
 
 	s.collections = map[string]*Collection{}
-	s.database = s.session.DB("")
+	s.database = s.session.Database(settings.Database)
+
+	// ping
+	if err = s.Ping(); err != nil {
+		return fmt.Errorf("Ping: %w", err)
+	}
 
 	return nil
 }
@@ -167,23 +191,26 @@ func (s *Source) open() error {
 // Close terminates the current database session.
 func (s *Source) Close() error {
 	if s.session != nil {
-		s.session.Close()
+		s.session.Disconnect(context.Background())
 	}
+
 	return nil
 }
 
 // Collections returns a list of non-system tables from the database.
 func (s *Source) Collections() (cols []db.Collection, err error) {
-	var rawcols []string
+	ctx := context.Background()
+
+	var mgocols []string
 	var col string
 
-	if rawcols, err = s.database.CollectionNames(); err != nil {
-		return nil, err
+	if mgocols, err = s.database.ListCollectionNames(ctx, bson.D{}); err != nil {
+		return nil, fmt.Errorf("ListCollectionNames: %w", err)
 	}
 
-	cols = make([]db.Collection, 0, len(rawcols))
+	cols = make([]db.Collection, 0, len(mgocols))
 
-	for _, col = range rawcols {
+	for _, col = range mgocols {
 		if !strings.HasPrefix(col, "system.") {
 			cols = append(cols, s.Collection(col))
 		}
@@ -231,36 +258,10 @@ func (s *Source) Collection(name string) db.Collection {
 	if col, ok = s.collections[name]; !ok {
 		col = &Collection{
 			parent:     s,
-			collection: s.database.C(name),
+			collection: s.database.Collection(name),
 		}
 		s.collections[name] = col
 	}
 
 	return col
-}
-
-func (s *Source) versionAtLeast(version ...int) bool {
-	// only fetch this once - it makes a db call
-	if len(s.version) == 0 {
-		buildInfo, err := s.database.Session.BuildInfo()
-		if err != nil {
-			return false
-		}
-		s.version = buildInfo.VersionArray
-	}
-
-	// Check major version first
-	if s.version[0] > version[0] {
-		return true
-	}
-
-	for i := range version {
-		if i == len(s.version) {
-			return false
-		}
-		if s.version[i] < version[i] {
-			return false
-		}
-	}
-	return true
 }

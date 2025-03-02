@@ -88,7 +88,7 @@ func (s *RecordTestSuite) AfterTest(suiteName, testName string) {
 }
 
 func (s *RecordTestSuite) BeforeTest(suiteName, testName string) {
-	err := s.TearUp()
+	err := s.SetUp()
 	s.NoError(err)
 
 	sess := s.Helper.Session()

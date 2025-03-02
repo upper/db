@@ -70,30 +70,33 @@ func TestConnectionURL(t *testing.T) {
 }
 
 func TestParseConnectionURL(t *testing.T) {
-	var u ConnectionURL
-	var s string
-	var err error
+	{
+		const s = "mongodb:///mydatabase"
 
-	s = "mongodb:///mydatabase"
+		u, err := ParseURL(s)
+		require.NoError(t, err)
 
-	u, err = ParseURL(s)
-	require.NoError(t, err)
+		assert.Equal(t, "mydatabase", u.Database)
+	}
 
-	assert.Equal(t, "mydatabase", u.Database)
+	{
+		const s = "mongodb://user:pass@localhost,1.2.3.4,example.org:1234/another_database?cache=foobar&mode=ro"
 
-	s = "mongodb://user:pass@localhost,1.2.3.4,example.org:1234/another_database?cache=foobar&mode=ro"
+		u, err := ParseURL(s)
+		require.NoError(t, err)
 
-	u, err = ParseURL(s)
-	require.NoError(t, err)
+		assert.Equal(t, "another_database", u.Database)
+		assert.Equal(t, "foobar", u.Options["cache"])
+		assert.Equal(t, "ro", u.Options["mode"])
+		assert.Equal(t, "mongodb", u.Scheme)
+		assert.Equal(t, "user", u.User)
+		assert.Equal(t, "pass", u.Password)
+		assert.Equal(t, "localhost,1.2.3.4,example.org:1234", u.Host)
+	}
 
-	assert.Equal(t, "another_database", u.Database)
-	assert.Equal(t, "foobar", u.Options["cache"])
-	assert.Equal(t, "ro", u.Options["mode"])
-	assert.Equal(t, "user", u.User)
-	assert.Equal(t, "pass", u.Password)
-	assert.Equal(t, "localhost,1.2.3.4,example.org:1234", u.Host)
-
-	s = "http://example.org"
-	_, err = ParseURL(s)
-	require.Error(t, err)
+	{
+		const s = "http://example.org"
+		_, err := ParseURL(s)
+		require.Error(t, err)
+	}
 }

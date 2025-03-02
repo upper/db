@@ -99,7 +99,7 @@ func (h *Helper) TearDown() error {
 	return h.sess.Close()
 }
 
-func (h *Helper) TearUp() error {
+func (h *Helper) SetUp() error {
 	var err error
 
 	h.sess, err = Open(settings)

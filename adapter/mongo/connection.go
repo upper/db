@@ -27,10 +27,14 @@ import (
 	"strings"
 )
 
-const connectionScheme = `mongodb`
+const (
+	defaultScheme = "mongodb"
+	srvScheme     = "mongodb+srv"
+)
 
 // ConnectionURL implements a MongoDB connection struct.
 type ConnectionURL struct {
+	Scheme   string
 	User     string
 	Password string
 	Host     string
@@ -39,12 +43,11 @@ type ConnectionURL struct {
 }
 
 func (c ConnectionURL) String() (s string) {
+	vv := url.Values{}
 
 	if c.Database == "" {
 		return ""
 	}
-
-	vv := url.Values{}
 
 	// Do we have any options?
 	if c.Options == nil {
@@ -67,9 +70,13 @@ func (c ConnectionURL) String() (s string) {
 		}
 	}
 
+	if c.Scheme == "" {
+		c.Scheme = defaultScheme
+	}
+
 	// Building URL.
 	u := url.URL{
-		Scheme:   connectionScheme,
+		Scheme:   c.Scheme,
 		Path:     c.Database,
 		Host:     c.Host,
 		User:     userInfo,
@@ -80,17 +87,20 @@ func (c ConnectionURL) String() (s string) {
 }
 
 // ParseURL parses s into a ConnectionURL struct.
+// See https://www.mongodb.com/docs/manual/reference/connection-string/
 func ParseURL(s string) (conn ConnectionURL, err error) {
 	var u *url.URL
 
-	if !strings.HasPrefix(s, connectionScheme+"://") {
-		return conn, fmt.Errorf(`Expecting mongodb:// connection scheme.`)
+	hasPrefix := strings.HasPrefix(s, defaultScheme+"://") || strings.HasPrefix(s, srvScheme+"://")
+	if !hasPrefix {
+		return conn, fmt.Errorf("invalid scheme")
 	}
 
 	if u, err = url.Parse(s); err != nil {
-		return conn, err
+		return conn, fmt.Errorf("invalid URL: %v", err)
 	}
 
+	conn.Scheme = u.Scheme
 	conn.Host = u.Host
 
 	// Deleting / from start of the string.
@@ -108,12 +118,12 @@ func ParseURL(s string) (conn ConnectionURL, err error) {
 	var vv url.Values
 
 	if vv, err = url.ParseQuery(u.RawQuery); err != nil {
-		return conn, err
+		return conn, fmt.Errorf("invalid query: %v", err)
 	}
 
 	for k := range vv {
 		conn.Options[k] = vv.Get(k)
 	}
 
-	return conn, err
+	return conn, nil
 }
