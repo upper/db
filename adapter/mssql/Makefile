@@ -14,6 +14,8 @@ DB_PASSWORD           ?= upperio//s3cr37
 TEST_FLAGS            ?=
 PARALLEL_FLAGS        ?= --halt-on-error 2 --jobs 1
 
+GODEBUG               ?= x509negativeserial=1
+
 export MSSQL_VERSION
 
 export DB_HOST
@@ -21,6 +23,8 @@ export DB_NAME
 export DB_PASSWORD
 export DB_PORT
 export DB_USERNAME
+
+export GODEBUG
 
 export TEST_FLAGS
 
