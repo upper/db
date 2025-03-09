@@ -54,11 +54,6 @@ func (f *customType) UnmarshalDB(in interface{}) error {
 	return nil
 }
 
-var (
-	_ = db.Marshaler(&customType{})
-	_ = db.Unmarshaler(&customType{})
-)
-
 type SQLTestSuite struct {
 	suite.Suite
 
@@ -67,12 +62,12 @@ type SQLTestSuite struct {
 
 func (s *SQLTestSuite) AfterTest(suiteName, testName string) {
 	err := s.TearDown()
-	s.NoError(err)
+	s.Require().NoError(err)
 }
 
 func (s *SQLTestSuite) BeforeTest(suiteName, testName string) {
 	err := s.SetUp()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	sess := s.Session()
 
@@ -84,7 +79,7 @@ func (s *SQLTestSuite) BeforeTest(suiteName, testName string) {
 		_, err := artist.Insert(map[string]string{
 			"name": artistName,
 		})
-		s.NoError(err)
+		s.Require().NoError(err)
 	}
 }
 
@@ -93,14 +88,6 @@ func (s *SQLTestSuite) TestPreparedStatementsCache() {
 
 	sess.SetPreparedStatementCache(true)
 	defer sess.SetPreparedStatementCache(false)
-
-	var tMu sync.Mutex
-	tFatal := func(err error) {
-		tMu.Lock()
-		defer tMu.Unlock()
-
-		s.T().Errorf("tmu: %v", err)
-	}
 
 	// This limit was chosen because, by default, MySQL accepts 16k statements
 	// and dies. See https://github.com/upper/db/issues/287
@@ -128,9 +115,7 @@ func (s *SQLTestSuite) TestPreparedStatementsCache() {
 
 			var count map[string]uint64
 			err := res.One(&count)
-			if err != nil {
-				tFatal(err)
-			}
+			s.Require().NoError(err)
 		}(i)
 	}
 	wg.Wait()
@@ -152,9 +137,7 @@ func (s *SQLTestSuite) TestPreparedStatementsCache() {
 			_, err := sess.Collection("artist").Insert(artistType{
 				Name: fmt.Sprintf("artist-%d", i),
 			})
-			if err != nil {
-				tFatal(err)
-			}
+			s.Require().NoError(err)
 		}(i)
 	}
 	wg.Wait()
@@ -169,9 +152,7 @@ func (s *SQLTestSuite) TestPreparedStatementsCache() {
 				Name: fmt.Sprintf("artist-%d", i),
 			}
 			err := sess.Collection("artist").InsertReturning(&artist)
-			if err != nil {
-				tFatal(err)
-			}
+			s.Require().NoError(err)
 		}(i)
 	}
 	wg.Wait()
@@ -184,14 +165,13 @@ func (s *SQLTestSuite) TestTruncateAllCollections() {
 	sess := s.Session()
 
 	collections, err := sess.Collections()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.True(len(collections) > 0)
 
 	for _, col := range collections {
 		if ok, _ := col.Exists(); ok {
-			if err = col.Truncate(); err != nil {
-				s.NoError(err)
-			}
+			err := col.Truncate()
+			s.Require().NoError(err)
 		}
 	}
 }
@@ -210,10 +190,10 @@ func (s *SQLTestSuite) TestQueryLogger() {
 	sess := s.Session()
 
 	_, err := sess.Collection("artist").Find().Count()
-	s.Equal(nil, err)
+	s.Require().NoError(err)
 
 	_, err = sess.Collection("artist_x").Find().Count()
-	s.NotEqual(nil, err)
+	s.Error(err)
 }
 
 func (s *SQLTestSuite) TestExpectCursorError() {
@@ -223,8 +203,8 @@ func (s *SQLTestSuite) TestExpectCursorError() {
 
 	res := artist.Find(-1)
 	c, err := res.Count()
-	s.Equal(uint64(0), c)
-	s.NoError(err)
+	s.Require().NoError(err)
+	s.Zero(c)
 
 	var item map[string]interface{}
 	err = res.One(&item)
@@ -241,17 +221,17 @@ func (s *SQLTestSuite) TestInsertDefault() {
 	artist := sess.Collection("artist")
 
 	err := artist.Truncate()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	id, err := artist.Insert(&artistType{})
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotNil(id)
 
 	err = artist.Truncate()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	id, err = artist.Insert(nil)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotNil(id)
 }
 
@@ -261,14 +241,15 @@ func (s *SQLTestSuite) TestInsertReturning() {
 	artist := sess.Collection("artist")
 
 	err := artist.Truncate()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	itemMap := map[string]string{
 		"name": "Ozzie",
 	}
 	s.Zero(itemMap["id"], "Must be zero before inserting")
+
 	err = artist.InsertReturning(&itemMap)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotZero(itemMap["id"], "Must not be zero after inserting")
 
 	itemStruct := struct {
@@ -279,13 +260,14 @@ func (s *SQLTestSuite) TestInsertReturning() {
 		"Flea",
 	}
 	s.Zero(itemStruct.ID, "Must be zero before inserting")
+
 	err = artist.InsertReturning(&itemStruct)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotZero(itemStruct.ID, "Must not be zero after inserting")
 
 	count, err := artist.Find().Count()
-	s.NoError(err)
-	s.Equal(uint64(2), count, "Expecting 2 elements")
+	s.Require().NoError(err)
+	s.Equal(uint64(2), count)
 
 	itemStruct2 := struct {
 		ID   int    `db:"id,omitempty"`
@@ -295,6 +277,7 @@ func (s *SQLTestSuite) TestInsertReturning() {
 		"Slash",
 	}
 	s.Zero(itemStruct2.ID, "Must be zero before inserting")
+
 	err = artist.InsertReturning(itemStruct2)
 	s.Error(err, "Should not happen, using a pointer should be enforced")
 	s.Zero(itemStruct2.ID, "Must still be zero because there was no insertion")
@@ -303,13 +286,14 @@ func (s *SQLTestSuite) TestInsertReturning() {
 		"name": "Janus",
 	}
 	s.Zero(itemMap2["id"], "Must be zero before inserting")
+
 	err = artist.InsertReturning(itemMap2)
 	s.Error(err, "Should not happen, using a pointer should be enforced")
 	s.Zero(itemMap2["id"], "Must still be zero because there was no insertion")
 
 	// Counting elements, must be exactly 2 elements.
 	count, err = artist.Find().Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(2), count, "Expecting 2 elements")
 }
 
@@ -317,7 +301,7 @@ func (s *SQLTestSuite) TestInsertReturningWithinTransaction() {
 	sess := s.Session()
 
 	err := sess.Collection("artist").Truncate()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	err = sess.Tx(func(tx db.Session) error {
 		artist := tx.Collection("artist")
@@ -326,8 +310,9 @@ func (s *SQLTestSuite) TestInsertReturningWithinTransaction() {
 			"name": "Ozzie",
 		}
 		s.Zero(itemMap["id"], "Must be zero before inserting")
+
 		err = artist.InsertReturning(&itemMap)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.NotZero(itemMap["id"], "Must not be zero after inserting")
 
 		itemStruct := struct {
@@ -338,12 +323,13 @@ func (s *SQLTestSuite) TestInsertReturningWithinTransaction() {
 			"Flea",
 		}
 		s.Zero(itemStruct.ID, "Must be zero before inserting")
+
 		err = artist.InsertReturning(&itemStruct)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.NotZero(itemStruct.ID, "Must not be zero after inserting")
 
 		count, err := artist.Find().Count()
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(uint64(2), count, "Expecting 2 elements")
 
 		itemStruct2 := struct {
@@ -354,6 +340,7 @@ func (s *SQLTestSuite) TestInsertReturningWithinTransaction() {
 			"Slash",
 		}
 		s.Zero(itemStruct2.ID, "Must be zero before inserting")
+
 		err = artist.InsertReturning(itemStruct2)
 		s.Error(err, "Should not happen, using a pointer should be enforced")
 		s.Zero(itemStruct2.ID, "Must still be zero because there was no insertion")
@@ -362,13 +349,14 @@ func (s *SQLTestSuite) TestInsertReturningWithinTransaction() {
 			"name": "Janus",
 		}
 		s.Zero(itemMap2["id"], "Must be zero before inserting")
+
 		err = artist.InsertReturning(itemMap2)
 		s.Error(err, "Should not happen, using a pointer should be enforced")
 		s.Zero(itemMap2["id"], "Must still be zero because there was no insertion")
 
 		// Counting elements, must be exactly 2 elements.
 		count, err = artist.Find().Count()
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(uint64(2), count, "Expecting 2 elements")
 
 		return fmt.Errorf("rolling back for no reason")
@@ -377,7 +365,7 @@ func (s *SQLTestSuite) TestInsertReturningWithinTransaction() {
 
 	// Expecting no elements.
 	count, err := sess.Collection("artist").Find().Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(0), count, "Expecting 0 elements, everything was rolled back!")
 }
 
@@ -387,14 +375,14 @@ func (s *SQLTestSuite) TestInsertIntoArtistsTable() {
 	artist := sess.Collection("artist")
 
 	err := artist.Truncate()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	itemMap := map[string]string{
 		"name": "Ozzie",
 	}
 
 	record, err := artist.Insert(itemMap)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotNil(record)
 
 	if pk, ok := record.ID().(int64); !ok || pk == 0 {
@@ -409,7 +397,7 @@ func (s *SQLTestSuite) TestInsertIntoArtistsTable() {
 	}
 
 	record, err = artist.Insert(itemStruct)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotNil(record)
 
 	if pk, ok := record.ID().(int64); !ok || pk == 0 {
@@ -424,7 +412,7 @@ func (s *SQLTestSuite) TestInsertIntoArtistsTable() {
 	}
 
 	record, err = artist.Insert(&itemStruct2)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotNil(record)
 
 	if pk, ok := record.ID().(int64); !ok || pk == 0 {
@@ -435,34 +423,34 @@ func (s *SQLTestSuite) TestInsertIntoArtistsTable() {
 		Name: "Janus",
 	}
 	record, err = artist.Insert(&itemStruct3)
-	s.NoError(err)
+	s.Require().NoError(err)
 	if s.Adapter() != "ql" {
 		s.NotZero(record) // QL always inserts an ID.
 	}
 
 	// Counting elements, must be exactly 4 elements.
 	count, err := artist.Find().Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(4), count)
 
 	count, err = artist.Find(db.Cond{"name": db.Eq("Ozzie")}).Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(1), count)
 
 	count, err = artist.Find("name", "Ozzie").And("name", "Flea").Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(0), count)
 
 	count, err = artist.Find(db.Or(db.Cond{"name": "Ozzie"}, db.Cond{"name": "Flea"})).Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(2), count)
 
 	count, err = artist.Find(db.And(db.Cond{"name": "Ozzie"}, db.Cond{"name": "Flea"})).Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(0), count)
 
 	count, err = artist.Find(db.Cond{"name": "Ozzie"}).And(db.Cond{"name": "Flea"}).Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(0), count)
 }
 
@@ -483,13 +471,13 @@ func (s *SQLTestSuite) TestGetOneResult() {
 		_, err := artist.Insert(map[string]string{
 			"name": fmt.Sprintf("Artist %d", i),
 		})
-		s.NoError(err)
+		s.Require().NoError(err)
 	}
 
 	// Fetching one struct.
 	var someArtist artistType
 	err := artist.Find().Limit(1).One(&someArtist)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	s.NotZero(someArtist.Name)
 	if s.Adapter() != "ql" {
@@ -499,7 +487,7 @@ func (s *SQLTestSuite) TestGetOneResult() {
 	// Fetching a pointer to a pointer.
 	var someArtistObj *artistType
 	err = artist.Find().Limit(1).One(&someArtistObj)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotZero(someArtist.Name)
 	if s.Adapter() != "ql" {
 		s.NotZero(someArtist.ID)
@@ -514,7 +502,7 @@ func (s *SQLTestSuite) TestGetWithOffset() {
 	// Fetching one struct.
 	var artists []artistType
 	err := artist.Find().Offset(1).All(&artists)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	s.Equal(3, len(artists))
 }
@@ -529,17 +517,17 @@ func (s *SQLTestSuite) TestGetResultsOneByOne() {
 	res := artist.Find()
 
 	err := res.Err()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	for res.Next(&rowMap) {
 		s.NotZero(rowMap["id"])
 		s.NotZero(rowMap["name"])
 	}
 	err = res.Err()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	err = res.Close()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Dumping into a tagged struct.
 	rowStruct2 := struct {
@@ -554,10 +542,10 @@ func (s *SQLTestSuite) TestGetResultsOneByOne() {
 		s.NotZero(rowStruct2.Value2)
 	}
 	err = res.Err()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	err = res.Close()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Dumping into a slice of maps.
 	allRowsMap := []map[string]interface{}{}
@@ -565,7 +553,7 @@ func (s *SQLTestSuite) TestGetResultsOneByOne() {
 	res = artist.Find()
 
 	err = res.All(&allRowsMap)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(4, len(allRowsMap))
 
 	for _, singleRowMap := range allRowsMap {
@@ -601,7 +589,7 @@ func (s *SQLTestSuite) TestGetResultsOneByOne() {
 	res = artist.Find()
 
 	err = res.All(&allRowsStruct2)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	s.Equal(4, len(allRowsStruct2))
 
@@ -616,7 +604,7 @@ func (s *SQLTestSuite) TestGetAllResults() {
 	artist := sess.Collection("artist")
 
 	total, err := artist.Find().Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotZero(total)
 
 	// Fetching all artists into struct
@@ -625,7 +613,7 @@ func (s *SQLTestSuite) TestGetAllResults() {
 	res := artist.Find()
 
 	err = res.All(&artists)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(len(artists), int(total))
 
 	s.NotZero(artists[0].Name)
@@ -636,7 +624,7 @@ func (s *SQLTestSuite) TestGetAllResults() {
 	res = artist.Find()
 
 	err = res.All(&artistObjs)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(len(artistObjs), int(total))
 
 	s.NotZero(artistObjs[0].Name)
@@ -661,7 +649,7 @@ func (s *SQLTestSuite) TestInlineStructs() {
 	review := sess.Collection("review")
 
 	err := review.Truncate()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	rec := reviewType{
 		PublicationID: 123,
@@ -681,7 +669,7 @@ func (s *SQLTestSuite) TestInlineStructs() {
 	rec.Details.Created = createdAt
 
 	record, err := review.Insert(rec)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotZero(record.ID().(int64))
 
 	rec.ID = record.ID().(int64)
@@ -690,7 +678,7 @@ func (s *SQLTestSuite) TestInlineStructs() {
 	res := review.Find()
 
 	err = res.One(&recChk)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	s.Equal(rec, recChk)
 }
@@ -703,7 +691,7 @@ func (s *SQLTestSuite) TestUpdate() {
 	_, err := artist.Insert(map[string]string{
 		"name": "Ozzie",
 	})
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Defining destination struct
 	value := struct {
@@ -719,7 +707,7 @@ func (s *SQLTestSuite) TestUpdate() {
 	res := artist.Find(cond).Limit(1)
 
 	err = res.One(&value)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	res = artist.Find(value.ID)
 
@@ -729,11 +717,11 @@ func (s *SQLTestSuite) TestUpdate() {
 	}
 
 	err = res.Update(rowMap)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Pulling it again.
 	err = res.One(&value)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Verifying.
 	s.Equal(value.Name, rowMap["name"])
@@ -747,7 +735,7 @@ func (s *SQLTestSuite) TestUpdate() {
 
 		// Pulling it again.
 		err = res.One(&value)
-		s.NoError(err)
+		s.Require().NoError(err)
 
 		// Verifying.
 		s.Equal(value.Name, strings.ToLower(rowMap["name"].(string)))
@@ -761,7 +749,7 @@ func (s *SQLTestSuite) TestUpdate() {
 
 		// Pulling it again.
 		err = res.One(&value)
-		s.NoError(err)
+		s.Require().NoError(err)
 
 		// Verifying.
 		s.Equal(value.Name, strings.ToUpper(rowMap["name"].(string)))
@@ -775,7 +763,7 @@ func (s *SQLTestSuite) TestUpdate() {
 
 		// Pulling it again.
 		err = res.One(&value)
-		s.NoError(err)
+		s.Require().NoError(err)
 
 		// Verifying.
 		s.Equal(value.Name, strings.ToLower(rowMap["name"].(string)))
@@ -787,11 +775,11 @@ func (s *SQLTestSuite) TestUpdate() {
 	}{strings.ToLower(value.Name)}
 
 	err = res.Update(rowStruct)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Pulling it again.
 	err = res.One(&value)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Verifying
 	s.Equal(value.Name, rowStruct.Name)
@@ -802,11 +790,11 @@ func (s *SQLTestSuite) TestUpdate() {
 	}{"john"}
 
 	err = res.Update(rowStruct2)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Pulling it again.
 	err = res.One(&value)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Verifying
 	s.Equal(value.Name, rowStruct2.Value1)
@@ -817,11 +805,11 @@ func (s *SQLTestSuite) TestUpdate() {
 	}{"anderson"}
 
 	err = res.Update(rowStruct3)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Pulling it again.
 	err = res.One(&value)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Verifying
 	s.Equal(value.Name, rowStruct3.Value1)
@@ -844,10 +832,10 @@ func (s *SQLTestSuite) TestFunction() {
 	res := artist.Find(cond)
 
 	err := res.One(&rowStruct)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	total, err := res.Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(4), total)
 
 	// Testing conditions
@@ -858,29 +846,29 @@ func (s *SQLTestSuite) TestFunction() {
 	res = artist.Find(cond)
 
 	err = res.One(&rowStruct)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	total, err = res.Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(4), total)
 
 	res = artist.Find().Select("name")
 
 	var rowMap map[string]interface{}
 	err = res.One(&rowMap)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	total, err = res.Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(4), total)
 
 	res = artist.Find().Select("name")
 
 	err = res.One(&rowMap)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	total, err = res.Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(4), total)
 }
 
@@ -898,7 +886,7 @@ func (s *SQLTestSuite) TestNullableFields() {
 	col := sess.Collection(`data_types`)
 
 	err := col.Truncate()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Testing insertion of invalid nulls.
 	test := testType{
@@ -909,11 +897,11 @@ func (s *SQLTestSuite) TestNullableFields() {
 	}
 
 	id, err := col.Insert(testType{})
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Testing fetching of invalid nulls.
 	err = col.Find(id).One(&test)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	s.False(test.NullInt64Test.Valid)
 	s.False(test.NullFloat64Test.Valid)
@@ -928,11 +916,11 @@ func (s *SQLTestSuite) TestNullableFields() {
 	}
 
 	id, err = col.Insert(test)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Testing fetching of valid nulls.
 	err = col.Find(id).One(&test)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	s.True(test.NullInt64Test.Valid)
 	s.True(test.NullBoolTest.Valid)
@@ -950,13 +938,13 @@ func (s *SQLTestSuite) TestGroup() {
 	stats := sess.Collection("stats_test")
 
 	err := stats.Truncate()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Adding row append.
 	for i := 0; i < 100; i++ {
 		numeric, value := rand.Intn(5), rand.Intn(100)
 		_, err := stats.Insert(statsType{numeric, value})
-		s.NoError(err)
+		s.Require().NoError(err)
 	}
 
 	// Testing GROUP BY
@@ -969,7 +957,7 @@ func (s *SQLTestSuite) TestGroup() {
 	var results []map[string]interface{}
 
 	err = res.All(&results)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	s.Equal(5, len(results))
 }
@@ -981,14 +969,14 @@ func (s *SQLTestSuite) TestInsertAndDelete() {
 	res := artist.Find()
 
 	total, err := res.Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Greater(total, uint64(0))
 
 	err = res.Delete()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	total, err = res.Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(0), total)
 }
 
@@ -1011,7 +999,7 @@ func (s *SQLTestSuite) TestCompositeKeys() {
 		}
 
 		id, err := compositeKeys.Insert(&item)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.NotZero(id)
 
 		var item2 itemWithCompoundKey
@@ -1019,7 +1007,7 @@ func (s *SQLTestSuite) TestCompositeKeys() {
 
 		// Finding by ID
 		err = compositeKeys.Find(id).One(&item2)
-		s.NoError(err)
+		s.Require().NoError(err)
 
 		s.Equal(item2.SomeVal, item.SomeVal)
 	}
@@ -1034,7 +1022,7 @@ func (s *SQLTestSuite) TestCompositeKeys() {
 		}
 
 		err := compositeKeys.InsertReturning(&item)
-		s.NoError(err)
+		s.Require().NoError(err)
 	}
 }
 
@@ -1049,24 +1037,24 @@ func (s *SQLTestSuite) TestTransactionsAndRollback() {
 	err := sess.Tx(func(tx db.Session) error {
 		artist := tx.Collection("artist")
 		err := artist.Truncate()
-		s.NoError(err)
+		s.Require().NoError(err)
 
 		_, err = artist.Insert(artistType{1, "First"})
-		s.NoError(err)
+		s.Require().NoError(err)
 
 		return nil
 	})
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	err = sess.Tx(func(tx db.Session) error {
 		artist := tx.Collection("artist")
 
 		_, err = artist.Insert(artistType{2, "Second"})
-		s.NoError(err)
+		s.Require().NoError(err)
 
 		// Won't fail.
 		_, err = artist.Insert(artistType{3, "Third"})
-		s.NoError(err)
+		s.Require().NoError(err)
 
 		// Will fail.
 		_, err = artist.Insert(artistType{1, "Duplicated"})
@@ -1080,7 +1068,7 @@ func (s *SQLTestSuite) TestTransactionsAndRollback() {
 	artist := sess.Collection("artist")
 
 	count, err := artist.Find().Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(1), count)
 
 	err = sess.Tx(func(tx db.Session) error {
@@ -1088,11 +1076,11 @@ func (s *SQLTestSuite) TestTransactionsAndRollback() {
 
 		// Won't fail.
 		_, err = artist.Insert(artistType{2, "Second"})
-		s.NoError(err)
+		s.Require().NoError(err)
 
 		// Won't fail.
 		_, err = artist.Insert(artistType{3, "Third"})
-		s.NoError(err)
+		s.Require().NoError(err)
 
 		return fmt.Errorf("rollback for no reason")
 	})
@@ -1102,7 +1090,7 @@ func (s *SQLTestSuite) TestTransactionsAndRollback() {
 	artist = sess.Collection("artist")
 
 	count, err = artist.Find().Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(1), count)
 
 	// Attempt to add some rows.
@@ -1111,21 +1099,21 @@ func (s *SQLTestSuite) TestTransactionsAndRollback() {
 
 		// Won't fail.
 		_, err = artist.Insert(artistType{2, "Second"})
-		s.NoError(err)
+		s.Require().NoError(err)
 
 		// Won't fail.
 		_, err = artist.Insert(artistType{3, "Third"})
-		s.NoError(err)
+		s.Require().NoError(err)
 
 		return nil
 	})
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Let's verify we have 3 rows.
 	artist = sess.Collection("artist")
 
 	count, err = artist.Find().Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(3), count)
 }
 
@@ -1168,7 +1156,7 @@ func (s *SQLTestSuite) TestDataTypes() {
 
 	// Removing all data.
 	err := dataTypes.Truncate()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	testTimeZone := time.Local
 	switch s.Adapter() {
@@ -1202,7 +1190,7 @@ func (s *SQLTestSuite) TestDataTypes() {
 		int64(time.Second * time.Duration(7331)),
 	}
 	id, err := dataTypes.Insert(testValues)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotNil(id)
 
 	// Defining our set.
@@ -1213,14 +1201,14 @@ func (s *SQLTestSuite) TestDataTypes() {
 	res := dataTypes.Find(cond)
 
 	count, err := res.Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotZero(count)
 
 	// Trying to dump the subject into an empty structure of the same type.
 	var item testValuesStruct
 
 	err = res.One(&item)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	s.NotNil(item.DateD)
 	s.NotNil(item.Date)
@@ -1243,7 +1231,7 @@ func (s *SQLTestSuite) TestUpdateWithNullColumn() {
 
 	artist := sess.Collection("artist")
 	err := artist.Truncate()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	type Artist struct {
 		ID   int64   `db:"id,omitempty"`
@@ -1252,21 +1240,21 @@ func (s *SQLTestSuite) TestUpdateWithNullColumn() {
 
 	name := "José"
 	id, err := artist.Insert(Artist{0, &name})
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	var item Artist
 	err = artist.Find(id).One(&item)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	s.NotEqual(nil, item.Name)
 	s.Equal(name, *item.Name)
 
 	err = artist.Find(id).Update(Artist{Name: nil})
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	var item2 Artist
 	err = artist.Find(id).One(&item2)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	s.Equal((*string)(nil), item2.Name)
 }
@@ -1276,7 +1264,7 @@ func (s *SQLTestSuite) TestBatchInsert() {
 
 	for batchSize := 0; batchSize < 17; batchSize++ {
 		err := sess.Collection("artist").Truncate()
-		s.NoError(err)
+		s.Require().NoError(err)
 
 		q := sess.SQL().InsertInto("artist").Columns("name")
 
@@ -1299,16 +1287,16 @@ func (s *SQLTestSuite) TestBatchInsert() {
 		}()
 
 		err = batch.Wait()
-		s.NoError(err)
-		s.NoError(batch.Err())
+		s.Require().NoError(err)
+		s.Require().NoError(batch.Err())
 
 		c, err := sess.Collection("artist").Find().Count()
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(uint64(totalItems), c)
 
 		for i := 0; i < totalItems; i++ {
 			c, err := sess.Collection("artist").Find(db.Cond{"name": fmt.Sprintf("artist-%d", i)}).Count()
-			s.NoError(err)
+			s.Require().NoError(err)
 			s.Equal(uint64(1), c)
 		}
 	}
@@ -1319,7 +1307,7 @@ func (s *SQLTestSuite) TestBatchInsertNoColumns() {
 
 	for batchSize := 0; batchSize < 17; batchSize++ {
 		err := sess.Collection("artist").Truncate()
-		s.NoError(err)
+		s.Require().NoError(err)
 
 		batch := sess.SQL().InsertInto("artist").Batch(batchSize)
 
@@ -1336,16 +1324,16 @@ func (s *SQLTestSuite) TestBatchInsertNoColumns() {
 		}()
 
 		err = batch.Wait()
-		s.NoError(err)
-		s.NoError(batch.Err())
+		s.Require().NoError(err)
+		s.Require().NoError(batch.Err())
 
 		c, err := sess.Collection("artist").Find().Count()
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(uint64(totalItems), c)
 
 		for i := 0; i < totalItems; i++ {
 			c, err := sess.Collection("artist").Find(db.Cond{"name": fmt.Sprintf("artist-%d", i)}).Count()
-			s.NoError(err)
+			s.Require().NoError(err)
 			s.Equal(uint64(1), c)
 		}
 	}
@@ -1363,7 +1351,7 @@ func (s *SQLTestSuite) TestBatchInsertReturningKeys() {
 	sess := s.Session()
 
 	err := sess.Collection("artist").Truncate()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	batchSize, totalItems := 7, 12
 
@@ -1392,14 +1380,14 @@ func (s *SQLTestSuite) TestBatchInsertReturningKeys() {
 
 		// Make sure count matches.
 		c, err := sess.Collection("artist").Find(db.Cond{"id": keys}).Count()
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(uint64(len(keyMap)), c)
 	}
-	s.NoError(batch.Err())
+	s.Require().NoError(batch.Err())
 
 	// Count all new elements
 	c, err := sess.Collection("artist").Find().Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(totalItems), c)
 }
 
@@ -1407,7 +1395,7 @@ func (s *SQLTestSuite) TestPaginator() {
 	sess := s.Session()
 
 	err := sess.Collection("artist").Truncate()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	batch := sess.SQL().InsertInto("artist").Batch(100)
 
@@ -1422,8 +1410,8 @@ func (s *SQLTestSuite) TestPaginator() {
 	}()
 
 	err = batch.Wait()
-	s.NoError(err)
-	s.NoError(batch.Err())
+	s.Require().NoError(err)
+	s.Require().NoError(batch.Err())
 
 	q := sess.SQL().SelectFrom("artist")
 	if s.Adapter() == "ql" {
@@ -1437,44 +1425,44 @@ func (s *SQLTestSuite) TestPaginator() {
 
 	var zerothPage []artistType
 	err = paginator.Page(0).All(&zerothPage)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(pageSize, len(zerothPage))
 
 	var firstPage []artistType
 	err = paginator.Page(1).All(&firstPage)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(pageSize, len(firstPage))
 
 	s.Equal(zerothPage, firstPage)
 
 	var secondPage []artistType
 	err = paginator.Page(2).All(&secondPage)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(pageSize, len(secondPage))
 
 	totalPages, err := paginator.TotalPages()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotZero(totalPages)
 	s.Equal(uint(77), totalPages)
 
 	totalEntries, err := paginator.TotalEntries()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotZero(totalEntries)
 	s.Equal(uint64(999), totalEntries)
 
 	var lastPage []artistType
 	err = paginator.Page(totalPages).All(&lastPage)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(11, len(lastPage))
 
 	var beyondLastPage []artistType
 	err = paginator.Page(totalPages + 1).All(&beyondLastPage)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(0, len(beyondLastPage))
 
 	var hundredthPage []artistType
 	err = paginator.Page(100).All(&hundredthPage)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(0, len(hundredthPage))
 
 	for i := uint(0); i < totalPages; i++ {
@@ -1485,7 +1473,7 @@ func (s *SQLTestSuite) TestPaginator() {
 		if err != nil {
 			s.T().Errorf("%v", err)
 		}
-		s.NoError(err)
+		s.Require().NoError(err)
 		if len(items) < 1 {
 			s.Equal(totalPages+1, i)
 			break
@@ -1522,7 +1510,7 @@ func (s *SQLTestSuite) TestPaginator() {
 			var items []artistType
 
 			err := current.All(&items)
-			s.NoError(err)
+			s.Require().NoError(err)
 
 			if len(items) < 1 {
 				s.Equal(uint(0), i)
@@ -1549,12 +1537,12 @@ func (s *SQLTestSuite) TestPaginator() {
 
 		count, err := resultPaginator.TotalPages()
 		s.Equal(uint(67), count)
-		s.NoError(err)
+		s.Require().NoError(err)
 
 		var items []artistType
 		fifthPage := 5
 		err = resultPaginator.Page(uint(fifthPage)).All(&items)
-		s.NoError(err)
+		s.Require().NoError(err)
 
 		for j := 0; j < len(items); j++ {
 			s.Equal(fmt.Sprintf("artist-%d", int(fifteenResults)*(fifthPage-1)+j), items[j].Name)
@@ -1565,7 +1553,7 @@ func (s *SQLTestSuite) TestPaginator() {
 			var items []artistType
 
 			err = resultPaginator.All(&items)
-			s.NoError(err)
+			s.Require().NoError(err)
 
 			if len(items) < 1 {
 				break
@@ -1582,7 +1570,7 @@ func (s *SQLTestSuite) TestPaginator() {
 			var items []artistType
 
 			err = resultPaginator.All(&items)
-			s.NoError(err)
+			s.Require().NoError(err)
 
 			if len(items) < 1 {
 				s.Equal(uint(0), i)
@@ -1601,16 +1589,16 @@ func (s *SQLTestSuite) TestPaginator() {
 		paginator := q.Paginate(0)
 
 		totalPages, err := paginator.TotalPages()
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(uint(1), totalPages)
 
 		totalEntries, err := paginator.TotalEntries()
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(uint64(999), totalEntries)
 
 		var allItems []artistType
 		err = paginator.Page(0).All(&allItems)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(totalEntries, uint64(len(allItems)))
 
 	}
@@ -1620,7 +1608,7 @@ func (s *SQLTestSuite) TestPaginator_Issue607() {
 	sess := s.Session()
 
 	err := sess.Collection("artist").Truncate()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Add first batch
 	{
@@ -1637,19 +1625,19 @@ func (s *SQLTestSuite) TestPaginator_Issue607() {
 		}()
 
 		err = batch.Wait()
-		s.NoError(err)
-		s.NoError(batch.Err())
+		s.Require().NoError(err)
+		s.Require().NoError(batch.Err())
 	}
 
 	artists := []*artistType{}
 	paginator := sess.SQL().Select("name").From("artist").Paginate(10)
 
 	err = paginator.Page(1).All(&artists)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	{
 		totalPages, err := paginator.TotalPages()
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.NotZero(totalPages)
 		s.Equal(uint(5), totalPages)
 	}
@@ -1669,13 +1657,13 @@ func (s *SQLTestSuite) TestPaginator_Issue607() {
 		}()
 
 		err = batch.Wait()
-		s.NoError(err)
-		s.NoError(batch.Err())
+		s.Require().NoError(err)
+		s.Require().NoError(batch.Err())
 	}
 
 	{
 		totalPages, err := paginator.TotalPages()
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.NotZero(totalPages)
 		s.Equal(uint(10), totalPages, "expect number of pages to change")
 	}
@@ -1690,11 +1678,11 @@ func (s *SQLTestSuite) TestPaginator_Issue607() {
 	paginator = sess.SQL().Select("name").From("artist").Where(cond).Paginate(10)
 
 	err = paginator.Page(1).All(&artists)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	{
 		totalPages, err := paginator.TotalPages()
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.NotZero(totalPages)
 		s.Equal(uint(5), totalPages, "expect same 5 pages from the first batch")
 	}
@@ -1707,18 +1695,18 @@ func (s *SQLTestSuite) TestSession() {
 	var all []map[string]interface{}
 
 	err := sess.Collection("artist").Truncate()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	_, err = sess.SQL().InsertInto("artist").Values(struct {
 		Name string `db:"name"`
 	}{"Rinko Kikuchi"}).Exec()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Using explicit iterator.
 	iter := sess.SQL().SelectFrom("artist").Iterator()
 	err = iter.All(&all)
 
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotZero(all)
 
 	// Using explicit iterator to fetch one item.
@@ -1726,7 +1714,7 @@ func (s *SQLTestSuite) TestSession() {
 	iter = sess.SQL().SelectFrom("artist").Iterator()
 	err = iter.One(&item)
 
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotZero(item)
 
 	// Using explicit iterator and NextScan.
@@ -1741,10 +1729,10 @@ func (s *SQLTestSuite) TestSession() {
 		err = iter.NextScan(&id, &name)
 	}
 
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotZero(id)
 	s.NotEmpty(name)
-	s.NoError(iter.Close())
+	s.Require().NoError(iter.Close())
 
 	err = iter.NextScan(&id, &name)
 	s.Error(err)
@@ -1759,7 +1747,7 @@ func (s *SQLTestSuite) TestSession() {
 		err = iter.ScanOne(&id, &name)
 	}
 
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotZero(id)
 	s.NotEmpty(name)
 
@@ -1789,7 +1777,7 @@ func (s *SQLTestSuite) TestSession() {
 	q := sess.SQL().SelectFrom("artist")
 	err = q.All(&all)
 
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotZero(all)
 
 	err = sess.Tx(func(tx db.Session) error {
@@ -1797,13 +1785,13 @@ func (s *SQLTestSuite) TestSession() {
 		s.NotZero(iter)
 
 		err = q.All(&all)
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.NotZero(all)
 
 		return nil
 	})
 
-	s.NoError(err)
+	s.Require().NoError(err)
 }
 
 func (s *SQLTestSuite) TestExhaustConnectionPool() {
@@ -1855,7 +1843,7 @@ func (s *SQLTestSuite) TestExhaustConnectionPool() {
 				s.Error(err)
 				s.True(errors.Is(err, errRolledBack))
 			} else {
-				s.NoError(err)
+				s.Require().NoError(err)
 			}
 		}(&wg, i)
 	}
@@ -1870,17 +1858,17 @@ func (s *SQLTestSuite) TestCustomType() {
 	artist := sess.Collection("artist")
 
 	err := artist.Truncate()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	id, err := artist.Insert(artistWithCustomType{
 		Custom: customType{Val: []byte("some name")},
 	})
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotNil(id)
 
 	var bar artistWithCustomType
 	err = artist.Find(id).One(&bar)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	s.Equal("foo: some name", string(bar.Custom.Val))
 }
@@ -1890,7 +1878,7 @@ func (s *SQLTestSuite) Test_Issue565() {
 		Name: "Lucy",
 		Born: time.Now(),
 	})
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	ctxKeyCarry := db.ContextKey("carry")
 
@@ -1938,7 +1926,7 @@ func (s *SQLTestSuite) Test_Issue565() {
 		var result birthday
 		err := sess.Collection("birthdays").Find().Select("name").One(&result)
 
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.NotZero(result.Name)
 
 		s.NotZero(ctx.Value(ctxKeyCarry))
@@ -1956,7 +1944,7 @@ func (s *SQLTestSuite) TestSelectFromSubquery() {
 			}),
 		).As("_q")
 		err := q.All(&artists)
-		s.NoError(err)
+		s.Require().NoError(err)
 
 		s.NotZero(len(artists))
 	}
@@ -1969,9 +1957,13 @@ func (s *SQLTestSuite) TestSelectFromSubquery() {
 			}),
 		).As("_q")
 		err := q.All(&artists)
-		s.NoError(err)
+		s.Require().NoError(err)
 
 		s.NotZero(len(artists))
 	}
-
 }
+
+var (
+	_ = db.Marshaler(&customType{})
+	_ = db.Unmarshaler(&customType{})
+)

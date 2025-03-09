@@ -284,6 +284,7 @@ func (s *AdapterTests) TestGetNonExistentRow_Issue426() {
 
 	var all []artistType
 	err = artist.Find(db.Cond{"name": "nothing"}).All(&all)
+	s.Require().NoError(err)
 
 	s.Zero(len(all), "All should return an empty slice")
 	s.Equal(0, len(all))

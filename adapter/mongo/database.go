@@ -191,7 +191,7 @@ func (s *Source) open() error {
 // Close terminates the current database session.
 func (s *Source) Close() error {
 	if s.session != nil {
-		s.session.Disconnect(context.Background())
+		return s.session.Disconnect(context.Background())
 	}
 
 	return nil

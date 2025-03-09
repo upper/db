@@ -84,21 +84,21 @@ type RecordTestSuite struct {
 
 func (s *RecordTestSuite) AfterTest(suiteName, testName string) {
 	err := s.TearDown()
-	s.NoError(err)
+	s.Require().NoError(err)
 }
 
 func (s *RecordTestSuite) BeforeTest(suiteName, testName string) {
 	err := s.SetUp()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	sess := s.Helper.Session()
 
 	cols, err := sess.Collections()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	for i := range cols {
 		err = cols[i].Truncate()
-		s.NoError(err)
+		s.Require().NoError(err)
 	}
 }
 
@@ -108,32 +108,32 @@ func (s *RecordTestSuite) TestFindOne() {
 
 	user := User{Username: "jose"}
 	err = sess.Save(&user)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	s.NotZero(user.ID)
 	userID := user.ID
 
 	user = User{}
 	err = Users(sess).Find(userID).One(&user)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal("jose", user.Username)
 
 	user = User{}
 	err = sess.Get(&user, db.Cond{"username": "jose"})
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal("jose", user.Username)
 
 	user.Username = "Catalina"
 	err = sess.Save(&user)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	user = User{}
 	err = sess.Get(&user, userID)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal("Catalina", user.Username)
 
 	err = sess.Delete(&user)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	err = sess.Get(&user, userID)
 	s.Error(err)
@@ -150,7 +150,7 @@ func (s *RecordTestSuite) TestAccounts() {
 	user := User{Username: "peter"}
 
 	err := sess.Save(&user)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	user = User{Username: "peter"}
 	err = sess.Save(&user)
@@ -158,38 +158,38 @@ func (s *RecordTestSuite) TestAccounts() {
 
 	account1 := Account{Name: "skywalker"}
 	err = sess.Save(&account1)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	account2 := Account{}
 	err = sess.Get(&account2, account1.ID)
 
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(account1.Name, account2.Name)
 
 	var account3 Account
 	err = sess.Get(&account3, account1.ID)
 
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(account1.Name, account3.Name)
 
 	var a Account
 	err = sess.Get(&a, account1.ID)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotNil(a)
 
 	account1.Disabled = true
 	err = sess.Save(&account1)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	count, err := Accounts(sess).Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Equal(uint64(1), count)
 
 	err = sess.Delete(&account1)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	count, err = Accounts(sess).Find().Count()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Zero(count)
 }
 
@@ -198,34 +198,34 @@ func (s *RecordTestSuite) TestDelete() {
 
 	account := Account{Name: "Pressly"}
 	err := sess.Save(&account)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotZero(account.ID)
 
 	// Delete by query -- without callbacks
 	err = Accounts(sess).
 		Find(account.ID).
 		Delete()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	count, err := Accounts(sess).Find(account.ID).Count()
 	s.Zero(count)
-	s.NoError(err)
+	s.Require().NoError(err)
 }
 
 func (s *RecordTestSuite) TestSlices() {
 	sess := s.Session()
 
 	err := sess.Save(&Account{Name: "Apple"})
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	err = sess.Save(&Account{Name: "Google"})
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	var accounts []*Account
 	err = Accounts(sess).
 		Find(db.Cond{}).
 		All(&accounts)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Len(accounts, 2)
 }
 
@@ -233,10 +233,10 @@ func (s *RecordTestSuite) TestSelectOnlyIDs() {
 	sess := s.Session()
 
 	err := sess.Save(&Account{Name: "Apple"})
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	err = sess.Save(&Account{Name: "Google"})
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	var ids []struct {
 		Id int64 `db:"id"`
@@ -245,7 +245,7 @@ func (s *RecordTestSuite) TestSelectOnlyIDs() {
 	err = Accounts(sess).
 		Find().
 		Select("id").All(&ids)
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.Len(ids, 2)
 	s.NotEmpty(ids[0])
 }
@@ -255,7 +255,7 @@ func (s *RecordTestSuite) TestTx() {
 
 	user := User{Username: "peter"}
 	err := sess.Save(&user)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// This transaction should fail because user is a UNIQUE value and we already
 	// have a "peter".
@@ -299,7 +299,7 @@ func (s *RecordTestSuite) TestTx() {
 
 		return nil
 	})
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// If the transaction above was successful, this one will fail.
 	err = sess.Tx(func(tx db.Session) error {
@@ -323,15 +323,15 @@ func (s *RecordTestSuite) TestInheritedTx() {
 
 	user := User{Username: "peter"}
 	err := sess.Save(&user)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Create a transaction
 	sqlTx, err := sqlDB.Begin()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// And pass that transaction to upper/db, this whole session is a transaction.
 	upperTx, err := sqlbuilder.BindTx(s.Adapter(), sqlTx)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Should fail because user is a UNIQUE value and we already have a "peter".
 	err = upperTx.Save(&User{Username: "peter"})
@@ -339,7 +339,7 @@ func (s *RecordTestSuite) TestInheritedTx() {
 
 	// The transaction is controlled outside upper/db.
 	err = sqlTx.Rollback()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// The sqlTx is worthless now.
 	err = upperTx.Save(&User{Username: "peter-2"})
@@ -347,49 +347,49 @@ func (s *RecordTestSuite) TestInheritedTx() {
 
 	// But we can create a new one.
 	sqlTx, err = sqlDB.Begin()
-	s.NoError(err)
+	s.Require().NoError(err)
 	s.NotNil(sqlTx)
 
 	// And create another session.
 	upperTx, err = sqlbuilder.BindTx(s.Adapter(), sqlTx)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Adding two new values.
 	err = upperTx.Save(&User{Username: "Joe-2"})
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	err = upperTx.Save(&User{Username: "Cool-2"})
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// And a value that is going to be rolled back.
 	err = upperTx.Save(&Account{Name: "Rolled back"})
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// This session happens to be a transaction, let's rollback everything.
 	err = sqlTx.Rollback()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Start again.
 	sqlTx, err = sqlDB.Begin()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	tx, err := sqlbuilder.BindTx(s.Adapter(), sqlTx)
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Attempt to add two unique values.
 	err = tx.Save(&User{Username: "Joe-2"})
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	err = tx.Save(&User{Username: "Cool-2"})
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// And a value that is going to be commited.
 	err = tx.Save(&Account{Name: "Commited!"})
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	// Yes, commit them.
 	err = sqlTx.Commit()
-	s.NoError(err)
+	s.Require().NoError(err)
 }
 
 func (s *RecordTestSuite) TestUnknownCollection() {
@@ -400,7 +400,7 @@ func (s *RecordTestSuite) TestUnknownCollection() {
 	s.Error(err)
 
 	_, err = sess.Collection("users").Insert(&User{Username: "Foo"})
-	s.NoError(err)
+	s.Require().NoError(err)
 }
 
 func (s *RecordTestSuite) TestContextCanceled() {
@@ -409,7 +409,7 @@ func (s *RecordTestSuite) TestContextCanceled() {
 	sess := s.Session()
 
 	err = sess.Collection("users").Truncate()
-	s.NoError(err)
+	s.Require().NoError(err)
 
 	{
 		ctx, cancelFn := context.WithTimeout(context.Background(), time.Minute)
@@ -422,7 +422,7 @@ func (s *RecordTestSuite) TestContextCanceled() {
 		s.Error(err)
 
 		c, err := sess.Collection("users").Count()
-		s.NoError(err)
+		s.Require().NoError(err)
 		s.Equal(uint64(0), c)
 	}
 }
