@@ -1,0 +1,48 @@
+- name: "Set task facts"
+  set_fact:
+    container_name: "{{ container_name_prefix }}mssql_{{ mssql_version }}"
+    container_image: "mcr.microsoft.com/mssql/server:{{ mssql_version }}"
+    container_bind_port: "{{ 1433 if container_bind_port == '' else container_bind_port }}"
+    db_username: "sa"
+    db_name: "master"
+  tags:
+    - up
+    - down
+- name: Escape container name
+  set_fact:
+    container_name: "{{ container_name | regex_replace('[^a-zA-Z0-9]', '_') }}"
+  tags:
+    - up
+    - down
+- name: "Force-stop MSSQL {{ mssql_version }}"
+  docker_container:
+    name: "{{ container_name }}"
+    state: absent
+  tags:
+    - down
+- name: "Run MSSQL {{ mssql_version }}"
+  docker_container:
+    name: "{{ container_name }}"
+    image: "{{ container_image }}"
+    state: started
+    ports:
+      - "{{ container_bind_ip }}:{{ container_bind_port }}:1433"
+    env:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "{{ db_password }}"
+  tags:
+    - up
+- name: "MSSQL health check"
+  community.general.mssql_script:
+    login_host: "{{ container_bind_ip }}"
+    login_port: "{{ container_bind_port }}"
+    login_user: "{{ db_username }}"
+    login_password: "{{ db_password }}"
+    name: "{{ db_name }}"
+    script: "SELECT 1"
+  register: mssql_health_check
+  retries: "{{ health_check_retries }}"
+  delay: "{{ health_check_delay }}"
+  until: mssql_health_check is succeeded
+  tags:
+    - up

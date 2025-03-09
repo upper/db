@@ -24,9 +24,7 @@ package mongo
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"strings"
-	"sync"
 
 	db "github.com/upper/db/v4"
 	"github.com/upper/db/v4/internal/adapter"
@@ -39,13 +37,6 @@ type Collection struct {
 	parent     *Source
 	collection *mongo.Collection
 }
-
-var (
-	// idCache should be a struct if we're going to cache more than just
-	// _id field here
-	idCache      = make(map[reflect.Type]string)
-	idCacheMutex sync.RWMutex
-)
 
 // Find creates a result set with the given conditions.
 func (col *Collection) Find(terms ...interface{}) db.Result {

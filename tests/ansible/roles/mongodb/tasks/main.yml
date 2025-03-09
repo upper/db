@@ -1,0 +1,49 @@
+- name: "Set task facts"
+  set_fact:
+    container_name: "{{ container_name_prefix }}mongo_{{ mongodb_version }}"
+    container_image: "{{ docker_public_registry }}mongo:{{ mongodb_version }}"
+    container_bind_port: "{{ 27017 if container_bind_port == '' else container_bind_port }}"
+    db_name: "admin"
+  tags:
+    - up
+    - down
+- name: Escape container name
+  set_fact:
+    container_name: "{{ container_name | regex_replace('[^a-zA-Z0-9]', '_') }}"
+  tags:
+    - up
+    - down
+- name: "Force-stop MongoDB {{ mongodb_version }}"
+  docker_container:
+    name: "{{ container_name }}"
+    state: absent
+  tags:
+    - up
+    - down
+- name: "Run MongoDB {{ mongodb_version }}"
+  docker_container:
+    name: "{{ container_name }}"
+    image: "{{ container_image }}"
+    state: started
+    ports:
+      - "{{ container_bind_ip }}:{{ container_bind_port }}:27017"
+    env:
+      MONGO_INITDB_ROOT_USERNAME: "{{ db_username }}"
+      MONGO_INITDB_ROOT_PASSWORD: "{{ db_password }}"
+      MONGO_INITDB_DATABASE: "{{ db_name }}"
+  tags:
+    - up
+- name: "MongoDB health check"
+  community.mongodb.mongodb_info:
+    login_user: "{{ db_username }}"
+    login_password: "{{ db_password }}"
+    login_host: "{{ container_bind_ip }}"
+    login_port: "{{ container_bind_port }}"
+    login_database: "{{ db_name }}"
+    filter: "databases"
+  register: mongodb_health_check
+  until: mongodb_health_check is not failed
+  retries: "{{ health_check_retries }}"
+  delay: "{{ health_check_delay }}"
+  tags:
+    - up
