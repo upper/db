@@ -9,8 +9,12 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/upper/db/v4"
+	"github.com/upper/db/v4/adapter/cockroachdb"
+	"github.com/upper/db/v4/adapter/mysql"
 	"github.com/upper/db/v4/adapter/postgresql"
 
+	cockroachdbtest "github.com/upper/db/v4/tests/cockroachdb"
+	mysqltest "github.com/upper/db/v4/tests/mysql"
 	postgresqltest "github.com/upper/db/v4/tests/postgresql"
 )
 
@@ -79,26 +83,55 @@ func postgresqlCfg(port int) postgresql.ConnectionURL {
 	}
 }
 
+func mysqlCfg(port int) mysql.ConnectionURL {
+	return mysql.ConnectionURL{
+		Database: os.Getenv("DB_NAME"),
+		User:     os.Getenv("DB_USERNAME"),
+		Password: os.Getenv("DB_PASSWORD"),
+		Host:     os.Getenv("DB_HOST") + ":" + fmt.Sprintf("%d", port),
+		Options: map[string]string{
+			"parseTime": "true",
+			"time_zone": fmt.Sprintf(`'%s'`, TimeZone),
+			"loc":       TimeZone,
+		},
+	}
+}
+
+func cockroachdbCfg(port int) cockroachdb.ConnectionURL {
+	return cockroachdb.ConnectionURL{
+		Database: os.Getenv("DB_NAME"),
+		User:     os.Getenv("DB_USERNAME"),
+		Password: os.Getenv("DB_PASSWORD"),
+		Host:     os.Getenv("DB_HOST") + ":" + fmt.Sprintf("%d", port),
+		Options: map[string]string{
+			"timezone": os.Getenv("DB_TIMEZONE"),
+		},
+	}
+}
+
 func TestMain(t *testing.T) {
-	testCfgs := map[string]db.ConnectionURL{
-		"postgresql-17": postgresqlCfg(5432),
-		"postgresql-16": postgresqlCfg(5433),
-		"postgresql-15": postgresqlCfg(5434),
+	testCfgs := map[string]Helper{
+		"postgresql-17": postgresqltest.NewHelper(postgresqlCfg(5432)),
+		"postgresql-16": postgresqltest.NewHelper(postgresqlCfg(5433)),
+		"postgresql-15": postgresqltest.NewHelper(postgresqlCfg(5434)),
+		"mysql-tls":     mysqltest.NewHelper(mysqlCfg(3306)),
+		"mysql-5":       mysqltest.NewHelper(mysqlCfg(3307)),
+		"cockroach-v23": cockroachdbtest.NewHelper(cockroachdbCfg(26257)),
+		"cockroach-v22": cockroachdbtest.NewHelper(cockroachdbCfg(26258)),
+		"cockroach-v21": cockroachdbtest.NewHelper(cockroachdbCfg(26259)),
 	}
 
-	for name, cfg := range testCfgs {
-		helper := postgresqltest.NewHelper(cfg.(postgresql.ConnectionURL))
-
-		t.Run(name+" SQL", func(t *testing.T) {
-			suite.Run(t, &SQLTestSuite{Helper: helper})
+	for name, helper := range testCfgs {
+		t.Run("Generic "+name, func(t *testing.T) {
+			suite.Run(t, &GenericTestSuite{Helper: helper})
 		})
 
-		t.Run(name+" Record", func(t *testing.T) {
+		t.Run("Record "+name, func(t *testing.T) {
 			suite.Run(t, &RecordTestSuite{Helper: helper})
 		})
 
-		t.Run(name+" Generic", func(t *testing.T) {
-			suite.Run(t, &GenericTestSuite{Helper: helper})
+		t.Run("SQL "+name, func(t *testing.T) {
+			suite.Run(t, &SQLTestSuite{Helper: helper})
 		})
 	}
 }

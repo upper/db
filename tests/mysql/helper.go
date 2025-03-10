@@ -1,53 +1,19 @@
-// Copyright (c) 2012-today The upper.io/db authors. All rights reserved.
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-package mysql
+package mysql_test
 
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"time"
 
 	db "github.com/upper/db/v4"
+	"github.com/upper/db/v4/adapter/mysql"
 	"github.com/upper/db/v4/internal/sqladapter"
-	"github.com/upper/db/v4/internal/testsuite"
 )
-
-var settings = ConnectionURL{
-	Database: os.Getenv("DB_NAME"),
-	User:     os.Getenv("DB_USERNAME"),
-	Password: os.Getenv("DB_PASSWORD"),
-	Host:     os.Getenv("DB_HOST") + ":" + os.Getenv("DB_PORT"),
-	Options: map[string]string{
-		// See https://github.com/go-sql-driver/mysql/issues/9
-		"parseTime": "true",
-		// Might require you to use mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p mysql
-		"time_zone": fmt.Sprintf(`'%s'`, testsuite.TimeZone),
-		"loc":       testsuite.TimeZone,
-	},
-}
 
 type Helper struct {
 	sess db.Session
+
+	connURL mysql.ConnectionURL
 }
 
 func cleanUp(sess db.Session) error {
@@ -119,9 +85,9 @@ func (h *Helper) TearDown() error {
 func (h *Helper) SetUp() error {
 	var err error
 
-	h.sess, err = Open(settings)
+	h.sess, err = mysql.Open(h.connURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error opening database: %w", err)
 	}
 
 	batch := []string{
@@ -294,4 +260,8 @@ func (h *Helper) SetUp() error {
 	return nil
 }
 
-var _ testsuite.Helper = &Helper{}
+func NewHelper(connURL mysql.ConnectionURL) *Helper {
+	return &Helper{
+		connURL: connURL,
+	}
+}

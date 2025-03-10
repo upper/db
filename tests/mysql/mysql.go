@@ -1,25 +1,4 @@
-// Copyright (c) 2012-today The upper.io/db authors. All rights reserved.
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-package mysql
+package mysql_test
 
 import (
 	"database/sql"
@@ -27,12 +6,11 @@ import (
 	"fmt"
 	"math/rand"
 	"strconv"
-	"testing"
 	"time"
 
 	"github.com/stretchr/testify/suite"
 	"github.com/upper/db/v4"
-	"github.com/upper/db/v4/internal/testsuite"
+	"github.com/upper/db/v4/adapter/mysql"
 )
 
 type int64Compat int64
@@ -67,27 +45,24 @@ type customJSON struct {
 }
 
 func (c customJSON) Value() (driver.Value, error) {
-	return JSONValue(c)
+	return mysql.JSONValue(c)
 }
 
 func (c *customJSON) Scan(src interface{}) error {
-	return ScanJSON(c, src)
+	return mysql.ScanJSON(c, src)
 }
 
 type autoCustomJSON struct {
 	N string  `json:"name"`
 	V float64 `json:"value"`
 
-	*JSONConverter
+	*mysql.JSONConverter
 }
 
-var (
-	_ = driver.Valuer(&customJSON{})
-	_ = sql.Scanner(&customJSON{})
-)
-
 type AdapterTests struct {
-	testsuite.Suite
+	*Helper
+
+	suite.Suite
 }
 
 func (s *AdapterTests) SetupSuite() {
@@ -209,10 +184,10 @@ func (s *AdapterTests) TestMySQLTypes() {
 	type MyType struct {
 		ID int64 `db:"id,omitempty"`
 
-		JSONMap JSONMap `db:"json_map"`
+		JSONMap mysql.JSONMap `db:"json_map"`
 
-		JSONObject JSONMap   `db:"json_object"`
-		JSONArray  JSONArray `db:"json_array"`
+		JSONObject mysql.JSONMap   `db:"json_object"`
+		JSONArray  mysql.JSONArray `db:"json_array"`
 
 		CustomJSONObject     customJSON     `db:"custom_json_object"`
 		AutoCustomJSONObject autoCustomJSON `db:"auto_custom_json_object"`
@@ -256,13 +231,13 @@ func (s *AdapterTests) TestMySQLTypes() {
 					N: "World",
 				},
 			},
-			JSONArray: JSONArray{float64(1), float64(2), float64(3), float64(4)},
+			JSONArray: mysql.JSONArray{float64(1), float64(2), float64(3), float64(4)},
 		},
 		MyType{
-			JSONArray: JSONArray{},
+			JSONArray: mysql.JSONArray{},
 		},
 		MyType{
-			JSONArray: JSONArray(nil),
+			JSONArray: mysql.JSONArray(nil),
 		},
 		MyType{},
 		MyType{
@@ -395,6 +370,7 @@ func (s *AdapterTests) TestMySQLTypes() {
 	}
 }
 
-func TestAdapter(t *testing.T) {
-	suite.Run(t, &AdapterTests{})
-}
+var (
+	_ = driver.Valuer(&customJSON{})
+	_ = sql.Scanner(&customJSON{})
+)

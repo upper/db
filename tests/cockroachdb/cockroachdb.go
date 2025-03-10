@@ -1,25 +1,4 @@
-// Copyright (c) 2012-today The upper.io/db authors. All rights reserved.
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-package cockroachdb
+package cockroachdb_test
 
 import (
 	"context"
@@ -27,6 +6,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"math/rand"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -37,7 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	db "github.com/upper/db/v4"
-	"github.com/upper/db/v4/internal/testsuite"
+	"github.com/upper/db/v4/adapter/cockroachdb"
 )
 
 type customJSONBObjectArray []customJSONB
@@ -46,24 +26,24 @@ func (customJSONBObjectArray) ConvertValue(in interface{}) interface {
 	sql.Scanner
 	driver.Valuer
 } {
-	return &JSONB{in}
+	return &cockroachdb.JSONB{in}
 }
 
 type customJSONBObjectMap map[string]customJSONB
 
 func (c customJSONBObjectMap) Value() (driver.Value, error) {
-	return JSONBValue(c)
+	return cockroachdb.JSONBValue(c)
 }
 
 func (c *customJSONBObjectMap) Scan(src interface{}) error {
-	return ScanJSONB(c, src)
+	return cockroachdb.ScanJSONB(c, src)
 }
 
 type customJSONB struct {
 	N string  `json:"name"`
 	V float64 `json:"value"`
 
-	*JSONBConverter
+	*cockroachdb.JSONBConverter
 }
 
 type int64Compat int64
@@ -85,7 +65,7 @@ func (ua uint8CompatArray) Value() (driver.Value, error) {
 }
 
 func (ua *uint8CompatArray) Scan(src interface{}) error {
-	decoded := Bytea{}
+	decoded := cockroachdb.Bytea{}
 	if err := decoded.Scan(src); err != nil {
 		return nil
 	}
@@ -121,7 +101,7 @@ func (u *int64Compat) Scan(src interface{}) error {
 type int64CompatArray []int64Compat
 
 func (i64a int64CompatArray) Value() (driver.Value, error) {
-	v := make(Int64Array, len(i64a))
+	v := make(cockroachdb.Int64Array, len(i64a))
 	for i := range i64a {
 		v[i] = int64(i64a[i])
 	}
@@ -129,7 +109,7 @@ func (i64a int64CompatArray) Value() (driver.Value, error) {
 }
 
 func (i64a *int64CompatArray) Scan(src interface{}) error {
-	s := Int64Array{}
+	s := cockroachdb.Int64Array{}
 	if err := s.Scan(src); err != nil {
 		return err
 	}
@@ -145,7 +125,9 @@ func (i64a *int64CompatArray) Scan(src interface{}) error {
 }
 
 type AdapterTests struct {
-	testsuite.Suite
+	*Helper
+
+	suite.Suite
 }
 
 func (s *AdapterTests) SetupSuite() {
@@ -222,9 +204,9 @@ func (s *AdapterTests) SkipTest_Issue469_BadConnection() {
 
 func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 	type PGTypeInline struct {
-		IntegerArrayPtr *Int64Array  `db:"integer_array_ptr,omitempty"`
-		StringArrayPtr  *StringArray `db:"string_array_ptr,omitempty"`
-		JSONBMapPtr     *JSONBMap    `db:"jsonb_map_ptr,omitempty"`
+		IntegerArrayPtr *cockroachdb.Int64Array  `db:"integer_array_ptr,omitempty"`
+		StringArrayPtr  *cockroachdb.StringArray `db:"string_array_ptr,omitempty"`
+		JSONBMapPtr     *cockroachdb.JSONBMap    `db:"jsonb_map_ptr,omitempty"`
 	}
 
 	type PGTypeAutoInline struct {
@@ -244,16 +226,16 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		Int64Value      int64Compat       `db:"int64_value"`
 		Int64ValueArray *int64CompatArray `db:"int64_value_array"`
 
-		IntegerArray Int64Array  `db:"integer_array"`
-		StringArray  StringArray `db:"string_array,stringarray"`
-		JSONBMap     JSONBMap    `db:"jsonb_map"`
+		IntegerArray cockroachdb.Int64Array  `db:"integer_array"`
+		StringArray  cockroachdb.StringArray `db:"string_array,stringarray"`
+		JSONBMap     cockroachdb.JSONBMap    `db:"jsonb_map"`
 
 		PGTypeInline `db:",inline"`
 
 		PGTypeAutoInline `db:",inline"`
 
-		JSONBObject JSONB      `db:"jsonb_object"`
-		JSONBArray  JSONBArray `db:"jsonb_array"`
+		JSONBObject cockroachdb.JSONB      `db:"jsonb_object"`
+		JSONBArray  cockroachdb.JSONBArray `db:"jsonb_array"`
 
 		CustomJSONBObject     customJSONB `db:"custom_jsonb_object"`
 		AutoCustomJSONBObject customJSONB `db:"auto_custom_jsonb_object"`
@@ -273,9 +255,9 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		UIntCompatValue   uintCompat   `db:"uinteger_compat_value"`
 		StringCompatValue stringCompat `db:"string_compat_value"`
 
-		Int64CompatValueJSONBArray  JSONBArray `db:"integer_compat_value_jsonb_array"`
-		UIntCompatValueJSONBArray   JSONBArray `db:"uinteger_compat_value_jsonb_array"`
-		StringCompatValueJSONBArray JSONBArray `db:"string_compat_value_jsonb_array"`
+		Int64CompatValueJSONBArray  cockroachdb.JSONBArray `db:"integer_compat_value_jsonb_array"`
+		UIntCompatValueJSONBArray   cockroachdb.JSONBArray `db:"uinteger_compat_value_jsonb_array"`
+		StringCompatValueJSONBArray cockroachdb.JSONBArray `db:"string_compat_value_jsonb_array"`
 
 		StringValuePtr  *string  `db:"string_value_ptr,omitempty"`
 		IntegerValuePtr *int64   `db:"integer_value_ptr,omitempty"`
@@ -291,9 +273,9 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 
 	uuidStringValue := "52356d08-6a16-4839-9224-75f0a547e13c"
 
-	integerArrayValue := Int64Array{1, 2, 3, 4}
-	stringArrayValue := StringArray{"a", "b", "c"}
-	jsonbMapValue := JSONBMap{"Hello": "World"}
+	integerArrayValue := cockroachdb.Int64Array{1, 2, 3, 4}
+	stringArrayValue := cockroachdb.StringArray{"a", "b", "c"}
+	jsonbMapValue := cockroachdb.JSONBMap{"Hello": "World"}
 
 	testValue := "Hello world!"
 
@@ -330,14 +312,14 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 			StringCompatValue: "abc",
 		},
 		PGType{
-			Int64CompatValueJSONBArray:  JSONBArray{1.0, -2.0, 3.0, -4.0},
-			UIntCompatValueJSONBArray:   JSONBArray{1.0, 2.0, 3.0, 4.0},
-			StringCompatValueJSONBArray: JSONBArray{"a", "b", "", "c"},
+			Int64CompatValueJSONBArray:  cockroachdb.JSONBArray{1.0, -2.0, 3.0, -4.0},
+			UIntCompatValueJSONBArray:   cockroachdb.JSONBArray{1.0, 2.0, 3.0, 4.0},
+			StringCompatValueJSONBArray: cockroachdb.JSONBArray{"a", "b", "", "c"},
 		},
 		PGType{
-			Int64CompatValueJSONBArray:  JSONBArray(nil),
-			UIntCompatValueJSONBArray:   JSONBArray(nil),
-			StringCompatValueJSONBArray: JSONBArray(nil),
+			Int64CompatValueJSONBArray:  cockroachdb.JSONBArray(nil),
+			UIntCompatValueJSONBArray:   cockroachdb.JSONBArray(nil),
+			StringCompatValueJSONBArray: cockroachdb.JSONBArray(nil),
 		},
 		PGType{
 			IntegerValuePtr: &integerValue,
@@ -358,7 +340,7 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		},
 		PGType{
 			PGTypeAutoInline: PGTypeAutoInline{
-				AutoIntegerArray: Int64Array{1, 2, 3, 4},
+				AutoIntegerArray: cockroachdb.Int64Array{1, 2, 3, 4},
 				AutoStringArray:  nil,
 			},
 		},
@@ -385,7 +367,7 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 					"Roses": "red",
 				},
 			},
-			JSONBArray: JSONBArray{float64(1), float64(2), float64(3), float64(4)},
+			JSONBArray: cockroachdb.JSONBArray{float64(1), float64(2), float64(3), float64(4)},
 		},
 		PGType{
 			PGTypeAutoInline: PGTypeAutoInline{
@@ -396,13 +378,13 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 			PGTypeAutoInline: PGTypeAutoInline{
 				AutoJSONBMap: map[string]interface{}{},
 			},
-			JSONBArray: JSONBArray{},
+			JSONBArray: cockroachdb.JSONBArray{},
 		},
 		PGType{
 			PGTypeAutoInline: PGTypeAutoInline{
 				AutoJSONBMap: map[string]interface{}(nil),
 			},
-			JSONBArray: JSONBArray(nil),
+			JSONBArray: cockroachdb.JSONBArray(nil),
 		},
 		PGType{
 			PGTypeAutoInline: PGTypeAutoInline{
@@ -676,10 +658,10 @@ func (s *AdapterTests) TestOptionTypes() {
 
 	// An option type to pointer jsonb field
 	type optionType2 struct {
-		ID       int64       `db:"id,omitempty"`
-		Name     string      `db:"name"`
-		Tags     StringArray `db:"tags"`
-		Settings *JSONBMap   `db:"settings"`
+		ID       int64                   `db:"id,omitempty"`
+		Name     string                  `db:"name"`
+		Tags     cockroachdb.StringArray `db:"tags"`
+		Settings *cockroachdb.JSONBMap   `db:"settings"`
 	}
 
 	item2 := optionType2{
@@ -706,7 +688,7 @@ func (s *AdapterTests) TestOptionTypes() {
 	s.Equal(len(item2Chk.Tags), len(item2.Tags))
 
 	// Update the value
-	m := JSONBMap{}
+	m := cockroachdb.JSONBMap{}
 	m["lang"] = "javascript"
 	m["num"] = 31337
 	item2.Settings = &m
@@ -722,16 +704,16 @@ func (s *AdapterTests) TestOptionTypes() {
 
 	// An option type to pointer string array field
 	type optionType3 struct {
-		ID       int64        `db:"id,omitempty"`
-		Name     string       `db:"name"`
-		Tags     *StringArray `db:"tags"`
-		Settings JSONBMap     `db:"settings"`
+		ID       int64                    `db:"id,omitempty"`
+		Name     string                   `db:"name"`
+		Tags     *cockroachdb.StringArray `db:"tags"`
+		Settings cockroachdb.JSONBMap     `db:"settings"`
 	}
 
 	item3 := optionType3{
 		Name:     "Julia",
 		Tags:     nil,
-		Settings: JSONBMap{"girl": true, "lang": true},
+		Settings: cockroachdb.JSONBMap{"girl": true, "lang": true},
 	}
 
 	record, err = optionTypes.Insert(item3)
@@ -752,10 +734,10 @@ type Settings struct {
 }
 
 func (s *Settings) Scan(src interface{}) error {
-	return ScanJSONB(s, src)
+	return cockroachdb.ScanJSONB(s, src)
 }
 func (s Settings) Value() (driver.Value, error) {
-	return JSONBValue(s)
+	return cockroachdb.JSONBValue(s)
 }
 
 func (s *AdapterTests) TestOptionTypeJsonbStruct() {
@@ -767,10 +749,10 @@ func (s *AdapterTests) TestOptionTypeJsonbStruct() {
 	s.NoError(err)
 
 	type OptionType struct {
-		ID       int64       `db:"id,omitempty"`
-		Name     string      `db:"name"`
-		Tags     StringArray `db:"tags"`
-		Settings Settings    `db:"settings"`
+		ID       int64                   `db:"id,omitempty"`
+		Name     string                  `db:"name"`
+		Tags     cockroachdb.StringArray `db:"tags"`
+		Settings Settings                `db:"settings"`
 	}
 
 	item1 := &OptionType{
@@ -900,12 +882,12 @@ func (s *AdapterTests) Test_Issue370_InsertUUID() {
 	/*
 		{
 			type itemT struct {
-				ID   Int64Array `db:"id"`
+				ID   cockroachdb.Int64Array `db:"id"`
 				Name string     `db:"name"`
 			}
 
 			item1 := itemT{
-				ID:   Int64Array{1, 2, 3},
+				ID:   cockroachdb.Int64Array{1, 2, 3},
 				Name: "Vojtech",
 			}
 
@@ -1026,19 +1008,19 @@ func (s *AdapterTests) Test_Issue391_TextMode() {
 }
 
 func (s *AdapterTests) Test_Issue391_BinaryMode() {
-	settingsWithBinaryMode := ConnectionURL{
-		Database: settings.Database,
-		User:     settings.User,
-		Password: settings.Password,
-		Host:     settings.Host,
+	settingsWithBinaryMode := cockroachdb.ConnectionURL{
+		Database: s.Helper.connURL.Database,
+		User:     s.Helper.connURL.User,
+		Password: s.Helper.connURL.Password,
+		Host:     s.Helper.connURL.Host,
 		Options: map[string]string{
 			"sslmode":           "disable",
-			"timezone":          testsuite.TimeZone,
+			"timezone":          os.Getenv("DB_TIMEZONE"),
 			"binary_parameters": "yes",
 		},
 	}
 
-	sess, err := Open(settingsWithBinaryMode)
+	sess, err := cockroachdb.Open(settingsWithBinaryMode)
 	if err != nil {
 		s.T().Errorf("%v", err)
 	}
@@ -1069,9 +1051,9 @@ func (s *AdapterTests) TestStringAndInt64Array() {
 	s.NoError(err)
 
 	type arrayType struct {
-		ID       int64       `db:"id,pk"`
-		Integers Int64Array  `db:"integers"`
-		Strings  StringArray `db:"strings"`
+		ID       int64                   `db:"id,pk"`
+		Integers cockroachdb.Int64Array  `db:"integers"`
+		Strings  cockroachdb.StringArray `db:"strings"`
 	}
 
 	tt := []arrayType{
