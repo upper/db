@@ -178,7 +178,7 @@ func (s *Source) open() error {
 	}
 
 	s.collections = map[string]*Collection{}
-	s.database = s.session.Database(settings.Database)
+	s.database = s.session.Database(s.connURL.(ConnectionURL).Database)
 
 	// ping
 	if err = s.Ping(); err != nil {
@@ -191,7 +191,7 @@ func (s *Source) open() error {
 // Close terminates the current database session.
 func (s *Source) Close() error {
 	if s.session != nil {
-		s.session.Disconnect(context.Background())
+		return s.session.Disconnect(context.Background())
 	}
 
 	return nil

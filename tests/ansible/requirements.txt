@@ -1,0 +1,10 @@
+ansible==11.3.0
+ansible-core==2.18.3
+cffi==1.17.1
+cryptography==44.0.2
+Jinja2==3.1.6
+MarkupSafe==3.0.2
+packaging==24.2
+pycparser==2.22
+PyYAML==6.0.2
+resolvelib==1.0.1

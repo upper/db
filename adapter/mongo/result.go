@@ -491,7 +491,7 @@ func (r *resultQuery) query() (*mongo.Cursor, error) {
 	}
 
 	if r.cursorReverseOrder {
-		opts.SetSort(bson.D{{"_id", -1}})
+		opts.SetSort(bson.D{{Key: "_id", Value: -1}})
 	}
 
 	if len(selectedFields) > 0 {

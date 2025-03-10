@@ -1,0 +1,28 @@
+- name: "Set task facts"
+  set_fact:
+    container_name: "{{ container_name_prefix }}postgres_{{ postgresql_version }}"
+    container_image: "{{ docker_public_registry }}postgres:{{ postgresql_version }}"
+- name: Escape container name
+  set_fact:
+    container_name: "{{ container_name | regex_replace('[^a-zA-Z0-9]', '_') }}"
+- name: "Force-stop PostgreSQL {{ postgresql_version }}"
+  docker_container:
+    name: "{{ container_name }}"
+    state: absent
+- name: "Run PostgreSQL {{ postgresql_version }}"
+  docker_container:
+    name: "{{ container_name }}"
+    image: "{{ container_image }}"
+    state: started
+    ports:
+      - "{{ container_bind_ip }}:{{ container_bind_port }}:5432"
+    env:
+      POSTGRES_USER: "{{ db_username }}"
+      POSTGRES_PASSWORD: "{{ db_password }}"
+      POSTGRES_DB: "{{ db_name }}"
+- name: "Wait for PostgreSQL {{ postgresql_version }}"
+  wait_for:
+    host: "{{ container_bind_ip }}"
+    port: "{{ container_bind_port }}"
+    delay: 1
+    timeout: 20
