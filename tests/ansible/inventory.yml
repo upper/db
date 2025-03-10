@@ -1,0 +1,47 @@
+all:
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    ansible_connection: local
+    docker_public_registry: mirror.gcr.io/
+    db_username: upper_user
+    db_password: upp3r//S3cr37
+    db_name: upper
+    container_bind_ip: "127.0.0.1"
+    container_name_prefix: "upperdb_"
+  hosts:
+    postgresql-17:
+      postgresql_version: "17"
+      container_bind_port: 5432
+    postgresql-16:
+      postgresql_version: "16"
+      container_bind_port: 5433
+    postgresql-15:
+      postgresql_version: "15"
+      container_bind_port: 5434
+    mysql-lts:
+      mysql_version: "lts"
+      container_bind_port: 3306
+    mysql-5:
+      mysql_version: "5"
+      container_bind_port: 3307
+    cockroachdb-v23:
+      cockroachdb_version: "v23.2.6"
+      container_bind_port: 26257
+    cockroachdb-v22:
+      cockroachdb_version: "v22.2.19"
+      container_bind_port: 26258
+    cockroachdb-v21:
+      cockroachdb_version: "v21.2.17"
+      container_bind_port: 26259
+    mssql-2022:
+      mssql_version: "2022-latest"
+      container_bind_port: 1433
+    mssql-2019:
+      mssql_version: "2019-latest"
+      container_bind_port: 1434
+    mongodb-8:
+      mongodb_version: "8"
+      container_bind_port: 27017
+    mongodb-7:
+      mongodb_version: "7"
+      container_bind_port: 27018

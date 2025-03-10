@@ -1,0 +1,28 @@
+- name: "Set task facts"
+  set_fact:
+    container_name: "{{ container_name_prefix }}cockroachdb_{{ cockroachdb_version }}"
+    container_image: "{{ docker_public_registry }}cockroachdb/cockroach:{{ cockroachdb_version }}"
+- name: Escape container name
+  set_fact:
+    container_name: "{{ container_name | regex_replace('[^a-zA-Z0-9]', '_') }}"
+- name: "Force-stop CockroachDB {{ cockroachdb_version }}"
+  docker_container:
+    name: "{{ container_name }}"
+    state: absent
+- name: "Run CockroachDB {{ cockroachdb_version }}"
+  docker_container:
+    name: "{{ container_name }}"
+    image: "{{ container_image }}"
+    state: started
+    ports:
+      - "{{ container_bind_ip }}:{{ container_bind_port }}:26257"
+    env:
+      COCKROACHDB_USER: "{{ db_username }}"
+      COCKROACHDB_DB: "{{ db_password }}"
+    command: "start-single-node --insecure"
+- name: "Wait for CockroachDB {{ cockroachdb_version }}"
+  wait_for:
+    host: "{{ container_bind_ip }}"
+    port: "{{ container_bind_port }}"
+    delay: 1
+    timeout: 20

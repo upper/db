@@ -1,0 +1,27 @@
+- name: "Set task facts"
+  set_fact:
+    container_name: "{{ container_name_prefix }}mssql_{{ mssql_version }}"
+    container_image: "mcr.microsoft.com/mssql/server:{{ mssql_version }}"
+- name: Escape container name
+  set_fact:
+    container_name: "{{ container_name | regex_replace('[^a-zA-Z0-9]', '_') }}"
+- name: "Force-stop MSSQL {{ mssql_version }}"
+  docker_container:
+    name: "{{ container_name }}"
+    state: absent
+- name: "Run MSSQL {{ mssql_version }}"
+  docker_container:
+    name: "{{ container_name }}"
+    image: "{{ container_image }}"
+    state: started
+    ports:
+      - "{{ container_bind_ip }}:{{ container_bind_port }}:1433"
+    env:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "{{ db_password }}"
+- name: "Wait for MSSQL {{ mssql_version }}"
+  wait_for:
+    host: "{{ container_bind_ip }}"
+    port: "{{ container_bind_port }}"
+    delay: 1
+    timeout: 20

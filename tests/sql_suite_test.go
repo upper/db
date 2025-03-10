@@ -1,4 +1,4 @@
-package testsuite
+package db_test
 
 import (
 	"context"

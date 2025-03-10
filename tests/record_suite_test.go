@@ -1,4 +1,4 @@
-package testsuite
+package db_test
 
 import (
 	"context"
@@ -79,6 +79,7 @@ func (*User) Store(sess db.Session) db.Store {
 
 type RecordTestSuite struct {
 	suite.Suite
+
 	Helper
 }
 

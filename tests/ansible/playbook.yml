@@ -1,0 +1,18 @@
+- hosts: "all"
+  strategy: free
+  become: true
+- hosts: "postgresql-*"
+  roles:
+    - role: postgresql
+- hosts: "mysql-*"
+  roles:
+    - role: mysql
+- hosts: "cockroachdb-*"
+  roles:
+    - role: cockroachdb
+- hosts: "mssql-*"
+  roles:
+    - role: mssql
+- hosts: "mongodb-*"
+  roles:
+    - role: mongodb

@@ -1,50 +1,20 @@
-// Copyright (c) 2012-today The upper.io/db authors. All rights reserved.
-//
-// Permission is hereby granted, free of charge, to any person obtaining
-// a copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to
-// permit persons to whom the Software is furnished to do so, subject to
-// the following conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-package postgresql
+package postgresql_test
 
 import (
 	"database/sql"
 	"fmt"
-	"os"
 
 	db "github.com/upper/db/v4"
+	"github.com/upper/db/v4/adapter/postgresql"
 	"github.com/upper/db/v4/internal/sqladapter"
-	"github.com/upper/db/v4/internal/testsuite"
 )
-
-var settings = ConnectionURL{
-	Database: os.Getenv("DB_NAME"),
-	User:     os.Getenv("DB_USERNAME"),
-	Password: os.Getenv("DB_PASSWORD"),
-	Host:     os.Getenv("DB_HOST") + ":" + os.Getenv("DB_PORT"),
-	Options: map[string]string{
-		"timezone": testsuite.TimeZone,
-	},
-}
 
 const preparedStatementsKey = "pg_prepared_statements_count"
 
 type Helper struct {
 	sess db.Session
+
+	connURL postgresql.ConnectionURL
 }
 
 func cleanUp(sess db.Session) error {
@@ -74,7 +44,7 @@ func getStats(sess db.Session) (map[string]int, error) {
 	var value int
 	err := row.Scan(&value)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error getting prepared statements count: %w", err)
 	}
 
 	stats[preparedStatementsKey] = value
@@ -87,23 +57,15 @@ func (h *Helper) Session() db.Session {
 }
 
 func (h *Helper) Adapter() string {
-	return Adapter
-}
-
-func (h *Helper) TearDown() error {
-	if err := cleanUp(h.sess); err != nil {
-		return err
-	}
-
-	return h.sess.Close()
+	return postgresql.Adapter
 }
 
 func (h *Helper) SetUp() error {
 	var err error
 
-	h.sess, err = Open(settings)
+	h.sess, err = postgresql.Open(h.connURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error opening database: %w", err)
 	}
 
 	batch := []string{
@@ -339,4 +301,16 @@ func (h *Helper) SetUp() error {
 	return nil
 }
 
-var _ testsuite.Helper = &Helper{}
+func (h *Helper) TearDown() error {
+	if err := cleanUp(h.sess); err != nil {
+		return err
+	}
+
+	return h.sess.Close()
+}
+
+func NewHelper(connURL postgresql.ConnectionURL) *Helper {
+	return &Helper{
+		connURL: connURL,
+	}
+}
