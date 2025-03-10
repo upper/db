@@ -10,10 +10,14 @@ import (
 
 	"github.com/upper/db/v4"
 	"github.com/upper/db/v4/adapter/cockroachdb"
+	"github.com/upper/db/v4/adapter/mongo"
+	"github.com/upper/db/v4/adapter/mssql"
 	"github.com/upper/db/v4/adapter/mysql"
 	"github.com/upper/db/v4/adapter/postgresql"
 
 	cockroachdbtest "github.com/upper/db/v4/tests/cockroachdb"
+	mongotest "github.com/upper/db/v4/tests/mongo"
+	mssqltest "github.com/upper/db/v4/tests/mssql"
 	mysqltest "github.com/upper/db/v4/tests/mysql"
 	postgresqltest "github.com/upper/db/v4/tests/postgresql"
 )
@@ -109,6 +113,26 @@ func cockroachdbCfg(port int) cockroachdb.ConnectionURL {
 	}
 }
 
+func mssqlCfg(port int) mssql.ConnectionURL {
+	return mssql.ConnectionURL{
+		Database: os.Getenv("DB_NAME"),
+		User:     os.Getenv("DB_USERNAME"),
+		Password: os.Getenv("DB_PASSWORD"),
+		Host:     os.Getenv("DB_HOST") + ":" + fmt.Sprintf("%d", port),
+		Options:  map[string]string{},
+	}
+}
+
+func mongoCfg(port int) mongo.ConnectionURL {
+	return mongo.ConnectionURL{
+		Database: os.Getenv("DB_NAME"),
+		User:     os.Getenv("DB_USERNAME"),
+		Password: os.Getenv("DB_PASSWORD"),
+		Host:     os.Getenv("DB_HOST") + ":" + fmt.Sprintf("%d", port),
+		Options:  map[string]string{},
+	}
+}
+
 func TestMain(t *testing.T) {
 	testCfgs := map[string]Helper{
 		"postgresql-17": postgresqltest.NewHelper(postgresqlCfg(5432)),
@@ -119,6 +143,10 @@ func TestMain(t *testing.T) {
 		"cockroach-v23": cockroachdbtest.NewHelper(cockroachdbCfg(26257)),
 		"cockroach-v22": cockroachdbtest.NewHelper(cockroachdbCfg(26258)),
 		"cockroach-v21": cockroachdbtest.NewHelper(cockroachdbCfg(26259)),
+		"mssql-2022":    mssqltest.NewHelper(mssqlCfg(1433)),
+		"mssql-2019":    mssqltest.NewHelper(mssqlCfg(1434)),
+		"mongo-8":       mongotest.NewHelper(mongoCfg(27017)),
+		"mongo-7":       mongotest.NewHelper(mongoCfg(27018)),
 	}
 
 	for name, helper := range testCfgs {

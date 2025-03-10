@@ -1,9 +1,0 @@
-services:
-  server:
-    image: cockroachdb/cockroach:${COCKROACHDB_VERSION:-v2}
-    environment:
-      COCKROACHDB_USER: ${DB_USERNAME:-upperio_user}
-      COCKROACHDB_DB: ${DB_NAME:-upperio}
-    command: "start-single-node --insecure"
-    ports:
-      - '${DB_HOST:-127.0.0.1}:${DB_PORT:-26257}:26257'
