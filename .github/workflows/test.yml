@@ -26,11 +26,11 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
-      - name: Set env vars
+      - name: Configure environment
         run: |
           echo "GOARCH=amd64" >> $GITHUB_ENV
           echo "DB_HOST=127.0.0.1" >> $GITHUB_ENV
           echo "UPPER_DB_LOG=ERROR" >> $GITHUB_ENV
 
-      - name: Run target
+      - name: Run tests
         run: make test

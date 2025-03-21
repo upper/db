@@ -1,0 +1,51 @@
+- name: "Set task facts"
+  set_fact:
+    container_name: "{{ container_name_prefix }}mysql_{{ mysql_version }}"
+    container_image: "{{ docker_public_registry }}mysql:{{ mysql_version }}"
+    container_bind_port: "{{ 3306 if container_bind_port == '' else container_bind_port }}"
+  tags:
+    - up
+    - down
+- name: Escape container name
+  set_fact:
+    container_name: "{{ container_name | regex_replace('[^a-zA-Z0-9]', '_') }}"
+  tags:
+    - up
+    - down
+- name: "Force-stop MySQL {{ mysql_version }}"
+  docker_container:
+    name: "{{ container_name }}"
+    state: absent
+  tags:
+    - up
+    - down
+- name: "Run MySQL {{ mysql_version }}"
+  docker_container:
+    name: "{{ container_name }}"
+    image: "{{ container_image }}"
+    state: started
+    ports:
+      - "{{ container_bind_ip }}:{{ container_bind_port }}:3306"
+    ulimits:
+      - nofile:262144:262144
+    env:
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+      MYSQL_USER: "{{ db_username }}"
+      MYSQL_PASSWORD: "{{ db_password }}"
+      MYSQL_DATABASE: "{{ db_name }}"
+  tags:
+    - up
+- name: "MySQL health check"
+  mysql_query:
+    login_host: "{{ container_bind_ip }}"
+    login_port: "{{ container_bind_port }}"
+    login_user: "{{ db_username }}"
+    login_password: "{{ db_password }}"
+    login_db: "{{ db_name }}"
+    query: "SELECT 1"
+  register: mysql_health_check
+  retries: "{{ health_check_retries }}"
+  delay: "{{ health_check_delay }}"
+  until: mysql_health_check is succeeded
+  tags:
+    - up

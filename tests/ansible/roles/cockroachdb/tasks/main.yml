@@ -1,0 +1,47 @@
+- name: "Set task facts"
+  set_fact:
+    container_name: "{{ container_name_prefix }}cockroachdb_{{ cockroachdb_version }}"
+    container_image: "{{ docker_public_registry }}cockroachdb/cockroach:{{ cockroachdb_version }}"
+    container_bind_port: "{{ 26257 if container_bind_port == '' else container_bind_port }}"
+  tags:
+    - up
+    - down
+- name: Escape container name
+  set_fact:
+    container_name: "{{ container_name | regex_replace('[^a-zA-Z0-9]', '_') }}"
+  tags:
+    - up
+    - down
+- name: "Force-stop CockroachDB {{ cockroachdb_version }}"
+  docker_container:
+    name: "{{ container_name }}"
+    state: absent
+  tags:
+    - up
+    - down
+- name: "Run CockroachDB {{ cockroachdb_version }}"
+  docker_container:
+    name: "{{ container_name }}"
+    image: "{{ container_image }}"
+    state: started
+    ports:
+      - "{{ container_bind_ip }}:{{ container_bind_port }}:26257"
+    env:
+      COCKROACH_USER: "{{ db_username }}"
+      COCKROACH_DATABASE: "{{ db_name }}"
+    command: "start-single-node --insecure"
+  tags:
+    - up
+- name: "CockroachDB health check"
+  postgresql_query:
+    db: "{{ db_name }}"
+    login_host: "{{ container_bind_ip }}"
+    login_port: "{{ container_bind_port }}"
+    login_user: "{{ db_username }}"
+    query: "SELECT 1"
+  register: cockroachdb_health_check
+  retries: "{{ health_check_retries }}"
+  delay: "{{ health_check_delay }}"
+  until: cockroachdb_health_check is succeeded
+  tags:
+    - up

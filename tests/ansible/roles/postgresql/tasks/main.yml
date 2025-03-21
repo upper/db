@@ -1,0 +1,47 @@
+- name: "Set task facts"
+  set_fact:
+    container_name: "{{ container_name_prefix }}postgres_{{ postgresql_version }}"
+    container_image: "{{ docker_public_registry }}postgres:{{ postgresql_version }}"
+    container_bind_port: "{{ 5432 if container_bind_port == '' else container_bind_port }}"
+  tags:
+    - up
+    - down
+- name: Escape container name
+  set_fact:
+    container_name: "{{ container_name | regex_replace('[^a-zA-Z0-9]', '_') }}"
+  tags:
+    - up
+    - down
+- name: "Force-stop PostgreSQL {{ postgresql_version }}"
+  docker_container:
+    name: "{{ container_name }}"
+    state: absent
+  tags:
+    - down
+- name: "Run PostgreSQL {{ postgresql_version }}"
+  docker_container:
+    name: "{{ container_name }}"
+    image: "{{ container_image }}"
+    state: started
+    ports:
+      - "{{ container_bind_ip }}:{{ container_bind_port }}:5432"
+    env:
+      POSTGRES_USER: "{{ db_username }}"
+      POSTGRES_PASSWORD: "{{ db_password }}"
+      POSTGRES_DB: "{{ db_name }}"
+  tags:
+    - up
+- name: "PostgreSQL health check"
+  postgresql_query:
+    db: "{{ db_name }}"
+    login_host: "{{ container_bind_ip }}"
+    login_port: "{{ container_bind_port }}"
+    login_user: "{{ db_username }}"
+    login_password: "{{ db_password }}"
+    query: "SELECT 1"
+  register: postgresql_health_check
+  retries: "{{ health_check_retries }}"
+  delay: "{{ health_check_delay }}"
+  until: postgresql_health_check is succeeded
+  tags:
+    - up
