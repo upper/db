@@ -102,6 +102,33 @@ type Logger interface {
 	Panicf(format string, v ...interface{})
 }
 
+// nullLogger is a Logger that does nothing.
+type nullLogger struct{}
+
+func (nullLogger) Fatal(_ ...interface{}) {
+	// Do nothing
+}
+
+func (nullLogger) Fatalf(_ string, _ ...interface{}) {
+	// Do nothing
+}
+
+func (nullLogger) Print(_ ...interface{}) {
+	// Do nothing
+}
+
+func (nullLogger) Printf(_ string, _ ...interface{}) {
+	// Do nothing
+}
+
+func (nullLogger) Panic(_ ...interface{}) {
+	// Do nothing
+}
+
+func (nullLogger) Panicf(_ string, _ ...interface{}) {
+	// Do nothing
+}
+
 // LoggingCollector provides different methods for collecting and classifying
 // log messages.
 type LoggingCollector interface {
@@ -322,6 +349,10 @@ func (q *QueryStatus) String() string {
 // LC returns the logging collector.
 func LC() LoggingCollector {
 	return defaultLoggingCollector
+}
+
+func DisableLogging() {
+	defaultLoggingCollector.SetLogger(nullLogger{})
 }
 
 func init() {
