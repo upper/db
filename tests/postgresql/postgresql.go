@@ -23,7 +23,7 @@ import (
 
 type customJSONBObjectArray []customJSONB
 
-func (customJSONBObjectArray) ConvertValue(in interface{}) interface {
+func (customJSONBObjectArray) ConvertValue(in any) interface {
 	sql.Scanner
 	driver.Valuer
 } {
@@ -36,7 +36,7 @@ func (c customJSONBObjectMap) Value() (driver.Value, error) {
 	return postgresql.JSONBValue(c)
 }
 
-func (c *customJSONBObjectMap) Scan(src interface{}) error {
+func (c *customJSONBObjectMap) Scan(src any) error {
 	return postgresql.ScanJSONB(c, src)
 }
 
@@ -65,7 +65,7 @@ func (ua uint8CompatArray) Value() (driver.Value, error) {
 	return v, nil
 }
 
-func (ua *uint8CompatArray) Scan(src interface{}) error {
+func (ua *uint8CompatArray) Scan(src any) error {
 	decoded := postgresql.Bytea{}
 	if err := decoded.Scan(src); err != nil {
 		return nil
@@ -91,7 +91,7 @@ func (i64a int64CompatArray) Value() (driver.Value, error) {
 	return v.Value()
 }
 
-func (i64a *int64CompatArray) Scan(src interface{}) error {
+func (i64a *int64CompatArray) Scan(src any) error {
 	s := postgresql.Int64Array{}
 	if err := s.Scan(src); err != nil {
 		return err
@@ -185,17 +185,17 @@ func (s *AdapterTests) Test_Issue469_BadConnection() {
 
 func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 	type PGTypeInline struct {
-		IntegerArrayPtr *postgresql.Int64Array  `db:"integer_array_ptr,omitempty"`
-		StringArrayPtr  *postgresql.StringArray `db:"string_array_ptr,omitempty"`
-		JSONBMapPtr     *postgresql.JSONBMap    `db:"jsonb_map_ptr,omitempty"`
+		IntegerArrayPtr *postgresql.Int64Array      `db:"integer_array_ptr,omitempty"`
+		StringArrayPtr  *postgresql.StringArray     `db:"string_array_ptr,omitempty"`
+		JSONBMapPtr     *postgresql.JSONBMapOf[any] `db:"jsonb_map_ptr,omitempty"`
 	}
 
 	type PGTypeAutoInline struct {
-		AutoIntegerArray    []int64                `db:"auto_integer_array"`
-		AutoStringArray     []string               `db:"auto_string_array"`
-		AutoJSONBMap        map[string]interface{} `db:"auto_jsonb_map"`
-		AutoJSONBMapString  map[string]interface{} `db:"auto_jsonb_map_string"`
-		AutoJSONBMapInteger map[string]interface{} `db:"auto_jsonb_map_integer"`
+		AutoIntegerArray    []int64        `db:"auto_integer_array"`
+		AutoStringArray     []string       `db:"auto_string_array"`
+		AutoJSONBMap        map[string]any `db:"auto_jsonb_map"`
+		AutoJSONBMapString  map[string]any `db:"auto_jsonb_map_string"`
+		AutoJSONBMapInteger map[string]any `db:"auto_jsonb_map_integer"`
 	}
 
 	type PGType struct {
@@ -207,9 +207,9 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		Int64Value      int64Compat       `db:"int64_value"`
 		Int64ValueArray *int64CompatArray `db:"int64_value_array"`
 
-		IntegerArray postgresql.Int64Array  `db:"integer_array"`
-		StringArray  postgresql.StringArray `db:"string_array,stringarray"`
-		JSONBMap     postgresql.JSONBMap    `db:"jsonb_map"`
+		IntegerArray postgresql.Int64Array      `db:"integer_array"`
+		StringArray  postgresql.StringArray     `db:"string_array,stringarray"`
+		JSONBMap     postgresql.JSONBMapOf[any] `db:"jsonb_map"`
 
 		RawJSONBMap  *json.RawMessage `db:"raw_jsonb_map,omitempty"`
 		RawJSONBText *json.RawMessage `db:"raw_jsonb_text,omitempty"`
@@ -218,8 +218,8 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 
 		PGTypeAutoInline `db:",inline"`
 
-		JSONBObject postgresql.JSONB      `db:"jsonb_object"`
-		JSONBArray  postgresql.JSONBArray `db:"jsonb_array"`
+		JSONBObject postgresql.JSONB             `db:"jsonb_object"`
+		JSONBArray  postgresql.JSONBArrayOf[any] `db:"jsonb_array"`
 
 		CustomJSONBObject     customJSONB `db:"custom_jsonb_object"`
 		AutoCustomJSONBObject customJSONB `db:"auto_custom_jsonb_object"`
@@ -239,9 +239,9 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		UIntCompatValue   uintCompat   `db:"uinteger_compat_value"`
 		StringCompatValue stringCompat `db:"string_compat_value"`
 
-		Int64CompatValueJSONBArray  postgresql.JSONBArray `db:"integer_compat_value_jsonb_array"`
-		UIntCompatValueJSONBArray   postgresql.JSONBArray `db:"uinteger_compat_value_jsonb_array"`
-		StringCompatValueJSONBArray postgresql.JSONBArray `db:"string_compat_value_jsonb_array"`
+		Int64CompatValueJSONBArray  postgresql.JSONBArrayOf[any] `db:"integer_compat_value_jsonb_array"`
+		UIntCompatValueJSONBArray   postgresql.JSONBArrayOf[any] `db:"uinteger_compat_value_jsonb_array"`
+		StringCompatValueJSONBArray postgresql.JSONBArrayOf[any] `db:"string_compat_value_jsonb_array"`
 
 		StringValuePtr  *string  `db:"string_value_ptr,omitempty"`
 		IntegerValuePtr *int64   `db:"integer_value_ptr,omitempty"`
@@ -261,7 +261,7 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 
 	integerArrayValue := postgresql.Int64Array{1, 2, 3, 4}
 	stringArrayValue := postgresql.StringArray{"a", "b", "c"}
-	jsonbMapValue := postgresql.JSONBMap{"Hello": "World"}
+	jsonbMapValue := postgresql.JSONBMapOf[any]{"Hello": "World"}
 	rawJSONBMap := json.RawMessage(`{"foo": "bar"}`)
 	rawJSONBText := json.RawMessage(`{"age": [{">": "1h"}]}`)
 
@@ -300,22 +300,22 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 			StringCompatValue: "abc",
 		},
 		PGType{
-			Int64CompatValueJSONBArray:  postgresql.JSONBArray{1.0, -2.0, 3.0, -4.0},
-			UIntCompatValueJSONBArray:   postgresql.JSONBArray{1.0, 2.0, 3.0, 4.0},
-			StringCompatValueJSONBArray: postgresql.JSONBArray{"a", "b", "", "c"},
+			Int64CompatValueJSONBArray:  postgresql.JSONBArrayOf[any]{1.0, -2.0, 3.0, -4.0},
+			UIntCompatValueJSONBArray:   postgresql.JSONBArrayOf[any]{1.0, 2.0, 3.0, 4.0},
+			StringCompatValueJSONBArray: postgresql.JSONBArrayOf[any]{"a", "b", "", "c"},
 		},
 		PGType{
-			Int64CompatValueJSONBArray:  postgresql.JSONBArray(nil),
-			UIntCompatValueJSONBArray:   postgresql.JSONBArray(nil),
-			StringCompatValueJSONBArray: postgresql.JSONBArray(nil),
+			Int64CompatValueJSONBArray:  postgresql.JSONBArrayOf[any](nil),
+			UIntCompatValueJSONBArray:   postgresql.JSONBArrayOf[any](nil),
+			StringCompatValueJSONBArray: postgresql.JSONBArrayOf[any](nil),
 		},
 		PGType{
 			IntegerValuePtr: &integerValue,
 			StringValuePtr:  &stringValue,
 			DecimalValuePtr: &decimalValue,
 			PGTypeAutoInline: PGTypeAutoInline{
-				AutoJSONBMapString:  map[string]interface{}{"a": "x", "b": "67"},
-				AutoJSONBMapInteger: map[string]interface{}{"a": 12.0, "b": 13.0},
+				AutoJSONBMapString:  map[string]any{"a": "x", "b": "67"},
+				AutoJSONBMapInteger: map[string]any{"a": 12.0, "b": 13.0},
 			},
 		},
 		PGType{
@@ -354,12 +354,12 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 				},
 			},
 			PGTypeAutoInline: PGTypeAutoInline{
-				AutoJSONBMap: map[string]interface{}{
+				AutoJSONBMap: map[string]any{
 					"Hello": "world",
 					"Roses": "red",
 				},
 			},
-			JSONBArray: postgresql.JSONBArray{float64(1), float64(2), float64(3), float64(4)},
+			JSONBArray: postgresql.JSONBArrayOf[any]{float64(1), float64(2), float64(3), float64(4)},
 		},
 		PGType{
 			PGTypeAutoInline: PGTypeAutoInline{
@@ -368,15 +368,15 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		},
 		PGType{
 			PGTypeAutoInline: PGTypeAutoInline{
-				AutoJSONBMap: map[string]interface{}{},
+				AutoJSONBMap: map[string]any{},
 			},
-			JSONBArray: postgresql.JSONBArray{},
+			JSONBArray: postgresql.JSONBArrayOf[any]{},
 		},
 		PGType{
 			PGTypeAutoInline: PGTypeAutoInline{
-				AutoJSONBMap: map[string]interface{}(nil),
+				AutoJSONBMap: map[string]any(nil),
 			},
-			JSONBArray: postgresql.JSONBArray(nil),
+			JSONBArray: postgresql.JSONBArrayOf[any](nil),
 		},
 		PGType{
 			PGTypeAutoInline: PGTypeAutoInline{
@@ -390,7 +390,7 @@ func testPostgreSQLTypes(t *testing.T, sess db.Session) {
 		},
 		PGType{
 			PGTypeAutoInline: PGTypeAutoInline{
-				AutoJSONBMap: map[string]interface{}{"hello": "world!"},
+				AutoJSONBMap: map[string]any{"hello": "world!"},
 			},
 		},
 		PGType{
@@ -582,17 +582,17 @@ func (s *AdapterTests) TestOptionTypes() {
 	// A struct with wrapped option types defined in the struct tags
 	// for postgres string array and jsonb types
 	type optionType struct {
-		ID       int64                  `db:"id,omitempty"`
-		Name     string                 `db:"name"`
-		Tags     []string               `db:"tags"`
-		Settings map[string]interface{} `db:"settings"`
+		ID       int64          `db:"id,omitempty"`
+		Name     string         `db:"name"`
+		Tags     []string       `db:"tags"`
+		Settings map[string]any `db:"settings"`
 	}
 
 	// Item 1
 	item1 := optionType{
 		Name:     "Food",
 		Tags:     []string{"toronto", "pizza"},
-		Settings: map[string]interface{}{"a": 1, "b": 2},
+		Settings: map[string]any{"a": 1, "b": 2},
 	}
 
 	record, err := optionTypes.Insert(item1)
@@ -613,7 +613,7 @@ func (s *AdapterTests) TestOptionTypes() {
 	item1b := &optionType{
 		Name:     "Golang",
 		Tags:     []string{"love", "it"},
-		Settings: map[string]interface{}{"go": 1, "lang": 2},
+		Settings: map[string]any{"go": 1, "lang": 2},
 	}
 
 	record, err = optionTypes.Insert(item1b)
@@ -632,7 +632,7 @@ func (s *AdapterTests) TestOptionTypes() {
 
 	// Item 1 C
 	item1c := &optionType{
-		Name: "Sup", Tags: []string{}, Settings: map[string]interface{}{},
+		Name: "Sup", Tags: []string{}, Settings: map[string]any{},
 	}
 
 	record, err = optionTypes.Insert(item1c)
@@ -651,10 +651,10 @@ func (s *AdapterTests) TestOptionTypes() {
 
 	// An option type to pointer jsonb field
 	type optionType2 struct {
-		ID       int64                  `db:"id,omitempty"`
-		Name     string                 `db:"name"`
-		Tags     postgresql.StringArray `db:"tags"`
-		Settings *postgresql.JSONBMap   `db:"settings"`
+		ID       int64                       `db:"id,omitempty"`
+		Name     string                      `db:"name"`
+		Tags     postgresql.StringArray      `db:"tags"`
+		Settings *postgresql.JSONBMapOf[any] `db:"settings"`
 	}
 
 	item2 := optionType2{
@@ -681,7 +681,7 @@ func (s *AdapterTests) TestOptionTypes() {
 	s.Equal(len(item2Chk.Tags), len(item2.Tags))
 
 	// Update the value
-	m := postgresql.JSONBMap{}
+	m := postgresql.JSONBMapOf[any]{}
 	m["lang"] = "javascript"
 	m["num"] = 31337
 	item2.Settings = &m
@@ -697,16 +697,16 @@ func (s *AdapterTests) TestOptionTypes() {
 
 	// An option type to pointer string array field
 	type optionType3 struct {
-		ID       int64                   `db:"id,omitempty"`
-		Name     string                  `db:"name"`
-		Tags     *postgresql.StringArray `db:"tags"`
-		Settings postgresql.JSONBMap     `db:"settings"`
+		ID       int64                      `db:"id,omitempty"`
+		Name     string                     `db:"name"`
+		Tags     *postgresql.StringArray    `db:"tags"`
+		Settings postgresql.JSONBMapOf[any] `db:"settings"`
 	}
 
 	item3 := optionType3{
 		Name:     "Julia",
 		Tags:     nil,
-		Settings: postgresql.JSONBMap{"girl": true, "lang": true},
+		Settings: postgresql.JSONBMapOf[any]{"girl": true, "lang": true},
 	}
 
 	record, err = optionTypes.Insert(item3)
@@ -726,7 +726,7 @@ type Settings struct {
 	Num  int64  `json:"num"`
 }
 
-func (s *Settings) Scan(src interface{}) error {
+func (s *Settings) Scan(src any) error {
 	return postgresql.ScanJSONB(s, src)
 }
 func (s Settings) Value() (driver.Value, error) {
@@ -1038,7 +1038,7 @@ func (s *AdapterTests) Test_Issue409_TxOptions() {
 		err := sess.TxContext(context.Background(), func(tx db.Session) error {
 			col := tx.Collection("publication")
 
-			row := map[string]interface{}{
+			row := map[string]any{
 				"title":     "foo",
 				"author_id": 1,
 			}
@@ -1383,7 +1383,7 @@ func (s *AdapterTests) TestNonTrivialSubqueries() {
 }
 
 func (s *AdapterTests) Test_Issue601_ErrorCarrying() {
-	var items []interface{}
+	var items []any
 	var err error
 
 	sess := s.Session()

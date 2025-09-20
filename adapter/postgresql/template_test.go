@@ -187,7 +187,7 @@ func TestTemplateInsert(t *testing.T) {
 
 	assert.Equal(
 		`INSERT INTO "artist" ("id", "name") VALUES ($1, $2)`,
-		b.InsertInto("artist").Values(map[string]interface{}{"name": "Chavela Vargas", "id": 12}).String(),
+		b.InsertInto("artist").Values(map[string]any{"name": "Chavela Vargas", "id": 12}).String(),
 	)
 
 	assert.Equal(

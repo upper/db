@@ -19,9 +19,9 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Package cockroachdb wraps the github.com/lib/pq driver and provides a
+// Package cockroachdb wraps the github.com/jackc/pgx driver and provides a
 // compatibility later with CockroachDB. See
-// https://github.com/upper/db/adapter/cockroachdb for documentation,
+// See https://upper.io/v4/adapter/cockroachdb for documentation,
 // particularities and usage examples.
 package cockroachdb
 
@@ -69,7 +69,7 @@ func (*database) Collections(sess sqladapter.Session) (collections []string, err
 	return collections, nil
 }
 
-func (*database) ConvertValue(in interface{}) interface{} {
+func (*database) ConvertValue(in any) any {
 	switch v := in.(type) {
 
 	case *[]int64:
@@ -80,8 +80,8 @@ func (*database) ConvertValue(in interface{}) interface{} {
 		return (*Float64Array)(v)
 	case *[]bool:
 		return (*BoolArray)(v)
-	case *map[string]interface{}:
-		return (*JSONBMap)(v)
+	case *map[string]any:
+		return (*JSONBMapOf[any])(v)
 
 	case []int64:
 		return (*Int64Array)(&v)
@@ -91,8 +91,8 @@ func (*database) ConvertValue(in interface{}) interface{} {
 		return (*Float64Array)(&v)
 	case []bool:
 		return (*BoolArray)(&v)
-	case map[string]interface{}:
-		return (*JSONBMap)(&v)
+	case map[string]any:
+		return (*JSONBMapOf[any])(&v)
 
 	case sql.Scanner, driver.Valuer:
 		return v
@@ -122,7 +122,7 @@ func (*database) ConvertValue(in interface{}) interface{} {
 	return in
 }
 
-func (*database) CompileStatement(sess sqladapter.Session, stmt *exql.Statement, args []interface{}) (string, []interface{}, error) {
+func (*database) CompileStatement(sess sqladapter.Session, stmt *exql.Statement, args []any) (string, []any, error) {
 	compiled, err := stmt.Compile(template)
 	if err != nil {
 		return "", nil, err
