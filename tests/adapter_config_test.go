@@ -30,7 +30,7 @@ const (
 	defaultPassword = "upp3r//S3cr37"
 	defaultDatabase = "upper_db"
 	defaultHost     = "127.0.0.1"
-	defaultTimeZone = "Canada/Eastern"
+	defaultTimeZone = "America/Toronto"
 )
 
 const (
