@@ -32,45 +32,63 @@ import (
 )
 
 // JSONBMap represents a map of interfaces with string keys
-// (`map[string]interface{}`) that is compatible with PostgreSQL's JSONB type.
-// JSONBMap satisfies sqlbuilder.ScannerValuer.
-type JSONBMap map[string]interface{}
+// (`map[string]any`) that is compatible with PostgreSQL's JSONB type.
+// JSONBMap satisfies [sqlbuilder.ScannerValuer].
+//
+// Deprecated: This type is simply an alias of [JSONBMapOf][any].
+//
+//go:fix inline
+type JSONBMap = JSONBMapOf[any]
 
-// Value satisfies the driver.Valuer interface.
-func (m JSONBMap) Value() (driver.Value, error) {
+// JSONBMapOf represents a map of any type T with string keys (`map[string]T`)
+// that is compatible with PostgreSQL's JSONB type. JSONBMapOf satisfies
+// [sqlbuilder.ScannerValuer].
+type JSONBMapOf[T any] map[string]T
+
+// Value satisfies the [driver.Valuer] interface.
+func (m JSONBMapOf[T]) Value() (driver.Value, error) {
 	return JSONBValue(m)
 }
 
-// Scan satisfies the sql.Scanner interface.
-func (m *JSONBMap) Scan(src interface{}) error {
-	*m = map[string]interface{}(nil)
+// Scan satisfies the [sql.Scanner] interface.
+func (m *JSONBMapOf[T]) Scan(src any) error {
+	*m = map[string]T(nil)
 	return ScanJSONB(m, src)
 }
 
-// JSONBArray represents an array of any type (`[]interface{}`) that is
+// JSONBArray represents an array of any type (`[]any`) that is
 // compatible with PostgreSQL's JSONB type. JSONBArray satisfies
-// sqlbuilder.ScannerValuer.
-type JSONBArray []interface{}
+// [sqlbuilder.ScannerValuer].
+//
+// Deprecated: This type is simply an alias of [JSONBArrayOf][any].
+//
+//go:fix inline
+type JSONBArray = JSONBArrayOf[any]
 
-// Value satisfies the driver.Valuer interface.
-func (a JSONBArray) Value() (driver.Value, error) {
+// JSONBArrayOf represents an array of any type T (`[]T`) that is
+// compatible with PostgreSQL's JSONB type. JSONBArrayOf satisfies
+// [sqlbuilder.ScannerValuer].
+type JSONBArrayOf[T any] []T
+
+// Value satisfies the [driver.Valuer] interface.
+func (a JSONBArrayOf[T]) Value() (driver.Value, error) {
 	return JSONBValue(a)
 }
 
-// Scan satisfies the sql.Scanner interface.
-func (a *JSONBArray) Scan(src interface{}) error {
+// Scan satisfies the [sql.Scanner] interface.
+func (a *JSONBArrayOf[T]) Scan(src any) error {
 	return ScanJSONB(a, src)
 }
 
-// JSONBValue takes an interface and provides a driver.Value that can be
+// JSONBValue takes an interface and provides a [driver.Value] that can be
 // stored as a JSONB column.
-func JSONBValue(i interface{}) (driver.Value, error) {
+func JSONBValue(i any) (driver.Value, error) {
 	v := JSONB{i}
 	return v.Value()
 }
 
 // ScanJSONB decodes a JSON byte stream into the passed dst value.
-func ScanJSONB(dst interface{}, src interface{}) error {
+func ScanJSONB(dst any, src any) error {
 	v := JSONB{dst}
 	return v.Scan(src)
 }
@@ -78,7 +96,7 @@ func ScanJSONB(dst interface{}, src interface{}) error {
 type JSONBConverter struct {
 }
 
-func (*JSONBConverter) ConvertValue(in interface{}) interface {
+func (*JSONBConverter) ConvertValue(in any) interface {
 	sql.Scanner
 	driver.Valuer
 } {
@@ -97,7 +115,7 @@ func (t timeWrapper) Value() (driver.Value, error) {
 	return nil, nil
 }
 
-func (t *timeWrapper) Scan(src interface{}) error {
+func (t *timeWrapper) Scan(src any) error {
 	if src == nil {
 		nilTime := (*time.Time)(nil)
 		if t.v == nil {
@@ -122,7 +140,7 @@ func (t *timeWrapper) Scan(src interface{}) error {
 	return nil
 }
 
-func (d *database) ConvertValueContext(ctx context.Context, in interface{}) interface{} {
+func (d *database) ConvertValueContext(ctx context.Context, in any) any {
 	tz, _ := ctx.Value(db.ContextKey("timezone")).(*time.Location)
 
 	switch v := in.(type) {
@@ -142,7 +160,7 @@ var (
 	_ sqlbuilder.ScannerValuer = &Float64Array{}
 	_ sqlbuilder.ScannerValuer = &Float32Array{}
 	_ sqlbuilder.ScannerValuer = &BoolArray{}
-	_ sqlbuilder.ScannerValuer = &JSONBMap{}
-	_ sqlbuilder.ScannerValuer = &JSONBArray{}
+	_ sqlbuilder.ScannerValuer = &JSONBMapOf[struct{}]{}
+	_ sqlbuilder.ScannerValuer = &JSONBArrayOf[struct{}]{}
 	_ sqlbuilder.ScannerValuer = &JSONB{}
 )
