@@ -424,9 +424,12 @@ func (sel *selector) As(alias string) db.Selector {
 	})
 }
 
-func (sel *selector) statement() *exql.Statement {
-	sq, _ := sel.build()
-	return sq.statement()
+func (sel *selector) statement() (*exql.Statement, error) {
+	sq, err := sel.build()
+	if err != nil {
+		return nil, err
+	}
+	return sq.statement(), nil
 }
 
 func (sel *selector) QueryRow() (*sql.Row, error) {
@@ -502,7 +505,11 @@ func (sel *selector) build() (*selectorQuery, error) {
 }
 
 func (sel *selector) Compile() (string, error) {
-	return sel.statement().Compile(sel.template())
+	s, err := sel.statement()
+	if err != nil {
+		return "", err
+	}
+	return s.Compile(sel.template())
 }
 
 func (sel *selector) Prev() immutable.Immutable {
