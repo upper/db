@@ -1,0 +1,94 @@
+# github-sync publish-policy gate (base-context, PR-as-data) — ci-cd#148
+#
+# Generic/base GitHub Actions workflow the pilot (#151) installs into a public
+# snapshot repo as `.github/workflows/publish-policy-gate.yml`. It enforces the
+# shipped `publish-policy.json` path blocklist on every pull request WITHOUT
+# trusting PR-head content:
+#
+#   * `pull_request_target` runs in the BASE branch's context with the base
+#     repo's `GITHUB_TOKEN` — so the workflow file and policy that judge the PR
+#     come from the base, and a PR cannot rewrite the gate that judges it.
+#   * `permissions:` is pinned READ-ONLY — the job needs only to read PR
+#     metadata and report its own status; it never writes to the repo.
+#   * The checkout pins the BASE sha and disables credential persistence; the
+#     PR head is NEVER checked out or executed. The PR is consumed strictly as
+#     DATA: `policy_gate.py` lists the changed files via the GitHub API.
+#
+# Make this a REQUIRED status check under a branch ruleset (see
+# scripts/github-sync/policy_gate_ruleset.sh) so renaming or deleting the
+# workflow in a PR cannot substitute a passing check — the required check simply
+# never reports and the PR cannot merge.
+#
+# WARNING: do not add a step that checks out `github.event.pull_request.head.*`
+# or runs a script from the PR head. That would defeat the entire base-context
+# guarantee (the classic `pull_request_target` footgun). The execution-boundary
+# test asserts this file declares read-only perms, the `pull_request_target`
+# trigger, and a base-sha checkout with no head checkout.
+
+name: publish-policy-gate
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+
+# Read-only: the gate reads PR metadata and reports its own check status;
+# it never writes contents, PRs, issues, or anything else.
+permissions:
+  contents: read
+  pull-requests: read
+
+# One in-flight run per PR; a newer push supersedes an older gate run.
+concurrency:
+  group: publish-policy-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  policy-gate:
+    runs-on: ubuntu-latest
+    steps:
+      # Check out the BASE revision only — never the PR head. `ref` pins the
+      # base sha from the event payload and `persist-credentials: false` keeps
+      # no token in the local git config. The gate's code AND publish-policy.json
+      # both come from this base tree.
+      - name: Checkout base revision (never PR head)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      # Consume the PR strictly as DATA: policy_gate.py lists changed files via
+      # `gh api .../pulls/<n>/files` and matches them against the base policy.
+      # No PR-head content is fetched, checked out, or executed.
+      #
+      # SECURITY: every attacker-controlled event value (head.ref, user.login,
+      # …) is bound into `env:` and referenced ONLY as a double-quoted shell
+      # variable ("$PR_HEAD_REF"). It is NEVER interpolated as `${{ ... }}`
+      # inside the run script — a valid-but-hostile ref like `sync/x";id;#` or
+      # `feat/$(id)` would otherwise command-substitute/execute in the
+      # base-context runner with GH_TOKEN. GitHub sets env values as process
+      # data; a quoted "$VAR" is never re-parsed by the shell, so injection via
+      # a value is impossible. Only the trusted `github.repository`/token are
+      # interpolated directly.
+      - name: Evaluate changed files against publish-policy.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          # Repository (Actions) variable naming the publisher's login, e.g.
+          # `xiam-publisher[bot]`. It must NOT start with `GITHUB_` — GitHub
+          # reserves that prefix for its own variables and refuses to create
+          # such a repository variable (HTTP 422), which left the gate
+          # unconfigurable and failing closed on every PR (ci-cd#280).
+          SYNC_BOT_LOGIN: ${{ vars.PUBLISH_POLICY_BOT_LOGIN }}
+        run: |
+          python3 .github/publish-policy/policy_gate.py \
+            --policy publish-policy.json \
+            --repo "$REPO" \
+            --pr "$PR_NUMBER" \
+            --pr-author "$PR_AUTHOR" \
+            --pr-head-ref "$PR_HEAD_REF" \
+            --base-ref "$PR_BASE_REF" \
+            --sync-bot-login "$SYNC_BOT_LOGIN"
