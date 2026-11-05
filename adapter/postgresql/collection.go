@@ -29,7 +29,7 @@ import (
 type collectionAdapter struct {
 }
 
-func (*collectionAdapter) Insert(col sqladapter.Collection, item interface{}) (interface{}, error) {
+func (*collectionAdapter) Insert(col sqladapter.Collection, item any) (any, error) {
 	pKey, err := col.PrimaryKeys()
 	if err != nil {
 		return nil, err

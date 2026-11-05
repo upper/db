@@ -30,11 +30,12 @@ import (
 	"github.com/jackc/pgtype"
 )
 
-// JSONB represents a PostgreSQL's JSONB value:
-// https://www.postgresql.org/docs/9.6/static/datatype-json.html. JSONB
-// satisfies sqlbuilder.ScannerValuer.
+// JSONB represents a [PostgreSQL's JSONB] value. JSONB satisfies
+// [sqlbuilder.ScannerValuer].
+//
+// [PostgreSQL's JSONB]: https://www.postgresql.org/docs/current/static/datatype-json.html
 type JSONB struct {
-	Data interface{}
+	Data any
 }
 
 // MarshalJSON encodes the wrapper value as JSON.
@@ -62,8 +63,8 @@ func (j *JSONB) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// Scan satisfies the sql.Scanner interface.
-func (j *JSONB) Scan(src interface{}) error {
+// Scan satisfies the [sql.Scanner] interface.
+func (j *JSONB) Scan(src any) error {
 	t := &pgtype.JSONB{}
 	if err := t.Scan(src); err != nil {
 		return err
@@ -78,7 +79,7 @@ func (j *JSONB) Scan(src interface{}) error {
 	return nil
 }
 
-// Value satisfies the driver.Valuer interface.
+// Value satisfies the [driver.Valuer] interface.
 func (j JSONB) Value() (driver.Value, error) {
 	t := &pgtype.JSONB{}
 	if err := t.Set(j.Data); err != nil {
@@ -89,10 +90,10 @@ func (j JSONB) Value() (driver.Value, error) {
 
 // StringArray represents a one-dimensional array of strings (`[]string{}`)
 // that is compatible with PostgreSQL's text array (`text[]`). StringArray
-// satisfies sqlbuilder.ScannerValuer.
+// satisfies [sqlbuilder.ScannerValuer].
 type StringArray []string
 
-// Value satisfies the driver.Valuer interface.
+// Value satisfies the [driver.Valuer] interface.
 func (a StringArray) Value() (driver.Value, error) {
 	t := pgtype.TextArray{}
 	if err := t.Set(a); err != nil {
@@ -101,8 +102,8 @@ func (a StringArray) Value() (driver.Value, error) {
 	return t.Value()
 }
 
-// Scan satisfies the sql.Scanner interface.
-func (sa *StringArray) Scan(src interface{}) error {
+// Scan satisfies the [sql.Scanner] interface.
+func (sa *StringArray) Scan(src any) error {
 	d := []string{}
 	t := pgtype.TextArray{}
 	if err := t.Scan(src); err != nil {
@@ -125,7 +126,7 @@ func (b Bytea) Value() (driver.Value, error) {
 	return t.Value()
 }
 
-func (b *Bytea) Scan(src interface{}) error {
+func (b *Bytea) Scan(src any) error {
 	d := []byte{}
 	t := pgtype.Bytea{}
 	if err := t.Scan(src); err != nil {
@@ -140,10 +141,10 @@ func (b *Bytea) Scan(src interface{}) error {
 
 // ByteaArray represents a one-dimensional array of strings (`[]string{}`)
 // that is compatible with PostgreSQL's text array (`text[]`). ByteaArray
-// satisfies sqlbuilder.ScannerValuer.
+// satisfies [sqlbuilder.ScannerValuer].
 type ByteaArray [][]byte
 
-// Value satisfies the driver.Valuer interface.
+// Value satisfies the [driver.Valuer] interface.
 func (a ByteaArray) Value() (driver.Value, error) {
 	t := pgtype.ByteaArray{}
 	if err := t.Set(a); err != nil {
@@ -152,8 +153,8 @@ func (a ByteaArray) Value() (driver.Value, error) {
 	return t.Value()
 }
 
-// Scan satisfies the sql.Scanner interface.
-func (ba *ByteaArray) Scan(src interface{}) error {
+// Scan satisfies the [sql.Scanner] interface.
+func (ba *ByteaArray) Scan(src any) error {
 	d := [][]byte{}
 	t := pgtype.ByteaArray{}
 	if err := t.Scan(src); err != nil {
@@ -168,10 +169,10 @@ func (ba *ByteaArray) Scan(src interface{}) error {
 
 // Int64Array represents a one-dimensional array of int64s (`[]int64{}`) that
 // is compatible with PostgreSQL's integer array (`integer[]`). Int64Array
-// satisfies sqlbuilder.ScannerValuer.
+// satisfies [sqlbuilder.ScannerValuer].
 type Int64Array []int64
 
-// Value satisfies the driver.Valuer interface.
+// Value satisfies the [driver.Valuer] interface.
 func (i64a Int64Array) Value() (driver.Value, error) {
 	t := pgtype.Int8Array{}
 	if err := t.Set(i64a); err != nil {
@@ -180,8 +181,8 @@ func (i64a Int64Array) Value() (driver.Value, error) {
 	return t.Value()
 }
 
-// Scan satisfies the sql.Scanner interface.
-func (i64a *Int64Array) Scan(src interface{}) error {
+// Scan satisfies the [sql.Scanner] interface.
+func (i64a *Int64Array) Scan(src any) error {
 	d := []int64{}
 	t := pgtype.Int8Array{}
 	if err := t.Scan(src); err != nil {
@@ -196,10 +197,10 @@ func (i64a *Int64Array) Scan(src interface{}) error {
 
 // Int32Array represents a one-dimensional array of int32s (`[]int32{}`) that
 // is compatible with PostgreSQL's integer array (`integer[]`). Int32Array
-// satisfies sqlbuilder.ScannerValuer.
+// satisfies [sqlbuilder.ScannerValuer].
 type Int32Array []int32
 
-// Value satisfies the driver.Valuer interface.
+// Value satisfies the [driver.Valuer] interface.
 func (i32a Int32Array) Value() (driver.Value, error) {
 	t := pgtype.Int4Array{}
 	if err := t.Set(i32a); err != nil {
@@ -208,8 +209,8 @@ func (i32a Int32Array) Value() (driver.Value, error) {
 	return t.Value()
 }
 
-// Scan satisfies the sql.Scanner interface.
-func (i32a *Int32Array) Scan(src interface{}) error {
+// Scan satisfies the [sql.Scanner] interface.
+func (i32a *Int32Array) Scan(src any) error {
 	d := []int32{}
 	t := pgtype.Int4Array{}
 	if err := t.Scan(src); err != nil {
@@ -224,10 +225,10 @@ func (i32a *Int32Array) Scan(src interface{}) error {
 
 // Float64Array represents a one-dimensional array of float64s (`[]float64{}`)
 // that is compatible with PostgreSQL's double precision array (`double
-// precision[]`). Float64Array satisfies sqlbuilder.ScannerValuer.
+// precision[]`). Float64Array satisfies [sqlbuilder.ScannerValuer].
 type Float64Array []float64
 
-// Value satisfies the driver.Valuer interface.
+// Value satisfies the [driver.Valuer] interface.
 func (f64a Float64Array) Value() (driver.Value, error) {
 	t := pgtype.Float8Array{}
 	if err := t.Set(f64a); err != nil {
@@ -236,8 +237,8 @@ func (f64a Float64Array) Value() (driver.Value, error) {
 	return t.Value()
 }
 
-// Scan satisfies the sql.Scanner interface.
-func (f64a *Float64Array) Scan(src interface{}) error {
+// Scan satisfies the [sql.Scanner] interface.
+func (f64a *Float64Array) Scan(src any) error {
 	d := []float64{}
 	t := pgtype.Float8Array{}
 	if err := t.Scan(src); err != nil {
@@ -252,10 +253,10 @@ func (f64a *Float64Array) Scan(src interface{}) error {
 
 // Float32Array represents a one-dimensional array of float32s (`[]float32{}`)
 // that is compatible with PostgreSQL's double precision array (`double
-// precision[]`). Float32Array satisfies sqlbuilder.ScannerValuer.
+// precision[]`). Float32Array satisfies [sqlbuilder.ScannerValuer].
 type Float32Array []float32
 
-// Value satisfies the driver.Valuer interface.
+// Value satisfies the [driver.Valuer] interface.
 func (f32a Float32Array) Value() (driver.Value, error) {
 	t := pgtype.Float8Array{}
 	if err := t.Set(f32a); err != nil {
@@ -264,8 +265,8 @@ func (f32a Float32Array) Value() (driver.Value, error) {
 	return t.Value()
 }
 
-// Scan satisfies the sql.Scanner interface.
-func (f32a *Float32Array) Scan(src interface{}) error {
+// Scan satisfies the [sql.Scanner] interface.
+func (f32a *Float32Array) Scan(src any) error {
 	d := []float32{}
 	t := pgtype.Float8Array{}
 	if err := t.Scan(src); err != nil {
@@ -280,10 +281,10 @@ func (f32a *Float32Array) Scan(src interface{}) error {
 
 // BoolArray represents a one-dimensional array of int64s (`[]bool{}`) that
 // is compatible with PostgreSQL's boolean type (`boolean[]`). BoolArray
-// satisfies sqlbuilder.ScannerValuer.
+// satisfies [sqlbuilder.ScannerValuer].
 type BoolArray []bool
 
-// Value satisfies the driver.Valuer interface.
+// Value satisfies the [driver.Valuer] interface.
 func (ba BoolArray) Value() (driver.Value, error) {
 	t := pgtype.BoolArray{}
 	if err := t.Set(ba); err != nil {
@@ -292,8 +293,8 @@ func (ba BoolArray) Value() (driver.Value, error) {
 	return t.Value()
 }
 
-// Scan satisfies the sql.Scanner interface.
-func (ba *BoolArray) Scan(src interface{}) error {
+// Scan satisfies the [sql.Scanner] interface.
+func (ba *BoolArray) Scan(src any) error {
 	d := []bool{}
 	t := pgtype.BoolArray{}
 	if err := t.Scan(src); err != nil {

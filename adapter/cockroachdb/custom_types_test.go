@@ -10,7 +10,7 @@ import (
 type testStruct struct {
 	X int         `json:"x"`
 	Z string      `json:"z"`
-	V interface{} `json:"v"`
+	V any `json:"v"`
 }
 
 func TestScanJSONB(t *testing.T) {

@@ -20,7 +20,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 // Package postgresql provides an adapter for PostgreSQL.
-// See https://github.com/upper/db/adapter/postgresql for documentation,
+// See https://upper.io/v4/adapter/postgresql for documentation,
 // particularities and usage examples.
 package postgresql
 
@@ -64,7 +64,7 @@ func (*database) Collections(sess sqladapter.Session) (collections []string, err
 	return collections, nil
 }
 
-func (*database) ConvertValue(in interface{}) interface{} {
+func (*database) ConvertValue(in any) any {
 	switch v := in.(type) {
 	case *[]int64:
 		return (*Int64Array)(v)
@@ -74,8 +74,8 @@ func (*database) ConvertValue(in interface{}) interface{} {
 		return (*Float64Array)(v)
 	case *[]bool:
 		return (*BoolArray)(v)
-	case *map[string]interface{}:
-		return (*JSONBMap)(v)
+	case *map[string]any:
+		return (*JSONBMapOf[any])(v)
 
 	case []int64:
 		return (*Int64Array)(&v)
@@ -85,14 +85,14 @@ func (*database) ConvertValue(in interface{}) interface{} {
 		return (*Float64Array)(&v)
 	case []bool:
 		return (*BoolArray)(&v)
-	case map[string]interface{}:
-		return (*JSONBMap)(&v)
+	case map[string]any:
+		return (*JSONBMapOf[any])(&v)
 
 	}
 	return in
 }
 
-func (*database) CompileStatement(sess sqladapter.Session, stmt *exql.Statement, args []interface{}) (string, []interface{}, error) {
+func (*database) CompileStatement(sess sqladapter.Session, stmt *exql.Statement, args []any) (string, []any, error) {
 	compiled, err := stmt.Compile(template)
 	if err != nil {
 		return "", nil, err
